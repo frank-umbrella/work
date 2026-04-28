@@ -1,0 +1,51 @@
+rules_version = '2';
+
+// LinkLock — security rules.
+//
+// Threat model: anyone with the doc ID (which only lives in the URL fragment,
+// alongside the decryption key) is the intended recipient. The doc ID is a
+// 20-char Firestore auto-id, ~120 bits of entropy, unguessable by enumeration.
+// `list` is denied so the collection cannot be enumerated.
+//
+// Burn-after-read is enforced by the recipient's browser issuing a delete
+// after reading. Spark plan = no Cloud Functions, so this is the best we can
+// do without going to Blaze. The TTL safety net catches abandoned links.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /links/{linkId} {
+
+      // Anyone can create a link. We lock down the shape and cap sizes so the
+      // collection cannot be used for arbitrary cheap storage.
+      allow create: if
+           request.resource.data.keys().hasOnly(['ciphertext', 'iv', 'expiresAt', 'createdAt'])
+        && request.resource.data.keys().hasAll(['ciphertext', 'iv', 'expiresAt', 'createdAt'])
+        && request.resource.data.ciphertext is string
+        && request.resource.data.ciphertext.size() > 0
+        && request.resource.data.ciphertext.size() < 10000
+        && request.resource.data.iv is string
+        && request.resource.data.iv.size() > 0
+        && request.resource.data.iv.size() < 64
+        && request.resource.data.expiresAt is timestamp
+        && request.resource.data.expiresAt > request.time
+        && request.resource.data.expiresAt < request.time + duration.value(8, 'd')
+        && request.resource.data.createdAt is timestamp;
+
+      // Anyone with the doc ID can read, but only while the link is unexpired.
+      // Even if the daily TTL sweep hasn't run yet, expired docs are unreadable.
+      allow get: if request.time < resource.data.expiresAt;
+
+      // No queries — prevents enumeration.
+      allow list: if false;
+
+      // No updates — links are write-once.
+      allow update: if false;
+
+      // Anyone can delete. This is the burn-after-read action; the legitimate
+      // recipient deletes after reading. A drive-by delete is harmless (the
+      // sender just creates a new link).
+      allow delete: if true;
+    }
+  }
+}

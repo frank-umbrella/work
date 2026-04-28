@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LinkLock</title>
+<meta name="description" content="Share a one-time password or secret over a self-destructing link. Encrypted in the browser; burned after first reveal.">
+<meta name="robots" content="noindex">
+<meta name="generator" content="LinkLock v0.1.0">
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --surface: #ffffff;
+    --ink: #1a1f2b;
+    --ink-soft: #475063;
+    --line: #e3e6ec;
+    --line-strong: #c9cfdb;
+    --accent: #1a56db;
+    --accent-soft: #eaf0fc;
+    --warn: #b54708;
+    --warn-soft: #fff4e5;
+    --good: #036b3f;
+    --good-soft: #e6f4ec;
+    --danger: #b42318;
+    --danger-soft: #fdecec;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --shadow: 0 1px 2px rgba(20, 25, 40, 0.04), 0 4px 14px rgba(20, 25, 40, 0.05);
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); }
+  a:hover { text-decoration: none; }
+
+  header.page {
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+    padding: 28px 24px 22px;
+  }
+  header.page .wrap {
+    max-width: 720px;
+    margin: 0 auto;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  header.page h1 {
+    font-size: 26px;
+    margin: 0 0 4px;
+    letter-spacing: -0.01em;
+  }
+  header.page p {
+    margin: 0;
+    color: var(--ink-soft);
+    font-size: 14.5px;
+  }
+  header.page .ver {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink-soft);
+    background: var(--bg);
+    padding: 3px 9px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    flex-shrink: 0;
+  }
+
+  main {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 28px 24px 60px;
+  }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 22px 22px;
+    box-shadow: var(--shadow);
+  }
+  .panel + .panel { margin-top: 18px; }
+  .panel h2 {
+    margin: 0 0 6px;
+    font-size: 18px;
+    letter-spacing: -0.005em;
+  }
+  .panel .lead {
+    margin: 0 0 16px;
+    color: var(--ink-soft);
+    font-size: 14.5px;
+  }
+
+  label {
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--ink-soft);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  textarea, input[type="text"], select {
+    width: 100%;
+    font: inherit;
+    font-family: var(--mono);
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--ink);
+    background: var(--surface);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+  }
+  textarea {
+    min-height: 110px;
+    resize: vertical;
+  }
+  textarea:focus, input:focus, select:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: 0;
+    border-color: var(--accent);
+  }
+
+  .row {
+    display: flex;
+    gap: 12px;
+    align-items: end;
+    margin-top: 14px;
+    flex-wrap: wrap;
+  }
+  .row > div { flex: 1; min-width: 160px; }
+
+  button.primary {
+    appearance: none;
+    background: var(--accent);
+    color: #fff;
+    border: 0;
+    border-radius: var(--radius-sm);
+    padding: 12px 18px;
+    font: inherit;
+    font-weight: 600;
+    font-size: 15px;
+    cursor: pointer;
+    transition: background .12s ease;
+  }
+  button.primary:hover { background: #143fb2; }
+  button.primary:disabled {
+    background: var(--line-strong);
+    cursor: not-allowed;
+  }
+  button.primary.big {
+    width: 100%;
+    padding: 16px 20px;
+    font-size: 16px;
+  }
+
+  button.secondary {
+    appearance: none;
+    background: var(--surface);
+    color: var(--ink);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-sm);
+    padding: 8px 12px;
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  button.secondary:hover { background: var(--bg); }
+
+  .url-box {
+    margin-top: 14px;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    font-family: var(--mono);
+    font-size: 13px;
+    word-break: break-all;
+    line-height: 1.5;
+  }
+  .url-actions {
+    margin-top: 10px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .password-box {
+    margin: 10px 0 4px;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    padding: 16px 14px;
+    font-family: var(--mono);
+    font-size: 16px;
+    word-break: break-all;
+    white-space: pre-wrap;
+    line-height: 1.5;
+    min-height: 56px;
+  }
+  .password-box.hidden-text {
+    color: transparent;
+    text-shadow: 0 0 12px rgba(26, 31, 43, 0.7);
+    user-select: none;
+  }
+
+  .notice {
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    font-size: 13.5px;
+    margin-top: 14px;
+  }
+  .notice.warn {
+    background: var(--warn-soft);
+    color: var(--warn);
+    border: 1px solid #f4d3a8;
+  }
+  .notice.good {
+    background: var(--good-soft);
+    color: var(--good);
+    border: 1px solid #b8dec5;
+  }
+  .notice.danger {
+    background: var(--danger-soft);
+    color: var(--danger);
+    border: 1px solid #f0b9b3;
+  }
+
+  .small-note {
+    font-size: 13px;
+    color: var(--ink-soft);
+    margin-top: 14px;
+  }
+  .small-note code {
+    background: var(--bg);
+    border: 1px solid var(--line);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 12.5px;
+  }
+
+  .hidden { display: none !important; }
+
+  footer.page {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 0 24px 32px;
+    color: var(--ink-soft);
+    font-size: 12.5px;
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  footer.page a { color: var(--ink-soft); text-decoration: underline; }
+
+  .spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    vertical-align: -2px;
+    margin-right: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<header class="page">
+  <div class="wrap">
+    <div>
+      <h1>LinkLock</h1>
+      <p>Share a one-time password or secret over a self-destructing link.</p>
+    </div>
+    <span class="ver">v0.1.0</span>
+  </div>
+</header>
+
+<main>
+
+  <!-- =============== SENDER MODE =============== -->
+  <section id="sender" class="hidden">
+    <div class="panel">
+      <label for="secret">Password / secret to share</label>
+      <textarea id="secret" placeholder="Paste the password or secret here. Encrypted in your browser before sending."></textarea>
+
+      <div class="row">
+        <div>
+          <label for="ttl">Expires after</label>
+          <select id="ttl">
+            <option value="900">15 minutes</option>
+            <option value="3600">1 hour</option>
+            <option value="86400" selected>24 hours</option>
+            <option value="604800">7 days</option>
+          </select>
+        </div>
+        <div>
+          <button id="createBtn" class="primary big" type="button">Create one-time link</button>
+        </div>
+      </div>
+
+      <div id="senderError" class="notice danger hidden"></div>
+    </div>
+
+    <div id="resultPanel" class="panel hidden">
+      <label>Share this link</label>
+      <div id="resultUrl" class="url-box"></div>
+      <div class="url-actions">
+        <button class="secondary" id="copyUrl" type="button">Copy link</button>
+        <button class="secondary" id="newLink" type="button">Create another</button>
+      </div>
+      <div class="notice warn">
+        &#9888; This link can be revealed <strong>once</strong>. After it's revealed, the encrypted data is destroyed on the server. If it's never revealed, it auto-deletes after the expiry you chose.
+      </div>
+      <div class="small-note">
+        The decryption key lives only in the part of the URL after <code>#</code>, which is never sent to any server. Even Firestore can't read what you shared.
+      </div>
+    </div>
+  </section>
+
+  <!-- =============== RECIPIENT MODE =============== -->
+  <section id="recipient" class="hidden">
+
+    <div id="revealGate" class="panel">
+      <h2>A one-time password was shared with you</h2>
+      <p class="lead">Once you reveal it, the encrypted data is destroyed and the link cannot be opened again. Make sure you're ready to copy it now.</p>
+      <button id="revealBtn" class="primary big" type="button">&#128274; Reveal one-time password</button>
+    </div>
+
+    <div id="revealedPanel" class="panel hidden">
+      <label>Password</label>
+      <div id="passwordBox" class="password-box"></div>
+      <div class="url-actions">
+        <button class="secondary" id="copyPw" type="button">Copy</button>
+        <button class="secondary" id="togglePw" type="button">Show / hide</button>
+      </div>
+      <div class="notice warn">
+        &#9888; This password has been destroyed on the server. Refreshing this page will not bring it back.
+      </div>
+    </div>
+
+    <div id="recipientError" class="panel hidden">
+      <div class="notice danger" id="recipientErrorMsg"></div>
+      <p class="small-note">If you're the sender and need to share again, <a href="./">create a new link</a>.</p>
+    </div>
+
+  </section>
+
+</main>
+
+<footer class="page">
+  <span>LinkLock &middot; encrypted in browser, burned after first reveal &middot; <a href="../">Work Hub</a></span>
+  <span>v0.1.0</span>
+</footer>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
+import {
+  getFirestore,
+  collection,
+  doc,
+  addDoc,
+  getDoc,
+  deleteDoc,
+  serverTimestamp,
+  Timestamp
+} from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCNuxxKzY6V7DfjUrhb90qZyYHzK0MvoNo",
+  authDomain: "linklock-d2e0c.firebaseapp.com",
+  projectId: "linklock-d2e0c",
+  storageBucket: "linklock-d2e0c.firebasestorage.app",
+  messagingSenderId: "248498339496",
+  appId: "1:248498339496:web:265b0b40b79e76e5940c9d"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const linksCol = collection(db, "links");
+
+const enc = new TextEncoder();
+const dec = new TextDecoder();
+
+function b64url(bytes) {
+  let s = btoa(String.fromCharCode(...bytes));
+  return s.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+function unb64url(str) {
+  let s = str.replace(/-/g, '+').replace(/_/g, '/');
+  while (s.length % 4) s += '=';
+  const bin = atob(s);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+
+async function generateKey() {
+  return crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]);
+}
+async function exportKey(k) {
+  const raw = await crypto.subtle.exportKey("raw", k);
+  return b64url(new Uint8Array(raw));
+}
+async function importKey(b64) {
+  return crypto.subtle.importKey("raw", unb64url(b64), { name: "AES-GCM" }, false, ["decrypt"]);
+}
+
+async function encryptText(plaintext) {
+  const key = await generateKey();
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, enc.encode(plaintext));
+  return {
+    ciphertext: b64url(new Uint8Array(ct)),
+    iv: b64url(iv),
+    keyB64: await exportKey(key)
+  };
+}
+
+async function decryptText(ciphertextB64, ivB64, keyB64) {
+  const key = await importKey(keyB64);
+  const ct = unb64url(ciphertextB64);
+  const iv = unb64url(ivB64);
+  const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, ct);
+  return dec.decode(pt);
+}
+
+const hash = location.hash.slice(1);
+const senderEl = document.getElementById("sender");
+const recipientEl = document.getElementById("recipient");
+
+if (hash) {
+  recipientEl.classList.remove("hidden");
+  setupRecipient();
+} else {
+  senderEl.classList.remove("hidden");
+  setupSender();
+}
+
+function setupSender() {
+  const secretEl = document.getElementById("secret");
+  const ttlEl = document.getElementById("ttl");
+  const createBtn = document.getElementById("createBtn");
+  const errBox = document.getElementById("senderError");
+  const resultPanel = document.getElementById("resultPanel");
+  const resultUrl = document.getElementById("resultUrl");
+  const copyBtn = document.getElementById("copyUrl");
+  const newBtn = document.getElementById("newLink");
+
+  function showError(msg) {
+    errBox.textContent = msg;
+    errBox.classList.remove("hidden");
+  }
+  function clearError() {
+    errBox.classList.add("hidden");
+  }
+
+  createBtn.addEventListener("click", async () => {
+    clearError();
+    const secret = secretEl.value;
+    if (!secret) {
+      showError("Enter a password or secret first.");
+      return;
+    }
+    if (secret.length > 4000) {
+      showError("Secret is too long (max 4000 characters).");
+      return;
+    }
+    const ttlSec = parseInt(ttlEl.value, 10);
+    createBtn.disabled = true;
+    createBtn.innerHTML = '<span class="spinner"></span>Encrypting&hellip;';
+    try {
+      const { ciphertext, iv, keyB64 } = await encryptText(secret);
+      const expiresAt = Timestamp.fromMillis(Date.now() + ttlSec * 1000);
+      const ref = await addDoc(linksCol, {
+        ciphertext,
+        iv,
+        expiresAt,
+        createdAt: serverTimestamp()
+      });
+      const url = `${location.origin}${location.pathname}#${ref.id}.${keyB64}`;
+      resultUrl.textContent = url;
+      resultPanel.classList.remove("hidden");
+      secretEl.value = "";
+      resultPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+    } catch (e) {
+      console.error(e);
+      showError("Could not create link: " + (e?.message || "unknown error"));
+    } finally {
+      createBtn.disabled = false;
+      createBtn.textContent = "Create one-time link";
+    }
+  });
+
+  copyBtn.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(resultUrl.textContent);
+      copyBtn.textContent = "Copied!";
+      setTimeout(() => copyBtn.textContent = "Copy link", 1400);
+    } catch {
+      copyBtn.textContent = "Press Ctrl+C";
+    }
+  });
+
+  newBtn.addEventListener("click", () => {
+    resultPanel.classList.add("hidden");
+    resultUrl.textContent = "";
+    secretEl.focus();
+  });
+}
+
+function setupRecipient() {
+  const revealGate = document.getElementById("revealGate");
+  const revealBtn = document.getElementById("revealBtn");
+  const revealedPanel = document.getElementById("revealedPanel");
+  const passwordBox = document.getElementById("passwordBox");
+  const copyPwBtn = document.getElementById("copyPw");
+  const togglePwBtn = document.getElementById("togglePw");
+  const errPanel = document.getElementById("recipientError");
+  const errMsg = document.getElementById("recipientErrorMsg");
+
+  function showError(msg) {
+    revealGate.classList.add("hidden");
+    revealedPanel.classList.add("hidden");
+    errMsg.textContent = msg;
+    errPanel.classList.remove("hidden");
+  }
+
+  const dotIdx = hash.indexOf(".");
+  if (dotIdx < 1 || dotIdx === hash.length - 1) {
+    showError("This link is malformed.");
+    return;
+  }
+  const docId = hash.slice(0, dotIdx);
+  const keyB64 = hash.slice(dotIdx + 1);
+
+  revealBtn.addEventListener("click", async () => {
+    revealBtn.disabled = true;
+    revealBtn.innerHTML = '<span class="spinner"></span>Revealing&hellip;';
+    try {
+      const ref = doc(db, "links", docId);
+      const snap = await getDoc(ref);
+      if (!snap.exists()) {
+        showError("This link has already been revealed, or it has expired.");
+        return;
+      }
+      const data = snap.data();
+      try {
+        await deleteDoc(ref);
+      } catch (e) {
+        console.error("delete failed", e);
+        showError("Could not destroy the link on the server. Aborting reveal so the secret is not exposed twice.");
+        return;
+      }
+      let plaintext;
+      try {
+        plaintext = await decryptText(data.ciphertext, data.iv, keyB64);
+      } catch {
+        showError("The link is corrupted or the key is wrong (decryption failed). The encrypted data has still been destroyed.");
+        return;
+      }
+      passwordBox.textContent = plaintext;
+      revealGate.classList.add("hidden");
+      revealedPanel.classList.remove("hidden");
+    } catch (e) {
+      console.error(e);
+      const msg = (e?.message || '').toLowerCase();
+      if (e?.code === 'permission-denied' || msg.includes('permission')) {
+        showError("This link has already been revealed, or it has expired.");
+      } else {
+        showError("Could not retrieve the link: " + (e?.message || "unknown error"));
+      }
+    }
+  });
+
+  let hidden = false;
+  togglePwBtn.addEventListener("click", () => {
+    hidden = !hidden;
+    passwordBox.classList.toggle("hidden-text", hidden);
+  });
+
+  copyPwBtn.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(passwordBox.textContent);
+      copyPwBtn.textContent = "Copied!";
+      setTimeout(() => copyPwBtn.textContent = "Copy", 1400);
+    } catch {
+      copyPwBtn.textContent = "Press Ctrl+C";
+    }
+  });
+}
+</script>
+
+</body>
+</html>
