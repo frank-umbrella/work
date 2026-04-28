@@ -1,0 +1,1019 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phishing Awareness</title>
+<meta name="description" content="A short guide for staff on spotting phishing emails, fake sign-in pages, and fake 2FA prompts in Google Workspace and Microsoft 365.">
+<meta name="robots" content="noindex">
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --surface: #ffffff;
+    --ink: #1a1f2b;
+    --ink-soft: #475063;
+    --line: #e3e6ec;
+    --line-strong: #c9cfdb;
+    --accent: #1a56db;
+    --accent-soft: #eaf0fc;
+    --warn: #b54708;
+    --warn-soft: #fff4e5;
+    --good: #036b3f;
+    --good-soft: #e6f4ec;
+    --radius: 10px;
+    --shadow: 0 1px 2px rgba(20, 25, 40, 0.04), 0 4px 14px rgba(20, 25, 40, 0.05);
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); }
+  a:hover { text-decoration: none; }
+
+  header.page {
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+    padding: 28px 24px 20px;
+  }
+  header.page .wrap {
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  header.page h1 {
+    font-size: 26px;
+    margin: 0 0 6px;
+    letter-spacing: -0.01em;
+  }
+  header.page p {
+    margin: 0;
+    color: var(--ink-soft);
+    font-size: 15px;
+  }
+
+  nav.tabs {
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+    position: sticky;
+    top: 0;
+    z-index: 5;
+  }
+  nav.tabs .wrap {
+    max-width: 1100px;
+    margin: 0 auto;
+    display: flex;
+    gap: 4px;
+    padding: 0 16px;
+  }
+  nav.tabs button {
+    appearance: none;
+    background: transparent;
+    border: 0;
+    border-bottom: 3px solid transparent;
+    padding: 14px 18px;
+    margin: 0;
+    font: inherit;
+    font-weight: 600;
+    color: var(--ink-soft);
+    cursor: pointer;
+    border-radius: 0;
+  }
+  nav.tabs button:hover { color: var(--ink); }
+  nav.tabs button[aria-selected="true"] {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+  nav.tabs button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: -2px;
+  }
+
+  main {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 24px 24px 60px;
+  }
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: 24px;
+  }
+  @media (max-width: 880px) {
+    .layout { grid-template-columns: 1fr; }
+  }
+
+  .content article + article { margin-top: 18px; }
+  .content h2 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-soft);
+    margin: 22px 0 10px;
+    font-weight: 700;
+  }
+  .content article {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+    box-shadow: var(--shadow);
+  }
+  .content article h3 {
+    margin: 0 0 8px;
+    font-size: 17px;
+    letter-spacing: -0.005em;
+  }
+  .content article p { margin: 0 0 10px; color: var(--ink); }
+  .content article p:last-child { margin-bottom: 0; }
+  .content ul {
+    margin: 6px 0 0;
+    padding-left: 20px;
+  }
+  .content li { margin: 4px 0; }
+  .content li code, .content p code {
+    font-family: var(--mono);
+    font-size: 0.92em;
+    background: #f1f3f7;
+    border: 1px solid var(--line);
+    padding: 1px 5px;
+    border-radius: 5px;
+  }
+
+  .pill {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 2px 8px;
+    border-radius: 999px;
+    vertical-align: middle;
+    margin-right: 8px;
+  }
+  .pill.warn { background: var(--warn-soft); color: var(--warn); }
+  .pill.good { background: var(--good-soft); color: var(--good); }
+
+  .callout {
+    border-left: 3px solid var(--accent);
+    background: var(--accent-soft);
+    padding: 10px 14px;
+    border-radius: 6px;
+    margin: 10px 0 0;
+    font-size: 14.5px;
+    color: var(--ink);
+  }
+  .callout.warn { border-color: var(--warn); background: var(--warn-soft); }
+
+  .sidebar { display: flex; flex-direction: column; gap: 16px; }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 18px 18px 16px;
+    box-shadow: var(--shadow);
+  }
+  .card h3 {
+    margin: 0 0 4px;
+    font-size: 16px;
+  }
+  .card .lead {
+    color: var(--ink-soft);
+    font-size: 14px;
+    margin: 0 0 12px;
+  }
+  .card ol {
+    margin: 0 0 12px;
+    padding-left: 20px;
+    font-size: 14.5px;
+  }
+  .card ol li { margin: 3px 0; }
+  .card ol li code {
+    font-family: var(--mono);
+    font-size: 0.9em;
+    background: #f1f3f7;
+    border: 1px solid var(--line);
+    padding: 0 4px;
+    border-radius: 4px;
+  }
+  .card .btn {
+    display: inline-block;
+    background: var(--accent);
+    color: #fff;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 14px;
+    padding: 9px 14px;
+    border-radius: 7px;
+  }
+  .card .btn:hover { background: #1547b8; }
+  .card .btn.secondary {
+    background: transparent;
+    color: var(--accent);
+    border: 1px solid var(--line-strong);
+  }
+  .card .btn.secondary:hover { background: var(--accent-soft); }
+  .card .btn + .btn { margin-left: 6px; }
+  .card .small {
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    margin-top: 10px;
+  }
+
+  footer.page {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 24px 32px;
+    color: var(--ink-soft);
+    font-size: 12.5px;
+  }
+  footer.page p { margin: 6px 0; }
+
+  [hidden] { display: none !important; }
+
+  /* === Mockups ============================================== */
+  .mockup {
+    margin-top: 16px;
+    padding: 14px 16px 16px;
+    border: 1px dashed var(--line-strong);
+    border-radius: var(--radius);
+    background: #fafbfd;
+  }
+  .mockup-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-soft);
+    margin-bottom: 10px;
+  }
+  .mockup-callouts {
+    margin-top: 12px;
+    display: grid;
+    gap: 6px;
+    font-size: 13.5px;
+    counter-reset: callout;
+  }
+  .mockup-callouts > div {
+    counter-increment: callout;
+    position: relative;
+    padding-left: 26px;
+  }
+  .mockup-callouts > div::before {
+    content: counter(callout);
+    position: absolute;
+    left: 0; top: 1px;
+    width: 18px; height: 18px;
+    background: var(--warn);
+    color: #fff;
+    border-radius: 50%;
+    font: 700 11px var(--sans);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .mockup-callouts code {
+    font-family: var(--mono);
+    font-size: 0.92em;
+    background: #f1f3f7;
+    border: 1px solid var(--line);
+    padding: 0 4px;
+    border-radius: 4px;
+  }
+
+  .email-frame {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    overflow: hidden;
+    font-size: 13.5px;
+    box-shadow: 0 1px 3px rgba(20, 25, 40, 0.06);
+  }
+  .mockup-google .email-frame { border-top: 3px solid #ea4335; }
+  .mockup-ms .email-frame { border-top: 3px solid #0078d4; }
+  .email-toolbar {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 12px;
+    background: #f5f6f8;
+    border-bottom: 1px solid var(--line);
+    font-size: 12px;
+    color: var(--ink-soft);
+  }
+  .email-toolbar .dot {
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    background: #d3d6dc;
+    display: inline-block;
+  }
+  .email-subject {
+    padding: 12px 14px 4px;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .email-meta {
+    padding: 0 14px 10px;
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    border-bottom: 1px solid var(--line);
+  }
+  .email-meta .name { color: var(--ink); font-weight: 600; margin-right: 4px; }
+  .email-meta .addr { font-family: var(--mono); font-size: 0.92em; }
+  .email-meta .addr strong {
+    color: var(--warn);
+    background: var(--warn-soft);
+    padding: 0 3px;
+    border-radius: 3px;
+    font-weight: 700;
+  }
+  .email-body { padding: 14px; }
+  .email-body p { margin: 0 0 10px; }
+  .email-body .cta {
+    display: inline-block;
+    color: #fff;
+    padding: 8px 14px;
+    border-radius: 4px;
+    font-weight: 600;
+    margin-top: 4px;
+    cursor: default;
+    position: relative;
+    animation: button-hover-loop 8s ease-in-out infinite;
+  }
+  .mockup-google .email-body .cta { background: #1a73e8; }
+  .mockup-ms .email-body .cta { background: #0078d4; }
+
+  .url-reveal {
+    margin-top: 12px;
+    background: #1a1f2b;
+    color: #fff;
+    font-size: 12px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    position: relative;
+    opacity: 0;
+    transform: translateY(-4px);
+    animation: reveal-loop 8s ease-in-out infinite;
+  }
+  .url-reveal::before {
+    content: '';
+    position: absolute;
+    top: -5px; left: 18px;
+    border: 5px solid transparent;
+    border-top: 0;
+    border-bottom-color: #1a1f2b;
+  }
+  .url-reveal-label {
+    display: block;
+    color: #c7cbd6;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 3px;
+  }
+  .url-reveal code {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: #ffb38a;
+    word-break: break-all;
+    background: transparent;
+    border: 0;
+    padding: 0;
+  }
+  @keyframes reveal-loop {
+    0%, 15%   { opacity: 0; transform: translateY(-4px); }
+    25%, 75%  { opacity: 1; transform: translateY(0); }
+    85%, 100% { opacity: 0; transform: translateY(-4px); }
+  }
+  @keyframes button-hover-loop {
+    0%, 15%, 85%, 100% { box-shadow: none; }
+    25%, 75%           { box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--warn); }
+  }
+  .mockup:hover .url-reveal,
+  .mockup:hover .email-body .cta { animation-play-state: paused; }
+
+  /* Browser chrome / fake login */
+  .browser {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(20, 25, 40, 0.06);
+  }
+  .browser-bar {
+    background: #ecedf2;
+    padding: 8px 10px;
+    display: flex; gap: 8px; align-items: center;
+  }
+  .browser-bar .dots { display: flex; gap: 5px; }
+  .browser-bar .dots span {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: #c7cbd6;
+  }
+  .browser-bar .url {
+    flex: 1;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 4px 12px;
+    font: 12px var(--mono);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: flex; align-items: center; gap: 6px;
+    color: var(--ink);
+  }
+  .browser-bar .url .lock { flex: 0 0 auto; }
+  .browser-bar .url .danger {
+    color: var(--warn);
+    background: var(--warn-soft);
+    padding: 0 5px;
+    border-radius: 3px;
+    font-weight: 700;
+    animation: pulse-bad 2.4s ease-in-out infinite;
+  }
+  @keyframes pulse-bad {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(181, 71, 8, 0); }
+    50%      { box-shadow: 0 0 0 4px rgba(181, 71, 8, 0.25); }
+  }
+  .url-annotate-row {
+    background: #fff;
+    border-bottom: 1px solid var(--line);
+    padding: 10px 12px 14px;
+    display: flex;
+    justify-content: center;
+  }
+  .url-annotate {
+    background: var(--warn);
+    color: #fff;
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 5px 10px;
+    border-radius: 6px;
+    position: relative;
+    animation: arrow-bounce 2s ease-in-out infinite;
+  }
+  .url-annotate code {
+    font-family: var(--mono);
+    font-size: 11px;
+    background: rgba(255, 255, 255, 0.18);
+    padding: 0 4px;
+    border-radius: 3px;
+  }
+  .url-annotate::before {
+    content: '';
+    position: absolute;
+    top: -6px; left: 22px;
+    border: 6px solid transparent;
+    border-top: 0;
+    border-bottom-color: var(--warn);
+  }
+  @keyframes arrow-bounce {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-3px); }
+  }
+  .browser-body {
+    padding: 28px 24px 30px;
+    text-align: center;
+    background: #fff;
+  }
+  .login-card { max-width: 320px; margin: 0 auto; }
+  .brand-row {
+    display: flex; justify-content: center; align-items: center;
+    gap: 4px;
+    margin: 0 auto 14px;
+  }
+  .brand-google { gap: 0; }
+  .brand-google span {
+    width: 10px; height: 24px;
+    display: inline-block;
+  }
+  .brand-google span:nth-child(1) { background: #4285F4; border-radius: 6px 0 0 6px; }
+  .brand-google span:nth-child(2) { background: #EA4335; }
+  .brand-google span:nth-child(3) { background: #FBBC05; }
+  .brand-google span:nth-child(4) { background: #34A853; border-radius: 0 6px 6px 0; }
+  .brand-ms {
+    display: grid;
+    grid-template-columns: repeat(2, 11px);
+    grid-template-rows: repeat(2, 11px);
+    gap: 2px;
+    margin: 0 auto 14px;
+    width: 24px;
+  }
+  .brand-ms span { display: block; }
+  .brand-ms span:nth-child(1) { background: #F25022; }
+  .brand-ms span:nth-child(2) { background: #7FBA00; }
+  .brand-ms span:nth-child(3) { background: #00A4EF; }
+  .brand-ms span:nth-child(4) { background: #FFB900; }
+  .login-h {
+    font-size: 19px;
+    font-weight: 500;
+    margin: 0 0 14px;
+    color: var(--ink);
+  }
+  .login-input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--line-strong);
+    border-radius: 4px;
+    font-size: 13px;
+    margin-bottom: 8px;
+    background: #fff;
+    color: var(--ink-soft);
+    text-align: left;
+    box-sizing: border-box;
+    font-family: var(--sans);
+  }
+  .login-btn {
+    display: inline-block;
+    color: #fff;
+    padding: 8px 18px;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 13.5px;
+    margin-top: 4px;
+    border: 0;
+    font-family: inherit;
+    cursor: default;
+  }
+  .mockup-google .login-btn { background: #1a73e8; }
+  .mockup-ms .login-btn { background: #0078d4; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .url-reveal { opacity: 1 !important; transform: none !important; animation: none !important; }
+    .email-body .cta { animation: none !important; box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--warn) !important; }
+    .browser-bar .url .danger, .url-annotate { animation: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<header class="page">
+  <div class="wrap">
+    <h1>Phishing Awareness</h1>
+    <p>How to spot suspicious emails, fake sign-in pages, and fake 2FA prompts &mdash; and what to do if something looks off.</p>
+  </div>
+</header>
+
+<nav class="tabs" role="tablist" aria-label="Email provider">
+  <div class="wrap">
+    <button id="tab-google" role="tab" aria-selected="true" aria-controls="panel-google" tabindex="0">Google Workspace</button>
+    <button id="tab-ms" role="tab" aria-selected="false" aria-controls="panel-ms" tabindex="-1">Microsoft 365</button>
+  </div>
+</nav>
+
+<main>
+
+  <!-- ===================== GOOGLE WORKSPACE TAB ===================== -->
+  <section id="panel-google" role="tabpanel" aria-labelledby="tab-google">
+    <div class="layout">
+      <div class="content">
+
+        <h2>For Google Workspace (Gmail) users</h2>
+
+        <article>
+          <h3><span class="pill warn">Step 1</span>Spot the warning signs in the email</h3>
+          <p>Most phishing emails share a few patterns. If you see two or more of these, slow down before you click anything.</p>
+          <ul>
+            <li><strong>Urgency or fear.</strong> &ldquo;Your account will be suspended in 24 hours.&rdquo; &ldquo;Unusual sign-in &mdash; verify now.&rdquo;</li>
+            <li><strong>Unexpected request, even from a known name.</strong> A boss or coworker asking you to buy gift cards, change banking details, or read a vague document.</li>
+            <li><strong>Display name vs real address don&rsquo;t match.</strong> The name says &ldquo;IT Support&rdquo; but the address is <code>support@random-domain.com</code>.</li>
+            <li><strong>Look-alike domains.</strong> <code>g00gle.com</code>, <code>googIe.com</code> (capital I), <code>google-secure.com</code>.</li>
+            <li><strong>Generic greeting.</strong> &ldquo;Dear user&rdquo; or &ldquo;Dear customer&rdquo; from a service that knows your name.</li>
+            <li><strong>Unexpected attachment.</strong> Especially <code>.zip</code>, <code>.html</code>, <code>.htm</code>, <code>.iso</code>, <code>.lnk</code>, or a PDF that asks you to &ldquo;sign in to view.&rdquo;</li>
+            <li><strong>QR codes in the email body.</strong> Attackers use these to push you off your work computer onto your phone, where the URL is harder to inspect.</li>
+          </ul>
+        </article>
+
+        <article>
+          <h3><span class="pill warn">Step 2</span>Check the link before you click</h3>
+          <p>Hover your mouse over any link (or long-press on mobile) and read the real URL that pops up. If you didn&rsquo;t expect it, don&rsquo;t click.</p>
+          <p>A real Google sign-in page is always on one of these domains:</p>
+          <ul>
+            <li><code>accounts.google.com</code> &mdash; the only page that should ask for your Google password.</li>
+            <li><code>myaccount.google.com</code> &mdash; your account settings.</li>
+          </ul>
+          <p>Anything else &mdash; <code>google-login.com</code>, <code>google.support-verify.net</code>, <code>docs-googl.com</code> &mdash; is fake. The padlock in the address bar only means traffic is encrypted; it does <em>not</em> mean the site is real.</p>
+          <div class="callout">Tip: if a link in an email claims to go to Google, ignore it and type <code>mail.google.com</code> directly into your browser instead.</div>
+        </article>
+
+        <article class="mockup mockup-email mockup-google" aria-label="Example fake email pretending to be from Google">
+          <div class="mockup-label">Example: a fake email pretending to be from Google</div>
+          <div class="email-frame">
+            <div class="email-toolbar">
+              <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+              <span>Inbox</span>
+            </div>
+            <div class="email-subject">Action required: unusual sign-in attempt &mdash; verify within 24 hours</div>
+            <div class="email-meta">
+              <span class="name">Google Account Security</span>
+              <span class="addr">&lt;noreply@<strong>g00gle-account.com</strong>&gt;</span>
+            </div>
+            <div class="email-body">
+              <p>Hi user,</p>
+              <p>We detected a sign-in to your account from an unrecognized device in <strong>Lagos, Nigeria</strong>. To prevent your account from being suspended in the next 24 hours, please verify your identity now.</p>
+              <span class="cta">Verify your account</span>
+              <div class="url-reveal">
+                <span class="url-reveal-label">Hover shows the link actually goes to:</span>
+                <code>https://account-google.support-verify.tk/signin?id=8f3ac42</code>
+              </div>
+            </div>
+          </div>
+          <div class="mockup-callouts">
+            <div>Sender domain is <code>g00gle-account.com</code> (two zeros) &mdash; not <code>google.com</code>.</div>
+            <div>Generic greeting and a scary location are designed to push you to act fast.</div>
+            <div>Tight deadline (&ldquo;24 hours&rdquo;) is a classic urgency lever.</div>
+            <div>The visible &ldquo;Verify&rdquo; button hides a link to a totally unrelated domain.</div>
+          </div>
+        </article>
+
+        <article>
+          <h3><span class="pill warn">Step 3</span>Watch out for fake 2FA pages</h3>
+          <p>Modern phishing kits show you a copy of the real Google sign-in page in real time. You type your password, then your 2FA code, and the attacker passes both to Google as you do it &mdash; and walks away with your session.</p>
+          <p>To avoid this:</p>
+          <ul>
+            <li><strong>Read the URL bar every time</strong> a Google sign-in screen appears. If it&rsquo;s not <code>accounts.google.com</code>, close the tab.</li>
+            <li><strong>Use Google Prompt or a security key</strong> when you can. A passkey or security key won&rsquo;t work on a fake domain &mdash; that is the protection.</li>
+            <li><strong>Never approve a Google sign-in prompt you didn&rsquo;t start.</strong> If your phone buzzes asking &ldquo;Is it you?&rdquo; and you weren&rsquo;t signing in, tap <em>No, it&rsquo;s not me</em> and change your password.</li>
+            <li><strong>Never share a 2FA code</strong> over email, chat, or phone. Google support will never ask for it.</li>
+          </ul>
+        </article>
+
+        <article class="mockup mockup-login mockup-google" aria-label="Example fake Google sign-in page">
+          <div class="mockup-label">Example: a fake Google sign-in page</div>
+          <div class="browser">
+            <div class="browser-bar">
+              <div class="dots"><span></span><span></span><span></span></div>
+              <div class="url">
+                <svg class="lock" width="11" height="13" viewBox="0 0 24 24" fill="none" stroke="#036b3f" stroke-width="2.5" aria-hidden="true"><rect x="4" y="11" width="16" height="11" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+                <span>https://</span><span class="danger">account-google.support-verify.tk</span><span>/signin</span>
+              </div>
+            </div>
+            <div class="url-annotate-row">
+              <div class="url-annotate">Real Google sign-in is on <code>accounts.google.com</code></div>
+            </div>
+            <div class="browser-body">
+              <div class="login-card">
+                <div class="brand-row brand-google"><span></span><span></span><span></span><span></span></div>
+                <div class="login-h">Sign in</div>
+                <div class="login-input">you@company.com</div>
+                <div class="login-input">&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;</div>
+                <button class="login-btn" type="button">Next</button>
+              </div>
+            </div>
+          </div>
+          <div class="mockup-callouts">
+            <div>The URL bar shows <code>support-verify.tk</code>, not <code>accounts.google.com</code>. Always read the bar.</div>
+            <div>The padlock is green &mdash; phishing sites have HTTPS too. It only proves the connection is encrypted, not that the site is real.</div>
+            <div>Once you type your password here, the attacker forwards it to the real Google in real time and asks you for your 2FA code next.</div>
+          </div>
+        </article>
+
+        <article>
+          <h3><span class="pill good">Step 4</span>If something feels off, report it</h3>
+          <p>You don&rsquo;t need to be sure it&rsquo;s phishing. &ldquo;This feels weird&rdquo; is enough &mdash; we&rsquo;d rather check ten safe emails than miss one bad one.</p>
+          <ul>
+            <li>In Gmail on the web, open the message, click the three-dot menu next to <em>Reply</em>, and pick <strong>Report phishing</strong>.</li>
+            <li>If you already clicked a link or entered a password, tell IT right away. The faster we know, the more we can stop.</li>
+            <li>Verify unusual requests through a second channel &mdash; call the person on a number you already have, don&rsquo;t reply to the email.</li>
+          </ul>
+        </article>
+
+        <article>
+          <h3><span class="pill good">Step 5</span>Send the email to IT (with full headers)</h3>
+          <p>If you can, send us the original message instead of a screenshot &mdash; the headers tell us exactly where it came from.</p>
+          <p><strong>Best option: forward as attachment</strong> &mdash; this preserves the headers automatically.</p>
+          <ul>
+            <li><strong>Gmail on the web:</strong> open the message, click the three-dot menu next to <em>Reply</em>, and pick <strong>Forward as attachment</strong>.</li>
+            <li><strong>Gmail on iPhone / Android:</strong> the mobile app can&rsquo;t forward as an attachment. Use the web interface, or just hit <strong>Report phishing</strong> &mdash; that sends us a copy with headers.</li>
+            <li><strong>Apple Mail:</strong> right-click the message and pick <strong>Forward as Attachment</strong>.</li>
+            <li><strong>Thunderbird:</strong> right-click the message &rarr; <strong>Forward As</strong> &rarr; <strong>Attachment</strong>.</li>
+          </ul>
+          <p style="margin-top:14px;"><strong>Alternative: copy the full message source.</strong></p>
+          <ul>
+            <li><strong>Gmail on the web:</strong> open the message &rarr; three-dot menu &rarr; <strong>Show original</strong> &rarr; click <strong>Copy to clipboard</strong>.</li>
+            <li><strong>Apple Mail:</strong> View &rarr; Message &rarr; <strong>Raw Source</strong>, then copy.</li>
+            <li><strong>Thunderbird:</strong> press <code>Ctrl</code>+<code>U</code> for raw source, then copy.</li>
+          </ul>
+          <p>Then see <strong>Send headers to us</strong> in the sidebar for a safe way to share it.</p>
+        </article>
+
+      </div>
+
+      <aside class="sidebar">
+        <div class="card">
+          <h3>Set up 2-Step Verification</h3>
+          <p class="lead">If you haven&rsquo;t already, turn on 2-Step Verification on your Google account.</p>
+          <ol>
+            <li>Sign in at <code>myaccount.google.com</code>.</li>
+            <li>Open <strong>Security</strong> &rarr; <strong>How you sign in to Google</strong>.</li>
+            <li>Click <strong>2-Step Verification</strong> and follow the prompts.</li>
+            <li>Add a second method (phone prompt, Authenticator app, or a security key).</li>
+          </ol>
+          <a class="btn" href="https://myaccount.google.com/signinoptions/two-step-verification" target="_blank" rel="noopener">Open 2-Step Verification</a>
+          <a class="btn secondary" href="https://support.google.com/accounts/answer/185839" target="_blank" rel="noopener">Help</a>
+          <p class="small">Prefer a passkey? Set one up at <a href="https://myaccount.google.com/signinoptions/passkeys" target="_blank" rel="noopener">myaccount.google.com/signinoptions/passkeys</a> &mdash; it&rsquo;s the strongest protection against fake sign-in pages.</p>
+        </div>
+
+        <div class="card">
+          <h3>Send headers to us</h3>
+          <p class="lead">The full headers (or the original <code>.eml</code>) tell IT exactly where the message came from.</p>
+          <p style="margin:0 0 8px;font-size:14.5px;"><strong>Easiest:</strong> attach your IT ticket using <em>Forward as attachment</em> from the steps on the left.</p>
+          <p style="margin:0 0 8px;font-size:14.5px;"><strong>If you copied the raw header text instead</strong>, share it confidentially:</p>
+          <ol>
+            <li>Open PrivateBin (button below).</li>
+            <li>Paste the headers into the box.</li>
+            <li>Set <strong>Expire</strong> to <em>1 day</em> and tick <strong>Burn after reading</strong>.</li>
+            <li>Click <strong>Send</strong>, then paste the resulting link into your IT ticket.</li>
+          </ol>
+          <a class="btn" href="https://privatebin.net/" target="_blank" rel="noopener">Open PrivateBin</a>
+          <p class="small">PrivateBin encrypts in your browser before upload. The host can&rsquo;t read what you paste.</p>
+        </div>
+
+        <div class="card">
+          <h3>Share a password with us</h3>
+          <p class="lead">If IT asks for a password (e.g. to clean up a compromised mailbox), don&rsquo;t put it in the ticket directly &mdash; use Password.link.</p>
+          <ol>
+            <li>Open Password.link (button below).</li>
+            <li>Type or paste the password.</li>
+            <li>Click <strong>Create link</strong>.</li>
+            <li>Paste the resulting URL into your IT ticket.</li>
+          </ol>
+          <a class="btn" href="https://password.link/en" target="_blank" rel="noopener">Open Password.link</a>
+          <p class="small">The link is end-to-end encrypted, can be opened only once, and expires automatically.</p>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- ===================== MICROSOFT 365 TAB ===================== -->
+  <section id="panel-ms" role="tabpanel" aria-labelledby="tab-ms" hidden>
+    <div class="layout">
+      <div class="content">
+
+        <h2>For Microsoft 365 (Outlook) users</h2>
+
+        <article>
+          <h3><span class="pill warn">Step 1</span>Spot the warning signs in the email</h3>
+          <p>Most phishing emails share a few patterns. If you see two or more of these, slow down before you click anything.</p>
+          <ul>
+            <li><strong>Urgency or fear.</strong> &ldquo;Your mailbox is full &mdash; verify in 24 hours or lose access.&rdquo; &ldquo;Unusual sign-in detected.&rdquo;</li>
+            <li><strong>Unexpected request, even from a known name.</strong> A boss or coworker asking you to buy gift cards, change banking details, or open a vague document.</li>
+            <li><strong>Display name vs real address don&rsquo;t match.</strong> The name says &ldquo;Microsoft&rdquo; but the address is <code>no-reply@some-mailer.io</code>.</li>
+            <li><strong>Look-alike domains.</strong> <code>rnicrosoft.com</code> (rn looks like m), <code>microsoft-secure.com</code>, <code>0ffice365.com</code>.</li>
+            <li><strong>Shared OneDrive / SharePoint &ldquo;document&rdquo; links</strong> from people who don&rsquo;t normally send you files.</li>
+            <li><strong>Unexpected attachment.</strong> Especially <code>.html</code>, <code>.htm</code>, <code>.zip</code>, <code>.iso</code>, <code>.lnk</code>, or a PDF that opens to a sign-in page.</li>
+            <li><strong>QR codes in the email body.</strong> Attackers use these to move you to your phone, where the URL is harder to read.</li>
+          </ul>
+        </article>
+
+        <article>
+          <h3><span class="pill warn">Step 2</span>Check the link before you click</h3>
+          <p>Hover your mouse over any link (or long-press on mobile) and read the real URL that pops up. If you didn&rsquo;t expect it, don&rsquo;t click.</p>
+          <p>A real Microsoft 365 sign-in page is always on one of these domains:</p>
+          <ul>
+            <li><code>login.microsoftonline.com</code> &mdash; work and school accounts.</li>
+            <li><code>login.live.com</code> &mdash; personal Microsoft accounts.</li>
+            <li><code>account.microsoft.com</code> / <code>mysignins.microsoft.com</code> &mdash; account settings.</li>
+          </ul>
+          <p>Anything else &mdash; <code>microsoft-verify.com</code>, <code>office365-login.net</code>, <code>secure-outlook.com</code> &mdash; is fake. The padlock in the address bar only means traffic is encrypted; it does <em>not</em> mean the site is real.</p>
+          <div class="callout">Tip: if a link in an email claims to go to Microsoft 365, ignore it and type <code>outlook.office.com</code> or <code>portal.office.com</code> directly into your browser instead.</div>
+        </article>
+
+        <article class="mockup mockup-email mockup-ms" aria-label="Example fake email pretending to be from Microsoft 365">
+          <div class="mockup-label">Example: a fake email pretending to be from Microsoft 365</div>
+          <div class="email-frame">
+            <div class="email-toolbar">
+              <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+              <span>Inbox</span>
+            </div>
+            <div class="email-subject">[Action Required] 12 messages held in quarantine &mdash; release before deletion</div>
+            <div class="email-meta">
+              <span class="name">Microsoft 365 Security</span>
+              <span class="addr">&lt;admin@<strong>office365-portal-mail.com</strong>&gt;</span>
+            </div>
+            <div class="email-body">
+              <p>Dear user,</p>
+              <p>You have <strong>12 messages</strong> held in your Microsoft 365 quarantine. They will be permanently deleted in <strong>24 hours</strong> unless you review and release them now.</p>
+              <span class="cta">Review your messages</span>
+              <div class="url-reveal">
+                <span class="url-reveal-label">Hover shows the link actually goes to:</span>
+                <code>https://outlook365-portal.secure-net.cn/auth?token=fa12c4d</code>
+              </div>
+            </div>
+          </div>
+          <div class="mockup-callouts">
+            <div>Sender domain is <code>office365-portal-mail.com</code> &mdash; nothing real from Microsoft comes from a random &ldquo;-mail.com&rdquo; domain.</div>
+            <div>Generic greeting and a fabricated message count to make you click before checking.</div>
+            <div>The countdown (&ldquo;deleted in 24 hours&rdquo;) is the urgency lever.</div>
+            <div>The &ldquo;Review&rdquo; button leads to a totally unrelated overseas domain.</div>
+          </div>
+        </article>
+
+        <article>
+          <h3><span class="pill warn">Step 3</span>Watch out for fake 2FA pages</h3>
+          <p>Modern phishing kits show you a copy of the real Microsoft sign-in page in real time. You type your password, approve the Authenticator prompt, and the attacker passes both to Microsoft as you do it &mdash; and walks away with your session.</p>
+          <p>To avoid this:</p>
+          <ul>
+            <li><strong>Read the URL bar every time</strong> a Microsoft sign-in screen appears. If it&rsquo;s not <code>login.microsoftonline.com</code>, close the tab.</li>
+            <li><strong>Number-matching prompts.</strong> When Microsoft Authenticator asks you to type a number, that number should be on the screen <em>you</em> are signing in from. If you didn&rsquo;t just open a sign-in page, do not type any number &mdash; tap <em>No, it&rsquo;s not me</em>.</li>
+            <li><strong>Don&rsquo;t fall for push fatigue.</strong> If your phone keeps pinging with sign-in prompts you didn&rsquo;t start, deny every one and report it. Don&rsquo;t approve to make the noise stop.</li>
+            <li><strong>Never share a code</strong> over email, chat, or phone. Microsoft support will never ask for it.</li>
+          </ul>
+        </article>
+
+        <article class="mockup mockup-login mockup-ms" aria-label="Example fake Microsoft sign-in page">
+          <div class="mockup-label">Example: a fake Microsoft sign-in page</div>
+          <div class="browser">
+            <div class="browser-bar">
+              <div class="dots"><span></span><span></span><span></span></div>
+              <div class="url">
+                <svg class="lock" width="11" height="13" viewBox="0 0 24 24" fill="none" stroke="#036b3f" stroke-width="2.5" aria-hidden="true"><rect x="4" y="11" width="16" height="11" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
+                <span>https://</span><span class="danger">login-microsoft365.secure-portal.net</span><span>/auth</span>
+              </div>
+            </div>
+            <div class="url-annotate-row">
+              <div class="url-annotate">Real Microsoft sign-in is on <code>login.microsoftonline.com</code></div>
+            </div>
+            <div class="browser-body">
+              <div class="login-card">
+                <div class="brand-row brand-ms"><span></span><span></span><span></span><span></span></div>
+                <div class="login-h">Sign in</div>
+                <div class="login-input">you@company.com</div>
+                <div class="login-input">&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;</div>
+                <button class="login-btn" type="button">Sign in</button>
+              </div>
+            </div>
+          </div>
+          <div class="mockup-callouts">
+            <div>The URL bar shows <code>secure-portal.net</code>, not <code>login.microsoftonline.com</code>. Always read the bar.</div>
+            <div>The padlock is green &mdash; phishing sites have HTTPS too. It only proves the connection is encrypted, not that the site is real.</div>
+            <div>After you type your password, the attacker forwards it to the real Microsoft and pushes you a number-matching prompt to grab your code.</div>
+          </div>
+        </article>
+
+        <article>
+          <h3><span class="pill good">Step 4</span>If something feels off, report it</h3>
+          <p>You don&rsquo;t need to be sure it&rsquo;s phishing. &ldquo;This feels weird&rdquo; is enough &mdash; we&rsquo;d rather check ten safe emails than miss one bad one.</p>
+          <ul>
+            <li>In Outlook, use the <strong>Report</strong> button in the ribbon and pick <em>Report phishing</em>. (If you don&rsquo;t see it, forward the message as an attachment to IT.)</li>
+            <li>If you already clicked a link or entered your password, tell IT right away. The faster we know, the more we can stop.</li>
+            <li>Verify unusual requests through a second channel &mdash; call the person on a number you already have, don&rsquo;t reply to the email.</li>
+          </ul>
+        </article>
+
+        <article>
+          <h3><span class="pill good">Step 5</span>Send the email to IT (with full headers)</h3>
+          <p>If you can, send us the original message instead of a screenshot &mdash; the headers tell us exactly where it came from.</p>
+          <p><strong>Best option: forward as attachment</strong> &mdash; this preserves the headers automatically.</p>
+          <ul>
+            <li><strong>Outlook on the web (outlook.office.com):</strong> select the message, click the three-dot menu, and pick <strong>Forward as attachment</strong>. (If you don&rsquo;t see it, drag the message into the body of a new email instead.)</li>
+            <li><strong>New Outlook for Windows / Mac:</strong> right-click the message &rarr; <strong>Advanced actions</strong> &rarr; <strong>Forward as attachment</strong>.</li>
+            <li><strong>Classic Outlook for Windows:</strong> right-click the message &rarr; <strong>More</strong> (or <strong>Forward As</strong>) &rarr; <strong>Forward As Attachment</strong>. Keyboard shortcut: <code>Ctrl</code>+<code>Alt</code>+<code>F</code>.</li>
+            <li><strong>Outlook for iPhone / Android:</strong> the mobile app can&rsquo;t forward as an attachment. Use the <strong>Report</strong> button (<em>Report phishing</em>) instead &mdash; that sends us a copy with headers.</li>
+          </ul>
+          <p style="margin-top:14px;"><strong>Alternative: copy the message source.</strong></p>
+          <ul>
+            <li><strong>Outlook on the web:</strong> open the message &rarr; three-dot menu &rarr; <strong>View</strong> &rarr; <strong>View message source</strong>, then copy.</li>
+            <li><strong>New Outlook (Win/Mac):</strong> three-dot menu &rarr; <strong>View</strong> &rarr; <strong>View message source</strong>.</li>
+            <li><strong>Classic Outlook for Windows:</strong> open the message in its own window &rarr; <strong>File</strong> &rarr; <strong>Properties</strong> &rarr; copy the <em>Internet headers</em> box at the bottom.</li>
+            <li><strong>Outlook for Mac (legacy):</strong> right-click the message &rarr; <strong>View Source</strong>.</li>
+          </ul>
+          <p>Then see <strong>Send headers to us</strong> in the sidebar for a safe way to share it.</p>
+        </article>
+
+      </div>
+
+      <aside class="sidebar">
+
+        <div class="card">
+          <h3>Set up MFA (Multi-Factor Authentication)</h3>
+          <p class="lead">Turn on MFA from the Microsoft Security Info page using your work account.</p>
+          <ol>
+            <li>Sign in at <code>mysignins.microsoft.com/security-info</code>.</li>
+            <li>Click <strong>Add sign-in method</strong>.</li>
+            <li>Pick <strong>Microsoft Authenticator</strong> (recommended) or another option.</li>
+            <li>Follow the prompts to scan the QR code in the Authenticator app.</li>
+          </ol>
+          <a class="btn" href="https://mysignins.microsoft.com/security-info" target="_blank" rel="noopener">Open Security Info</a>
+          <a class="btn secondary" href="https://aka.ms/mfasetup" target="_blank" rel="noopener">aka.ms/mfasetup</a>
+          <p class="small">Get the Microsoft Authenticator app first: <a href="https://www.microsoft.com/en-us/security/mobile-authenticator-app" target="_blank" rel="noopener">microsoft.com/&hellip;/authenticator-app</a></p>
+        </div>
+
+        <div class="card">
+          <h3>Proofpoint Essentials</h3>
+          <p class="lead">If your account is protected by Proofpoint Essentials, use this to log in and release legitimate emails from quarantine.</p>
+
+          <p style="margin:0 0 8px;font-weight:600;font-size:14px;">Sign in</p>
+          <a class="btn" href="https://us2.proofpointessentials.com/" target="_blank" rel="noopener">Open Proofpoint Essentials</a>
+          <ol style="margin-top:12px;">
+            <li>Sign in with your full work email address.</li>
+            <li>Use the password Proofpoint sent you, or click <strong>Forgot password?</strong> to set one.</li>
+          </ol>
+
+          <p style="margin:14px 0 6px;font-weight:600;font-size:14px;">Release a legitimate email from quarantine</p>
+          <p style="margin:0 0 8px;font-size:14.5px;"><strong>Option A &mdash; from the Quarantine Digest email</strong> (sent on a schedule):</p>
+          <ol>
+            <li>Open the digest from <em>Proofpoint Essentials</em>.</li>
+            <li>Find the message you were expecting.</li>
+            <li>Click <strong>Release</strong> to deliver it once, or <strong>Release &amp; Allow Sender</strong> to deliver it and let future messages from that sender through.</li>
+          </ol>
+
+          <p style="margin:10px 0 6px;font-size:14.5px;"><strong>Option B &mdash; from the portal</strong>:</p>
+          <ol>
+            <li>Sign in (link above).</li>
+            <li>Go to <strong>Logs</strong> &rarr; <strong>Quarantine</strong> (or <strong>Quarantined Messages</strong>).</li>
+            <li>Tick the messages you want to release.</li>
+            <li>Click <strong>Release</strong>, or <strong>Release &amp; Allow Sender</strong> if you trust them going forward.</li>
+          </ol>
+
+          <div class="callout warn" style="margin-top:12px;">Only release messages you were actually expecting. If you&rsquo;re not sure, leave it &mdash; quarantined messages are deleted automatically after a set period and won&rsquo;t hurt anything sitting there.</div>
+        </div>
+
+        <div class="card">
+          <h3>Send headers to us</h3>
+          <p class="lead">The full headers (or the original <code>.eml</code>) tell IT exactly where the message came from.</p>
+          <p style="margin:0 0 8px;font-size:14.5px;"><strong>Easiest:</strong> attach your IT ticket using <em>Forward as attachment</em> from the steps on the left.</p>
+          <p style="margin:0 0 8px;font-size:14.5px;"><strong>If you copied the raw header text instead</strong>, share it confidentially:</p>
+          <ol>
+            <li>Open PrivateBin (button below).</li>
+            <li>Paste the headers into the box.</li>
+            <li>Set <strong>Expire</strong> to <em>1 day</em> and tick <strong>Burn after reading</strong>.</li>
+            <li>Click <strong>Send</strong>, then paste the resulting link into your IT ticket.</li>
+          </ol>
+          <a class="btn" href="https://privatebin.net/" target="_blank" rel="noopener">Open PrivateBin</a>
+          <p class="small">PrivateBin encrypts in your browser before upload. The host can&rsquo;t read what you paste.</p>
+        </div>
+
+        <div class="card">
+          <h3>Share a password with us</h3>
+          <p class="lead">If IT asks for a password (e.g. to clean up a compromised mailbox), don&rsquo;t put it in the ticket directly &mdash; use Password.link.</p>
+          <ol>
+            <li>Open Password.link (button below).</li>
+            <li>Type or paste the password.</li>
+            <li>Click <strong>Create link</strong>.</li>
+            <li>Paste the resulting URL into your IT ticket.</li>
+          </ol>
+          <a class="btn" href="https://password.link/en" target="_blank" rel="noopener">Open Password.link</a>
+          <p class="small">The link is end-to-end encrypted, can be opened only once, and expires automatically.</p>
+        </div>
+
+      </aside>
+    </div>
+  </section>
+
+</main>
+
+<footer class="page">
+  <p>If you&rsquo;re ever unsure about an email, forward it to IT and wait for a reply before you act. There is no penalty for asking.</p>
+</footer>
+
+<script>
+  (function () {
+    var tabs = {
+      google: { btn: document.getElementById('tab-google'), panel: document.getElementById('panel-google') },
+      ms:     { btn: document.getElementById('tab-ms'),     panel: document.getElementById('panel-ms') }
+    };
+    var order = ['google', 'ms'];
+
+    function activate(key) {
+      order.forEach(function (k) {
+        var on = (k === key);
+        tabs[k].btn.setAttribute('aria-selected', on ? 'true' : 'false');
+        tabs[k].btn.setAttribute('tabindex', on ? '0' : '-1');
+        tabs[k].panel.hidden = !on;
+      });
+      try { history.replaceState(null, '', '#' + key); } catch (e) {}
+    }
+
+    order.forEach(function (k) {
+      tabs[k].btn.addEventListener('click', function () { activate(k); tabs[k].btn.focus(); });
+    });
+
+    // Arrow-key navigation between tabs
+    document.querySelector('nav.tabs').addEventListener('keydown', function (e) {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      var current = order.indexOf(document.activeElement.id.replace('tab-', ''));
+      if (current < 0) return;
+      var next = (e.key === 'ArrowRight')
+        ? (current + 1) % order.length
+        : (current - 1 + order.length) % order.length;
+      activate(order[next]);
+      tabs[order[next]].btn.focus();
+      e.preventDefault();
+    });
+
+    // Honor #google / #ms in the URL
+    var hash = (location.hash || '').replace('#', '');
+    if (hash === 'ms' || hash === 'google') activate(hash);
+  })();
+</script>
+
+</body>
+</html>
