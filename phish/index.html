@@ -550,6 +550,139 @@
     .email-body .cta { animation: none !important; box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--warn) !important; }
     .browser-bar .url .danger, .url-annotate { animation: none !important; }
   }
+
+  /* === Step 5: per-client cards =============================== */
+  .step5-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 12px;
+    margin: 12px 0 16px;
+  }
+  .step5-card {
+    background: #fafbfd;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+  }
+  .step5-card h4 {
+    font-size: 14.5px;
+    margin: 0 0 2px;
+    color: var(--ink);
+    letter-spacing: -0.005em;
+  }
+  .step5-card .platform {
+    font-size: 11.5px;
+    color: var(--ink-soft);
+    margin-bottom: 10px;
+  }
+  .step5-card .platform.warn-pill {
+    display: inline-block;
+    align-self: flex-start;
+    background: var(--warn-soft);
+    color: var(--warn);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-size: 10.5px;
+    margin-bottom: 10px;
+  }
+  .step5-card ol {
+    margin: 10px 0 0;
+    padding-left: 20px;
+    font-size: 12.5px;
+    color: var(--ink);
+  }
+  .step5-card ol li { margin: 3px 0; }
+  .step5-card .info-panel {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-size: 12.5px;
+    color: var(--ink);
+    line-height: 1.5;
+  }
+
+  .menu-mockup {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    overflow: hidden;
+    font-size: 12.5px;
+  }
+  .menu-mockup-toolbar {
+    background: #f5f6f8;
+    border-bottom: 1px solid var(--line);
+    padding: 5px 8px;
+    font-size: 11.5px;
+    color: var(--ink-soft);
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+  .menu-mockup-toolbar .trigger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    border-radius: 3px;
+    font-weight: 700;
+    font-size: 13px;
+    line-height: 1;
+    animation: trigger-pulse 2.4s ease-in-out infinite;
+    flex: 0 0 auto;
+  }
+  @keyframes trigger-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(26, 86, 219, 0); }
+    50%      { box-shadow: 0 0 0 4px rgba(26, 86, 219, 0.20); }
+  }
+  .menu-mockup-dropdown {
+    padding: 4px 0;
+    background: #fff;
+  }
+  .menu-mockup-dropdown .item {
+    padding: 4px 28px 4px 12px;
+    color: var(--ink);
+    font-size: 12px;
+    position: relative;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .menu-mockup-dropdown .item.highlight {
+    background: var(--warn-soft);
+    color: var(--warn);
+    font-weight: 700;
+    animation: item-highlight 2.4s ease-in-out infinite;
+  }
+  @keyframes item-highlight {
+    0%, 100% { box-shadow: inset 3px 0 0 0 transparent; }
+    50%      { box-shadow: inset 3px 0 0 0 var(--warn); }
+  }
+  .menu-mockup-dropdown .item.highlight::after {
+    content: '\2190';
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--warn);
+    font-weight: 700;
+    font-size: 13px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .menu-mockup-toolbar .trigger,
+    .menu-mockup-dropdown .item.highlight {
+      animation: none !important;
+    }
+  }
 </style>
 </head>
 <body>
@@ -687,19 +820,85 @@
 
         <article>
           <h3><span class="pill good">Step 5</span>Send the email to IT (with full headers)</h3>
-          <p>If you can, send us the original message instead of a screenshot &mdash; the headers tell us exactly where it came from.</p>
-          <p><strong>Best option: forward as attachment</strong> &mdash; this preserves the headers automatically.</p>
+          <p>If you can, send us the original message instead of a screenshot &mdash; the headers tell us exactly where it came from. Find your client below and follow the steps.</p>
+          <p style="margin-top:8px;"><strong>Best option: forward as attachment</strong> &mdash; this preserves the headers automatically.</p>
+
+          <div class="step5-grid">
+
+            <div class="step5-card">
+              <h4>Gmail (web)</h4>
+              <div class="platform">desktop browser</div>
+              <div class="menu-mockup">
+                <div class="menu-mockup-toolbar"><span class="trigger">&#8942;</span><span>menu next to Reply</span></div>
+                <div class="menu-mockup-dropdown">
+                  <div class="item">Reply</div>
+                  <div class="item">Reply all</div>
+                  <div class="item">Forward</div>
+                  <div class="item highlight">Forward as attachment</div>
+                  <div class="item">Filter messages like this</div>
+                </div>
+              </div>
+              <ol>
+                <li>Open the email.</li>
+                <li>Click the three-dot menu next to <em>Reply</em>.</li>
+                <li>Pick <strong>Forward as attachment</strong>.</li>
+                <li>Send to your IT ticket address.</li>
+              </ol>
+            </div>
+
+            <div class="step5-card">
+              <h4>Apple Mail</h4>
+              <div class="platform">macOS</div>
+              <div class="menu-mockup">
+                <div class="menu-mockup-toolbar"><span class="trigger">&#x2197;</span><span>right-click the message</span></div>
+                <div class="menu-mockup-dropdown">
+                  <div class="item">Reply</div>
+                  <div class="item">Reply All</div>
+                  <div class="item">Forward</div>
+                  <div class="item highlight">Forward as Attachment</div>
+                  <div class="item">Redirect</div>
+                </div>
+              </div>
+              <ol>
+                <li>Right-click (or Control-click) the message.</li>
+                <li>Pick <strong>Forward as Attachment</strong>.</li>
+                <li>Send to your IT ticket address.</li>
+              </ol>
+            </div>
+
+            <div class="step5-card">
+              <h4>Thunderbird</h4>
+              <div class="platform">Windows / macOS / Linux</div>
+              <div class="menu-mockup">
+                <div class="menu-mockup-toolbar"><span class="trigger">&#x2197;</span><span>right-click the message</span></div>
+                <div class="menu-mockup-dropdown">
+                  <div class="item">Reply</div>
+                  <div class="item">Forward</div>
+                  <div class="item">Forward As &raquo;</div>
+                  <div class="item highlight">&nbsp;&nbsp;&nbsp;Attachment</div>
+                  <div class="item">&nbsp;&nbsp;&nbsp;Inline</div>
+                </div>
+              </div>
+              <ol>
+                <li>Right-click the message.</li>
+                <li>Hover <strong>Forward As</strong> &rarr; pick <strong>Attachment</strong>.</li>
+                <li>Send to your IT ticket address.</li>
+              </ol>
+            </div>
+
+            <div class="step5-card">
+              <h4>Gmail (mobile)</h4>
+              <span class="platform warn-pill">Not supported</span>
+              <div class="info-panel">The iPhone / Android app can&rsquo;t forward as attachment. Tap <strong>&#8942;</strong> &rarr; <strong>Report spam</strong> or <strong>Report phishing</strong> &mdash; that sends us a copy with headers.</div>
+            </div>
+
+          </div>
+
+          <p style="margin-top:14px;font-size:14.5px;"><strong>Can&rsquo;t forward as attachment? Copy the message source instead.</strong></p>
           <ul>
-            <li><strong>Gmail on the web:</strong> open the message, click the three-dot menu next to <em>Reply</em>, and pick <strong>Forward as attachment</strong>.</li>
-            <li><strong>Gmail on iPhone / Android:</strong> the mobile app can&rsquo;t forward as an attachment. Use the web interface, or just hit <strong>Report phishing</strong> &mdash; that sends us a copy with headers.</li>
-            <li><strong>Apple Mail:</strong> right-click the message and pick <strong>Forward as Attachment</strong>.</li>
-            <li><strong>Thunderbird:</strong> right-click the message &rarr; <strong>Forward As</strong> &rarr; <strong>Attachment</strong>.</li>
-          </ul>
-          <p style="margin-top:14px;"><strong>Alternative: copy the full message source.</strong></p>
-          <ul>
-            <li><strong>Gmail on the web:</strong> open the message &rarr; three-dot menu &rarr; <strong>Show original</strong> &rarr; click <strong>Copy to clipboard</strong>.</li>
+            <li><strong>Gmail (web):</strong> open the message &rarr; three-dot menu &rarr; <strong>Show original</strong> &rarr; click <strong>Copy to clipboard</strong>.</li>
             <li><strong>Apple Mail:</strong> View &rarr; Message &rarr; <strong>Raw Source</strong>, then copy.</li>
-            <li><strong>Thunderbird:</strong> press <code>Ctrl</code>+<code>U</code> for raw source, then copy.</li>
+            <li><strong>Thunderbird:</strong> press <code>Ctrl</code>+<code>U</code>, then copy.</li>
           </ul>
           <p>Then see <strong>Send headers to us</strong> in the sidebar for a safe way to share it.</p>
         </article>
@@ -870,19 +1069,107 @@
 
         <article>
           <h3><span class="pill good">Step 5</span>Send the email to IT (with full headers)</h3>
-          <p>If you can, send us the original message instead of a screenshot &mdash; the headers tell us exactly where it came from.</p>
-          <p><strong>Best option: forward as attachment</strong> &mdash; this preserves the headers automatically.</p>
+          <p>If you can, send us the original message instead of a screenshot &mdash; the headers tell us exactly where it came from. Find your client below and follow the steps.</p>
+          <p style="margin-top:8px;"><strong>Best option: forward as attachment</strong> &mdash; this preserves the headers automatically.</p>
+
+          <div class="step5-grid">
+
+            <div class="step5-card">
+              <h4>Outlook on the web</h4>
+              <div class="platform">outlook.office.com</div>
+              <div class="menu-mockup">
+                <div class="menu-mockup-toolbar"><span class="trigger">&#8942;</span><span>more actions menu</span></div>
+                <div class="menu-mockup-dropdown">
+                  <div class="item">Reply</div>
+                  <div class="item">Reply all</div>
+                  <div class="item">Forward</div>
+                  <div class="item highlight">Forward as attachment</div>
+                  <div class="item">Print</div>
+                </div>
+              </div>
+              <ol>
+                <li>Select the message.</li>
+                <li>Click the three-dot <em>more actions</em> menu.</li>
+                <li>Pick <strong>Forward as attachment</strong>.</li>
+                <li>Send to your IT ticket address.</li>
+              </ol>
+            </div>
+
+            <div class="step5-card">
+              <h4>New Outlook</h4>
+              <div class="platform">Windows / macOS desktop</div>
+              <div class="menu-mockup">
+                <div class="menu-mockup-toolbar"><span class="trigger">&#x2197;</span><span>right-click the message</span></div>
+                <div class="menu-mockup-dropdown">
+                  <div class="item">Reply</div>
+                  <div class="item">Forward</div>
+                  <div class="item">Advanced actions &raquo;</div>
+                  <div class="item highlight">&nbsp;&nbsp;&nbsp;Forward as attachment</div>
+                  <div class="item">&nbsp;&nbsp;&nbsp;Resend this message</div>
+                </div>
+              </div>
+              <ol>
+                <li>Right-click the message.</li>
+                <li>Hover <strong>Advanced actions</strong>.</li>
+                <li>Pick <strong>Forward as attachment</strong>.</li>
+                <li>Send to your IT ticket address.</li>
+              </ol>
+            </div>
+
+            <div class="step5-card">
+              <h4>Classic Outlook</h4>
+              <div class="platform">Windows desktop</div>
+              <div class="menu-mockup">
+                <div class="menu-mockup-toolbar"><span class="trigger">&#x2197;</span><span>right-click the message</span></div>
+                <div class="menu-mockup-dropdown">
+                  <div class="item">Reply</div>
+                  <div class="item">Reply All</div>
+                  <div class="item">Forward</div>
+                  <div class="item highlight">Forward As Attachment</div>
+                  <div class="item">Move &raquo;</div>
+                </div>
+              </div>
+              <ol>
+                <li>Right-click the message.</li>
+                <li>Pick <strong>Forward As Attachment</strong>.</li>
+                <li>Or just press <code>Ctrl</code>+<code>Alt</code>+<code>F</code>.</li>
+                <li>Send to your IT ticket address.</li>
+              </ol>
+            </div>
+
+            <div class="step5-card">
+              <h4>Outlook for Mac</h4>
+              <div class="platform">legacy desktop</div>
+              <div class="menu-mockup">
+                <div class="menu-mockup-toolbar"><span class="trigger">&#x2197;</span><span>right-click the message</span></div>
+                <div class="menu-mockup-dropdown">
+                  <div class="item">Reply</div>
+                  <div class="item">Reply All</div>
+                  <div class="item">Forward</div>
+                  <div class="item">Forward As &raquo;</div>
+                  <div class="item highlight">&nbsp;&nbsp;&nbsp;Attachment</div>
+                </div>
+              </div>
+              <ol>
+                <li>Right-click the message.</li>
+                <li>Hover <strong>Forward As</strong> &rarr; pick <strong>Attachment</strong>.</li>
+                <li>Send to your IT ticket address.</li>
+              </ol>
+            </div>
+
+            <div class="step5-card">
+              <h4>Outlook (mobile)</h4>
+              <span class="platform warn-pill">Not supported</span>
+              <div class="info-panel">The iPhone / Android app can&rsquo;t forward as attachment. Tap <strong>&#8942;</strong> &rarr; <strong>Report</strong> &rarr; <strong>Phishing</strong> &mdash; that sends us a copy with headers.</div>
+            </div>
+
+          </div>
+
+          <p style="margin-top:14px;font-size:14.5px;"><strong>Can&rsquo;t forward as attachment? Copy the message source instead.</strong></p>
           <ul>
-            <li><strong>Outlook on the web (outlook.office.com):</strong> select the message, click the three-dot menu, and pick <strong>Forward as attachment</strong>. (If you don&rsquo;t see it, drag the message into the body of a new email instead.)</li>
-            <li><strong>New Outlook for Windows / Mac:</strong> right-click the message &rarr; <strong>Advanced actions</strong> &rarr; <strong>Forward as attachment</strong>.</li>
-            <li><strong>Classic Outlook for Windows:</strong> right-click the message &rarr; <strong>More</strong> (or <strong>Forward As</strong>) &rarr; <strong>Forward As Attachment</strong>. Keyboard shortcut: <code>Ctrl</code>+<code>Alt</code>+<code>F</code>.</li>
-            <li><strong>Outlook for iPhone / Android:</strong> the mobile app can&rsquo;t forward as an attachment. Use the <strong>Report</strong> button (<em>Report phishing</em>) instead &mdash; that sends us a copy with headers.</li>
-          </ul>
-          <p style="margin-top:14px;"><strong>Alternative: copy the message source.</strong></p>
-          <ul>
-            <li><strong>Outlook on the web:</strong> open the message &rarr; three-dot menu &rarr; <strong>View</strong> &rarr; <strong>View message source</strong>, then copy.</li>
+            <li><strong>Outlook on the web:</strong> three-dot menu &rarr; <strong>View</strong> &rarr; <strong>View message source</strong>, then copy.</li>
             <li><strong>New Outlook (Win/Mac):</strong> three-dot menu &rarr; <strong>View</strong> &rarr; <strong>View message source</strong>.</li>
-            <li><strong>Classic Outlook for Windows:</strong> open the message in its own window &rarr; <strong>File</strong> &rarr; <strong>Properties</strong> &rarr; copy the <em>Internet headers</em> box at the bottom.</li>
+            <li><strong>Classic Outlook (Win):</strong> open the message in its own window &rarr; <strong>File</strong> &rarr; <strong>Properties</strong> &rarr; copy the <em>Internet headers</em> box.</li>
             <li><strong>Outlook for Mac (legacy):</strong> right-click the message &rarr; <strong>View Source</strong>.</li>
           </ul>
           <p>Then see <strong>Send headers to us</strong> in the sidebar for a safe way to share it.</p>
