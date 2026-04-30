@@ -399,6 +399,82 @@
   .about li { margin-bottom: 3px; }
   .about strong { color: var(--ink); }
 
+  /* Mobile — at narrow widths, table rows become stacked cards */
+  @media (max-width: 720px) {
+    main { padding: 18px 14px 50px; }
+    section.card { padding: 16px 16px 18px; }
+    .toolbar { gap: 8px; }
+    .toolbar .left, .toolbar .right { width: 100%; }
+    .toolbar .right { justify-content: flex-end; flex-wrap: wrap; }
+    .filter-input { width: 100%; }
+
+    /* Table → vertical cards */
+    table.results, table.results tbody { display: block; }
+    table.results thead { display: none; }
+
+    table.results tr.row-main {
+      display: block;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      padding: 12px 14px 8px;
+      margin-bottom: 8px;
+      box-shadow: var(--shadow);
+    }
+    table.results tr.row-main:hover { background: var(--surface); border-color: var(--line-strong); }
+    table.results tr.row-main td {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 6px 0;
+      border: 0;
+      text-align: right;
+      white-space: normal;
+    }
+    table.results tr.row-main td::before {
+      content: attr(data-label);
+      font-size: 11px;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+      letter-spacing: 0.06em;
+      font-weight: 600;
+      text-align: left;
+      flex-shrink: 0;
+    }
+    table.results tr.row-main td.dom {
+      display: block;
+      font-size: 16px;
+      text-align: left;
+      padding-bottom: 8px;
+      margin-bottom: 4px;
+      border-bottom: 1px solid var(--line);
+    }
+    table.results tr.row-main td.dom::before { display: none; }
+    table.results tr.row-main td .twoline { text-align: right; }
+    table.results tr.row-main td .twoline .sub { display: block; }
+
+    /* Detail row: become a connected panel under the card */
+    table.results tr.row-detail { display: block; }
+    table.results tr.row-detail td {
+      display: block;
+      padding: 0 !important;
+      border: 0;
+      background: transparent !important;
+    }
+    .row-detail .detail-grid {
+      grid-template-columns: 1fr;
+      gap: 14px;
+      padding: 12px 14px 14px;
+      margin-top: -10px;
+      margin-bottom: 10px;
+      background: var(--bg);
+      border: 1px solid var(--line);
+      border-top: 0;
+      border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+    }
+  }
+
   /* Toggle-all chevron */
   #toggle-all .chev {
     display: inline-block;
@@ -643,7 +719,7 @@
 </main>
 
 <footer class="page">
-  <p>Domain Audit &middot; v0.1.6 &middot; <a href="../">back to Work Hub</a></p>
+  <p>Domain Audit &middot; v0.1.7 &middot; <a href="../">back to Work Hub</a></p>
   <p>Static page. DNS lookups via Google Public DNS-over-HTTPS (<code>dns.google</code>). Registrar info via <code>rdap.org</code>. No data leaves your browser except those queries.</p>
 </footer>
 
@@ -1231,12 +1307,12 @@ function renderRow(r, idx) {
   const main = `
     <tr class="row-main" data-idx="${idx}">
       <td class="dom">${escapeHtml(r.domain)}</td>
-      <td><span class="twoline">${escapeHtml(registrar)}${expiry ? `<span class="sub">expires ${escapeHtml(expiry)}</span>` : ''}</span></td>
-      <td>${escapeHtml(mxProv)}</td>
-      <td>${pill(vSpf)}</td>
-      <td>${pill(vDkim)}</td>
-      <td>${pill(vDmarc)}</td>
-      <td>${pill(vRep)}</td>
+      <td data-label="Registrar"><span class="twoline">${escapeHtml(registrar)}${expiry ? `<span class="sub">expires ${escapeHtml(expiry)}</span>` : ''}</span></td>
+      <td data-label="Mail provider">${escapeHtml(mxProv)}</td>
+      <td data-label="SPF">${pill(vSpf)}</td>
+      <td data-label="DKIM">${pill(vDkim)}</td>
+      <td data-label="DMARC">${pill(vDmarc)}</td>
+      <td data-label="Reports">${pill(vRep)}</td>
     </tr>
   `;
 
