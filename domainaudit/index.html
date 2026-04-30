@@ -157,20 +157,98 @@
   .progress .bar { height: 4px; background: rgba(26,86,219,0.18); border-radius: 2px; margin-top: 8px; overflow: hidden; }
   .progress .bar-fill { height: 100%; background: var(--accent); width: 0; transition: width 120ms linear; }
 
-  /* Summary stats */
-  .summary {
+  /* Summary — hero Domains + three primary KPI tiles + compact issues strip */
+  .summary-primary {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: 10px;
+    grid-template-columns: 1.4fr 1fr 1fr 1fr;
+    gap: 12px;
   }
-  .stat {
-    border: 1px solid var(--line);
-    background: var(--bg);
+  @media (max-width: 920px) { .summary-primary { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 480px) { .summary-primary { grid-template-columns: 1fr; } }
+
+  .stat-hero {
+    background: linear-gradient(135deg, var(--accent) 0%, #2c6ee9 100%);
+    color: #fff;
     border-radius: var(--radius-sm);
-    padding: 12px 14px;
+    padding: 18px 20px;
+    box-shadow: 0 1px 2px rgba(20, 25, 40, 0.04), 0 4px 14px rgba(26, 86, 219, 0.15);
   }
-  .stat .num { font-size: 22px; font-weight: 700; color: var(--ink); letter-spacing: -0.02em; }
-  .stat .lab { font-size: 11.5px; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 2px; }
+  .stat-hero .num { font-size: 38px; font-weight: 800; line-height: 1; letter-spacing: -0.03em; }
+  .stat-hero .lab {
+    font-size: 11.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-top: 8px;
+    opacity: 0.92;
+    font-weight: 600;
+  }
+
+  .stat-primary {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--line-strong);
+    border-radius: var(--radius-sm);
+    padding: 14px 16px;
+    transition: border-left-color .15s ease;
+  }
+  .stat-primary.health-good { border-left-color: var(--ok); }
+  .stat-primary.health-warn { border-left-color: var(--warn); }
+  .stat-primary.health-err  { border-left-color: var(--err); }
+  .stat-primary .num {
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--ink);
+    letter-spacing: -0.02em;
+  }
+  .stat-primary .num .total {
+    color: var(--ink-mute);
+    font-size: 19px;
+    font-weight: 500;
+    letter-spacing: 0;
+  }
+  .stat-primary .lab {
+    font-size: 11.5px;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    letter-spacing: 0.07em;
+    margin-top: 8px;
+    font-weight: 600;
+  }
+
+  .summary-issues {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 14px;
+  }
+  .stat-issue {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+    padding: 6px 11px;
+    border-radius: var(--radius-sm);
+    font-size: 12.5px;
+    line-height: 1.3;
+  }
+  .stat-issue.err { background: var(--err-soft); color: var(--err); }
+  .stat-issue.warn { background: var(--warn-soft); color: var(--warn); }
+  .stat-issue .num { font-weight: 700; font-size: 14.5px; }
+  .stat-issue .lab { font-weight: 500; }
+
+  .summary-clean {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 14px;
+    padding: 6px 12px;
+    border-radius: var(--radius-sm);
+    background: var(--ok-soft);
+    color: var(--ok);
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .summary-clean::before { content: '\2714'; font-size: 14px; }
 
   /* Table */
   .table-wrap { overflow-x: auto; }
@@ -310,6 +388,120 @@
   .about ul { font-size: 13.5px; color: var(--ink-soft); margin: 4px 0 8px 0; padding-left: 20px; }
   .about li { margin-bottom: 3px; }
   .about strong { color: var(--ink); }
+
+  /* Toggle-all chevron */
+  #toggle-all .chev {
+    display: inline-block;
+    transition: transform .14s ease;
+    font-size: 10px;
+    line-height: 1;
+  }
+  #toggle-all[data-state="expanded"] .chev { transform: rotate(180deg); }
+
+  /* Print-only nodes (hidden on screen) */
+  .print-only { display: none; }
+
+  /* Print stylesheet — produces a client-friendly PDF when "Save as PDF" from print dialog */
+  @media print {
+    @page { size: letter; margin: 0.5in 0.45in; }
+    body { background: #fff; color: #000; font-size: 11px; }
+    a { color: #000; text-decoration: none; }
+    /* Hide controls / nav / footer */
+    header.page,
+    footer.page,
+    section.input-card,
+    .toolbar,
+    .progress { display: none !important; }
+    /* Hero report header */
+    .print-only { display: block; }
+    .print-header {
+      border-bottom: 2px solid #000;
+      padding: 0 0 8px;
+      margin: 0 0 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+    }
+    .print-header h1 { font-size: 22px; margin: 0; }
+    .print-header .meta { font-size: 11px; color: #444; text-align: right; }
+    /* Layout */
+    main { max-width: none; padding: 0; }
+    section.card {
+      box-shadow: none;
+      border: 0;
+      border-bottom: 1px solid #ccc;
+      border-radius: 0;
+      padding: 0 0 14px;
+      margin: 0 0 14px;
+      page-break-inside: avoid;
+    }
+    section.card:last-of-type { border-bottom: 0; }
+    section.card > h2 { font-size: 15px; margin: 0 0 8px; }
+    /* Summary tiles compress for print */
+    .summary-primary { gap: 6px; }
+    .stat-hero, .stat-primary { padding: 8px 10px; box-shadow: none; }
+    .stat-hero {
+      background: #1a56db !important;
+      color: #fff !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .stat-hero .num, .stat-primary .num { font-size: 20px; }
+    .stat-primary .num .total { font-size: 14px; }
+    .stat-hero .lab, .stat-primary .lab { font-size: 9px; margin-top: 4px; }
+    .stat-primary {
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .summary-issues { gap: 4px; margin-top: 8px; }
+    .stat-issue {
+      padding: 3px 7px;
+      font-size: 10px;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+      border: 1px solid currentColor;
+    }
+    .stat-issue .num { font-size: 11px; }
+    .summary-clean {
+      padding: 3px 8px;
+      font-size: 10px;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    /* Table — force all detail rows visible, tighten */
+    table.results .row-detail { display: table-row !important; }
+    table.results th, table.results td { padding: 5px 6px; font-size: 10.5px; }
+    table.results th {
+      background: #f0f0f0 !important;
+      color: #000 !important;
+      position: static;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    table.results th .sort-ind { display: none; }
+    table.results .row-main { page-break-after: avoid; }
+    table.results .row-main + .row-detail { page-break-before: avoid; page-break-inside: avoid; }
+    .row-detail .detail-grid { padding: 8px 10px; gap: 10px; grid-template-columns: 1fr 1fr; }
+    .detail-block h4 { font-size: 9px; }
+    .detail-block code.txt {
+      background: #f4f4f4 !important;
+      color: #000 !important;
+      font-size: 9.5px;
+      padding: 4px 6px;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    /* Verdict pills — keep coloring */
+    .pill {
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+      border: 1px solid currentColor;
+    }
+    /* About glossary */
+    .about p { font-size: 10.5px; margin: 0 0 4px; }
+    /* Avoid orphan registrar block */
+    .row-detail { page-break-inside: avoid; }
+  }
 </style>
 </head>
 <body>
@@ -324,18 +516,28 @@
 
 <main>
 
-  <section class="card">
+  <div class="print-only print-header">
+    <div>
+      <h1>Domain Audit Report</h1>
+      <div class="meta" id="print-domains-line"></div>
+    </div>
+    <div class="meta" id="print-date"></div>
+  </div>
+
+  <section class="card input-card">
     <h2>Domains to audit</h2>
     <p class="lede">One domain per line. Strip protocol/path on paste &mdash; we'll normalize. Up to a few hundred at a time is comfortable; lookups run in parallel.</p>
     <label for="domains">Domains</label>
     <textarea id="domains" placeholder="example.com&#10;another-domain.org&#10;subdomain.example.net" spellcheck="false" autocapitalize="off" autocorrect="off"></textarea>
 
     <details class="advanced">
-      <summary>Advanced &mdash; DKIM selectors, lookup tuning</summary>
+      <summary>Optional &mdash; extra DKIM selectors (most domains don't need this)</summary>
       <div class="adv-body">
-        <p>DKIM keys live at <code>&lt;selector&gt;._domainkey.&lt;domain&gt;</code>. Selectors are arbitrary, so detection is heuristic: we auto-pick selectors based on the MX provider (e.g., <code>google</code> for Google Workspace, <code>selector1</code>/<code>selector2</code> for Microsoft 365), plus a small generic set. Add custom selectors below if you know specific ones (e.g., <code>k1, mail, em7</code>).</p>
-        <label for="custom-selectors">Custom DKIM selectors (comma-separated)</label>
-        <input type="text" id="custom-selectors" placeholder="k1, mail, em7, postmark" spellcheck="false" autocapitalize="off" autocorrect="off">
+        <p>DKIM keys live at <code>&lt;selector&gt;._domainkey.&lt;domain&gt;</code>, and the selector is whatever the sender chose &mdash; there's no DNS query that can enumerate them, so any tool can only probe selectors it knows or guesses.</p>
+        <p><strong>The audit already auto-probes the right selectors</strong> for the inferred MX provider (e.g., <code>google</code> for Google Workspace, <code>selector1</code>/<code>selector2</code> for Microsoft 365, <code>zoho</code>/<code>zmail</code> for Zoho), plus generic fallbacks (<code>default</code>, <code>dkim</code>, <code>mail</code>, <code>k1</code>, <code>s1</code>, etc.) and selectors hinted by the domain's SPF includes (Mailchimp &rarr; <code>k1</code>/<code>k2</code>/<code>k3</code>, SendGrid &rarr; <code>s1</code>/<code>s2</code>, Postmark &rarr; <code>pm</code>, and so on). That covers most real-world setups.</p>
+        <p>Only fill this in when a domain comes back as <em>DKIM not detected</em> but you happen to know it uses a non-standard selector &mdash; for example, a corporate selector like <code>mta-prod-2024</code>, an Amazon SES domain-specific token, or a vendor-specific selector you've seen in their setup docs.</p>
+        <label for="custom-selectors">Extra DKIM selectors (comma-separated)</label>
+        <input type="text" id="custom-selectors" placeholder="mta-prod-2024, picard, ses-1234567890" spellcheck="false" autocapitalize="off" autocorrect="off">
       </div>
     </details>
 
@@ -362,10 +564,12 @@
         <input type="text" id="filter" class="filter-input" placeholder="Filter results..." spellcheck="false">
       </div>
       <div class="right">
-        <button class="btn ghost small" id="expand-all">Expand all</button>
-        <button class="btn ghost small" id="collapse-all">Collapse all</button>
+        <button class="btn ghost small" id="toggle-all" data-state="collapsed" aria-label="Toggle all rows">
+          <span class="chev">&#x25BE;</span> <span class="lbl">Expand all</span>
+        </button>
         <button class="btn ghost small" id="export-csv">Export CSV</button>
         <button class="btn ghost small" id="export-json">Export JSON</button>
+        <button class="btn ghost small" id="export-pdf">Export PDF</button>
       </div>
     </div>
     <div class="table-wrap">
@@ -400,7 +604,7 @@
 </main>
 
 <footer class="page">
-  <p>Domain Audit &middot; v0.1.0 &middot; <a href="../">back to Work Hub</a></p>
+  <p>Domain Audit &middot; v0.1.3 &middot; <a href="../">back to Work Hub</a></p>
   <p>Static page. DNS lookups via Google Public DNS-over-HTTPS (<code>dns.google</code>). Registrar info via <code>rdap.org</code>. No data leaves your browser except those queries.</p>
 </footer>
 
@@ -1091,35 +1295,70 @@ let sortState = { key: null, dir: 1 };
 function renderSummary(results) {
   const total = results.length;
   const c = {
-    spfOk: 0, spfWarn: 0, spfErr: 0,
-    dkimOk: 0, dkimWarn: 0,
-    dmarcOk: 0, dmarcWarn: 0, dmarcErr: 0,
-    ruaSet: 0,
+    spfOk: 0, spfErr: 0,
+    dmarcEnforce: 0, dmarcMonitor: 0, dmarcMiss: 0,
+    dkimOk: 0,
+    ruaMiss: 0,
   };
   for (const r of results) {
     const vSpf = verdictSpf(r);
     if (vSpf.level === 'ok') c.spfOk++;
-    else if (vSpf.level === 'warn') c.spfWarn++;
     else if (vSpf.level === 'err') c.spfErr++;
-    const vDkim = verdictDkim(r);
-    if (vDkim.level === 'ok') c.dkimOk++; else c.dkimWarn++;
+
+    if (verdictDkim(r).level === 'ok') c.dkimOk++;
+
     const vDmarc = verdictDmarc(r);
-    if (vDmarc.level === 'ok') c.dmarcOk++;
-    else if (vDmarc.level === 'warn') c.dmarcWarn++;
-    else c.dmarcErr++;
-    if (verdictReporting(r).level === 'ok') c.ruaSet++;
+    if (vDmarc.level === 'ok') c.dmarcEnforce++;
+    else if (vDmarc.label === 'p=none') c.dmarcMonitor++;
+    else if (vDmarc.level === 'err') c.dmarcMiss++;
+
+    // "no rua" only counts where DMARC is published — missing DMARC is its own bucket
+    if (r.dmarc.record && !(r.dmarc.tags && r.dmarc.tags.rua)) c.ruaMiss++;
   }
-  const stats = [
-    { num: total, lab: 'Domains' },
-    { num: c.spfOk, lab: 'SPF passing' },
-    { num: c.spfErr, lab: 'SPF missing/invalid' },
-    { num: c.dmarcOk, lab: 'DMARC enforcing' },
-    { num: c.dmarcWarn, lab: 'DMARC monitor only' },
-    { num: c.dmarcErr, lab: 'DMARC missing' },
-    { num: c.dkimOk, lab: 'DKIM detected' },
-    { num: c.ruaSet, lab: 'DMARC reports on' },
-  ];
-  $('summary').innerHTML = stats.map(s => `<div class="stat"><div class="num">${s.num}</div><div class="lab">${escapeHtml(s.lab)}</div></div>`).join('');
+
+  const healthClass = (n) => {
+    if (total === 0) return '';
+    if (n === total) return 'health-good';
+    if (n >= Math.ceil(total / 2)) return 'health-warn';
+    return 'health-err';
+  };
+
+  const primary = `
+    <div class="summary-primary">
+      <div class="stat-hero">
+        <div class="num">${total}</div>
+        <div class="lab">Domain${total === 1 ? '' : 's'} audited</div>
+      </div>
+      <div class="stat-primary ${healthClass(c.spfOk)}">
+        <div class="num">${c.spfOk}<span class="total"> / ${total}</span></div>
+        <div class="lab">SPF passing</div>
+      </div>
+      <div class="stat-primary ${healthClass(c.dmarcEnforce)}">
+        <div class="num">${c.dmarcEnforce}<span class="total"> / ${total}</span></div>
+        <div class="lab">DMARC enforcing</div>
+      </div>
+      <div class="stat-primary ${healthClass(c.dkimOk)}">
+        <div class="num">${c.dkimOk}<span class="total"> / ${total}</span></div>
+        <div class="lab">DKIM detected</div>
+      </div>
+    </div>
+  `;
+
+  const issues = [];
+  if (c.spfErr) issues.push({ n: c.spfErr, lab: 'SPF missing/invalid', level: 'err' });
+  if (c.dmarcMiss) issues.push({ n: c.dmarcMiss, lab: 'DMARC missing', level: 'err' });
+  if (c.dmarcMonitor) issues.push({ n: c.dmarcMonitor, lab: 'DMARC monitor only', level: 'warn' });
+  if (c.ruaMiss) issues.push({ n: c.ruaMiss, lab: 'No DMARC reporting (rua)', level: 'warn' });
+  const dkimMiss = total - c.dkimOk;
+  if (dkimMiss) issues.push({ n: dkimMiss, lab: 'DKIM not auto-detected', level: 'warn' });
+
+  const issuesHtml = issues.length
+    ? `<div class="summary-issues">${issues.map(i =>
+        `<span class="stat-issue ${i.level}"><span class="num">${i.n}</span><span class="lab">${escapeHtml(i.lab)}</span></span>`
+      ).join('')}</div>`
+    : `<div class="summary-clean">All clean &mdash; no issues across ${total} domain${total === 1 ? '' : 's'}</div>`;
+
+  $('summary').innerHTML = primary + issuesHtml;
 }
 
 function sortKey(r, key) {
@@ -1254,6 +1493,11 @@ async function runAudit() {
   renderSummary(lastResults);
   applyFilterAndSort();
 
+  // Reset toggle-all button to "Expand all" since fresh rows are collapsed
+  const tBtn = $('toggle-all');
+  tBtn.dataset.state = 'collapsed';
+  tBtn.querySelector('.lbl').textContent = 'Expand all';
+
   $('progress').classList.remove('show');
   $('audit-btn').disabled = false;
   $('clear-btn').disabled = false;
@@ -1272,14 +1516,34 @@ function bind() {
     $('domains').value = 'google.com\nmicrosoft.com\ngithub.com\ncloudflare.com\nstripe.com';
   });
   $('filter').addEventListener('input', applyFilterAndSort);
-  $('expand-all').addEventListener('click', () => {
-    document.querySelectorAll('#results-body .row-detail').forEach(tr => tr.style.display = '');
-  });
-  $('collapse-all').addEventListener('click', () => {
-    document.querySelectorAll('#results-body .row-detail').forEach(tr => tr.style.display = 'none');
+  $('toggle-all').addEventListener('click', () => {
+    const btn = $('toggle-all');
+    const expand = btn.dataset.state !== 'expanded';
+    document.querySelectorAll('#results-body .row-detail').forEach(tr => tr.style.display = expand ? '' : 'none');
+    btn.dataset.state = expand ? 'expanded' : 'collapsed';
+    btn.querySelector('.lbl').textContent = expand ? 'Collapse all' : 'Expand all';
   });
   $('export-csv').addEventListener('click', () => { if (lastResults.length) exportCsv(); });
   $('export-json').addEventListener('click', () => { if (lastResults.length) exportJson(); });
+  $('export-pdf').addEventListener('click', () => {
+    if (!lastResults.length) return;
+    // Populate print-only header just-in-time
+    const now = new Date();
+    const dateStr = now.toLocaleString(undefined, { dateStyle: 'long', timeStyle: 'short' });
+    $('print-date').textContent = `Generated ${dateStr}`;
+    $('print-domains-line').textContent = `${lastResults.length} domain${lastResults.length === 1 ? '' : 's'} audited`;
+    // Force every detail row visible for the print render, then restore after print
+    const details = Array.from(document.querySelectorAll('#results-body .row-detail'));
+    const prior = details.map(tr => tr.style.display);
+    details.forEach(tr => tr.style.display = '');
+    const restore = () => {
+      details.forEach((tr, i) => tr.style.display = prior[i]);
+      window.removeEventListener('afterprint', restore);
+    };
+    window.addEventListener('afterprint', restore);
+    // Brief delay so layout reflows before the print dialog snapshots
+    setTimeout(() => window.print(), 80);
+  });
 
   // Sort handlers
   document.querySelectorAll('#results-table thead th').forEach(th => {
