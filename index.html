@@ -60,11 +60,72 @@
     padding: 28px 24px 60px;
   }
 
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 280px;
+    gap: 28px;
+    align-items: start;
+  }
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; }
+  }
+
   .grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 20px;
   }
+
+  aside.tools {
+    position: sticky;
+    top: 24px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 16px 16px 14px;
+  }
+  aside.tools h2 {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    color: var(--ink-soft);
+    margin: 0 0 10px;
+  }
+  aside.tools ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  aside.tools li + li {
+    margin-top: 2px;
+    border-top: 1px solid var(--line);
+    padding-top: 2px;
+  }
+  aside.tools a {
+    display: block;
+    padding: 9px 10px;
+    margin: 0 -10px;
+    border-radius: 8px;
+    color: var(--ink);
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.35;
+    transition: background .12s ease, color .12s ease;
+  }
+  aside.tools a:hover {
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+  aside.tools .source {
+    display: block;
+    font-size: 11.5px;
+    font-weight: 400;
+    color: var(--ink-soft);
+    margin-top: 2px;
+  }
+  aside.tools a:hover .source { color: var(--accent); opacity: 0.75; }
 
   .card {
     display: flex;
@@ -162,6 +223,7 @@
 </header>
 
 <main>
+  <div class="layout">
   <div class="grid">
 
     <a class="card" href="phish/" aria-label="Open Phishing Awareness">
@@ -203,6 +265,32 @@
       </div>
     </a>
 
+    <a class="card" href="spf/" aria-label="Open the SPF Toolkit">
+      <div class="preview">
+        <iframe src="spf/" loading="lazy" tabindex="-1" aria-hidden="true" title="SPF Toolkit preview"></iframe>
+        <div class="preview-overlay"></div>
+      </div>
+      <div class="meta">
+        <div class="meta-tag">Email auth &middot; SPF generator &amp; validator</div>
+        <h2>SPF Toolkit</h2>
+        <p>Look up an existing SPF record, generate a new one with checkboxes for Microsoft 365, Google Workspace, and the common ESPs, and validate any record against the RFC 7208 10-lookup limit with recursive include resolution.</p>
+        <span class="open">Open SPF Toolkit</span>
+      </div>
+    </a>
+
+    <a class="card" href="domainaudit/" aria-label="Open Domain Audit">
+      <div class="preview">
+        <iframe src="domainaudit/" loading="lazy" tabindex="-1" aria-hidden="true" title="Domain Audit preview"></iframe>
+        <div class="preview-overlay"></div>
+      </div>
+      <div class="meta">
+        <div class="meta-tag">Email auth &middot; Bulk SPF/DKIM/DMARC audit</div>
+        <h2>Domain Audit</h2>
+        <p>Paste a list of domains; get a sortable report of SPF, DKIM, and DMARC status, the inbound mail provider from MX, registrar via RDAP, and every authorized sender from SPF includes mapped to the service that owns it. CSV/JSON export.</p>
+        <span class="open">Open Domain Audit</span>
+      </div>
+    </a>
+
     <a class="card" href="branding/" aria-label="Open the Umbrella Automation brand guidelines">
       <div class="preview">
         <iframe src="branding/" loading="lazy" tabindex="-1" aria-hidden="true" title="Umbrella Automation brand guidelines preview"></iframe>
@@ -215,6 +303,22 @@
         <span class="open">Open brand guidelines</span>
       </div>
     </a>
+
+  </div>
+
+  <!-- Tools & Bookmarks sidebar.
+       To add a bookmark: copy a <li>...</li> block and edit the href, label, and source domain. -->
+  <aside class="tools" aria-label="Tools and bookmarks">
+    <h2>Tools &amp; Bookmarks</h2>
+    <ul>
+      <li>
+        <a href="https://easydmarc.com/tools/dmarc-record-generator" target="_blank" rel="noopener noreferrer">
+          DMARC Record Generator
+          <span class="source">easydmarc.com</span>
+        </a>
+      </li>
+    </ul>
+  </aside>
 
   </div>
 </main>

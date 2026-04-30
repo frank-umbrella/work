@@ -1,0 +1,1313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Domain Audit &middot; Work Hub</title>
+<meta name="description" content="Bulk audit SPF, DKIM, and DMARC on a list of domains. Identifies the primary email provider from MX records, lists authorized senders from SPF includes, and shows registrar info via RDAP.">
+<meta name="robots" content="noindex">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --surface: #ffffff;
+    --ink: #1a1f2b;
+    --ink-soft: #475063;
+    --ink-mute: #6b7385;
+    --line: #e3e6ec;
+    --line-strong: #c9cfdb;
+    --accent: #1a56db;
+    --accent-soft: #eaf0fc;
+    --ok: #047857;
+    --ok-soft: #d1fae5;
+    --warn: #b45309;
+    --warn-soft: #fef3c7;
+    --err: #b91c1c;
+    --err-soft: #fee2e2;
+    --neutral-soft: #eef0f4;
+    --code-bg: #0f172a;
+    --code-ink: #e2e8f0;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --shadow: 0 1px 2px rgba(20, 25, 40, 0.04), 0 4px 14px rgba(20, 25, 40, 0.05);
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  header.page {
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+    padding: 28px 24px 24px;
+  }
+  header.page .wrap {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  header.page .crumb { color: var(--ink-mute); font-size: 13px; margin-bottom: 6px; }
+  header.page .crumb a { color: var(--ink-mute); }
+  header.page h1 { font-size: 26px; margin: 0 0 4px; letter-spacing: -0.01em; }
+  header.page p { margin: 0; color: var(--ink-soft); font-size: 14.5px; max-width: 820px; }
+
+  main { max-width: 1200px; margin: 0 auto; padding: 24px 24px 60px; }
+
+  section.card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 20px 22px 22px;
+    margin-bottom: 20px;
+  }
+  section.card > h2 { font-size: 18px; margin: 0 0 4px; letter-spacing: -0.005em; }
+  section.card > .lede { color: var(--ink-soft); font-size: 14px; margin: 0 0 14px; }
+
+  label { font-size: 13px; color: var(--ink-soft); display: block; margin-bottom: 6px; font-weight: 500; }
+  textarea, input[type=text] {
+    width: 100%;
+    background: #fff;
+    color: var(--ink);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    font-size: 14px;
+    font-family: var(--mono);
+    line-height: 1.55;
+    transition: border-color .12s ease, box-shadow .12s ease;
+  }
+  textarea:focus, input[type=text]:focus {
+    outline: 0;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+  textarea { min-height: 120px; resize: vertical; }
+
+  .controls {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-top: 14px;
+  }
+  button.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--accent);
+    color: #fff;
+    border: 1px solid var(--accent);
+    border-radius: var(--radius-sm);
+    padding: 9px 16px;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: filter .12s ease;
+  }
+  button.btn:hover { filter: brightness(1.08); }
+  button.btn:disabled { opacity: 0.55; cursor: not-allowed; filter: none; }
+  button.btn.ghost {
+    background: #fff;
+    color: var(--ink);
+    border-color: var(--line-strong);
+  }
+  button.btn.ghost:hover { background: var(--bg); filter: none; }
+  button.btn.small { padding: 6px 11px; font-size: 12.5px; font-weight: 500; }
+
+  details.advanced {
+    margin-top: 14px;
+    border-top: 1px dashed var(--line);
+    padding-top: 12px;
+  }
+  details.advanced > summary {
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--ink-soft);
+    font-weight: 500;
+    list-style: none;
+  }
+  details.advanced > summary::-webkit-details-marker { display: none; }
+  details.advanced > summary::before { content: '\25B8  '; color: var(--ink-mute); font-size: 10px; }
+  details.advanced[open] > summary::before { content: '\25BE  '; }
+  details.advanced .adv-body { margin-top: 10px; }
+  details.advanced .adv-body p { font-size: 13px; color: var(--ink-soft); margin: 0 0 8px; }
+
+  .progress {
+    margin-top: 16px;
+    padding: 10px 14px;
+    background: var(--accent-soft);
+    border-radius: var(--radius-sm);
+    color: var(--accent);
+    font-size: 13.5px;
+    font-weight: 500;
+    display: none;
+  }
+  .progress.show { display: block; }
+  .progress .bar { height: 4px; background: rgba(26,86,219,0.18); border-radius: 2px; margin-top: 8px; overflow: hidden; }
+  .progress .bar-fill { height: 100%; background: var(--accent); width: 0; transition: width 120ms linear; }
+
+  /* Summary stats */
+  .summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 10px;
+  }
+  .stat {
+    border: 1px solid var(--line);
+    background: var(--bg);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+  }
+  .stat .num { font-size: 22px; font-weight: 700; color: var(--ink); letter-spacing: -0.02em; }
+  .stat .lab { font-size: 11.5px; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 2px; }
+
+  /* Table */
+  .table-wrap { overflow-x: auto; }
+  table.results {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13.5px;
+  }
+  table.results th, table.results td {
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+  }
+  table.results th {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--ink-soft);
+    background: var(--bg);
+    font-weight: 600;
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
+  table.results th:hover { color: var(--ink); }
+  table.results th .sort-ind { color: var(--ink-mute); margin-left: 4px; font-size: 10px; }
+  table.results tr.row-main { cursor: pointer; transition: background .1s ease; }
+  table.results tr.row-main:hover { background: var(--bg); }
+  table.results td.dom { font-family: var(--mono); font-weight: 600; color: var(--ink); white-space: nowrap; }
+  table.results td.cell-pass { color: var(--ink-soft); }
+  table.results td .twoline { display: block; line-height: 1.35; }
+  table.results td .twoline .sub { color: var(--ink-mute); font-size: 12px; }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11.5px;
+    font-weight: 600;
+    line-height: 1.5;
+    white-space: nowrap;
+  }
+  .pill.ok { background: var(--ok-soft); color: var(--ok); }
+  .pill.warn { background: var(--warn-soft); color: var(--warn); }
+  .pill.err { background: var(--err-soft); color: var(--err); }
+  .pill.neutral { background: var(--neutral-soft); color: var(--ink-soft); }
+  .pill .icn { font-size: 11px; }
+
+  .row-detail td {
+    background: #fafbfc;
+    padding: 0 !important;
+    border-bottom: 1px solid var(--line);
+  }
+  .row-detail .detail-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+    padding: 16px 18px;
+  }
+  .detail-block h4 {
+    margin: 0 0 6px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--ink-soft);
+    font-weight: 700;
+  }
+  .detail-block .row-line { font-size: 13px; color: var(--ink); margin-bottom: 4px; }
+  .detail-block .row-line .lab { color: var(--ink-soft); margin-right: 4px; }
+  .detail-block code.txt {
+    display: block;
+    background: var(--code-bg);
+    color: var(--code-ink);
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 8px 10px;
+    border-radius: var(--radius-sm);
+    word-break: break-all;
+    white-space: pre-wrap;
+    line-height: 1.55;
+    margin-top: 6px;
+  }
+  .sender-list { list-style: none; margin: 6px 0 0; padding: 0; font-size: 13px; }
+  .sender-list li { padding: 3px 0; display: flex; gap: 8px; align-items: baseline; }
+  .sender-list li .name { font-weight: 600; color: var(--ink); }
+  .sender-list li .src { color: var(--ink-mute); font-family: var(--mono); font-size: 11.5px; }
+  .empty-note { color: var(--ink-mute); font-size: 12.5px; font-style: italic; }
+
+  .issue-list { margin: 6px 0 0; padding-left: 18px; }
+  .issue-list li { font-size: 12.5px; padding: 1px 0; }
+  .issue-list li.warn { color: var(--warn); }
+  .issue-list li.err { color: var(--err); }
+  .issue-list li.info { color: var(--ink-soft); }
+
+  .empty-table {
+    text-align: center;
+    padding: 36px 16px;
+    color: var(--ink-mute);
+    font-size: 14px;
+  }
+
+  footer.page {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px 32px;
+    color: var(--ink-soft);
+    font-size: 12.5px;
+  }
+  footer.page p { margin: 0 0 4px; }
+
+  .toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+  .toolbar .left { display: flex; gap: 8px; flex-wrap: wrap; }
+  .toolbar .right { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  .filter-input {
+    width: 220px;
+    padding: 7px 10px;
+    font-size: 13px;
+    font-family: inherit;
+  }
+
+  /* About card */
+  .about p { font-size: 13.5px; color: var(--ink-soft); margin: 0 0 8px; }
+  .about ul { font-size: 13.5px; color: var(--ink-soft); margin: 4px 0 8px 0; padding-left: 20px; }
+  .about li { margin-bottom: 3px; }
+  .about strong { color: var(--ink); }
+</style>
+</head>
+<body>
+
+<header class="page">
+  <div class="wrap">
+    <div class="crumb"><a href="../">Work Hub</a> &rsaquo; Domain Audit</div>
+    <h1>Domain Audit</h1>
+    <p>Bulk-check SPF, DKIM, DMARC, MX, and registrar across a list of domains. Spots missing or misconfigured email authentication, identifies the primary mail provider, and lists every additional sender authorized through SPF includes.</p>
+  </div>
+</header>
+
+<main>
+
+  <section class="card">
+    <h2>Domains to audit</h2>
+    <p class="lede">One domain per line. Strip protocol/path on paste &mdash; we'll normalize. Up to a few hundred at a time is comfortable; lookups run in parallel.</p>
+    <label for="domains">Domains</label>
+    <textarea id="domains" placeholder="example.com&#10;another-domain.org&#10;subdomain.example.net" spellcheck="false" autocapitalize="off" autocorrect="off"></textarea>
+
+    <details class="advanced">
+      <summary>Advanced &mdash; DKIM selectors, lookup tuning</summary>
+      <div class="adv-body">
+        <p>DKIM keys live at <code>&lt;selector&gt;._domainkey.&lt;domain&gt;</code>. Selectors are arbitrary, so detection is heuristic: we auto-pick selectors based on the MX provider (e.g., <code>google</code> for Google Workspace, <code>selector1</code>/<code>selector2</code> for Microsoft 365), plus a small generic set. Add custom selectors below if you know specific ones (e.g., <code>k1, mail, em7</code>).</p>
+        <label for="custom-selectors">Custom DKIM selectors (comma-separated)</label>
+        <input type="text" id="custom-selectors" placeholder="k1, mail, em7, postmark" spellcheck="false" autocapitalize="off" autocorrect="off">
+      </div>
+    </details>
+
+    <div class="controls">
+      <button class="btn" id="audit-btn">Run audit</button>
+      <button class="btn ghost" id="clear-btn">Clear</button>
+      <button class="btn ghost small" id="example-btn">Load examples</button>
+    </div>
+
+    <div class="progress" id="progress">
+      <span id="progress-text">Auditing&hellip;</span>
+      <div class="bar"><div class="bar-fill" id="progress-bar"></div></div>
+    </div>
+  </section>
+
+  <section class="card" id="summary-card" style="display:none;">
+    <h2>Summary</h2>
+    <div class="summary" id="summary"></div>
+  </section>
+
+  <section class="card" id="results-card" style="display:none;">
+    <div class="toolbar">
+      <div class="left">
+        <input type="text" id="filter" class="filter-input" placeholder="Filter results..." spellcheck="false">
+      </div>
+      <div class="right">
+        <button class="btn ghost small" id="expand-all">Expand all</button>
+        <button class="btn ghost small" id="collapse-all">Collapse all</button>
+        <button class="btn ghost small" id="export-csv">Export CSV</button>
+        <button class="btn ghost small" id="export-json">Export JSON</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table class="results" id="results-table">
+        <thead>
+          <tr>
+            <th data-sort="domain">Domain</th>
+            <th data-sort="registrar">Registrar</th>
+            <th data-sort="mxProvider">Mail provider</th>
+            <th data-sort="spf">SPF</th>
+            <th data-sort="dkim">DKIM</th>
+            <th data-sort="dmarc">DMARC</th>
+            <th data-sort="reporting">Reports</th>
+          </tr>
+        </thead>
+        <tbody id="results-body"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card about">
+    <h2>What each check means</h2>
+    <p><strong>SPF</strong> &mdash; The TXT record on the apex starting with <code>v=spf1</code>. Lists which servers can send mail as the domain. Multiple SPF records is invalid (they must merge). Watch for the RFC 7208 10-DNS-lookup limit on <code>include:</code>/<code>a:</code>/<code>mx:</code> mechanisms.</p>
+    <p><strong>DKIM</strong> &mdash; Public key(s) at <code>&lt;selector&gt;._domainkey.&lt;domain&gt;</code>. Selectors are arbitrary per provider, so this tool can only probe common selectors. <em>Not detected</em> means no DKIM at the selectors we tried &mdash; the domain may still have DKIM under a custom selector you'd need to specify in Advanced.</p>
+    <p><strong>DMARC</strong> &mdash; The TXT record on <code>_dmarc.&lt;domain&gt;</code>. Sets policy for what receivers do when SPF/DKIM fail: <code>p=none</code> (monitoring only), <code>p=quarantine</code>, <code>p=reject</code>. Without DMARC, spoofing protection is partial at best.</p>
+    <p><strong>Mail provider</strong> &mdash; Inferred from the highest-priority MX record. Tells you who handles inbound mail (Google Workspace, Microsoft 365, Proofpoint, etc.).</p>
+    <p><strong>Authorized senders</strong> &mdash; Every <code>include:</code> in the SPF chain, mapped to the friendly name of the service that owns it (Mailchimp, SendGrid, etc.). Use this to spot legacy senders that should be removed, or to confirm every expected service is listed.</p>
+    <p><strong>Reports</strong> &mdash; Whether DMARC has a <code>rua=</code> address. Without DMARC reporting, you have no visibility into which services are <em>trying</em> to send as the domain. Reports are how you discover senders that need to be added to (or removed from) SPF.</p>
+    <p><strong>Registrar</strong> &mdash; Pulled via RDAP (the modern WHOIS replacement) from <code>rdap.org</code>. Some country-code TLDs return limited info; we surface what's available.</p>
+  </section>
+
+</main>
+
+<footer class="page">
+  <p>Domain Audit &middot; v0.1.0 &middot; <a href="../">back to Work Hub</a></p>
+  <p>Static page. DNS lookups via Google Public DNS-over-HTTPS (<code>dns.google</code>). Registrar info via <code>rdap.org</code>. No data leaves your browser except those queries.</p>
+</footer>
+
+<script>
+'use strict';
+
+// ===== Provider mappings =====
+
+// MX hostname -> friendly mail provider name
+const MX_PROVIDER_PATTERNS = [
+  { match: /(^|\.)google(mail)?\.com\.?$/i, name: 'Google Workspace' },
+  { match: /(^|\.)googlemail\.com\.?$/i, name: 'Google Workspace' },
+  { match: /\.aspmx\.l\.google\.com\.?$/i, name: 'Google Workspace' },
+  { match: /\.protection\.outlook\.com\.?$/i, name: 'Microsoft 365' },
+  { match: /\.mail\.eo\.outlook\.com\.?$/i, name: 'Microsoft Exchange Online' },
+  { match: /\.mail\.protection\.outlook\.com\.?$/i, name: 'Microsoft 365' },
+  { match: /\.zoho\.com\.?$/i, name: 'Zoho Mail' },
+  { match: /\.zohomail\.(com|in|eu)\.?$/i, name: 'Zoho Mail' },
+  { match: /\.protonmail\.ch\.?$/i, name: 'Proton Mail' },
+  { match: /\.fastmail\.com\.?$/i, name: 'Fastmail' },
+  { match: /\.messagingengine\.com\.?$/i, name: 'Fastmail' },
+  { match: /\.icloud\.com\.?$/i, name: 'iCloud Mail' },
+  { match: /\.mail\.me\.com\.?$/i, name: 'iCloud Mail' },
+  { match: /\.mimecast\.com\.?$/i, name: 'Mimecast' },
+  { match: /\.barracudanetworks\.com\.?$/i, name: 'Barracuda' },
+  { match: /\.barracuda\.com\.?$/i, name: 'Barracuda' },
+  { match: /\.pphosted\.com\.?$/i, name: 'Proofpoint' },
+  { match: /\.ppe-hosted\.com\.?$/i, name: 'Proofpoint Essentials' },
+  { match: /\.iphmx\.com\.?$/i, name: 'Cisco IronPort' },
+  { match: /\.messagelabs\.(com|net)\.?$/i, name: 'Symantec MessageLabs' },
+  { match: /\.spamh\.com\.?$/i, name: 'SpamExperts' },
+  { match: /\.antispamcloud\.com\.?$/i, name: 'SpamExperts' },
+  { match: /\.cloudfilter\.net\.?$/i, name: 'CloudFilter' },
+  { match: /\.mxlogic\.net\.?$/i, name: 'McAfee MX Logic' },
+  { match: /\.gandi\.net\.?$/i, name: 'Gandi Mail' },
+  { match: /\.titan\.email\.?$/i, name: 'Titan' },
+  { match: /\.yandex\.(ru|net|com)\.?$/i, name: 'Yandex Mail' },
+  { match: /\.yahoodns\.net\.?$/i, name: 'Yahoo Mail' },
+  { match: /\.aol\.com\.?$/i, name: 'AOL' },
+  { match: /\.rackspace\.com\.?$/i, name: 'Rackspace Email' },
+  { match: /\.emailsrvr\.com\.?$/i, name: 'Rackspace Email' },
+  { match: /\.privateemail\.com\.?$/i, name: 'Namecheap Private Email' },
+  { match: /\.registrar-servers\.com\.?$/i, name: 'Namecheap Email' },
+  { match: /\.dreamhost\.com\.?$/i, name: 'DreamHost' },
+  { match: /\.bluehost\.com\.?$/i, name: 'Bluehost' },
+  { match: /\.secureserver\.net\.?$/i, name: 'GoDaddy / Microsoft 365 (GoDaddy reseller)' },
+  { match: /\.amazonses\.com\.?$/i, name: 'Amazon SES' },
+  { match: /\.workmail\.com\.?$/i, name: 'Amazon WorkMail' },
+];
+
+// SPF include hostname -> sender service friendly name
+// Used both for naming senders and for reverse-checking the inbound MX provider
+const SPF_INCLUDE_PROVIDERS = [
+  { match: /^_spf\.google\.com$/i,             name: 'Google Workspace',     mxKey: 'Google Workspace' },
+  { match: /^spf\.protection\.outlook\.com$/i, name: 'Microsoft 365',        mxKey: 'Microsoft 365' },
+  { match: /^servers\.mcsv\.net$/i,            name: 'Mailchimp' },
+  { match: /^_spf\.salesforce\.com$/i,         name: 'Salesforce' },
+  { match: /^et\._spf\.salesforce\.com$/i,     name: 'Salesforce Marketing Cloud' },
+  { match: /^_spf\.mailjet\.com$/i,            name: 'Mailjet' },
+  { match: /^sendgrid\.net$/i,                 name: 'SendGrid' },
+  { match: /^mailgun\.org$/i,                  name: 'Mailgun' },
+  { match: /^_spf\.mailgun\.org$/i,            name: 'Mailgun' },
+  { match: /^_spf\.qualtrics\.com$/i,          name: 'Qualtrics' },
+  { match: /^helpscoutemail\.com$/i,           name: 'Help Scout' },
+  { match: /^spf\.constantcontact\.com$/i,     name: 'Constant Contact' },
+  { match: /^ccsend\.constantcontact\.com$/i,  name: 'Constant Contact' },
+  { match: /^spf\.zoho\.com$/i,                name: 'Zoho Mail',            mxKey: 'Zoho Mail' },
+  { match: /^zoho\.com$/i,                     name: 'Zoho Mail',            mxKey: 'Zoho Mail' },
+  { match: /^_spf\.createsend\.com$/i,         name: 'Campaign Monitor' },
+  { match: /^_netblocks\.mimecast\.com$/i,     name: 'Mimecast',             mxKey: 'Mimecast' },
+  { match: /^pphosted\.com$/i,                 name: 'Proofpoint',           mxKey: 'Proofpoint' },
+  { match: /^_spf-a\.microsoft\.com$/i,        name: 'Microsoft' },
+  { match: /^_spf-b\.microsoft\.com$/i,        name: 'Microsoft' },
+  { match: /^_spf-c\.microsoft\.com$/i,        name: 'Microsoft' },
+  { match: /^mktomail\.com$/i,                 name: 'Marketo' },
+  { match: /^_spf\.mandrillapp\.com$/i,        name: 'Mandrill' },
+  { match: /^spf\.mandrillapp\.com$/i,         name: 'Mandrill' },
+  { match: /^_spf\.elasticemail\.com$/i,       name: 'ElasticEmail' },
+  { match: /^_spf\.intuit\.com$/i,             name: 'Intuit' },
+  { match: /^mailspf\.intuit\.com$/i,          name: 'Intuit' },
+  { match: /^_spf\.smartrmail\.com$/i,         name: 'SmartrMail' },
+  { match: /^amazonses\.com$/i,                name: 'Amazon SES' },
+  { match: /^spf\.mtasv\.net$/i,               name: 'Postmark' },
+  { match: /^_spf\.cloudflare\.com$/i,         name: 'Cloudflare' },
+  { match: /^_spf\.notion\.so$/i,              name: 'Notion' },
+  { match: /^stspg-customer\.com$/i,           name: 'Statuspage' },
+  { match: /^_spf\.qa\.fb\.com$/i,             name: 'Meta / Workplace' },
+  { match: /^_spf\.fb\.com$/i,                 name: 'Meta / Workplace' },
+  { match: /^_spf\.facebook\.com$/i,           name: 'Meta / Workplace' },
+  { match: /^_spf\.dropbox\.com$/i,            name: 'Dropbox' },
+  { match: /^_spf\.slack\.com$/i,              name: 'Slack' },
+  { match: /^_spf\.atlassian\.net$/i,          name: 'Atlassian' },
+  { match: /^_spf\.intercom\.io$/i,            name: 'Intercom' },
+  { match: /^_spf\.docusign\.com$/i,           name: 'DocuSign' },
+  { match: /^_spf\.docusign\.net$/i,           name: 'DocuSign' },
+  { match: /^_spf\.hubspotemail\.net$/i,       name: 'HubSpot' },
+  { match: /^_spf\.hubspot\.com$/i,            name: 'HubSpot' },
+  { match: /^_spf\.zendesk\.com$/i,            name: 'Zendesk' },
+  { match: /^_spf\.freshdesk\.com$/i,          name: 'Freshdesk' },
+  { match: /^_spf\.surveymonkey\.com$/i,       name: 'SurveyMonkey' },
+  { match: /^_spf\.brevo\.com$/i,              name: 'Brevo (Sendinblue)' },
+  { match: /^spf\.sendinblue\.com$/i,          name: 'Brevo (Sendinblue)' },
+  { match: /^_spf\.sendinblue\.com$/i,         name: 'Brevo (Sendinblue)' },
+  { match: /^spmailtechnol\.com$/i,            name: 'SparkPost' },
+  { match: /^sparkpostmail\.com$/i,            name: 'SparkPost' },
+  { match: /^outlook\.com$/i,                  name: 'Outlook.com',          mxKey: 'Microsoft 365' },
+];
+
+// Generic / fallback DKIM selectors to probe when MX provider is unknown
+const GENERIC_DKIM_SELECTORS = ['default', 'dkim', 'mail', 'email', 'k1', 's1', 'selector1'];
+
+// Per-provider DKIM selectors — picked when we recognize the MX
+const PROVIDER_DKIM_SELECTORS = {
+  'Google Workspace':            ['google'],
+  'Microsoft 365':               ['selector1', 'selector2'],
+  'Microsoft Exchange Online':   ['selector1', 'selector2'],
+  'Zoho Mail':                   ['zoho', 'zmail'],
+  'Proton Mail':                 ['protonmail', 'protonmail2', 'protonmail3'],
+  'Fastmail':                    ['fm1', 'fm2', 'fm3', 'mesmtp'],
+  'iCloud Mail':                 ['sig1'],
+  'Mimecast':                    ['mimecast'],
+  'Proofpoint':                  ['pps1', 'pps2'],
+  'Proofpoint Essentials':       ['pps1', 'pps2'],
+  'Yandex Mail':                 ['mail'],
+};
+
+// ===== DNS-over-HTTPS =====
+
+async function dohQuery(name, type) {
+  const url = `https://dns.google/resolve?name=${encodeURIComponent(name)}&type=${encodeURIComponent(type)}`;
+  const r = await fetch(url, { headers: { Accept: 'application/dns-json' } });
+  if (!r.ok) throw new Error(`DoH ${type} ${name}: HTTP ${r.status}`);
+  return r.json();
+}
+
+// TXT records can come back from DoH as one record split across multiple
+// double-quoted strings, e.g.  "v=spf1 include:..." "more"
+// We strip the quotes and concat.
+function unquoteTxt(data) {
+  if (!data) return '';
+  // Match each quoted chunk; if no quotes at all, return as-is.
+  const chunks = data.match(/"((?:[^"\\]|\\.)*)"/g);
+  if (!chunks) return data;
+  return chunks.map(c => c.slice(1, -1).replace(/\\(.)/g, '$1')).join('');
+}
+
+async function txtLookup(name) {
+  const r = await dohQuery(name, 'TXT');
+  if (!r.Answer) return { records: [], status: r.Status, ad: !!r.AD };
+  const records = r.Answer
+    .filter(a => a.type === 16)
+    .map(a => unquoteTxt(a.data));
+  return { records, status: r.Status, ad: !!r.AD };
+}
+
+async function mxLookup(name) {
+  const r = await dohQuery(name, 'MX');
+  if (!r.Answer) return { records: [], status: r.Status };
+  const records = r.Answer
+    .filter(a => a.type === 15)
+    .map(a => {
+      const parts = a.data.trim().split(/\s+/);
+      return { preference: parseInt(parts[0], 10), exchange: (parts[1] || '').replace(/\.$/, '') };
+    })
+    .sort((a, b) => a.preference - b.preference);
+  return { records, status: r.Status };
+}
+
+// ===== Domain normalization =====
+
+function normalizeDomain(line) {
+  let s = String(line || '').trim().toLowerCase();
+  if (!s) return '';
+  // Strip protocol
+  s = s.replace(/^https?:\/\//, '');
+  // Strip user@ if pasted as email
+  s = s.replace(/^[^@\s]+@/, '');
+  // Strip path, query, fragment
+  s = s.split('/')[0].split('?')[0].split('#')[0];
+  // Strip port
+  s = s.split(':')[0];
+  // Strip trailing dot
+  s = s.replace(/\.$/, '');
+  // Strip leading "www." (debatable; for audit purposes we typically want apex)
+  // We'll leave it — user controls input. Only strip if explicitly www.
+  // Actually strip — apex is what people usually mean.
+  s = s.replace(/^www\./, '');
+  // Validate basic shape: at least one dot, only valid chars
+  if (!/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(s)) return '';
+  return s;
+}
+
+// ===== SPF parsing =====
+
+function findSpfRecords(txtRecords) {
+  return txtRecords.filter(r => /^v=spf1\b/i.test(r.trim()));
+}
+
+function parseSpf(record) {
+  const tokens = record.trim().split(/\s+/).slice(1); // drop v=spf1
+  const mechanisms = [];
+  let allMechanism = null;
+  let lookups = 0; // RFC 7208 §4.6.4 — count of include/a/mx/ptr/exists/redirect
+
+  for (const tok of tokens) {
+    if (!tok) continue;
+    const m = tok.match(/^([+\-~?])?(.+)$/);
+    if (!m) continue;
+    const qual = m[1] || '+';
+    const body = m[2];
+    const lower = body.toLowerCase();
+
+    if (lower === 'all' || lower.startsWith('all:')) {
+      allMechanism = qual + 'all';
+      continue;
+    }
+    if (lower.startsWith('include:')) {
+      mechanisms.push({ kind: 'include', host: body.slice(8), qualifier: qual });
+      lookups++;
+      continue;
+    }
+    if (lower === 'a' || lower.startsWith('a:') || lower.startsWith('a/')) {
+      mechanisms.push({ kind: 'a', host: body.slice(2).split('/')[0] || null, qualifier: qual });
+      lookups++;
+      continue;
+    }
+    if (lower === 'mx' || lower.startsWith('mx:') || lower.startsWith('mx/')) {
+      mechanisms.push({ kind: 'mx', host: body.slice(3).split('/')[0] || null, qualifier: qual });
+      lookups++;
+      continue;
+    }
+    if (lower.startsWith('ip4:')) {
+      mechanisms.push({ kind: 'ip4', value: body.slice(4), qualifier: qual });
+      continue;
+    }
+    if (lower.startsWith('ip6:')) {
+      mechanisms.push({ kind: 'ip6', value: body.slice(4), qualifier: qual });
+      continue;
+    }
+    if (lower.startsWith('exists:')) {
+      mechanisms.push({ kind: 'exists', value: body.slice(7), qualifier: qual });
+      lookups++;
+      continue;
+    }
+    if (lower.startsWith('ptr') ) {
+      mechanisms.push({ kind: 'ptr', value: body.slice(3).replace(/^:/, ''), qualifier: qual });
+      lookups++;
+      continue;
+    }
+    if (lower.startsWith('redirect=')) {
+      mechanisms.push({ kind: 'redirect', host: body.slice(9), qualifier: '' });
+      lookups++;
+      continue;
+    }
+    if (lower.startsWith('exp=')) {
+      mechanisms.push({ kind: 'exp', value: body.slice(4), qualifier: '' });
+      continue;
+    }
+    mechanisms.push({ kind: 'other', value: body, qualifier: qual });
+  }
+
+  return { mechanisms, allMechanism, lookups };
+}
+
+function namedSenderFromInclude(host) {
+  for (const p of SPF_INCLUDE_PROVIDERS) {
+    if (p.match.test(host)) return p;
+  }
+  return null;
+}
+
+// ===== DMARC parsing =====
+
+function findDmarcRecord(txtRecords) {
+  const matches = txtRecords.filter(r => /^v=DMARC1\b/i.test(r.trim()));
+  return matches[0] || null;
+}
+
+function parseDmarc(record) {
+  const tags = {};
+  for (const part of record.split(';')) {
+    const eq = part.indexOf('=');
+    if (eq < 0) continue;
+    const k = part.slice(0, eq).trim().toLowerCase();
+    const v = part.slice(eq + 1).trim();
+    if (k && k !== 'v') tags[k] = v;
+  }
+  return tags;
+}
+
+// ===== MX provider inference =====
+
+function inferMxProvider(mxRecords) {
+  if (!mxRecords.length) return null;
+  // Look at the lowest-pref (highest priority) host first, but check all for a known match.
+  for (const mx of mxRecords) {
+    const host = mx.exchange.toLowerCase();
+    for (const p of MX_PROVIDER_PATTERNS) {
+      if (p.match.test(host)) return p.name;
+    }
+  }
+  // Fallback: extract registrable-ish domain of first MX
+  const first = mxRecords[0].exchange.toLowerCase();
+  const parts = first.split('.');
+  if (parts.length >= 2) return parts.slice(-2).join('.');
+  return first;
+}
+
+// ===== RDAP (registrar) =====
+
+async function rdapLookup(domain) {
+  // rdap.org redirects to the right registry's RDAP server.
+  // It supports CORS for browser clients.
+  try {
+    const r = await fetch(`https://rdap.org/domain/${encodeURIComponent(domain)}`, {
+      headers: { Accept: 'application/rdap+json' },
+    });
+    if (!r.ok) return { error: `HTTP ${r.status}` };
+    const data = await r.json();
+    return parseRdap(data);
+  } catch (e) {
+    return { error: e.message || 'fetch failed' };
+  }
+}
+
+function parseRdap(data) {
+  const out = { registrar: null, registered: null, expires: null, lastChanged: null };
+  if (Array.isArray(data.events)) {
+    for (const ev of data.events) {
+      if (ev.eventAction === 'registration') out.registered = ev.eventDate;
+      else if (ev.eventAction === 'expiration') out.expires = ev.eventDate;
+      else if (ev.eventAction === 'last changed') out.lastChanged = ev.eventDate;
+    }
+  }
+  if (Array.isArray(data.entities)) {
+    for (const ent of data.entities) {
+      const roles = ent.roles || [];
+      if (!roles.includes('registrar')) continue;
+      // vcardArray: ["vcard", [["fn", {}, "text", "Name"], ...]]
+      const vcard = ent.vcardArray && ent.vcardArray[1];
+      if (Array.isArray(vcard)) {
+        for (const item of vcard) {
+          if (Array.isArray(item) && item[0] === 'fn') {
+            out.registrar = item[3];
+            break;
+          }
+        }
+      }
+      if (!out.registrar && ent.publicIds) {
+        // Some RDAP responses put name elsewhere; use IANA ID as fallback marker
+        const iana = ent.publicIds.find(p => p.type === 'IANA Registrar ID');
+        if (iana) out.registrar = `IANA #${iana.identifier}`;
+      }
+      if (out.registrar) break;
+    }
+  }
+  return out;
+}
+
+// ===== Per-domain audit =====
+
+async function auditDomain(domain, customSelectors) {
+  const result = {
+    domain,
+    error: null,
+    txt: [],
+    mx: [],
+    mxProvider: null,
+    spf: { records: [], parsed: null, issues: [], senders: [], lookupsDeep: null },
+    dmarc: { record: null, tags: null, issues: [] },
+    dkim: { found: [], probedSelectors: [], issues: [] },
+    rdap: null,
+  };
+
+  // Fire DoH lookups in parallel
+  const [txtR, mxR, dmarcR, rdapR] = await Promise.allSettled([
+    txtLookup(domain),
+    mxLookup(domain),
+    txtLookup(`_dmarc.${domain}`),
+    rdapLookup(domain),
+  ]);
+
+  if (txtR.status === 'fulfilled') {
+    result.txt = txtR.value.records;
+    const spfRecords = findSpfRecords(result.txt);
+    result.spf.records = spfRecords;
+    if (spfRecords.length === 0) {
+      result.spf.issues.push({ level: 'err', text: 'No SPF record published' });
+    } else if (spfRecords.length > 1) {
+      result.spf.issues.push({ level: 'err', text: `${spfRecords.length} SPF records found — RFC 7208 requires exactly one` });
+    }
+    if (spfRecords.length >= 1) {
+      const parsed = parseSpf(spfRecords[0]);
+      result.spf.parsed = parsed;
+      // Map includes to known senders
+      const senders = [];
+      const seenSenderNames = new Set();
+      for (const m of parsed.mechanisms) {
+        if (m.kind !== 'include') continue;
+        const host = m.host;
+        const named = namedSenderFromInclude(host);
+        if (named) {
+          if (!seenSenderNames.has(named.name)) {
+            senders.push({ name: named.name, source: host, mxKey: named.mxKey || null });
+            seenSenderNames.add(named.name);
+          }
+        } else {
+          senders.push({ name: 'Unknown sender', source: host, mxKey: null });
+        }
+      }
+      result.spf.senders = senders;
+      if (parsed.lookups > 10) {
+        result.spf.issues.push({ level: 'err', text: `Static lookup count is ${parsed.lookups} — exceeds RFC 7208 10-lookup limit` });
+      } else if (parsed.lookups >= 9) {
+        result.spf.issues.push({ level: 'warn', text: `Static lookup count is ${parsed.lookups} — at risk of exceeding the 10-lookup limit when nested includes are counted` });
+      }
+      if (parsed.allMechanism === '+all') {
+        result.spf.issues.push({ level: 'err', text: '+all permits the entire internet to send as the domain — almost always a misconfiguration' });
+      } else if (parsed.allMechanism === '?all') {
+        result.spf.issues.push({ level: 'warn', text: '?all is neutral — receivers may not act on SPF results' });
+      } else if (!parsed.allMechanism) {
+        result.spf.issues.push({ level: 'warn', text: 'No "all" qualifier at end of SPF — implicit ?all (neutral)' });
+      }
+    }
+  } else {
+    result.spf.issues.push({ level: 'err', text: `Lookup failed: ${txtR.reason && txtR.reason.message || 'error'}` });
+  }
+
+  if (mxR.status === 'fulfilled') {
+    result.mx = mxR.value.records;
+    result.mxProvider = inferMxProvider(result.mx);
+  }
+
+  if (dmarcR.status === 'fulfilled') {
+    const dmarcRec = findDmarcRecord(dmarcR.value.records);
+    if (!dmarcRec) {
+      result.dmarc.issues.push({ level: 'err', text: 'No DMARC record published' });
+    } else {
+      result.dmarc.record = dmarcRec;
+      result.dmarc.tags = parseDmarc(dmarcRec);
+      const p = (result.dmarc.tags.p || '').toLowerCase();
+      if (!p) {
+        result.dmarc.issues.push({ level: 'err', text: 'DMARC record is missing the required p= tag' });
+      } else if (p === 'none') {
+        result.dmarc.issues.push({ level: 'warn', text: 'p=none is monitoring-only — not enforcing' });
+      }
+      const pct = result.dmarc.tags.pct;
+      if (pct !== undefined && pct !== '100' && p !== 'none') {
+        result.dmarc.issues.push({ level: 'warn', text: `pct=${pct} — only that percentage of failing mail is subject to policy` });
+      }
+    }
+  } else {
+    result.dmarc.issues.push({ level: 'err', text: `Lookup failed: ${dmarcR.reason && dmarcR.reason.message || 'error'}` });
+  }
+
+  if (rdapR.status === 'fulfilled') result.rdap = rdapR.value;
+
+  // DKIM: pick selectors based on MX provider, plus generic + custom
+  const selectors = new Set();
+  if (result.mxProvider && PROVIDER_DKIM_SELECTORS[result.mxProvider]) {
+    for (const s of PROVIDER_DKIM_SELECTORS[result.mxProvider]) selectors.add(s);
+  }
+  for (const s of GENERIC_DKIM_SELECTORS) selectors.add(s);
+  if (customSelectors && customSelectors.length) {
+    for (const s of customSelectors) selectors.add(s);
+  }
+  // Also inspect SPF includes for hints — if a sender has DKIM with a known selector pattern
+  // (e.g., Mailchimp uses k1, k2, k3) we add those.
+  for (const sender of result.spf.senders) {
+    if (sender.name === 'Mailchimp') { selectors.add('k1'); selectors.add('k2'); selectors.add('k3'); }
+    else if (sender.name === 'SendGrid') { selectors.add('s1'); selectors.add('s2'); }
+    else if (sender.name === 'Mailgun') { selectors.add('k1'); selectors.add('mailo'); selectors.add('mta'); }
+    else if (sender.name === 'Postmark') { selectors.add('pm'); selectors.add('20150623'); }
+    else if (sender.name === 'HubSpot') { selectors.add('hs1-23545131._domainkey'); }
+    else if (sender.name === 'Brevo (Sendinblue)') { selectors.add('mail'); }
+  }
+  result.dkim.probedSelectors = Array.from(selectors);
+
+  const dkimResults = await Promise.allSettled(
+    result.dkim.probedSelectors.map(sel => txtLookup(`${sel}._domainkey.${domain}`))
+  );
+  for (let i = 0; i < dkimResults.length; i++) {
+    const res = dkimResults[i];
+    const sel = result.dkim.probedSelectors[i];
+    if (res.status !== 'fulfilled') continue;
+    for (const rec of res.value.records) {
+      // Heuristic — DKIM TXT contains v=DKIM1 or k= or p=
+      if (/v=DKIM1\b/i.test(rec) || /(^|;)\s*p=/i.test(rec)) {
+        result.dkim.found.push({ selector: sel, record: rec });
+        break;
+      }
+    }
+  }
+  if (!result.dkim.found.length) {
+    result.dkim.issues.push({ level: 'warn', text: `Not detected at probed selectors (${result.dkim.probedSelectors.join(', ')}) — domain may use a custom selector` });
+  }
+
+  return result;
+}
+
+// ===== Concurrency-limited runner =====
+
+async function runWithLimit(items, limit, fn, onProgress) {
+  const results = new Array(items.length);
+  let nextIdx = 0;
+  let done = 0;
+  async function worker() {
+    while (true) {
+      const i = nextIdx++;
+      if (i >= items.length) return;
+      try { results[i] = await fn(items[i], i); }
+      catch (e) { results[i] = { error: e.message }; }
+      done++;
+      if (onProgress) onProgress(done, items.length);
+    }
+  }
+  const workers = Array.from({ length: Math.min(limit, items.length) }, worker);
+  await Promise.all(workers);
+  return results;
+}
+
+// ===== Verdicts (for table cells) =====
+
+function verdictSpf(r) {
+  if (r.error) return { level: 'neutral', label: 'lookup error' };
+  if (r.spf.records.length === 0) return { level: 'err', label: 'missing' };
+  if (r.spf.records.length > 1) return { level: 'err', label: 'duplicate' };
+  if (r.spf.issues.some(i => i.level === 'err')) return { level: 'err', label: 'invalid' };
+  if (r.spf.issues.some(i => i.level === 'warn')) return { level: 'warn', label: 'warning' };
+  return { level: 'ok', label: 'present' };
+}
+
+function verdictDkim(r) {
+  if (r.error) return { level: 'neutral', label: 'lookup error' };
+  if (r.dkim.found.length > 0) return { level: 'ok', label: `${r.dkim.found.length} selector${r.dkim.found.length > 1 ? 's' : ''}` };
+  return { level: 'warn', label: 'not detected' };
+}
+
+function verdictDmarc(r) {
+  if (r.error) return { level: 'neutral', label: 'lookup error' };
+  if (!r.dmarc.record) return { level: 'err', label: 'missing' };
+  const p = (r.dmarc.tags.p || '').toLowerCase();
+  if (!p) return { level: 'err', label: 'invalid' };
+  if (p === 'none') return { level: 'warn', label: 'p=none' };
+  if (p === 'quarantine') return { level: 'ok', label: 'p=quarantine' };
+  if (p === 'reject') return { level: 'ok', label: 'p=reject' };
+  return { level: 'warn', label: `p=${p}` };
+}
+
+function verdictReporting(r) {
+  if (r.error) return { level: 'neutral', label: '—' };
+  if (!r.dmarc.record) return { level: 'neutral', label: '—' };
+  const rua = r.dmarc.tags && r.dmarc.tags.rua;
+  if (rua) return { level: 'ok', label: 'rua set' };
+  return { level: 'warn', label: 'no rua' };
+}
+
+// ===== Rendering =====
+
+const $ = (id) => document.getElementById(id);
+
+function pill(verdict) {
+  const safeLabel = String(verdict.label).replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
+  return `<span class="pill ${verdict.level}">${safeLabel}</span>`;
+}
+
+function escapeHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function fmtDate(s) {
+  if (!s) return null;
+  try { return s.split('T')[0]; } catch { return s; }
+}
+
+function renderRow(r, idx) {
+  const vSpf = verdictSpf(r);
+  const vDkim = verdictDkim(r);
+  const vDmarc = verdictDmarc(r);
+  const vRep = verdictReporting(r);
+  const registrar = r.rdap && r.rdap.registrar ? r.rdap.registrar : (r.rdap && r.rdap.error ? '—' : '—');
+  const expiry = r.rdap && r.rdap.expires ? fmtDate(r.rdap.expires) : null;
+  const mxProv = r.mxProvider || (r.mx.length ? r.mx[0].exchange : '—');
+
+  const main = `
+    <tr class="row-main" data-idx="${idx}">
+      <td class="dom">${escapeHtml(r.domain)}</td>
+      <td><span class="twoline">${escapeHtml(registrar)}${expiry ? `<span class="sub">expires ${escapeHtml(expiry)}</span>` : ''}</span></td>
+      <td>${escapeHtml(mxProv)}</td>
+      <td>${pill(vSpf)}</td>
+      <td>${pill(vDkim)}</td>
+      <td>${pill(vDmarc)}</td>
+      <td>${pill(vRep)}</td>
+    </tr>
+  `;
+
+  const sendersHtml = r.spf.senders && r.spf.senders.length
+    ? `<ul class="sender-list">${r.spf.senders.map(s => `<li><span class="name">${escapeHtml(s.name)}</span><span class="src">include:${escapeHtml(s.source)}</span></li>`).join('')}</ul>`
+    : `<div class="empty-note">No SPF includes</div>`;
+
+  // Identify "additional senders beyond MX" — SPF includes whose mxKey doesn't match the domain's MX provider
+  const additionalSenders = (r.spf.senders || []).filter(s => {
+    if (!r.mxProvider) return true;
+    return !s.mxKey || s.mxKey !== r.mxProvider;
+  });
+  const additionalHtml = additionalSenders.length
+    ? `<ul class="sender-list">${additionalSenders.map(s => `<li><span class="name">${escapeHtml(s.name)}</span><span class="src">include:${escapeHtml(s.source)}</span></li>`).join('')}</ul>`
+    : `<div class="empty-note">None &mdash; SPF authorizes only the inbound mail provider</div>`;
+
+  const mxList = r.mx.length
+    ? `<ul class="sender-list">${r.mx.map(m => `<li><span class="name">${escapeHtml(m.exchange)}</span><span class="src">pref ${m.preference}</span></li>`).join('')}</ul>`
+    : `<div class="empty-note">No MX records</div>`;
+
+  const issuesAll = []
+    .concat(r.spf.issues.map(i => ({ ...i, src: 'SPF' })))
+    .concat(r.dkim.issues.map(i => ({ ...i, src: 'DKIM' })))
+    .concat(r.dmarc.issues.map(i => ({ ...i, src: 'DMARC' })));
+  const issuesHtml = issuesAll.length
+    ? `<ul class="issue-list">${issuesAll.map(i => `<li class="${escapeHtml(i.level)}"><strong>${escapeHtml(i.src)}:</strong> ${escapeHtml(i.text)}</li>`).join('')}</ul>`
+    : `<div class="empty-note">No issues detected</div>`;
+
+  const dkimFound = r.dkim.found.length
+    ? r.dkim.found.map(d => `<div class="row-line"><span class="lab">${escapeHtml(d.selector)}._domainkey:</span> <code class="txt">${escapeHtml(d.record)}</code></div>`).join('')
+    : `<div class="empty-note">No DKIM records detected at probed selectors: ${escapeHtml(r.dkim.probedSelectors.join(', '))}</div>`;
+
+  const dmarcDetail = r.dmarc.record
+    ? `<code class="txt">${escapeHtml(r.dmarc.record)}</code>${r.dmarc.tags && r.dmarc.tags.rua ? `<div class="row-line" style="margin-top:6px;"><span class="lab">rua:</span> ${escapeHtml(r.dmarc.tags.rua)}</div>` : ''}${r.dmarc.tags && r.dmarc.tags.ruf ? `<div class="row-line"><span class="lab">ruf:</span> ${escapeHtml(r.dmarc.tags.ruf)}</div>` : ''}`
+    : `<div class="empty-note">No DMARC record</div>`;
+
+  const spfDetail = r.spf.records.length
+    ? r.spf.records.map(rec => `<code class="txt">${escapeHtml(rec)}</code>`).join('') + (r.spf.parsed ? `<div class="row-line" style="margin-top:6px;"><span class="lab">DNS lookups (static count):</span> ${r.spf.parsed.lookups}/10</div>` : '')
+    : `<div class="empty-note">No SPF record</div>`;
+
+  const rdapDetail = r.rdap && !r.rdap.error
+    ? `${r.rdap.registrar ? `<div class="row-line"><span class="lab">Registrar:</span> ${escapeHtml(r.rdap.registrar)}</div>` : ''}
+       ${r.rdap.registered ? `<div class="row-line"><span class="lab">Registered:</span> ${escapeHtml(fmtDate(r.rdap.registered))}</div>` : ''}
+       ${r.rdap.expires ? `<div class="row-line"><span class="lab">Expires:</span> ${escapeHtml(fmtDate(r.rdap.expires))}</div>` : ''}
+       ${r.rdap.lastChanged ? `<div class="row-line"><span class="lab">Last changed:</span> ${escapeHtml(fmtDate(r.rdap.lastChanged))}</div>` : ''}`
+    : `<div class="empty-note">${r.rdap && r.rdap.error ? `RDAP unavailable (${escapeHtml(r.rdap.error)})` : 'RDAP unavailable'}</div>`;
+
+  const detail = `
+    <tr class="row-detail" data-idx="${idx}" style="display:none;">
+      <td colspan="7">
+        <div class="detail-grid">
+          <div class="detail-block">
+            <h4>SPF record</h4>
+            ${spfDetail}
+          </div>
+          <div class="detail-block">
+            <h4>DMARC record</h4>
+            ${dmarcDetail}
+          </div>
+          <div class="detail-block">
+            <h4>DKIM keys found</h4>
+            ${dkimFound}
+          </div>
+          <div class="detail-block">
+            <h4>MX records</h4>
+            ${mxList}
+          </div>
+          <div class="detail-block">
+            <h4>Authorized senders (SPF includes)</h4>
+            ${sendersHtml}
+          </div>
+          <div class="detail-block">
+            <h4>Senders beyond inbound provider</h4>
+            ${additionalHtml}
+          </div>
+          <div class="detail-block">
+            <h4>Registrar (RDAP)</h4>
+            ${rdapDetail}
+          </div>
+          <div class="detail-block">
+            <h4>Issues</h4>
+            ${issuesHtml}
+          </div>
+        </div>
+      </td>
+    </tr>
+  `;
+
+  return main + detail;
+}
+
+let lastResults = [];
+let sortState = { key: null, dir: 1 };
+
+function renderSummary(results) {
+  const total = results.length;
+  const c = {
+    spfOk: 0, spfWarn: 0, spfErr: 0,
+    dkimOk: 0, dkimWarn: 0,
+    dmarcOk: 0, dmarcWarn: 0, dmarcErr: 0,
+    ruaSet: 0,
+  };
+  for (const r of results) {
+    const vSpf = verdictSpf(r);
+    if (vSpf.level === 'ok') c.spfOk++;
+    else if (vSpf.level === 'warn') c.spfWarn++;
+    else if (vSpf.level === 'err') c.spfErr++;
+    const vDkim = verdictDkim(r);
+    if (vDkim.level === 'ok') c.dkimOk++; else c.dkimWarn++;
+    const vDmarc = verdictDmarc(r);
+    if (vDmarc.level === 'ok') c.dmarcOk++;
+    else if (vDmarc.level === 'warn') c.dmarcWarn++;
+    else c.dmarcErr++;
+    if (verdictReporting(r).level === 'ok') c.ruaSet++;
+  }
+  const stats = [
+    { num: total, lab: 'Domains' },
+    { num: c.spfOk, lab: 'SPF passing' },
+    { num: c.spfErr, lab: 'SPF missing/invalid' },
+    { num: c.dmarcOk, lab: 'DMARC enforcing' },
+    { num: c.dmarcWarn, lab: 'DMARC monitor only' },
+    { num: c.dmarcErr, lab: 'DMARC missing' },
+    { num: c.dkimOk, lab: 'DKIM detected' },
+    { num: c.ruaSet, lab: 'DMARC reports on' },
+  ];
+  $('summary').innerHTML = stats.map(s => `<div class="stat"><div class="num">${s.num}</div><div class="lab">${escapeHtml(s.lab)}</div></div>`).join('');
+}
+
+function sortKey(r, key) {
+  switch (key) {
+    case 'domain': return r.domain;
+    case 'registrar': return (r.rdap && r.rdap.registrar) || '';
+    case 'mxProvider': return r.mxProvider || (r.mx[0] && r.mx[0].exchange) || '';
+    case 'spf': return verdictSpf(r).label + verdictSpf(r).level;
+    case 'dkim': return verdictDkim(r).label + verdictDkim(r).level;
+    case 'dmarc': return verdictDmarc(r).label + verdictDmarc(r).level;
+    case 'reporting': return verdictReporting(r).label;
+    default: return r.domain;
+  }
+}
+
+function applyFilterAndSort() {
+  const term = ($('filter').value || '').toLowerCase().trim();
+  let rows = lastResults.slice();
+  if (term) {
+    rows = rows.filter(r =>
+      r.domain.includes(term)
+      || (r.mxProvider && r.mxProvider.toLowerCase().includes(term))
+      || (r.rdap && r.rdap.registrar && r.rdap.registrar.toLowerCase().includes(term))
+      || r.spf.senders.some(s => s.name.toLowerCase().includes(term))
+    );
+  }
+  if (sortState.key) {
+    rows.sort((a, b) => {
+      const av = String(sortKey(a, sortState.key) || '').toLowerCase();
+      const bv = String(sortKey(b, sortState.key) || '').toLowerCase();
+      if (av < bv) return -1 * sortState.dir;
+      if (av > bv) return 1 * sortState.dir;
+      return 0;
+    });
+  }
+  // Render
+  $('results-body').innerHTML = rows.length
+    ? rows.map((r, i) => renderRow(r, lastResults.indexOf(r))).join('')
+    : `<tr><td colspan="7" class="empty-table">No matches.</td></tr>`;
+  // Update sort indicators
+  document.querySelectorAll('#results-table thead th').forEach(th => {
+    const k = th.dataset.sort;
+    let ind = '';
+    if (k === sortState.key) ind = sortState.dir === 1 ? '▲' : '▼';
+    let baseLabel = th.textContent.replace(/[▲▼]/g, '').trim();
+    th.innerHTML = `${escapeHtml(baseLabel)}${ind ? `<span class="sort-ind">${ind}</span>` : ''}`;
+  });
+}
+
+// ===== Export =====
+
+function exportCsv() {
+  const headers = ['domain', 'registrar', 'expires', 'mx_provider', 'mx_records', 'spf_present', 'spf_record', 'spf_lookups', 'spf_senders', 'dkim_selectors_found', 'dmarc_present', 'dmarc_policy', 'dmarc_rua'];
+  const rows = lastResults.map(r => [
+    r.domain,
+    (r.rdap && r.rdap.registrar) || '',
+    (r.rdap && r.rdap.expires) || '',
+    r.mxProvider || '',
+    r.mx.map(m => m.exchange).join('|'),
+    r.spf.records.length > 0 ? 'yes' : 'no',
+    r.spf.records[0] || '',
+    r.spf.parsed ? r.spf.parsed.lookups : '',
+    r.spf.senders.map(s => s.name).join('|'),
+    r.dkim.found.map(d => d.selector).join('|'),
+    r.dmarc.record ? 'yes' : 'no',
+    (r.dmarc.tags && r.dmarc.tags.p) || '',
+    (r.dmarc.tags && r.dmarc.tags.rua) || '',
+  ]);
+  const csv = [headers, ...rows].map(row =>
+    row.map(cell => {
+      const s = String(cell == null ? '' : cell);
+      if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+      return s;
+    }).join(',')
+  ).join('\n');
+  download(csv, 'domain-audit.csv', 'text/csv');
+}
+
+function exportJson() {
+  download(JSON.stringify(lastResults, null, 2), 'domain-audit.json', 'application/json');
+}
+
+function download(content, filename, mime) {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// ===== Wire up =====
+
+async function runAudit() {
+  const text = $('domains').value;
+  const lines = text.split(/\r?\n/);
+  const seen = new Set();
+  const domains = [];
+  for (const line of lines) {
+    const d = normalizeDomain(line);
+    if (d && !seen.has(d)) { domains.push(d); seen.add(d); }
+  }
+  if (!domains.length) {
+    alert('Enter at least one valid domain.');
+    return;
+  }
+  const customSelectors = ($('custom-selectors').value || '')
+    .split(',').map(s => s.trim()).filter(Boolean);
+
+  $('audit-btn').disabled = true;
+  $('clear-btn').disabled = true;
+  $('progress').classList.add('show');
+  $('progress-text').textContent = `Auditing 0 / ${domains.length}...`;
+  $('progress-bar').style.width = '0%';
+
+  const results = await runWithLimit(domains, 6, (d) => auditDomain(d, customSelectors), (done, total) => {
+    $('progress-text').textContent = `Auditing ${done} / ${total}...`;
+    $('progress-bar').style.width = `${Math.round(done * 100 / total)}%`;
+  });
+
+  // Replace any rejections with error stub objects
+  lastResults = results.map((r, i) => {
+    if (r && r.domain) return r;
+    return { domain: domains[i], error: r && r.error ? r.error : 'audit failed', txt: [], mx: [], spf: { records: [], parsed: null, issues: [], senders: [] }, dmarc: { record: null, tags: null, issues: [] }, dkim: { found: [], probedSelectors: [], issues: [] }, rdap: null };
+  });
+
+  $('summary-card').style.display = '';
+  $('results-card').style.display = '';
+  renderSummary(lastResults);
+  applyFilterAndSort();
+
+  $('progress').classList.remove('show');
+  $('audit-btn').disabled = false;
+  $('clear-btn').disabled = false;
+}
+
+function bind() {
+  $('audit-btn').addEventListener('click', runAudit);
+  $('clear-btn').addEventListener('click', () => {
+    $('domains').value = '';
+    $('custom-selectors').value = '';
+    lastResults = [];
+    $('summary-card').style.display = 'none';
+    $('results-card').style.display = 'none';
+  });
+  $('example-btn').addEventListener('click', () => {
+    $('domains').value = 'google.com\nmicrosoft.com\ngithub.com\ncloudflare.com\nstripe.com';
+  });
+  $('filter').addEventListener('input', applyFilterAndSort);
+  $('expand-all').addEventListener('click', () => {
+    document.querySelectorAll('#results-body .row-detail').forEach(tr => tr.style.display = '');
+  });
+  $('collapse-all').addEventListener('click', () => {
+    document.querySelectorAll('#results-body .row-detail').forEach(tr => tr.style.display = 'none');
+  });
+  $('export-csv').addEventListener('click', () => { if (lastResults.length) exportCsv(); });
+  $('export-json').addEventListener('click', () => { if (lastResults.length) exportJson(); });
+
+  // Sort handlers
+  document.querySelectorAll('#results-table thead th').forEach(th => {
+    th.addEventListener('click', () => {
+      const k = th.dataset.sort;
+      if (sortState.key === k) sortState.dir *= -1;
+      else { sortState.key = k; sortState.dir = 1; }
+      applyFilterAndSort();
+    });
+  });
+
+  // Click row to toggle detail
+  $('results-body').addEventListener('click', (e) => {
+    const tr = e.target.closest('tr.row-main');
+    if (!tr) return;
+    const idx = tr.dataset.idx;
+    const detail = $('results-body').querySelector(`tr.row-detail[data-idx="${idx}"]`);
+    if (detail) detail.style.display = (detail.style.display === 'none' || !detail.style.display) ? '' : 'none';
+  });
+
+  // Submit on Ctrl/Cmd-Enter inside textarea
+  $('domains').addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); runAudit(); }
+  });
+}
+
+document.addEventListener('DOMContentLoaded', bind);
+</script>
+
+</body>
+</html>
