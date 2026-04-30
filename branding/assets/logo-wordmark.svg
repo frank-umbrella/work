@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 280" role="img" aria-label="Umbrella Automation wordmark">
+  <defs>
+    <linearGradient id="ua-wm-blue" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#26a6e6"/>
+      <stop offset="1" stop-color="#0c5e9c"/>
+    </linearGradient>
+    <linearGradient id="ua-wm-gray" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#cdd2d8"/>
+      <stop offset="1" stop-color="#5e6470"/>
+    </linearGradient>
+  </defs>
+  <text x="20" y="130"
+        font-family='"Eurostile","Eurostile LT W01","Microgramma D","Saira","Aldrich","Antonio",system-ui,sans-serif'
+        font-weight="900" font-size="130" letter-spacing="3.5"
+        fill="url(#ua-wm-blue)">UMBRELLA</text>
+  <text x="20" y="240"
+        font-family='"Eurostile","Eurostile LT W01","Microgramma D","Saira","Aldrich","Antonio",system-ui,sans-serif'
+        font-weight="900" font-size="130" letter-spacing="3.5"
+        fill="url(#ua-wm-gray)">AUTOMATION</text>
+</svg>

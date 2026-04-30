@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1300 280" role="img" aria-label="Umbrella Automation single-color dark logo">
+  <svg x="0" y="36" width="277" height="208" viewBox="0 0 240 180">
+    <path d="M 28 164 L 28 88 L 96 24 L 156 88 L 200 88 L 200 164 Z"
+          fill="none" stroke="#1A1F2B" stroke-width="8"
+          stroke-linejoin="round" stroke-linecap="round"/>
+    <g stroke="#1A1F2B" stroke-width="4" stroke-linecap="round">
+      <line x1="62" y1="100" x2="112" y2="100"/>
+      <line x1="112" y1="100" x2="112" y2="122"/>
+      <line x1="112" y1="122" x2="162" y2="122"/>
+      <line x1="162" y1="122" x2="162" y2="144"/>
+    </g>
+    <circle cx="62" cy="100" r="8" fill="#1A1F2B"/>
+    <circle cx="112" cy="122" r="8" fill="#1A1F2B"/>
+    <circle cx="162" cy="144" r="8" fill="#1A1F2B"/>
+  </svg>
+  <text x="320" y="130"
+        font-family='"Eurostile","Eurostile LT W01","Microgramma D","Saira","Aldrich","Antonio",system-ui,sans-serif'
+        font-weight="900" font-size="130" letter-spacing="3.5"
+        fill="#1A1F2B">UMBRELLA</text>
+  <text x="320" y="240"
+        font-family='"Eurostile","Eurostile LT W01","Microgramma D","Saira","Aldrich","Antonio",system-ui,sans-serif'
+        font-weight="900" font-size="130" letter-spacing="3.5"
+        fill="#1A1F2B">AUTOMATION</text>
+</svg>

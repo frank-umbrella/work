@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1300 280" role="img" aria-label="Umbrella Automation primary logo">
+  <defs>
+    <linearGradient id="ua-primary-house" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#dee0e3"/>
+      <stop offset="1" stop-color="#9ea4ab"/>
+    </linearGradient>
+    <linearGradient id="ua-primary-circuit" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0" stop-color="#5fc1ec"/>
+      <stop offset="1" stop-color="#177cb8"/>
+    </linearGradient>
+    <linearGradient id="ua-primary-blue" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#a4d6ed"/>
+      <stop offset="0.18" stop-color="#26a6e6"/>
+      <stop offset="0.5" stop-color="#0c5e9c"/>
+      <stop offset="0.82" stop-color="#26a6e6"/>
+      <stop offset="1" stop-color="#5fc1ec"/>
+    </linearGradient>
+    <linearGradient id="ua-primary-gray" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#c8c8c8"/>
+      <stop offset="1" stop-color="#6e6e6e"/>
+    </linearGradient>
+  </defs>
+  <svg x="0" y="36" width="277" height="208" viewBox="0 0 240 180">
+    <path d="M 28 164 L 28 88 L 96 24 L 156 88 L 200 88 L 200 164 Z"
+          fill="none" stroke="url(#ua-primary-house)" stroke-width="8"
+          stroke-linejoin="round" stroke-linecap="round"/>
+    <g stroke="url(#ua-primary-circuit)" stroke-width="4" stroke-linecap="round">
+      <line x1="62" y1="100" x2="112" y2="100"/>
+      <line x1="112" y1="100" x2="112" y2="122"/>
+      <line x1="112" y1="122" x2="162" y2="122"/>
+      <line x1="162" y1="122" x2="162" y2="144"/>
+    </g>
+    <circle cx="62" cy="100" r="8" fill="url(#ua-primary-circuit)"/>
+    <circle cx="112" cy="122" r="8" fill="url(#ua-primary-circuit)"/>
+    <circle cx="162" cy="144" r="8" fill="url(#ua-primary-circuit)"/>
+  </svg>
+  <text x="320" y="130"
+        font-family='"Eurostile","Eurostile LT W01","Microgramma D","Saira","Aldrich","Antonio",system-ui,sans-serif'
+        font-weight="900" font-size="130" letter-spacing="3.5"
+        fill="url(#ua-primary-blue)">UMBRELLA</text>
+  <text x="320" y="240"
+        font-family='"Eurostile","Eurostile LT W01","Microgramma D","Saira","Aldrich","Antonio",system-ui,sans-serif'
+        font-weight="900" font-size="130" letter-spacing="3.5"
+        fill="url(#ua-primary-gray)">AUTOMATION</text>
+</svg>

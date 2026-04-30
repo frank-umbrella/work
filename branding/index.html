@@ -1,0 +1,1409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Brand Guidelines &mdash; Umbrella Automation</title>
+<meta name="description" content="Logos, colors, typography, and usage rules for the Umbrella Automation brand.">
+<meta name="robots" content="noindex">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Saira:wght@900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #ffffff;
+    --bg-soft: #f6f7f9;
+    --bg-dark: #0d1119;
+    --bg-darker: #060810;
+    --surface: #ffffff;
+    --surface-soft: #f0f2f5;
+    --ink: #11151d;
+    --ink-soft: #4a5260;
+    --ink-faint: #8a93a3;
+    --line: #e3e6ec;
+    --line-strong: #c9cfdb;
+
+    --brand-blue: #1A9BE8;
+    --brand-blue-deep: #0C5E9C;
+    --brand-storm: #1A1F2B;
+    --brand-graphite: #6E6E6E;
+    --brand-cloud: #E8EBEF;
+    --brand-white: #FFFFFF;
+
+    --warn: #d33b3b;
+
+    --radius: 14px;
+    --radius-lg: 22px;
+    --shadow: 0 1px 2px rgba(20,25,40,.04), 0 4px 14px rgba(20,25,40,.06);
+    --shadow-lift: 0 6px 14px rgba(20,25,40,.08), 0 24px 38px rgba(20,25,40,.10);
+
+    --sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --display: "Saira", "Eurostile", "Microgramma D", "Aldrich", system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  a { color: var(--brand-blue-deep); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  /* =============== NAV =============== */
+  nav.top {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(255,255,255,.85);
+    backdrop-filter: saturate(150%) blur(12px);
+    -webkit-backdrop-filter: saturate(150%) blur(12px);
+    border-bottom: 1px solid var(--line);
+  }
+  nav.top .wrap {
+    max-width: 1200px; margin: 0 auto;
+    padding: 14px 24px;
+    display: flex; align-items: center; gap: 24px;
+  }
+  nav.top .brand {
+    display: flex; align-items: center; gap: 10px;
+    font-weight: 700; font-size: 14px;
+    color: var(--ink);
+  }
+  nav.top .brand svg { display: block; height: 28px; width: auto; }
+  nav.top .links {
+    display: flex; gap: 4px; margin-left: auto;
+    flex-wrap: wrap;
+  }
+  nav.top .links a {
+    color: var(--ink-soft);
+    font-size: 13.5px;
+    font-weight: 500;
+    padding: 8px 12px;
+    border-radius: 8px;
+    text-decoration: none;
+  }
+  nav.top .links a:hover { background: var(--bg-soft); color: var(--ink); }
+
+  /* =============== SECTION =============== */
+  section { padding: 96px 24px; }
+  section .wrap { max-width: 1200px; margin: 0 auto; }
+  .eyebrow {
+    font-size: 12px; font-weight: 700;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--brand-blue);
+    margin: 0 0 12px;
+  }
+  h1.display {
+    font-family: var(--sans);
+    font-size: clamp(40px, 6vw, 76px);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.04;
+    margin: 0 0 18px;
+  }
+  h2 {
+    font-family: var(--sans);
+    font-size: clamp(28px, 3.4vw, 44px);
+    font-weight: 800;
+    letter-spacing: -0.015em;
+    line-height: 1.1;
+    margin: 0 0 14px;
+  }
+  h3 {
+    font-size: 18px; font-weight: 700; margin: 0 0 6px;
+    letter-spacing: -0.005em;
+  }
+  .lede {
+    font-size: clamp(16px, 1.5vw, 19px);
+    color: var(--ink-soft);
+    max-width: 720px;
+    margin: 0 0 40px;
+  }
+
+  /* =============== HERO =============== */
+  section.hero {
+    background:
+      radial-gradient(1200px 600px at 80% -10%, rgba(26,155,232,0.10), transparent 70%),
+      radial-gradient(900px 500px at -10% 30%, rgba(12,94,156,0.08), transparent 65%),
+      var(--bg);
+    padding-top: 64px; padding-bottom: 0;
+  }
+  section.hero .stage {
+    background: var(--brand-white);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow);
+    padding: 64px 40px;
+    margin-top: 48px;
+    display: flex; align-items: center; justify-content: center;
+    min-height: 320px;
+  }
+  section.hero .stage svg { width: 100%; max-width: 760px; height: auto; }
+  section.hero .footnote {
+    margin: 24px 0 96px;
+    color: var(--ink-faint);
+    font-size: 13px;
+    text-align: center;
+  }
+
+  /* =============== LOGOS GALLERY =============== */
+  section.logos { background: var(--bg-soft); }
+  .logo-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+    gap: 22px;
+  }
+  .logo-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    overflow: hidden;
+    display: flex; flex-direction: column;
+    box-shadow: var(--shadow);
+  }
+  .logo-card .stage {
+    aspect-ratio: 16/9;
+    display: flex; align-items: center; justify-content: center;
+    padding: 36px;
+    background: var(--bg);
+    border-bottom: 1px solid var(--line);
+  }
+  .logo-card .stage svg { max-width: 100%; max-height: 100%; height: auto; }
+  .logo-card.dark .stage { background: var(--bg-dark); border-bottom-color: #1d2330; }
+  .logo-card .meta {
+    padding: 18px 20px 18px;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .logo-card .meta .row {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  }
+  .logo-card h3 { margin: 0; }
+  .logo-card .desc { font-size: 13.5px; color: var(--ink-soft); margin: 0; }
+  .dl {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 13px; font-weight: 600;
+    color: var(--brand-blue-deep);
+    padding: 6px 12px;
+    border: 1px solid var(--line-strong);
+    border-radius: 999px;
+    background: var(--surface);
+    white-space: nowrap;
+  }
+  .dl:hover { background: var(--brand-blue); color: #fff; border-color: var(--brand-blue); text-decoration: none; }
+  .dl::before { content: "↓"; font-size: 14px; }
+  .submark-stage svg { max-width: 180px !important; }
+
+  /* =============== CLEAR SPACE =============== */
+  section.clearspace .demo {
+    background: var(--bg-soft);
+    border-radius: var(--radius-lg);
+    padding: 60px 40px;
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .clear-wrap {
+    position: relative;
+    padding: 80px;
+    display: inline-block;
+  }
+  .clear-wrap::before {
+    content: "";
+    position: absolute; inset: 0;
+    border: 2px dashed var(--brand-blue);
+    border-radius: 8px;
+    opacity: 0.55;
+  }
+  .clear-wrap .logo-here {
+    position: relative;
+    border: 1px dashed var(--ink-faint);
+    padding: 8px;
+    border-radius: 4px;
+    background: #fff;
+  }
+  .clear-wrap .logo-here svg { display: block; width: 360px; height: auto; }
+  .clear-wrap .x {
+    position: absolute;
+    color: var(--brand-blue);
+    font-weight: 800;
+    font-size: 22px;
+    font-family: var(--sans);
+  }
+  .clear-wrap .x.t { top: 32px; left: 50%; transform: translateX(-50%); }
+  .clear-wrap .x.b { bottom: 32px; left: 50%; transform: translateX(-50%); }
+  .clear-wrap .x.l { left: 32px; top: 50%; transform: translateY(-50%); }
+  .clear-wrap .x.r { right: 32px; top: 50%; transform: translateY(-50%); }
+
+  .x-explainer {
+    margin-top: 28px;
+    display: flex; gap: 28px; align-items: center; flex-wrap: wrap;
+  }
+  .x-explainer .pill {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    padding: 14px 18px;
+    border-radius: var(--radius);
+    display: flex; align-items: center; gap: 14px;
+  }
+  .x-explainer svg { height: 38px; width: auto; }
+  .x-explainer .label {
+    font-size: 13px; color: var(--ink-soft);
+  }
+  .x-explainer .label strong { color: var(--ink); }
+
+  /* =============== MIN SIZE =============== */
+  section.minsize { background: var(--bg-soft); }
+  .min-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+    gap: 22px;
+  }
+  .min-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 32px 28px;
+    box-shadow: var(--shadow);
+  }
+  .min-card .ruler {
+    display: flex; align-items: center; gap: 14px;
+    padding: 28px 0 22px;
+    border-bottom: 1px dashed var(--line-strong);
+    margin-bottom: 16px;
+    min-height: 100px;
+  }
+  .min-card .ruler svg.full-min { width: 200px; height: auto; }
+  .min-card .ruler svg.sub-min { width: 32px; height: 32px; }
+  .min-card .digits {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+    color: var(--ink-faint);
+    margin-left: auto;
+    text-align: right;
+    line-height: 1.4;
+  }
+  .min-card p { margin: 0; color: var(--ink-soft); font-size: 14px; }
+
+  /* =============== DON'TS =============== */
+  section.donts { padding-bottom: 96px; }
+  .dont-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 18px;
+  }
+  .dont-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+  .dont-card .stage {
+    height: 180px;
+    display: flex; align-items: center; justify-content: center;
+    padding: 18px;
+    position: relative;
+    overflow: hidden;
+    background: var(--bg);
+  }
+  .dont-card .stage svg { max-width: 100%; max-height: 100%; height: auto; }
+  .dont-card .badge {
+    position: absolute;
+    top: 12px; right: 12px;
+    width: 28px; height: 28px;
+    border-radius: 999px;
+    background: var(--warn);
+    color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 16px;
+    line-height: 1;
+    box-shadow: 0 2px 6px rgba(211,59,59,.4);
+  }
+  .dont-card .label {
+    padding: 14px 18px 16px;
+    border-top: 1px solid var(--line);
+    font-size: 14px;
+    color: var(--ink);
+    font-weight: 500;
+  }
+  .dont-card .label .sub { color: var(--ink-faint); display: block; font-size: 12.5px; margin-top: 2px; }
+
+  /* visual breakers */
+  .break-recolor svg path,
+  .break-recolor svg line,
+  .break-recolor svg circle { stroke: #e85cb1 !important; fill: none !important; }
+  .break-recolor svg circle { fill: #e85cb1 !important; }
+  .break-recolor svg text { fill: #f59e2c !important; }
+
+  .break-stretch svg { transform: scaleX(1.6); transform-origin: left center; max-width: none !important; }
+  .break-stretch-wrap { width: 100%; overflow: hidden; }
+
+  .break-rotate svg { transform: rotate(-12deg); }
+
+  .break-shadow svg {
+    filter: drop-shadow(0 6px 0 rgba(255,0,0,.5))
+            drop-shadow(0 0 18px rgba(0,255,180,.55));
+  }
+
+  .break-busy {
+    background-image:
+      repeating-linear-gradient(45deg, #ffd166 0 18px, #06d6a0 18px 36px, #ef476f 36px 54px, #118ab2 54px 72px) !important;
+  }
+  .break-busy svg { mix-blend-mode: difference; opacity: 0.85; }
+
+  .break-crowd { display: flex; gap: 8px; align-items: center; justify-content: center; padding: 10px !important; }
+  .break-crowd svg { max-width: 60% !important; flex: 0 0 auto; }
+  .break-crowd .noise {
+    flex: 1;
+    background: linear-gradient(135deg, var(--ink), var(--brand-blue));
+    height: 80%;
+    border-radius: 8px;
+    color: #fff;
+    font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px;
+    text-align: center;
+    padding: 4px;
+  }
+
+  /* =============== COLORS =============== */
+  section.colors {
+    background: var(--bg-darker);
+    color: #e6ebf2;
+  }
+  section.colors .eyebrow { color: #5fc1ec; }
+  section.colors h2 { color: #fff; }
+  section.colors .lede { color: #a4adbd; }
+  .color-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+  }
+  .swatch {
+    background: #131826;
+    border: 1px solid #1d2434;
+    border-radius: var(--radius);
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform .12s ease, border-color .12s ease;
+  }
+  .swatch:hover { transform: translateY(-2px); border-color: #2c3548; }
+  .swatch .sample {
+    height: 130px;
+    display: flex; align-items: flex-end;
+    padding: 14px;
+    color: #fff;
+    font-weight: 700;
+    font-size: 14px;
+  }
+  .swatch.light .sample { color: #11151d; }
+  .swatch .body { padding: 14px 16px 16px; }
+  .swatch .name { font-weight: 700; font-size: 14px; color: #fff; margin-bottom: 4px; }
+  .swatch .role { font-size: 12.5px; color: #8d96a8; margin-bottom: 12px; }
+  .swatch .vals {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 6px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+  }
+  .swatch .val {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 6px 8px;
+    background: #0a0e16;
+    border: 1px solid #1d2434;
+    border-radius: 6px;
+    color: #d6dce8;
+  }
+  .swatch .val .copy {
+    color: #5fc1ec; font-size: 11px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .swatch .val.copied { background: rgba(95,193,236,0.15); border-color: rgba(95,193,236,0.45); }
+  .swatch .val.copied .copy { color: #b6e5f7; }
+
+  /* =============== TYPOGRAPHY =============== */
+  section.typography { background: var(--bg-soft); }
+  .type-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    gap: 28px;
+    align-items: stretch;
+  }
+  @media (max-width: 880px) {
+    .type-grid { grid-template-columns: 1fr; }
+  }
+  .type-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 36px 32px;
+    box-shadow: var(--shadow);
+  }
+  .type-sample {
+    font-family: var(--display);
+    font-weight: 900;
+    font-size: clamp(48px, 8vw, 110px);
+    letter-spacing: 0.025em;
+    line-height: 0.92;
+    text-transform: uppercase;
+    margin: 0;
+    color: var(--ink);
+  }
+  .type-sample .blue { color: var(--brand-blue); }
+  .type-sample .gray { color: var(--brand-graphite); }
+  .type-spec {
+    list-style: none; padding: 0; margin: 0;
+    display: grid; gap: 10px;
+  }
+  .type-spec li {
+    display: grid;
+    grid-template-columns: 140px 1fr;
+    gap: 10px;
+    padding: 10px 14px;
+    background: var(--bg-soft);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-size: 13.5px;
+  }
+  .type-spec li .k { color: var(--ink-soft); font-weight: 600; }
+  .type-spec li .v { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--ink); }
+  .type-note {
+    margin-top: 20px;
+    font-size: 13px; color: var(--ink-soft);
+    padding: 12px 14px;
+    background: #fff7e6;
+    border: 1px solid #f4d28a;
+    border-radius: 8px;
+  }
+  .type-note strong { color: #8c5a00; }
+
+  /* =============== FOOTER =============== */
+  footer.page {
+    border-top: 1px solid var(--line);
+    padding: 36px 24px;
+    color: var(--ink-faint);
+    font-size: 13px;
+    text-align: center;
+  }
+  footer.page a { color: var(--ink-soft); }
+
+  /* =============== CONSTRUCTION =============== */
+  section.construction { background: var(--bg); }
+  .construction-h3 {
+    font-size: 22px; font-weight: 700;
+    margin: 36px 0 8px;
+    letter-spacing: -0.005em;
+    color: var(--ink);
+  }
+  .construction-p {
+    color: var(--ink-soft);
+    font-size: 15px;
+    margin: 0 0 18px;
+    max-width: 760px;
+  }
+  .ps-spec {
+    list-style: none; padding: 12px; margin: 0 0 24px;
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 6px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+  }
+  .ps-spec li {
+    display: grid;
+    grid-template-columns: 140px 1fr;
+    gap: 10px;
+    padding: 8px 12px;
+    background: var(--bg-soft);
+    border-radius: 6px;
+    font-size: 13px;
+  }
+  .ps-spec li .k { color: var(--ink-soft); font-weight: 600; }
+  .ps-spec li .v { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--ink); }
+
+  .gradient-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+  .gradient-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    box-shadow: var(--shadow);
+  }
+  .gradient-card .gradient-stage {
+    height: 96px;
+    border-bottom: 1px solid var(--line);
+  }
+  .gradient-card h4 {
+    font-size: 14px; font-weight: 700;
+    margin: 14px 18px 8px;
+    color: var(--ink);
+  }
+  .gradient-card .ps-spec {
+    margin: 0 14px 14px;
+    padding: 6px;
+    background: var(--bg-soft);
+    grid-template-columns: 1fr;
+  }
+  .gradient-card .ps-spec li {
+    font-size: 12px;
+    grid-template-columns: 70px 1fr;
+    padding: 6px 10px;
+    background: var(--surface);
+  }
+
+  .codeblock {
+    background: #0d1119;
+    color: #d6dce8;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12.5px;
+    line-height: 1.6;
+    padding: 22px 24px;
+    border-radius: var(--radius);
+    overflow-x: auto;
+    margin: 0 0 16px;
+  }
+  .codeblock code {
+    font-family: inherit;
+    background: transparent;
+    padding: 0;
+    white-space: pre;
+    color: inherit;
+  }
+  .codeblock .c { color: #6b7484; font-style: italic; }
+  .codeblock .s { color: #b8e0a4; }
+  .codeblock .p { color: #5fc1ec; }
+  .codeblock .n { color: #f0a574; }
+
+  @media (max-width: 720px) {
+    section { padding: 72px 22px; }
+    nav.top .links { display: none; }
+    .clear-wrap { padding: 64px; }
+    .clear-wrap .logo-here svg { width: 240px; }
+    .clear-wrap .x.t, .clear-wrap .x.b { font-size: 18px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============== NAV ============== -->
+<nav class="top" aria-label="Brand sections">
+  <div class="wrap">
+    <a href="#top" class="brand" aria-label="Umbrella Automation Brand">
+      <svg viewBox="0 0 240 180" aria-hidden="true">
+        <path d="M 28 164 L 28 88 L 96 24 L 156 88 L 200 88 L 200 164 Z"
+              fill="none" stroke="#9ea4ab" stroke-width="10"
+              stroke-linejoin="round" stroke-linecap="round"/>
+        <g stroke="#1A9BE8" stroke-width="5" stroke-linecap="round">
+          <line x1="62" y1="100" x2="112" y2="100"/>
+          <line x1="112" y1="100" x2="112" y2="122"/>
+          <line x1="112" y1="122" x2="162" y2="122"/>
+          <line x1="162" y1="122" x2="162" y2="144"/>
+        </g>
+        <circle cx="62" cy="100" r="10" fill="#1A9BE8"/>
+        <circle cx="112" cy="122" r="10" fill="#1A9BE8"/>
+        <circle cx="162" cy="144" r="10" fill="#1A9BE8"/>
+      </svg>
+      <span>Brand Guidelines</span>
+    </a>
+    <div class="links">
+      <a href="#logo">Logo</a>
+      <a href="#clearspace">Clear space</a>
+      <a href="#minsize">Minimum size</a>
+      <a href="#donts">Don&rsquo;ts</a>
+      <a href="#colors">Colors</a>
+      <a href="#typography">Typography</a>
+      <a href="#construction">Construction</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ============== HERO ============== -->
+<section class="hero" id="top">
+  <div class="wrap">
+    <p class="eyebrow">Umbrella Automation &middot; Brand Guidelines</p>
+    <h1 class="display">Our brand,<br>kept simple and consistent.</h1>
+    <p class="lede">Use this page to grab the official Umbrella Automation logo files, colors, and typography &mdash; and to make sure they get used the right way. If you&rsquo;re designing something with our brand on it, this is the source of truth.</p>
+
+    <div class="stage" aria-label="Primary logo">
+      <!-- inline primary logo -->
+      <svg viewBox="0 0 1300 280" xmlns="http://www.w3.org/2000/svg" aria-label="Umbrella Automation primary logo">
+        <defs>
+          <linearGradient id="hero-house" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#dee0e3"/>
+            <stop offset="1" stop-color="#9ea4ab"/>
+          </linearGradient>
+          <linearGradient id="hero-circuit" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#3aa8da"/>
+            <stop offset="1" stop-color="#177cb8"/>
+          </linearGradient>
+          <linearGradient id="hero-blue" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#26a6e6"/>
+            <stop offset="1" stop-color="#0c5e9c"/>
+          </linearGradient>
+          <linearGradient id="hero-gray" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#cdd2d8"/>
+            <stop offset="1" stop-color="#5e6470"/>
+          </linearGradient>
+        </defs>
+        <svg x="0" y="36" width="277" height="208" viewBox="0 0 240 180">
+          <path d="M 28 164 L 28 88 L 96 24 L 156 88 L 200 88 L 200 164 Z"
+                fill="none" stroke="url(#hero-house)" stroke-width="8"
+                stroke-linejoin="round" stroke-linecap="round"/>
+          <g stroke="url(#hero-circuit)" stroke-width="4" stroke-linecap="round">
+            <line x1="62" y1="100" x2="112" y2="100"/>
+            <line x1="112" y1="100" x2="112" y2="122"/>
+            <line x1="112" y1="122" x2="162" y2="122"/>
+            <line x1="162" y1="122" x2="162" y2="144"/>
+          </g>
+          <circle cx="62" cy="100" r="8" fill="url(#hero-circuit)"/>
+          <circle cx="112" cy="122" r="8" fill="url(#hero-circuit)"/>
+          <circle cx="162" cy="144" r="8" fill="url(#hero-circuit)"/>
+        </svg>
+        <text x="320" y="130" font-family='"Saira","Eurostile","Eurostile LT W01","Microgramma D","Aldrich",system-ui,sans-serif'
+              font-weight="900" font-size="130" letter-spacing="3.5" fill="url(#hero-blue)">UMBRELLA</text>
+        <text x="320" y="240" font-family='"Saira","Eurostile","Eurostile LT W01","Microgramma D","Aldrich",system-ui,sans-serif'
+              font-weight="900" font-size="130" letter-spacing="3.5" fill="url(#hero-gray)">AUTOMATION</text>
+      </svg>
+    </div>
+    <p class="footnote">Logo files render with Eurostile-Black where available and a close geometric fallback otherwise.</p>
+  </div>
+</section>
+
+<!-- ============== LOGOS ============== -->
+<section class="logos" id="logo">
+  <div class="wrap">
+    <p class="eyebrow">Logo</p>
+    <h2>Four logos, one identity.</h2>
+    <p class="lede">Pick the variant that fits the space you&rsquo;ve got. The primary lockup is the default &mdash; reach for the others only when it doesn&rsquo;t fit or read clearly.</p>
+
+    <div class="logo-grid">
+
+      <!-- Primary -->
+      <div class="logo-card">
+        <div class="stage">
+          <svg viewBox="0 0 1300 280" xmlns="http://www.w3.org/2000/svg" aria-label="Primary logo">
+            <defs>
+              <linearGradient id="lc1-h" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#dee0e3"/><stop offset="1" stop-color="#9ea4ab"/></linearGradient>
+              <linearGradient id="lc1-c" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3aa8da"/><stop offset="1" stop-color="#177cb8"/></linearGradient>
+              <linearGradient id="lc1-b" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#26a6e6"/><stop offset="1" stop-color="#0c5e9c"/></linearGradient>
+              <linearGradient id="lc1-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#cdd2d8"/><stop offset="1" stop-color="#5e6470"/></linearGradient>
+            </defs>
+            <svg x="0" y="36" width="277" height="208" viewBox="0 0 240 180">
+              <path d="M 28 164 L 28 88 L 96 24 L 156 88 L 200 88 L 200 164 Z" fill="none" stroke="url(#lc1-h)" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
+              <g stroke="url(#lc1-c)" stroke-width="4" stroke-linecap="round">
+                <line x1="62" y1="100" x2="112" y2="100"/><line x1="112" y1="100" x2="112" y2="122"/>
+                <line x1="112" y1="122" x2="162" y2="122"/><line x1="162" y1="122" x2="162" y2="144"/>
+              </g>
+              <circle cx="62" cy="100" r="8" fill="url(#lc1-c)"/><circle cx="112" cy="122" r="8" fill="url(#lc1-c)"/><circle cx="162" cy="144" r="8" fill="url(#lc1-c)"/>
+            </svg>
+            <text x="320" y="130" font-family="var(--display)" font-weight="900" font-size="130" letter-spacing="3.5" fill="url(#lc1-b)" style="font-family: Saira, Eurostile, system-ui, sans-serif;">UMBRELLA</text>
+            <text x="320" y="240" font-family="var(--display)" font-weight="900" font-size="130" letter-spacing="3.5" fill="url(#lc1-g)" style="font-family: Saira, Eurostile, system-ui, sans-serif;">AUTOMATION</text>
+          </svg>
+        </div>
+        <div class="meta">
+          <div class="row">
+            <h3>Primary logo</h3>
+            <a class="dl" href="assets/logo-primary.svg" download>SVG</a>
+          </div>
+          <p class="desc">Horizontal lockup, full color. The default mark for almost every situation: web headers, business cards, vehicle wraps, slide decks.</p>
+        </div>
+      </div>
+
+      <!-- Stacked -->
+      <div class="logo-card">
+        <div class="stage">
+          <svg viewBox="0 0 900 600" xmlns="http://www.w3.org/2000/svg" aria-label="Stacked logo">
+            <defs>
+              <linearGradient id="lc2-h" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#dee0e3"/><stop offset="1" stop-color="#9ea4ab"/></linearGradient>
+              <linearGradient id="lc2-c" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3aa8da"/><stop offset="1" stop-color="#177cb8"/></linearGradient>
+              <linearGradient id="lc2-b" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#26a6e6"/><stop offset="1" stop-color="#0c5e9c"/></linearGradient>
+              <linearGradient id="lc2-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#cdd2d8"/><stop offset="1" stop-color="#5e6470"/></linearGradient>
+            </defs>
+            <svg x="20" y="20" width="288" height="216" viewBox="0 0 240 180">
+              <path d="M 28 164 L 28 88 L 96 24 L 156 88 L 200 88 L 200 164 Z" fill="none" stroke="url(#lc2-h)" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
+              <g stroke="url(#lc2-c)" stroke-width="4" stroke-linecap="round">
+                <line x1="62" y1="100" x2="112" y2="100"/><line x1="112" y1="100" x2="112" y2="122"/>
+                <line x1="112" y1="122" x2="162" y2="122"/><line x1="162" y1="122" x2="162" y2="144"/>
+              </g>
+              <circle cx="62" cy="100" r="8" fill="url(#lc2-c)"/><circle cx="112" cy="122" r="8" fill="url(#lc2-c)"/><circle cx="162" cy="144" r="8" fill="url(#lc2-c)"/>
+            </svg>
+            <text x="20" y="380" font-weight="900" font-size="120" letter-spacing="3" fill="url(#lc2-b)" style="font-family: Saira, Eurostile, system-ui, sans-serif;">UMBRELLA</text>
+            <text x="20" y="490" font-weight="900" font-size="120" letter-spacing="3" fill="url(#lc2-g)" style="font-family: Saira, Eurostile, system-ui, sans-serif;">AUTOMATION</text>
+          </svg>
+        </div>
+        <div class="meta">
+          <div class="row">
+            <h3>Stacked logo</h3>
+            <a class="dl" href="assets/logo-stacked.svg" download>SVG</a>
+          </div>
+          <p class="desc">Vertical lockup. Use when the primary is too wide &mdash; square ad units, narrow sidebars, badge pockets on shirts and hats.</p>
+        </div>
+      </div>
+
+      <!-- Wordmark -->
+      <div class="logo-card">
+        <div class="stage">
+          <svg viewBox="0 0 1100 280" xmlns="http://www.w3.org/2000/svg" aria-label="Wordmark only">
+            <defs>
+              <linearGradient id="lc3-b" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#26a6e6"/><stop offset="1" stop-color="#0c5e9c"/></linearGradient>
+              <linearGradient id="lc3-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#cdd2d8"/><stop offset="1" stop-color="#5e6470"/></linearGradient>
+            </defs>
+            <text x="20" y="130" font-weight="900" font-size="130" letter-spacing="3.5" fill="url(#lc3-b)" style="font-family: Saira, Eurostile, system-ui, sans-serif;">UMBRELLA</text>
+            <text x="20" y="240" font-weight="900" font-size="130" letter-spacing="3.5" fill="url(#lc3-g)" style="font-family: Saira, Eurostile, system-ui, sans-serif;">AUTOMATION</text>
+          </svg>
+        </div>
+        <div class="meta">
+          <div class="row">
+            <h3>Wordmark</h3>
+            <a class="dl" href="assets/logo-wordmark.svg" download>SVG</a>
+          </div>
+          <p class="desc">Type only. Use when the submark is shown elsewhere on the same surface, or when the icon doesn&rsquo;t add value (e.g. inside a paragraph signature).</p>
+        </div>
+      </div>
+
+      <!-- Submark -->
+      <div class="logo-card">
+        <div class="stage submark-stage">
+          <svg viewBox="0 0 240 180" xmlns="http://www.w3.org/2000/svg" aria-label="Submark only">
+            <defs>
+              <linearGradient id="lc4-h" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#dee0e3"/><stop offset="1" stop-color="#9ea4ab"/></linearGradient>
+              <linearGradient id="lc4-c" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3aa8da"/><stop offset="1" stop-color="#177cb8"/></linearGradient>
+            </defs>
+            <path d="M 28 164 L 28 88 L 96 24 L 156 88 L 200 88 L 200 164 Z" fill="none" stroke="url(#lc4-h)" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
+            <g stroke="url(#lc4-c)" stroke-width="4" stroke-linecap="round">
+              <line x1="62" y1="100" x2="112" y2="100"/><line x1="112" y1="100" x2="112" y2="122"/>
+              <line x1="112" y1="122" x2="162" y2="122"/><line x1="162" y1="122" x2="162" y2="144"/>
+            </g>
+            <circle cx="62" cy="100" r="8" fill="url(#lc4-c)"/><circle cx="112" cy="122" r="8" fill="url(#lc4-c)"/><circle cx="162" cy="144" r="8" fill="url(#lc4-c)"/>
+          </svg>
+        </div>
+        <div class="meta">
+          <div class="row">
+            <h3>Submark</h3>
+            <a class="dl" href="assets/submark.svg" download>SVG</a>
+          </div>
+          <p class="desc">Icon only. Use for app icons, favicons, social avatars, and any tight square where the wordmark wouldn&rsquo;t be readable.</p>
+        </div>
+      </div>
+
+      <!-- On dark -->
+      <div class="logo-card dark">
+        <div class="stage">
+          <svg viewBox="0 0 1300 280" xmlns="http://www.w3.org/2000/svg" aria-label="On dark backgrounds">
+            <defs>
+              <linearGradient id="lc5-c" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5fc1ec"/><stop offset="1" stop-color="#1a9be8"/></linearGradient>
+            </defs>
+            <svg x="0" y="36" width="277" height="208" viewBox="0 0 240 180">
+              <path d="M 28 164 L 28 88 L 96 24 L 156 88 L 200 88 L 200 164 Z" fill="none" stroke="#ffffff" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
+              <g stroke="url(#lc5-c)" stroke-width="4" stroke-linecap="round">
+                <line x1="62" y1="100" x2="112" y2="100"/><line x1="112" y1="100" x2="112" y2="122"/>
+                <line x1="112" y1="122" x2="162" y2="122"/><line x1="162" y1="122" x2="162" y2="144"/>
+              </g>
+              <circle cx="62" cy="100" r="8" fill="url(#lc5-c)"/><circle cx="112" cy="122" r="8" fill="url(#lc5-c)"/><circle cx="162" cy="144" r="8" fill="url(#lc5-c)"/>
+            </svg>
+            <text x="320" y="130" font-weight="900" font-size="130" letter-spacing="3.5" fill="#1A9BE8" style="font-family: Saira, Eurostile, system-ui, sans-serif;">UMBRELLA</text>
+            <text x="320" y="240" font-weight="900" font-size="130" letter-spacing="3.5" fill="#ffffff" style="font-family: Saira, Eurostile, system-ui, sans-serif;">AUTOMATION</text>
+          </svg>
+        </div>
+        <div class="meta">
+          <div class="row">
+            <h3>On dark backgrounds</h3>
+            <a class="dl" href="assets/logo-on-dark.svg" download>SVG</a>
+          </div>
+          <p class="desc">Reversed treatment for dark surfaces. The house outline becomes white, the AUTOMATION wordmark goes white, and the brand blue stays put.</p>
+        </div>
+      </div>
+
+      <!-- Single-color -->
+      <div class="logo-card">
+        <div class="stage">
+          <svg viewBox="0 0 1300 280" xmlns="http://www.w3.org/2000/svg" aria-label="Single color">
+            <svg x="0" y="36" width="277" height="208" viewBox="0 0 240 180">
+              <path d="M 28 164 L 28 88 L 96 24 L 156 88 L 200 88 L 200 164 Z" fill="none" stroke="#1A1F2B" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
+              <g stroke="#1A1F2B" stroke-width="4" stroke-linecap="round">
+                <line x1="62" y1="100" x2="112" y2="100"/><line x1="112" y1="100" x2="112" y2="122"/>
+                <line x1="112" y1="122" x2="162" y2="122"/><line x1="162" y1="122" x2="162" y2="144"/>
+              </g>
+              <circle cx="62" cy="100" r="8" fill="#1A1F2B"/><circle cx="112" cy="122" r="8" fill="#1A1F2B"/><circle cx="162" cy="144" r="8" fill="#1A1F2B"/>
+            </svg>
+            <text x="320" y="130" font-weight="900" font-size="130" letter-spacing="3.5" fill="#1A1F2B" style="font-family: Saira, Eurostile, system-ui, sans-serif;">UMBRELLA</text>
+            <text x="320" y="240" font-weight="900" font-size="130" letter-spacing="3.5" fill="#1A1F2B" style="font-family: Saira, Eurostile, system-ui, sans-serif;">AUTOMATION</text>
+          </svg>
+        </div>
+        <div class="meta">
+          <div class="row">
+            <h3>Single color</h3>
+            <a class="dl" href="assets/logo-mono-dark.svg" download>Dark</a>
+            <a class="dl" href="assets/logo-mono-light.svg" download>Light</a>
+          </div>
+          <p class="desc">For one-color print, embroidery, vinyl cut, etched signage, or anywhere full color isn&rsquo;t available. Pick the version with the strongest contrast against the surface.</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ============== CLEAR SPACE ============== -->
+<section class="clearspace" id="clearspace">
+  <div class="wrap">
+    <p class="eyebrow">Clear space</p>
+    <h2>Give the logo room to breathe.</h2>
+    <p class="lede">Always leave clear space around the logo equal to <strong>X</strong> &mdash; the height of the submark icon. Nothing else (text, photos, edges, other logos) should encroach on this zone.</p>
+
+    <div class="demo">
+      <div class="clear-wrap" aria-label="Clear space diagram">
+        <span class="x t">X</span>
+        <span class="x b">X</span>
+        <span class="x l">X</span>
+        <span class="x r">X</span>
+        <div class="logo-here">
+          <svg viewBox="0 0 1300 280" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <defs>
+              <linearGradient id="cs-h" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#dee0e3"/><stop offset="1" stop-color="#9ea4ab"/></linearGradient>
+              <linearGradient id="cs-c" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3aa8da"/><stop offset="1" stop-color="#177cb8"/></linearGradient>
+              <linearGradient id="cs-b" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#26a6e6"/><stop offset="1" stop-color="#0c5e9c"/></linearGradient>
+              <linearGradient id="cs-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#cdd2d8"/><stop offset="1" stop-color="#5e6470"/></linearGradient>
+            </defs>
+            <svg x="0" y="36" width="277" height="208" viewBox="0 0 240 180">
+              <path d="M 28 164 L 28 88 L 96 24 L 156 88 L 200 88 L 200 164 Z" fill="none" stroke="url(#cs-h)" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
+              <g stroke="url(#cs-c)" stroke-width="4" stroke-linecap="round">
+                <line x1="62" y1="100" x2="112" y2="100"/><line x1="112" y1="100" x2="112" y2="122"/>
+                <line x1="112" y1="122" x2="162" y2="122"/><line x1="162" y1="122" x2="162" y2="144"/>
+              </g>
+              <circle cx="62" cy="100" r="8" fill="url(#cs-c)"/><circle cx="112" cy="122" r="8" fill="url(#cs-c)"/><circle cx="162" cy="144" r="8" fill="url(#cs-c)"/>
+            </svg>
+            <text x="320" y="130" font-weight="900" font-size="130" letter-spacing="3.5" fill="url(#cs-b)" style="font-family: Saira, Eurostile, system-ui, sans-serif;">UMBRELLA</text>
+            <text x="320" y="240" font-weight="900" font-size="130" letter-spacing="3.5" fill="url(#cs-g)" style="font-family: Saira, Eurostile, system-ui, sans-serif;">AUTOMATION</text>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="x-explainer">
+      <div class="pill">
+        <svg viewBox="0 0 240 180" aria-hidden="true">
+          <path d="M 28 164 L 28 88 L 96 24 L 156 88 L 200 88 L 200 164 Z" fill="none" stroke="#9ea4ab" stroke-width="10" stroke-linejoin="round" stroke-linecap="round"/>
+          <g stroke="#1A9BE8" stroke-width="5" stroke-linecap="round">
+            <line x1="62" y1="100" x2="112" y2="100"/><line x1="112" y1="100" x2="112" y2="122"/>
+            <line x1="112" y1="122" x2="162" y2="122"/><line x1="162" y1="122" x2="162" y2="144"/>
+          </g>
+          <circle cx="62" cy="100" r="10" fill="#1A9BE8"/><circle cx="112" cy="122" r="10" fill="#1A9BE8"/><circle cx="162" cy="144" r="10" fill="#1A9BE8"/>
+        </svg>
+        <div class="label">
+          <strong>X = the height of the submark.</strong><br>
+          Measure from the apex of the roof to the bottom of the icon.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============== MIN SIZE ============== -->
+<section class="minsize" id="minsize">
+  <div class="wrap">
+    <p class="eyebrow">Minimum size</p>
+    <h2>Don&rsquo;t make it too small to read.</h2>
+    <p class="lede">Below these sizes the wordmark stops being legible and the icon starts to muddy. If you can&rsquo;t make the size, use a larger version on a different surface.</p>
+
+    <div class="min-grid">
+      <div class="min-card">
+        <h3>Primary &amp; stacked logo</h3>
+        <div class="ruler">
+          <svg class="full-min" viewBox="0 0 1300 280" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="mn1-h" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#dee0e3"/><stop offset="1" stop-color="#9ea4ab"/></linearGradient>
+              <linearGradient id="mn1-c" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3aa8da"/><stop offset="1" stop-color="#177cb8"/></linearGradient>
+              <linearGradient id="mn1-b" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#26a6e6"/><stop offset="1" stop-color="#0c5e9c"/></linearGradient>
+              <linearGradient id="mn1-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#cdd2d8"/><stop offset="1" stop-color="#5e6470"/></linearGradient>
+            </defs>
+            <svg x="0" y="36" width="277" height="208" viewBox="0 0 240 180">
+              <path d="M 28 164 L 28 88 L 96 24 L 156 88 L 200 88 L 200 164 Z" fill="none" stroke="url(#mn1-h)" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
+              <g stroke="url(#mn1-c)" stroke-width="4" stroke-linecap="round">
+                <line x1="62" y1="100" x2="112" y2="100"/><line x1="112" y1="100" x2="112" y2="122"/>
+                <line x1="112" y1="122" x2="162" y2="122"/><line x1="162" y1="122" x2="162" y2="144"/>
+              </g>
+              <circle cx="62" cy="100" r="8" fill="url(#mn1-c)"/><circle cx="112" cy="122" r="8" fill="url(#mn1-c)"/><circle cx="162" cy="144" r="8" fill="url(#mn1-c)"/>
+            </svg>
+            <text x="320" y="130" font-weight="900" font-size="130" letter-spacing="3.5" fill="url(#mn1-b)" style="font-family: Saira, Eurostile, system-ui, sans-serif;">UMBRELLA</text>
+            <text x="320" y="240" font-weight="900" font-size="130" letter-spacing="3.5" fill="url(#mn1-g)" style="font-family: Saira, Eurostile, system-ui, sans-serif;">AUTOMATION</text>
+          </svg>
+          <div class="digits">
+            120 px wide<br>
+            (≈ 1 in / 25 mm in print)
+          </div>
+        </div>
+        <p>Below this width the wordmark gets too thin to read at a glance, especially on screens with subpixel rendering.</p>
+      </div>
+
+      <div class="min-card">
+        <h3>Submark</h3>
+        <div class="ruler">
+          <svg class="sub-min" viewBox="0 0 240 180" xmlns="http://www.w3.org/2000/svg">
+            <path d="M 28 164 L 28 88 L 96 24 L 156 88 L 200 88 L 200 164 Z" fill="none" stroke="#9ea4ab" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+            <g stroke="#1A9BE8" stroke-width="7" stroke-linecap="round">
+              <line x1="62" y1="100" x2="112" y2="100"/><line x1="112" y1="100" x2="112" y2="122"/>
+              <line x1="112" y1="122" x2="162" y2="122"/><line x1="162" y1="122" x2="162" y2="144"/>
+            </g>
+            <circle cx="62" cy="100" r="11" fill="#1A9BE8"/><circle cx="112" cy="122" r="11" fill="#1A9BE8"/><circle cx="162" cy="144" r="11" fill="#1A9BE8"/>
+          </svg>
+          <div class="digits">
+            32 px wide<br>
+            (favicon &amp; chip-sized)
+          </div>
+        </div>
+        <p>The submark holds together down to favicon size. For 16-px favicons, drop the circuit dots to two and bump the stroke weight if it looks fragile.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============== DON'TS ============== -->
+<section class="donts" id="donts">
+  <div class="wrap">
+    <p class="eyebrow">Don&rsquo;ts</p>
+    <h2>Six ways to wreck the logo.</h2>
+    <p class="lede">If your design is doing one of these, change it before it goes out the door. The brand is the sum of how it gets shown &mdash; small inconsistencies pile up.</p>
+
+    <div class="dont-grid">
+
+      <div class="dont-card">
+        <div class="stage break-recolor"><span class="badge" aria-hidden="true">×</span>
+          <svg viewBox="0 0 1300 280" xmlns="http://www.w3.org/2000/svg">
+            <svg x="0" y="36" width="277" height="208" viewBox="0 0 240 180">
+              <path d="M 28 164 L 28 88 L 96 24 L 156 88 L 200 88 L 200 164 Z" fill="none" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
+              <g stroke-width="4" stroke-linecap="round">
+                <line x1="62" y1="100" x2="112" y2="100"/><line x1="112" y1="100" x2="112" y2="122"/>
+                <line x1="112" y1="122" x2="162" y2="122"/><line x1="162" y1="122" x2="162" y2="144"/>
+              </g>
+              <circle cx="62" cy="100" r="8"/><circle cx="112" cy="122" r="8"/><circle cx="162" cy="144" r="8"/>
+            </svg>
+            <text x="320" y="130" font-weight="900" font-size="130" letter-spacing="3.5" style="font-family: Saira, Eurostile, system-ui, sans-serif;">UMBRELLA</text>
+            <text x="320" y="240" font-weight="900" font-size="130" letter-spacing="3.5" style="font-family: Saira, Eurostile, system-ui, sans-serif;">AUTOMATION</text>
+          </svg>
+        </div>
+        <div class="label">Don&rsquo;t recolor.<span class="sub">Use only the official palette &mdash; no brand-of-the-day swaps.</span></div>
+      </div>
+
+      <div class="dont-card">
+        <div class="stage"><span class="badge" aria-hidden="true">×</span>
+          <div class="break-stretch-wrap">
+            <div class="break-stretch">
+              <svg viewBox="0 0 1300 280" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <linearGradient id="d2-h" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#dee0e3"/><stop offset="1" stop-color="#9ea4ab"/></linearGradient>
+                  <linearGradient id="d2-c" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3aa8da"/><stop offset="1" stop-color="#177cb8"/></linearGradient>
+                  <linearGradient id="d2-b" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#26a6e6"/><stop offset="1" stop-color="#0c5e9c"/></linearGradient>
+                  <linearGradient id="d2-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#cdd2d8"/><stop offset="1" stop-color="#5e6470"/></linearGradient>
+                </defs>
+                <svg x="0" y="36" width="277" height="208" viewBox="0 0 240 180">
+                  <path d="M 28 164 L 28 88 L 96 24 L 156 88 L 200 88 L 200 164 Z" fill="none" stroke="url(#d2-h)" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
+                  <g stroke="url(#d2-c)" stroke-width="4" stroke-linecap="round">
+                    <line x1="62" y1="100" x2="112" y2="100"/><line x1="112" y1="100" x2="112" y2="122"/>
+                    <line x1="112" y1="122" x2="162" y2="122"/><line x1="162" y1="122" x2="162" y2="144"/>
+                  </g>
+                  <circle cx="62" cy="100" r="8" fill="url(#d2-c)"/><circle cx="112" cy="122" r="8" fill="url(#d2-c)"/><circle cx="162" cy="144" r="8" fill="url(#d2-c)"/>
+                </svg>
+                <text x="320" y="130" font-weight="900" font-size="130" letter-spacing="3.5" fill="url(#d2-b)" style="font-family: Saira, Eurostile, system-ui, sans-serif;">UMBRELLA</text>
+                <text x="320" y="240" font-weight="900" font-size="130" letter-spacing="3.5" fill="url(#d2-g)" style="font-family: Saira, Eurostile, system-ui, sans-serif;">AUTOMATION</text>
+              </svg>
+            </div>
+          </div>
+        </div>
+        <div class="label">Don&rsquo;t stretch or squish.<span class="sub">Scale proportionally. Hold shift. Always.</span></div>
+      </div>
+
+      <div class="dont-card">
+        <div class="stage break-rotate"><span class="badge" aria-hidden="true">×</span>
+          <svg viewBox="0 0 1300 280" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="d3-h" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#dee0e3"/><stop offset="1" stop-color="#9ea4ab"/></linearGradient>
+              <linearGradient id="d3-c" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3aa8da"/><stop offset="1" stop-color="#177cb8"/></linearGradient>
+              <linearGradient id="d3-b" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#26a6e6"/><stop offset="1" stop-color="#0c5e9c"/></linearGradient>
+              <linearGradient id="d3-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#cdd2d8"/><stop offset="1" stop-color="#5e6470"/></linearGradient>
+            </defs>
+            <svg x="0" y="36" width="277" height="208" viewBox="0 0 240 180">
+              <path d="M 28 164 L 28 88 L 96 24 L 156 88 L 200 88 L 200 164 Z" fill="none" stroke="url(#d3-h)" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
+              <g stroke="url(#d3-c)" stroke-width="4" stroke-linecap="round">
+                <line x1="62" y1="100" x2="112" y2="100"/><line x1="112" y1="100" x2="112" y2="122"/>
+                <line x1="112" y1="122" x2="162" y2="122"/><line x1="162" y1="122" x2="162" y2="144"/>
+              </g>
+              <circle cx="62" cy="100" r="8" fill="url(#d3-c)"/><circle cx="112" cy="122" r="8" fill="url(#d3-c)"/><circle cx="162" cy="144" r="8" fill="url(#d3-c)"/>
+            </svg>
+            <text x="320" y="130" font-weight="900" font-size="130" letter-spacing="3.5" fill="url(#d3-b)" style="font-family: Saira, Eurostile, system-ui, sans-serif;">UMBRELLA</text>
+            <text x="320" y="240" font-weight="900" font-size="130" letter-spacing="3.5" fill="url(#d3-g)" style="font-family: Saira, Eurostile, system-ui, sans-serif;">AUTOMATION</text>
+          </svg>
+        </div>
+        <div class="label">Don&rsquo;t rotate.<span class="sub">The logo always sits flat on its baseline.</span></div>
+      </div>
+
+      <div class="dont-card">
+        <div class="stage break-shadow"><span class="badge" aria-hidden="true">×</span>
+          <svg viewBox="0 0 1300 280" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="d4-h" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#dee0e3"/><stop offset="1" stop-color="#9ea4ab"/></linearGradient>
+              <linearGradient id="d4-c" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3aa8da"/><stop offset="1" stop-color="#177cb8"/></linearGradient>
+              <linearGradient id="d4-b" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#26a6e6"/><stop offset="1" stop-color="#0c5e9c"/></linearGradient>
+              <linearGradient id="d4-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#cdd2d8"/><stop offset="1" stop-color="#5e6470"/></linearGradient>
+            </defs>
+            <svg x="0" y="36" width="277" height="208" viewBox="0 0 240 180">
+              <path d="M 28 164 L 28 88 L 96 24 L 156 88 L 200 88 L 200 164 Z" fill="none" stroke="url(#d4-h)" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
+              <g stroke="url(#d4-c)" stroke-width="4" stroke-linecap="round">
+                <line x1="62" y1="100" x2="112" y2="100"/><line x1="112" y1="100" x2="112" y2="122"/>
+                <line x1="112" y1="122" x2="162" y2="122"/><line x1="162" y1="122" x2="162" y2="144"/>
+              </g>
+              <circle cx="62" cy="100" r="8" fill="url(#d4-c)"/><circle cx="112" cy="122" r="8" fill="url(#d4-c)"/><circle cx="162" cy="144" r="8" fill="url(#d4-c)"/>
+            </svg>
+            <text x="320" y="130" font-weight="900" font-size="130" letter-spacing="3.5" fill="url(#d4-b)" style="font-family: Saira, Eurostile, system-ui, sans-serif;">UMBRELLA</text>
+            <text x="320" y="240" font-weight="900" font-size="130" letter-spacing="3.5" fill="url(#d4-g)" style="font-family: Saira, Eurostile, system-ui, sans-serif;">AUTOMATION</text>
+          </svg>
+        </div>
+        <div class="label">Don&rsquo;t add effects.<span class="sub">No drop shadows, glows, bevels, outlines, or PowerPoint art.</span></div>
+      </div>
+
+      <div class="dont-card">
+        <div class="stage break-busy"><span class="badge" aria-hidden="true">×</span>
+          <svg viewBox="0 0 1300 280" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="d5-h" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#dee0e3"/><stop offset="1" stop-color="#9ea4ab"/></linearGradient>
+              <linearGradient id="d5-c" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3aa8da"/><stop offset="1" stop-color="#177cb8"/></linearGradient>
+              <linearGradient id="d5-b" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#26a6e6"/><stop offset="1" stop-color="#0c5e9c"/></linearGradient>
+              <linearGradient id="d5-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#cdd2d8"/><stop offset="1" stop-color="#5e6470"/></linearGradient>
+            </defs>
+            <svg x="0" y="36" width="277" height="208" viewBox="0 0 240 180">
+              <path d="M 28 164 L 28 88 L 96 24 L 156 88 L 200 88 L 200 164 Z" fill="none" stroke="url(#d5-h)" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
+              <g stroke="url(#d5-c)" stroke-width="4" stroke-linecap="round">
+                <line x1="62" y1="100" x2="112" y2="100"/><line x1="112" y1="100" x2="112" y2="122"/>
+                <line x1="112" y1="122" x2="162" y2="122"/><line x1="162" y1="122" x2="162" y2="144"/>
+              </g>
+              <circle cx="62" cy="100" r="8" fill="url(#d5-c)"/><circle cx="112" cy="122" r="8" fill="url(#d5-c)"/><circle cx="162" cy="144" r="8" fill="url(#d5-c)"/>
+            </svg>
+            <text x="320" y="130" font-weight="900" font-size="130" letter-spacing="3.5" fill="url(#d5-b)" style="font-family: Saira, Eurostile, system-ui, sans-serif;">UMBRELLA</text>
+            <text x="320" y="240" font-weight="900" font-size="130" letter-spacing="3.5" fill="url(#d5-g)" style="font-family: Saira, Eurostile, system-ui, sans-serif;">AUTOMATION</text>
+          </svg>
+        </div>
+        <div class="label">Don&rsquo;t place on busy backgrounds.<span class="sub">If you can&rsquo;t read it from across the room, it&rsquo;s wrong.</span></div>
+      </div>
+
+      <div class="dont-card">
+        <div class="stage break-crowd"><span class="badge" aria-hidden="true">×</span>
+          <svg viewBox="0 0 1300 280" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="d6-h" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#dee0e3"/><stop offset="1" stop-color="#9ea4ab"/></linearGradient>
+              <linearGradient id="d6-c" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3aa8da"/><stop offset="1" stop-color="#177cb8"/></linearGradient>
+              <linearGradient id="d6-b" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#26a6e6"/><stop offset="1" stop-color="#0c5e9c"/></linearGradient>
+              <linearGradient id="d6-g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#cdd2d8"/><stop offset="1" stop-color="#5e6470"/></linearGradient>
+            </defs>
+            <svg x="0" y="36" width="277" height="208" viewBox="0 0 240 180">
+              <path d="M 28 164 L 28 88 L 96 24 L 156 88 L 200 88 L 200 164 Z" fill="none" stroke="url(#d6-h)" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
+              <g stroke="url(#d6-c)" stroke-width="4" stroke-linecap="round">
+                <line x1="62" y1="100" x2="112" y2="100"/><line x1="112" y1="100" x2="112" y2="122"/>
+                <line x1="112" y1="122" x2="162" y2="122"/><line x1="162" y1="122" x2="162" y2="144"/>
+              </g>
+              <circle cx="62" cy="100" r="8" fill="url(#d6-c)"/><circle cx="112" cy="122" r="8" fill="url(#d6-c)"/><circle cx="162" cy="144" r="8" fill="url(#d6-c)"/>
+            </svg>
+            <text x="320" y="130" font-weight="900" font-size="130" letter-spacing="3.5" fill="url(#d6-b)" style="font-family: Saira, Eurostile, system-ui, sans-serif;">UMBRELLA</text>
+            <text x="320" y="240" font-weight="900" font-size="130" letter-spacing="3.5" fill="url(#d6-g)" style="font-family: Saira, Eurostile, system-ui, sans-serif;">AUTOMATION</text>
+          </svg>
+          <div class="noise">YOUR<br>TEXT<br>HERE</div>
+        </div>
+        <div class="label">Don&rsquo;t crowd it.<span class="sub">Honor the clear space rule on every side.</span></div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ============== COLORS ============== -->
+<section class="colors" id="colors">
+  <div class="wrap">
+    <p class="eyebrow">Colors</p>
+    <h2>The exact codes. No eyeballing.</h2>
+    <p class="lede">Click any value to copy it. Use these hex codes everywhere &mdash; web, decks, signage, vehicles &mdash; so &ldquo;Umbrella blue&rdquo; means the same thing in every room.</p>
+
+    <div class="color-grid">
+
+      <div class="swatch" data-color="#1A9BE8">
+        <div class="sample" style="background:#1A9BE8">Umbrella Blue</div>
+        <div class="body">
+          <div class="name">Umbrella Blue</div>
+          <div class="role">Primary brand color</div>
+          <div class="vals">
+            <button class="val" data-copy="#1A9BE8" type="button"><span>#1A9BE8</span><span class="copy">Copy</span></button>
+            <button class="val" data-copy="rgb(26, 155, 232)" type="button"><span>26&nbsp;&middot;&nbsp;155&nbsp;&middot;&nbsp;232</span><span class="copy">Copy</span></button>
+          </div>
+        </div>
+      </div>
+
+      <div class="swatch" data-color="#0C5E9C">
+        <div class="sample" style="background:#0C5E9C">Deep Blue</div>
+        <div class="body">
+          <div class="name">Deep Blue</div>
+          <div class="role">Gradient end &amp; depth</div>
+          <div class="vals">
+            <button class="val" data-copy="#0C5E9C" type="button"><span>#0C5E9C</span><span class="copy">Copy</span></button>
+            <button class="val" data-copy="rgb(12, 94, 156)" type="button"><span>12&nbsp;&middot;&nbsp;94&nbsp;&middot;&nbsp;156</span><span class="copy">Copy</span></button>
+          </div>
+        </div>
+      </div>
+
+      <div class="swatch" data-color="#1A1F2B">
+        <div class="sample" style="background:#1A1F2B">Storm</div>
+        <div class="body">
+          <div class="name">Storm</div>
+          <div class="role">Body text &amp; dark surfaces</div>
+          <div class="vals">
+            <button class="val" data-copy="#1A1F2B" type="button"><span>#1A1F2B</span><span class="copy">Copy</span></button>
+            <button class="val" data-copy="rgb(26, 31, 43)" type="button"><span>26&nbsp;&middot;&nbsp;31&nbsp;&middot;&nbsp;43</span><span class="copy">Copy</span></button>
+          </div>
+        </div>
+      </div>
+
+      <div class="swatch" data-color="#6E6E6E">
+        <div class="sample" style="background:#6E6E6E">Graphite</div>
+        <div class="body">
+          <div class="name">Graphite</div>
+          <div class="role">AUTOMATION wordmark &amp; secondary text</div>
+          <div class="vals">
+            <button class="val" data-copy="#6E6E6E" type="button"><span>#6E6E6E</span><span class="copy">Copy</span></button>
+            <button class="val" data-copy="rgb(110, 110, 110)" type="button"><span>110&nbsp;&middot;&nbsp;110&nbsp;&middot;&nbsp;110</span><span class="copy">Copy</span></button>
+          </div>
+        </div>
+      </div>
+
+      <div class="swatch light" data-color="#E8EBEF">
+        <div class="sample" style="background:#E8EBEF">Cloud</div>
+        <div class="body">
+          <div class="name">Cloud</div>
+          <div class="role">Soft surfaces &amp; dividers</div>
+          <div class="vals">
+            <button class="val" data-copy="#E8EBEF" type="button"><span>#E8EBEF</span><span class="copy">Copy</span></button>
+            <button class="val" data-copy="rgb(232, 235, 239)" type="button"><span>232&nbsp;&middot;&nbsp;235&nbsp;&middot;&nbsp;239</span><span class="copy">Copy</span></button>
+          </div>
+        </div>
+      </div>
+
+      <div class="swatch light" data-color="#FFFFFF">
+        <div class="sample" style="background:#FFFFFF; box-shadow: inset 0 0 0 1px #1d2434">White</div>
+        <div class="body">
+          <div class="name">Pure White</div>
+          <div class="role">Page backgrounds</div>
+          <div class="vals">
+            <button class="val" data-copy="#FFFFFF" type="button"><span>#FFFFFF</span><span class="copy">Copy</span></button>
+            <button class="val" data-copy="rgb(255, 255, 255)" type="button"><span>255&nbsp;&middot;&nbsp;255&nbsp;&middot;&nbsp;255</span><span class="copy">Copy</span></button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ============== TYPOGRAPHY ============== -->
+<section class="typography" id="typography">
+  <div class="wrap">
+    <p class="eyebrow">Typography</p>
+    <h2>Eurostile-Black, set in all caps.</h2>
+    <p class="lede">The wordmark is built from <strong>Eurostile-Black</strong>. Wide, geometric, slightly rounded &mdash; the personality is &ldquo;modern but grounded.&rdquo; If you need a free fallback for the web, <strong>Saira 900</strong> is the closest match.</p>
+
+    <div class="type-grid">
+      <div class="type-card">
+        <p class="type-sample"><span class="blue">UMBRELLA</span><br><span class="gray">AUTOMATION</span></p>
+      </div>
+
+      <div class="type-card">
+        <ul class="type-spec">
+          <li><span class="k">Family</span><span class="v">Eurostile-Black</span></li>
+          <li><span class="k">Style</span><span class="v">Regular</span></li>
+          <li><span class="k">Size</span><span class="v">50 pt</span></li>
+          <li><span class="k">Leading</span><span class="v">38 pt</span></li>
+          <li><span class="k">Tracking</span><span class="v">25 (≈ 0.025 em)</span></li>
+          <li><span class="k">Vertical scale</span><span class="v">100%</span></li>
+          <li><span class="k">Horizontal scale</span><span class="v">100%</span></li>
+          <li><span class="k">Baseline shift</span><span class="v">0 pt</span></li>
+          <li><span class="k">Case</span><span class="v">All Caps (set in textbox, not typed)</span></li>
+          <li><span class="k">Web fallback</span><span class="v">Saira 900</span></li>
+        </ul>
+        <div class="type-note">
+          <strong>Note:</strong> Eurostile is a licensed font. The downloadable SVGs reference it by name &mdash; viewers without the font installed will see the Saira fallback. For pixel-perfect rendering in print or signage, install Eurostile-Black on your machine and re-open the SVG, or have your designer convert the wordmark to outlines before exporting.
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============== LOGO CONSTRUCTION ============== -->
+<section class="construction" id="construction">
+  <div class="wrap">
+    <p class="eyebrow">Logo Construction</p>
+    <h2>How the logo is built in Photoshop.</h2>
+    <p class="lede">For designers recreating the logo from scratch &mdash; the layer styles. For developers approximating the same look on the web &mdash; CSS recipes that get close. The downloadable SVGs reference Eurostile-Black by name and use simplified gradients; install the font and apply these layer styles to match the canonical render.</p>
+
+    <h3 class="construction-h3">Bevel &amp; Emboss &mdash; UMBRELLA, AUTOMATION, house outline</h3>
+    <p class="construction-p">These three elements share the same emboss treatment. Subtle 3D rise with soft shadow.</p>
+    <ul class="ps-spec">
+      <li><span class="k">Style</span><span class="v">Emboss</span></li>
+      <li><span class="k">Technique</span><span class="v">Smooth</span></li>
+      <li><span class="k">Depth</span><span class="v">51%</span></li>
+      <li><span class="k">Direction</span><span class="v">Up</span></li>
+      <li><span class="k">Size</span><span class="v">3 px</span></li>
+      <li><span class="k">Soften</span><span class="v">6 px</span></li>
+      <li><span class="k">Angle</span><span class="v">120° (Use Global Light)</span></li>
+      <li><span class="k">Altitude</span><span class="v">30°</span></li>
+      <li><span class="k">Gloss Contour</span><span class="v">Linear (default)</span></li>
+      <li><span class="k">Highlight</span><span class="v">Normal · #FFFFFF · 85%</span></li>
+      <li><span class="k">Shadow</span><span class="v">Multiply · #000000 · 45%</span></li>
+      <li><span class="k">Contour</span><span class="v">Default · Range 100%</span></li>
+    </ul>
+
+    <h3 class="construction-h3">Bevel &amp; Emboss &mdash; circuit lines</h3>
+    <p class="construction-p">The dots and connecting wires inside the house use a different bevel: an inner bevel, more pronounced, with no soften and no contour.</p>
+    <ul class="ps-spec">
+      <li><span class="k">Style</span><span class="v">Inner Bevel</span></li>
+      <li><span class="k">Technique</span><span class="v">Smooth</span></li>
+      <li><span class="k">Depth</span><span class="v">74%</span></li>
+      <li><span class="k">Direction</span><span class="v">Up</span></li>
+      <li><span class="k">Size</span><span class="v">0 px</span></li>
+      <li><span class="k">Soften</span><span class="v">0 px</span></li>
+      <li><span class="k">Angle</span><span class="v">120° (Use Global Light)</span></li>
+      <li><span class="k">Altitude</span><span class="v">30°</span></li>
+      <li><span class="k">Highlight</span><span class="v">Screen · 75%</span></li>
+      <li><span class="k">Shadow</span><span class="v">Normal · 26%</span></li>
+      <li><span class="k">Contour</span><span class="v">(disabled)</span></li>
+    </ul>
+
+    <h3 class="construction-h3">Gradient Overlays</h3>
+    <p class="construction-p">Three gradient overlays carry the brand color story. All use Normal blend mode, 100% opacity, Reverse on, Align with Layer on, and 150% scale &mdash; they differ in style, angle, and stops.</p>
+
+    <div class="gradient-grid">
+      <div class="gradient-card">
+        <div class="gradient-stage" style="background: linear-gradient(to bottom, #a4d6ed 0%, #26a6e6 18%, #0c5e9c 50%, #26a6e6 82%, #5fc1ec 100%);"></div>
+        <h4>UMBRELLA wordmark</h4>
+        <ul class="ps-spec">
+          <li><span class="k">Style</span><span class="v">Reflected</span></li>
+          <li><span class="k">Angle</span><span class="v">90°</span></li>
+          <li><span class="k">Reverse</span><span class="v">On</span></li>
+          <li><span class="k">Stops</span><span class="v">5 stops, light → bright → deep → bright → light</span></li>
+        </ul>
+      </div>
+
+      <div class="gradient-card">
+        <div class="gradient-stage" style="background: linear-gradient(to bottom, #c8c8c8 0%, #6e6e6e 100%);"></div>
+        <h4>AUTOMATION + house outline</h4>
+        <ul class="ps-spec">
+          <li><span class="k">Style</span><span class="v">Linear</span></li>
+          <li><span class="k">Angle</span><span class="v">90°</span></li>
+          <li><span class="k">Reverse</span><span class="v">On</span></li>
+          <li><span class="k">Stops</span><span class="v">#C8C8C8 → #6E6E6E (named &ldquo;White&rdquo;)</span></li>
+        </ul>
+      </div>
+
+      <div class="gradient-card">
+        <div class="gradient-stage" style="background: linear-gradient(to top, #5fc1ec 0%, #177cb8 100%);"></div>
+        <h4>Circuit lines</h4>
+        <ul class="ps-spec">
+          <li><span class="k">Style</span><span class="v">Linear</span></li>
+          <li><span class="k">Angle</span><span class="v">−90°</span></li>
+          <li><span class="k">Reverse</span><span class="v">On</span></li>
+          <li><span class="k">Stops</span><span class="v">#5FC1EC → #177CB8 (named &ldquo;Custom&rdquo;)</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <h3 class="construction-h3">CSS recipes</h3>
+    <p class="construction-p">Bevel &amp; emboss can&rsquo;t be reproduced perfectly in CSS, but the gradient overlays translate cleanly using <code>background-clip: text</code>. Drop these into a stylesheet and apply to a heading element to render the wordmark with the right gradient on the web.</p>
+
+    <pre class="codeblock"><code><span class="c">/* UMBRELLA — reflected blue, top &amp; bottom highlight */</span>
+.umbrella {
+  background: linear-gradient(
+    <span class="s">to bottom</span>,
+    <span class="p">#a4d6ed</span> <span class="n">0%</span>,
+    <span class="p">#26a6e6</span> <span class="n">18%</span>,
+    <span class="p">#0c5e9c</span> <span class="n">50%</span>,
+    <span class="p">#26a6e6</span> <span class="n">82%</span>,
+    <span class="p">#5fc1ec</span> <span class="n">100%</span>
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-family: <span class="s">"Eurostile"</span>, <span class="s">"Saira"</span>, system-ui, sans-serif;
+  font-weight: 900;
+  letter-spacing: 0.025em;
+  text-transform: uppercase;
+}
+
+<span class="c">/* AUTOMATION — light-to-dark gray (also used for house outline stroke) */</span>
+.automation {
+  background: linear-gradient(<span class="s">to bottom</span>, <span class="p">#c8c8c8</span> <span class="n">0%</span>, <span class="p">#6e6e6e</span> <span class="n">100%</span>);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-family: <span class="s">"Eurostile"</span>, <span class="s">"Saira"</span>, system-ui, sans-serif;
+  font-weight: 900;
+  letter-spacing: 0.025em;
+  text-transform: uppercase;
+}
+
+<span class="c">/* Circuit lines — bottom-to-top blue (used as SVG linearGradient or CSS bg) */</span>
+.circuit {
+  background: linear-gradient(<span class="s">to top</span>, <span class="p">#5fc1ec</span> <span class="n">0%</span>, <span class="p">#177cb8</span> <span class="n">100%</span>);
+}</code></pre>
+  </div>
+</section>
+
+<!-- ============== FOOTER ============== -->
+<footer class="page">
+  <p>Umbrella Automation &middot; Brand Guidelines &middot; v0.2.0 &middot; <a href="../">Back to Work Hub</a></p>
+</footer>
+
+<script>
+  // Click-to-copy hex/rgb values
+  document.addEventListener('click', function(e) {
+    var btn = e.target.closest('.val');
+    if (!btn) return;
+    var text = btn.getAttribute('data-copy');
+    if (!text) return;
+    var done = function() {
+      btn.classList.add('copied');
+      var copyEl = btn.querySelector('.copy');
+      var prev = copyEl.textContent;
+      copyEl.textContent = 'Copied';
+      setTimeout(function() {
+        btn.classList.remove('copied');
+        copyEl.textContent = prev;
+      }, 1100);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, function() {
+        // fallback
+        var ta = document.createElement('textarea');
+        ta.value = text; document.body.appendChild(ta); ta.select();
+        try { document.execCommand('copy'); } catch (_) {}
+        document.body.removeChild(ta);
+        done();
+      });
+    } else {
+      var ta = document.createElement('textarea');
+      ta.value = text; document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); } catch (_) {}
+      document.body.removeChild(ta);
+      done();
+    }
+  });
+</script>
+
+</body>
+</html>

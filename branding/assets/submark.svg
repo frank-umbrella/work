@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 180" role="img" aria-label="Umbrella Automation submark">
+  <defs>
+    <linearGradient id="ua-submark-house" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#dee0e3"/>
+      <stop offset="1" stop-color="#9ea4ab"/>
+    </linearGradient>
+    <linearGradient id="ua-submark-circuit" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5fc1ec"/>
+      <stop offset="1" stop-color="#177cb8"/>
+    </linearGradient>
+  </defs>
+  <path d="M 28 164 L 28 88 L 96 24 L 156 88 L 200 88 L 200 164 Z"
+        fill="none" stroke="url(#ua-submark-house)" stroke-width="8"
+        stroke-linejoin="round" stroke-linecap="round"/>
+  <g stroke="url(#ua-submark-circuit)" stroke-width="4" stroke-linecap="round">
+    <line x1="62" y1="100" x2="112" y2="100"/>
+    <line x1="112" y1="100" x2="112" y2="122"/>
+    <line x1="112" y1="122" x2="162" y2="122"/>
+    <line x1="162" y1="122" x2="162" y2="144"/>
+  </g>
+  <circle cx="62" cy="100" r="8" fill="url(#ua-submark-circuit)"/>
+  <circle cx="112" cy="122" r="8" fill="url(#ua-submark-circuit)"/>
+  <circle cx="162" cy="144" r="8" fill="url(#ua-submark-circuit)"/>
+</svg>
