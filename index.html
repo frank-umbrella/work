@@ -42,6 +42,10 @@
   header.page .wrap {
     max-width: 1100px;
     margin: 0 auto;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
   }
   header.page h1 {
     font-size: 28px;
@@ -53,6 +57,61 @@
     color: var(--ink-soft);
     font-size: 15px;
   }
+  header.page .actions {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .btn {
+    background: var(--surface);
+    border: 1px solid var(--line-strong);
+    color: var(--ink);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 7px 13px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background .12s ease, border-color .12s ease, color .12s ease;
+  }
+  .btn:hover { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+  .btn.btn-active { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.btn-active:hover { background: #1647b8; border-color: #1647b8; color: #fff; }
+  .btn-link {
+    background: transparent;
+    border: 0;
+    padding: 7px 8px;
+    color: var(--ink-soft);
+    font-weight: 500;
+  }
+  .btn-link:hover { color: var(--accent); background: transparent; border-color: transparent; }
+  body.reordering { user-select: none; }
+  body.reordering .card { cursor: grab; }
+  body.reordering .card:active { cursor: grabbing; }
+  body.reordering .card { outline: 2px dashed transparent; outline-offset: 3px; transition: outline-color .12s ease, transform .12s ease, opacity .12s ease, box-shadow .12s ease, border-color .12s ease; }
+  body.reordering .card:not(.dragging) { outline-color: var(--line-strong); }
+  body.reordering .card.dragging { opacity: 0.35; }
+  body.reordering .card.drop-target { outline-color: var(--accent); }
+  body.reordering .card .preview iframe { pointer-events: none; }
+  body.reordering .card::before {
+    content: "\2630";
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    font-size: 14px;
+    color: var(--ink-soft);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    width: 26px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 2;
+    pointer-events: none;
+  }
+  .card { position: relative; }
 
   main {
     max-width: 1100px;
@@ -217,8 +276,14 @@
 
 <header class="page">
   <div class="wrap">
-    <h1>Work Hub</h1>
-    <p>Internal tools and resources. Pick a tile to open the page.</p>
+    <div>
+      <h1>Work Hub</h1>
+      <p>Internal tools and resources. Pick a tile to open the page.</p>
+    </div>
+    <div class="actions">
+      <button id="resetOrderBtn" type="button" class="btn btn-link" hidden aria-label="Reset tile order to default">Reset</button>
+      <button id="reorderToggleBtn" type="button" class="btn" aria-pressed="false">Reorder tiles</button>
+    </div>
   </div>
 </header>
 
@@ -326,6 +391,114 @@
 <footer class="page">
   <p>Work hub &middot; static site &middot; add tiles by dropping new folders alongside this page.</p>
 </footer>
+
+<script>
+(() => {
+  const STORAGE_KEY = 'workhub.cardOrder.v1';
+  const grid = document.querySelector('.grid');
+  if (!grid) return;
+  const idOf = card => card.getAttribute('href');
+
+  // Apply saved order on load. Unknown ids are dropped; new cards appear at the end.
+  const saved = (() => {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || null; } catch { return null; }
+  })();
+  if (Array.isArray(saved) && saved.length) {
+    const present = new Map([...grid.querySelectorAll('.card')].map(c => [idOf(c), c]));
+    const ordered = [];
+    saved.forEach(id => { if (present.has(id)) { ordered.push(present.get(id)); present.delete(id); } });
+    present.forEach(c => ordered.push(c));
+    ordered.forEach(c => grid.appendChild(c));
+  }
+
+  const toggleBtn = document.getElementById('reorderToggleBtn');
+  const resetBtn = document.getElementById('resetOrderBtn');
+  let reordering = false;
+  let draggedCard = null;
+
+  const showResetIfDirty = () => {
+    if (!resetBtn) return;
+    resetBtn.hidden = !localStorage.getItem(STORAGE_KEY);
+  };
+  showResetIfDirty();
+
+  const saveOrder = () => {
+    const order = [...grid.querySelectorAll('.card')].map(idOf);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(order));
+    showResetIfDirty();
+  };
+
+  const setReordering = on => {
+    reordering = on;
+    document.body.classList.toggle('reordering', on);
+    toggleBtn.classList.toggle('btn-active', on);
+    toggleBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    toggleBtn.textContent = on ? 'Done' : 'Reorder tiles';
+    grid.querySelectorAll('.card').forEach(c => { c.draggable = on; });
+  };
+
+  toggleBtn.addEventListener('click', () => setReordering(!reordering));
+
+  if (resetBtn) {
+    resetBtn.addEventListener('click', () => {
+      localStorage.removeItem(STORAGE_KEY);
+      showResetIfDirty();
+      window.location.reload();
+    });
+  }
+
+  // Suppress card navigation while reordering.
+  grid.addEventListener('click', e => {
+    if (!reordering) return;
+    e.preventDefault();
+    e.stopPropagation();
+  }, true);
+
+  grid.addEventListener('dragstart', e => {
+    if (!reordering) { e.preventDefault(); return; }
+    const card = e.target.closest('.card');
+    if (!card) return;
+    draggedCard = card;
+    card.classList.add('dragging');
+    if (e.dataTransfer) {
+      e.dataTransfer.effectAllowed = 'move';
+      // Required by Firefox to start a drag.
+      try { e.dataTransfer.setData('text/plain', idOf(card)); } catch {}
+    }
+  });
+
+  grid.addEventListener('dragend', () => {
+    if (draggedCard) {
+      draggedCard.classList.remove('dragging');
+      draggedCard = null;
+      saveOrder();
+    }
+    grid.querySelectorAll('.card.drop-target').forEach(c => c.classList.remove('drop-target'));
+  });
+
+  grid.addEventListener('dragover', e => {
+    if (!reordering || !draggedCard) return;
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+    const target = e.target.closest('.card');
+    grid.querySelectorAll('.card.drop-target').forEach(c => c !== target && c.classList.remove('drop-target'));
+    if (!target || target === draggedCard) return;
+    target.classList.add('drop-target');
+    const rect = target.getBoundingClientRect();
+    const after = (e.clientY - rect.top) / rect.height + (e.clientX - rect.left) / rect.width > 1;
+    if (after) {
+      target.parentNode.insertBefore(draggedCard, target.nextSibling);
+    } else {
+      target.parentNode.insertBefore(draggedCard, target);
+    }
+  });
+
+  grid.addEventListener('drop', e => {
+    if (!reordering) return;
+    e.preventDefault();
+  });
+})();
+</script>
 
 </body>
 </html>
