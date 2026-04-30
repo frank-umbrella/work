@@ -49,11 +49,21 @@
   header.page {
     background: var(--surface);
     border-bottom: 1px solid var(--line);
-    padding: 28px 24px 24px;
+    padding: 22px 24px 24px;
   }
   header.page .wrap {
     max-width: 1200px;
     margin: 0 auto;
+  }
+  header.page .brand {
+    display: inline-block;
+    margin: 0 0 14px;
+    line-height: 0;
+  }
+  header.page .brand img {
+    display: block;
+    height: 30px;
+    width: auto;
   }
   header.page .crumb { color: var(--ink-mute); font-size: 13px; margin-bottom: 6px; }
   header.page .crumb a { color: var(--ink-mute); }
@@ -417,57 +427,80 @@
     .print-header {
       border-bottom: 2px solid #000;
       padding: 0 0 8px;
-      margin: 0 0 16px;
+      margin: 0 0 12px;
+    }
+    .print-header .print-brand {
+      display: block;
+      height: 38px;
+      width: auto;
+      margin: 0 0 8px;
+    }
+    .print-header .print-titlerow {
       display: flex;
       justify-content: space-between;
       align-items: flex-end;
+      gap: 12px;
     }
-    .print-header h1 { font-size: 22px; margin: 0; }
+    .print-header h1 { font-size: 20px; margin: 0; letter-spacing: -0.01em; }
     .print-header .meta { font-size: 11px; color: #444; text-align: right; }
-    /* Layout */
+    .print-header .print-titlerow > div:first-child .meta { text-align: left; }
+    /* Layout — let cards flow across pages, only protect per-domain row pairs */
     main { max-width: none; padding: 0; }
     section.card {
       box-shadow: none;
       border: 0;
       border-bottom: 1px solid #ccc;
       border-radius: 0;
-      padding: 0 0 14px;
-      margin: 0 0 14px;
-      page-break-inside: avoid;
+      padding: 0 0 8px;
+      margin: 0 0 8px;
     }
     section.card:last-of-type { border-bottom: 0; }
-    section.card > h2 { font-size: 15px; margin: 0 0 8px; }
-    /* Summary tiles compress for print */
-    .summary-primary { gap: 6px; }
-    .stat-hero, .stat-primary { padding: 8px 10px; box-shadow: none; }
+    section.card > h2 { font-size: 13px; margin: 0 0 6px; }
+    /* Summary tiles — force 4-up single row, compact */
+    .summary-primary {
+      grid-template-columns: 1.3fr 1fr 1fr 1fr !important;
+      gap: 5px;
+    }
+    .stat-hero, .stat-primary {
+      padding: 6px 9px;
+      box-shadow: none;
+      border-radius: 4px;
+    }
     .stat-hero {
       background: #1a56db !important;
       color: #fff !important;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
     }
-    .stat-hero .num, .stat-primary .num { font-size: 20px; }
-    .stat-primary .num .total { font-size: 14px; }
-    .stat-hero .lab, .stat-primary .lab { font-size: 9px; margin-top: 4px; }
+    .stat-hero .num { font-size: 19px; font-weight: 800; }
+    .stat-primary .num { font-size: 16px; font-weight: 700; }
+    .stat-primary .num .total { font-size: 12px; }
+    .stat-hero .lab, .stat-primary .lab { font-size: 8.5px; margin-top: 3px; letter-spacing: 0.06em; }
     .stat-primary {
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
+      border-left-width: 2px;
     }
-    .summary-issues { gap: 4px; margin-top: 8px; }
+    .summary-issues { gap: 4px; margin-top: 6px; }
     .stat-issue {
-      padding: 3px 7px;
-      font-size: 10px;
+      padding: 2px 6px;
+      font-size: 9.5px;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
       border: 1px solid currentColor;
+      gap: 4px;
     }
-    .stat-issue .num { font-size: 11px; }
+    .stat-issue .num { font-size: 10.5px; }
     .summary-clean {
-      padding: 3px 8px;
-      font-size: 10px;
+      padding: 2px 7px;
+      font-size: 9.5px;
+      margin-top: 6px;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
     }
+    /* Repeat table headers on each page */
+    table.results thead { display: table-header-group; }
+    table.results tfoot { display: table-footer-group; }
     /* Table — force all detail rows visible, tighten */
     table.results .row-detail { display: table-row !important; }
     table.results th, table.results td { padding: 5px 6px; font-size: 10.5px; }
@@ -508,6 +541,9 @@
 
 <header class="page">
   <div class="wrap">
+    <a class="brand" href="../branding/" aria-label="Umbrella Automation brand guidelines">
+      <img src="../branding/assets/logo-primary.svg" alt="Umbrella Automation" />
+    </a>
     <div class="crumb"><a href="../">Work Hub</a> &rsaquo; Domain Audit</div>
     <h1>Domain Audit</h1>
     <p>Bulk-check SPF, DKIM, DMARC, MX, and registrar across a list of domains. Spots missing or misconfigured email authentication, identifies the primary mail provider, and lists every additional sender authorized through SPF includes.</p>
@@ -517,11 +553,14 @@
 <main>
 
   <div class="print-only print-header">
-    <div>
-      <h1>Domain Audit Report</h1>
-      <div class="meta" id="print-domains-line"></div>
+    <img class="print-brand" src="../branding/assets/logo-primary.svg" alt="Umbrella Automation" />
+    <div class="print-titlerow">
+      <div>
+        <h1>Domain Audit Report</h1>
+        <div class="meta" id="print-domains-line"></div>
+      </div>
+      <div class="meta" id="print-date"></div>
     </div>
-    <div class="meta" id="print-date"></div>
   </div>
 
   <section class="card input-card">
@@ -604,7 +643,7 @@
 </main>
 
 <footer class="page">
-  <p>Domain Audit &middot; v0.1.3 &middot; <a href="../">back to Work Hub</a></p>
+  <p>Domain Audit &middot; v0.1.5 &middot; <a href="../">back to Work Hub</a></p>
   <p>Static page. DNS lookups via Google Public DNS-over-HTTPS (<code>dns.google</code>). Registrar info via <code>rdap.org</code>. No data leaves your browser except those queries.</p>
 </footer>
 
@@ -1290,7 +1329,7 @@ function renderRow(r, idx) {
 }
 
 let lastResults = [];
-let sortState = { key: null, dir: 1 };
+let sortState = { key: 'domain', dir: 1 };
 
 function renderSummary(results) {
   const total = results.length;
@@ -1567,6 +1606,19 @@ function bind() {
   // Submit on Ctrl/Cmd-Enter inside textarea
   $('domains').addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); runAudit(); }
+  });
+
+  // Force-lowercase the textarea as the user types (or pastes)
+  $('domains').addEventListener('input', (e) => {
+    const ta = e.target;
+    const lower = ta.value.toLowerCase();
+    if (lower !== ta.value) {
+      const start = ta.selectionStart;
+      const end = ta.selectionEnd;
+      ta.value = lower;
+      // Lowercase preserves length so the cursor stays where it was
+      ta.setSelectionRange(start, end);
+    }
   });
 }
 
