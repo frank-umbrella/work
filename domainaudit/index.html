@@ -643,7 +643,7 @@
 </main>
 
 <footer class="page">
-  <p>Domain Audit &middot; v0.1.5 &middot; <a href="../">back to Work Hub</a></p>
+  <p>Domain Audit &middot; v0.1.6 &middot; <a href="../">back to Work Hub</a></p>
   <p>Static page. DNS lookups via Google Public DNS-over-HTTPS (<code>dns.google</code>). Registrar info via <code>rdap.org</code>. No data leaves your browser except those queries.</p>
 </footer>
 
@@ -1571,12 +1571,23 @@ function bind() {
     const dateStr = now.toLocaleString(undefined, { dateStyle: 'long', timeStyle: 'short' });
     $('print-date').textContent = `Generated ${dateStr}`;
     $('print-domains-line').textContent = `${lastResults.length} domain${lastResults.length === 1 ? '' : 's'} audited`;
+
+    // Browsers use document.title as the default "Save as PDF" filename.
+    // Swap it for the duration of the print dialog so the saved file is
+    //   UA - Domain Audit - YYYY-MM-DD - <first-domain-as-typed>
+    // (lastResults preserves textarea input order; the table itself sorts alphabetically.)
+    const isoDate = now.toISOString().slice(0, 10);
+    const firstDomain = (lastResults[0] && lastResults[0].domain) || 'report';
+    const origTitle = document.title;
+    document.title = `UA - Domain Audit - ${isoDate} - ${firstDomain}`;
+
     // Force every detail row visible for the print render, then restore after print
     const details = Array.from(document.querySelectorAll('#results-body .row-detail'));
     const prior = details.map(tr => tr.style.display);
     details.forEach(tr => tr.style.display = '');
     const restore = () => {
       details.forEach((tr, i) => tr.style.display = prior[i]);
+      document.title = origTitle;
       window.removeEventListener('afterprint', restore);
     };
     window.addEventListener('afterprint', restore);
