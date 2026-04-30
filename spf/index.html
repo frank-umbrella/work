@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SPF Toolkit &middot; Work Hub</title>
+<meta name="description" content="Build, look up, and validate Sender Policy Framework (SPF) records for any domain. Microsoft 365, Google Workspace, and the common ESPs preset. DNS lookup count and recursive include resolution.">
+<meta name="robots" content="noindex">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --surface: #ffffff;
+    --ink: #1a1f2b;
+    --ink-soft: #475063;
+    --ink-mute: #6b7385;
+    --line: #e3e6ec;
+    --line-strong: #c9cfdb;
+    --accent: #1a56db;
+    --accent-soft: #eaf0fc;
+    --ok: #047857;
+    --ok-soft: #d1fae5;
+    --warn: #b45309;
+    --warn-soft: #fef3c7;
+    --err: #b91c1c;
+    --err-soft: #fee2e2;
+    --code-bg: #0f172a;
+    --code-ink: #e2e8f0;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --shadow: 0 1px 2px rgba(20, 25, 40, 0.04), 0 4px 14px rgba(20, 25, 40, 0.05);
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  header.page {
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+    padding: 28px 24px 24px;
+  }
+  header.page .wrap {
+    max-width: 1100px;
+    margin: 0 auto;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+  }
+  header.page h1 {
+    font-size: 26px;
+    margin: 0 0 4px;
+    letter-spacing: -0.01em;
+  }
+  header.page p {
+    margin: 0;
+    color: var(--ink-soft);
+    font-size: 14.5px;
+    max-width: 720px;
+  }
+  header.page .crumb {
+    color: var(--ink-mute);
+    font-size: 13px;
+    margin-bottom: 6px;
+  }
+  header.page .crumb a { color: var(--ink-mute); }
+
+  main {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 28px 24px 60px;
+  }
+
+  section.card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 22px 22px 24px;
+    margin-bottom: 24px;
+  }
+  section.card > h2 {
+    font-size: 19px;
+    margin: 0 0 4px;
+    letter-spacing: -0.005em;
+  }
+  section.card > .lede {
+    color: var(--ink-soft);
+    font-size: 14px;
+    margin: 0 0 18px;
+  }
+
+  /* Form bits */
+  label { font-size: 13.5px; color: var(--ink-soft); display: block; }
+  label.inline { display: inline; }
+  input[type=text], textarea, select {
+    width: 100%;
+    background: #fff;
+    color: var(--ink);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-sm);
+    padding: 9px 11px;
+    font-size: 14.5px;
+    font-family: inherit;
+    line-height: 1.4;
+    transition: border-color .12s ease, box-shadow .12s ease;
+  }
+  input[type=text]:focus, textarea:focus, select:focus {
+    outline: 0;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+  textarea { font-family: var(--mono); font-size: 13.5px; }
+
+  button.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--accent);
+    color: #fff;
+    border: 1px solid var(--accent);
+    border-radius: var(--radius-sm);
+    padding: 9px 16px;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: filter .12s ease;
+  }
+  button.btn:hover { filter: brightness(1.08); }
+  button.btn:disabled { opacity: 0.55; cursor: not-allowed; filter: none; }
+  button.btn.ghost {
+    background: #fff;
+    color: var(--ink);
+    border-color: var(--line-strong);
+  }
+  button.btn.ghost:hover { background: var(--bg); filter: none; }
+
+  .row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 10px;
+    align-items: end;
+  }
+  @media (max-width: 600px) {
+    .row { grid-template-columns: 1fr; }
+  }
+
+  /* Generator: provider grid */
+  fieldset { border: 0; margin: 0 0 16px; padding: 0; }
+  fieldset > legend {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    color: var(--ink-soft);
+    padding: 0;
+    margin-bottom: 10px;
+  }
+  .providers {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 6px 14px;
+  }
+  .providers label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--ink);
+    font-size: 14px;
+    cursor: pointer;
+    padding: 4px 0;
+  }
+  .providers code {
+    color: var(--ink-mute);
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+
+  .opts-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  @media (max-width: 700px) {
+    .opts-grid { grid-template-columns: 1fr; }
+  }
+
+  /* All mechanism radio group */
+  .all-pick {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+  @media (max-width: 600px) {
+    .all-pick { grid-template-columns: repeat(2, 1fr); }
+  }
+  .all-pick label {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    cursor: pointer;
+    background: #fff;
+    transition: border-color .12s ease, background .12s ease;
+  }
+  .all-pick label:hover { border-color: var(--accent); }
+  .all-pick input { display: none; }
+  .all-pick .lab {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--ink);
+    font-family: var(--mono);
+  }
+  .all-pick .desc { font-size: 12px; color: var(--ink-soft); }
+  .all-pick label.sel {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+  }
+
+  /* Output box */
+  .output {
+    background: var(--code-bg);
+    color: var(--code-ink);
+    font-family: var(--mono);
+    font-size: 13.5px;
+    border-radius: var(--radius-sm);
+    padding: 14px 16px;
+    word-break: break-all;
+    white-space: pre-wrap;
+    min-height: 48px;
+    line-height: 1.55;
+  }
+  .output-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .copy-status {
+    font-size: 13px;
+    color: var(--ok);
+    opacity: 0;
+    transition: opacity .12s ease;
+  }
+  .copy-status.show { opacity: 1; }
+
+  /* Result blocks */
+  .result-block {
+    margin-top: 14px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+  }
+  .result-head {
+    background: var(--bg);
+    border-bottom: 1px solid var(--line);
+    padding: 9px 13px;
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .result-head strong { color: var(--ink); font-weight: 600; }
+  .result-body {
+    padding: 12px 14px;
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.55;
+    word-break: break-all;
+    background: #fff;
+  }
+  .result-body.spf { background: #f8fafc; }
+  .txt-line { padding: 4px 0; border-top: 1px dashed var(--line); }
+  .txt-line:first-child { border-top: 0; }
+  .txt-line.spf { color: var(--ink); }
+  .txt-line.other { color: var(--ink-mute); }
+
+  /* Issues list */
+  .issues {
+    margin: 12px 0 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: 6px;
+  }
+  .issue {
+    padding: 9px 12px;
+    border-radius: var(--radius-sm);
+    border: 1px solid;
+    font-size: 13.5px;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  .issue .tag {
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 2px 6px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+  .issue.ok { background: var(--ok-soft); border-color: #a7f3d0; color: var(--ok); }
+  .issue.ok .tag { background: var(--ok); color: #fff; }
+  .issue.warn { background: var(--warn-soft); border-color: #fde68a; color: var(--warn); }
+  .issue.warn .tag { background: var(--warn); color: #fff; }
+  .issue.err { background: var(--err-soft); border-color: #fecaca; color: var(--err); }
+  .issue.err .tag { background: var(--err); color: #fff; }
+  .issue.info { background: var(--accent-soft); border-color: #c5d6f5; color: var(--accent); }
+  .issue.info .tag { background: var(--accent); color: #fff; }
+
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 10px;
+    margin-top: 14px;
+  }
+  .stat {
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+  }
+  .stat .v {
+    font-family: var(--mono);
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .stat .v.warn { color: var(--warn); }
+  .stat .v.err { color: var(--err); }
+  .stat .l {
+    font-size: 11.5px;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    margin-top: 2px;
+  }
+
+  /* Tree for resolved includes */
+  .tree {
+    margin: 12px 0 0;
+    padding: 0;
+    list-style: none;
+    font-family: var(--mono);
+    font-size: 12.5px;
+  }
+  .tree ul {
+    list-style: none;
+    margin: 0;
+    padding-left: 18px;
+    border-left: 1px dashed var(--line-strong);
+  }
+  .tree li { padding: 2px 0; }
+  .tree .dom { color: var(--ink); font-weight: 600; }
+  .tree .rec { color: var(--ink-mute); }
+  .tree .err { color: var(--err); }
+
+  details.notes {
+    margin-top: 14px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: var(--bg);
+    padding: 10px 14px;
+    font-size: 13.5px;
+  }
+  details.notes summary {
+    cursor: pointer;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  details.notes ul { padding-left: 20px; margin: 8px 0 0; }
+  details.notes li { margin-bottom: 4px; color: var(--ink-soft); }
+  details.notes code {
+    font-family: var(--mono);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 12.5px;
+    color: var(--ink);
+  }
+
+  footer.page {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 24px 32px;
+    color: var(--ink-soft);
+    font-size: 12.5px;
+  }
+  footer.page a { color: var(--ink-soft); }
+
+  .hint {
+    font-size: 12.5px;
+    color: var(--ink-mute);
+    margin-top: 6px;
+  }
+
+  .field-stack > * + * { margin-top: 10px; }
+</style>
+</head>
+<body>
+
+<header class="page">
+  <div class="wrap">
+    <div>
+      <div class="crumb"><a href="../">Work Hub</a> &middot; SPF Toolkit</div>
+      <h1>SPF Toolkit</h1>
+      <p>Look up an existing record, build a new one for the most common providers, then validate the result. SPF records list which mail servers are allowed to send email for a domain &mdash; receivers reject (or quarantine) anything that doesn't match.</p>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <!-- ========== LOOKUP ========== -->
+  <section class="card" id="lookup-section">
+    <h2>1. Look up SPF records on a domain</h2>
+    <p class="lede">Resolves the domain's TXT records over DNS-over-HTTPS (Google Public DNS) and highlights anything starting with <code>v=spf1</code>.</p>
+
+    <div class="row">
+      <div>
+        <label for="lookupDomain">Domain</label>
+        <input type="text" id="lookupDomain" placeholder="example.com" autocomplete="off" spellcheck="false">
+      </div>
+      <button type="button" class="btn" id="lookupBtn">Look up</button>
+    </div>
+    <div class="hint">Tip: drop in any domain you receive mail for (e.g. your own, a vendor, or a sender you suspect is being spoofed).</div>
+
+    <div id="lookupResult"></div>
+  </section>
+
+  <!-- ========== GENERATOR ========== -->
+  <section class="card" id="generator-section">
+    <h2>2. Generate a new SPF record</h2>
+    <p class="lede">Pick the senders that are authorized for the domain. The record updates as you tick boxes &mdash; copy the result into a single TXT record at the apex of your zone.</p>
+
+    <fieldset>
+      <legend>Email providers &amp; ESPs</legend>
+      <div class="providers" id="providers"></div>
+    </fieldset>
+
+    <div class="opts-grid">
+      <fieldset>
+        <legend>Domain mechanisms</legend>
+        <div class="field-stack">
+          <label class="inline" style="display:flex;align-items:center;gap:8px;color:var(--ink);font-size:14px;cursor:pointer;">
+            <input type="checkbox" id="optMx"> Allow domain MX hosts &mdash; <code style="font-family:var(--mono);font-size:12px;color:var(--ink-mute);">mx</code>
+          </label>
+          <label class="inline" style="display:flex;align-items:center;gap:8px;color:var(--ink);font-size:14px;cursor:pointer;">
+            <input type="checkbox" id="optA"> Allow the domain's own A record &mdash; <code style="font-family:var(--mono);font-size:12px;color:var(--ink-mute);">a</code>
+          </label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Custom IPs (one per line)</legend>
+        <textarea id="optIps" rows="3" placeholder="203.0.113.10&#10;198.51.100.0/24&#10;2001:db8::/32" spellcheck="false"></textarea>
+        <div class="hint">Plain IPv4 / IPv6 addresses or CIDR ranges. The <code>ip4:</code> / <code>ip6:</code> prefix is added for you.</div>
+      </fieldset>
+    </div>
+
+    <fieldset>
+      <legend>Custom includes (one per line)</legend>
+      <textarea id="optIncludes" rows="2" placeholder="spf.vendor-not-listed-above.com&#10;_spf.another-service.example" spellcheck="false"></textarea>
+      <div class="hint">Each line becomes <code>include:&lt;value&gt;</code>. Useful for vendors not in the list above, or per-tenant SPF hosts (e.g. HubSpot's <code>NNNN.spf01.hubspotemail.net</code>).</div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Default policy &mdash; what to do with mail from anyone <em>not</em> listed above</legend>
+      <div class="all-pick" id="allPick">
+        <label data-v="-all" class="sel"><input type="radio" name="allmech" value="-all" checked><span class="lab">-all</span><span class="desc">Fail (reject). Recommended once the record is verified.</span></label>
+        <label data-v="~all"><input type="radio" name="allmech" value="~all"><span class="lab">~all</span><span class="desc">Soft-fail (quarantine). Safe starting point during rollout.</span></label>
+        <label data-v="?all"><input type="radio" name="allmech" value="?all"><span class="lab">?all</span><span class="desc">Neutral. Accept and let DMARC decide.</span></label>
+        <label data-v="+all"><input type="radio" name="allmech" value="+all"><span class="lab">+all</span><span class="desc">Pass everything. Don't use &mdash; equivalent to no SPF at all.</span></label>
+      </div>
+    </fieldset>
+
+    <label style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:var(--ink-soft);margin-bottom:8px;">Generated SPF record</label>
+    <div class="output" id="generatedOut">v=spf1 -all</div>
+    <div class="output-actions">
+      <button type="button" class="btn" id="copyBtn">Copy</button>
+      <button type="button" class="btn ghost" id="useInValidatorBtn">Send to validator &rarr;</button>
+      <button type="button" class="btn ghost" id="resetBtn">Reset</button>
+      <span class="copy-status" id="copyStatus">Copied to clipboard</span>
+    </div>
+
+    <details class="notes">
+      <summary>How to publish this</summary>
+      <ul>
+        <li>One SPF record per domain. If a record already exists, <strong>merge</strong> the new mechanisms into it &mdash; don't add a second TXT.</li>
+        <li>The TXT record sits at the zone apex (i.e. the host is <code>@</code> or your domain itself, not <code>spf.example.com</code>).</li>
+        <li>Cap a single record at <strong>10 DNS-lookup mechanisms</strong> (<code>include</code>, <code>a</code>, <code>mx</code>, <code>ptr</code>, <code>exists</code>, <code>redirect</code>). The validator below counts them recursively.</li>
+        <li>A single TXT string is limited to 255 chars; longer records must be split into multiple quoted strings (most DNS UIs do this for you).</li>
+      </ul>
+    </details>
+  </section>
+
+  <!-- ========== VALIDATOR ========== -->
+  <section class="card" id="validator-section">
+    <h2>3. SPF Validator &amp; raw checker</h2>
+    <p class="lede">Paste any SPF string. The validator parses every mechanism, recursively follows <code>include:</code> and <code>redirect=</code>, and counts the total DNS lookups against the RFC 7208 limit of 10.</p>
+
+    <label for="rawInput">Raw SPF record</label>
+    <textarea id="rawInput" rows="3" placeholder='v=spf1 include:_spf.google.com include:spf.protection.outlook.com -all' spellcheck="false"></textarea>
+    <div class="output-actions">
+      <button type="button" class="btn" id="validateBtn">Validate</button>
+      <button type="button" class="btn ghost" id="clearValidatorBtn">Clear</button>
+    </div>
+
+    <div id="validatorResult"></div>
+  </section>
+
+</main>
+
+<footer class="page">
+  <p>SPF Toolkit &middot; runs entirely in your browser; DNS lookups go to <a href="https://developers.google.com/speed/public-dns/docs/doh/json" rel="noopener">Google Public DNS over HTTPS</a>. No data is sent anywhere else.</p>
+</footer>
+
+<script>
+(() => {
+  'use strict';
+
+  // ---- Provider catalog ---------------------------------------------------
+  const PROVIDERS = [
+    { id: 'google',         name: 'Google Workspace',     mech: 'include:_spf.google.com' },
+    { id: 'm365',           name: 'Microsoft 365',        mech: 'include:spf.protection.outlook.com' },
+    { id: 'zoho',           name: 'Zoho Mail',            mech: 'include:zoho.com' },
+    { id: 'proton',         name: 'Proton Mail',          mech: 'include:_spf.protonmail.ch' },
+    { id: 'fastmail',       name: 'Fastmail',             mech: 'include:spf.messagingengine.com' },
+    { id: 'sendgrid',       name: 'SendGrid',             mech: 'include:sendgrid.net' },
+    { id: 'mailgun',        name: 'Mailgun',              mech: 'include:mailgun.org' },
+    { id: 'mailchimp',      name: 'Mailchimp',            mech: 'include:servers.mcsv.net' },
+    { id: 'mandrill',       name: 'Mandrill',             mech: 'include:spf.mandrillapp.com' },
+    { id: 'ses',            name: 'Amazon SES',           mech: 'include:amazonses.com' },
+    { id: 'postmark',       name: 'Postmark',             mech: 'include:spf.mtasv.net' },
+    { id: 'sparkpost',      name: 'SparkPost',            mech: 'include:sparkpostmail.com' },
+    { id: 'brevo',          name: 'Brevo (Sendinblue)',   mech: 'include:spf.brevo.com' },
+    { id: 'klaviyo',        name: 'Klaviyo',              mech: 'include:_spf.klaviyo.com' },
+    { id: 'cc',             name: 'Constant Contact',     mech: 'include:spf.constantcontact.com' },
+    { id: 'activecampaign', name: 'ActiveCampaign',       mech: 'include:spf.activehosted.com' },
+    { id: 'salesforce',     name: 'Salesforce',           mech: 'include:_spf.salesforce.com' },
+    { id: 'pardot',         name: 'Salesforce Pardot',    mech: 'include:_spf.pardot.com' },
+    { id: 'mc-marketo',     name: 'Marketo',              mech: 'include:mktomail.com' },
+    { id: 'zendesk',        name: 'Zendesk',              mech: 'include:mail.zendesk.com' },
+    { id: 'freshdesk',      name: 'Freshdesk',            mech: 'include:email.freshdesk.com' },
+    { id: 'intercom',       name: 'Intercom',             mech: 'include:_spf.intercom.io' },
+    { id: 'helpscout',      name: 'Help Scout',           mech: 'include:helpscoutemail.com' },
+    { id: 'docusign',       name: 'DocuSign',             mech: 'include:spf-00b020a1.pphosted.com' },
+    { id: 'intuit',         name: 'Intuit / QuickBooks',  mech: 'include:_spf.intuit.com' },
+    { id: 'mimecast-us',    name: 'Mimecast (US)',        mech: 'include:us._netblocks.mimecast.com' },
+    { id: 'mimecast-eu',    name: 'Mimecast (EU)',        mech: 'include:eu._netblocks.mimecast.com' },
+    { id: 'pp-essentials',  name: 'Proofpoint Essentials',mech: 'include:spf.essentials.proofpoint.com' },
+    { id: 'iCloud',         name: 'iCloud Mail',          mech: 'include:icloud.com' },
+  ];
+
+  // ---- DOM refs -----------------------------------------------------------
+  const $ = (id) => document.getElementById(id);
+  const providersEl   = $('providers');
+  const optMx         = $('optMx');
+  const optA          = $('optA');
+  const optIps        = $('optIps');
+  const optIncludes   = $('optIncludes');
+  const allPick       = $('allPick');
+  const generatedOut  = $('generatedOut');
+  const copyBtn       = $('copyBtn');
+  const copyStatus    = $('copyStatus');
+  const useInValidator = $('useInValidatorBtn');
+  const resetBtn      = $('resetBtn');
+
+  const lookupDomain  = $('lookupDomain');
+  const lookupBtn     = $('lookupBtn');
+  const lookupResult  = $('lookupResult');
+
+  const rawInput      = $('rawInput');
+  const validateBtn   = $('validateBtn');
+  const clearValidatorBtn = $('clearValidatorBtn');
+  const validatorResult = $('validatorResult');
+
+  // ---- Build provider checkboxes -----------------------------------------
+  PROVIDERS.forEach(p => {
+    const lab = document.createElement('label');
+    lab.innerHTML = `<input type="checkbox" data-mech="${p.mech}" data-id="${p.id}">
+      <span>${p.name}</span>
+      <code>${p.mech.replace('include:', '')}</code>`;
+    providersEl.appendChild(lab);
+  });
+
+  // ---- Generator ---------------------------------------------------------
+  function buildSpf() {
+    const parts = ['v=spf1'];
+    providersEl.querySelectorAll('input[type=checkbox]:checked').forEach(cb => {
+      parts.push(cb.dataset.mech);
+    });
+    if (optMx.checked) parts.push('mx');
+    if (optA.checked) parts.push('a');
+
+    optIps.value.split(/\r?\n/).map(s => s.trim()).filter(Boolean).forEach(ip => {
+      const isV6 = ip.includes(':');
+      parts.push((isV6 ? 'ip6:' : 'ip4:') + ip);
+    });
+
+    optIncludes.value.split(/\r?\n/).map(s => s.trim()).filter(Boolean).forEach(inc => {
+      parts.push('include:' + inc.replace(/^include:/i, ''));
+    });
+
+    const allMech = (document.querySelector('input[name=allmech]:checked') || {}).value || '-all';
+    parts.push(allMech);
+
+    return parts.join(' ');
+  }
+
+  function updateGenerated() {
+    generatedOut.textContent = buildSpf();
+  }
+
+  providersEl.addEventListener('change', updateGenerated);
+  optMx.addEventListener('change', updateGenerated);
+  optA.addEventListener('change', updateGenerated);
+  optIps.addEventListener('input', updateGenerated);
+  optIncludes.addEventListener('input', updateGenerated);
+  allPick.addEventListener('change', (e) => {
+    allPick.querySelectorAll('label').forEach(l => l.classList.remove('sel'));
+    const lab = e.target.closest('label');
+    if (lab) lab.classList.add('sel');
+    updateGenerated();
+  });
+
+  copyBtn.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(generatedOut.textContent);
+      copyStatus.classList.add('show');
+      setTimeout(() => copyStatus.classList.remove('show'), 1500);
+    } catch (e) {
+      alert('Could not copy: ' + e.message);
+    }
+  });
+
+  useInValidator.addEventListener('click', () => {
+    rawInput.value = generatedOut.textContent;
+    document.getElementById('validator-section').scrollIntoView({behavior: 'smooth', block: 'start'});
+    runValidator();
+  });
+
+  resetBtn.addEventListener('click', () => {
+    providersEl.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = false);
+    optMx.checked = false;
+    optA.checked = false;
+    optIps.value = '';
+    optIncludes.value = '';
+    allPick.querySelectorAll('label').forEach(l => l.classList.remove('sel'));
+    const def = allPick.querySelector('label[data-v="-all"]');
+    if (def) def.classList.add('sel');
+    const r = document.querySelector('input[name=allmech][value="-all"]');
+    if (r) r.checked = true;
+    updateGenerated();
+  });
+
+  updateGenerated();
+
+  // ---- DoH helpers -------------------------------------------------------
+  // Cleans Google's TXT response: strips outer quotes and joins multi-string TXTs.
+  function unquoteTxt(s) {
+    if (!s) return '';
+    // Google returns TXT as: "string1" "string2" — possibly with backslash escapes.
+    // Strip surrounding quotes from each segment and concatenate.
+    const segs = [];
+    const re = /"((?:\\.|[^"\\])*)"/g;
+    let m;
+    while ((m = re.exec(s)) !== null) {
+      segs.push(m[1].replace(/\\(.)/g, '$1'));
+    }
+    return segs.length ? segs.join('') : s;
+  }
+
+  async function dnsTxt(domain) {
+    const url = `https://dns.google/resolve?name=${encodeURIComponent(domain)}&type=TXT`;
+    const r = await fetch(url, { headers: { 'Accept': 'application/dns-json' }});
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const j = await r.json();
+    if (j.Status !== 0 && j.Status !== 3) {
+      // 0 = NOERROR, 3 = NXDOMAIN
+      throw new Error(`DNS status ${j.Status}`);
+    }
+    if (j.Status === 3) return { records: [], nxdomain: true };
+    const records = (j.Answer || [])
+      .filter(a => a.type === 16)
+      .map(a => unquoteTxt(a.data));
+    return { records, nxdomain: false };
+  }
+
+  // ---- Domain validation -------------------------------------------------
+  function cleanDomain(raw) {
+    if (!raw) return '';
+    let d = raw.trim().toLowerCase();
+    // Strip protocol/path if user pasted a URL
+    d = d.replace(/^https?:\/\//, '').split('/')[0].split('?')[0];
+    d = d.replace(/^www\./, '');
+    // Strip leading/trailing dots
+    d = d.replace(/^\.+|\.+$/g, '');
+    return d;
+  }
+  function looksLikeDomain(d) {
+    return /^[a-z0-9][a-z0-9-]*(\.[a-z0-9][a-z0-9-]*)+$/i.test(d);
+  }
+
+  // ---- Lookup ------------------------------------------------------------
+  async function runLookup() {
+    const dom = cleanDomain(lookupDomain.value);
+    lookupResult.innerHTML = '';
+    if (!dom) { renderIssue(lookupResult, 'err', 'Error', 'Enter a domain.'); return; }
+    if (!looksLikeDomain(dom)) {
+      renderIssue(lookupResult, 'err', 'Error', `That doesn't look like a domain: "${dom}"`);
+      return;
+    }
+    lookupBtn.disabled = true;
+    lookupBtn.textContent = 'Looking up...';
+    try {
+      const { records, nxdomain } = await dnsTxt(dom);
+      if (nxdomain) {
+        renderIssue(lookupResult, 'err', 'NXDOMAIN', `${dom} does not exist in DNS.`);
+        return;
+      }
+      const spfRecs = records.filter(r => /^v=spf1\b/i.test(r));
+      const otherRecs = records.filter(r => !/^v=spf1\b/i.test(r));
+
+      // Headline issue
+      if (spfRecs.length === 0) {
+        renderIssue(lookupResult, 'warn', 'No SPF', `No record starting with v=spf1 was found at ${dom}. Mail receivers cannot verify which servers are authorized to send for this domain.`);
+      } else if (spfRecs.length > 1) {
+        renderIssue(lookupResult, 'err', 'Multiple SPF', `Found ${spfRecs.length} SPF records on ${dom}. RFC 7208 allows only one — receivers may treat this as a permerror. Merge them into a single TXT.`);
+      } else {
+        renderIssue(lookupResult, 'ok', 'Found', `Found 1 SPF record on ${dom}.`);
+      }
+
+      // SPF block(s)
+      spfRecs.forEach((rec, idx) => {
+        const block = document.createElement('div');
+        block.className = 'result-block';
+        block.innerHTML = `
+          <div class="result-head">
+            <span><strong>SPF record${spfRecs.length > 1 ? ' #' + (idx + 1) : ''}</strong> &middot; ${rec.length} chars</span>
+            <button type="button" class="btn ghost" data-rec="${escapeAttr(rec)}" style="padding:4px 10px;font-size:12.5px;">Send to validator &rarr;</button>
+          </div>
+          <div class="result-body spf">${escapeHtml(rec)}</div>
+        `;
+        block.querySelector('button').addEventListener('click', (e) => {
+          rawInput.value = e.currentTarget.dataset.rec;
+          document.getElementById('validator-section').scrollIntoView({behavior:'smooth', block:'start'});
+          runValidator();
+        });
+        lookupResult.appendChild(block);
+      });
+
+      // All TXT records
+      const allBlock = document.createElement('div');
+      allBlock.className = 'result-block';
+      allBlock.innerHTML = `<div class="result-head"><span><strong>All TXT records</strong> &middot; ${records.length} total</span></div>`;
+      const body = document.createElement('div');
+      body.className = 'result-body';
+      if (records.length === 0) {
+        body.textContent = '(none)';
+      } else {
+        records.forEach(r => {
+          const isSpf = /^v=spf1\b/i.test(r);
+          const line = document.createElement('div');
+          line.className = 'txt-line ' + (isSpf ? 'spf' : 'other');
+          line.textContent = r;
+          body.appendChild(line);
+        });
+      }
+      allBlock.appendChild(body);
+      lookupResult.appendChild(allBlock);
+
+    } catch (e) {
+      renderIssue(lookupResult, 'err', 'Lookup failed', e.message);
+    } finally {
+      lookupBtn.disabled = false;
+      lookupBtn.textContent = 'Look up';
+    }
+  }
+
+  lookupBtn.addEventListener('click', runLookup);
+  lookupDomain.addEventListener('keydown', (e) => { if (e.key === 'Enter') runLookup(); });
+
+  // ---- Validator ---------------------------------------------------------
+  // Mechanisms that consume one DNS lookup per RFC 7208 §4.6.4
+  const LOOKUP_MECHS = ['a', 'mx', 'ptr', 'include', 'exists', 'redirect'];
+
+  function parseSpf(rec) {
+    const tokens = rec.trim().split(/\s+/);
+    const head = tokens.shift();
+    if (!head || head.toLowerCase() !== 'v=spf1') {
+      return { error: 'Record must start with "v=spf1".' };
+    }
+    const mechanisms = [];
+    const allTokens = [];
+    for (const t of tokens) {
+      if (!t) continue;
+      const stripped = t.replace(/^[+\-~?]/, '');
+      const lower = stripped.toLowerCase();
+      const qual = t[0] === '+' || t[0] === '-' || t[0] === '~' || t[0] === '?' ? t[0] : '+';
+      let kind, value = null;
+      if (lower === 'all') { kind = 'all'; allTokens.push({qual, raw: t}); }
+      else if (lower === 'a' || lower.startsWith('a:') || lower.startsWith('a/')) { kind = 'a'; value = stripped.slice(1).replace(/^[:/]/, ''); }
+      else if (lower === 'mx' || lower.startsWith('mx:') || lower.startsWith('mx/')) { kind = 'mx'; value = stripped.slice(2).replace(/^[:/]/, ''); }
+      else if (lower === 'ptr' || lower.startsWith('ptr:')) { kind = 'ptr'; value = stripped.slice(3).replace(/^:/, ''); }
+      else if (lower.startsWith('include:')) { kind = 'include'; value = stripped.slice(8); }
+      else if (lower.startsWith('exists:')) { kind = 'exists'; value = stripped.slice(7); }
+      else if (lower.startsWith('ip4:')) { kind = 'ip4'; value = stripped.slice(4); }
+      else if (lower.startsWith('ip6:')) { kind = 'ip6'; value = stripped.slice(4); }
+      else if (lower.startsWith('redirect=')) { kind = 'redirect'; value = stripped.slice(9); }
+      else if (lower.startsWith('exp=')) { kind = 'exp'; value = stripped.slice(4); }
+      else { kind = 'unknown'; value = t; }
+      mechanisms.push({ kind, value, qual, raw: t });
+    }
+    return { mechanisms, allTokens };
+  }
+
+  async function resolveSpfRecursive(domain, depth, ctx) {
+    if (depth > ctx.maxDepth) {
+      ctx.issues.push({ level: 'err', tag: 'Depth', text: `Recursion limit hit at ${domain} (max ${ctx.maxDepth}).` });
+      return null;
+    }
+    if (ctx.visited.has(domain)) {
+      ctx.issues.push({ level: 'warn', tag: 'Loop', text: `Already visited ${domain} earlier — circular include.` });
+      return { domain, record: null, children: [], note: 'circular' };
+    }
+    ctx.visited.add(domain);
+    let records;
+    try {
+      const r = await dnsTxt(domain);
+      if (r.nxdomain) {
+        ctx.issues.push({ level: 'err', tag: 'PermError', text: `include/redirect target ${domain} returns NXDOMAIN.` });
+        return { domain, record: null, children: [], note: 'NXDOMAIN' };
+      }
+      records = r.records;
+    } catch (e) {
+      ctx.issues.push({ level: 'err', tag: 'DNS', text: `Lookup failed for ${domain}: ${e.message}` });
+      return { domain, record: null, children: [], note: 'dns-error' };
+    }
+    const spfs = records.filter(r => /^v=spf1\b/i.test(r));
+    if (spfs.length === 0) {
+      ctx.issues.push({ level: 'err', tag: 'PermError', text: `${domain} has no v=spf1 record (include/redirect resolves to nothing).` });
+      return { domain, record: null, children: [], note: 'no-spf' };
+    }
+    if (spfs.length > 1) {
+      ctx.issues.push({ level: 'err', tag: 'PermError', text: `${domain} has ${spfs.length} SPF records; receivers will treat this as permerror.` });
+    }
+    const rec = spfs[0];
+    const node = { domain, record: rec, children: [], note: null };
+    const parsed = parseSpf(rec);
+    if (parsed.error) {
+      ctx.issues.push({ level: 'err', tag: 'Syntax', text: `${domain}: ${parsed.error}` });
+      return node;
+    }
+    for (const m of parsed.mechanisms) {
+      if (LOOKUP_MECHS.includes(m.kind)) {
+        ctx.lookups++;
+        if (ctx.lookups > 10 && !ctx.lookupLimitWarned) {
+          ctx.issues.push({ level: 'err', tag: 'TooManyDNS', text: `DNS-lookup limit exceeded (>10). Receivers will return permerror per RFC 7208 §4.6.4.` });
+          ctx.lookupLimitWarned = true;
+        }
+      }
+      if (m.kind === 'include' || m.kind === 'redirect') {
+        if (!m.value) {
+          ctx.issues.push({ level: 'err', tag: 'Syntax', text: `${domain}: ${m.kind} with no domain (${m.raw}).` });
+          continue;
+        }
+        const child = await resolveSpfRecursive(m.value, depth + 1, ctx);
+        if (child) node.children.push({ via: m.kind, ...child });
+      } else if (m.kind === 'ptr') {
+        ctx.issues.push({ level: 'warn', tag: 'Deprecated', text: `${domain}: "ptr" mechanism is deprecated (RFC 7208 §5.5) — many receivers ignore it.` });
+      } else if (m.kind === 'unknown') {
+        ctx.issues.push({ level: 'warn', tag: 'Unknown', text: `${domain}: unrecognized term "${m.value}".` });
+      }
+    }
+    // Multiple "all" or none
+    if (parsed.allTokens.length > 1) {
+      ctx.issues.push({ level: 'err', tag: 'Syntax', text: `${domain}: ${parsed.allTokens.length} "all" mechanisms — only one is allowed.` });
+    } else if (parsed.allTokens.length === 0) {
+      // OK if it's a redirected record
+      const hasRedirect = parsed.mechanisms.some(m => m.kind === 'redirect');
+      if (!hasRedirect && depth === 0) {
+        ctx.issues.push({ level: 'warn', tag: 'NoAll', text: `${domain}: record has no "all" mechanism — default behaviour is neutral. Add "-all" to fail unauthorized senders.` });
+      }
+    } else {
+      const tok = parsed.allTokens[0];
+      if (tok.qual === '+' && depth === 0) {
+        ctx.issues.push({ level: 'err', tag: '+all', text: `"+all" allows every server on the internet to send for ${domain}. This effectively disables SPF.` });
+      }
+    }
+    // Length warnings (only for the top-level record, since includes are separate TXTs)
+    if (depth === 0) {
+      if (rec.length > 450) {
+        ctx.issues.push({ level: 'warn', tag: 'Length', text: `Record is ${rec.length} chars. Long records must be split into multiple 255-char strings in the TXT; most DNS UIs handle this automatically.` });
+      }
+    }
+    return node;
+  }
+
+  function offlineParseIssues(ctx, parsed) {
+    // Top-level checks that don't need DNS (run when "offline" mode is used).
+  }
+
+  async function runValidator() {
+    const raw = rawInput.value.trim();
+    validatorResult.innerHTML = '';
+    if (!raw) { renderIssue(validatorResult, 'err', 'Error', 'Paste an SPF record to validate.'); return; }
+
+    // Strip surrounding quotes if user pasted a quoted TXT value
+    const cleaned = raw.replace(/^"+|"+$/g, '').replace(/"\s+"/g, '');
+    const parsed = parseSpf(cleaned);
+    if (parsed.error) {
+      renderIssue(validatorResult, 'err', 'Syntax', parsed.error);
+      // Show the offending input
+      const block = document.createElement('div');
+      block.className = 'result-block';
+      block.innerHTML = `<div class="result-head"><strong>Input</strong></div>
+        <div class="result-body spf">${escapeHtml(cleaned)}</div>`;
+      validatorResult.appendChild(block);
+      return;
+    }
+
+    validateBtn.disabled = true;
+    validateBtn.textContent = 'Resolving...';
+
+    const ctx = {
+      lookups: 0,
+      issues: [],
+      visited: new Set(),
+      maxDepth: 6,
+      lookupLimitWarned: false,
+    };
+
+    // The top-level record isn't fetched — we evaluate it directly
+    // but we still walk it for include/redirect resolution.
+    // To do that we use a synthetic "root" pseudo-domain.
+    const root = { domain: '(input)', record: cleaned, children: [], note: null };
+    for (const m of parsed.mechanisms) {
+      if (LOOKUP_MECHS.includes(m.kind)) {
+        ctx.lookups++;
+      }
+      if (m.kind === 'include' || m.kind === 'redirect') {
+        if (!m.value) {
+          ctx.issues.push({ level: 'err', tag: 'Syntax', text: `${m.kind} with no domain (${m.raw}).` });
+          continue;
+        }
+        const child = await resolveSpfRecursive(m.value, 1, ctx);
+        if (child) root.children.push({ via: m.kind, ...child });
+      } else if (m.kind === 'ptr') {
+        ctx.issues.push({ level: 'warn', tag: 'Deprecated', text: `"ptr" mechanism is deprecated (RFC 7208 §5.5) — many receivers ignore it.` });
+      } else if (m.kind === 'unknown') {
+        ctx.issues.push({ level: 'warn', tag: 'Unknown', text: `Unrecognized term "${m.value}".` });
+      }
+    }
+    // All checks for the top-level record
+    if (parsed.allTokens.length > 1) {
+      ctx.issues.push({ level: 'err', tag: 'Syntax', text: `${parsed.allTokens.length} "all" mechanisms — only one is allowed.` });
+    } else if (parsed.allTokens.length === 0) {
+      const hasRedirect = parsed.mechanisms.some(m => m.kind === 'redirect');
+      if (!hasRedirect) {
+        ctx.issues.push({ level: 'warn', tag: 'NoAll', text: `Record has no "all" mechanism — default behaviour is neutral. Add "-all" to fail unauthorized senders.` });
+      }
+    } else {
+      const tok = parsed.allTokens[0];
+      if (tok.qual === '+') {
+        ctx.issues.push({ level: 'err', tag: '+all', text: `"+all" allows every server on the internet — effectively disables SPF.` });
+      }
+    }
+    if (ctx.lookups > 10 && !ctx.lookupLimitWarned) {
+      ctx.issues.push({ level: 'err', tag: 'TooManyDNS', text: `DNS-lookup limit exceeded (${ctx.lookups} > 10). Receivers will return permerror per RFC 7208 §4.6.4.` });
+      ctx.lookupLimitWarned = true;
+    }
+    if (cleaned.length > 450) {
+      ctx.issues.push({ level: 'warn', tag: 'Length', text: `Record is ${cleaned.length} chars. Long records must be split into multiple 255-char strings in the TXT.` });
+    }
+
+    validateBtn.disabled = false;
+    validateBtn.textContent = 'Validate';
+
+    // ---- Render results
+    // Stats
+    const errors = ctx.issues.filter(i => i.level === 'err').length;
+    const warnings = ctx.issues.filter(i => i.level === 'warn').length;
+    const stats = document.createElement('div');
+    stats.className = 'stats';
+    const lookupClass = ctx.lookups > 10 ? 'err' : ctx.lookups >= 9 ? 'warn' : '';
+    stats.innerHTML = `
+      <div class="stat"><div class="v ${lookupClass}">${ctx.lookups} / 10</div><div class="l">DNS lookups</div></div>
+      <div class="stat"><div class="v ${errors ? 'err' : ''}">${errors}</div><div class="l">Errors</div></div>
+      <div class="stat"><div class="v ${warnings ? 'warn' : ''}">${warnings}</div><div class="l">Warnings</div></div>
+      <div class="stat"><div class="v">${cleaned.length}</div><div class="l">Char length</div></div>
+    `;
+    validatorResult.appendChild(stats);
+
+    // Headline
+    if (errors === 0 && warnings === 0) {
+      renderIssue(validatorResult, 'ok', 'OK', 'Record parses cleanly, stays under the lookup limit, and has no policy red flags.');
+    } else if (errors === 0) {
+      renderIssue(validatorResult, 'warn', 'OK with warnings', 'Record will work, but has some advisory issues — see below.');
+    } else {
+      renderIssue(validatorResult, 'err', 'Failures', `${errors} error${errors === 1 ? '' : 's'} found. Receivers will likely return permerror or fail to evaluate the record.`);
+    }
+
+    // Issues
+    if (ctx.issues.length) {
+      const ul = document.createElement('ul');
+      ul.className = 'issues';
+      for (const iss of ctx.issues) {
+        const li = document.createElement('li');
+        li.className = 'issue ' + (iss.level === 'err' ? 'err' : iss.level === 'warn' ? 'warn' : 'info');
+        li.innerHTML = `<span class="tag">${escapeHtml(iss.tag)}</span><span>${escapeHtml(iss.text)}</span>`;
+        ul.appendChild(li);
+      }
+      validatorResult.appendChild(ul);
+    }
+
+    // Resolved record
+    const block = document.createElement('div');
+    block.className = 'result-block';
+    block.innerHTML = `<div class="result-head"><strong>Parsed record</strong></div>
+      <div class="result-body spf">${escapeHtml(cleaned)}</div>`;
+    validatorResult.appendChild(block);
+
+    // Tree of resolved includes/redirects
+    if (root.children.length) {
+      const treeBlock = document.createElement('div');
+      treeBlock.className = 'result-block';
+      treeBlock.innerHTML = `<div class="result-head"><strong>Resolved include / redirect tree</strong> &middot; each branch consumes one DNS lookup</div>`;
+      const body = document.createElement('div');
+      body.style.padding = '12px 14px';
+      body.style.background = '#fff';
+      const ul = document.createElement('ul');
+      ul.className = 'tree';
+      renderTree(ul, root.children);
+      body.appendChild(ul);
+      treeBlock.appendChild(body);
+      validatorResult.appendChild(treeBlock);
+    }
+  }
+
+  function renderTree(ul, nodes) {
+    for (const n of nodes) {
+      const li = document.createElement('li');
+      const recPart = n.record
+        ? `<div class="rec">${escapeHtml(n.record)}</div>`
+        : `<div class="err">(${escapeHtml(n.note || 'no record')})</div>`;
+      li.innerHTML = `<div class="dom">${escapeHtml(n.via)}:${escapeHtml(n.domain)}</div>${recPart}`;
+      ul.appendChild(li);
+      if (n.children && n.children.length) {
+        const sub = document.createElement('ul');
+        renderTree(sub, n.children);
+        li.appendChild(sub);
+      }
+    }
+  }
+
+  validateBtn.addEventListener('click', runValidator);
+  clearValidatorBtn.addEventListener('click', () => {
+    rawInput.value = '';
+    validatorResult.innerHTML = '';
+  });
+
+  // ---- Helpers ----------------------------------------------------------
+  function renderIssue(parent, level, tag, text) {
+    const div = document.createElement('div');
+    div.className = 'issue ' + level;
+    div.innerHTML = `<span class="tag">${escapeHtml(tag)}</span><span>${escapeHtml(text)}</span>`;
+    parent.appendChild(div);
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({
+      '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+    }[c]));
+  }
+  function escapeAttr(s) {
+    return escapeHtml(s);
+  }
+
+})();
+</script>
+
+</body>
+</html>
