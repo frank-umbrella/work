@@ -684,6 +684,50 @@
       animation: none !important;
     }
   }
+
+  /* === Copy buttons =========================================== */
+  .step5-card { position: relative; }
+  .copy-btn {
+    background: var(--surface);
+    border: 1px solid var(--line-strong);
+    border-radius: 999px;
+    font: 600 11px var(--sans);
+    padding: 3px 9px 3px 7px;
+    color: var(--ink-soft);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    transition: background .15s, color .15s, border-color .15s;
+  }
+  .step5-card .copy-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 1;
+  }
+  .copy-btn:hover {
+    background: var(--accent-soft);
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+  .copy-btn.copied {
+    background: var(--good-soft);
+    color: var(--good);
+    border-color: var(--good);
+  }
+  .copy-btn svg {
+    width: 11px;
+    height: 11px;
+    flex: 0 0 auto;
+  }
+  .copy-all-btn {
+    align-self: flex-start;
+    margin: 4px 0 12px;
+    padding: 5px 12px 5px 10px;
+    font-size: 12.5px;
+  }
+  .copy-all-btn svg { width: 13px; height: 13px; }
 </style>
 </head>
 <body>
@@ -1273,6 +1317,121 @@
     // Honor #google / #ms in the URL
     var hash = (location.hash || '').replace('#', '');
     if (hash === 'ms' || hash === 'google') activate(hash);
+  })();
+
+  // === Copy-to-clipboard for Step 5 instructions ===
+  (function () {
+    var COPY_ICON = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="8" height="9" rx="1.5"/><path d="M5 5V3a1.5 1.5 0 0 1 1.5-1.5h6A1.5 1.5 0 0 1 14 3v8a1.5 1.5 0 0 1-1.5 1.5H11"/></svg>';
+
+    function clean(el) {
+      return el ? el.textContent.replace(/\s+/g, ' ').trim() : '';
+    }
+
+    function buildCardText(card) {
+      var title = clean(card.querySelector('h4'));
+      var platform = clean(card.querySelector('.platform'));
+      var ol = card.querySelector('ol');
+      var info = card.querySelector('.info-panel');
+      var lines = [];
+      lines.push(platform ? title + ' — ' + platform : title);
+      lines.push('');
+      if (ol) {
+        Array.prototype.forEach.call(ol.children, function (li, i) {
+          lines.push((i + 1) + '. ' + clean(li));
+        });
+      } else if (info) {
+        lines.push(clean(info));
+      }
+      return lines.join('\n');
+    }
+
+    function buildAllText(article) {
+      var grid = article.querySelector('.step5-grid');
+      if (!grid) return '';
+      var sections = [];
+      // Lead paragraphs (everything before the grid that's a <p>)
+      var n = grid.previousElementSibling;
+      var leads = [];
+      while (n) {
+        if (n.tagName === 'P') leads.unshift(clean(n));
+        n = n.previousElementSibling;
+      }
+      if (leads.length) sections.push(leads.join('\n\n'));
+      // Each card
+      Array.prototype.forEach.call(grid.querySelectorAll('.step5-card'), function (card) {
+        sections.push(buildCardText(card));
+      });
+      // Fallback: the article's <ul> and the <p> right before it
+      var fallbackUl = article.querySelector('ul');
+      if (fallbackUl) {
+        var header = fallbackUl.previousElementSibling;
+        var fallbackLines = [];
+        if (header && header.tagName === 'P') fallbackLines.push(clean(header));
+        var items = Array.prototype.map.call(fallbackUl.children, function (li) {
+          return '- ' + clean(li);
+        });
+        fallbackLines.push(items.join('\n'));
+        sections.push(fallbackLines.join('\n'));
+      }
+      return sections.join('\n\n');
+    }
+
+    function makeBtn(extraClass, label) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'copy-btn' + (extraClass ? ' ' + extraClass : '');
+      btn.innerHTML = COPY_ICON + '<span class="copy-label">' + label + '</span>';
+      return btn;
+    }
+
+    // Add a copy button to each Step 5 card
+    document.querySelectorAll('.step5-card').forEach(function (card) {
+      card.appendChild(makeBtn('', 'Copy'));
+    });
+
+    // Add a "Copy all instructions" button at the top of each Step 5 article
+    document.querySelectorAll('.step5-grid').forEach(function (grid) {
+      var btn = makeBtn('copy-all-btn', 'Copy all instructions');
+      grid.parentNode.insertBefore(btn, grid);
+    });
+
+    // Single delegated click handler
+    document.addEventListener('click', function (e) {
+      var btn = e.target.closest && e.target.closest('.copy-btn');
+      if (!btn) return;
+      var card = btn.closest('.step5-card');
+      var text = card ? buildCardText(card) : buildAllText(btn.closest('article'));
+      if (!text) return;
+
+      var done = function () {
+        var label = btn.querySelector('.copy-label');
+        var orig = label ? label.textContent : null;
+        if (label) label.textContent = 'Copied';
+        btn.classList.add('copied');
+        setTimeout(function () {
+          if (label && orig != null) label.textContent = orig;
+          btn.classList.remove('copied');
+        }, 1500);
+      };
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done, function () { fallback(); });
+      } else {
+        fallback();
+      }
+
+      function fallback() {
+        var ta = document.createElement('textarea');
+        ta.value = text;
+        ta.setAttribute('readonly', '');
+        ta.style.position = 'absolute';
+        ta.style.left = '-9999px';
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand('copy'); done(); } catch (err) { /* noop */ }
+        document.body.removeChild(ta);
+      }
+    });
   })();
 </script>
 
