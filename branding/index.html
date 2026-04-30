@@ -495,6 +495,13 @@
   }
   footer.page a { color: var(--ink-soft); }
 
+  /* Subtle bevel/emboss on the brand icon, simulating Photoshop's
+     Bevel & Emboss layer style without expensive SVG feSpecularLighting.
+     Top-left highlight + bottom-right shadow = perceived depth. */
+  svg[viewBox="70 92 116 102"] {
+    filter: drop-shadow(-0.5px -0.5px 0 rgba(255,255,255,0.55)) drop-shadow(1px 1.5px 1px rgba(0,0,0,0.35));
+  }
+
   /* =============== CONSTRUCTION =============== */
   section.construction { background: var(--bg); }
   .construction-h3 {
@@ -612,8 +619,8 @@
           <line x1="93" y1="163" x2="120" y2="163"/>
           <line x1="140" y1="174" x2="161" y2="174"/>
                   </g>
-        <circle cx="128" cy="142" r="4.4" fill="#1A9BE8"/>
-        <circle cx="116" cy="163" r="4.4" fill="#1A9BE8"/>
+        <circle cx="128" cy="140" r="4.4" fill="#1A9BE8"/>
+        <circle cx="118" cy="163" r="4.4" fill="#1A9BE8"/>
         <circle cx="134" cy="174" r="4.4" fill="#1A9BE8"/>
       </svg>
       <span>Brand Guidelines</span>
@@ -666,8 +673,8 @@
             <line x1="93" y1="163" x2="120" y2="163"/>
             <line x1="140" y1="174" x2="161" y2="174"/>
                       </g>
-          <circle cx="128" cy="142" r="4.4" fill="#1A9BE8"/>
-          <circle cx="116" cy="163" r="4.4" fill="#1A9BE8"/>
+          <circle cx="128" cy="140" r="4.4" fill="#1A9BE8"/>
+          <circle cx="118" cy="163" r="4.4" fill="#1A9BE8"/>
           <circle cx="134" cy="174" r="4.4" fill="#1A9BE8"/>
         </svg>
         <text x="320" y="130" font-family='"Saira","Eurostile","Eurostile LT W01","Microgramma D","Aldrich",system-ui,sans-serif'
@@ -704,7 +711,7 @@
               <g stroke="#1A9BE8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none">
                 <path d="M 132 143 L 137 149 L 161 149" fill="none"/><line x1="93" y1="163" x2="120" y2="163"/>
                 <line x1="140" y1="174" x2="161" y2="174"/>              </g>
-              <circle cx="128" cy="142" r="4.4" fill="#1A9BE8"/><circle cx="116" cy="163" r="4.4" fill="#1A9BE8"/><circle cx="134" cy="174" r="4.4" fill="#1A9BE8"/>
+              <circle cx="128" cy="140" r="4.4" fill="#1A9BE8"/><circle cx="118" cy="163" r="4.4" fill="#1A9BE8"/><circle cx="134" cy="174" r="4.4" fill="#1A9BE8"/>
             </svg>
             <text x="320" y="130" font-family="var(--display)" font-weight="900" font-size="130" letter-spacing="3.5" fill="url(#lc1-b)" style="font-family: Saira, Eurostile, system-ui, sans-serif;">UMBRELLA</text>
             <text x="320" y="240" font-family="var(--display)" font-weight="900" font-size="130" letter-spacing="3.5" fill="url(#lc1-g)" style="font-family: Saira, Eurostile, system-ui, sans-serif;">AUTOMATION</text>
@@ -734,7 +741,7 @@
               <g stroke="#1A9BE8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none">
                 <path d="M 132 143 L 137 149 L 161 149" fill="none"/><line x1="93" y1="163" x2="120" y2="163"/>
                 <line x1="140" y1="174" x2="161" y2="174"/>              </g>
-              <circle cx="128" cy="142" r="4.4" fill="#1A9BE8"/><circle cx="116" cy="163" r="4.4" fill="#1A9BE8"/><circle cx="134" cy="174" r="4.4" fill="#1A9BE8"/>
+              <circle cx="128" cy="140" r="4.4" fill="#1A9BE8"/><circle cx="118" cy="163" r="4.4" fill="#1A9BE8"/><circle cx="134" cy="174" r="4.4" fill="#1A9BE8"/>
             </svg>
             <text x="20" y="380" font-weight="900" font-size="120" letter-spacing="3" fill="url(#lc2-b)" style="font-family: Saira, Eurostile, system-ui, sans-serif;">UMBRELLA</text>
             <text x="20" y="490" font-weight="900" font-size="120" letter-spacing="3" fill="url(#lc2-g)" style="font-family: Saira, Eurostile, system-ui, sans-serif;">AUTOMATION</text>
@@ -782,7 +789,7 @@
             <g stroke="#1A9BE8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none">
               <path d="M 132 143 L 137 149 L 161 149" fill="none"/><line x1="93" y1="163" x2="120" y2="163"/>
               <line x1="140" y1="174" x2="161" y2="174"/>            </g>
-            <circle cx="128" cy="142" r="4.4" fill="#1A9BE8"/><circle cx="116" cy="163" r="4.4" fill="#1A9BE8"/><circle cx="134" cy="174" r="4.4" fill="#1A9BE8"/>
+            <circle cx="128" cy="140" r="4.4" fill="#1A9BE8"/><circle cx="118" cy="163" r="4.4" fill="#1A9BE8"/><circle cx="134" cy="174" r="4.4" fill="#1A9BE8"/>
           </svg>
         </div>
         <div class="meta">
@@ -806,7 +813,7 @@
               <g stroke="#5fc1ec" stroke-width="4" stroke-linecap="round">
                 <path d="M 132 143 L 137 149 L 161 149" fill="none"/><line x1="93" y1="163" x2="120" y2="163"/>
                 <line x1="140" y1="174" x2="161" y2="174"/>              </g>
-              <circle cx="128" cy="142" r="4.4" fill="#5fc1ec"/><circle cx="116" cy="163" r="4.4" fill="#5fc1ec"/><circle cx="134" cy="174" r="4.4" fill="#5fc1ec"/>
+              <circle cx="128" cy="140" r="4.4" fill="#5fc1ec"/><circle cx="118" cy="163" r="4.4" fill="#5fc1ec"/><circle cx="134" cy="174" r="4.4" fill="#5fc1ec"/>
             </svg>
             <text x="320" y="130" font-weight="900" font-size="130" letter-spacing="3.5" fill="#1A9BE8" style="font-family: Saira, Eurostile, system-ui, sans-serif;">UMBRELLA</text>
             <text x="320" y="240" font-weight="900" font-size="130" letter-spacing="3.5" fill="#ffffff" style="font-family: Saira, Eurostile, system-ui, sans-serif;">AUTOMATION</text>
@@ -830,7 +837,7 @@
               <g stroke="#1A1F2B" stroke-width="4" stroke-linecap="round">
                 <path d="M 132 143 L 137 149 L 161 149" fill="none"/><line x1="93" y1="163" x2="120" y2="163"/>
                 <line x1="140" y1="174" x2="161" y2="174"/>              </g>
-              <circle cx="128" cy="142" r="4.4" fill="#1A1F2B"/><circle cx="116" cy="163" r="4.4" fill="#1A1F2B"/><circle cx="134" cy="174" r="4.4" fill="#1A1F2B"/>
+              <circle cx="128" cy="140" r="4.4" fill="#1A1F2B"/><circle cx="118" cy="163" r="4.4" fill="#1A1F2B"/><circle cx="134" cy="174" r="4.4" fill="#1A1F2B"/>
             </svg>
             <text x="320" y="130" font-weight="900" font-size="130" letter-spacing="3.5" fill="#1A1F2B" style="font-family: Saira, Eurostile, system-ui, sans-serif;">UMBRELLA</text>
             <text x="320" y="240" font-weight="900" font-size="130" letter-spacing="3.5" fill="#1A1F2B" style="font-family: Saira, Eurostile, system-ui, sans-serif;">AUTOMATION</text>
@@ -876,7 +883,7 @@
               <g stroke="#1A9BE8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none">
                 <path d="M 132 143 L 137 149 L 161 149" fill="none"/><line x1="93" y1="163" x2="120" y2="163"/>
                 <line x1="140" y1="174" x2="161" y2="174"/>              </g>
-              <circle cx="128" cy="142" r="4.4" fill="#1A9BE8"/><circle cx="116" cy="163" r="4.4" fill="#1A9BE8"/><circle cx="134" cy="174" r="4.4" fill="#1A9BE8"/>
+              <circle cx="128" cy="140" r="4.4" fill="#1A9BE8"/><circle cx="118" cy="163" r="4.4" fill="#1A9BE8"/><circle cx="134" cy="174" r="4.4" fill="#1A9BE8"/>
             </svg>
             <text x="320" y="130" font-weight="900" font-size="130" letter-spacing="3.5" fill="url(#cs-b)" style="font-family: Saira, Eurostile, system-ui, sans-serif;">UMBRELLA</text>
             <text x="320" y="240" font-weight="900" font-size="130" letter-spacing="3.5" fill="url(#cs-g)" style="font-family: Saira, Eurostile, system-ui, sans-serif;">AUTOMATION</text>
@@ -892,7 +899,7 @@
           <g stroke="#1A9BE8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none">
             <path d="M 132 143 L 137 149 L 161 149" fill="none"/><line x1="93" y1="163" x2="120" y2="163"/>
             <line x1="140" y1="174" x2="161" y2="174"/>          </g>
-          <circle cx="128" cy="142" r="4.4" fill="#1A9BE8"/><circle cx="116" cy="163" r="4.4" fill="#1A9BE8"/><circle cx="134" cy="174" r="4.4" fill="#1A9BE8"/>
+          <circle cx="128" cy="140" r="4.4" fill="#1A9BE8"/><circle cx="118" cy="163" r="4.4" fill="#1A9BE8"/><circle cx="134" cy="174" r="4.4" fill="#1A9BE8"/>
         </svg>
         <div class="label">
           <strong>X = the height of the submark.</strong><br>
@@ -926,7 +933,7 @@
               <g stroke="#1A9BE8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none">
                 <path d="M 132 143 L 137 149 L 161 149" fill="none"/><line x1="93" y1="163" x2="120" y2="163"/>
                 <line x1="140" y1="174" x2="161" y2="174"/>              </g>
-              <circle cx="128" cy="142" r="4.4" fill="#1A9BE8"/><circle cx="116" cy="163" r="4.4" fill="#1A9BE8"/><circle cx="134" cy="174" r="4.4" fill="#1A9BE8"/>
+              <circle cx="128" cy="140" r="4.4" fill="#1A9BE8"/><circle cx="118" cy="163" r="4.4" fill="#1A9BE8"/><circle cx="134" cy="174" r="4.4" fill="#1A9BE8"/>
             </svg>
             <text x="320" y="130" font-weight="900" font-size="130" letter-spacing="3.5" fill="url(#mn1-b)" style="font-family: Saira, Eurostile, system-ui, sans-serif;">UMBRELLA</text>
             <text x="320" y="240" font-weight="900" font-size="130" letter-spacing="3.5" fill="url(#mn1-g)" style="font-family: Saira, Eurostile, system-ui, sans-serif;">AUTOMATION</text>
@@ -947,7 +954,7 @@
             <g stroke="#1A9BE8" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none">
               <path d="M 132 143 L 137 149 L 161 149" fill="none"/><line x1="93" y1="163" x2="120" y2="163"/>
               <line x1="140" y1="174" x2="161" y2="174"/>            </g>
-            <circle cx="128" cy="142" r="4.4" fill="#1A9BE8"/><circle cx="116" cy="163" r="4.4" fill="#1A9BE8"/><circle cx="134" cy="174" r="4.4" fill="#1A9BE8"/>
+            <circle cx="128" cy="140" r="4.4" fill="#1A9BE8"/><circle cx="118" cy="163" r="4.4" fill="#1A9BE8"/><circle cx="134" cy="174" r="4.4" fill="#1A9BE8"/>
           </svg>
           <div class="digits">
             32 px wide<br>
@@ -977,7 +984,7 @@
               <g stroke-width="4" stroke-linecap="round">
                 <path d="M 132 143 L 137 149 L 161 149" fill="none"/><line x1="93" y1="163" x2="120" y2="163"/>
                 <line x1="140" y1="174" x2="161" y2="174"/>              </g>
-              <circle cx="128" cy="142" r="4.4"/><circle cx="116" cy="163" r="4.4"/><circle cx="134" cy="174" r="4.4"/>
+              <circle cx="128" cy="140" r="4.4"/><circle cx="118" cy="163" r="4.4"/><circle cx="134" cy="174" r="4.4"/>
             </svg>
             <text x="320" y="130" font-weight="900" font-size="130" letter-spacing="3.5" style="font-family: Saira, Eurostile, system-ui, sans-serif;">UMBRELLA</text>
             <text x="320" y="240" font-weight="900" font-size="130" letter-spacing="3.5" style="font-family: Saira, Eurostile, system-ui, sans-serif;">AUTOMATION</text>
@@ -1002,7 +1009,7 @@
                   <g stroke="#1A9BE8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none">
                     <path d="M 132 143 L 137 149 L 161 149" fill="none"/><line x1="93" y1="163" x2="120" y2="163"/>
                     <line x1="140" y1="174" x2="161" y2="174"/>                  </g>
-                  <circle cx="128" cy="142" r="4.4" fill="#1A9BE8"/><circle cx="116" cy="163" r="4.4" fill="#1A9BE8"/><circle cx="134" cy="174" r="4.4" fill="#1A9BE8"/>
+                  <circle cx="128" cy="140" r="4.4" fill="#1A9BE8"/><circle cx="118" cy="163" r="4.4" fill="#1A9BE8"/><circle cx="134" cy="174" r="4.4" fill="#1A9BE8"/>
                 </svg>
                 <text x="320" y="130" font-weight="900" font-size="130" letter-spacing="3.5" fill="url(#d2-b)" style="font-family: Saira, Eurostile, system-ui, sans-serif;">UMBRELLA</text>
                 <text x="320" y="240" font-weight="900" font-size="130" letter-spacing="3.5" fill="url(#d2-g)" style="font-family: Saira, Eurostile, system-ui, sans-serif;">AUTOMATION</text>
@@ -1027,7 +1034,7 @@
               <g stroke="#1A9BE8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none">
                 <path d="M 132 143 L 137 149 L 161 149" fill="none"/><line x1="93" y1="163" x2="120" y2="163"/>
                 <line x1="140" y1="174" x2="161" y2="174"/>              </g>
-              <circle cx="128" cy="142" r="4.4" fill="#1A9BE8"/><circle cx="116" cy="163" r="4.4" fill="#1A9BE8"/><circle cx="134" cy="174" r="4.4" fill="#1A9BE8"/>
+              <circle cx="128" cy="140" r="4.4" fill="#1A9BE8"/><circle cx="118" cy="163" r="4.4" fill="#1A9BE8"/><circle cx="134" cy="174" r="4.4" fill="#1A9BE8"/>
             </svg>
             <text x="320" y="130" font-weight="900" font-size="130" letter-spacing="3.5" fill="url(#d3-b)" style="font-family: Saira, Eurostile, system-ui, sans-serif;">UMBRELLA</text>
             <text x="320" y="240" font-weight="900" font-size="130" letter-spacing="3.5" fill="url(#d3-g)" style="font-family: Saira, Eurostile, system-ui, sans-serif;">AUTOMATION</text>
@@ -1050,7 +1057,7 @@
               <g stroke="#1A9BE8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none">
                 <path d="M 132 143 L 137 149 L 161 149" fill="none"/><line x1="93" y1="163" x2="120" y2="163"/>
                 <line x1="140" y1="174" x2="161" y2="174"/>              </g>
-              <circle cx="128" cy="142" r="4.4" fill="#1A9BE8"/><circle cx="116" cy="163" r="4.4" fill="#1A9BE8"/><circle cx="134" cy="174" r="4.4" fill="#1A9BE8"/>
+              <circle cx="128" cy="140" r="4.4" fill="#1A9BE8"/><circle cx="118" cy="163" r="4.4" fill="#1A9BE8"/><circle cx="134" cy="174" r="4.4" fill="#1A9BE8"/>
             </svg>
             <text x="320" y="130" font-weight="900" font-size="130" letter-spacing="3.5" fill="url(#d4-b)" style="font-family: Saira, Eurostile, system-ui, sans-serif;">UMBRELLA</text>
             <text x="320" y="240" font-weight="900" font-size="130" letter-spacing="3.5" fill="url(#d4-g)" style="font-family: Saira, Eurostile, system-ui, sans-serif;">AUTOMATION</text>
@@ -1073,7 +1080,7 @@
               <g stroke="#1A9BE8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none">
                 <path d="M 132 143 L 137 149 L 161 149" fill="none"/><line x1="93" y1="163" x2="120" y2="163"/>
                 <line x1="140" y1="174" x2="161" y2="174"/>              </g>
-              <circle cx="128" cy="142" r="4.4" fill="#1A9BE8"/><circle cx="116" cy="163" r="4.4" fill="#1A9BE8"/><circle cx="134" cy="174" r="4.4" fill="#1A9BE8"/>
+              <circle cx="128" cy="140" r="4.4" fill="#1A9BE8"/><circle cx="118" cy="163" r="4.4" fill="#1A9BE8"/><circle cx="134" cy="174" r="4.4" fill="#1A9BE8"/>
             </svg>
             <text x="320" y="130" font-weight="900" font-size="130" letter-spacing="3.5" fill="url(#d5-b)" style="font-family: Saira, Eurostile, system-ui, sans-serif;">UMBRELLA</text>
             <text x="320" y="240" font-weight="900" font-size="130" letter-spacing="3.5" fill="url(#d5-g)" style="font-family: Saira, Eurostile, system-ui, sans-serif;">AUTOMATION</text>
@@ -1096,7 +1103,7 @@
               <g stroke="#1A9BE8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none">
                 <path d="M 132 143 L 137 149 L 161 149" fill="none"/><line x1="93" y1="163" x2="120" y2="163"/>
                 <line x1="140" y1="174" x2="161" y2="174"/>              </g>
-              <circle cx="128" cy="142" r="4.4" fill="#1A9BE8"/><circle cx="116" cy="163" r="4.4" fill="#1A9BE8"/><circle cx="134" cy="174" r="4.4" fill="#1A9BE8"/>
+              <circle cx="128" cy="140" r="4.4" fill="#1A9BE8"/><circle cx="118" cy="163" r="4.4" fill="#1A9BE8"/><circle cx="134" cy="174" r="4.4" fill="#1A9BE8"/>
             </svg>
             <text x="320" y="130" font-weight="900" font-size="130" letter-spacing="3.5" fill="url(#d6-b)" style="font-family: Saira, Eurostile, system-ui, sans-serif;">UMBRELLA</text>
             <text x="320" y="240" font-weight="900" font-size="130" letter-spacing="3.5" fill="url(#d6-g)" style="font-family: Saira, Eurostile, system-ui, sans-serif;">AUTOMATION</text>
@@ -1349,7 +1356,7 @@
 
 <!-- ============== FOOTER ============== -->
 <footer class="page">
-  <p>Umbrella Automation &middot; Brand Guidelines &middot; v0.3.1 &middot; <a href="../">Back to Work Hub</a></p>
+  <p>Umbrella Automation &middot; Brand Guidelines &middot; v0.3.2 &middot; <a href="../">Back to Work Hub</a></p>
 </footer>
 
 <script>
