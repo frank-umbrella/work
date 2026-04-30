@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Submark compare</title>
+<meta name="robots" content="noindex">
+<style>
+  body { margin: 0; padding: 24px; background: #1a1f2b; color: #eee; font-family: system-ui, sans-serif; }
+  h2 { font-size: 14px; font-weight: 600; margin: 0 0 8px; color: #aaa; text-transform: uppercase; letter-spacing: .08em; }
+  .row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 24px; align-items: start; margin-bottom: 36px; }
+  .box { background: #fff; border-radius: 12px; padding: 16px; aspect-ratio: 1; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; }
+  .box svg, .box img { width: 100%; height: auto; max-width: 100%; max-height: 100%; display: block; }
+  .overlay { position: relative; }
+  .overlay .layer { position: absolute; inset: 16px; }
+  .overlay svg, .overlay img { width: 100%; height: 100%; }
+  .overlay svg { mix-blend-mode: multiply; opacity: .6; }
+  label { display: block; font-size: 13px; color: #aaa; margin-bottom: 8px; }
+  input[type=range] { width: 100%; }
+  .controls { padding: 12px; background: #232936; border-radius: 8px; margin-bottom: 18px; }
+</style>
+</head>
+<body>
+
+<div class="controls">
+  <label>SVG opacity over PNG: <span id="op">60%</span></label>
+  <input type="range" id="opacity" min="0" max="100" value="60">
+</div>
+
+<div class="row">
+  <div>
+    <h2>Reference PNG (canonical)</h2>
+    <div class="box"><img src="source/Logo-House-Icon-removebg.png" alt="reference"></div>
+  </div>
+  <div>
+    <h2>My SVG (current)</h2>
+    <div class="box"><img src="assets/submark.svg" alt="svg"></div>
+  </div>
+  <div>
+    <h2>Overlay (SVG over PNG)</h2>
+    <div class="box overlay">
+      <div class="layer"><img src="source/Logo-House-Icon-removebg.png" alt="ref bg"></div>
+      <div class="layer"><img id="svgLayer" src="assets/submark.svg" alt="svg fg"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const op = document.getElementById('opacity');
+  const layer = document.getElementById('svgLayer');
+  op.addEventListener('input', () => {
+    layer.style.opacity = op.value / 100;
+    document.getElementById('op').textContent = op.value + '%';
+  });
+  layer.style.opacity = .6;
+</script>
+
+</body>
+</html>
