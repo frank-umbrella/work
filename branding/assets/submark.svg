@@ -12,13 +12,12 @@
   <path d="M 28 164 L 28 88 L 96 24 L 156 88 L 200 88 L 200 164 Z"
         fill="none" stroke="url(#ua-submark-house)" stroke-width="8"
         stroke-linejoin="round" stroke-linecap="round"/>
-  <g stroke="url(#ua-submark-circuit)" stroke-width="4" stroke-linecap="round">
-    <line x1="62" y1="100" x2="112" y2="100"/>
-    <line x1="112" y1="100" x2="112" y2="122"/>
-    <line x1="112" y1="122" x2="162" y2="122"/>
-    <line x1="162" y1="122" x2="162" y2="144"/>
+  <g stroke="#1A9BE8" stroke-width="4" stroke-linecap="round">
+    <line x1="92" y1="102" x2="170" y2="102"/>
+    <line x1="60" y1="124" x2="130" y2="124"/>
+    <line x1="115" y1="146" x2="186" y2="146"/>
   </g>
-  <circle cx="62" cy="100" r="8" fill="url(#ua-submark-circuit)"/>
-  <circle cx="112" cy="122" r="8" fill="url(#ua-submark-circuit)"/>
-  <circle cx="162" cy="144" r="8" fill="url(#ua-submark-circuit)"/>
+  <circle cx="92" cy="102" r="8" fill="#1A9BE8"/>
+  <circle cx="60" cy="124" r="8" fill="#1A9BE8"/>
+  <circle cx="115" cy="146" r="8" fill="#1A9BE8"/>
 </svg>

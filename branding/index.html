@@ -312,17 +312,20 @@
     background: var(--bg);
   }
   .dont-card .stage svg { max-width: 100%; max-height: 100%; height: auto; }
-  .dont-card .badge {
+  .dont-card .badge { display: none; }
+  .dont-card .stage::after {
+    content: "";
     position: absolute;
-    top: 12px; right: 12px;
-    width: 28px; height: 28px;
-    border-radius: 999px;
-    background: var(--warn);
-    color: #fff;
-    display: flex; align-items: center; justify-content: center;
-    font-weight: 700; font-size: 16px;
-    line-height: 1;
-    box-shadow: 0 2px 6px rgba(211,59,59,.4);
+    inset: 0;
+    pointer-events: none;
+    z-index: 5;
+    background: linear-gradient(
+      to bottom right,
+      transparent calc(50% - 2px),
+      rgba(211, 59, 59, 0.7) calc(50% - 2px),
+      rgba(211, 59, 59, 0.7) calc(50% + 2px),
+      transparent calc(50% + 2px)
+    );
   }
   .dont-card .label {
     padding: 14px 18px 16px;
@@ -607,14 +610,13 @@
               fill="none" stroke="#9ea4ab" stroke-width="10"
               stroke-linejoin="round" stroke-linecap="round"/>
         <g stroke="#1A9BE8" stroke-width="5" stroke-linecap="round">
-          <line x1="62" y1="100" x2="112" y2="100"/>
-          <line x1="112" y1="100" x2="112" y2="122"/>
-          <line x1="112" y1="122" x2="162" y2="122"/>
-          <line x1="162" y1="122" x2="162" y2="144"/>
-        </g>
-        <circle cx="62" cy="100" r="10" fill="#1A9BE8"/>
-        <circle cx="112" cy="122" r="10" fill="#1A9BE8"/>
-        <circle cx="162" cy="144" r="10" fill="#1A9BE8"/>
+          <line x1="92" y1="102" x2="170" y2="102"/>
+          <line x1="60" y1="124" x2="130" y2="124"/>
+          <line x1="115" y1="146" x2="186" y2="146"/>
+                  </g>
+        <circle cx="92" cy="102" r="10" fill="#1A9BE8"/>
+        <circle cx="60" cy="124" r="10" fill="#1A9BE8"/>
+        <circle cx="115" cy="146" r="10" fill="#1A9BE8"/>
       </svg>
       <span>Brand Guidelines</span>
     </a>
@@ -662,15 +664,14 @@
           <path d="M 28 164 L 28 88 L 96 24 L 156 88 L 200 88 L 200 164 Z"
                 fill="none" stroke="url(#hero-house)" stroke-width="8"
                 stroke-linejoin="round" stroke-linecap="round"/>
-          <g stroke="url(#hero-circuit)" stroke-width="4" stroke-linecap="round">
-            <line x1="62" y1="100" x2="112" y2="100"/>
-            <line x1="112" y1="100" x2="112" y2="122"/>
-            <line x1="112" y1="122" x2="162" y2="122"/>
-            <line x1="162" y1="122" x2="162" y2="144"/>
-          </g>
-          <circle cx="62" cy="100" r="8" fill="url(#hero-circuit)"/>
-          <circle cx="112" cy="122" r="8" fill="url(#hero-circuit)"/>
-          <circle cx="162" cy="144" r="8" fill="url(#hero-circuit)"/>
+          <g stroke="#1A9BE8" stroke-width="4" stroke-linecap="round">
+            <line x1="92" y1="102" x2="170" y2="102"/>
+            <line x1="60" y1="124" x2="130" y2="124"/>
+            <line x1="115" y1="146" x2="186" y2="146"/>
+                      </g>
+          <circle cx="92" cy="102" r="8" fill="#1A9BE8"/>
+          <circle cx="60" cy="124" r="8" fill="#1A9BE8"/>
+          <circle cx="115" cy="146" r="8" fill="#1A9BE8"/>
         </svg>
         <text x="320" y="130" font-family='"Saira","Eurostile","Eurostile LT W01","Microgramma D","Aldrich",system-ui,sans-serif'
               font-weight="900" font-size="130" letter-spacing="3.5" fill="url(#hero-blue)">UMBRELLA</text>
@@ -703,11 +704,10 @@
             </defs>
             <svg x="0" y="36" width="277" height="208" viewBox="0 0 240 180">
               <path d="M 28 164 L 28 88 L 96 24 L 156 88 L 200 88 L 200 164 Z" fill="none" stroke="url(#lc1-h)" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
-              <g stroke="url(#lc1-c)" stroke-width="4" stroke-linecap="round">
-                <line x1="62" y1="100" x2="112" y2="100"/><line x1="112" y1="100" x2="112" y2="122"/>
-                <line x1="112" y1="122" x2="162" y2="122"/><line x1="162" y1="122" x2="162" y2="144"/>
-              </g>
-              <circle cx="62" cy="100" r="8" fill="url(#lc1-c)"/><circle cx="112" cy="122" r="8" fill="url(#lc1-c)"/><circle cx="162" cy="144" r="8" fill="url(#lc1-c)"/>
+              <g stroke="#1A9BE8" stroke-width="4" stroke-linecap="round">
+                <line x1="92" y1="102" x2="170" y2="102"/><line x1="60" y1="124" x2="130" y2="124"/>
+                <line x1="115" y1="146" x2="186" y2="146"/>              </g>
+              <circle cx="92" cy="102" r="8" fill="#1A9BE8"/><circle cx="60" cy="124" r="8" fill="#1A9BE8"/><circle cx="115" cy="146" r="8" fill="#1A9BE8"/>
             </svg>
             <text x="320" y="130" font-family="var(--display)" font-weight="900" font-size="130" letter-spacing="3.5" fill="url(#lc1-b)" style="font-family: Saira, Eurostile, system-ui, sans-serif;">UMBRELLA</text>
             <text x="320" y="240" font-family="var(--display)" font-weight="900" font-size="130" letter-spacing="3.5" fill="url(#lc1-g)" style="font-family: Saira, Eurostile, system-ui, sans-serif;">AUTOMATION</text>
@@ -734,11 +734,10 @@
             </defs>
             <svg x="20" y="20" width="288" height="216" viewBox="0 0 240 180">
               <path d="M 28 164 L 28 88 L 96 24 L 156 88 L 200 88 L 200 164 Z" fill="none" stroke="url(#lc2-h)" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
-              <g stroke="url(#lc2-c)" stroke-width="4" stroke-linecap="round">
-                <line x1="62" y1="100" x2="112" y2="100"/><line x1="112" y1="100" x2="112" y2="122"/>
-                <line x1="112" y1="122" x2="162" y2="122"/><line x1="162" y1="122" x2="162" y2="144"/>
-              </g>
-              <circle cx="62" cy="100" r="8" fill="url(#lc2-c)"/><circle cx="112" cy="122" r="8" fill="url(#lc2-c)"/><circle cx="162" cy="144" r="8" fill="url(#lc2-c)"/>
+              <g stroke="#1A9BE8" stroke-width="4" stroke-linecap="round">
+                <line x1="92" y1="102" x2="170" y2="102"/><line x1="60" y1="124" x2="130" y2="124"/>
+                <line x1="115" y1="146" x2="186" y2="146"/>              </g>
+              <circle cx="92" cy="102" r="8" fill="#1A9BE8"/><circle cx="60" cy="124" r="8" fill="#1A9BE8"/><circle cx="115" cy="146" r="8" fill="#1A9BE8"/>
             </svg>
             <text x="20" y="380" font-weight="900" font-size="120" letter-spacing="3" fill="url(#lc2-b)" style="font-family: Saira, Eurostile, system-ui, sans-serif;">UMBRELLA</text>
             <text x="20" y="490" font-weight="900" font-size="120" letter-spacing="3" fill="url(#lc2-g)" style="font-family: Saira, Eurostile, system-ui, sans-serif;">AUTOMATION</text>
@@ -783,11 +782,10 @@
               <linearGradient id="lc4-c" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3aa8da"/><stop offset="1" stop-color="#177cb8"/></linearGradient>
             </defs>
             <path d="M 28 164 L 28 88 L 96 24 L 156 88 L 200 88 L 200 164 Z" fill="none" stroke="url(#lc4-h)" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
-            <g stroke="url(#lc4-c)" stroke-width="4" stroke-linecap="round">
-              <line x1="62" y1="100" x2="112" y2="100"/><line x1="112" y1="100" x2="112" y2="122"/>
-              <line x1="112" y1="122" x2="162" y2="122"/><line x1="162" y1="122" x2="162" y2="144"/>
-            </g>
-            <circle cx="62" cy="100" r="8" fill="url(#lc4-c)"/><circle cx="112" cy="122" r="8" fill="url(#lc4-c)"/><circle cx="162" cy="144" r="8" fill="url(#lc4-c)"/>
+            <g stroke="#1A9BE8" stroke-width="4" stroke-linecap="round">
+              <line x1="92" y1="102" x2="170" y2="102"/><line x1="60" y1="124" x2="130" y2="124"/>
+              <line x1="115" y1="146" x2="186" y2="146"/>            </g>
+            <circle cx="92" cy="102" r="8" fill="#1A9BE8"/><circle cx="60" cy="124" r="8" fill="#1A9BE8"/><circle cx="115" cy="146" r="8" fill="#1A9BE8"/>
           </svg>
         </div>
         <div class="meta">
@@ -808,11 +806,10 @@
             </defs>
             <svg x="0" y="36" width="277" height="208" viewBox="0 0 240 180">
               <path d="M 28 164 L 28 88 L 96 24 L 156 88 L 200 88 L 200 164 Z" fill="none" stroke="#ffffff" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
-              <g stroke="url(#lc5-c)" stroke-width="4" stroke-linecap="round">
-                <line x1="62" y1="100" x2="112" y2="100"/><line x1="112" y1="100" x2="112" y2="122"/>
-                <line x1="112" y1="122" x2="162" y2="122"/><line x1="162" y1="122" x2="162" y2="144"/>
-              </g>
-              <circle cx="62" cy="100" r="8" fill="url(#lc5-c)"/><circle cx="112" cy="122" r="8" fill="url(#lc5-c)"/><circle cx="162" cy="144" r="8" fill="url(#lc5-c)"/>
+              <g stroke="#5fc1ec" stroke-width="4" stroke-linecap="round">
+                <line x1="92" y1="102" x2="170" y2="102"/><line x1="60" y1="124" x2="130" y2="124"/>
+                <line x1="115" y1="146" x2="186" y2="146"/>              </g>
+              <circle cx="92" cy="102" r="8" fill="#5fc1ec"/><circle cx="60" cy="124" r="8" fill="#5fc1ec"/><circle cx="115" cy="146" r="8" fill="#5fc1ec"/>
             </svg>
             <text x="320" y="130" font-weight="900" font-size="130" letter-spacing="3.5" fill="#1A9BE8" style="font-family: Saira, Eurostile, system-ui, sans-serif;">UMBRELLA</text>
             <text x="320" y="240" font-weight="900" font-size="130" letter-spacing="3.5" fill="#ffffff" style="font-family: Saira, Eurostile, system-ui, sans-serif;">AUTOMATION</text>
@@ -834,10 +831,9 @@
             <svg x="0" y="36" width="277" height="208" viewBox="0 0 240 180">
               <path d="M 28 164 L 28 88 L 96 24 L 156 88 L 200 88 L 200 164 Z" fill="none" stroke="#1A1F2B" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
               <g stroke="#1A1F2B" stroke-width="4" stroke-linecap="round">
-                <line x1="62" y1="100" x2="112" y2="100"/><line x1="112" y1="100" x2="112" y2="122"/>
-                <line x1="112" y1="122" x2="162" y2="122"/><line x1="162" y1="122" x2="162" y2="144"/>
-              </g>
-              <circle cx="62" cy="100" r="8" fill="#1A1F2B"/><circle cx="112" cy="122" r="8" fill="#1A1F2B"/><circle cx="162" cy="144" r="8" fill="#1A1F2B"/>
+                <line x1="92" y1="102" x2="170" y2="102"/><line x1="60" y1="124" x2="130" y2="124"/>
+                <line x1="115" y1="146" x2="186" y2="146"/>              </g>
+              <circle cx="92" cy="102" r="8" fill="#1A1F2B"/><circle cx="60" cy="124" r="8" fill="#1A1F2B"/><circle cx="115" cy="146" r="8" fill="#1A1F2B"/>
             </svg>
             <text x="320" y="130" font-weight="900" font-size="130" letter-spacing="3.5" fill="#1A1F2B" style="font-family: Saira, Eurostile, system-ui, sans-serif;">UMBRELLA</text>
             <text x="320" y="240" font-weight="900" font-size="130" letter-spacing="3.5" fill="#1A1F2B" style="font-family: Saira, Eurostile, system-ui, sans-serif;">AUTOMATION</text>
@@ -880,11 +876,10 @@
             </defs>
             <svg x="0" y="36" width="277" height="208" viewBox="0 0 240 180">
               <path d="M 28 164 L 28 88 L 96 24 L 156 88 L 200 88 L 200 164 Z" fill="none" stroke="url(#cs-h)" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
-              <g stroke="url(#cs-c)" stroke-width="4" stroke-linecap="round">
-                <line x1="62" y1="100" x2="112" y2="100"/><line x1="112" y1="100" x2="112" y2="122"/>
-                <line x1="112" y1="122" x2="162" y2="122"/><line x1="162" y1="122" x2="162" y2="144"/>
-              </g>
-              <circle cx="62" cy="100" r="8" fill="url(#cs-c)"/><circle cx="112" cy="122" r="8" fill="url(#cs-c)"/><circle cx="162" cy="144" r="8" fill="url(#cs-c)"/>
+              <g stroke="#1A9BE8" stroke-width="4" stroke-linecap="round">
+                <line x1="92" y1="102" x2="170" y2="102"/><line x1="60" y1="124" x2="130" y2="124"/>
+                <line x1="115" y1="146" x2="186" y2="146"/>              </g>
+              <circle cx="92" cy="102" r="8" fill="#1A9BE8"/><circle cx="60" cy="124" r="8" fill="#1A9BE8"/><circle cx="115" cy="146" r="8" fill="#1A9BE8"/>
             </svg>
             <text x="320" y="130" font-weight="900" font-size="130" letter-spacing="3.5" fill="url(#cs-b)" style="font-family: Saira, Eurostile, system-ui, sans-serif;">UMBRELLA</text>
             <text x="320" y="240" font-weight="900" font-size="130" letter-spacing="3.5" fill="url(#cs-g)" style="font-family: Saira, Eurostile, system-ui, sans-serif;">AUTOMATION</text>
@@ -898,10 +893,9 @@
         <svg viewBox="0 0 240 180" aria-hidden="true">
           <path d="M 28 164 L 28 88 L 96 24 L 156 88 L 200 88 L 200 164 Z" fill="none" stroke="#9ea4ab" stroke-width="10" stroke-linejoin="round" stroke-linecap="round"/>
           <g stroke="#1A9BE8" stroke-width="5" stroke-linecap="round">
-            <line x1="62" y1="100" x2="112" y2="100"/><line x1="112" y1="100" x2="112" y2="122"/>
-            <line x1="112" y1="122" x2="162" y2="122"/><line x1="162" y1="122" x2="162" y2="144"/>
-          </g>
-          <circle cx="62" cy="100" r="10" fill="#1A9BE8"/><circle cx="112" cy="122" r="10" fill="#1A9BE8"/><circle cx="162" cy="144" r="10" fill="#1A9BE8"/>
+            <line x1="92" y1="102" x2="170" y2="102"/><line x1="60" y1="124" x2="130" y2="124"/>
+            <line x1="115" y1="146" x2="186" y2="146"/>          </g>
+          <circle cx="92" cy="102" r="10" fill="#1A9BE8"/><circle cx="60" cy="124" r="10" fill="#1A9BE8"/><circle cx="115" cy="146" r="10" fill="#1A9BE8"/>
         </svg>
         <div class="label">
           <strong>X = the height of the submark.</strong><br>
@@ -932,11 +926,10 @@
             </defs>
             <svg x="0" y="36" width="277" height="208" viewBox="0 0 240 180">
               <path d="M 28 164 L 28 88 L 96 24 L 156 88 L 200 88 L 200 164 Z" fill="none" stroke="url(#mn1-h)" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
-              <g stroke="url(#mn1-c)" stroke-width="4" stroke-linecap="round">
-                <line x1="62" y1="100" x2="112" y2="100"/><line x1="112" y1="100" x2="112" y2="122"/>
-                <line x1="112" y1="122" x2="162" y2="122"/><line x1="162" y1="122" x2="162" y2="144"/>
-              </g>
-              <circle cx="62" cy="100" r="8" fill="url(#mn1-c)"/><circle cx="112" cy="122" r="8" fill="url(#mn1-c)"/><circle cx="162" cy="144" r="8" fill="url(#mn1-c)"/>
+              <g stroke="#1A9BE8" stroke-width="4" stroke-linecap="round">
+                <line x1="92" y1="102" x2="170" y2="102"/><line x1="60" y1="124" x2="130" y2="124"/>
+                <line x1="115" y1="146" x2="186" y2="146"/>              </g>
+              <circle cx="92" cy="102" r="8" fill="#1A9BE8"/><circle cx="60" cy="124" r="8" fill="#1A9BE8"/><circle cx="115" cy="146" r="8" fill="#1A9BE8"/>
             </svg>
             <text x="320" y="130" font-weight="900" font-size="130" letter-spacing="3.5" fill="url(#mn1-b)" style="font-family: Saira, Eurostile, system-ui, sans-serif;">UMBRELLA</text>
             <text x="320" y="240" font-weight="900" font-size="130" letter-spacing="3.5" fill="url(#mn1-g)" style="font-family: Saira, Eurostile, system-ui, sans-serif;">AUTOMATION</text>
@@ -955,10 +948,9 @@
           <svg class="sub-min" viewBox="0 0 240 180" xmlns="http://www.w3.org/2000/svg">
             <path d="M 28 164 L 28 88 L 96 24 L 156 88 L 200 88 L 200 164 Z" fill="none" stroke="#9ea4ab" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
             <g stroke="#1A9BE8" stroke-width="7" stroke-linecap="round">
-              <line x1="62" y1="100" x2="112" y2="100"/><line x1="112" y1="100" x2="112" y2="122"/>
-              <line x1="112" y1="122" x2="162" y2="122"/><line x1="162" y1="122" x2="162" y2="144"/>
-            </g>
-            <circle cx="62" cy="100" r="11" fill="#1A9BE8"/><circle cx="112" cy="122" r="11" fill="#1A9BE8"/><circle cx="162" cy="144" r="11" fill="#1A9BE8"/>
+              <line x1="92" y1="102" x2="170" y2="102"/><line x1="60" y1="124" x2="130" y2="124"/>
+              <line x1="115" y1="146" x2="186" y2="146"/>            </g>
+            <circle cx="92" cy="102" r="11" fill="#1A9BE8"/><circle cx="60" cy="124" r="11" fill="#1A9BE8"/><circle cx="115" cy="146" r="11" fill="#1A9BE8"/>
           </svg>
           <div class="digits">
             32 px wide<br>
@@ -986,10 +978,9 @@
             <svg x="0" y="36" width="277" height="208" viewBox="0 0 240 180">
               <path d="M 28 164 L 28 88 L 96 24 L 156 88 L 200 88 L 200 164 Z" fill="none" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
               <g stroke-width="4" stroke-linecap="round">
-                <line x1="62" y1="100" x2="112" y2="100"/><line x1="112" y1="100" x2="112" y2="122"/>
-                <line x1="112" y1="122" x2="162" y2="122"/><line x1="162" y1="122" x2="162" y2="144"/>
-              </g>
-              <circle cx="62" cy="100" r="8"/><circle cx="112" cy="122" r="8"/><circle cx="162" cy="144" r="8"/>
+                <line x1="92" y1="102" x2="170" y2="102"/><line x1="60" y1="124" x2="130" y2="124"/>
+                <line x1="115" y1="146" x2="186" y2="146"/>              </g>
+              <circle cx="92" cy="102" r="8"/><circle cx="60" cy="124" r="8"/><circle cx="115" cy="146" r="8"/>
             </svg>
             <text x="320" y="130" font-weight="900" font-size="130" letter-spacing="3.5" style="font-family: Saira, Eurostile, system-ui, sans-serif;">UMBRELLA</text>
             <text x="320" y="240" font-weight="900" font-size="130" letter-spacing="3.5" style="font-family: Saira, Eurostile, system-ui, sans-serif;">AUTOMATION</text>
@@ -1011,11 +1002,10 @@
                 </defs>
                 <svg x="0" y="36" width="277" height="208" viewBox="0 0 240 180">
                   <path d="M 28 164 L 28 88 L 96 24 L 156 88 L 200 88 L 200 164 Z" fill="none" stroke="url(#d2-h)" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
-                  <g stroke="url(#d2-c)" stroke-width="4" stroke-linecap="round">
-                    <line x1="62" y1="100" x2="112" y2="100"/><line x1="112" y1="100" x2="112" y2="122"/>
-                    <line x1="112" y1="122" x2="162" y2="122"/><line x1="162" y1="122" x2="162" y2="144"/>
-                  </g>
-                  <circle cx="62" cy="100" r="8" fill="url(#d2-c)"/><circle cx="112" cy="122" r="8" fill="url(#d2-c)"/><circle cx="162" cy="144" r="8" fill="url(#d2-c)"/>
+                  <g stroke="#1A9BE8" stroke-width="4" stroke-linecap="round">
+                    <line x1="92" y1="102" x2="170" y2="102"/><line x1="60" y1="124" x2="130" y2="124"/>
+                    <line x1="115" y1="146" x2="186" y2="146"/>                  </g>
+                  <circle cx="92" cy="102" r="8" fill="#1A9BE8"/><circle cx="60" cy="124" r="8" fill="#1A9BE8"/><circle cx="115" cy="146" r="8" fill="#1A9BE8"/>
                 </svg>
                 <text x="320" y="130" font-weight="900" font-size="130" letter-spacing="3.5" fill="url(#d2-b)" style="font-family: Saira, Eurostile, system-ui, sans-serif;">UMBRELLA</text>
                 <text x="320" y="240" font-weight="900" font-size="130" letter-spacing="3.5" fill="url(#d2-g)" style="font-family: Saira, Eurostile, system-ui, sans-serif;">AUTOMATION</text>
@@ -1037,11 +1027,10 @@
             </defs>
             <svg x="0" y="36" width="277" height="208" viewBox="0 0 240 180">
               <path d="M 28 164 L 28 88 L 96 24 L 156 88 L 200 88 L 200 164 Z" fill="none" stroke="url(#d3-h)" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
-              <g stroke="url(#d3-c)" stroke-width="4" stroke-linecap="round">
-                <line x1="62" y1="100" x2="112" y2="100"/><line x1="112" y1="100" x2="112" y2="122"/>
-                <line x1="112" y1="122" x2="162" y2="122"/><line x1="162" y1="122" x2="162" y2="144"/>
-              </g>
-              <circle cx="62" cy="100" r="8" fill="url(#d3-c)"/><circle cx="112" cy="122" r="8" fill="url(#d3-c)"/><circle cx="162" cy="144" r="8" fill="url(#d3-c)"/>
+              <g stroke="#1A9BE8" stroke-width="4" stroke-linecap="round">
+                <line x1="92" y1="102" x2="170" y2="102"/><line x1="60" y1="124" x2="130" y2="124"/>
+                <line x1="115" y1="146" x2="186" y2="146"/>              </g>
+              <circle cx="92" cy="102" r="8" fill="#1A9BE8"/><circle cx="60" cy="124" r="8" fill="#1A9BE8"/><circle cx="115" cy="146" r="8" fill="#1A9BE8"/>
             </svg>
             <text x="320" y="130" font-weight="900" font-size="130" letter-spacing="3.5" fill="url(#d3-b)" style="font-family: Saira, Eurostile, system-ui, sans-serif;">UMBRELLA</text>
             <text x="320" y="240" font-weight="900" font-size="130" letter-spacing="3.5" fill="url(#d3-g)" style="font-family: Saira, Eurostile, system-ui, sans-serif;">AUTOMATION</text>
@@ -1061,11 +1050,10 @@
             </defs>
             <svg x="0" y="36" width="277" height="208" viewBox="0 0 240 180">
               <path d="M 28 164 L 28 88 L 96 24 L 156 88 L 200 88 L 200 164 Z" fill="none" stroke="url(#d4-h)" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
-              <g stroke="url(#d4-c)" stroke-width="4" stroke-linecap="round">
-                <line x1="62" y1="100" x2="112" y2="100"/><line x1="112" y1="100" x2="112" y2="122"/>
-                <line x1="112" y1="122" x2="162" y2="122"/><line x1="162" y1="122" x2="162" y2="144"/>
-              </g>
-              <circle cx="62" cy="100" r="8" fill="url(#d4-c)"/><circle cx="112" cy="122" r="8" fill="url(#d4-c)"/><circle cx="162" cy="144" r="8" fill="url(#d4-c)"/>
+              <g stroke="#1A9BE8" stroke-width="4" stroke-linecap="round">
+                <line x1="92" y1="102" x2="170" y2="102"/><line x1="60" y1="124" x2="130" y2="124"/>
+                <line x1="115" y1="146" x2="186" y2="146"/>              </g>
+              <circle cx="92" cy="102" r="8" fill="#1A9BE8"/><circle cx="60" cy="124" r="8" fill="#1A9BE8"/><circle cx="115" cy="146" r="8" fill="#1A9BE8"/>
             </svg>
             <text x="320" y="130" font-weight="900" font-size="130" letter-spacing="3.5" fill="url(#d4-b)" style="font-family: Saira, Eurostile, system-ui, sans-serif;">UMBRELLA</text>
             <text x="320" y="240" font-weight="900" font-size="130" letter-spacing="3.5" fill="url(#d4-g)" style="font-family: Saira, Eurostile, system-ui, sans-serif;">AUTOMATION</text>
@@ -1085,11 +1073,10 @@
             </defs>
             <svg x="0" y="36" width="277" height="208" viewBox="0 0 240 180">
               <path d="M 28 164 L 28 88 L 96 24 L 156 88 L 200 88 L 200 164 Z" fill="none" stroke="url(#d5-h)" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
-              <g stroke="url(#d5-c)" stroke-width="4" stroke-linecap="round">
-                <line x1="62" y1="100" x2="112" y2="100"/><line x1="112" y1="100" x2="112" y2="122"/>
-                <line x1="112" y1="122" x2="162" y2="122"/><line x1="162" y1="122" x2="162" y2="144"/>
-              </g>
-              <circle cx="62" cy="100" r="8" fill="url(#d5-c)"/><circle cx="112" cy="122" r="8" fill="url(#d5-c)"/><circle cx="162" cy="144" r="8" fill="url(#d5-c)"/>
+              <g stroke="#1A9BE8" stroke-width="4" stroke-linecap="round">
+                <line x1="92" y1="102" x2="170" y2="102"/><line x1="60" y1="124" x2="130" y2="124"/>
+                <line x1="115" y1="146" x2="186" y2="146"/>              </g>
+              <circle cx="92" cy="102" r="8" fill="#1A9BE8"/><circle cx="60" cy="124" r="8" fill="#1A9BE8"/><circle cx="115" cy="146" r="8" fill="#1A9BE8"/>
             </svg>
             <text x="320" y="130" font-weight="900" font-size="130" letter-spacing="3.5" fill="url(#d5-b)" style="font-family: Saira, Eurostile, system-ui, sans-serif;">UMBRELLA</text>
             <text x="320" y="240" font-weight="900" font-size="130" letter-spacing="3.5" fill="url(#d5-g)" style="font-family: Saira, Eurostile, system-ui, sans-serif;">AUTOMATION</text>
@@ -1109,11 +1096,10 @@
             </defs>
             <svg x="0" y="36" width="277" height="208" viewBox="0 0 240 180">
               <path d="M 28 164 L 28 88 L 96 24 L 156 88 L 200 88 L 200 164 Z" fill="none" stroke="url(#d6-h)" stroke-width="8" stroke-linejoin="round" stroke-linecap="round"/>
-              <g stroke="url(#d6-c)" stroke-width="4" stroke-linecap="round">
-                <line x1="62" y1="100" x2="112" y2="100"/><line x1="112" y1="100" x2="112" y2="122"/>
-                <line x1="112" y1="122" x2="162" y2="122"/><line x1="162" y1="122" x2="162" y2="144"/>
-              </g>
-              <circle cx="62" cy="100" r="8" fill="url(#d6-c)"/><circle cx="112" cy="122" r="8" fill="url(#d6-c)"/><circle cx="162" cy="144" r="8" fill="url(#d6-c)"/>
+              <g stroke="#1A9BE8" stroke-width="4" stroke-linecap="round">
+                <line x1="92" y1="102" x2="170" y2="102"/><line x1="60" y1="124" x2="130" y2="124"/>
+                <line x1="115" y1="146" x2="186" y2="146"/>              </g>
+              <circle cx="92" cy="102" r="8" fill="#1A9BE8"/><circle cx="60" cy="124" r="8" fill="#1A9BE8"/><circle cx="115" cy="146" r="8" fill="#1A9BE8"/>
             </svg>
             <text x="320" y="130" font-weight="900" font-size="130" letter-spacing="3.5" fill="url(#d6-b)" style="font-family: Saira, Eurostile, system-ui, sans-serif;">UMBRELLA</text>
             <text x="320" y="240" font-weight="900" font-size="130" letter-spacing="3.5" fill="url(#d6-g)" style="font-family: Saira, Eurostile, system-ui, sans-serif;">AUTOMATION</text>
@@ -1366,7 +1352,7 @@
 
 <!-- ============== FOOTER ============== -->
 <footer class="page">
-  <p>Umbrella Automation &middot; Brand Guidelines &middot; v0.2.0 &middot; <a href="../">Back to Work Hub</a></p>
+  <p>Umbrella Automation &middot; Brand Guidelines &middot; v0.2.1 &middot; <a href="../">Back to Work Hub</a></p>
 </footer>
 
 <script>
