@@ -6,7 +6,7 @@
 <title>Onboarding &middot; Umbrella Automation</title>
 <meta name="description" content="Client onboarding system for Umbrella Automation managed service clients. Submit new hire, termination, and position change requests.">
 <meta name="robots" content="noindex">
-<meta name="app-version" content="0.1.1">
+<meta name="app-version" content="0.1.2">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -542,7 +542,7 @@
   <!-- Client manager: email + password -->
   <div id="mgrSignInBlock">
     <div class="auth-role-head">
-      <strong>Client manager</strong>
+      <strong>Client Manager</strong>
       <span>Use the email and password you set up from your invitation link.</span>
     </div>
     <div class="auth-tabs" id="authTabs">
@@ -688,7 +688,7 @@
       <div class="panel-head">
         <h2>Invitations</h2>
         <span class="sub" id="inviteCount"></span>
-        <button class="btn btn-primary btn-sm" id="newInviteBtn" type="button">+ Invite a manager</button>
+        <button class="btn btn-primary btn-sm" id="newInviteBtn" type="button">+ Invite a Client Manager</button>
       </div>
       <div class="panel-body flush" id="inviteListWrap">
         <div class="empty">No invitations yet.</div>
@@ -762,7 +762,7 @@
 <div class="modal-bg" id="inviteModal" hidden>
   <div class="modal">
     <div class="modal-head">
-      <h3>Invite a manager</h3>
+      <h3>Invite a Client Manager</h3>
       <button class="close" type="button" data-close-modal>&times;</button>
     </div>
     <div class="modal-body">
@@ -785,10 +785,10 @@
         </div>
       </div>
       <div class="invite-link-box" id="invResultBox" hidden>
-        <label>Invitation link (send this to the manager)</label>
+        <label>Invitation link (send this to the Client Manager)</label>
         <input id="invResultLink" type="text" readonly>
         <div class="help">
-          Copy this link and email it to the manager. They'll set their password and gain access scoped to <strong id="invResultClient"></strong>.
+          Copy this link and email it to the Client Manager. They'll set their password and gain access scoped to <strong id="invResultClient"></strong>.
           The link expires after redemption (single-use).
         </div>
       </div>
@@ -897,7 +897,7 @@
 <div class="toast" id="toast" hidden></div>
 
 <footer class="foot" id="appFooter" hidden>
-  <p><a href="../">&larr; Work hub</a> &middot; Onboarding v0.1.1</p>
+  <p><a href="../">&larr; Work hub</a> &middot; Onboarding v0.1.2</p>
 </footer>
 
 <script type="module">
@@ -934,7 +934,7 @@ const firebaseConfig = {
   appId: "1:330286523878:web:27c4e2ffca3496ebc32227"
 };
 
-const APP_VERSION = "0.1.1";
+const APP_VERSION = "0.1.2";
 const STATUSES = ["Submitted", "In Progress", "Completed", "Cancelled"];
 const MSP_DOMAIN = "umbrellaautomation.com"; // Google sign-in restricted to this domain
 
@@ -1123,7 +1123,7 @@ $("#googleSignInBtn").addEventListener("click", async () => {
     const email = (result.user.email || "").toLowerCase();
     if (!email.endsWith("@" + MSP_DOMAIN)) {
       await signOut(auth);
-      errEl.textContent = `Google sign-in is only for @${MSP_DOMAIN} accounts. You used ${email}. Client managers should use the email/password form below.`;
+      errEl.textContent = `Google sign-in is only for @${MSP_DOMAIN} accounts. You used ${email}. Client Managers should use the email/password form below.`;
       errEl.hidden = false;
     }
     // Otherwise the onAuthStateChanged listener takes over and looks up the role.
@@ -1326,7 +1326,7 @@ function enterApp() {
   $("#appFooter").hidden = false;
 
   $("#ubEmail").textContent = state.user.email;
-  $("#ubRole").textContent = state.role === "admin" ? "MSP Admin" : "Manager";
+  $("#ubRole").textContent = state.role === "admin" ? "MSP Admin" : "Client Manager";
 
   if (state.role === "manager") {
     $("#brandTitle").textContent = "Onboarding";
@@ -2083,7 +2083,7 @@ function renderSubmissionDetail() {
         <textarea id="evMsg" placeholder="Add a comment…"></textarea>
         <div class="actions">
           <button class="btn btn-primary btn-sm" id="evSendBtn" type="button">Send</button>
-          <span style="font-size:12px;color:var(--ink-faint);">${state.role === "admin" ? "Visible to the manager who submitted this." : "Visible to your MSP."}</span>
+          <span style="font-size:12px;color:var(--ink-faint);">${state.role === "admin" ? "Visible to the Client Manager who submitted this." : "Visible to your MSP."}</span>
         </div>
       </div>
     </div>
@@ -2291,7 +2291,7 @@ $("#cmSaveBtn").addEventListener("click", async () => {
 
 $("#cmDeleteBtn").addEventListener("click", async () => {
   if (!state.editingClient) return;
-  if (!confirm("Delete this client? This does NOT delete forms, submissions, or managers (those persist for audit).")) return;
+  if (!confirm("Delete this client? This does NOT delete forms, submissions, or Client Manager accounts (those persist for audit).")) return;
   const btn = $("#cmDeleteBtn");
   btn.disabled = true;
   try {
@@ -2492,7 +2492,7 @@ $("#seSaveBtn").addEventListener("click", async () => {
 $("#seDeleteBtn").addEventListener("click", async () => {
   const ef = state.editingForm;
   if (!ef || ef.isNew) return;
-  if (!confirm("Delete this form? Existing submissions stay intact, but managers will no longer see it.")) return;
+  if (!confirm("Delete this form? Existing submissions stay intact, but Client Managers will no longer see it.")) return;
   const btn = $("#seDeleteBtn");
   btn.disabled = true;
   try {
@@ -2525,7 +2525,7 @@ function subscribeInvitations() {
 function renderInvitations() {
   $("#inviteCount").textContent = `${state.invitations.length} invitation${state.invitations.length === 1 ? "" : "s"}`;
   if (state.invitations.length === 0) {
-    $("#inviteListWrap").innerHTML = `<div class="empty">No invitations yet. Click <strong>+ Invite a manager</strong> to create one.</div>`;
+    $("#inviteListWrap").innerHTML = `<div class="empty">No invitations yet. Click <strong>+ Invite a Client Manager</strong> to create one.</div>`;
     return;
   }
   $("#inviteListWrap").innerHTML = `
