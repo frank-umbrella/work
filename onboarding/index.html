@@ -6,7 +6,7 @@
 <title>Onboarding &middot; Umbrella Automation</title>
 <meta name="description" content="Client onboarding system for Umbrella Automation managed service clients. Submit new hire, termination, and position change requests.">
 <meta name="robots" content="noindex">
-<meta name="app-version" content="0.1.0">
+<meta name="app-version" content="0.1.1">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -145,7 +145,41 @@
     background: var(--info-soft); color: #0c4a6e;
     font-size: 13px; line-height: 1.4;
   }
-  .auth-divider { height: 1px; background: var(--line); margin: 22px 0; }
+  .auth-divider {
+    display: flex; align-items: center; gap: 10px;
+    margin: 24px 0; color: var(--ink-faint); font-size: 12px;
+    text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600;
+  }
+  .auth-divider::before, .auth-divider::after {
+    content: ""; flex: 1; height: 1px; background: var(--line);
+  }
+  .auth-role-head {
+    display: flex; flex-direction: column; gap: 2px; margin-bottom: 12px;
+  }
+  .auth-role-head strong {
+    font-size: 13px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink);
+  }
+  .auth-role-head span {
+    font-size: 13px; color: var(--ink-soft);
+  }
+  .auth-hint {
+    margin-top: 6px; font-size: 12px; color: var(--ink-faint);
+  }
+  .auth-hint code {
+    font-family: var(--mono); font-size: 11.5px;
+    background: var(--surface-2); padding: 1px 5px; border-radius: 4px;
+    color: var(--ink-soft);
+  }
+  .btn-google {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    width: 100%; padding: 10px 14px;
+    background: var(--surface); border: 1px solid var(--line-strong);
+    border-radius: 8px; color: var(--ink); font-size: 14px; font-weight: 600;
+    cursor: pointer; transition: background .12s ease, border-color .12s ease;
+  }
+  .btn-google:hover { background: var(--surface-2); border-color: var(--ink-faint); }
+  .btn-google:disabled { opacity: 0.5; cursor: not-allowed; }
   .auth-tabs { display: flex; gap: 4px; margin-bottom: 18px; }
   .auth-tabs button {
     flex: 1; background: transparent; border: 1px solid var(--line);
@@ -483,28 +517,54 @@
 <!-- ================= sign-in / invite landing ================= -->
 <section id="auth" class="auth-wrap">
   <h2 id="authTitle">Sign in</h2>
-  <p class="lead" id="authLead">Enter your email and password to continue.</p>
+  <p class="lead" id="authLead">Choose the option that matches your account.</p>
 
-  <div class="auth-tabs" id="authTabs">
-    <button data-mode="signin" class="active">Sign in</button>
-    <button data-mode="reset">Forgot password</button>
+  <!-- MSP team: Google sign-in -->
+  <div id="mspSignInBlock">
+    <div class="auth-role-head">
+      <strong>Umbrella Automation team</strong>
+      <span>Sign in with your work Google account.</span>
+    </div>
+    <button class="btn btn-google" id="googleSignInBtn" type="button">
+      <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+        <path d="M17.64 9.2c0-.64-.06-1.25-.17-1.84H9v3.49h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.91A8.78 8.78 0 0 0 17.64 9.2z" fill="#4285F4"/>
+        <path d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.91-2.26a5.4 5.4 0 0 1-3.05.86 5.36 5.36 0 0 1-5.04-3.71H.96v2.33A9 9 0 0 0 9 18z" fill="#34A853"/>
+        <path d="M3.96 10.71A5.4 5.4 0 0 1 3.68 9c0-.59.1-1.16.28-1.71V4.96H.96A9 9 0 0 0 0 9c0 1.45.35 2.83.96 4.04l3-2.33z" fill="#FBBC05"/>
+        <path d="M9 3.58c1.32 0 2.51.46 3.44 1.35l2.58-2.58A8.99 8.99 0 0 0 9 0 9 9 0 0 0 .96 4.96l3 2.33A5.36 5.36 0 0 1 9 3.58z" fill="#EA4335"/>
+      </svg>
+      Sign in with Google
+    </button>
+    <div class="auth-hint">Restricted to <code>@umbrellaautomation.com</code> accounts.</div>
   </div>
 
-  <form id="signinForm" onsubmit="return false;">
-    <div class="field">
-      <label for="siEmail">Email</label>
-      <input id="siEmail" type="email" autocomplete="username" required>
+  <div class="auth-divider"><span>or</span></div>
+
+  <!-- Client manager: email + password -->
+  <div id="mgrSignInBlock">
+    <div class="auth-role-head">
+      <strong>Client manager</strong>
+      <span>Use the email and password you set up from your invitation link.</span>
     </div>
-    <div class="field" id="siPasswordField">
-      <label for="siPassword">Password</label>
-      <input id="siPassword" type="password" autocomplete="current-password" required>
+    <div class="auth-tabs" id="authTabs">
+      <button data-mode="signin" class="active">Sign in</button>
+      <button data-mode="reset">Forgot password</button>
     </div>
-    <div class="actions">
-      <button class="btn btn-primary" id="signinBtn" type="button">Sign in</button>
-    </div>
-    <div class="auth-err" id="signinErr" hidden></div>
-    <div class="auth-info" id="signinInfo" hidden></div>
-  </form>
+    <form id="signinForm" onsubmit="return false;">
+      <div class="field">
+        <label for="siEmail">Email</label>
+        <input id="siEmail" type="email" autocomplete="username" required>
+      </div>
+      <div class="field" id="siPasswordField">
+        <label for="siPassword">Password</label>
+        <input id="siPassword" type="password" autocomplete="current-password" required>
+      </div>
+      <div class="actions">
+        <button class="btn btn-primary" id="signinBtn" type="button">Sign in</button>
+      </div>
+      <div class="auth-err" id="signinErr" hidden></div>
+      <div class="auth-info" id="signinInfo" hidden></div>
+    </form>
+  </div>
 
   <!-- Invite redemption form, shown when ?invite=TOKEN is in URL -->
   <form id="inviteForm" onsubmit="return false;" hidden>
@@ -837,13 +897,15 @@
 <div class="toast" id="toast" hidden></div>
 
 <footer class="foot" id="appFooter" hidden>
-  <p><a href="../">&larr; Work hub</a> &middot; Onboarding v0.1.0</p>
+  <p><a href="../">&larr; Work hub</a> &middot; Onboarding v0.1.1</p>
 </footer>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
 import {
   getAuth,
+  GoogleAuthProvider,
+  signInWithPopup,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   sendPasswordResetEmail,
@@ -872,8 +934,9 @@ const firebaseConfig = {
   appId: "1:330286523878:web:27c4e2ffca3496ebc32227"
 };
 
-const APP_VERSION = "0.1.0";
+const APP_VERSION = "0.1.1";
 const STATUSES = ["Submitted", "In Progress", "Completed", "Cancelled"];
+const MSP_DOMAIN = "umbrellaautomation.com"; // Google sign-in restricted to this domain
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -1048,6 +1111,31 @@ function friendlyAuthError(e) {
   return "Sign-in failed: " + (e.message || code || e);
 }
 
+$("#googleSignInBtn").addEventListener("click", async () => {
+  const errEl = $("#signinErr");
+  errEl.hidden = true;
+  const btn = $("#googleSignInBtn");
+  btn.disabled = true;
+  try {
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ hd: MSP_DOMAIN, prompt: "select_account" });
+    const result = await signInWithPopup(auth, provider);
+    const email = (result.user.email || "").toLowerCase();
+    if (!email.endsWith("@" + MSP_DOMAIN)) {
+      await signOut(auth);
+      errEl.textContent = `Google sign-in is only for @${MSP_DOMAIN} accounts. You used ${email}. Client managers should use the email/password form below.`;
+      errEl.hidden = false;
+    }
+    // Otherwise the onAuthStateChanged listener takes over and looks up the role.
+  } catch (e) {
+    if (e.code === "auth/popup-closed-by-user" || e.code === "auth/cancelled-popup-request") return;
+    errEl.textContent = "Google sign-in failed: " + (e.message || e.code || e);
+    errEl.hidden = false;
+  } finally {
+    btn.disabled = false;
+  }
+});
+
 $("#signOutBtn").addEventListener("click", () => signOut(auth));
 
 // ============== invite redemption flow ==============
@@ -1166,10 +1254,12 @@ onAuthStateChanged(auth, async user => {
     // Show invite form if URL has ?invite=, otherwise sign-in.
     const handled = await handleInviteIfPresent();
     if (!handled) {
-      $("#authTabs").hidden = false;
+      $("#mspSignInBlock").hidden = false;
+      $("#mgrSignInBlock").hidden = false;
       $("#signinForm").hidden = false;
       $("#inviteForm").hidden = true;
       $("#authTitle").textContent = "Sign in";
+      $("#authLead").textContent = "Choose the option that matches your account.";
     }
     $("#auth").hidden = false;
     $("#topbar").hidden = true;
@@ -1203,13 +1293,25 @@ onAuthStateChanged(auth, async user => {
   }
 
   if (!state.role) {
-    // Signed in but no manager or admin record. Sign them out with a message.
+    // Signed in but no manager or admin record.
+    const isUmbrella = (user.email || "").toLowerCase().endsWith("@" + MSP_DOMAIN);
+    const myUid = user.uid;
+    const myEmail = user.email;
     await signOut(auth);
     $("#auth").hidden = false;
-    $("#authTitle").textContent = "No access";
-    $("#authLead").textContent = "Your account is signed in but isn't linked to any organization. If you were just invited, the invitation may not have completed properly. Contact your MSP.";
-    $("#authTabs").hidden = true;
+    $("#authTitle").textContent = "No access yet";
+    if (isUmbrella) {
+      // First-time MSP admin bootstrap: tell them the UID to use in console.
+      $("#authLead").innerHTML = `Your Google account signed in successfully but isn't on the MSP admin roster yet.<br><br>` +
+        `<strong>To bootstrap the first admin:</strong> in the Firebase Console, go to <em>Firestore Database</em> &rarr; <em>Start collection</em> &rarr; collection ID <code>msp_admins</code> &rarr; document ID <code>${escapeHTML(myUid)}</code> &rarr; add a string field <code>email</code> = <code>${escapeHTML(myEmail)}</code>. Then sign in again.<br><br>` +
+        `<strong>For additional admins:</strong> ask an existing admin to add you via the MSP Team tab — they'll need your UID: <code>${escapeHTML(myUid)}</code>`;
+    } else {
+      $("#authLead").textContent = "Your account is signed in but isn't linked to any organization. If you were just invited, the invitation may not have completed properly. Contact your MSP.";
+    }
+    $("#mspSignInBlock").hidden = true;
+    $("#mgrSignInBlock").hidden = true;
     $("#signinForm").hidden = true;
+    $("#inviteForm").hidden = true;
     return;
   }
 
