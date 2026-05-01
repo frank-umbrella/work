@@ -1,0 +1,79 @@
+{
+  "_about": "Peace Village — Termination form. Items marked TODO need real values.",
+  "formMeta": {
+    "formId": "termination",
+    "kind": "termination",
+    "title": "Termination",
+    "description": "Submit a request to terminate a Peace Village employee."
+  },
+  "schema": {
+    "pages": [
+      {
+        "fields": [
+          { "id": "terminationDate", "type": "date", "label": "Termination Date", "required": true },
+          { "id": "employeeNumber", "type": "text", "label": "Employee Number", "required": true },
+          { "id": "typeOfTermination", "type": "select", "label": "Type Of Termination", "required": true,
+            "options": ["TODO_REPLACE_WITH_REAL_OPTIONS_eg_Voluntary_Involuntary_Layoff_Retirement_EndOfContract"],
+            "help": "This helps us understand which termination process to execute." },
+          { "id": "firstName", "type": "text", "label": "First Name", "required": true },
+          { "id": "lastName", "type": "text", "label": "Last Name", "required": true },
+          { "id": "department", "type": "select", "label": "Department", "required": true,
+            "options": ["TODO_REPLACE_WITH_REAL_OPTIONS"] },
+          { "id": "departmentOther", "type": "text", "label": "Other Department",
+            "showIf": { "department": "Other" }, "required": true,
+            "help": "Add department if not listed in the dropdown menu." },
+          { "id": "title", "type": "select", "label": "Employee Title", "required": true,
+            "options": ["TODO_REPLACE_WITH_REAL_OPTIONS"] },
+          { "id": "titleOther", "type": "text", "label": "Employee Title - Other",
+            "showIf": { "title": "Other" },
+            "help": "ie. Associate, Manager, Staff Accountant" },
+          { "id": "employeeEmail", "type": "email", "label": "Employee's Company Email Address", "required": true,
+            "placeholder": "user@companydomain.com" }
+        ]
+      },
+      {
+        "section": "Email Options",
+        "fields": [
+          { "id": "alternateEmail", "type": "email", "label": "Email" },
+          { "id": "exportEmails", "type": "select", "label": "Export/Archive Emails?", "required": true,
+            "options": ["Yes", "No"],
+            "help": "* This process takes a lot of time and digital space is needed to store the export, but sometimes is needed for legal retention reasons." },
+          { "id": "forwardEmails", "type": "select", "label": "Do emails need to be forwarded?", "required": true,
+            "options": ["Yes", "No"] },
+          { "id": "forwardingTo", "type": "email", "label": "Email address to forward emails to",
+            "showIf": { "forwardEmails": "Yes" }, "required": true,
+            "placeholder": "user@companydomain.com" },
+          { "id": "forwardingStopDate", "type": "date", "label": "Forwarding Stop Date",
+            "showIf": { "forwardEmails": "Yes" }, "required": true,
+            "help": "Date to stop forwarding emails." },
+          { "id": "delegateAccess", "type": "select", "label": "Delegate access needed for inbox?", "required": true,
+            "options": ["Yes", "No"],
+            "help": "* This gives a user the ability to go into the terminated employee's inbox through Outlook Web (OWA) and view their past email. ** This requires a license to be left open in 365 each month." },
+          { "id": "delegateEmail", "type": "email", "label": "Email address of who needs delegate access",
+            "showIf": { "delegateAccess": "Yes" }, "required": true,
+            "placeholder": "user@companydomain.com" },
+          { "id": "delegateStopDate", "type": "date", "label": "Access Stop Date",
+            "showIf": { "delegateAccess": "Yes" }, "required": true,
+            "help": "Date to stop access to the specific inbox." }
+        ]
+      },
+      {
+        "section": "Company Property",
+        "fields": [
+          { "id": "hadHardware", "type": "select", "label": "Did the employee have a company owned laptop or tablet?", "required": true,
+            "options": ["Yes", "No"] },
+          { "id": "hardwareReturned", "type": "select", "label": "Was the property returned?",
+            "showIf": { "hadHardware": "Yes" }, "required": true,
+            "options": ["Yes", "No"] },
+          { "id": "returnedTo", "type": "text", "label": "First & Last name of who the property was returned to",
+            "showIf": { "hadHardware": "Yes" }, "required": true }
+        ]
+      },
+      {
+        "fields": [
+          { "id": "notes", "type": "textarea", "label": "Notes" }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,70 @@
+{
+  "_about": "Peace Village — New Hire / Rehire form. Differences from JEM: single Email field (no separate Preferred Email), 'Employee Number' wording, no User Specific Access checkbox groups beyond Email Account Required. Items marked TODO need real values.",
+  "formMeta": {
+    "formId": "newhire-rehire",
+    "kind": "newhire-rehire",
+    "title": "New Hire / Rehire",
+    "description": "Submit a request to onboard a new or returning Peace Village employee."
+  },
+  "schema": {
+    "pages": [
+      {
+        "fields": [
+          { "id": "hireDate", "type": "date", "label": "Hire Date", "required": true },
+          { "id": "employeeNumber", "type": "text", "label": "Employee Number", "required": true },
+          { "id": "employeeStatus", "type": "select", "label": "Employee Status", "required": true,
+            "options": ["New Hire", "Rehire"] },
+          { "id": "employmentType", "type": "select", "label": "Part-Time / Full-Time", "required": true,
+            "options": ["Part-Time", "Full-Time"] },
+          { "id": "firstName", "type": "text", "label": "First Name", "required": true },
+          { "id": "lastName", "type": "text", "label": "Last Name", "required": true },
+          { "id": "alternateEmail", "type": "email", "label": "Email",
+            "help": "Disclaimer: This email is not final until the final Welcome email is sent." }
+        ]
+      },
+      {
+        "fields": [
+          { "id": "department", "type": "select", "label": "Department", "required": true,
+            "options": ["TODO_REPLACE_WITH_REAL_OPTIONS"] },
+          { "id": "departmentOther", "type": "text", "label": "Other Department",
+            "showIf": { "department": "Other" }, "required": true,
+            "help": "Add department if not listed in the dropdown menu." },
+          { "id": "title", "type": "select", "label": "Employee Title", "required": true,
+            "options": ["TODO_REPLACE_WITH_REAL_OPTIONS"] },
+          { "id": "titleOther", "type": "text", "label": "Employee Title - Other",
+            "showIf": { "title": "Other" }, "required": true,
+            "help": "ie. Associate, Manager, Staff Accountant" },
+          { "id": "managerEmail", "type": "email", "label": "Direct Manager's Email", "required": true }
+        ]
+      },
+      {
+        "section": "User Specific Access",
+        "fields": [
+          { "id": "emailRequired", "type": "radio", "label": "Email Account Required", "required": true,
+            "options": ["Yes", "No"] }
+        ]
+      },
+      {
+        "section": "Onboarding",
+        "fields": [
+          { "id": "workstation", "type": "radio", "label": "Employee Primary PC Workstation", "required": true,
+            "options": ["Assigned PC & Desk", "Public Workstation", "Purchase New Workstation", "Same Work Station as Past Employee"] },
+          { "id": "pastEmployeeName", "type": "name", "label": "Past Employee Name",
+            "showIf": { "workstation": "Same Work Station as Past Employee" } },
+          { "id": "computerName", "type": "text", "label": "Computer Name",
+            "showIf": { "workstation": ["Assigned PC & Desk", "Same Work Station as Past Employee"] } },
+          { "id": "softwareApproval", "type": "checkboxes", "label": "Software Purchase Approval",
+            "options": ["Microsoft 365 Office License"],
+            "help": "If new user needs access to any software, please approve purchase requests for software." },
+          { "id": "pcPurchaseApproval", "type": "radio", "label": "PC Purchase Approval",
+            "options": ["Approved", "Denied"],
+            "showIf": { "workstation": "Purchase New Workstation" }, "required": true },
+          { "id": "pcPurchaseDetails", "type": "textarea", "label": "PC Purchase Request Details",
+            "showIf": { "workstation": "Purchase New Workstation" }, "required": true,
+            "help": "Please describe what is needed for this new employee, a full workstation with a dock and 2 monitors and laptop, just a laptop, etc." },
+          { "id": "notes", "type": "textarea", "label": "Notes" }
+        ]
+      }
+    ]
+  }
+}
