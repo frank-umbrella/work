@@ -291,9 +291,9 @@
   <div class="layout">
   <div class="grid">
 
-    <a class="card" href="onboarding/" aria-label="Open Onboarding">
+    <a class="card" href="onboarding/index.html" aria-label="Open Onboarding">
       <div class="preview">
-        <iframe src="onboarding/" loading="lazy" tabindex="-1" aria-hidden="true" title="Onboarding preview"></iframe>
+        <iframe src="onboarding/index.html" loading="lazy" tabindex="-1" aria-hidden="true" title="Onboarding preview"></iframe>
         <div class="preview-overlay"></div>
       </div>
       <div class="meta">
@@ -304,9 +304,9 @@
       </div>
     </a>
 
-    <a class="card" href="incidents/" aria-label="Open Incident Response">
+    <a class="card" href="incidents/index.html" aria-label="Open Incident Response">
       <div class="preview">
-        <iframe src="incidents/" loading="lazy" tabindex="-1" aria-hidden="true" title="Incident Response preview"></iframe>
+        <iframe src="incidents/index.html" loading="lazy" tabindex="-1" aria-hidden="true" title="Incident Response preview"></iframe>
         <div class="preview-overlay"></div>
       </div>
       <div class="meta">
@@ -317,9 +317,9 @@
       </div>
     </a>
 
-    <a class="card" href="phish/" aria-label="Open Phishing Awareness">
+    <a class="card" href="phish/index.html" aria-label="Open Phishing Awareness">
       <div class="preview">
-        <iframe src="phish/" loading="lazy" tabindex="-1" aria-hidden="true" title="Phishing Awareness preview"></iframe>
+        <iframe src="phish/index.html" loading="lazy" tabindex="-1" aria-hidden="true" title="Phishing Awareness preview"></iframe>
         <div class="preview-overlay"></div>
       </div>
       <div class="meta">
@@ -330,9 +330,9 @@
       </div>
     </a>
 
-    <a class="card" href="linklock/" aria-label="Open LinkLock">
+    <a class="card" href="linklock/index.html" aria-label="Open LinkLock">
       <div class="preview">
-        <iframe src="linklock/" loading="lazy" tabindex="-1" aria-hidden="true" title="LinkLock preview"></iframe>
+        <iframe src="linklock/index.html" loading="lazy" tabindex="-1" aria-hidden="true" title="LinkLock preview"></iframe>
         <div class="preview-overlay"></div>
       </div>
       <div class="meta">
@@ -343,9 +343,9 @@
       </div>
     </a>
 
-    <a class="card" href="kipling/" aria-label="Open the Kipling site editing walkthrough">
+    <a class="card" href="kipling/index.html" aria-label="Open the Kipling site editing walkthrough">
       <div class="preview">
-        <iframe src="kipling/" loading="lazy" tabindex="-1" aria-hidden="true" title="Kipling site editing preview"></iframe>
+        <iframe src="kipling/index.html" loading="lazy" tabindex="-1" aria-hidden="true" title="Kipling site editing preview"></iframe>
         <div class="preview-overlay"></div>
       </div>
       <div class="meta">
@@ -356,9 +356,9 @@
       </div>
     </a>
 
-    <a class="card" href="spf/" aria-label="Open the SPF Toolkit">
+    <a class="card" href="spf/index.html" aria-label="Open the SPF Toolkit">
       <div class="preview">
-        <iframe src="spf/" loading="lazy" tabindex="-1" aria-hidden="true" title="SPF Toolkit preview"></iframe>
+        <iframe src="spf/index.html" loading="lazy" tabindex="-1" aria-hidden="true" title="SPF Toolkit preview"></iframe>
         <div class="preview-overlay"></div>
       </div>
       <div class="meta">
@@ -369,9 +369,9 @@
       </div>
     </a>
 
-    <a class="card" href="domainaudit/" aria-label="Open Domain Audit">
+    <a class="card" href="domainaudit/index.html" aria-label="Open Domain Audit">
       <div class="preview">
-        <iframe src="domainaudit/" loading="lazy" tabindex="-1" aria-hidden="true" title="Domain Audit preview"></iframe>
+        <iframe src="domainaudit/index.html" loading="lazy" tabindex="-1" aria-hidden="true" title="Domain Audit preview"></iframe>
         <div class="preview-overlay"></div>
       </div>
       <div class="meta">
@@ -382,9 +382,9 @@
       </div>
     </a>
 
-    <a class="card" href="branding/" aria-label="Open the Umbrella Automation brand guidelines">
+    <a class="card" href="branding/index.html" aria-label="Open the Umbrella Automation brand guidelines">
       <div class="preview">
-        <iframe src="branding/" loading="lazy" tabindex="-1" aria-hidden="true" title="Umbrella Automation brand guidelines preview"></iframe>
+        <iframe src="branding/index.html" loading="lazy" tabindex="-1" aria-hidden="true" title="Umbrella Automation brand guidelines preview"></iframe>
         <div class="preview-overlay"></div>
       </div>
       <div class="meta">
@@ -423,7 +423,8 @@
   const STORAGE_KEY = 'workhub.cardOrder.v1';
   const grid = document.querySelector('.grid');
   if (!grid) return;
-  const idOf = card => card.getAttribute('href');
+  // Normalize so cards keep the same id whether href is "foo/" or "foo/index.html".
+  const idOf = card => card.getAttribute('href').replace(/\/index\.html$/i, '').replace(/\/$/, '');
 
   // Apply saved order on load. Unknown ids are dropped; new cards appear at the end.
   const saved = (() => {
