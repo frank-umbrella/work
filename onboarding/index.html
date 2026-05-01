@@ -6,7 +6,7 @@
 <title>Onboarding &middot; Umbrella Automation</title>
 <meta name="description" content="Client onboarding system for Umbrella Automation managed service clients. Submit new hire, termination, and position change requests.">
 <meta name="robots" content="noindex">
-<meta name="app-version" content="0.1.4">
+<meta name="app-version" content="0.1.5">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -79,8 +79,11 @@
   nav.tabs button[hidden] { display: none; }
   .userbar { margin-left: auto; display: flex; align-items: center; gap: 10px; font-size: 13px; }
   .userbar .who { display: flex; flex-direction: column; line-height: 1.2; align-items: flex-end; }
+  .userbar .who .n { color: var(--ink); font-weight: 600; font-size: 13px; }
   .userbar .who .e { color: var(--ink); font-weight: 600; font-size: 13px; }
+  .userbar .who .n + .e { color: var(--ink-soft); font-weight: 400; font-size: 12px; }
   .userbar .who .r { color: var(--ink-faint); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .userbar .who .n[hidden] { display: none; }
 
   /* ============== buttons ============== */
   .btn {
@@ -454,11 +457,14 @@
   }
 
   /* ============== toast ============== */
+  /* Top-anchored and z-index above any modal so error messages aren't
+     hidden behind an open dialog (e.g. submitting from a modal that
+     fails — the toast must still be visible). */
   .toast {
-    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
     background: var(--ink); color: #fff; padding: 10px 16px;
-    border-radius: 8px; font-size: 13.5px; box-shadow: 0 4px 16px rgba(0,0,0,0.3);
-    z-index: 200; max-width: 90%;
+    border-radius: 8px; font-size: 13.5px; box-shadow: 0 6px 20px rgba(0,0,0,0.35);
+    z-index: 9999; max-width: 90%;
   }
   .toast.err { background: var(--danger); }
   .toast[hidden] { display: none; }
@@ -515,6 +521,7 @@
     </nav>
     <div class="userbar">
       <div class="who">
+        <span class="n" id="ubName" hidden></span>
         <span class="e" id="ubEmail"></span>
         <span class="r" id="ubRole"></span>
       </div>
@@ -926,7 +933,7 @@
 <div class="toast" id="toast" hidden></div>
 
 <footer class="foot" id="appFooter" hidden>
-  <p><a href="../">&larr; Work hub</a> &middot; Onboarding v0.1.4</p>
+  <p><a href="../">&larr; Work hub</a> &middot; Onboarding v0.1.5</p>
 </footer>
 
 <script type="module">
@@ -963,7 +970,7 @@ const firebaseConfig = {
   appId: "1:330286523878:web:27c4e2ffca3496ebc32227"
 };
 
-const APP_VERSION = "0.1.4";
+const APP_VERSION = "0.1.5";
 const STATUSES = ["Submitted", "In Progress", "Completed", "Cancelled"];
 const MSP_DOMAIN = "umbrellaautomation.com"; // Google sign-in restricted to this domain
 
@@ -1008,6 +1015,21 @@ function escapeHTML(s) {
   return String(s == null ? "" : s)
     .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+// MSP admins see raw err.message / err.code (helps them debug missing
+// indexes, rule rejections, etc). Managers — and anyone whose role hasn't
+// resolved yet, e.g. on the invitation page — get a generic message.
+// Firestore deeplinks like "create_composite=..." are noise to them.
+// Always console.error the original before calling this.
+function friendlyErr(err, contextLabel) {
+  if (state.role === "admin") {
+    return contextLabel + ": " + (err?.message || err?.code || String(err));
+  }
+  return contextLabel + " right now. Please try again. If this keeps happening, contact your MSP.";
+}
+function friendlyErrHTML(err, contextLabel) {
+  return escapeHTML(friendlyErr(err, contextLabel));
 }
 
 function fmtDate(d) {
@@ -1302,6 +1324,22 @@ onAuthStateChanged(auth, async user => {
     const adminSnap = await getDoc(doc(db, "msp_admins", user.uid));
     if (adminSnap.exists()) {
       state.role = "admin";
+      state.adminDoc = adminSnap.data();
+      // Back-fill name / photoURL from the Google profile if missing,
+      // plus refresh lastLogin. Bootstrap admins (added by hand in the
+      // Firebase console) typically only have email — this populates the
+      // rest the first time they sign in. Also covers admins added via
+      // the "Add admin" modal where the inviter didn't type a name.
+      const patch = { lastLogin: serverTimestamp() };
+      if (!state.adminDoc.name && user.displayName) patch.name = user.displayName;
+      if (!state.adminDoc.photoURL && user.photoURL) patch.photoURL = user.photoURL;
+      if (!state.adminDoc.email && user.email) patch.email = user.email;
+      try {
+        await updateDoc(doc(db, "msp_admins", user.uid), patch);
+        // Reflect the patched fields locally so the topbar shows the new name
+        // immediately without a re-fetch.
+        state.adminDoc = { ...state.adminDoc, ...patch };
+      } catch (e) { console.warn("admin profile back-fill failed", e); }
     } else {
       const mgrSnap = await getDoc(doc(db, "managers", user.uid));
       if (mgrSnap.exists()) {
@@ -1356,6 +1394,19 @@ function enterApp() {
 
   $("#ubEmail").textContent = state.user.email;
   $("#ubRole").textContent = state.role === "admin" ? "MSP Admin" : "Client Manager";
+  // Display name comes from the admin/manager doc first (back-filled from
+  // Google profile on first sign-in for admins; set during invite redemption
+  // for managers); fall back to the live Firebase user.displayName.
+  const displayName = (state.role === "admin"
+      ? (state.adminDoc?.name)
+      : ((state.managerDoc?.firstName || "") + " " + (state.managerDoc?.lastName || "")).trim()
+    ) || state.user.displayName || "";
+  if (displayName) {
+    $("#ubName").textContent = displayName;
+    $("#ubName").hidden = false;
+  } else {
+    $("#ubName").hidden = true;
+  }
 
   if (state.role === "manager") {
     $("#brandTitle").textContent = "Onboarding";
@@ -1426,7 +1477,7 @@ function subscribeFormsForClient(clientId) {
     renderFormPicker();
   }, err => {
     console.error("forms listen failed", err);
-    $("#dynForm").innerHTML = `<div class="empty" style="color:var(--danger);">Could not load forms: ${escapeHTML(err.message || err.code)}</div>`;
+    $("#dynForm").innerHTML = `<div class="empty" style="color:var(--danger);">${friendlyErrHTML(err, "Could not load the request forms")}</div>`;
   });
 }
 
@@ -1817,7 +1868,7 @@ async function submitDynamicForm() {
     activateTab("myrequests");
   } catch (e) {
     console.error("submit failed", e);
-    toast("Submit failed: " + (e.message || e.code || e), true);
+    toast(friendlyErr(e, "We couldn't submit your request"), true);
   } finally {
     btn.disabled = false;
   }
@@ -1849,7 +1900,7 @@ function subscribeMySubmissions() {
   }, err => {
     console.error("my submissions listen failed", err);
     $("#myReqTableWrap").innerHTML =
-      `<div class="empty" style="color:var(--danger);">Could not load submissions: ${escapeHTML(err.message || err.code)}</div>`;
+      `<div class="empty" style="color:var(--danger);">${friendlyErrHTML(err, "We couldn't load your requests")}</div>`;
   });
 }
 
@@ -2021,7 +2072,8 @@ async function openSubmission(submissionId, clientId) {
       renderSubmissionDetail();
     },
     err => {
-      $("#subModalBody").innerHTML = `<div class="empty" style="color:var(--danger);">Could not load: ${escapeHTML(err.message || err.code)}</div>`;
+      console.error("submission listen failed", err);
+      $("#subModalBody").innerHTML = `<div class="empty" style="color:var(--danger);">${friendlyErrHTML(err, "We couldn't load this request")}</div>`;
     }
   );
 
