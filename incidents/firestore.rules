@@ -1,0 +1,101 @@
+rules_version = '2';
+
+// Umbrella Automation — Incident Reporting System
+// Firestore security rules.
+//
+// Threat model: internal MSP tool. Only Google accounts on the
+// umbrellaautomation.com hosted domain may read or write any data.
+// Roles ("admin" / "analyst") are stored in /users/{uid}.role and enforced
+// here. The very first user must be promoted to "admin" by editing their
+// /users/{uid} doc directly in the Firebase console — after that, admins
+// can manage roles through the UI.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isUmbrella() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email.matches(".*@umbrellaautomation[.]com");
+    }
+
+    function userRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isAdmin() {
+      return isUmbrella() && userRole() == "admin";
+    }
+
+    function isAnalyst() {
+      return isUmbrella() && (userRole() == "analyst" || userRole() == "admin");
+    }
+
+    // ---------- /users/{uid} ----------
+    // Profile + role per signed-in employee. Read by anyone in the org so
+    // assignee names render. Self-bootstrap on first sign-in creates the
+    // doc with role="analyst" — promotion to admin requires an existing
+    // admin (or a manual edit in the console for the very first one).
+    match /users/{uid} {
+      allow read: if isUmbrella();
+
+      allow create: if isUmbrella()
+        && request.auth.uid == uid
+        && request.resource.data.role == "analyst"
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.keys().hasOnly(
+             ['email', 'name', 'photoURL', 'role', 'createdAt', 'lastLogin']);
+
+      // Self-update: anything except role.
+      allow update: if isUmbrella()
+        && request.auth.uid == uid
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.email == resource.data.email;
+
+      // Admin: can change role on anyone (including demoting themselves).
+      allow update: if isAdmin()
+        && request.resource.data.email == resource.data.email;
+
+      // Audit trail — no deletions.
+      allow delete: if false;
+    }
+
+    // ---------- /clients/{clientId} ----------
+    // MSP client list used by the incident form's client dropdown.
+    // Admin-only management; everyone reads.
+    match /clients/{clientId} {
+      allow read: if isUmbrella();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // ---------- /incidents/{incidentId} ----------
+    // The incidents themselves. Any analyst (or admin) can create, read,
+    // and update; only admins can delete (so an analyst can't erase their
+    // own mishandled ticket). createdBy is pinned to the auth uid on
+    // creation so attribution can't be forged.
+    match /incidents/{incidentId} {
+      allow read: if isAnalyst();
+
+      allow create: if isAnalyst()
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.createdByEmail == request.auth.token.email;
+
+      allow update: if isAnalyst()
+        && request.resource.data.createdBy == resource.data.createdBy
+        && request.resource.data.createdByEmail == resource.data.createdByEmail
+        && request.resource.data.createdAt == resource.data.createdAt;
+
+      allow delete: if isAdmin();
+
+      // ----- /incidents/{id}/timeline/{eventId} -----
+      // Append-only audit log: status changes, comments, file uploads.
+      match /timeline/{eventId} {
+        allow read: if isAnalyst();
+        allow create: if isAnalyst()
+          && request.resource.data.byUid == request.auth.uid
+          && request.resource.data.byEmail == request.auth.token.email;
+        allow update, delete: if false;
+      }
+    }
+  }
+}

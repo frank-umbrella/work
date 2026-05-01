@@ -1,0 +1,41 @@
+rules_version = '2';
+
+// Umbrella Automation — Incident Reporting System
+// Firebase Storage security rules.
+//
+// Files are scoped under /incidents/{incidentId}/... and only readable +
+// writable by signed-in umbrellaautomation.com employees. We cap file size
+// at 25 MB and restrict content types to the formats analysts need to
+// attach as evidence: images, plain text, common doc/log formats.
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isUmbrella() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email.matches(".*@umbrellaautomation[.]com");
+    }
+
+    function allowedType() {
+      return request.resource.contentType.matches("image/.*")
+          || request.resource.contentType.matches("text/.*")
+          || request.resource.contentType == "application/pdf"
+          || request.resource.contentType == "application/json"
+          || request.resource.contentType == "application/zip"
+          || request.resource.contentType == "application/x-zip-compressed"
+          || request.resource.contentType == "application/octet-stream"
+          || request.resource.contentType == "message/rfc822"
+          || request.resource.contentType == "application/vnd.ms-outlook";
+    }
+
+    match /incidents/{incidentId}/{file=**} {
+      allow read: if isUmbrella();
+      allow create: if isUmbrella()
+        && request.resource.size < 25 * 1024 * 1024
+        && allowedType();
+      allow delete: if isUmbrella();
+      allow update: if false;
+    }
+  }
+}

@@ -1,0 +1,1787 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Incident Response &middot; Umbrella Automation</title>
+<meta name="description" content="Internal incident reporting and tracking system for Umbrella Automation.">
+<meta name="robots" content="noindex">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --surface: #ffffff;
+    --surface-2: #fafbfc;
+    --ink: #1a1f2b;
+    --ink-soft: #475063;
+    --ink-faint: #8892a4;
+    --line: #e3e6ec;
+    --line-strong: #c9cfdb;
+    --accent: #1a56db;
+    --accent-soft: #eaf0fc;
+    --accent-ink: #0d3a9a;
+    --danger: #dc2626;
+    --danger-soft: #fee2e2;
+    --warn: #ca8a04;
+    --warn-soft: #fef3c7;
+    --ok: #16a34a;
+    --ok-soft: #dcfce7;
+    --info: #0ea5e9;
+    --info-soft: #e0f2fe;
+    --radius: 10px;
+    --shadow: 0 1px 2px rgba(20, 25, 40, 0.04), 0 4px 14px rgba(20, 25, 40, 0.05);
+    --shadow-lift: 0 4px 8px rgba(20, 25, 40, 0.06), 0 14px 28px rgba(20, 25, 40, 0.08);
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 14.5px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  button { font: inherit; }
+  input, select, textarea { font: inherit; color: inherit; }
+
+  /* ============== top bar ============== */
+  header.bar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+    padding: 10px 20px;
+    position: sticky; top: 0; z-index: 50;
+  }
+  header.bar .wrap {
+    max-width: 1200px; margin: 0 auto;
+    display: flex; align-items: center; gap: 16px;
+  }
+  .brand {
+    display: flex; align-items: center; gap: 10px;
+    font-weight: 700; letter-spacing: -0.01em; color: var(--ink);
+  }
+  .brand img { width: 22px; height: 22px; }
+  .brand .meta { font-size: 11px; color: var(--ink-faint); font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; }
+  .brand h1 { font-size: 16px; margin: 0; line-height: 1.1; }
+  nav.tabs { display: flex; gap: 2px; margin-left: 12px; }
+  nav.tabs button {
+    background: transparent; border: 0; padding: 7px 12px;
+    border-radius: 7px; cursor: pointer; color: var(--ink-soft);
+    font-size: 13.5px; font-weight: 500;
+  }
+  nav.tabs button:hover { background: var(--accent-soft); color: var(--accent); }
+  nav.tabs button.active { background: var(--accent); color: #fff; }
+  nav.tabs button[hidden] { display: none; }
+  .userbar { margin-left: auto; display: flex; align-items: center; gap: 10px; font-size: 13px; }
+  .userbar img.avatar {
+    width: 28px; height: 28px; border-radius: 50%;
+    border: 1px solid var(--line);
+  }
+  .userbar .who { display: flex; flex-direction: column; line-height: 1.2; align-items: flex-end; }
+  .userbar .who .e { color: var(--ink); font-weight: 600; font-size: 13px; }
+  .userbar .who .r { color: var(--ink-faint); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
+
+  /* ============== buttons ============== */
+  .btn {
+    background: var(--surface);
+    border: 1px solid var(--line-strong);
+    color: var(--ink);
+    font-size: 13px; font-weight: 600;
+    padding: 7px 13px; border-radius: 7px;
+    cursor: pointer;
+    transition: background .12s ease, border-color .12s ease, color .12s ease;
+  }
+  .btn:hover { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+  .btn-primary {
+    background: var(--accent); border-color: var(--accent); color: #fff;
+  }
+  .btn-primary:hover { background: var(--accent-ink); border-color: var(--accent-ink); color: #fff; }
+  .btn-danger { background: var(--surface); border-color: var(--line-strong); color: var(--danger); }
+  .btn-danger:hover { background: var(--danger-soft); border-color: var(--danger); }
+  .btn-link {
+    background: transparent; border: 0; color: var(--ink-soft); padding: 4px 6px;
+  }
+  .btn-link:hover { color: var(--accent); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-sm { padding: 4px 9px; font-size: 12px; border-radius: 6px; }
+
+  /* ============== layout ============== */
+  main {
+    max-width: 1200px; margin: 0 auto;
+    padding: 22px 20px 80px;
+  }
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+  }
+  .panel + .panel { margin-top: 18px; }
+  .panel-header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--line);
+  }
+  .panel-header h2 { font-size: 15px; margin: 0; font-weight: 700; letter-spacing: -0.005em; }
+  .panel-header .right { margin-left: auto; display: flex; gap: 8px; }
+  .panel-body { padding: 16px 18px; }
+
+  /* ============== signin screen ============== */
+  #signin {
+    min-height: calc(100vh - 0px);
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px;
+  }
+  #signin .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: var(--shadow-lift);
+    padding: 36px 32px;
+    max-width: 420px;
+    text-align: center;
+  }
+  #signin img.logo { width: 56px; height: 56px; }
+  #signin h1 { font-size: 22px; margin: 14px 0 4px; letter-spacing: -0.01em; }
+  #signin p { color: var(--ink-soft); margin: 0 0 22px; font-size: 13.5px; }
+  #signin button {
+    display: inline-flex; align-items: center; gap: 10px;
+    padding: 10px 18px; font-size: 14px; font-weight: 600;
+    background: #fff; border: 1px solid var(--line-strong); border-radius: 9px;
+    cursor: pointer; color: var(--ink);
+  }
+  #signin button:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+  #signin .err {
+    margin-top: 16px; padding: 10px 12px; border-radius: 8px;
+    background: var(--danger-soft); border: 1px solid #fca5a5; color: #7f1d1d;
+    font-size: 13px; text-align: left;
+  }
+  #signin .err[hidden] { display: none; }
+  #signin .domain {
+    margin-top: 22px; font-size: 12px; color: var(--ink-faint);
+  }
+
+  /* ============== filter bar ============== */
+  .filters {
+    display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+    padding: 14px 18px;
+  }
+  .filters input[type="search"], .filters select {
+    padding: 7px 10px; border: 1px solid var(--line-strong); border-radius: 7px;
+    font-size: 13.5px; background: var(--surface);
+  }
+  .filters input[type="search"] { width: 240px; }
+  .filters input:focus, .filters select:focus, .filters textarea:focus {
+    outline: 2px solid var(--accent); outline-offset: -1px; border-color: var(--accent);
+  }
+  .filters .spacer { flex: 1; }
+  .filters label {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--ink-faint); font-weight: 600; margin-right: 4px;
+  }
+
+  /* ============== incident table ============== */
+  table.incidents {
+    width: 100%; border-collapse: collapse; font-size: 13.5px;
+  }
+  table.incidents th {
+    text-align: left; padding: 10px 14px; font-size: 11px; text-transform: uppercase;
+    color: var(--ink-faint); letter-spacing: 0.06em; font-weight: 700;
+    border-bottom: 1px solid var(--line);
+    background: var(--surface-2);
+  }
+  table.incidents td {
+    padding: 12px 14px; border-bottom: 1px solid var(--line);
+    vertical-align: top;
+  }
+  table.incidents tr { cursor: pointer; }
+  table.incidents tr:hover td { background: var(--accent-soft); }
+  table.incidents .title { font-weight: 600; color: var(--ink); }
+  table.incidents .sub { color: var(--ink-faint); font-size: 12px; margin-top: 2px; }
+  table.incidents .empty {
+    text-align: center; padding: 60px 20px; color: var(--ink-faint); font-size: 13px;
+  }
+
+  /* ============== pills ============== */
+  .pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 8px; border-radius: 999px;
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.05em; line-height: 1.5;
+    border: 1px solid;
+  }
+  .sev-Critical { background: var(--danger-soft); color: #991b1b; border-color: #fca5a5; }
+  .sev-High     { background: #ffedd5; color: #9a3412; border-color: #fdba74; }
+  .sev-Medium   { background: var(--warn-soft); color: #854d0e; border-color: #fde68a; }
+  .sev-Low      { background: var(--info-soft); color: #075985; border-color: #7dd3fc; }
+
+  .st-New           { background: #f1f5f9; color: #334155; border-color: #cbd5e1; }
+  .st-Investigating { background: var(--accent-soft); color: var(--accent-ink); border-color: #93c5fd; }
+  .st-Contained     { background: var(--warn-soft); color: #854d0e; border-color: #fde68a; }
+  .st-Resolved      { background: var(--ok-soft); color: #14532d; border-color: #86efac; }
+
+  .role-admin   { background: var(--accent-soft); color: var(--accent-ink); border-color: #93c5fd; }
+  .role-analyst { background: #f1f5f9; color: #334155; border-color: #cbd5e1; }
+
+  /* ============== forms ============== */
+  .form-grid {
+    display: grid; gap: 14px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .form-grid .full { grid-column: 1 / -1; }
+  @media (max-width: 700px) { .form-grid { grid-template-columns: 1fr; } }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--ink-faint); font-weight: 700;
+  }
+  .field input, .field select, .field textarea {
+    padding: 8px 10px; border: 1px solid var(--line-strong); border-radius: 7px;
+    background: var(--surface);
+  }
+  .field textarea { min-height: 110px; resize: vertical; font-family: var(--sans); }
+  .field input:focus, .field select:focus, .field textarea:focus {
+    outline: 2px solid var(--accent); outline-offset: -1px; border-color: var(--accent);
+  }
+  .field-help { color: var(--ink-faint); font-size: 12px; margin-top: 2px; }
+
+  /* ============== modal ============== */
+  .modal-bg {
+    position: fixed; inset: 0; z-index: 100;
+    background: rgba(20, 25, 40, 0.45);
+    display: flex; align-items: flex-start; justify-content: center;
+    padding: 40px 16px; overflow-y: auto;
+  }
+  .modal-bg[hidden] { display: none; }
+  .modal {
+    background: var(--surface);
+    border-radius: 14px;
+    box-shadow: var(--shadow-lift);
+    width: 100%; max-width: 820px;
+    overflow: hidden;
+  }
+  .modal-header {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--line);
+  }
+  .modal-header .title { flex: 1; font-size: 17px; font-weight: 700; letter-spacing: -0.005em; line-height: 1.3; }
+  .modal-header .pills { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .modal-header .close {
+    background: transparent; border: 0; color: var(--ink-faint);
+    font-size: 22px; line-height: 1; cursor: pointer; padding: 0 4px;
+  }
+  .modal-header .close:hover { color: var(--ink); }
+  .modal-body { padding: 18px 20px; max-height: calc(100vh - 240px); overflow-y: auto; }
+  .modal-footer {
+    padding: 12px 20px;
+    border-top: 1px solid var(--line);
+    display: flex; gap: 8px; justify-content: flex-end;
+    background: var(--surface-2);
+  }
+
+  /* ============== incident detail ============== */
+  .id-meta {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 10px 20px;
+    padding: 14px 16px;
+    background: var(--surface-2);
+    border-radius: 9px;
+    border: 1px solid var(--line);
+    margin-bottom: 18px;
+    font-size: 13px;
+  }
+  .id-meta .k {
+    font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--ink-faint); font-weight: 700;
+    margin-bottom: 2px;
+  }
+  .id-meta .v { color: var(--ink); }
+  .id-section {
+    margin-top: 18px;
+  }
+  .id-section h3 {
+    font-size: 12px; text-transform: uppercase; letter-spacing: 0.07em;
+    color: var(--ink-faint); margin: 0 0 8px;
+  }
+  .id-desc {
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    padding: 12px 14px;
+    white-space: pre-wrap;
+    font-size: 13.5px;
+    line-height: 1.55;
+  }
+  .id-desc.empty { color: var(--ink-faint); font-style: italic; }
+  .id-actions {
+    display: flex; gap: 8px; flex-wrap: wrap; align-items: center;
+    margin-top: 10px;
+  }
+
+  .attachments {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 10px;
+  }
+  .att {
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    overflow: hidden;
+    background: var(--surface);
+    display: flex; flex-direction: column;
+    position: relative;
+  }
+  .att .thumb {
+    height: 110px;
+    background: var(--surface-2) center/cover no-repeat;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--ink-faint);
+    border-bottom: 1px solid var(--line);
+    font-size: 28px;
+  }
+  .att .body {
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+  .att .name { font-weight: 600; word-break: break-all; line-height: 1.3; }
+  .att .size { color: var(--ink-faint); font-size: 11px; margin-top: 2px; }
+  .att .actions { display: flex; gap: 6px; padding: 0 10px 10px; }
+  .att .actions a, .att .actions button {
+    flex: 1; text-align: center;
+    font-size: 11.5px; padding: 4px 6px; border-radius: 6px;
+    border: 1px solid var(--line-strong); background: var(--surface);
+    cursor: pointer; color: var(--ink);
+  }
+  .att .actions a:hover, .att .actions button:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); text-decoration: none; }
+  .att .actions button.del:hover { color: var(--danger); border-color: var(--danger); background: var(--danger-soft); }
+
+  .upload-zone {
+    border: 2px dashed var(--line-strong); border-radius: 9px;
+    padding: 16px; text-align: center; color: var(--ink-faint);
+    font-size: 13px;
+    transition: border-color .12s ease, background .12s ease, color .12s ease;
+  }
+  .upload-zone.drag { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+  .upload-zone input[type="file"] { display: none; }
+  .upload-zone .hint { display: block; font-size: 12px; margin-top: 4px; }
+
+  /* ============== timeline ============== */
+  .tl { list-style: none; padding: 0; margin: 0; }
+  .tl li {
+    position: relative; padding: 0 0 16px 22px;
+    border-left: 2px solid var(--line);
+    margin-left: 6px;
+  }
+  .tl li:last-child { border-left-color: transparent; }
+  .tl li::before {
+    content: ''; position: absolute; left: -7px; top: 4px;
+    width: 12px; height: 12px; border-radius: 50%;
+    background: var(--surface); border: 2px solid var(--line-strong);
+  }
+  .tl li.kind-status_change::before { border-color: var(--accent); }
+  .tl li.kind-comment::before { border-color: var(--ok); }
+  .tl li.kind-file_added::before { border-color: var(--warn); }
+  .tl li.kind-file_removed::before { border-color: var(--danger); }
+  .tl li.kind-created::before { background: var(--accent); border-color: var(--accent); }
+  .tl li.kind-deleted::before { border-color: var(--danger); }
+  .tl .meta {
+    font-size: 11.5px; color: var(--ink-faint);
+    margin-bottom: 2px;
+  }
+  .tl .msg { font-size: 13.5px; color: var(--ink); white-space: pre-wrap; }
+  .tl .who { font-weight: 600; color: var(--ink-soft); }
+
+  .comment-box {
+    margin-top: 14px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .comment-box textarea {
+    width: 100%;
+    padding: 10px 12px; border: 1px solid var(--line-strong); border-radius: 9px;
+    min-height: 80px; resize: vertical; font-family: var(--sans);
+  }
+  .comment-box textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: var(--accent); }
+  .comment-box .row { display: flex; gap: 8px; justify-content: flex-end; }
+
+  /* ============== clients + users ============== */
+  table.simple {
+    width: 100%; border-collapse: collapse; font-size: 13.5px;
+  }
+  table.simple th, table.simple td {
+    text-align: left; padding: 10px 14px;
+    border-bottom: 1px solid var(--line);
+  }
+  table.simple th {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--ink-faint); font-weight: 700;
+    background: var(--surface-2);
+  }
+  table.simple td.actions { text-align: right; white-space: nowrap; }
+
+  /* ============== misc ============== */
+  .toast {
+    position: fixed; bottom: 22px; right: 22px;
+    background: var(--ink); color: #fff;
+    padding: 10px 14px; border-radius: 9px;
+    box-shadow: var(--shadow-lift);
+    font-size: 13px;
+    z-index: 200;
+    max-width: 360px;
+  }
+  .toast[hidden] { display: none; }
+  .toast.err { background: var(--danger); }
+
+  .spinner {
+    display: inline-block; width: 14px; height: 14px;
+    border: 2px solid currentColor; border-right-color: transparent;
+    border-radius: 50%;
+    animation: spin .8s linear infinite;
+    vertical-align: -2px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .center-load {
+    text-align: center; padding: 60px 20px; color: var(--ink-faint);
+  }
+
+  footer.page {
+    max-width: 1200px; margin: 0 auto;
+    padding: 0 20px 28px;
+    color: var(--ink-faint); font-size: 12px;
+    display: flex; justify-content: space-between;
+  }
+  footer.page a { color: var(--ink-faint); }
+  footer.page a:hover { color: var(--accent); }
+</style>
+</head>
+<body>
+
+<!-- ================= sign-in screen ================= -->
+<section id="signin">
+  <div class="card">
+    <img src="favicon.svg" alt="" class="logo">
+    <h1>Incident Response</h1>
+    <p>Sign in with your Umbrella Automation Google account.</p>
+    <button id="googleSignInBtn" type="button">
+      <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true">
+        <path fill="#4285F4" d="M17.64 9.205c0-.639-.057-1.252-.164-1.841H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.258h2.908c1.702-1.567 2.684-3.875 2.684-6.614z"/>
+        <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.583-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"/>
+        <path fill="#FBBC05" d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z"/>
+        <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/>
+      </svg>
+      Sign in with Google
+    </button>
+    <p class="domain">Only @umbrellaautomation.com accounts are permitted.</p>
+    <div class="err" id="signinErr" hidden></div>
+  </div>
+</section>
+
+<!-- ================= main app ================= -->
+<div id="app" hidden>
+
+<header class="bar">
+  <div class="wrap">
+    <div class="brand">
+      <img src="favicon.svg" alt="">
+      <div>
+        <div class="meta">Umbrella Automation</div>
+        <h1>Incident Response</h1>
+      </div>
+    </div>
+    <nav class="tabs">
+      <button data-tab="dashboard" class="active">Incidents</button>
+      <button data-tab="clients">Clients</button>
+      <button data-tab="users" id="usersTabBtn" hidden>Users</button>
+    </nav>
+    <div class="userbar">
+      <div class="who">
+        <span class="e" id="ubEmail"></span>
+        <span class="r" id="ubRole"></span>
+      </div>
+      <img class="avatar" id="ubAvatar" alt="" referrerpolicy="no-referrer">
+      <button class="btn btn-sm" id="signOutBtn" type="button">Sign out</button>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <!-- ============ Dashboard tab ============ -->
+  <section id="tabDashboard">
+    <div class="panel">
+      <div class="panel-header">
+        <h2>Incidents</h2>
+        <div class="right">
+          <button class="btn btn-primary" id="newIncidentBtn" type="button">+ New incident</button>
+        </div>
+      </div>
+      <div class="filters">
+        <input type="search" id="filterSearch" placeholder="Search title, description, ID...">
+        <select id="filterStatus">
+          <option value="">All statuses</option>
+          <option value="New">New</option>
+          <option value="Investigating">Investigating</option>
+          <option value="Contained">Contained</option>
+          <option value="Resolved">Resolved</option>
+        </select>
+        <select id="filterSeverity">
+          <option value="">All severities</option>
+          <option value="Critical">Critical</option>
+          <option value="High">High</option>
+          <option value="Medium">Medium</option>
+          <option value="Low">Low</option>
+        </select>
+        <select id="filterClient">
+          <option value="">All clients</option>
+        </select>
+        <select id="filterAssignee">
+          <option value="">Anyone</option>
+          <option value="__me">Assigned to me</option>
+          <option value="__none">Unassigned</option>
+        </select>
+        <span class="spacer"></span>
+        <span id="incidentCount" style="font-size:12px;color:var(--ink-faint);"></span>
+      </div>
+      <div id="incidentsTableWrap">
+        <div class="center-load"><span class="spinner"></span> Loading incidents…</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ Clients tab ============ -->
+  <section id="tabClients" hidden>
+    <div class="panel">
+      <div class="panel-header">
+        <h2>Clients</h2>
+        <div class="right">
+          <button class="btn btn-primary" id="newClientBtn" type="button" hidden>+ Add client</button>
+        </div>
+      </div>
+      <div id="clientsTableWrap">
+        <div class="center-load"><span class="spinner"></span> Loading clients…</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ Users tab (admin) ============ -->
+  <section id="tabUsers" hidden>
+    <div class="panel">
+      <div class="panel-header">
+        <h2>Users &amp; roles</h2>
+        <div class="right">
+          <span style="font-size:12px;color:var(--ink-faint);">Roles control what users can do. Admins can promote others, manage clients, and delete incidents.</span>
+        </div>
+      </div>
+      <div id="usersTableWrap">
+        <div class="center-load"><span class="spinner"></span> Loading users…</div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="page">
+  <span><a href="../">Work Hub</a> &middot; Incident Response</span>
+  <span id="versionTag">v0.1.0</span>
+</footer>
+
+</div>
+
+<!-- ================= incident detail modal ================= -->
+<div class="modal-bg" id="incidentModal" hidden>
+  <div class="modal">
+    <div class="modal-header">
+      <div class="title" id="imTitle"></div>
+      <div class="pills" id="imPills"></div>
+      <button class="close" type="button" data-close-modal>&times;</button>
+    </div>
+    <div class="modal-body" id="imBody"></div>
+    <div class="modal-footer">
+      <button class="btn btn-danger" id="imDeleteBtn" type="button" hidden>Delete incident</button>
+      <button class="btn" type="button" data-close-modal>Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= new / edit incident modal ================= -->
+<div class="modal-bg" id="newIncidentModal" hidden>
+  <div class="modal">
+    <div class="modal-header">
+      <div class="title" id="niTitle">New incident</div>
+      <button class="close" type="button" data-close-modal>&times;</button>
+    </div>
+    <div class="modal-body">
+      <form id="niForm" onsubmit="return false;">
+        <div class="form-grid">
+          <div class="field full">
+            <label for="niName">Title</label>
+            <input id="niName" type="text" maxlength="200" required>
+          </div>
+          <div class="field">
+            <label for="niClient">Client</label>
+            <select id="niClient" required>
+              <option value="">Select a client…</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="niSeverity">Severity</label>
+            <select id="niSeverity" required>
+              <option value="Critical">Critical</option>
+              <option value="High">High</option>
+              <option value="Medium" selected>Medium</option>
+              <option value="Low">Low</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="niDetected">Detected at</label>
+            <input id="niDetected" type="datetime-local">
+            <span class="field-help">Leave blank to use the current time.</span>
+          </div>
+          <div class="field">
+            <label for="niAssignee">Assign to</label>
+            <select id="niAssignee">
+              <option value="">— unassigned —</option>
+            </select>
+          </div>
+          <div class="field full">
+            <label for="niDesc">What happened?</label>
+            <textarea id="niDesc" required placeholder="What did the client report? What did you observe? IOCs, affected systems, scope, current containment…"></textarea>
+            <span class="field-help">Markdown is not rendered — line breaks are preserved.</span>
+          </div>
+          <div class="field full">
+            <label>Attachments</label>
+            <label class="upload-zone" id="niDrop">
+              <input type="file" id="niFiles" multiple accept="image/*,text/*,.txt,.log,.json,.pdf,.zip,.eml,.msg,.csv">
+              <strong>Click or drop files here</strong>
+              <span class="hint">Images, text, logs, PDFs, ZIPs, .eml. 25 MB per file.</span>
+              <div id="niFileList" style="margin-top:8px;"></div>
+            </label>
+          </div>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" type="button" data-close-modal>Cancel</button>
+      <button class="btn btn-primary" id="niSubmit" type="button">Create incident</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= client modal ================= -->
+<div class="modal-bg" id="clientModal" hidden>
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-header">
+      <div class="title" id="cmTitle">Add client</div>
+      <button class="close" type="button" data-close-modal>&times;</button>
+    </div>
+    <div class="modal-body">
+      <form id="cmForm" onsubmit="return false;">
+        <div class="form-grid">
+          <div class="field full">
+            <label for="cmName">Client name</label>
+            <input id="cmName" type="text" maxlength="120" required>
+          </div>
+          <div class="field full">
+            <label for="cmContact">Primary contact (optional)</label>
+            <input id="cmContact" type="text" maxlength="200" placeholder="Name, phone, email…">
+          </div>
+          <div class="field full">
+            <label for="cmNotes">Notes</label>
+            <textarea id="cmNotes" maxlength="1000" placeholder="Tier, environment, anything that helps responders." style="min-height:80px;"></textarea>
+          </div>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-danger" id="cmDeleteBtn" type="button" hidden>Delete</button>
+      <span style="flex:1;"></span>
+      <button class="btn" type="button" data-close-modal>Cancel</button>
+      <button class="btn btn-primary" id="cmSubmit" type="button">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= toast ================= -->
+<div class="toast" id="toast" hidden></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
+import {
+  getAuth,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signOut,
+  onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/12.12.1/firebase-auth.js";
+import {
+  getFirestore,
+  collection, collectionGroup,
+  doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, addDoc,
+  query, where, orderBy, onSnapshot,
+  serverTimestamp, Timestamp
+} from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
+import {
+  getStorage, ref as storageRef,
+  uploadBytes, getDownloadURL, deleteObject
+} from "https://www.gstatic.com/firebasejs/12.12.1/firebase-storage.js";
+
+// ------------------------------------------------------------------
+// Firebase config — replace the values below with your real project's
+// config from Project settings > General > Your apps > Web app.
+// The project must be created at https://console.firebase.google.com/
+// with these services enabled:
+//   - Authentication (Google provider)
+//   - Cloud Firestore
+//   - Cloud Storage  (requires Blaze plan for file uploads)
+//
+// firestore.rules and storage.rules in this folder are the rules to
+// deploy to that project.
+// ------------------------------------------------------------------
+const firebaseConfig = {
+  apiKey: "REPLACE_ME",
+  authDomain: "REPLACE_ME.firebaseapp.com",
+  projectId: "REPLACE_ME",
+  storageBucket: "REPLACE_ME.firebasestorage.app",
+  messagingSenderId: "REPLACE_ME",
+  appId: "REPLACE_ME"
+};
+
+const ALLOWED_DOMAIN = "umbrellaautomation.com";
+const STATUSES = ["New", "Investigating", "Contained", "Resolved"];
+const SEVERITIES = ["Critical", "High", "Medium", "Low"];
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const storage = getStorage(app);
+
+// ============== state ==============
+const state = {
+  user: null,           // Firebase User
+  profile: null,        // /users/{uid} doc
+  isAdmin: false,
+  incidents: [],        // live list
+  clients: [],
+  users: [],
+  filter: { search: "", status: "", severity: "", clientId: "", assignee: "" },
+  unsub: { incidents: null, clients: null, users: null, openIncident: null, openTimeline: null },
+  openIncident: null,   // currently-open in detail modal
+  pendingFiles: [],     // for the new-incident form
+  editingClient: null
+};
+
+// ============== helpers ==============
+const $ = sel => document.querySelector(sel);
+const $$ = sel => Array.from(document.querySelectorAll(sel));
+
+function toast(msg, isErr = false) {
+  const t = $("#toast");
+  t.textContent = msg;
+  t.classList.toggle("err", !!isErr);
+  t.hidden = false;
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => { t.hidden = true; }, 4500);
+}
+
+function escapeHTML(s) {
+  return String(s == null ? "" : s)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+function fmtDate(d) {
+  if (!d) return "—";
+  const date = d.toDate ? d.toDate() : (d instanceof Date ? d : new Date(d));
+  if (isNaN(date)) return "—";
+  return date.toLocaleString(undefined, {
+    year: "numeric", month: "short", day: "numeric",
+    hour: "numeric", minute: "2-digit"
+  });
+}
+
+function fmtRelative(d) {
+  if (!d) return "";
+  const date = d.toDate ? d.toDate() : (d instanceof Date ? d : new Date(d));
+  if (isNaN(date)) return "";
+  const diff = (Date.now() - date.getTime()) / 1000;
+  if (diff < 60) return "just now";
+  if (diff < 3600) return Math.floor(diff / 60) + "m ago";
+  if (diff < 86400) return Math.floor(diff / 3600) + "h ago";
+  if (diff < 86400 * 7) return Math.floor(diff / 86400) + "d ago";
+  return date.toLocaleDateString();
+}
+
+function fmtBytes(n) {
+  if (n == null) return "";
+  if (n < 1024) return n + " B";
+  if (n < 1024 * 1024) return (n / 1024).toFixed(1) + " KB";
+  return (n / 1024 / 1024).toFixed(1) + " MB";
+}
+
+function pillSeverity(s) { return `<span class="pill sev-${escapeHTML(s)}">${escapeHTML(s)}</span>`; }
+function pillStatus(s)   { return `<span class="pill st-${escapeHTML(s)}">${escapeHTML(s)}</span>`; }
+function pillRole(r)     { return `<span class="pill role-${escapeHTML(r)}">${escapeHTML(r)}</span>`; }
+
+function safeFileName(name) {
+  return String(name).replace(/[^A-Za-z0-9._-]/g, "_").slice(0, 120) || "file";
+}
+
+function isImage(type) { return type && type.startsWith("image/"); }
+
+// ============== auth ==============
+$("#googleSignInBtn").addEventListener("click", async () => {
+  const errEl = $("#signinErr");
+  errEl.hidden = true;
+  try {
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ hd: ALLOWED_DOMAIN, prompt: "select_account" });
+    const result = await signInWithPopup(auth, provider);
+    const email = result.user.email || "";
+    if (!email.toLowerCase().endsWith("@" + ALLOWED_DOMAIN)) {
+      await signOut(auth);
+      errEl.textContent = `Only @${ALLOWED_DOMAIN} accounts can sign in. You used ${email}.`;
+      errEl.hidden = false;
+    }
+  } catch (e) {
+    if (e.code === "auth/popup-closed-by-user") return;
+    errEl.textContent = "Sign-in failed: " + (e.message || e.code || e);
+    errEl.hidden = false;
+  }
+});
+
+$("#signOutBtn").addEventListener("click", () => signOut(auth));
+
+onAuthStateChanged(auth, async (user) => {
+  // Tear down any live listeners from a previous session.
+  Object.values(state.unsub).forEach(u => { if (typeof u === "function") u(); });
+  state.unsub = { incidents: null, clients: null, users: null, openIncident: null, openTimeline: null };
+  state.user = user || null;
+  state.profile = null;
+  state.isAdmin = false;
+
+  if (!user) {
+    $("#signin").hidden = false;
+    $("#app").hidden = true;
+    return;
+  }
+
+  // Domain double-check on the client side too.
+  const email = (user.email || "").toLowerCase();
+  if (!email.endsWith("@" + ALLOWED_DOMAIN)) {
+    await signOut(auth);
+    return;
+  }
+
+  // Load or bootstrap /users/{uid}.
+  try {
+    const ref = doc(db, "users", user.uid);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) {
+      await setDoc(ref, {
+        email: user.email,
+        name: user.displayName || user.email.split("@")[0],
+        photoURL: user.photoURL || "",
+        role: "analyst",
+        createdAt: serverTimestamp(),
+        lastLogin: serverTimestamp()
+      });
+      state.profile = (await getDoc(ref)).data();
+    } else {
+      // Update lastLogin + photoURL/name from Google.
+      const data = snap.data();
+      const patch = { lastLogin: serverTimestamp() };
+      if (user.displayName && data.name !== user.displayName) patch.name = user.displayName;
+      if (user.photoURL && data.photoURL !== user.photoURL) patch.photoURL = user.photoURL;
+      await updateDoc(ref, patch);
+      state.profile = { ...data, ...patch };
+    }
+    state.isAdmin = state.profile.role === "admin";
+  } catch (e) {
+    console.error("user bootstrap failed", e);
+    toast("Could not load your profile: " + (e.message || e.code), true);
+    return;
+  }
+
+  // Render header user info.
+  $("#ubEmail").textContent = user.email;
+  $("#ubRole").textContent = state.profile.role;
+  if (user.photoURL) {
+    $("#ubAvatar").src = user.photoURL;
+    $("#ubAvatar").hidden = false;
+  } else {
+    $("#ubAvatar").hidden = true;
+  }
+  $("#usersTabBtn").hidden = !state.isAdmin;
+  $("#newClientBtn").hidden = !state.isAdmin;
+
+  $("#signin").hidden = true;
+  $("#app").hidden = false;
+
+  // Subscribe to live data.
+  subscribeIncidents();
+  subscribeClients();
+  if (state.isAdmin) subscribeUsers();
+});
+
+// ============== tab nav ==============
+$$("nav.tabs button").forEach(b => {
+  b.addEventListener("click", () => {
+    const tab = b.dataset.tab;
+    $$("nav.tabs button").forEach(x => x.classList.toggle("active", x === b));
+    $("#tabDashboard").hidden = tab !== "dashboard";
+    $("#tabClients").hidden   = tab !== "clients";
+    $("#tabUsers").hidden     = tab !== "users";
+  });
+});
+
+// ============== modal helpers ==============
+$$("[data-close-modal]").forEach(el => {
+  el.addEventListener("click", () => {
+    el.closest(".modal-bg").hidden = true;
+    if (el.closest("#incidentModal")) closeIncidentModal();
+  });
+});
+$$(".modal-bg").forEach(bg => {
+  bg.addEventListener("click", e => {
+    if (e.target === bg) {
+      bg.hidden = true;
+      if (bg.id === "incidentModal") closeIncidentModal();
+    }
+  });
+});
+
+// ============== incidents: live list ==============
+function subscribeIncidents() {
+  const q = query(collection(db, "incidents"), orderBy("createdAt", "desc"));
+  state.unsub.incidents = onSnapshot(q, snap => {
+    state.incidents = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderIncidents();
+  }, err => {
+    console.error("incidents listen failed", err);
+    $("#incidentsTableWrap").innerHTML =
+      `<div class="center-load" style="color:var(--danger);">Could not load incidents: ${escapeHTML(err.message || err.code)}</div>`;
+  });
+}
+
+function renderIncidents() {
+  const f = state.filter;
+  const search = f.search.trim().toLowerCase();
+  const list = state.incidents.filter(i => {
+    if (f.status && i.status !== f.status) return false;
+    if (f.severity && i.severity !== f.severity) return false;
+    if (f.clientId && i.clientId !== f.clientId) return false;
+    if (f.assignee === "__me" && i.assignedTo !== state.user.uid) return false;
+    if (f.assignee === "__none" && i.assignedTo) return false;
+    if (f.assignee && f.assignee !== "__me" && f.assignee !== "__none" && i.assignedTo !== f.assignee) return false;
+    if (search) {
+      const hay = ((i.title || "") + " " + (i.description || "") + " " + (i.id || "") + " " + (i.clientName || "")).toLowerCase();
+      if (!hay.includes(search)) return false;
+    }
+    return true;
+  });
+
+  $("#incidentCount").textContent = `${list.length} of ${state.incidents.length}`;
+
+  if (state.incidents.length === 0) {
+    $("#incidentsTableWrap").innerHTML = `
+      <div class="empty" style="text-align:center;padding:60px 20px;color:var(--ink-faint);">
+        <p>No incidents yet.</p>
+        <p style="font-size:12px;">Click <strong>+ New incident</strong> to log the first one.</p>
+      </div>`;
+    return;
+  }
+  if (list.length === 0) {
+    $("#incidentsTableWrap").innerHTML = `<div class="empty" style="text-align:center;padding:40px 20px;color:var(--ink-faint);">No incidents match your filters.</div>`;
+    return;
+  }
+
+  const rows = list.map(i => {
+    const assignee = i.assignedTo ? (state.users.find(u => u.id === i.assignedTo)?.name || "—") : "—";
+    return `
+      <tr data-id="${escapeHTML(i.id)}">
+        <td>
+          <div class="title">${escapeHTML(i.title || "(untitled)")}</div>
+          <div class="sub">${escapeHTML(i.clientName || "—")} &middot; opened ${escapeHTML(fmtRelative(i.createdAt))} by ${escapeHTML(i.createdByEmail || "?")}</div>
+        </td>
+        <td>${pillSeverity(i.severity || "Medium")}</td>
+        <td>${pillStatus(i.status || "New")}</td>
+        <td>${escapeHTML(assignee)}</td>
+        <td>${escapeHTML(fmtDate(i.detectedAt || i.createdAt))}</td>
+      </tr>`;
+  }).join("");
+
+  $("#incidentsTableWrap").innerHTML = `
+    <table class="incidents">
+      <thead><tr>
+        <th>Incident</th><th>Severity</th><th>Status</th><th>Assignee</th><th>Detected</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+
+  $$("#incidentsTableWrap tbody tr").forEach(tr => {
+    tr.addEventListener("click", () => openIncident(tr.dataset.id));
+  });
+}
+
+// ============== filters ==============
+$("#filterSearch").addEventListener("input", e => { state.filter.search = e.target.value; renderIncidents(); });
+$("#filterStatus").addEventListener("change", e => { state.filter.status = e.target.value; renderIncidents(); });
+$("#filterSeverity").addEventListener("change", e => { state.filter.severity = e.target.value; renderIncidents(); });
+$("#filterClient").addEventListener("change", e => { state.filter.clientId = e.target.value; renderIncidents(); });
+$("#filterAssignee").addEventListener("change", e => { state.filter.assignee = e.target.value; renderIncidents(); });
+
+// ============== clients: live list ==============
+function subscribeClients() {
+  const q = query(collection(db, "clients"), orderBy("name", "asc"));
+  state.unsub.clients = onSnapshot(q, snap => {
+    state.clients = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderClients();
+    populateClientDropdowns();
+  }, err => {
+    console.error("clients listen failed", err);
+    $("#clientsTableWrap").innerHTML =
+      `<div class="center-load" style="color:var(--danger);">Could not load clients: ${escapeHTML(err.message || err.code)}</div>`;
+  });
+}
+
+function populateClientDropdowns() {
+  const opts = state.clients.map(c =>
+    `<option value="${escapeHTML(c.id)}">${escapeHTML(c.name)}</option>`).join("");
+  $("#filterClient").innerHTML = `<option value="">All clients</option>` + opts;
+  $("#niClient").innerHTML = `<option value="">Select a client…</option>` + opts;
+}
+
+function renderClients() {
+  if (state.clients.length === 0) {
+    $("#clientsTableWrap").innerHTML = `
+      <div class="empty" style="text-align:center;padding:60px 20px;color:var(--ink-faint);">
+        <p>No clients on file yet.</p>
+        ${state.isAdmin ? '<p style="font-size:12px;">Click <strong>+ Add client</strong> to populate the list.</p>' : '<p style="font-size:12px;">Ask an admin to add the first client.</p>'}
+      </div>`;
+    return;
+  }
+  const rows = state.clients.map(c => {
+    const incidentCount = state.incidents.filter(i => i.clientId === c.id).length;
+    return `
+      <tr>
+        <td><strong>${escapeHTML(c.name)}</strong>${c.contact ? `<div class="sub" style="color:var(--ink-faint);font-size:12px;">${escapeHTML(c.contact)}</div>` : ''}</td>
+        <td style="font-size:13px;color:var(--ink-soft);">${escapeHTML(c.notes || "")}</td>
+        <td style="text-align:center;">${incidentCount}</td>
+        <td class="actions">
+          ${state.isAdmin ? `<button class="btn btn-sm" data-edit-client="${escapeHTML(c.id)}">Edit</button>` : ""}
+        </td>
+      </tr>`;
+  }).join("");
+  $("#clientsTableWrap").innerHTML = `
+    <table class="simple">
+      <thead><tr><th>Client</th><th>Notes</th><th style="text-align:center;">Incidents</th><th></th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  $$("#clientsTableWrap [data-edit-client]").forEach(b => {
+    b.addEventListener("click", () => openClientModal(b.dataset.editClient));
+  });
+}
+
+// ============== users: live list (admin only) ==============
+function subscribeUsers() {
+  const q = query(collection(db, "users"), orderBy("email", "asc"));
+  state.unsub.users = onSnapshot(q, snap => {
+    state.users = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderUsers();
+    populateAssigneeDropdowns();
+  }, err => {
+    console.error("users listen failed", err);
+    $("#usersTableWrap").innerHTML =
+      `<div class="center-load" style="color:var(--danger);">Could not load users: ${escapeHTML(err.message || err.code)}</div>`;
+  });
+}
+
+function populateAssigneeDropdowns() {
+  const opts = state.users.map(u =>
+    `<option value="${escapeHTML(u.id)}">${escapeHTML(u.name || u.email)}</option>`).join("");
+  // Filter assignee dropdown
+  const sel = $("#filterAssignee");
+  const cur = sel.value;
+  sel.innerHTML = `
+    <option value="">Anyone</option>
+    <option value="__me">Assigned to me</option>
+    <option value="__none">Unassigned</option>
+  ` + opts;
+  sel.value = cur;
+  // New-incident assignee
+  $("#niAssignee").innerHTML = `<option value="">— unassigned —</option>` + opts;
+}
+
+function renderUsers() {
+  if (state.users.length === 0) {
+    $("#usersTableWrap").innerHTML = `<div class="empty" style="text-align:center;padding:60px 20px;color:var(--ink-faint);">No users yet.</div>`;
+    return;
+  }
+  const rows = state.users.map(u => {
+    const isSelf = u.id === state.user.uid;
+    return `
+      <tr>
+        <td>
+          <strong>${escapeHTML(u.name || u.email)}</strong>${isSelf ? ' <span style="color:var(--ink-faint);font-size:11px;">(you)</span>' : ''}
+          <div class="sub" style="color:var(--ink-faint);font-size:12px;">${escapeHTML(u.email)}</div>
+        </td>
+        <td>${pillRole(u.role)}</td>
+        <td style="font-size:12px;color:var(--ink-faint);">${escapeHTML(fmtRelative(u.lastLogin))}</td>
+        <td class="actions">
+          ${u.role === "analyst"
+            ? `<button class="btn btn-sm" data-promote="${escapeHTML(u.id)}">Promote to admin</button>`
+            : `<button class="btn btn-sm" data-demote="${escapeHTML(u.id)}">Demote to analyst</button>`}
+        </td>
+      </tr>`;
+  }).join("");
+  $("#usersTableWrap").innerHTML = `
+    <table class="simple">
+      <thead><tr><th>User</th><th>Role</th><th>Last login</th><th></th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+  $$("#usersTableWrap [data-promote]").forEach(b => {
+    b.addEventListener("click", () => changeRole(b.dataset.promote, "admin"));
+  });
+  $$("#usersTableWrap [data-demote]").forEach(b => {
+    b.addEventListener("click", () => changeRole(b.dataset.demote, "analyst"));
+  });
+}
+
+async function changeRole(uid, newRole) {
+  if (uid === state.user.uid && newRole === "analyst") {
+    if (!confirm("This will demote YOU to analyst — you'll lose admin powers immediately. Are you sure?")) return;
+  } else {
+    const u = state.users.find(x => x.id === uid);
+    if (!confirm(`Change ${u?.email || uid} to ${newRole}?`)) return;
+  }
+  try {
+    await updateDoc(doc(db, "users", uid), { role: newRole });
+    toast("Role updated.");
+  } catch (e) {
+    toast("Failed to update role: " + (e.message || e.code), true);
+  }
+}
+
+// ============== new incident ==============
+$("#newIncidentBtn").addEventListener("click", () => {
+  $("#niName").value = "";
+  $("#niClient").value = "";
+  $("#niSeverity").value = "Medium";
+  $("#niDetected").value = "";
+  $("#niAssignee").value = "";
+  $("#niDesc").value = "";
+  state.pendingFiles = [];
+  $("#niFileList").innerHTML = "";
+  $("#niTitle").textContent = "New incident";
+  $("#niSubmit").textContent = "Create incident";
+  $("#newIncidentModal").hidden = false;
+  setTimeout(() => $("#niName").focus(), 50);
+});
+
+const niFiles = $("#niFiles");
+const niDrop = $("#niDrop");
+niFiles.addEventListener("change", e => addPendingFiles(e.target.files));
+["dragenter", "dragover"].forEach(ev => niDrop.addEventListener(ev, e => {
+  e.preventDefault(); niDrop.classList.add("drag");
+}));
+["dragleave", "drop"].forEach(ev => niDrop.addEventListener(ev, e => {
+  e.preventDefault(); niDrop.classList.remove("drag");
+}));
+niDrop.addEventListener("drop", e => {
+  if (e.dataTransfer?.files) addPendingFiles(e.dataTransfer.files);
+});
+
+function addPendingFiles(fileList) {
+  for (const f of fileList) {
+    if (f.size > 25 * 1024 * 1024) {
+      toast(`${f.name} is over 25 MB — skipped.`, true);
+      continue;
+    }
+    state.pendingFiles.push(f);
+  }
+  renderPendingFiles();
+}
+
+function renderPendingFiles() {
+  if (state.pendingFiles.length === 0) { $("#niFileList").innerHTML = ""; return; }
+  $("#niFileList").innerHTML = state.pendingFiles.map((f, i) => `
+    <div style="display:flex;justify-content:space-between;gap:8px;padding:4px 8px;background:var(--surface);border:1px solid var(--line);border-radius:6px;margin-top:4px;">
+      <span style="font-size:12px;">${escapeHTML(f.name)} <span style="color:var(--ink-faint);">(${fmtBytes(f.size)})</span></span>
+      <button type="button" data-rm="${i}" class="btn-link" style="font-size:11px;">remove</button>
+    </div>
+  `).join("");
+  $$("#niFileList [data-rm]").forEach(b => {
+    b.addEventListener("click", e => {
+      e.preventDefault();
+      state.pendingFiles.splice(Number(b.dataset.rm), 1);
+      renderPendingFiles();
+    });
+  });
+}
+
+$("#niSubmit").addEventListener("click", async () => {
+  const title = $("#niName").value.trim();
+  const clientId = $("#niClient").value;
+  const severity = $("#niSeverity").value;
+  const detected = $("#niDetected").value;
+  const assignee = $("#niAssignee").value;
+  const description = $("#niDesc").value.trim();
+
+  if (!title) { toast("Title is required.", true); return; }
+  if (!clientId) { toast("Pick a client.", true); return; }
+  if (!description) { toast("Describe what happened.", true); return; }
+  if (!SEVERITIES.includes(severity)) { toast("Invalid severity.", true); return; }
+
+  const client = state.clients.find(c => c.id === clientId);
+  const now = new Date();
+  const detectedTs = detected ? Timestamp.fromDate(new Date(detected)) : Timestamp.fromDate(now);
+
+  const btn = $("#niSubmit");
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Creating…';
+
+  try {
+    // 1) Create the incident doc.
+    const incRef = await addDoc(collection(db, "incidents"), {
+      title,
+      description,
+      clientId,
+      clientName: client?.name || "",
+      severity,
+      status: "New",
+      assignedTo: assignee || null,
+      assignedToEmail: assignee ? (state.users.find(u => u.id === assignee)?.email || "") : "",
+      createdBy: state.user.uid,
+      createdByEmail: state.user.email,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      detectedAt: detectedTs,
+      resolvedAt: null,
+      attachments: []
+    });
+
+    // 2) Initial timeline event.
+    await addDoc(collection(db, "incidents", incRef.id, "timeline"), {
+      kind: "created",
+      message: `Incident opened${assignee ? ", assigned to " + (state.users.find(u => u.id === assignee)?.name || "?") : ""}.`,
+      byUid: state.user.uid,
+      byEmail: state.user.email,
+      at: serverTimestamp()
+    });
+
+    // 3) Upload any pending files.
+    if (state.pendingFiles.length) {
+      btn.innerHTML = `<span class="spinner"></span> Uploading 0 / ${state.pendingFiles.length}…`;
+      const uploaded = [];
+      for (let i = 0; i < state.pendingFiles.length; i++) {
+        const f = state.pendingFiles[i];
+        btn.innerHTML = `<span class="spinner"></span> Uploading ${i+1} / ${state.pendingFiles.length}…`;
+        const fileId = (crypto.randomUUID ? crypto.randomUUID() : (Date.now() + "-" + Math.random().toString(36).slice(2)));
+        const safe = safeFileName(f.name);
+        const path = `incidents/${incRef.id}/${fileId}-${safe}`;
+        const sref = storageRef(storage, path);
+        await uploadBytes(sref, f, { contentType: f.type || "application/octet-stream" });
+        const url = await getDownloadURL(sref);
+        uploaded.push({
+          id: fileId,
+          name: f.name,
+          size: f.size,
+          type: f.type || "application/octet-stream",
+          path,
+          url,
+          uploadedBy: state.user.uid,
+          uploadedByEmail: state.user.email,
+          uploadedAt: Timestamp.fromDate(new Date())
+        });
+      }
+      await updateDoc(incRef, { attachments: uploaded });
+      await addDoc(collection(db, "incidents", incRef.id, "timeline"), {
+        kind: "file_added",
+        message: `Attached ${uploaded.length} file${uploaded.length === 1 ? "" : "s"}: ${uploaded.map(a => a.name).join(", ")}.`,
+        byUid: state.user.uid,
+        byEmail: state.user.email,
+        at: serverTimestamp()
+      });
+    }
+
+    toast("Incident created.");
+    $("#newIncidentModal").hidden = true;
+    state.pendingFiles = [];
+    // Open the new incident.
+    openIncident(incRef.id);
+  } catch (e) {
+    console.error(e);
+    toast("Could not create incident: " + (e.message || e.code), true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Create incident";
+  }
+});
+
+// ============== incident detail ==============
+async function openIncident(id) {
+  closeIncidentModal();
+  state.openIncident = id;
+  $("#imBody").innerHTML = `<div class="center-load"><span class="spinner"></span> Loading…</div>`;
+  $("#imTitle").textContent = "";
+  $("#imPills").innerHTML = "";
+  $("#imDeleteBtn").hidden = !state.isAdmin;
+  $("#incidentModal").hidden = false;
+
+  // Live-listen on the incident doc so status changes elsewhere appear.
+  state.unsub.openIncident = onSnapshot(doc(db, "incidents", id), snap => {
+    if (!snap.exists()) {
+      $("#imBody").innerHTML = `<div class="center-load" style="color:var(--ink-faint);">This incident has been deleted.</div>`;
+      $("#imDeleteBtn").hidden = true;
+      return;
+    }
+    renderIncidentDetail({ id: snap.id, ...snap.data() });
+  }, err => {
+    $("#imBody").innerHTML = `<div class="center-load" style="color:var(--danger);">Could not load: ${escapeHTML(err.message || err.code)}</div>`;
+  });
+
+  // Live-listen on timeline.
+  const tq = query(collection(db, "incidents", id, "timeline"), orderBy("at", "asc"));
+  state.unsub.openTimeline = onSnapshot(tq, snap => {
+    const items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderTimeline(items);
+  });
+}
+
+function closeIncidentModal() {
+  if (state.unsub.openIncident) { state.unsub.openIncident(); state.unsub.openIncident = null; }
+  if (state.unsub.openTimeline) { state.unsub.openTimeline(); state.unsub.openTimeline = null; }
+  state.openIncident = null;
+  $("#incidentModal").hidden = true;
+}
+
+function renderIncidentDetail(inc) {
+  $("#imTitle").textContent = inc.title || "(untitled)";
+  $("#imPills").innerHTML = pillSeverity(inc.severity || "Medium") + pillStatus(inc.status || "New");
+
+  const assignee = inc.assignedTo ? (state.users.find(u => u.id === inc.assignedTo)?.name || inc.assignedToEmail || "—") : "Unassigned";
+  const assigneeOpts = `<option value="">— unassigned —</option>` +
+    state.users.map(u => `<option value="${escapeHTML(u.id)}" ${u.id === inc.assignedTo ? "selected" : ""}>${escapeHTML(u.name || u.email)}</option>`).join("");
+  const sevOpts = SEVERITIES.map(s => `<option ${s === inc.severity ? "selected" : ""}>${s}</option>`).join("");
+  const statusButtons = STATUSES.map(s => {
+    const active = s === inc.status;
+    return `<button class="btn btn-sm ${active ? "btn-primary" : ""}" data-set-status="${escapeHTML(s)}" ${active ? "disabled" : ""}>${escapeHTML(s)}</button>`;
+  }).join("");
+
+  $("#imBody").innerHTML = `
+    <div class="id-meta">
+      <div><div class="k">Client</div><div class="v">${escapeHTML(inc.clientName || "—")}</div></div>
+      <div><div class="k">Detected</div><div class="v">${escapeHTML(fmtDate(inc.detectedAt))}</div></div>
+      <div><div class="k">Opened</div><div class="v">${escapeHTML(fmtDate(inc.createdAt))} by ${escapeHTML(inc.createdByEmail || "?")}</div></div>
+      <div><div class="k">Assignee</div><div class="v">${escapeHTML(assignee)}</div></div>
+      ${inc.resolvedAt ? `<div><div class="k">Resolved</div><div class="v">${escapeHTML(fmtDate(inc.resolvedAt))}</div></div>` : ""}
+      <div><div class="k">Incident ID</div><div class="v" style="font-family:var(--mono);font-size:12px;">${escapeHTML(inc.id)}</div></div>
+    </div>
+
+    <div class="id-section">
+      <h3>Status</h3>
+      <div class="id-actions">${statusButtons}</div>
+    </div>
+
+    <div class="id-section">
+      <h3>Severity &amp; assignee</h3>
+      <div class="id-actions">
+        <label style="font-size:12px;color:var(--ink-faint);">Severity:
+          <select id="imSeverity" style="margin-left:6px;padding:5px 8px;border-radius:6px;border:1px solid var(--line-strong);">${sevOpts}</select>
+        </label>
+        <label style="font-size:12px;color:var(--ink-faint);">Assignee:
+          <select id="imAssignee" style="margin-left:6px;padding:5px 8px;border-radius:6px;border:1px solid var(--line-strong);">${assigneeOpts}</select>
+        </label>
+      </div>
+    </div>
+
+    <div class="id-section">
+      <h3>What happened</h3>
+      <div class="id-desc ${inc.description ? "" : "empty"}">${escapeHTML(inc.description || "(no description)")}</div>
+      <div class="id-actions">
+        <button class="btn btn-sm" id="imEditDesc" type="button">Edit description</button>
+      </div>
+    </div>
+
+    <div class="id-section">
+      <h3>Attachments (${(inc.attachments || []).length})</h3>
+      <div class="attachments" id="imAttachments"></div>
+      <div style="margin-top:10px;">
+        <label class="upload-zone" id="imDrop" style="margin:0;">
+          <input type="file" id="imFiles" multiple accept="image/*,text/*,.txt,.log,.json,.pdf,.zip,.eml,.msg,.csv">
+          <strong>Click or drop to add evidence</strong>
+          <span class="hint">Images, text, logs, PDFs, ZIPs, .eml. 25 MB per file.</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="id-section">
+      <h3>Timeline</h3>
+      <ul class="tl" id="imTimeline"><li class="kind-comment"><span class="meta">Loading…</span></li></ul>
+      <div class="comment-box">
+        <textarea id="imComment" placeholder="Add a comment, observation, or update…"></textarea>
+        <div class="row">
+          <button class="btn btn-primary btn-sm" id="imAddComment" type="button">Post comment</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // attachments
+  renderAttachments(inc);
+
+  // status buttons
+  $$("[data-set-status]").forEach(b => {
+    b.addEventListener("click", () => changeStatus(inc, b.dataset.setStatus));
+  });
+
+  // severity / assignee
+  $("#imSeverity").addEventListener("change", e => changeSeverity(inc, e.target.value));
+  $("#imAssignee").addEventListener("change", e => changeAssignee(inc, e.target.value));
+
+  // edit description
+  $("#imEditDesc").addEventListener("click", () => editDescription(inc));
+
+  // upload
+  const drop = $("#imDrop");
+  const inp = $("#imFiles");
+  inp.addEventListener("change", e => uploadAttachments(inc, e.target.files));
+  ["dragenter", "dragover"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add("drag"); }));
+  ["dragleave", "drop"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove("drag"); }));
+  drop.addEventListener("drop", e => { if (e.dataTransfer?.files) uploadAttachments(inc, e.dataTransfer.files); });
+
+  // comment
+  $("#imAddComment").addEventListener("click", () => postComment(inc));
+}
+
+function renderAttachments(inc) {
+  const wrap = $("#imAttachments");
+  if (!wrap) return;
+  const atts = inc.attachments || [];
+  if (atts.length === 0) {
+    wrap.innerHTML = `<div style="color:var(--ink-faint);font-size:12.5px;font-style:italic;">No attachments yet.</div>`;
+    return;
+  }
+  wrap.innerHTML = atts.map(a => `
+    <div class="att" data-att-id="${escapeHTML(a.id)}">
+      <div class="thumb" ${isImage(a.type) ? `style="background-image:url(${JSON.stringify(a.url)})"` : ''}>${isImage(a.type) ? '' : extIcon(a)}</div>
+      <div class="body">
+        <div class="name">${escapeHTML(a.name)}</div>
+        <div class="size">${escapeHTML(fmtBytes(a.size))} &middot; ${escapeHTML(fmtRelative(a.uploadedAt))}</div>
+      </div>
+      <div class="actions">
+        <a href="${escapeHTML(a.url)}" target="_blank" rel="noopener noreferrer">Open</a>
+        <button class="del" type="button" data-del-att="${escapeHTML(a.id)}">Delete</button>
+      </div>
+    </div>`).join("");
+  $$("#imAttachments [data-del-att]").forEach(b => {
+    b.addEventListener("click", () => deleteAttachment(inc, b.dataset.delAtt));
+  });
+}
+
+function extIcon(a) {
+  const t = a.type || "";
+  if (t === "application/pdf") return "PDF";
+  if (t.startsWith("text/") || /\.(log|txt|csv|json)$/i.test(a.name || "")) return "TXT";
+  if (t === "application/zip" || /\.zip$/i.test(a.name || "")) return "ZIP";
+  if (/\.(eml|msg)$/i.test(a.name || "")) return "EML";
+  return "FILE";
+}
+
+function renderTimeline(items) {
+  const ul = $("#imTimeline");
+  if (!ul) return;
+  if (items.length === 0) {
+    ul.innerHTML = `<li class="kind-comment" style="border-left-color:transparent;"><span class="meta">No activity yet.</span></li>`;
+    return;
+  }
+  ul.innerHTML = items.map(t => `
+    <li class="kind-${escapeHTML(t.kind || "comment")}">
+      <div class="meta"><span class="who">${escapeHTML(t.byEmail || "?")}</span> &middot; ${escapeHTML(fmtDate(t.at))} (${escapeHTML(fmtRelative(t.at))})</div>
+      <div class="msg">${escapeHTML(t.message || "")}</div>
+    </li>`).join("");
+}
+
+async function changeStatus(inc, newStatus) {
+  if (!STATUSES.includes(newStatus) || newStatus === inc.status) return;
+  try {
+    const patch = { status: newStatus, updatedAt: serverTimestamp() };
+    if (newStatus === "Resolved" && !inc.resolvedAt) patch.resolvedAt = serverTimestamp();
+    if (newStatus !== "Resolved" && inc.resolvedAt) patch.resolvedAt = null;
+    await updateDoc(doc(db, "incidents", inc.id), patch);
+    await addDoc(collection(db, "incidents", inc.id, "timeline"), {
+      kind: "status_change",
+      message: `Status: ${inc.status || "New"} → ${newStatus}`,
+      byUid: state.user.uid,
+      byEmail: state.user.email,
+      at: serverTimestamp()
+    });
+    toast(`Status set to ${newStatus}.`);
+  } catch (e) {
+    toast("Could not update status: " + (e.message || e.code), true);
+  }
+}
+
+async function changeSeverity(inc, newSev) {
+  if (!SEVERITIES.includes(newSev) || newSev === inc.severity) return;
+  try {
+    await updateDoc(doc(db, "incidents", inc.id), {
+      severity: newSev, updatedAt: serverTimestamp()
+    });
+    await addDoc(collection(db, "incidents", inc.id, "timeline"), {
+      kind: "status_change",
+      message: `Severity: ${inc.severity} → ${newSev}`,
+      byUid: state.user.uid,
+      byEmail: state.user.email,
+      at: serverTimestamp()
+    });
+    toast(`Severity set to ${newSev}.`);
+  } catch (e) {
+    toast("Could not update severity: " + (e.message || e.code), true);
+  }
+}
+
+async function changeAssignee(inc, uid) {
+  const newAssigneeUser = uid ? state.users.find(u => u.id === uid) : null;
+  try {
+    await updateDoc(doc(db, "incidents", inc.id), {
+      assignedTo: uid || null,
+      assignedToEmail: newAssigneeUser?.email || "",
+      updatedAt: serverTimestamp()
+    });
+    const oldName = inc.assignedTo ? (state.users.find(u => u.id === inc.assignedTo)?.name || inc.assignedToEmail || "?") : "unassigned";
+    const newName = newAssigneeUser ? (newAssigneeUser.name || newAssigneeUser.email) : "unassigned";
+    await addDoc(collection(db, "incidents", inc.id, "timeline"), {
+      kind: "status_change",
+      message: `Assignee: ${oldName} → ${newName}`,
+      byUid: state.user.uid,
+      byEmail: state.user.email,
+      at: serverTimestamp()
+    });
+    toast("Assignee updated.");
+  } catch (e) {
+    toast("Could not update assignee: " + (e.message || e.code), true);
+  }
+}
+
+async function editDescription(inc) {
+  const next = prompt("Edit incident description:", inc.description || "");
+  if (next === null) return;
+  if (next.trim() === (inc.description || "").trim()) return;
+  try {
+    await updateDoc(doc(db, "incidents", inc.id), {
+      description: next.trim(),
+      updatedAt: serverTimestamp()
+    });
+    await addDoc(collection(db, "incidents", inc.id, "timeline"), {
+      kind: "comment",
+      message: `(description edited)`,
+      byUid: state.user.uid,
+      byEmail: state.user.email,
+      at: serverTimestamp()
+    });
+    toast("Description updated.");
+  } catch (e) {
+    toast("Could not update description: " + (e.message || e.code), true);
+  }
+}
+
+async function postComment(inc) {
+  const ta = $("#imComment");
+  const msg = ta.value.trim();
+  if (!msg) return;
+  try {
+    await addDoc(collection(db, "incidents", inc.id, "timeline"), {
+      kind: "comment",
+      message: msg,
+      byUid: state.user.uid,
+      byEmail: state.user.email,
+      at: serverTimestamp()
+    });
+    await updateDoc(doc(db, "incidents", inc.id), { updatedAt: serverTimestamp() });
+    ta.value = "";
+  } catch (e) {
+    toast("Could not post comment: " + (e.message || e.code), true);
+  }
+}
+
+async function uploadAttachments(inc, fileList) {
+  const files = Array.from(fileList).filter(f => {
+    if (f.size > 25 * 1024 * 1024) {
+      toast(`${f.name} is over 25 MB — skipped.`, true);
+      return false;
+    }
+    return true;
+  });
+  if (!files.length) return;
+
+  const uploaded = [];
+  for (const f of files) {
+    const fileId = (crypto.randomUUID ? crypto.randomUUID() : (Date.now() + "-" + Math.random().toString(36).slice(2)));
+    const safe = safeFileName(f.name);
+    const path = `incidents/${inc.id}/${fileId}-${safe}`;
+    try {
+      const sref = storageRef(storage, path);
+      await uploadBytes(sref, f, { contentType: f.type || "application/octet-stream" });
+      const url = await getDownloadURL(sref);
+      uploaded.push({
+        id: fileId,
+        name: f.name,
+        size: f.size,
+        type: f.type || "application/octet-stream",
+        path,
+        url,
+        uploadedBy: state.user.uid,
+        uploadedByEmail: state.user.email,
+        uploadedAt: Timestamp.fromDate(new Date())
+      });
+    } catch (e) {
+      toast(`Upload failed for ${f.name}: ${e.message || e.code}`, true);
+    }
+  }
+
+  if (uploaded.length) {
+    const next = [...(inc.attachments || []), ...uploaded];
+    try {
+      await updateDoc(doc(db, "incidents", inc.id), { attachments: next, updatedAt: serverTimestamp() });
+      await addDoc(collection(db, "incidents", inc.id, "timeline"), {
+        kind: "file_added",
+        message: `Attached ${uploaded.length} file${uploaded.length === 1 ? "" : "s"}: ${uploaded.map(a => a.name).join(", ")}.`,
+        byUid: state.user.uid,
+        byEmail: state.user.email,
+        at: serverTimestamp()
+      });
+      toast(`Uploaded ${uploaded.length} file${uploaded.length === 1 ? "" : "s"}.`);
+    } catch (e) {
+      toast("Upload metadata failed: " + (e.message || e.code), true);
+    }
+  }
+}
+
+async function deleteAttachment(inc, attId) {
+  const att = (inc.attachments || []).find(a => a.id === attId);
+  if (!att) return;
+  if (!confirm(`Delete "${att.name}"? This cannot be undone.`)) return;
+  try {
+    try { await deleteObject(storageRef(storage, att.path)); } catch (e) { /* may already be gone */ }
+    const next = (inc.attachments || []).filter(a => a.id !== attId);
+    await updateDoc(doc(db, "incidents", inc.id), { attachments: next, updatedAt: serverTimestamp() });
+    await addDoc(collection(db, "incidents", inc.id, "timeline"), {
+      kind: "file_removed",
+      message: `Removed attachment: ${att.name}.`,
+      byUid: state.user.uid,
+      byEmail: state.user.email,
+      at: serverTimestamp()
+    });
+    toast("Attachment deleted.");
+  } catch (e) {
+    toast("Delete failed: " + (e.message || e.code), true);
+  }
+}
+
+// admin: delete entire incident (best-effort: also wipes Storage objects)
+$("#imDeleteBtn").addEventListener("click", async () => {
+  const id = state.openIncident;
+  if (!id) return;
+  if (!confirm("Permanently delete this incident, including its timeline and attachments? This cannot be undone.")) return;
+  try {
+    const incSnap = await getDoc(doc(db, "incidents", id));
+    const inc = incSnap.exists() ? incSnap.data() : null;
+    // delete attachment files
+    if (inc?.attachments?.length) {
+      for (const a of inc.attachments) {
+        try { await deleteObject(storageRef(storage, a.path)); } catch (e) {}
+      }
+    }
+    // delete timeline subcollection (client-side fanout, fine for small sizes)
+    const tlSnap = await getDocs(collection(db, "incidents", id, "timeline"));
+    for (const d of tlSnap.docs) {
+      await deleteDoc(d.ref);
+    }
+    await deleteDoc(doc(db, "incidents", id));
+    toast("Incident deleted.");
+    closeIncidentModal();
+  } catch (e) {
+    toast("Delete failed: " + (e.message || e.code), true);
+  }
+});
+
+// ============== client modal ==============
+$("#newClientBtn").addEventListener("click", () => openClientModal(null));
+
+function openClientModal(id) {
+  state.editingClient = id;
+  const c = id ? state.clients.find(x => x.id === id) : null;
+  $("#cmTitle").textContent = c ? "Edit client" : "Add client";
+  $("#cmName").value = c?.name || "";
+  $("#cmContact").value = c?.contact || "";
+  $("#cmNotes").value = c?.notes || "";
+  $("#cmDeleteBtn").hidden = !c;
+  $("#cmSubmit").textContent = c ? "Save" : "Add client";
+  $("#clientModal").hidden = false;
+  setTimeout(() => $("#cmName").focus(), 50);
+}
+
+$("#cmSubmit").addEventListener("click", async () => {
+  const name = $("#cmName").value.trim();
+  if (!name) { toast("Client name is required.", true); return; }
+  const payload = {
+    name,
+    contact: $("#cmContact").value.trim(),
+    notes: $("#cmNotes").value.trim()
+  };
+  try {
+    if (state.editingClient) {
+      await updateDoc(doc(db, "clients", state.editingClient), {
+        ...payload, updatedAt: serverTimestamp()
+      });
+      toast("Client updated.");
+    } else {
+      await addDoc(collection(db, "clients"), {
+        ...payload,
+        createdAt: serverTimestamp(),
+        createdBy: state.user.uid
+      });
+      toast("Client added.");
+    }
+    $("#clientModal").hidden = true;
+  } catch (e) {
+    toast("Save failed: " + (e.message || e.code), true);
+  }
+});
+
+$("#cmDeleteBtn").addEventListener("click", async () => {
+  const id = state.editingClient;
+  if (!id) return;
+  const inUse = state.incidents.some(i => i.clientId === id);
+  if (inUse && !confirm("This client has incidents linked to it. The incidents will be kept but their client name reference will be stale. Delete anyway?")) return;
+  if (!inUse && !confirm("Delete this client?")) return;
+  try {
+    await deleteDoc(doc(db, "clients", id));
+    toast("Client deleted.");
+    $("#clientModal").hidden = true;
+  } catch (e) {
+    toast("Delete failed: " + (e.message || e.code), true);
+  }
+});
+
+// ============== keyboard ==============
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") {
+    $$(".modal-bg").forEach(m => {
+      if (!m.hidden) {
+        m.hidden = true;
+        if (m.id === "incidentModal") closeIncidentModal();
+      }
+    });
+  }
+});
+</script>
+
+</body>
+</html>
