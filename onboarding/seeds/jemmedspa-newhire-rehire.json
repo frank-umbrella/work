@@ -1,5 +1,5 @@
 {
-  "_about": "JEM Medspa — New Hire / Rehire form. Paste the 'schema' object's contents into the schema editor. Items marked TODO need real values from JEM's existing form.",
+  "_about": "JEM Medspa — New Hire / Rehire form. Paste the 'schema' object's contents into the schema editor in the app.",
   "formMeta": {
     "formId": "newhire-rehire",
     "kind": "newhire-rehire",
@@ -28,14 +28,19 @@
       {
         "fields": [
           { "id": "department", "type": "select", "label": "Department", "required": true,
-            "options": ["TODO_REPLACE_WITH_REAL_OPTIONS"] },
+            "options": [
+              { "label": "Accounting", "value": "Accounting" },
+              { "label": "Admin", "value": "Admin" },
+              { "label": "Human Resources", "value": "hr" },
+              { "label": "Other", "value": "Other" }
+            ] },
           { "id": "departmentOther", "type": "text", "label": "Other Department",
             "showIf": { "department": "Other" }, "required": true,
             "help": "Add department if not listed in the dropdown menu." },
           { "id": "title", "type": "select", "label": "Employee Title", "required": true,
-            "options": ["TODO_REPLACE_WITH_REAL_OPTIONS"] },
+            "options": ["- Other"] },
           { "id": "titleOther", "type": "text", "label": "Employee Title - Other",
-            "showIf": { "title": "Other" }, "required": true,
+            "showIf": { "title": "- Other" }, "required": true,
             "help": "ie. Associate, Manager, Staff Accountant" },
           { "id": "managerEmail", "type": "email", "label": "Direct Manager's Email", "required": true }
         ]
@@ -45,34 +50,46 @@
         "fields": [
           { "id": "emailRequired", "type": "radio", "label": "Email Account Required", "required": true,
             "options": ["Yes", "No"] },
-          { "id": "teamsGroups", "type": "checkboxes", "label": "Teams / Microsoft 365 Groups",
+          { "id": "teamsGroups", "type": "checkboxes", "label": "Teams / Microsoft 365 Groups", "required": true,
             "options": [
               "dext@jemmedspa.com",
               "leadership1@jemmedspa.com",
               "jemmedspa@jemmedspa.com",
               "jemmedspaelmhurst@jemmedspa.com",
               "managercallgroup@jemmedspa.com",
-              "TODO_5_MORE_FROM_JEMS_FORM"
+              "opccs@jemmedspa.com",
+              "orlandparkjems@jemmedspa.com",
+              "qrcodes@jemmedspa.com",
+              "None"
             ],
             "help": "Used for collaboration and communication within Microsoft Teams and shared resources in 365." },
-          { "id": "distributionLists", "type": "checkboxes", "label": "Distribution Lists / Groups",
+          { "id": "distributionLists", "type": "checkboxes", "label": "Distribution Lists / Groups", "required": true,
             "options": [
               "allemployees@jemmedspa.com",
               "aestheticians@jemmedspa.com",
               "clientcoordiantors@jemmedspa.com",
               "elmemployees@jemmedspa.com",
               "info@jemmedspa.com",
-              "TODO_5_MORE_FROM_JEMS_FORM"
+              "leadership@jemmedspa.com",
+              "munemployees@jemmedspa.com",
+              "nurses@jemmedspa.com",
+              "None"
             ],
             "help": "Used for sending emails to multiple users at once." },
-          { "id": "sharedMailboxes", "type": "checkboxes", "label": "Shared / Delegate Mailboxes",
+          { "id": "sharedMailboxes", "type": "checkboxes", "label": "Shared / Delegate Mailboxes", "required": true,
             "options": [
               "customerservice@jemmedspa.com",
               "education@jemmedspa.com",
               "elmhurst@jemmedspa.com",
               "elmhurst.billing@jemmedspa.com",
               "elmhurst.ordering@jemmedspa.com",
-              "TODO_8_MORE_FROM_JEMS_FORM"
+              "munster@jemmedspa.com",
+              "munster.billing@jemmedspa.com",
+              "munster.ordering@jemmedspa.com",
+              "op.billing@jemmedspa.com",
+              "op.ordering@jemmedspa.com",
+              "orlandpark@jemmedspa.com",
+              "None"
             ],
             "help": "Mailboxes with shared access — users can be added as delegates to view or send from these inboxes." }
         ]
