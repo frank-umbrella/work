@@ -1,0 +1,217 @@
+rules_version = '2';
+
+// Umbrella Automation — Onboarding System
+// Firestore security rules.
+//
+// Two principal types:
+//   1. MSP admins  — Umbrella employees, members of /msp_admins/{uid}.
+//                    Have full read/write on every client's data.
+//   2. Managers    — external client employees, members of /managers/{uid}.
+//                    Their /managers/{uid} doc carries clientId. They can
+//                    only read/write data scoped to their own clientId.
+//
+// Strict isolation requirements:
+//   - Managers cannot list or read other clients (or even discover that
+//     other clients exist by name).
+//   - Managers can only read their own submissions, not other managers'
+//     submissions at the same client.
+//
+// Bootstrap: the very first MSP admin must be added by editing
+// /msp_admins/{uid} directly in the Firebase console after their first
+// sign-in. After that, admins can add more admins through the UI.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // -------- helpers --------
+
+    // Note on email verification: we deliberately do NOT require
+    // request.auth.token.email_verified. Proof of email control comes
+    // from the invitation flow — possession of the invite token (sent
+    // out-of-band to the manager's real email) is the trust anchor.
+    // Hardening with a Firebase verification email can come later.
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isMSPAdmin() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/msp_admins/$(request.auth.uid));
+    }
+
+    function managerDoc() {
+      return get(/databases/$(database)/documents/managers/$(request.auth.uid)).data;
+    }
+
+    function isManager() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/managers/$(request.auth.uid));
+    }
+
+    function isManagerOf(clientId) {
+      return isManager() && managerDoc().clientId == clientId;
+    }
+
+    // -------- /msp_admins/{uid} --------
+    // MSP team roster. The doc id is the user's auth uid. Self-readable;
+    // admins can list and manage. No self-creation — first admin must be
+    // added via console; subsequent admins added by an existing admin.
+    match /msp_admins/{uid} {
+      allow get: if isSignedIn() && (request.auth.uid == uid || isMSPAdmin());
+      allow list: if isMSPAdmin();
+      allow create, update, delete: if isMSPAdmin();
+    }
+
+    // -------- /managers/{uid} --------
+    // External client managers. Doc id = auth uid. Carries clientId,
+    // email, names. Manager can read their own. Cannot list other managers
+    // (would leak the org's manager roster). Created via invitation
+    // redemption flow (see /invitations/{token}) or by an MSP admin.
+    match /managers/{uid} {
+      allow get: if isSignedIn() && (request.auth.uid == uid || isMSPAdmin());
+      allow list: if isMSPAdmin();
+
+      // Self-create on invite redemption. The doc MUST carry an
+      // invitationToken whose /invitations/{token} doc proves the caller
+      // is authorized: same email, same clientId, not yet consumed.
+      // This prevents a freshly-signed-up user from forging a manager
+      // record for an arbitrary clientId.
+      function inviteOk(token) {
+        return exists(/databases/$(database)/documents/invitations/$(token))
+          && get(/databases/$(database)/documents/invitations/$(token)).data.email == request.auth.token.email
+          && get(/databases/$(database)/documents/invitations/$(token)).data.clientId == request.resource.data.clientId
+          && get(/databases/$(database)/documents/invitations/$(token)).data.consumed == false;
+      }
+
+      allow create: if isSignedIn()
+        && request.auth.uid == uid
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.keys().hasAll(['email', 'clientId', 'firstName', 'lastName', 'invitationToken'])
+        && request.resource.data.keys().hasOnly(['email', 'clientId', 'firstName', 'lastName', 'invitationToken', 'createdAt', 'lastLogin'])
+        && inviteOk(request.resource.data.invitationToken);
+
+      // MSP admin can also create a manager doc directly (bypass invite).
+      allow create: if isMSPAdmin()
+        && request.resource.data.email is string
+        && request.resource.data.clientId is string;
+
+      // Self-update: only profile/lastLogin fields, never clientId, email,
+      // or invitationToken.
+      allow update: if isSignedIn() && request.auth.uid == uid
+        && request.resource.data.clientId == resource.data.clientId
+        && request.resource.data.email == resource.data.email
+        && (resource.data.invitationToken == null || request.resource.data.invitationToken == resource.data.invitationToken);
+
+      // MSP admin can update anything except changing the email (which
+      // would break auth linkage) — clientId reassignment is allowed
+      // (manager moves to a different client).
+      allow update: if isMSPAdmin()
+        && request.resource.data.email == resource.data.email;
+
+      allow delete: if isMSPAdmin();
+    }
+
+    // -------- /invitations/{token} --------
+    // Pending invitations. Doc id is a strong random token (also used in
+    // the invite URL). Stages clientId + email + names so the redemption
+    // flow knows what to write into /managers/{uid}.
+    //
+    // Read: anyone with the token can fetch their invitation doc to
+    // bootstrap the redemption page. List is admin-only so attackers
+    // can't enumerate pending tokens.
+    match /invitations/{token} {
+      allow get: if true;
+      allow list: if isMSPAdmin();
+      allow create: if isMSPAdmin()
+        && request.resource.data.consumed == false
+        && request.resource.data.keys().hasAll(['email', 'clientId', 'firstName', 'lastName', 'consumed', 'createdAt'])
+        && request.resource.data.keys().hasOnly(['email', 'clientId', 'firstName', 'lastName', 'consumed', 'createdAt', 'consumedAt', 'consumedByUid', 'createdByUid']);
+      // Redemption: the invited user (matched by email) marks it consumed.
+      allow update: if isMSPAdmin()
+        || (isSignedIn()
+            && request.auth.token.email == resource.data.email
+            && resource.data.consumed == false
+            && request.resource.data.consumed == true
+            && request.resource.data.email == resource.data.email
+            && request.resource.data.clientId == resource.data.clientId
+            && request.resource.data.firstName == resource.data.firstName
+            && request.resource.data.lastName == resource.data.lastName);
+      allow delete: if isMSPAdmin();
+    }
+
+    // -------- /clients/{clientId} --------
+    // The client roster. Manager can only get() their own client doc;
+    // they cannot list. MSP admins have full control.
+    match /clients/{clientId} {
+      allow get: if isMSPAdmin() || isManagerOf(clientId);
+      allow list: if isMSPAdmin();
+      allow create, update, delete: if isMSPAdmin();
+
+      // -------- /clients/{clientId}/forms/{formId} --------
+      // Per-client form schemas (newhire-rehire, termination, etc.).
+      // Manager can read all forms for their client. MSP edits them.
+      match /forms/{formId} {
+        allow get: if isMSPAdmin() || isManagerOf(clientId);
+        allow list: if isMSPAdmin() || isManagerOf(clientId);
+        allow create, update, delete: if isMSPAdmin();
+      }
+
+      // -------- /clients/{clientId}/submissions/{submissionId} --------
+      // Submitted requests. Manager can only read their own (enforced
+      // per-doc). MSP admin sees everything. Status updates are MSP-only.
+      match /submissions/{submissionId} {
+        allow get: if isMSPAdmin()
+          || (isManagerOf(clientId) && resource.data.submittedByUid == request.auth.uid);
+
+        // List rule evaluates per-doc: queries that try to return
+        // submissions belonging to another manager will fail unless
+        // pre-filtered with where('submittedByUid','==', auth.uid).
+        allow list: if isMSPAdmin()
+          || (isManagerOf(clientId) && resource.data.submittedByUid == request.auth.uid);
+
+        allow create: if isManagerOf(clientId)
+          && request.resource.data.submittedByUid == request.auth.uid
+          && request.resource.data.submittedByEmail == request.auth.token.email
+          && request.resource.data.clientId == clientId
+          && request.resource.data.status == 'Submitted';
+
+        // Manager can update their own submission only while it's still
+        // Submitted (e.g., to fix a typo). Once MSP moves it to In Progress
+        // it's frozen for managers. MSP can update anything except
+        // immutable attribution fields.
+        allow update: if isMSPAdmin()
+          && request.resource.data.submittedByUid == resource.data.submittedByUid
+          && request.resource.data.submittedByEmail == resource.data.submittedByEmail
+          && request.resource.data.clientId == resource.data.clientId
+          && request.resource.data.submittedAt == resource.data.submittedAt;
+
+        allow update: if isManagerOf(clientId)
+          && resource.data.submittedByUid == request.auth.uid
+          && resource.data.status == 'Submitted'
+          && request.resource.data.status == 'Submitted'
+          && request.resource.data.submittedByUid == resource.data.submittedByUid
+          && request.resource.data.clientId == resource.data.clientId
+          && request.resource.data.submittedAt == resource.data.submittedAt;
+
+        allow delete: if false;
+
+        // -------- comments subcollection --------
+        // Two-way thread between manager and MSP. Append-only.
+        match /events/{eventId} {
+          allow get: if isMSPAdmin()
+            || (isManagerOf(clientId)
+                && get(/databases/$(database)/documents/clients/$(clientId)/submissions/$(submissionId)).data.submittedByUid == request.auth.uid);
+          allow list: if isMSPAdmin()
+            || (isManagerOf(clientId)
+                && get(/databases/$(database)/documents/clients/$(clientId)/submissions/$(submissionId)).data.submittedByUid == request.auth.uid);
+          allow create: if (isMSPAdmin()
+                            || (isManagerOf(clientId)
+                                && get(/databases/$(database)/documents/clients/$(clientId)/submissions/$(submissionId)).data.submittedByUid == request.auth.uid))
+            && request.resource.data.byUid == request.auth.uid
+            && request.resource.data.byEmail == request.auth.token.email;
+          allow update, delete: if false;
+        }
+      }
+    }
+  }
+}
