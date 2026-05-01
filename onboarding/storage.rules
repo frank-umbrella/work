@@ -1,16 +1,19 @@
 rules_version = '2';
 
-// Umbrella Automation — Incident Response
-// SNIPPET ONLY — not deployed standalone.
+// Umbrella Automation — onboarding-a563d project
+// Cloud Storage security rules (deployed source of truth).
 //
-// The Incident Response app shares the onboarding-a563d Firebase project.
-// The deployed Storage rules file lives at ../onboarding/storage.rules
-// (this file is its incident-specific excerpt for review).
+// Storage is currently used by the sibling Incident Response app
+// (work/incidents) for evidence attachments. Onboarding itself doesn't
+// upload files at the moment, but if it adds attachments later, add a
+// new top-level path block here under the same /msp_admins gate (or a
+// manager gate, depending on the use case).
 //
-// Files are scoped under /incidents/{incidentId}/... and only readable
-// + writable by members of /msp_admins/{uid}. We cap file size at 25 MB
-// and restrict content types to evidence formats (images, plain text,
-// logs, PDFs, ZIPs, .eml).
+// Auth model mirrors firestore.rules: gate on membership in
+// /msp_admins/{uid}. Files are scoped under /incidents/{incidentId}/...
+// with a 25 MB per-file cap and a content-type allowlist for evidence
+// formats analysts actually need (images, plain text, logs, PDFs,
+// ZIPs, .eml message files).
 
 service firebase.storage {
   match /b/{bucket}/o {
@@ -20,7 +23,7 @@ service firebase.storage {
         && firestore.exists(/databases/(default)/documents/msp_admins/$(request.auth.uid));
     }
 
-    function allowedType() {
+    function allowedIncidentType() {
       return request.resource.contentType.matches("image/.*")
           || request.resource.contentType.matches("text/.*")
           || request.resource.contentType == "application/pdf"
@@ -32,13 +35,19 @@ service firebase.storage {
           || request.resource.contentType == "application/vnd.ms-outlook";
     }
 
+    // -------- /incidents/{incidentId}/... --------
     match /incidents/{incidentId}/{file=**} {
-      allow read: if isMSPAdmin();
+      allow read:   if isMSPAdmin();
       allow create: if isMSPAdmin()
         && request.resource.size < 25 * 1024 * 1024
-        && allowedType();
+        && allowedIncidentType();
       allow delete: if isMSPAdmin();
       allow update: if false;
+    }
+
+    // Default deny for all other paths.
+    match /{allPaths=**} {
+      allow read, write: if false;
     }
   }
 }

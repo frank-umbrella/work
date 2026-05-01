@@ -76,6 +76,12 @@
   nav.tabs button:hover { background: var(--accent-soft); color: var(--accent); }
   nav.tabs button.active { background: var(--accent); color: #fff; }
   nav.tabs button[hidden] { display: none; }
+  nav.tabs a.tab-link {
+    padding: 7px 12px; border-radius: 7px;
+    color: var(--ink-soft); font-size: 13.5px; font-weight: 500;
+    text-decoration: none;
+  }
+  nav.tabs a.tab-link:hover { background: var(--accent-soft); color: var(--accent); }
   .userbar { margin-left: auto; display: flex; align-items: center; gap: 10px; font-size: 13px; }
   .userbar img.avatar {
     width: 28px; height: 28px; border-radius: 50%;
@@ -494,9 +500,8 @@
       </div>
     </div>
     <nav class="tabs">
-      <button data-tab="dashboard" class="active">Incidents</button>
-      <button data-tab="clients">Clients</button>
-      <button data-tab="users" id="usersTabBtn" hidden>Users</button>
+      <button data-tab="dashboard" class="active" type="button">Incidents</button>
+      <a href="../onboarding/" target="_blank" rel="noopener" class="tab-link" title="Manage clients and admins in the onboarding app">Onboarding &rarr;</a>
     </nav>
     <div class="userbar">
       <div class="who">
@@ -553,41 +558,11 @@
     </div>
   </section>
 
-  <!-- ============ Clients tab ============ -->
-  <section id="tabClients" hidden>
-    <div class="panel">
-      <div class="panel-header">
-        <h2>Clients</h2>
-        <div class="right">
-          <button class="btn btn-primary" id="newClientBtn" type="button" hidden>+ Add client</button>
-        </div>
-      </div>
-      <div id="clientsTableWrap">
-        <div class="center-load"><span class="spinner"></span> Loading clients…</div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============ Users tab (admin) ============ -->
-  <section id="tabUsers" hidden>
-    <div class="panel">
-      <div class="panel-header">
-        <h2>Users &amp; roles</h2>
-        <div class="right">
-          <span style="font-size:12px;color:var(--ink-faint);">Roles control what users can do. Admins can promote others, manage clients, and delete incidents.</span>
-        </div>
-      </div>
-      <div id="usersTableWrap">
-        <div class="center-load"><span class="spinner"></span> Loading users…</div>
-      </div>
-    </div>
-  </section>
-
 </main>
 
 <footer class="page">
   <span><a href="../">Work Hub</a> &middot; Incident Response</span>
-  <span id="versionTag">v0.1.0</span>
+  <span id="versionTag">v0.2.0</span>
 </footer>
 
 </div>
@@ -672,40 +647,6 @@
   </div>
 </div>
 
-<!-- ================= client modal ================= -->
-<div class="modal-bg" id="clientModal" hidden>
-  <div class="modal" style="max-width:520px;">
-    <div class="modal-header">
-      <div class="title" id="cmTitle">Add client</div>
-      <button class="close" type="button" data-close-modal>&times;</button>
-    </div>
-    <div class="modal-body">
-      <form id="cmForm" onsubmit="return false;">
-        <div class="form-grid">
-          <div class="field full">
-            <label for="cmName">Client name</label>
-            <input id="cmName" type="text" maxlength="120" required>
-          </div>
-          <div class="field full">
-            <label for="cmContact">Primary contact (optional)</label>
-            <input id="cmContact" type="text" maxlength="200" placeholder="Name, phone, email…">
-          </div>
-          <div class="field full">
-            <label for="cmNotes">Notes</label>
-            <textarea id="cmNotes" maxlength="1000" placeholder="Tier, environment, anything that helps responders." style="min-height:80px;"></textarea>
-          </div>
-        </div>
-      </form>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-danger" id="cmDeleteBtn" type="button" hidden>Delete</button>
-      <span style="flex:1;"></span>
-      <button class="btn" type="button" data-close-modal>Cancel</button>
-      <button class="btn btn-primary" id="cmSubmit" type="button">Save</button>
-    </div>
-  </div>
-</div>
-
 <!-- ================= toast ================= -->
 <div class="toast" id="toast" hidden></div>
 
@@ -731,26 +672,23 @@ import {
 } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-storage.js";
 
 // ------------------------------------------------------------------
-// Firebase config — replace the values below with your real project's
-// config from Project settings > General > Your apps > Web app.
-// The project must be created at https://console.firebase.google.com/
-// with these services enabled:
-//   - Authentication (Google provider)
-//   - Cloud Firestore
-//   - Cloud Storage  (requires Blaze plan for file uploads)
-//
-// firestore.rules and storage.rules in this folder are the rules to
-// deploy to that project.
+// Firebase config — same project as /onboarding/, so MSP admins are a
+// single roster shared between the two apps. Login is gated on
+// membership in /msp_admins/{uid} (which the onboarding app
+// provisions). See onboarding/firestore.rules for the full ruleset
+// (incidents collections are merged into that file since Firebase
+// allows only one Firestore rules file per project).
 // ------------------------------------------------------------------
 const firebaseConfig = {
-  apiKey: "REPLACE_ME",
-  authDomain: "REPLACE_ME.firebaseapp.com",
-  projectId: "REPLACE_ME",
-  storageBucket: "REPLACE_ME.firebasestorage.app",
-  messagingSenderId: "REPLACE_ME",
-  appId: "REPLACE_ME"
+  apiKey: "AIzaSyA-0BJUKW6tv-VhvttNqW2DtXERSIF_ScI",
+  authDomain: "onboarding-a563d.firebaseapp.com",
+  projectId: "onboarding-a563d",
+  storageBucket: "onboarding-a563d.firebasestorage.app",
+  messagingSenderId: "330286523878",
+  appId: "1:330286523878:web:27c4e2ffca3496ebc32227"
 };
 
+const APP_VERSION = "0.2.0";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const STATUSES = ["New", "Investigating", "Contained", "Resolved"];
 const SEVERITIES = ["Critical", "High", "Medium", "Low"];
@@ -763,16 +701,14 @@ const storage = getStorage(app);
 // ============== state ==============
 const state = {
   user: null,           // Firebase User
-  profile: null,        // /users/{uid} doc
-  isAdmin: false,
-  incidents: [],        // live list
-  clients: [],
-  users: [],
+  profile: null,        // /msp_admins/{uid} doc + uid
+  incidents: [],        // live list of /incidents
+  clients: [],          // live list of /clients (read-only here, managed in onboarding)
+  admins: [],           // live list of /msp_admins (used for assignee dropdown)
   filter: { search: "", status: "", severity: "", clientId: "", assignee: "" },
-  unsub: { incidents: null, clients: null, users: null, openIncident: null, openTimeline: null },
+  unsub: { incidents: null, clients: null, admins: null, openIncident: null, openTimeline: null },
   openIncident: null,   // currently-open in detail modal
-  pendingFiles: [],     // for the new-incident form
-  editingClient: null
+  pendingFiles: []      // for the new-incident form
 };
 
 // ============== helpers ==============
@@ -862,7 +798,6 @@ onAuthStateChanged(auth, async (user) => {
   state.unsub = { incidents: null, clients: null, users: null, openIncident: null, openTimeline: null };
   state.user = user || null;
   state.profile = null;
-  state.isAdmin = false;
 
   if (!user) {
     $("#signin").hidden = false;
@@ -877,47 +812,44 @@ onAuthStateChanged(auth, async (user) => {
     return;
   }
 
-  // Load or bootstrap /users/{uid}.
+  // Gate on /msp_admins/{uid} membership (provisioned by onboarding app).
   try {
-    const ref = doc(db, "users", user.uid);
+    const ref = doc(db, "msp_admins", user.uid);
     const snap = await getDoc(ref);
     if (!snap.exists()) {
-      await setDoc(ref, {
-        email: user.email,
-        name: user.displayName || user.email.split("@")[0],
-        photoURL: user.photoURL || "",
-        role: "analyst",
-        createdAt: serverTimestamp(),
-        lastLogin: serverTimestamp()
-      });
-      state.profile = (await getDoc(ref)).data();
-    } else {
-      // Update lastLogin + photoURL/name from Google.
-      const data = snap.data();
-      const patch = { lastLogin: serverTimestamp() };
-      if (user.displayName && data.name !== user.displayName) patch.name = user.displayName;
-      if (user.photoURL && data.photoURL !== user.photoURL) patch.photoURL = user.photoURL;
-      await updateDoc(ref, patch);
-      state.profile = { ...data, ...patch };
+      // Not an MSP admin — block access.
+      const errEl = $("#signinErr");
+      errEl.innerHTML =
+        `<strong>Access denied.</strong> Your account ` +
+        `<code>${escapeHTML(user.email)}</code> is not on the MSP admin ` +
+        `roster. Ask an existing admin to add you in the ` +
+        `<a href="../onboarding/" target="_blank" rel="noopener">onboarding app</a>, ` +
+        `then sign in again.`;
+      errEl.hidden = false;
+      await signOut(auth);
+      return;
     }
-    state.isAdmin = state.profile.role === "admin";
+    state.profile = { ...snap.data(), uid: user.uid };
+    // Best-effort lastLogin update (rule allows admin self-update).
+    try {
+      await updateDoc(ref, { lastLogin: serverTimestamp() });
+    } catch (e) { /* non-fatal */ }
   } catch (e) {
-    console.error("user bootstrap failed", e);
-    toast("Could not load your profile: " + (e.message || e.code), true);
+    console.error("admin gate failed", e);
+    toast("Could not verify your admin status: " + (e.message || e.code), true);
+    await signOut(auth);
     return;
   }
 
   // Render header user info.
   $("#ubEmail").textContent = user.email;
-  $("#ubRole").textContent = state.profile.role;
+  $("#ubRole").textContent = "MSP admin";
   if (user.photoURL) {
     $("#ubAvatar").src = user.photoURL;
     $("#ubAvatar").hidden = false;
   } else {
     $("#ubAvatar").hidden = true;
   }
-  $("#usersTabBtn").hidden = !state.isAdmin;
-  $("#newClientBtn").hidden = !state.isAdmin;
 
   $("#signin").hidden = true;
   $("#app").hidden = false;
@@ -925,17 +857,18 @@ onAuthStateChanged(auth, async (user) => {
   // Subscribe to live data.
   subscribeIncidents();
   subscribeClients();
-  if (state.isAdmin) subscribeUsers();
+  subscribeAdmins();
 });
 
 // ============== tab nav ==============
+// Only one tab right now ("Incidents"). The "Onboarding →" link is a real
+// anchor tag that opens the onboarding app in a new tab. Kept the loop so
+// adding more tabs later is a one-line change.
 $$("nav.tabs button").forEach(b => {
   b.addEventListener("click", () => {
     const tab = b.dataset.tab;
     $$("nav.tabs button").forEach(x => x.classList.toggle("active", x === b));
     $("#tabDashboard").hidden = tab !== "dashboard";
-    $("#tabClients").hidden   = tab !== "clients";
-    $("#tabUsers").hidden     = tab !== "users";
   });
 });
 
@@ -1001,7 +934,7 @@ function renderIncidents() {
   }
 
   const rows = list.map(i => {
-    const assignee = i.assignedTo ? (state.users.find(u => u.id === i.assignedTo)?.name || "—") : "—";
+    const assignee = i.assignedTo ? (state.admins.find(u => u.id === i.assignedTo)?.name || "—") : "—";
     return `
       <tr data-id="${escapeHTML(i.id)}">
         <td>
@@ -1037,15 +970,18 @@ $("#filterAssignee").addEventListener("change", e => { state.filter.assignee = e
 
 // ============== clients: live list ==============
 function subscribeClients() {
+  // /clients/{clientId} is shared with the onboarding app — managed there,
+  // read-only here. Used to populate the incident form's client dropdown
+  // and the dashboard's client filter.
   const q = query(collection(db, "clients"), orderBy("name", "asc"));
   state.unsub.clients = onSnapshot(q, snap => {
     state.clients = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    renderClients();
     populateClientDropdowns();
+    // Refresh the incident list so any rows missing a clientName render correctly.
+    renderIncidents();
   }, err => {
     console.error("clients listen failed", err);
-    $("#clientsTableWrap").innerHTML =
-      `<div class="center-load" style="color:var(--danger);">Could not load clients: ${escapeHTML(err.message || err.code)}</div>`;
+    toast("Could not load clients: " + (err.message || err.code), true);
   });
 }
 
@@ -1056,55 +992,29 @@ function populateClientDropdowns() {
   $("#niClient").innerHTML = `<option value="">Select a client…</option>` + opts;
 }
 
-function renderClients() {
-  if (state.clients.length === 0) {
-    $("#clientsTableWrap").innerHTML = `
-      <div class="empty" style="text-align:center;padding:60px 20px;color:var(--ink-faint);">
-        <p>No clients on file yet.</p>
-        ${state.isAdmin ? '<p style="font-size:12px;">Click <strong>+ Add client</strong> to populate the list.</p>' : '<p style="font-size:12px;">Ask an admin to add the first client.</p>'}
-      </div>`;
-    return;
-  }
-  const rows = state.clients.map(c => {
-    const incidentCount = state.incidents.filter(i => i.clientId === c.id).length;
-    return `
-      <tr>
-        <td><strong>${escapeHTML(c.name)}</strong>${c.contact ? `<div class="sub" style="color:var(--ink-faint);font-size:12px;">${escapeHTML(c.contact)}</div>` : ''}</td>
-        <td style="font-size:13px;color:var(--ink-soft);">${escapeHTML(c.notes || "")}</td>
-        <td style="text-align:center;">${incidentCount}</td>
-        <td class="actions">
-          ${state.isAdmin ? `<button class="btn btn-sm" data-edit-client="${escapeHTML(c.id)}">Edit</button>` : ""}
-        </td>
-      </tr>`;
-  }).join("");
-  $("#clientsTableWrap").innerHTML = `
-    <table class="simple">
-      <thead><tr><th>Client</th><th>Notes</th><th style="text-align:center;">Incidents</th><th></th></tr></thead>
-      <tbody>${rows}</tbody>
-    </table>`;
-  $$("#clientsTableWrap [data-edit-client]").forEach(b => {
-    b.addEventListener("click", () => openClientModal(b.dataset.editClient));
-  });
-}
-
-// ============== users: live list (admin only) ==============
-function subscribeUsers() {
-  const q = query(collection(db, "users"), orderBy("email", "asc"));
-  state.unsub.users = onSnapshot(q, snap => {
-    state.users = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    renderUsers();
+// ============== msp_admins: live list (used for assignee dropdown) ==============
+function subscribeAdmins() {
+  // No orderBy here — /msp_admins/{uid} docs may not all have an "email"
+  // field at the same time as legacy entries. Sort client-side.
+  state.unsub.admins = onSnapshot(collection(db, "msp_admins"), snap => {
+    state.admins = snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => (a.name || a.email || "").localeCompare(b.name || b.email || ""));
     populateAssigneeDropdowns();
+    // If a detail modal is open, re-render it so the assignee select reflects updated names.
+    if (state.openIncident) {
+      const inc = state.incidents.find(i => i.id === state.openIncident);
+      if (inc) renderIncidentDetail(inc);
+    }
   }, err => {
-    console.error("users listen failed", err);
-    $("#usersTableWrap").innerHTML =
-      `<div class="center-load" style="color:var(--danger);">Could not load users: ${escapeHTML(err.message || err.code)}</div>`;
+    console.error("admins listen failed", err);
+    toast("Could not load admin roster: " + (err.message || err.code), true);
   });
 }
 
 function populateAssigneeDropdowns() {
-  const opts = state.users.map(u =>
+  const opts = state.admins.map(u =>
     `<option value="${escapeHTML(u.id)}">${escapeHTML(u.name || u.email)}</option>`).join("");
-  // Filter assignee dropdown
   const sel = $("#filterAssignee");
   const cur = sel.value;
   sel.innerHTML = `
@@ -1113,58 +1023,7 @@ function populateAssigneeDropdowns() {
     <option value="__none">Unassigned</option>
   ` + opts;
   sel.value = cur;
-  // New-incident assignee
   $("#niAssignee").innerHTML = `<option value="">— unassigned —</option>` + opts;
-}
-
-function renderUsers() {
-  if (state.users.length === 0) {
-    $("#usersTableWrap").innerHTML = `<div class="empty" style="text-align:center;padding:60px 20px;color:var(--ink-faint);">No users yet.</div>`;
-    return;
-  }
-  const rows = state.users.map(u => {
-    const isSelf = u.id === state.user.uid;
-    return `
-      <tr>
-        <td>
-          <strong>${escapeHTML(u.name || u.email)}</strong>${isSelf ? ' <span style="color:var(--ink-faint);font-size:11px;">(you)</span>' : ''}
-          <div class="sub" style="color:var(--ink-faint);font-size:12px;">${escapeHTML(u.email)}</div>
-        </td>
-        <td>${pillRole(u.role)}</td>
-        <td style="font-size:12px;color:var(--ink-faint);">${escapeHTML(fmtRelative(u.lastLogin))}</td>
-        <td class="actions">
-          ${u.role === "analyst"
-            ? `<button class="btn btn-sm" data-promote="${escapeHTML(u.id)}">Promote to admin</button>`
-            : `<button class="btn btn-sm" data-demote="${escapeHTML(u.id)}">Demote to analyst</button>`}
-        </td>
-      </tr>`;
-  }).join("");
-  $("#usersTableWrap").innerHTML = `
-    <table class="simple">
-      <thead><tr><th>User</th><th>Role</th><th>Last login</th><th></th></tr></thead>
-      <tbody>${rows}</tbody>
-    </table>`;
-  $$("#usersTableWrap [data-promote]").forEach(b => {
-    b.addEventListener("click", () => changeRole(b.dataset.promote, "admin"));
-  });
-  $$("#usersTableWrap [data-demote]").forEach(b => {
-    b.addEventListener("click", () => changeRole(b.dataset.demote, "analyst"));
-  });
-}
-
-async function changeRole(uid, newRole) {
-  if (uid === state.user.uid && newRole === "analyst") {
-    if (!confirm("This will demote YOU to analyst — you'll lose admin powers immediately. Are you sure?")) return;
-  } else {
-    const u = state.users.find(x => x.id === uid);
-    if (!confirm(`Change ${u?.email || uid} to ${newRole}?`)) return;
-  }
-  try {
-    await updateDoc(doc(db, "users", uid), { role: newRole });
-    toast("Role updated.");
-  } catch (e) {
-    toast("Failed to update role: " + (e.message || e.code), true);
-  }
 }
 
 // ============== new incident ==============
@@ -1255,7 +1114,7 @@ $("#niSubmit").addEventListener("click", async () => {
       severity,
       status: "New",
       assignedTo: assignee || null,
-      assignedToEmail: assignee ? (state.users.find(u => u.id === assignee)?.email || "") : "",
+      assignedToEmail: assignee ? (state.admins.find(u => u.id === assignee)?.email || "") : "",
       createdBy: state.user.uid,
       createdByEmail: state.user.email,
       createdAt: serverTimestamp(),
@@ -1268,7 +1127,7 @@ $("#niSubmit").addEventListener("click", async () => {
     // 2) Initial timeline event.
     await addDoc(collection(db, "incidents", incRef.id, "timeline"), {
       kind: "created",
-      message: `Incident opened${assignee ? ", assigned to " + (state.users.find(u => u.id === assignee)?.name || "?") : ""}.`,
+      message: `Incident opened${assignee ? ", assigned to " + (state.admins.find(u => u.id === assignee)?.name || "?") : ""}.`,
       byUid: state.user.uid,
       byEmail: state.user.email,
       at: serverTimestamp()
@@ -1330,7 +1189,7 @@ async function openIncident(id) {
   $("#imBody").innerHTML = `<div class="center-load"><span class="spinner"></span> Loading…</div>`;
   $("#imTitle").textContent = "";
   $("#imPills").innerHTML = "";
-  $("#imDeleteBtn").hidden = !state.isAdmin;
+  $("#imDeleteBtn").hidden = false;
   $("#incidentModal").hidden = false;
 
   // Live-listen on the incident doc so status changes elsewhere appear.
@@ -1364,9 +1223,9 @@ function renderIncidentDetail(inc) {
   $("#imTitle").textContent = inc.title || "(untitled)";
   $("#imPills").innerHTML = pillSeverity(inc.severity || "Medium") + pillStatus(inc.status || "New");
 
-  const assignee = inc.assignedTo ? (state.users.find(u => u.id === inc.assignedTo)?.name || inc.assignedToEmail || "—") : "Unassigned";
+  const assignee = inc.assignedTo ? (state.admins.find(u => u.id === inc.assignedTo)?.name || inc.assignedToEmail || "—") : "Unassigned";
   const assigneeOpts = `<option value="">— unassigned —</option>` +
-    state.users.map(u => `<option value="${escapeHTML(u.id)}" ${u.id === inc.assignedTo ? "selected" : ""}>${escapeHTML(u.name || u.email)}</option>`).join("");
+    state.admins.map(u => `<option value="${escapeHTML(u.id)}" ${u.id === inc.assignedTo ? "selected" : ""}>${escapeHTML(u.name || u.email)}</option>`).join("");
   const sevOpts = SEVERITIES.map(s => `<option ${s === inc.severity ? "selected" : ""}>${s}</option>`).join("");
   const statusButtons = STATUSES.map(s => {
     const active = s === inc.status;
@@ -1547,14 +1406,14 @@ async function changeSeverity(inc, newSev) {
 }
 
 async function changeAssignee(inc, uid) {
-  const newAssigneeUser = uid ? state.users.find(u => u.id === uid) : null;
+  const newAssigneeUser = uid ? state.admins.find(u => u.id === uid) : null;
   try {
     await updateDoc(doc(db, "incidents", inc.id), {
       assignedTo: uid || null,
       assignedToEmail: newAssigneeUser?.email || "",
       updatedAt: serverTimestamp()
     });
-    const oldName = inc.assignedTo ? (state.users.find(u => u.id === inc.assignedTo)?.name || inc.assignedToEmail || "?") : "unassigned";
+    const oldName = inc.assignedTo ? (state.admins.find(u => u.id === inc.assignedTo)?.name || inc.assignedToEmail || "?") : "unassigned";
     const newName = newAssigneeUser ? (newAssigneeUser.name || newAssigneeUser.email) : "unassigned";
     await addDoc(collection(db, "incidents", inc.id, "timeline"), {
       kind: "status_change",
@@ -1706,65 +1565,6 @@ $("#imDeleteBtn").addEventListener("click", async () => {
     await deleteDoc(doc(db, "incidents", id));
     toast("Incident deleted.");
     closeIncidentModal();
-  } catch (e) {
-    toast("Delete failed: " + (e.message || e.code), true);
-  }
-});
-
-// ============== client modal ==============
-$("#newClientBtn").addEventListener("click", () => openClientModal(null));
-
-function openClientModal(id) {
-  state.editingClient = id;
-  const c = id ? state.clients.find(x => x.id === id) : null;
-  $("#cmTitle").textContent = c ? "Edit client" : "Add client";
-  $("#cmName").value = c?.name || "";
-  $("#cmContact").value = c?.contact || "";
-  $("#cmNotes").value = c?.notes || "";
-  $("#cmDeleteBtn").hidden = !c;
-  $("#cmSubmit").textContent = c ? "Save" : "Add client";
-  $("#clientModal").hidden = false;
-  setTimeout(() => $("#cmName").focus(), 50);
-}
-
-$("#cmSubmit").addEventListener("click", async () => {
-  const name = $("#cmName").value.trim();
-  if (!name) { toast("Client name is required.", true); return; }
-  const payload = {
-    name,
-    contact: $("#cmContact").value.trim(),
-    notes: $("#cmNotes").value.trim()
-  };
-  try {
-    if (state.editingClient) {
-      await updateDoc(doc(db, "clients", state.editingClient), {
-        ...payload, updatedAt: serverTimestamp()
-      });
-      toast("Client updated.");
-    } else {
-      await addDoc(collection(db, "clients"), {
-        ...payload,
-        createdAt: serverTimestamp(),
-        createdBy: state.user.uid
-      });
-      toast("Client added.");
-    }
-    $("#clientModal").hidden = true;
-  } catch (e) {
-    toast("Save failed: " + (e.message || e.code), true);
-  }
-});
-
-$("#cmDeleteBtn").addEventListener("click", async () => {
-  const id = state.editingClient;
-  if (!id) return;
-  const inUse = state.incidents.some(i => i.clientId === id);
-  if (inUse && !confirm("This client has incidents linked to it. The incidents will be kept but their client name reference will be stale. Delete anyway?")) return;
-  if (!inUse && !confirm("Delete this client?")) return;
-  try {
-    await deleteDoc(doc(db, "clients", id));
-    toast("Client deleted.");
-    $("#clientModal").hidden = true;
   } catch (e) {
     toast("Delete failed: " + (e.message || e.code), true);
   }

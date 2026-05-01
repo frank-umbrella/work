@@ -213,5 +213,39 @@ service cloud.firestore {
         }
       }
     }
+
+    // -------- /incidents/{incidentId} --------
+    // Used by the sibling Incident Response app (work/incidents). Only
+    // MSP admins (members of /msp_admins) may touch any of this. Managers
+    // (external client employees) have no access — incidents are an
+    // internal MSP concern.
+    //
+    // Original attribution (createdBy / createdByEmail / createdAt) is
+    // immutable on update. The timeline subcollection is append-only.
+    match /incidents/{incidentId} {
+      allow read: if isMSPAdmin();
+
+      allow create: if isMSPAdmin()
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.createdByEmail == request.auth.token.email;
+
+      allow update: if isMSPAdmin()
+        && request.resource.data.createdBy == resource.data.createdBy
+        && request.resource.data.createdByEmail == resource.data.createdByEmail
+        && request.resource.data.createdAt == resource.data.createdAt;
+
+      allow delete: if isMSPAdmin();
+
+      // ----- /incidents/{id}/timeline/{eventId} -----
+      // Append-only audit log: status changes, severity / assignee
+      // changes, comments, attachments added or removed.
+      match /timeline/{eventId} {
+        allow read: if isMSPAdmin();
+        allow create: if isMSPAdmin()
+          && request.resource.data.byUid == request.auth.uid
+          && request.resource.data.byEmail == request.auth.token.email;
+        allow update, delete: if false;
+      }
+    }
   }
 }
