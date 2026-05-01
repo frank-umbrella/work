@@ -6,7 +6,7 @@
 <title>Onboarding &middot; Umbrella Automation</title>
 <meta name="description" content="Client onboarding system for Umbrella Automation managed service clients. Submit new hire, termination, and position change requests.">
 <meta name="robots" content="noindex">
-<meta name="app-version" content="0.1.5">
+<meta name="app-version" content="0.1.6">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -111,6 +111,20 @@
   }
   .btn-link:hover { text-decoration: underline; }
   .btn-sm { font-size: 12px; padding: 5px 9px; }
+
+  /* ============== initial auth-state loader ============== */
+  .auth-loader {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 14px; padding: 80px 20px; color: var(--ink-soft);
+  }
+  .auth-loader p { margin: 0; font-size: 13.5px; }
+  .auth-loader[hidden] { display: none; }
+  .auth-loader .spinner {
+    width: 28px; height: 28px; border-radius: 50%;
+    border: 3px solid var(--line); border-top-color: var(--accent);
+    animation: authSpin 0.85s linear infinite;
+  }
+  @keyframes authSpin { to { transform: rotate(360deg); } }
 
   /* ============== sign-in / invite landing ============== */
   .auth-wrap {
@@ -530,8 +544,17 @@
   </div>
 </header>
 
+<!-- ================= initial auth-state loader =================
+     Shown while Firebase reads the persisted auth token. Without this,
+     refreshing the page flashes the sign-in screen for ~300ms before
+     the onAuthStateChanged callback fires and reveals the app. -->
+<div id="authLoader" class="auth-loader">
+  <div class="spinner"></div>
+  <p>Checking sign-in…</p>
+</div>
+
 <!-- ================= sign-in / invite landing ================= -->
-<section id="auth" class="auth-wrap">
+<section id="auth" class="auth-wrap" hidden>
   <h2 id="authTitle">Sign in</h2>
   <p class="lead" id="authLead">Choose the option that matches your account.</p>
 
@@ -933,7 +956,7 @@
 <div class="toast" id="toast" hidden></div>
 
 <footer class="foot" id="appFooter" hidden>
-  <p><a href="../">&larr; Work hub</a> &middot; Onboarding v0.1.5</p>
+  <p><a href="../">&larr; Work hub</a> &middot; Onboarding v0.1.6</p>
 </footer>
 
 <script type="module">
@@ -970,7 +993,7 @@ const firebaseConfig = {
   appId: "1:330286523878:web:27c4e2ffca3496ebc32227"
 };
 
-const APP_VERSION = "0.1.5";
+const APP_VERSION = "0.1.6";
 const STATUSES = ["Submitted", "In Progress", "Completed", "Cancelled"];
 const MSP_DOMAIN = "umbrellaautomation.com"; // Google sign-in restricted to this domain
 
@@ -1288,6 +1311,11 @@ $("#inviteBtn").addEventListener("click", async () => {
 
 // ============== auth state listener ==============
 onAuthStateChanged(auth, async user => {
+  // First callback after page load is the resolved auth state — safe
+  // to hide the loader. (No-op on subsequent callbacks since `hidden`
+  // is idempotent.)
+  $("#authLoader").hidden = true;
+
   // Tear down any live listeners from a previous session.
   Object.values(state.unsub).forEach(u => { if (typeof u === "function") u(); });
   state.unsub = { submissions: null, forms: null, clients: null, invitations: null, admins: null, openSub: null, openEvents: null };
@@ -1302,6 +1330,10 @@ onAuthStateChanged(auth, async user => {
   state.admins = [];
 
   if (!user) {
+    $("#auth").hidden = false;
+    $("#topbar").hidden = true;
+    $("#app").hidden = true;
+    $("#appFooter").hidden = true;
     // Show invite form if URL has ?invite=, otherwise sign-in.
     const handled = await handleInviteIfPresent();
     if (!handled) {
@@ -1312,10 +1344,6 @@ onAuthStateChanged(auth, async user => {
       $("#authTitle").textContent = "Sign in";
       $("#authLead").textContent = "Choose the option that matches your account.";
     }
-    $("#auth").hidden = false;
-    $("#topbar").hidden = true;
-    $("#app").hidden = true;
-    $("#appFooter").hidden = true;
     return;
   }
 
@@ -1960,14 +1988,25 @@ $("#myReqStatusFilter").addEventListener("change", e => {
 
 // ============== submissions: admin queue (cross-client) ==============
 function subscribeAllSubmissions() {
-  const q = query(collectionGroup(db, "submissions"), orderBy("submittedAt", "desc"));
+  // No orderBy: Firestore requires a COLLECTION_GROUP-scoped field
+  // override on `submittedAt` to sort across all `submissions`
+  // subcollections, and adding more orderBy/where combinations would
+  // each need their own override. Sort client-side instead — volumes
+  // are low (one row per submission across all clients) and filtering
+  // is already client-side, so this keeps things simple.
+  const q = query(collectionGroup(db, "submissions"));
   state.unsub.submissions = onSnapshot(q, snap => {
     state.submissions = snap.docs.map(d => ({ id: d.id, _ref: d.ref, ...d.data() }));
+    state.submissions.sort((a, b) => {
+      const ta = a.submittedAt?.toMillis ? a.submittedAt.toMillis() : 0;
+      const tb = b.submittedAt?.toMillis ? b.submittedAt.toMillis() : 0;
+      return tb - ta;
+    });
     renderQueue();
   }, err => {
     console.error("queue listen failed", err);
     $("#queueTableWrap").innerHTML =
-      `<div class="empty" style="color:var(--danger);">Could not load queue: ${escapeHTML(err.message || err.code)}</div>`;
+      `<div class="empty" style="color:var(--danger);">${friendlyErrHTML(err, "Could not load the queue")}</div>`;
   });
 }
 
