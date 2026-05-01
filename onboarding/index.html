@@ -6,7 +6,7 @@
 <title>Onboarding &middot; Umbrella Automation</title>
 <meta name="description" content="Client onboarding system for Umbrella Automation managed service clients. Submit new hire, termination, and position change requests.">
 <meta name="robots" content="noindex">
-<meta name="app-version" content="0.1.2">
+<meta name="app-version" content="0.1.3">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -736,16 +736,16 @@
     <div class="modal-body">
       <div class="field" style="margin-bottom:12px;">
         <label for="cmId">Client ID <span class="req">*</span></label>
-        <input id="cmId" type="text" placeholder="jemmedspa">
+        <input id="cmId" type="text" placeholder="e.g. acme-corp">
         <div class="help">Lowercase, no spaces. Used in URLs and Firestore. Cannot be changed after creation.</div>
       </div>
       <div class="field" style="margin-bottom:12px;">
         <label for="cmName">Display name <span class="req">*</span></label>
-        <input id="cmName" type="text" placeholder="JEM Medspa">
+        <input id="cmName" type="text" placeholder="e.g. Acme Corporation">
       </div>
       <div class="field" style="margin-bottom:12px;">
         <label for="cmDomain">Email domain</label>
-        <input id="cmDomain" type="text" placeholder="jemmedspa.com">
+        <input id="cmDomain" type="text" placeholder="e.g. acme.com">
         <div class="help">The client's primary email domain. Used in form templates.</div>
       </div>
     </div>
@@ -897,7 +897,7 @@
 <div class="toast" id="toast" hidden></div>
 
 <footer class="foot" id="appFooter" hidden>
-  <p><a href="../">&larr; Work hub</a> &middot; Onboarding v0.1.2</p>
+  <p><a href="../">&larr; Work hub</a> &middot; Onboarding v0.1.3</p>
 </footer>
 
 <script type="module">
@@ -934,7 +934,7 @@ const firebaseConfig = {
   appId: "1:330286523878:web:27c4e2ffca3496ebc32227"
 };
 
-const APP_VERSION = "0.1.2";
+const APP_VERSION = "0.1.3";
 const STATUSES = ["Submitted", "In Progress", "Completed", "Cancelled"];
 const MSP_DOMAIN = "umbrellaautomation.com"; // Google sign-in restricted to this domain
 
