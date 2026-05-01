@@ -13,7 +13,7 @@
           { "id": "terminationDate", "type": "date", "label": "Termination Date", "required": true },
           { "id": "employeeNumber", "type": "text", "label": "Employee Number", "required": true },
           { "id": "typeOfTermination", "type": "select", "label": "Type Of Termination", "required": true,
-            "options": ["TODO_REPLACE_WITH_REAL_OPTIONS_eg_Voluntary_Involuntary_Layoff_Retirement_EndOfContract"],
+            "options": ["Voluntary", "Involuntary"],
             "help": "This helps us understand which termination process to execute." },
           { "id": "firstName", "type": "text", "label": "First Name", "required": true },
           { "id": "lastName", "type": "text", "label": "Last Name", "required": true },
