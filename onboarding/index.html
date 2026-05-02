@@ -6,7 +6,7 @@
 <title>Onboarding &middot; Umbrella Automation</title>
 <meta name="description" content="Client onboarding system for Umbrella Automation managed service clients. Submit new hire, termination, and position change requests.">
 <meta name="robots" content="noindex">
-<meta name="app-version" content="0.1.7">
+<meta name="app-version" content="0.1.8">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -956,7 +956,7 @@
 <div class="toast" id="toast" hidden></div>
 
 <footer class="foot" id="appFooter" hidden>
-  <p><a href="../">&larr; Work hub</a> &middot; Onboarding v0.1.7</p>
+  <p><a href="../">&larr; Work hub</a> &middot; Onboarding v0.1.8</p>
 </footer>
 
 <script type="module">
@@ -993,7 +993,7 @@ const firebaseConfig = {
   appId: "1:330286523878:web:27c4e2ffca3496ebc32227"
 };
 
-const APP_VERSION = "0.1.7";
+const APP_VERSION = "0.1.8";
 const STATUSES = ["Submitted", "In Progress", "Completed", "Cancelled"];
 const MSP_DOMAIN = "umbrellaautomation.com"; // Google sign-in restricted to this domain
 
@@ -1052,6 +1052,22 @@ function friendlyErr(err, contextLabel) {
   return contextLabel + " right now. Please try again. If this keeps happening, contact your MSP.";
 }
 function friendlyErrHTML(err, contextLabel) {
+  // Special-case: missing Firestore composite index. The error message
+  // includes a clickable "create index" link to the Firebase console;
+  // surface it for admins so they can auto-provision in one click.
+  // Managers can't fix this themselves so we keep their message generic.
+  const isIndexErr = err?.code === "failed-precondition"
+    && /index/i.test(err?.message || "");
+  if (isIndexErr) {
+    if (state.role === "admin") {
+      const m = (err.message || "").match(/https:\/\/console\.firebase\.google\.com\/[^\s)"']+/);
+      const linkHTML = m
+        ? ` <a href="${escapeHTML(m[0])}" target="_blank" rel="noopener noreferrer" style="color:inherit;text-decoration:underline;font-weight:600;">Click here to auto-create it</a>, then wait about a minute and refresh.`
+        : " Check the browser console for the create-index link.";
+      return `${escapeHTML(contextLabel)}: a Firestore composite index is needed for this query.${linkHTML}`;
+    }
+    return escapeHTML(contextLabel + " right now (your MSP is finishing setup — try again in a minute).");
+  }
   return escapeHTML(friendlyErr(err, contextLabel));
 }
 
