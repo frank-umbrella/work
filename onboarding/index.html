@@ -6,7 +6,7 @@
 <title>Onboarding &middot; Umbrella Automation</title>
 <meta name="description" content="Client onboarding system for Umbrella Automation managed service clients. Submit new hire, termination, and position change requests.">
 <meta name="robots" content="noindex">
-<meta name="app-version" content="0.1.6">
+<meta name="app-version" content="0.1.7">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -956,7 +956,7 @@
 <div class="toast" id="toast" hidden></div>
 
 <footer class="foot" id="appFooter" hidden>
-  <p><a href="../">&larr; Work hub</a> &middot; Onboarding v0.1.6</p>
+  <p><a href="../">&larr; Work hub</a> &middot; Onboarding v0.1.7</p>
 </footer>
 
 <script type="module">
@@ -993,7 +993,7 @@ const firebaseConfig = {
   appId: "1:330286523878:web:27c4e2ffca3496ebc32227"
 };
 
-const APP_VERSION = "0.1.6";
+const APP_VERSION = "0.1.7";
 const STATUSES = ["Submitted", "In Progress", "Completed", "Cancelled"];
 const MSP_DOMAIN = "umbrellaautomation.com"; // Google sign-in restricted to this domain
 
@@ -1446,7 +1446,10 @@ function enterApp() {
       const t = b.dataset.tab;
       b.hidden = !(t === "newrequest" || t === "myrequests");
     });
-    activateTab("newrequest");
+    // Land on My Requests so managers see in-flight work first; clicking
+    // the brand link returns here too. Roadmap: once there's real usage,
+    // consider showing New Request when there's nothing in flight.
+    activateTab("myrequests");
 
     subscribeFormsForClient(state.managerDoc.clientId);
     subscribeMySubmissions();
