@@ -247,5 +247,23 @@ service cloud.firestore {
         allow update, delete: if false;
       }
     }
+
+    // -------- /mail/{mailId} --------
+    // Outbound email queue picked up by the Firebase "Trigger Email from
+    // Firestore" extension (firebase-extensions/firestore-send-email).
+    // The extension reads each new doc, sends via the configured SMTP
+    // provider (Resend → umbrellaautomation.com), then writes a
+    // `delivery` field back with status. Only MSP admins can enqueue;
+    // managers must never write here. Reads allowed for admin so they
+    // can audit delivery status from the UI; updates / deletes blocked
+    // (the extension uses a service account that bypasses these rules).
+    match /mail/{mailId} {
+      allow read: if isMSPAdmin();
+      allow create: if isMSPAdmin()
+        && request.resource.data.to is list
+        && request.resource.data.message is map
+        && request.resource.data.message.subject is string;
+      allow update, delete: if false;
+    }
   }
 }

@@ -6,7 +6,7 @@
 <title>Onboarding &middot; Umbrella Automation</title>
 <meta name="description" content="Client onboarding system for Umbrella Automation managed service clients. Submit new hire, termination, and position change requests.">
 <meta name="robots" content="noindex">
-<meta name="app-version" content="0.1.8">
+<meta name="app-version" content="0.2.0">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -483,6 +483,86 @@
   .toast.err { background: var(--danger); }
   .toast[hidden] { display: none; }
 
+  /* ============== completion / welcome modal ============== */
+  .comp-section {
+    margin-top: 18px; padding-top: 14px;
+    border-top: 1px solid var(--line);
+  }
+  .comp-section:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+  .comp-section h4 {
+    margin: 0 0 12px; font-size: 12px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-soft);
+  }
+  .comp-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px;
+  }
+  .comp-grid .full { grid-column: 1 / -1; }
+  .comp-field { display: flex; flex-direction: column; gap: 4px; }
+  .comp-field label { font-size: 12px; font-weight: 600; color: var(--ink); }
+  .comp-field label .req { color: var(--danger); }
+  .comp-field input, .comp-field select, .comp-field textarea {
+    padding: 7px 9px; font-size: 13px; border-radius: 6px;
+    border: 1px solid var(--line); background: var(--surface);
+    color: var(--ink); font-family: inherit;
+  }
+  .comp-field textarea { min-height: 60px; resize: vertical; }
+  .comp-field input:focus, .comp-field select:focus, .comp-field textarea:focus {
+    outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft);
+  }
+  .comp-field .help { font-size: 11.5px; color: var(--ink-faint); }
+  .comp-field input[data-prefilled="true"] { background: var(--accent-soft); }
+
+  .comp-recipients {
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 12px 14px; margin-top: 18px;
+  }
+  .comp-recipients h4 {
+    margin: 0 0 8px; font-size: 12px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-soft);
+  }
+  .comp-recipients ul { margin: 0; padding-left: 18px; font-size: 13px; }
+  .comp-recipients .badge {
+    display: inline-block; font-size: 10.5px; font-weight: 600;
+    padding: 1px 6px; border-radius: 4px; margin-left: 6px;
+    background: var(--accent-soft); color: var(--accent-ink);
+    text-transform: uppercase; letter-spacing: 0.04em;
+  }
+
+  .comp-preview {
+    margin-top: 18px; border: 1px solid var(--line); border-radius: 8px;
+    background: var(--surface-2);
+  }
+  .comp-preview-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px; border-bottom: 1px solid var(--line);
+  }
+  .comp-preview-head h4 {
+    margin: 0; font-size: 12px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-soft);
+  }
+  .comp-preview-tabs { display: flex; gap: 4px; }
+  .comp-preview-tabs button {
+    background: transparent; border: 1px solid var(--line);
+    border-radius: 5px; padding: 4px 10px; font-size: 11.5px; cursor: pointer;
+    color: var(--ink-soft);
+  }
+  .comp-preview-tabs button.active {
+    background: var(--ink); color: #fff; border-color: var(--ink);
+  }
+  .comp-preview-body { padding: 0; }
+  .comp-preview-body iframe {
+    width: 100%; min-height: 360px; border: 0; background: #fff; border-radius: 0 0 8px 8px;
+  }
+  .comp-preview-body textarea {
+    width: 100%; min-height: 360px; border: 0; resize: vertical;
+    padding: 14px; font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 12px; line-height: 1.55; color: var(--ink);
+    background: var(--surface); border-radius: 0 0 8px 8px;
+  }
+  .comp-preview-body textarea:focus { outline: none; }
+
   /* ============== client cards ============== */
   .client-list { display: grid; gap: 10px; }
   .client-row {
@@ -765,6 +845,24 @@
   </div>
 </div>
 
+<!-- ================= completion / welcome-email modal ================= -->
+<div class="modal-bg" id="completionModal" hidden>
+  <div class="modal wide">
+    <div class="modal-head">
+      <h3 id="completionTitle">Complete &amp; Send Welcome</h3>
+      <button class="close" type="button" data-close-modal>&times;</button>
+    </div>
+    <div class="modal-body" id="completionBody"></div>
+    <div class="modal-foot">
+      <span style="font-size:12px;color:var(--ink-faint);margin-right:auto;" id="completionHint">
+        Fields auto-fill from the original request. Edit anything, then Send.
+      </span>
+      <button class="btn" type="button" data-close-modal>Cancel</button>
+      <button class="btn btn-primary" type="button" id="completionSendBtn">Send welcome email</button>
+    </div>
+  </div>
+</div>
+
 <!-- ================= client editor modal ================= -->
 <div class="modal-bg" id="clientModal" hidden>
   <div class="modal">
@@ -956,7 +1054,7 @@
 <div class="toast" id="toast" hidden></div>
 
 <footer class="foot" id="appFooter" hidden>
-  <p><a href="../">&larr; Work hub</a> &middot; Onboarding v0.1.8</p>
+  <p><a href="../">&larr; Work hub</a> &middot; Onboarding v0.2.0</p>
 </footer>
 
 <script type="module">
@@ -993,7 +1091,7 @@ const firebaseConfig = {
   appId: "1:330286523878:web:27c4e2ffca3496ebc32227"
 };
 
-const APP_VERSION = "0.1.8";
+const APP_VERSION = "0.2.0";
 const STATUSES = ["Submitted", "In Progress", "Completed", "Cancelled"];
 const MSP_DOMAIN = "umbrellaautomation.com"; // Google sign-in restricted to this domain
 
@@ -2173,16 +2271,32 @@ function renderSubmissionDetail() {
     });
   }
 
-  // Status controls (admin only).
+  // Status controls (admin only). For new-hire/rehire submissions we
+  // also surface the "Complete & Send Welcome" button when status isn't
+  // already Completed; that's the path that captures the deliverables
+  // and emails the new employee + manager(s).
   let statusCtrl = "";
   if (state.role === "admin") {
+    const isNewHireKind = COMPLETION_KIND_PREFIXES.some(p => (s.formKind || "").startsWith(p));
+    const showComplete = isNewHireKind && s.status !== "Completed";
+    const completeBtn = showComplete
+      ? `<button class="btn btn-primary btn-sm" id="subCompleteBtn" type="button">Complete &amp; Send Welcome →</button>`
+      : "";
+    const completedSummary = (s.status === "Completed" && s.completion)
+      ? `<div style="margin:0 0 14px;padding:10px 12px;background:var(--ok-soft);border:1px solid #86efac;border-radius:7px;font-size:12.5px;color:#166534;">
+           ✓ Completed by ${escapeHTML(s.completedByEmail || "?")} on ${escapeHTML(fmtDate(s.completedAt))}.
+           Welcome email sent to ${(s.completionRecipients || []).length} recipient${(s.completionRecipients || []).length === 1 ? "" : "s"}.
+         </div>`
+      : "";
     statusCtrl = `
+      ${completedSummary}
       <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap;">
         <span style="font-size:12px;font-weight:600;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.05em;">Status</span>
         <select id="subStatusSel">
           ${STATUSES.map(st => `<option ${st === s.status ? "selected" : ""}>${escapeHTML(st)}</option>`).join("")}
         </select>
         <button class="btn btn-sm" id="subStatusSave" type="button">Update status</button>
+        ${completeBtn ? `<span style="flex:1;"></span>${completeBtn}` : ""}
       </div>
     `;
   }
@@ -2230,6 +2344,8 @@ function renderSubmissionDetail() {
 
   if (state.role === "admin") {
     $("#subStatusSave").addEventListener("click", saveStatus);
+    const compBtn = $("#subCompleteBtn");
+    if (compBtn) compBtn.addEventListener("click", openCompletion);
   }
   $("#evSendBtn").addEventListener("click", sendEvent);
 }
@@ -2329,6 +2445,476 @@ async function sendEvent() {
     btn.disabled = false;
   }
 }
+
+// ============== completion / welcome-email flow ==============
+//
+// When MSP finishes a New Hire / Rehire submission, "Complete & Send
+// Welcome" opens a modal that captures the deliverables (work email,
+// temp password, account links, first-day logistics, etc.) and emails
+// the new hire + their direct manager + the client manager who
+// originally submitted (deduped). On Send the app:
+//   1. Writes one doc to /mail/{autoId} per recipient bundle (the
+//      Firebase "Trigger Email from Firestore" extension picks it up).
+//   2. Saves the captured fields onto the submission as `completion`.
+//   3. Flips status to "Completed" and adds a timeline event.
+//
+// Per-client templates live at /clients/{clientId}/completionTemplates/
+// {kind}; the DEFAULT_COMPLETION_TEMPLATE below is used as a fallback
+// for clients that haven't customized yet.
+
+const COMPLETION_KIND_PREFIXES = ["newhire-rehire", "newhire", "rehire"];
+
+const DEFAULT_COMPLETION_TEMPLATE = {
+  fromEmail: "welcome@umbrellaautomation.com",
+  fromName: "Umbrella Automation",
+  subjectTemplate: "Welcome to {{clientName}}, {{firstName}}!",
+  fields: [
+    // ----- Identity & record -----
+    { id: "fullName",         label: "Full legal name",        type: "text",     section: "Identity & record", required: true, full: true },
+    { id: "preferredName",    label: "Preferred name",         type: "text",     section: "Identity & record" },
+    { id: "employeeId",       label: "Employee ID",            type: "text",     section: "Identity & record" },
+    { id: "title",            label: "Job title",              type: "text",     section: "Identity & record" },
+    { id: "department",       label: "Department",             type: "text",     section: "Identity & record" },
+    { id: "startDate",        label: "Start date",             type: "date",     section: "Identity & record", required: true },
+    { id: "employmentType",   label: "Employment type",        type: "select",   section: "Identity & record",
+      options: ["Full-time", "Part-time", "Contractor", "Intern"] },
+    { id: "workArrangement",  label: "Work arrangement",       type: "text",     section: "Identity & record",
+      placeholder: "Office / Remote / Hybrid" },
+    { id: "managerName",      label: "Direct manager name",    type: "text",     section: "Identity & record" },
+    { id: "managerEmail",     label: "Direct manager email",   type: "email",    section: "Identity & record", required: true },
+
+    // ----- Accounts to deliver -----
+    { id: "workEmail",        label: "Work email",             type: "email",    section: "Accounts to deliver", required: true },
+    { id: "tempPassword",     label: "Temporary password",     type: "text",     section: "Accounts to deliver",
+      help: "Will be marked must-change-on-first-login in the email body." },
+    { id: "ssoUrl",           label: "SSO portal URL",         type: "url",      section: "Accounts to deliver" },
+    { id: "commsInvite",      label: "Slack / Teams invite",   type: "url",      section: "Accounts to deliver" },
+    { id: "hrisUrl",          label: "HRIS / Payroll login",   type: "url",      section: "Accounts to deliver" },
+    { id: "equipmentTracking",label: "Equipment shipment tracking #", type: "text", section: "Accounts to deliver", full: true },
+
+    // ----- First-day logistics -----
+    { id: "firstDayLocation", label: "Where to report",        type: "textarea", section: "First-day logistics", full: true,
+      placeholder: "Address, suite, parking notes" },
+    { id: "firstDayTime",     label: "When (date + time)",     type: "text",     section: "First-day logistics" },
+    { id: "firstDayContact",  label: "Who to ask for at reception", type: "text", section: "First-day logistics" },
+    { id: "firstDayBring",    label: "What to bring",          type: "textarea", section: "First-day logistics", full: true,
+      placeholder: "I-9 ID(s), voided check for direct deposit, etc." },
+    { id: "dressCode",        label: "Dress code",             type: "text",     section: "First-day logistics" },
+
+    // ----- Help contacts -----
+    { id: "hrName",           label: "HR contact name",        type: "text",     section: "Help contacts" },
+    { id: "hrEmail",          label: "HR contact email",       type: "email",    section: "Help contacts" },
+    { id: "hrPhone",          label: "HR contact phone",       type: "text",     section: "Help contacts" },
+    { id: "itHelpdesk",       label: "IT helpdesk",            type: "text",     section: "Help contacts", full: true,
+      placeholder: "Email, ticket portal URL, or phone" }
+  ],
+  // The body template is rendered with the captured field values via
+  // simple {{placeholder}} substitution. Keep it inline-styled because
+  // many email clients strip <style> blocks.
+  bodyTemplate: `<div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#1a1f2b;line-height:1.55;font-size:14px;max-width:600px;">
+  <p>Hi {{firstName}},</p>
+  <p>Welcome to <strong>{{clientName}}</strong>! We're excited to have you on board. Below is everything you need to get set up before your first day.</p>
+
+  <h3 style="font-size:13px;text-transform:uppercase;letter-spacing:0.05em;color:#64748b;margin:24px 0 8px;border-bottom:1px solid #e2e8f0;padding-bottom:6px;">Your record</h3>
+  <table style="border-collapse:collapse;font-size:13.5px;">
+    <tr><td style="padding:3px 12px 3px 0;color:#64748b;">Name</td><td>{{fullName}}{{#preferredName}} (preferred: {{preferredName}}){{/preferredName}}</td></tr>
+    {{#employeeId}}<tr><td style="padding:3px 12px 3px 0;color:#64748b;">Employee ID</td><td>{{employeeId}}</td></tr>{{/employeeId}}
+    <tr><td style="padding:3px 12px 3px 0;color:#64748b;">Title</td><td>{{title}}</td></tr>
+    <tr><td style="padding:3px 12px 3px 0;color:#64748b;">Department</td><td>{{department}}</td></tr>
+    <tr><td style="padding:3px 12px 3px 0;color:#64748b;">Start date</td><td>{{startDate}}</td></tr>
+    {{#employmentType}}<tr><td style="padding:3px 12px 3px 0;color:#64748b;">Employment type</td><td>{{employmentType}}</td></tr>{{/employmentType}}
+    {{#workArrangement}}<tr><td style="padding:3px 12px 3px 0;color:#64748b;">Work arrangement</td><td>{{workArrangement}}</td></tr>{{/workArrangement}}
+    {{#managerName}}<tr><td style="padding:3px 12px 3px 0;color:#64748b;">Direct manager</td><td>{{managerName}} &lt;{{managerEmail}}&gt;</td></tr>{{/managerName}}
+  </table>
+
+  <h3 style="font-size:13px;text-transform:uppercase;letter-spacing:0.05em;color:#64748b;margin:24px 0 8px;border-bottom:1px solid #e2e8f0;padding-bottom:6px;">Your accounts</h3>
+  <table style="border-collapse:collapse;font-size:13.5px;">
+    {{#workEmail}}<tr><td style="padding:3px 12px 3px 0;color:#64748b;">Work email</td><td><a href="mailto:{{workEmail}}">{{workEmail}}</a></td></tr>{{/workEmail}}
+    {{#tempPassword}}<tr><td style="padding:3px 12px 3px 0;color:#64748b;">Temporary password</td><td><code style="background:#f1f5f9;padding:2px 6px;border-radius:4px;">{{tempPassword}}</code> &nbsp;<em style="color:#64748b;font-size:12px;">(you'll be asked to change this on first sign-in)</em></td></tr>{{/tempPassword}}
+    {{#ssoUrl}}<tr><td style="padding:3px 12px 3px 0;color:#64748b;">SSO portal</td><td><a href="{{ssoUrl}}">{{ssoUrl}}</a></td></tr>{{/ssoUrl}}
+    {{#commsInvite}}<tr><td style="padding:3px 12px 3px 0;color:#64748b;">Slack / Teams</td><td><a href="{{commsInvite}}">Accept invite</a></td></tr>{{/commsInvite}}
+    {{#hrisUrl}}<tr><td style="padding:3px 12px 3px 0;color:#64748b;">HRIS / Payroll</td><td><a href="{{hrisUrl}}">{{hrisUrl}}</a></td></tr>{{/hrisUrl}}
+    {{#equipmentTracking}}<tr><td style="padding:3px 12px 3px 0;color:#64748b;">Equipment tracking</td><td>{{equipmentTracking}}</td></tr>{{/equipmentTracking}}
+  </table>
+
+  {{#firstDayLocation}}<h3 style="font-size:13px;text-transform:uppercase;letter-spacing:0.05em;color:#64748b;margin:24px 0 8px;border-bottom:1px solid #e2e8f0;padding-bottom:6px;">Your first day</h3>
+  <table style="border-collapse:collapse;font-size:13.5px;">
+    <tr><td style="padding:3px 12px 3px 0;color:#64748b;vertical-align:top;">Where</td><td>{{firstDayLocation}}</td></tr>
+    {{#firstDayTime}}<tr><td style="padding:3px 12px 3px 0;color:#64748b;">When</td><td>{{firstDayTime}}</td></tr>{{/firstDayTime}}
+    {{#firstDayContact}}<tr><td style="padding:3px 12px 3px 0;color:#64748b;">Who to ask for</td><td>{{firstDayContact}}</td></tr>{{/firstDayContact}}
+    {{#firstDayBring}}<tr><td style="padding:3px 12px 3px 0;color:#64748b;vertical-align:top;">What to bring</td><td>{{firstDayBring}}</td></tr>{{/firstDayBring}}
+    {{#dressCode}}<tr><td style="padding:3px 12px 3px 0;color:#64748b;">Dress code</td><td>{{dressCode}}</td></tr>{{/dressCode}}
+  </table>{{/firstDayLocation}}
+
+  {{#hrEmail}}<h3 style="font-size:13px;text-transform:uppercase;letter-spacing:0.05em;color:#64748b;margin:24px 0 8px;border-bottom:1px solid #e2e8f0;padding-bottom:6px;">Need help?</h3>
+  <table style="border-collapse:collapse;font-size:13.5px;">
+    {{#hrName}}<tr><td style="padding:3px 12px 3px 0;color:#64748b;">HR — {{hrName}}</td><td><a href="mailto:{{hrEmail}}">{{hrEmail}}</a>{{#hrPhone}} &nbsp;{{hrPhone}}{{/hrPhone}}</td></tr>{{/hrName}}
+    {{#itHelpdesk}}<tr><td style="padding:3px 12px 3px 0;color:#64748b;">IT helpdesk</td><td>{{itHelpdesk}}</td></tr>{{/itHelpdesk}}
+  </table>{{/hrEmail}}
+
+  <p style="margin-top:24px;color:#64748b;font-size:12.5px;">Sent on behalf of {{clientName}} by Umbrella Automation. Reply to this email if anything looks off — your client manager and IT will see it.</p>
+</div>`
+};
+
+// Cached templates per (clientId|kind) so we don't re-fetch.
+const completionTemplateCache = new Map();
+
+async function getCompletionTemplate(clientId, kind) {
+  // Normalize kind — newhire-rehire, newhire, rehire all map to the same template.
+  const key = `${clientId}|${kind}`;
+  if (completionTemplateCache.has(key)) return completionTemplateCache.get(key);
+  let tpl = null;
+  try {
+    const snap = await getDoc(doc(db, "clients", clientId, "completionTemplates", kind));
+    if (snap.exists()) tpl = { ...DEFAULT_COMPLETION_TEMPLATE, ...snap.data() };
+  } catch (e) { /* fall through to default — read may be denied for some kinds */ }
+  if (!tpl) tpl = DEFAULT_COMPLETION_TEMPLATE;
+  completionTemplateCache.set(key, tpl);
+  return tpl;
+}
+
+// Map field IDs from the original submission to the completion form's
+// field IDs so we can pre-fill. Keys = completion field id, values =
+// list of submission field ids to look at (in order). First non-empty
+// wins. Adjust here if a client renames their form fields.
+const COMPLETION_PREFILL_MAP = {
+  fullName:       (v) => [v.fullName, [v.firstName, v.lastName].filter(Boolean).join(" ")].find(Boolean) || "",
+  preferredName:  ["preferredName"],
+  employeeId:     ["employeeId", "empId"],
+  title:          ["title", "titleOther", "jobTitle"],
+  department:     ["department", "departmentOther"],
+  startDate:      ["hireDate", "startDate"],
+  employmentType: ["employmentType"],
+  managerEmail:   ["managerEmail"],
+  workEmail:      ["preferredEmail", "workEmail"]
+};
+
+function prefillFromSubmission(template, submissionValues) {
+  const out = {};
+  for (const f of template.fields) {
+    const rule = COMPLETION_PREFILL_MAP[f.id];
+    if (typeof rule === "function") {
+      out[f.id] = rule(submissionValues || {});
+    } else if (Array.isArray(rule)) {
+      for (const srcId of rule) {
+        const v = submissionValues?.[srcId];
+        if (v != null && v !== "") { out[f.id] = String(v); break; }
+      }
+    }
+  }
+  return out;
+}
+
+// Mustache-lite: supports {{var}} and {{#var}}block{{/var}} sections.
+// A section renders its block iff `var` is truthy (string non-empty,
+// number !== 0, etc.). No nested sections, no inverted sections — just
+// what we need for the email template.
+function renderTemplate(tpl, values) {
+  let out = String(tpl);
+  // Sections first (so they can reference vars inside).
+  out = out.replace(/\{\{#(\w+)\}\}([\s\S]*?)\{\{\/\1\}\}/g, (_, key, block) => {
+    return values[key] ? block : "";
+  });
+  // Vars.
+  out = out.replace(/\{\{(\w+)\}\}/g, (_, key) => {
+    const v = values[key];
+    return v == null ? "" : String(v);
+  });
+  return out;
+}
+
+function deriveCompletionRecipients(values, submission, originalAlternateEmail) {
+  // Combine, lowercase, dedupe, drop blanks.
+  const candidates = [
+    values.workEmail,
+    originalAlternateEmail,
+    values.managerEmail,
+    submission.submittedByEmail
+  ];
+  const seen = new Set();
+  const out = [];
+  for (const e of candidates) {
+    const norm = (e || "").trim().toLowerCase();
+    if (!norm || seen.has(norm)) continue;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(norm)) continue;
+    seen.add(norm);
+    out.push(norm);
+  }
+  return out;
+}
+
+let _compState = null;  // { template, values, submission, alternateEmail, bodyEdited, currentTab }
+
+async function openCompletion() {
+  const s = state.openSubmission;
+  if (!s) return;
+  if (state.role !== "admin") return;
+  // Only enabled for new-hire / rehire kinds.
+  const kind = s.formKind || "";
+  if (!COMPLETION_KIND_PREFIXES.some(p => kind.startsWith(p))) {
+    toast("Completion email is only set up for New Hire / Rehire requests right now.", true);
+    return;
+  }
+  const template = await getCompletionTemplate(s.clientId, "newhire-rehire");
+  const prefill = prefillFromSubmission(template, s.values || {});
+  const alternateEmail = s.values?.alternateEmail || s.values?.personalEmail || "";
+
+  _compState = {
+    template,
+    values: { ...prefill },
+    submission: s,
+    alternateEmail,
+    bodyEdited: false,
+    currentTab: "preview"
+  };
+
+  $("#completionTitle").textContent = `Complete & Send Welcome — ${prefill.fullName || "new hire"}`;
+  $("#completionModal").hidden = false;
+  renderCompletionModal();
+}
+
+function renderCompletionModal() {
+  const { template, values, submission, alternateEmail } = _compState;
+  const clientName = submission.clientName || submission.clientId;
+
+  // Group fields by section, preserving order.
+  const sections = [];
+  const sectionMap = new Map();
+  for (const f of template.fields) {
+    const sec = f.section || "Other";
+    if (!sectionMap.has(sec)) {
+      sectionMap.set(sec, { name: sec, fields: [] });
+      sections.push(sectionMap.get(sec));
+    }
+    sectionMap.get(sec).fields.push(f);
+  }
+
+  const fieldHTML = (f) => {
+    const v = values[f.id] != null ? values[f.id] : "";
+    const wasPrefilled = v !== "" && _compState.values[f.id] === v && (_compState.values[f.id] !== undefined);
+    const cls = wasPrefilled ? ` data-prefilled="true"` : "";
+    const req = f.required ? `<span class="req"> *</span>` : "";
+    const help = f.help ? `<div class="help">${escapeHTML(f.help)}</div>` : "";
+    const placeholder = f.placeholder ? ` placeholder="${escapeHTML(f.placeholder)}"` : "";
+    let input = "";
+    if (f.type === "textarea") {
+      input = `<textarea data-field="${escapeHTML(f.id)}"${placeholder}>${escapeHTML(v)}</textarea>`;
+    } else if (f.type === "select") {
+      input = `<select data-field="${escapeHTML(f.id)}">
+        <option value="">—</option>
+        ${(f.options || []).map(o => `<option ${o === v ? "selected" : ""}>${escapeHTML(o)}</option>`).join("")}
+      </select>`;
+    } else {
+      const t = (f.type === "email" || f.type === "url" || f.type === "date") ? f.type : "text";
+      input = `<input type="${t}" data-field="${escapeHTML(f.id)}" value="${escapeHTML(v)}"${placeholder}${cls}>`;
+    }
+    return `<div class="comp-field${f.full ? " full" : ""}">
+      <label>${escapeHTML(f.label)}${req}</label>
+      ${input}
+      ${help}
+    </div>`;
+  };
+
+  const sectionsHTML = sections.map(sec => `
+    <div class="comp-section">
+      <h4>${escapeHTML(sec.name)}</h4>
+      <div class="comp-grid">${sec.fields.map(fieldHTML).join("")}</div>
+    </div>
+  `).join("");
+
+  // Recipients preview (auto-derived).
+  const recipients = deriveCompletionRecipients(values, submission, alternateEmail);
+  const annotated = recipients.map(addr => {
+    const tags = [];
+    if (addr === (values.workEmail || "").toLowerCase()) tags.push(`<span class="badge">new hire (work)</span>`);
+    if (addr === (alternateEmail || "").toLowerCase()) tags.push(`<span class="badge">new hire (personal)</span>`);
+    if (addr === (values.managerEmail || "").toLowerCase()) tags.push(`<span class="badge">direct manager</span>`);
+    if (addr === (submission.submittedByEmail || "").toLowerCase()) tags.push(`<span class="badge">client manager</span>`);
+    return `<li>${escapeHTML(addr)} ${tags.join(" ")}</li>`;
+  }).join("");
+
+  // Build the rendered body for the preview.
+  const subject = renderTemplate(template.subjectTemplate, {
+    ...values,
+    clientName,
+    firstName: values.fullName ? values.fullName.split(/\s+/)[0] : ""
+  });
+  const body = _compState.bodyEdited
+    ? _compState.editedBody
+    : renderTemplate(template.bodyTemplate, {
+        ...values,
+        clientName,
+        firstName: values.fullName ? values.fullName.split(/\s+/)[0] : ""
+      });
+
+  const previewHTML = _compState.currentTab === "preview"
+    ? `<iframe id="compPreviewFrame" sandbox="allow-same-origin"></iframe>`
+    : `<textarea id="compBodyEditor" spellcheck="false"></textarea>`;
+
+  $("#completionBody").innerHTML = `
+    ${sectionsHTML}
+
+    <div class="comp-recipients">
+      <h4>Recipients (auto-derived, deduped)</h4>
+      ${recipients.length
+        ? `<ul>${annotated}</ul>`
+        : `<p style="margin:0;font-size:13px;color:var(--danger);">No valid email addresses yet — fill in Work email and Direct manager email above.</p>`}
+    </div>
+
+    <div class="comp-preview">
+      <div class="comp-preview-head">
+        <h4>Email — Subject: <span style="color:var(--ink);font-weight:500;text-transform:none;letter-spacing:0;">${escapeHTML(subject)}</span></h4>
+        <div class="comp-preview-tabs">
+          <button type="button" data-comp-tab="preview" class="${_compState.currentTab === "preview" ? "active" : ""}">Preview</button>
+          <button type="button" data-comp-tab="edit"    class="${_compState.currentTab === "edit"    ? "active" : ""}">Edit HTML</button>
+        </div>
+      </div>
+      <div class="comp-preview-body">${previewHTML}</div>
+    </div>
+  `;
+
+  // Tab switch handlers.
+  $$("#completionBody [data-comp-tab]").forEach(b => {
+    b.addEventListener("click", () => {
+      _compState.currentTab = b.dataset.compTab;
+      renderCompletionModal();
+    });
+  });
+
+  // Preview iframe srcdoc — use srcdoc to render the email HTML in
+  // isolation. Sandbox blocks scripts.
+  if (_compState.currentTab === "preview") {
+    const frame = $("#compPreviewFrame");
+    if (frame) frame.srcdoc = body;
+  } else {
+    const ta = $("#compBodyEditor");
+    if (ta) {
+      ta.value = body;
+      ta.addEventListener("input", () => {
+        _compState.bodyEdited = true;
+        _compState.editedBody = ta.value;
+      });
+    }
+  }
+
+  // Field input handlers — re-render on change so preview + recipients
+  // update live.
+  $$("#completionBody [data-field]").forEach(el => {
+    el.addEventListener("input", () => {
+      _compState.values[el.dataset.field] = el.value;
+      // Don't full-rerender on every keystroke for inputs that aren't
+      // referenced by the template (perf). For simplicity, debounce.
+      clearTimeout(renderCompletionModal._t);
+      renderCompletionModal._t = setTimeout(renderCompletionModal, 250);
+    });
+    el.addEventListener("change", () => {
+      _compState.values[el.dataset.field] = el.value;
+      clearTimeout(renderCompletionModal._t);
+      renderCompletionModal();
+    });
+  });
+}
+
+async function sendCompletion() {
+  if (!_compState) return;
+  const { template, values, submission, alternateEmail } = _compState;
+  const clientName = submission.clientName || submission.clientId;
+
+  // Validate required fields.
+  const missing = template.fields
+    .filter(f => f.required && !(values[f.id] || "").trim())
+    .map(f => f.label);
+  if (missing.length) {
+    toast("Required field" + (missing.length > 1 ? "s" : "") + " missing: " + missing.join(", "), true);
+    return;
+  }
+
+  const recipients = deriveCompletionRecipients(values, submission, alternateEmail);
+  if (recipients.length === 0) {
+    toast("No valid recipients — fill in Work email and Direct manager email at minimum.", true);
+    return;
+  }
+
+  const btn = $("#completionSendBtn");
+  btn.disabled = true;
+  try {
+    const subject = renderTemplate(template.subjectTemplate, {
+      ...values,
+      clientName,
+      firstName: values.fullName ? values.fullName.split(/\s+/)[0] : ""
+    });
+    const html = _compState.bodyEdited
+      ? _compState.editedBody
+      : renderTemplate(template.bodyTemplate, {
+          ...values,
+          clientName,
+          firstName: values.fullName ? values.fullName.split(/\s+/)[0] : ""
+        });
+
+    // 1) Enqueue the email. The Trigger Email extension picks this up
+    //    and sends it; until the extension is installed, the doc just
+    //    sits here and we have an audit trail of intent.
+    const mailRef = await addDoc(collection(db, "mail"), {
+      to: recipients,
+      from: `${template.fromName} <${template.fromEmail}>`,
+      replyTo: submission.submittedByEmail || template.fromEmail,
+      message: {
+        subject,
+        html
+        // The extension auto-derives a text fallback if not provided.
+      },
+      // Audit metadata (extension ignores unknown fields).
+      _meta: {
+        kind: "newhire-rehire-welcome",
+        clientId: submission.clientId,
+        submissionId: submission.id,
+        queuedAt: serverTimestamp(),
+        queuedByUid: state.user.uid,
+        queuedByEmail: state.user.email
+      }
+    });
+
+    // 2) Stamp the submission with completion data + flip status.
+    await updateDoc(doc(db, "clients", submission.clientId, "submissions", submission.id), {
+      status: "Completed",
+      completion: values,
+      completionEmailMailIds: [mailRef.id],
+      completionRecipients: recipients,
+      completedAt: serverTimestamp(),
+      completedByUid: state.user.uid,
+      completedByEmail: state.user.email,
+      lastActivityAt: serverTimestamp()
+    });
+
+    // 3) Timeline event.
+    await addDoc(
+      collection(db, "clients", submission.clientId, "submissions", submission.id, "events"),
+      {
+        type: "completed",
+        statusFrom: submission.status || "In Progress",
+        statusTo: "Completed",
+        message: `Completed and welcome email queued to ${recipients.length} recipient${recipients.length === 1 ? "" : "s"}.`,
+        recipients,
+        mailId: mailRef.id,
+        byUid: state.user.uid,
+        byEmail: state.user.email,
+        byName: state.adminDoc?.name || state.user.displayName || state.user.email,
+        at: serverTimestamp()
+      }
+    );
+
+    toast("Welcome email queued. Status set to Completed.");
+    $("#completionModal").hidden = true;
+    _compState = null;
+  } catch (e) {
+    console.error("completion send failed", e);
+    toast(friendlyErr(e, "Could not send the welcome email"), true);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+$("#completionSendBtn").addEventListener("click", sendCompletion);
 
 // ============== clients: subscribe (admin) ==============
 function subscribeClients() {
