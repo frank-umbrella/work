@@ -6,7 +6,7 @@
 <title>Onboarding &middot; Umbrella Automation</title>
 <meta name="description" content="Client onboarding system for Umbrella Automation managed service clients. Submit new hire, termination, and position change requests.">
 <meta name="robots" content="noindex">
-<meta name="app-version" content="0.2.0">
+<meta name="app-version" content="0.2.1">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -1054,7 +1054,7 @@
 <div class="toast" id="toast" hidden></div>
 
 <footer class="foot" id="appFooter" hidden>
-  <p><a href="../">&larr; Work hub</a> &middot; Onboarding v0.2.0</p>
+  <p><a href="../">&larr; Work hub</a> &middot; Onboarding v0.2.1</p>
 </footer>
 
 <script type="module">
@@ -1091,7 +1091,7 @@ const firebaseConfig = {
   appId: "1:330286523878:web:27c4e2ffca3496ebc32227"
 };
 
-const APP_VERSION = "0.2.0";
+const APP_VERSION = "0.2.1";
 const STATUSES = ["Submitted", "In Progress", "Completed", "Cancelled"];
 const MSP_DOMAIN = "umbrellaautomation.com"; // Google sign-in restricted to this domain
 
@@ -1840,12 +1840,19 @@ function renderField(field) {
 
   // Default: text-style input.
   const typeAttr = ["email", "tel", "date", "number", "password"].includes(field.type) ? field.type : "text";
+  // For date inputs, pin min/max to a sensible 4-digit-year range so
+  // browsers (notably Chrome) can't accept 5+ digit years like 20242
+  // when a user fat-fingers the keyboard. Schemas can still override
+  // with field.min / field.max.
+  const isDate = typeAttr === "date";
+  const minAttr = field.min ? ` min="${escapeHTML(field.min)}"` : (isDate ? ` min="1900-01-01"` : "");
+  const maxAttr = field.max ? ` max="${escapeHTML(field.max)}"` : (isDate ? ` max="2099-12-31"` : "");
   wrap.innerHTML = `
     <label for="${id}">${escapeHTML(labelText)} ${req}</label>
     <input id="${id}" type="${typeAttr}"
       ${field.maxlength ? `maxlength="${+field.maxlength}"` : ""}
       ${field.placeholder ? `placeholder="${escapeHTML(field.placeholder)}"` : ""}
-      ${field.pattern ? `pattern="${escapeHTML(field.pattern)}"` : ""}>
+      ${field.pattern ? `pattern="${escapeHTML(field.pattern)}"` : ""}${minAttr}${maxAttr}>
     ${field.help ? `<div class="help">${escapeHTML(field.help)}</div>` : ""}
   `;
   bindFieldChange(wrap);
@@ -2027,7 +2034,15 @@ function buildSummary(formMeta, values) {
     subject = ((values.firstName || "") + " " + (values.lastName || "")).trim();
   else if (values.employee && typeof values.employee === "string") subject = values.employee;
   else if (values.employeeName) subject = values.employeeName;
-  const kindLabel = formKindLabel(formMeta?.kind);
+
+  // Prefer the user's actual employeeStatus answer ("New Hire" or
+  // "Rehire") over the form's umbrella kind label ("New Hire / Rehire"),
+  // so a submission shows as the specific kind in the queue and detail.
+  // Falls back to the form kind label for forms that don't ask the
+  // status question.
+  const status = (values.employeeStatus || "").toString().trim();
+  const kindLabel = status || formKindLabel(formMeta?.kind);
+
   if (subject) return kindLabel + ": " + subject;
   return kindLabel + ": (unspecified)";
 }

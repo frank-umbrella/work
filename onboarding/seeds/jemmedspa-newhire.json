@@ -1,0 +1,117 @@
+{
+  "_about": "JEM Medspa — New Hire form. Paste the 'schema' object's contents into the schema editor in the app. The legacy combined newhire-rehire form has been split into separate New Hire and Rehire forms (v0.2.1+).",
+  "formMeta": {
+    "formId": "newhire",
+    "kind": "newhire",
+    "title": "New Hire",
+    "description": "Submit a request to onboard a new JEM Medspa employee."
+  },
+  "schema": {
+    "pages": [
+      {
+        "fields": [
+          { "id": "hireDate", "type": "date", "label": "Hire Date", "required": true },
+          { "id": "employeeId", "type": "text", "label": "Employee ID / Number", "required": true },
+          { "id": "employmentType", "type": "select", "label": "Part-Time / Full-Time", "required": true,
+            "options": ["Part-Time", "Full-Time"] },
+          { "id": "firstName", "type": "text", "label": "First Name", "required": true },
+          { "id": "lastName", "type": "text", "label": "Last Name", "required": true },
+          { "id": "preferredEmail", "type": "email", "label": "Preferred Email", "required": true,
+            "placeholder": "firstname.lastname@jemmedspa.com",
+            "help": "Enter the user's preferred email format. The most professional and commonly used convention for employees is: first.last@jemmedspa.com." },
+          { "id": "alternateEmail", "type": "email", "label": "Personal Email",
+            "help": "Personal email so we can send the welcome packet before the work account is set up." }
+        ]
+      },
+      {
+        "fields": [
+          { "id": "department", "type": "select", "label": "Department", "required": true,
+            "options": [
+              { "label": "Accounting", "value": "Accounting" },
+              { "label": "Admin", "value": "Admin" },
+              { "label": "Human Resources", "value": "hr" },
+              { "label": "Other", "value": "Other" }
+            ] },
+          { "id": "departmentOther", "type": "text", "label": "Other Department",
+            "showIf": { "department": "Other" }, "required": true,
+            "help": "Add department if not listed in the dropdown menu." },
+          { "id": "title", "type": "select", "label": "Employee Title", "required": true,
+            "options": ["- Other"] },
+          { "id": "titleOther", "type": "text", "label": "Employee Title - Other",
+            "showIf": { "title": "- Other" }, "required": true,
+            "help": "ie. Associate, Manager, Staff Accountant" },
+          { "id": "managerEmail", "type": "email", "label": "Direct Manager's Email", "required": true }
+        ]
+      },
+      {
+        "section": "User Specific Access",
+        "fields": [
+          { "id": "emailRequired", "type": "radio", "label": "Email Account Required", "required": true,
+            "options": ["Yes", "No"] },
+          { "id": "teamsGroups", "type": "checkboxes", "label": "Teams / Microsoft 365 Groups", "required": true,
+            "options": [
+              "dext@jemmedspa.com",
+              "leadership1@jemmedspa.com",
+              "jemmedspa@jemmedspa.com",
+              "jemmedspaelmhurst@jemmedspa.com",
+              "managercallgroup@jemmedspa.com",
+              "opccs@jemmedspa.com",
+              "orlandparkjems@jemmedspa.com",
+              "qrcodes@jemmedspa.com",
+              "None"
+            ],
+            "help": "Used for collaboration and communication within Microsoft Teams and shared resources in 365." },
+          { "id": "distributionLists", "type": "checkboxes", "label": "Distribution Lists / Groups", "required": true,
+            "options": [
+              "allemployees@jemmedspa.com",
+              "aestheticians@jemmedspa.com",
+              "clientcoordiantors@jemmedspa.com",
+              "elmemployees@jemmedspa.com",
+              "info@jemmedspa.com",
+              "leadership@jemmedspa.com",
+              "munemployees@jemmedspa.com",
+              "nurses@jemmedspa.com",
+              "None"
+            ],
+            "help": "Used for sending emails to multiple users at once." },
+          { "id": "sharedMailboxes", "type": "checkboxes", "label": "Shared / Delegate Mailboxes", "required": true,
+            "options": [
+              "customerservice@jemmedspa.com",
+              "education@jemmedspa.com",
+              "elmhurst@jemmedspa.com",
+              "elmhurst.billing@jemmedspa.com",
+              "elmhurst.ordering@jemmedspa.com",
+              "munster@jemmedspa.com",
+              "munster.billing@jemmedspa.com",
+              "munster.ordering@jemmedspa.com",
+              "op.billing@jemmedspa.com",
+              "op.ordering@jemmedspa.com",
+              "orlandpark@jemmedspa.com",
+              "None"
+            ],
+            "help": "Mailboxes with shared access — users can be added as delegates to view or send from these inboxes." }
+        ]
+      },
+      {
+        "section": "Onboarding",
+        "fields": [
+          { "id": "workstation", "type": "radio", "label": "Employee Primary PC Workstation", "required": true,
+            "options": ["Assigned PC & Desk", "Public Workstation", "Purchase New Workstation", "Same Work Station as Past Employee"] },
+          { "id": "pastEmployeeName", "type": "name", "label": "Past Employee Name",
+            "showIf": { "workstation": "Same Work Station as Past Employee" } },
+          { "id": "computerName", "type": "text", "label": "Computer Name",
+            "showIf": { "workstation": ["Assigned PC & Desk", "Same Work Station as Past Employee"] } },
+          { "id": "softwareApproval", "type": "checkboxes", "label": "Software Purchase Approval",
+            "options": ["Microsoft 365 Office License"],
+            "help": "If new user needs access to any software, please approve purchase requests for software." },
+          { "id": "pcPurchaseApproval", "type": "radio", "label": "PC Purchase Approval",
+            "options": ["Approved", "Denied"],
+            "showIf": { "workstation": "Purchase New Workstation" }, "required": true },
+          { "id": "pcPurchaseDetails", "type": "textarea", "label": "PC Purchase Request Details",
+            "showIf": { "workstation": "Purchase New Workstation" }, "required": true },
+          { "id": "notes", "type": "textarea", "label": "Notes" }
+        ]
+      }
+    ]
+  }
+}
