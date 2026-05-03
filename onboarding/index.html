@@ -6,7 +6,7 @@
 <title>Onboarding &middot; Umbrella Automation</title>
 <meta name="description" content="Client onboarding system for Umbrella Automation managed service clients. Submit new hire, termination, and position change requests.">
 <meta name="robots" content="noindex">
-<meta name="app-version" content="0.2.1">
+<meta name="app-version" content="0.2.2">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -1054,7 +1054,7 @@
 <div class="toast" id="toast" hidden></div>
 
 <footer class="foot" id="appFooter" hidden>
-  <p><a href="../">&larr; Work hub</a> &middot; Onboarding v0.2.1</p>
+  <p><a href="../">&larr; Work hub</a> &middot; Onboarding v0.2.2</p>
 </footer>
 
 <script type="module">
@@ -1091,7 +1091,7 @@ const firebaseConfig = {
   appId: "1:330286523878:web:27c4e2ffca3496ebc32227"
 };
 
-const APP_VERSION = "0.2.1";
+const APP_VERSION = "0.2.2";
 const STATUSES = ["Submitted", "In Progress", "Completed", "Cancelled"];
 const MSP_DOMAIN = "umbrellaautomation.com"; // Google sign-in restricted to this domain
 
@@ -2479,9 +2479,15 @@ async function sendEvent() {
 
 const COMPLETION_KIND_PREFIXES = ["newhire-rehire", "newhire", "rehire"];
 
+// TEMP: until umbrellaautomation.com DNS is verified in Resend, use
+// Resend's pre-verified sandbox domain `resend.dev` so welcome emails
+// can actually deliver. Limitation while using onboarding@resend.dev:
+// Resend will only deliver to the email address registered on your
+// Resend account (their abuse guard). Once umbrellaautomation.com is
+// verified, swap fromEmail back to welcome@umbrellaautomation.com.
 const DEFAULT_COMPLETION_TEMPLATE = {
-  fromEmail: "welcome@umbrellaautomation.com",
-  fromName: "Umbrella Automation",
+  fromEmail: "onboarding@resend.dev",
+  fromName: "Umbrella Automation (test)",
   subjectTemplate: "Welcome to {{clientName}}, {{firstName}}!",
   fields: [
     // ----- Identity & record -----
