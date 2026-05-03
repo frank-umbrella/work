@@ -6,7 +6,7 @@
 <title>Onboarding &middot; Umbrella Automation</title>
 <meta name="description" content="Client onboarding system for Umbrella Automation managed service clients. Submit new hire, termination, and position change requests.">
 <meta name="robots" content="noindex">
-<meta name="app-version" content="0.4.0">
+<meta name="app-version" content="0.5.0">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -133,6 +133,21 @@
   }
   .btn-link:hover { text-decoration: underline; }
   .btn-sm { font-size: 12px; padding: 5px 9px; }
+
+  /* ============== demo / preview banner ============== */
+  #demoBanner {
+    background: #fef3c7; border-bottom: 2px solid #f59e0b;
+    color: #78350f; padding: 8px 14px; font-size: 13px;
+    display: flex; align-items: center; gap: 12px;
+    position: sticky; top: 0; z-index: 60;
+  }
+  #demoBanner strong { font-weight: 700; }
+  #demoBanner a {
+    color: #78350f; text-decoration: underline; font-weight: 600;
+    margin-left: auto;
+  }
+  #demoBanner[hidden] { display: none; }
+  body.demo-mode header.bar { top: 36px; }  /* push topbar below banner */
 
   /* ============== initial auth-state loader ============== */
   .auth-loader {
@@ -650,6 +665,13 @@
   </div>
 </header>
 
+<!-- ================= demo / preview banner ================= -->
+<div id="demoBanner" hidden>
+  <strong>Demo mode</strong>
+  <span>— sandboxed, fake data. Changes are not saved.</span>
+  <a href="https://umbrellaautomation.com/contact" target="_blank" rel="noopener">Get the real thing →</a>
+</div>
+
 <!-- ================= initial auth-state loader =================
      Shown while Firebase reads the persisted auth token. Without this,
      refreshing the page flashes the sign-in screen for ~300ms before
@@ -851,6 +873,38 @@
       </div>
       <div class="panel-body flush" id="adminListWrap">
         <div class="empty">Loading&hellip;</div>
+      </div>
+    </div>
+
+    <!-- Sales demo URLs — for sharing with prospects -->
+    <div class="panel" style="margin-top:18px;">
+      <div class="panel-head">
+        <h2>Sales demos</h2>
+        <span class="sub">Share these URLs with prospects to let them click around with sandboxed fake data.</span>
+      </div>
+      <div class="panel-body" style="display:flex;flex-direction:column;gap:14px;">
+        <div>
+          <div style="font-size:13px;font-weight:600;margin-bottom:4px;">Client Manager view</div>
+          <div style="font-size:12px;color:var(--ink-soft);margin-bottom:6px;">"You're Sarah Johnson at JEM MedSpa." Shows New Request + My Requests with a few in-flight items.</div>
+          <div style="display:flex;gap:6px;">
+            <input id="demoMgrUrl" type="text" readonly style="flex:1;font-size:12px;padding:6px 8px;font-family:ui-monospace,Menlo,Consolas,monospace;">
+            <button class="btn btn-sm" id="demoMgrCopy" type="button">Copy</button>
+            <a class="btn btn-sm" id="demoMgrOpen" target="_blank" rel="noopener">Open</a>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:13px;font-weight:600;margin-bottom:4px;">MSP Admin view</div>
+          <div style="font-size:12px;color:var(--ink-soft);margin-bottom:6px;">"You're an Umbrella admin." Cross-client queue, full Complete &amp; Send Welcome flow available.</div>
+          <div style="display:flex;gap:6px;">
+            <input id="demoAdmUrl" type="text" readonly style="flex:1;font-size:12px;padding:6px 8px;font-family:ui-monospace,Menlo,Consolas,monospace;">
+            <button class="btn btn-sm" id="demoAdmCopy" type="button">Copy</button>
+            <a class="btn btn-sm" id="demoAdmOpen" target="_blank" rel="noopener">Open</a>
+          </div>
+        </div>
+        <div style="font-size:11.5px;color:var(--ink-faint);">
+          Both demos run on in-memory mock data with all writes stubbed — nothing the prospect does
+          touches your real Firestore. They can leave the demo by removing the URL parameter.
+        </div>
       </div>
     </div>
   </section>
@@ -1139,7 +1193,7 @@
 <div class="toast" id="toast" hidden></div>
 
 <footer class="foot" id="appFooter" hidden>
-  <p><a href="../">&larr; Work hub</a> &middot; Onboarding v0.4.0</p>
+  <p><a href="../">&larr; Work hub</a> &middot; Onboarding v0.5.0</p>
 </footer>
 
 <script type="module">
@@ -1180,9 +1234,141 @@ const firebaseConfig = {
   appId: "1:330286523878:web:27c4e2ffca3496ebc32227"
 };
 
-const APP_VERSION = "0.4.0";
+const APP_VERSION = "0.5.0";
 const STATUSES = ["Submitted", "In Progress", "Completed", "Cancelled"];
 const MSP_DOMAIN = "umbrellaautomation.com"; // Google sign-in restricted to this domain
+
+// ----------------------------------------------------------------------
+// Demo / preview mode — sandboxed, hidden behind unguessable nonces in
+// the URL. Detected BEFORE Firebase auth init so signed-in users
+// visiting a preview URL still see the demo (sign-out happens
+// transparently). Both nonces hard-coded — they're not secrets, just
+// hard to guess. Admin "Sales Demos" panel surfaces them with copy
+// buttons so the user can grab the share URL on demand.
+// ----------------------------------------------------------------------
+const DEMO_NONCES = {
+  manager: "mgr-7Q9k2-jem",
+  admin:   "adm-8R3n4-msp"
+};
+function detectDemoVariant() {
+  const p = new URLSearchParams(location.search).get("preview");
+  if (p === DEMO_NONCES.manager) return "manager";
+  if (p === DEMO_NONCES.admin)   return "admin";
+  return null;
+}
+const DEMO_VARIANT = detectDemoVariant();
+const isDemoMode = () => state.isDemo === true;
+function demoBlock(actionLabel = "change") {
+  if (!isDemoMode()) return false;
+  toast(`Demo mode — ${actionLabel} not saved.`, false);
+  return true;
+}
+
+// ---- demo fixtures ---------------------------------------------------
+// Hand-built mock data sets. Keep tight (~3 clients, ~10 submissions)
+// so a prospect can scan the queue at a glance and click into details
+// without infinite scrolling.
+const _demoTs = (offsetDays) => {
+  const d = new Date(Date.now() - offsetDays * 86400000);
+  return { toDate: () => d, toMillis: () => d.getTime() };
+};
+const DEMO_FIXTURES = {
+  clients: [
+    { id: "jem-medspa-demo", name: "JEM MedSpa", domain: "jemmedspa.com" },
+    { id: "peace-village-demo", name: "Peace Village Senior Living", domain: "peacevillage.com" },
+    { id: "acme-corp-demo", name: "Acme Corporation", domain: "acme.com" }
+  ],
+  admins: [
+    { id: "demo-admin-uid", email: "demo.admin@umbrellaautomation.com", name: "Demo Admin", lastLogin: _demoTs(0) },
+    { id: "demo-admin-2",   email: "alex.lee@umbrellaautomation.com",  name: "Alex Lee",  lastLogin: _demoTs(1) },
+    { id: "demo-admin-3",   email: "jordan.kim@umbrellaautomation.com", name: "Jordan Kim", lastLogin: _demoTs(3) }
+  ],
+  forms: {
+    "jem-medspa-demo": [
+      { id: "newhire", title: "New Hire", kind: "newhire",
+        schema: { pages: [{ fields: [
+          { id: "hireDate", type: "date", label: "Hire Date", required: true },
+          { id: "firstName", type: "text", label: "First Name", required: true },
+          { id: "lastName", type: "text", label: "Last Name", required: true },
+          { id: "preferredEmail", type: "email", label: "Preferred Email", required: true },
+          { id: "title", type: "text", label: "Title", required: true },
+          { id: "managerEmail", type: "email", label: "Direct Manager Email", required: true }
+        ]}]}}
+    ]
+  },
+  invitations: [],
+  // Mix of statuses + types + clients so the queue shows variety.
+  // For manager demo we filter to just the demo manager's submissions.
+  submissions: [
+    { id: "sub1", clientId: "jem-medspa-demo", clientName: "JEM MedSpa",
+      formId: "newhire", formTitle: "New Hire", formKind: "newhire",
+      summary: "New Hire: Art Vandelay",
+      status: "Submitted", submittedAt: _demoTs(0), lastActivityAt: _demoTs(0),
+      submittedByUid: "demo-mgr-uid", submittedByEmail: "sarah.johnson@jemmedspa.com",
+      submittedByName: "Sarah Johnson",
+      values: { firstName: "Art", lastName: "Vandelay", title: "Latex Salesman", preferredEmail: "art.vandelay@jemmedspa.com", hireDate: "2026-05-15", managerEmail: "ops@jemmedspa.com", employeeStatus: "New Hire" }},
+    { id: "sub2", clientId: "jem-medspa-demo", clientName: "JEM MedSpa",
+      formId: "newhire", formTitle: "New Hire", formKind: "newhire",
+      summary: "New Hire: Maya Patel",
+      status: "In Progress", submittedAt: _demoTs(2), lastActivityAt: _demoTs(1),
+      submittedByUid: "demo-mgr-uid", submittedByEmail: "sarah.johnson@jemmedspa.com",
+      submittedByName: "Sarah Johnson",
+      values: { firstName: "Maya", lastName: "Patel", title: "Esthetician", preferredEmail: "maya.patel@jemmedspa.com", hireDate: "2026-05-20", managerEmail: "ops@jemmedspa.com", employeeStatus: "New Hire" }},
+    { id: "sub3", clientId: "jem-medspa-demo", clientName: "JEM MedSpa",
+      formId: "rehire", formTitle: "Rehire", formKind: "rehire",
+      summary: "Rehire: Liam Chen",
+      status: "Completed", submittedAt: _demoTs(8), lastActivityAt: _demoTs(2),
+      submittedByUid: "demo-mgr-uid", submittedByEmail: "sarah.johnson@jemmedspa.com",
+      submittedByName: "Sarah Johnson",
+      values: { firstName: "Liam", lastName: "Chen", title: "Senior Tech", preferredEmail: "liam.chen@jemmedspa.com", hireDate: "2026-04-15", managerEmail: "ops@jemmedspa.com", employeeStatus: "Rehire" },
+      completion: { fullName: "Liam Chen", workEmail: "liam.chen@jemmedspa.com" },
+      completionRecipients: ["liam.chen@jemmedspa.com", "ops@jemmedspa.com"],
+      completedAt: _demoTs(2), completedByEmail: "demo.admin@umbrellaautomation.com" },
+    { id: "sub4", clientId: "jem-medspa-demo", clientName: "JEM MedSpa",
+      formId: "newhire", formTitle: "New Hire", formKind: "newhire",
+      summary: "New Hire: Ravi Kumar",
+      status: "Cancelled", submittedAt: _demoTs(12), lastActivityAt: _demoTs(11),
+      submittedByUid: "demo-mgr-uid", submittedByEmail: "sarah.johnson@jemmedspa.com",
+      submittedByName: "Sarah Johnson",
+      values: { firstName: "Ravi", lastName: "Kumar", title: "Front Desk", preferredEmail: "ravi.kumar@jemmedspa.com" }},
+    // Admin-only: cross-client variety
+    { id: "sub5", clientId: "peace-village-demo", clientName: "Peace Village Senior Living",
+      formId: "newhire", formTitle: "New Hire", formKind: "newhire",
+      summary: "New Hire: Jamie Brooks",
+      status: "Submitted", submittedAt: _demoTs(1), lastActivityAt: _demoTs(1),
+      submittedByUid: "demo-mgr-pv", submittedByEmail: "ops@peacevillage.com",
+      submittedByName: "Ops PV",
+      values: { firstName: "Jamie", lastName: "Brooks", title: "Caregiver", employeeStatus: "New Hire" }},
+    { id: "sub6", clientId: "peace-village-demo", clientName: "Peace Village Senior Living",
+      formId: "termination", formTitle: "Termination", formKind: "termination",
+      summary: "Termination: Reese Park",
+      status: "In Progress", submittedAt: _demoTs(4), lastActivityAt: _demoTs(2),
+      submittedByUid: "demo-mgr-pv", submittedByEmail: "ops@peacevillage.com",
+      submittedByName: "Ops PV",
+      values: { firstName: "Reese", lastName: "Park" }},
+    { id: "sub7", clientId: "acme-corp-demo", clientName: "Acme Corporation",
+      formId: "newhire", formTitle: "New Hire", formKind: "newhire",
+      summary: "New Hire: Casey Morgan",
+      status: "Completed", submittedAt: _demoTs(20), lastActivityAt: _demoTs(15),
+      submittedByUid: "demo-mgr-acme", submittedByEmail: "hr@acme.com",
+      submittedByName: "HR Acme",
+      values: { firstName: "Casey", lastName: "Morgan", title: "Engineer", employeeStatus: "New Hire" }},
+    { id: "sub8", clientId: "acme-corp-demo", clientName: "Acme Corporation",
+      formId: "newhire", formTitle: "New Hire", formKind: "newhire",
+      summary: "New Hire: Alex Singh",
+      status: "Submitted", submittedAt: _demoTs(0), lastActivityAt: _demoTs(0),
+      submittedByUid: "demo-mgr-acme", submittedByEmail: "hr@acme.com",
+      submittedByName: "HR Acme",
+      values: { firstName: "Alex", lastName: "Singh", title: "Designer", employeeStatus: "New Hire" }}
+  ]
+};
+
+function demoUrl(variant) {
+  const u = new URL(location.href);
+  u.search = "?preview=" + DEMO_NONCES[variant];
+  u.hash = "";
+  return u.toString();
+}
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -1513,8 +1699,54 @@ $("#inviteBtn").addEventListener("click", async () => {
   }
 });
 
+// ============== demo-mode entry point ==============
+// If the URL carries a recognized preview nonce, short-circuit Firebase
+// auth and run the app on in-memory mock fixtures. Sign out the real
+// user transparently if they happen to be signed in (they'll see the
+// demo; can return to the real app by removing the URL param).
+if (DEMO_VARIANT) {
+  setupDemoMode(DEMO_VARIANT);
+}
+
+function setupDemoMode(variant) {
+  state.isDemo = true;
+  state.demoVariant = variant;
+  // Best-effort: sign out any real user so listeners don't double-fire.
+  // We also never wait on this — demo runs immediately.
+  try { signOut(auth).catch(() => {}); } catch {}
+
+  // Inject mock auth state.
+  state.user = {
+    uid: variant === "admin" ? "demo-admin-uid" : "demo-mgr-uid",
+    email: variant === "admin" ? "demo.admin@umbrellaautomation.com" : "sarah.johnson@jemmedspa.com",
+    displayName: variant === "admin" ? "Demo Admin" : "Sarah Johnson",
+    photoURL: null
+  };
+  state.role = variant;
+
+  if (variant === "manager") {
+    state.managerDoc = {
+      email: state.user.email, clientId: "jem-medspa-demo",
+      firstName: "Sarah", lastName: "Johnson"
+    };
+    state.client = DEMO_FIXTURES.clients.find(c => c.id === "jem-medspa-demo");
+  } else {
+    state.adminDoc = { email: state.user.email, name: "Demo Admin" };
+  }
+
+  // Hide the loader, show the demo banner, enter the app.
+  $("#authLoader").hidden = true;
+  document.body.classList.add("demo-mode");
+  $("#demoBanner").hidden = false;
+  enterApp();
+}
+
 // ============== auth state listener ==============
 onAuthStateChanged(auth, async user => {
+  // Skip entirely in demo mode — we don't want a stale Firebase auth
+  // state to flip the demo back to a real session.
+  if (isDemoMode()) { $("#authLoader").hidden = true; return; }
+
   // First callback after page load is the resolved auth state — safe
   // to hide the loader. (No-op on subsequent callbacks since `hidden`
   // is idempotent.)
@@ -1730,6 +1962,12 @@ $$(".modal-bg").forEach(bg => {
 
 // ============== forms: subscribe (manager) ==============
 function subscribeFormsForClient(clientId) {
+  if (isDemoMode()) {
+    state.forms = (DEMO_FIXTURES.forms[clientId] || []).slice();
+    state.forms.sort((a, b) => (a.title || a.id).localeCompare(b.title || b.id));
+    renderFormPicker();
+    return;
+  }
   const q = query(collection(db, "clients", clientId, "forms"));
   state.unsub.forms = onSnapshot(q, snap => {
     state.forms = snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -2117,6 +2355,7 @@ function validateFormValues(schema, values) {
 
 async function submitDynamicForm() {
   if (state.role !== "manager") return;
+  if (demoBlock("submission")) return;
   const schema = state.currentFormSchema;
   const formMeta = state.forms.find(f => f.id === state.currentFormId);
   const values = readFormValues(schema);
@@ -2194,6 +2433,13 @@ function buildSummary(formMeta, values) {
 
 // ============== submissions: manager view ==============
 function subscribeMySubmissions() {
+  if (isDemoMode()) {
+    state.submissions = DEMO_FIXTURES.submissions
+      .filter(s => s.submittedByUid === state.user.uid)
+      .sort((a, b) => b.submittedAt.toMillis() - a.submittedAt.toMillis());
+    renderMySubmissions();
+    return;
+  }
   const q = query(
     collection(db, "clients", state.managerDoc.clientId, "submissions"),
     where("submittedByUid", "==", state.user.uid),
@@ -2265,6 +2511,13 @@ $("#myReqStatusFilter").addEventListener("change", e => {
 
 // ============== submissions: admin queue (cross-client) ==============
 function subscribeAllSubmissions() {
+  if (isDemoMode()) {
+    state.submissions = DEMO_FIXTURES.submissions
+      .slice()
+      .sort((a, b) => b.submittedAt.toMillis() - a.submittedAt.toMillis());
+    renderQueue();
+    return;
+  }
   // No orderBy: Firestore requires a COLLECTION_GROUP-scoped field
   // override on `submittedAt` to sort across all `submissions`
   // subcollections, and adding more orderBy/where combinations would
@@ -2376,6 +2629,18 @@ async function openSubmission(submissionId, clientId) {
 
   $("#subModal").hidden = false;
   $("#subModalBody").innerHTML = `<div class="empty">Loading…</div>`;
+
+  if (isDemoMode()) {
+    const s = DEMO_FIXTURES.submissions.find(x => x.id === submissionId);
+    if (!s) { $("#subModalBody").innerHTML = `<div class="empty">Not found.</div>`; return; }
+    state.openSubmission = { ...s, clientId };
+    state.openEvents = [
+      { id: "ev1", type: "submitted", message: "Request submitted.",
+        byEmail: s.submittedByEmail, byName: s.submittedByName, at: s.submittedAt }
+    ];
+    renderSubmissionDetail();
+    return;
+  }
 
   state.unsub.openSub = onSnapshot(
     doc(db, "clients", clientId, "submissions", submissionId),
@@ -2534,6 +2799,7 @@ function renderSubmissionDetail() {
 async function cancelMySubmission() {
   const s = state.openSubmission;
   if (!s) return;
+  if (demoBlock("cancellation")) return;
   if (!confirm("Cancel this request? The MSP will see it as Cancelled and won't act on it. This can't be undone.")) return;
   const btn = $("#subCancelBtn");
   if (btn) btn.disabled = true;
@@ -2598,6 +2864,7 @@ function formatAnswerValue(v) {
 async function saveStatus() {
   const s = state.openSubmission;
   if (!s) return;
+  if (demoBlock("status update")) return;
   const newStatus = $("#subStatusSel").value;
   if (newStatus === s.status) return;
   const btn = $("#subStatusSave");
@@ -2632,6 +2899,7 @@ async function saveStatus() {
 async function sendEvent() {
   const s = state.openSubmission;
   if (!s) return;
+  if (demoBlock("comment")) return;
   const msg = $("#evMsg").value.trim();
   if (!msg) return;
   const btn = $("#evSendBtn");
@@ -2781,6 +3049,8 @@ const DEFAULT_COMPLETION_TEMPLATE = {
 const completionTemplateCache = new Map();
 
 async function getCompletionTemplate(clientId, kind) {
+  // Demo mode: skip Firestore — use the JS default template.
+  if (isDemoMode()) return DEFAULT_COMPLETION_TEMPLATE;
   // Normalize kind — newhire-rehire, newhire, rehire all map to the same template.
   const key = `${clientId}|${kind}`;
   if (completionTemplateCache.has(key)) return completionTemplateCache.get(key);
@@ -3091,6 +3361,7 @@ function updateCompletionPreview({ rebuildPreviewPane = false } = {}) {
 
 async function sendCompletion() {
   if (!_compState) return;
+  if (demoBlock("welcome email send")) { $("#completionModal").hidden = true; return; }
   const { template, values, submission, alternateEmail } = _compState;
   const clientName = submission.clientName || submission.clientId;
 
@@ -3234,6 +3505,7 @@ async function openTemplateEditor(clientId) {
 $("#teSaveBtn").addEventListener("click", async () => {
   const ed = state._editingTemplate;
   if (!ed) return;
+  if (demoBlock("template save")) return;
   const fromName = $("#teFromName").value.trim();
   const fromEmail = $("#teFromEmail").value.trim();
   const subjectTemplate = $("#teSubject").value.trim();
@@ -3268,6 +3540,7 @@ $("#teSaveBtn").addEventListener("click", async () => {
 $("#teResetBtn").addEventListener("click", async () => {
   const ed = state._editingTemplate;
   if (!ed || !ed.existed) return;
+  if (demoBlock("template reset")) return;
   if (!confirm("Delete this client's custom welcome template? Future welcome emails for this client will use the system default.")) return;
   const btn = $("#teResetBtn");
   btn.disabled = true;
@@ -3286,6 +3559,12 @@ $("#teResetBtn").addEventListener("click", async () => {
 
 // ============== clients: subscribe (admin) ==============
 function subscribeClients() {
+  if (isDemoMode()) {
+    state.clients = DEMO_FIXTURES.clients.slice();
+    renderClients();
+    refreshInviteClientPicker();
+    return;
+  }
   state.unsub.clients = onSnapshot(query(collection(db, "clients")), snap => {
     state.clients = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     state.clients.sort((a, b) => (a.name || a.id).localeCompare(b.name || b.id));
@@ -3392,6 +3671,7 @@ $("#cmLogoRemoveBtn").addEventListener("click", () => {
 });
 
 $("#cmSaveBtn").addEventListener("click", async () => {
+  if (demoBlock("client save")) return;
   const id = $("#cmId").value.trim().toLowerCase().replace(/[^a-z0-9-]/g, "");
   const name = $("#cmName").value.trim();
   const domain = $("#cmDomain").value.trim();
@@ -3454,6 +3734,7 @@ $("#cmSaveBtn").addEventListener("click", async () => {
 
 $("#cmDeleteBtn").addEventListener("click", async () => {
   if (!state.editingClient) return;
+  if (demoBlock("client delete")) return;
   if (!confirm("Delete this client? This does NOT delete forms, submissions, or Client Manager accounts (those persist for audit).")) return;
   const btn = $("#cmDeleteBtn");
   btn.disabled = true;
@@ -3609,6 +3890,7 @@ $$("#schemaModal [data-tpl]").forEach(b => {
 $("#seSaveBtn").addEventListener("click", async () => {
   const ef = state.editingForm;
   if (!ef) return;
+  if (demoBlock("form save")) return;
   const formId = $("#seFormId").value.trim().toLowerCase().replace(/[^a-z0-9-]/g, "");
   const kind = $("#seFormKind").value;
   const title = $("#seFormTitle").value.trim();
@@ -3658,6 +3940,7 @@ $("#seSaveBtn").addEventListener("click", async () => {
 $("#seDeleteBtn").addEventListener("click", async () => {
   const ef = state.editingForm;
   if (!ef || ef.isNew) return;
+  if (demoBlock("form delete")) return;
   if (!confirm("Delete this form? Existing submissions stay intact, but Client Managers will no longer see it.")) return;
   const btn = $("#seDeleteBtn");
   btn.disabled = true;
@@ -3674,6 +3957,11 @@ $("#seDeleteBtn").addEventListener("click", async () => {
 
 // ============== invitations (admin) ==============
 function subscribeInvitations() {
+  if (isDemoMode()) {
+    state.invitations = DEMO_FIXTURES.invitations.slice();
+    renderInvitations();
+    return;
+  }
   state.unsub.invitations = onSnapshot(
     query(collection(db, "invitations"), orderBy("createdAt", "desc")),
     snap => {
@@ -3761,6 +4049,7 @@ function refreshInviteClientPicker() {
 }
 
 $("#invCreateBtn").addEventListener("click", async () => {
+  if (demoBlock("invitation create")) return;
   const first = $("#invFirst").value.trim();
   const last = $("#invLast").value.trim();
   const email = $("#invEmail").value.trim().toLowerCase();
@@ -3823,6 +4112,8 @@ function copyFieldValue(inputEl, label) {
   navigator.clipboard.writeText(inputEl.value).then(() => toast(label + " copied."));
 }
 $("#invCopyLinkBtn")?.addEventListener("click", () => copyFieldValue($("#invResultLink"), "Link"));
+$("#demoMgrCopy")?.addEventListener("click", () => copyFieldValue($("#demoMgrUrl"), "Manager demo URL"));
+$("#demoAdmCopy")?.addEventListener("click", () => copyFieldValue($("#demoAdmUrl"), "Admin demo URL"));
 $("#invCopySubjectBtn")?.addEventListener("click", () => copyFieldValue($("#invEmailSubject"), "Subject"));
 $("#invCopyBodyBtn")?.addEventListener("click", () => copyFieldValue($("#invEmailBody"), "Email body"));
 // Also let clicking the link field itself copy, as a shortcut.
@@ -3830,6 +4121,11 @@ $("#invResultLink")?.addEventListener("click", () => copyFieldValue($("#invResul
 
 // ============== admins (admin only) ==============
 function subscribeAdmins() {
+  if (isDemoMode()) {
+    state.admins = DEMO_FIXTURES.admins.map(a => ({ uid: a.id, ...a }));
+    renderAdmins();
+    return;
+  }
   state.unsub.admins = onSnapshot(query(collection(db, "msp_admins")), snap => {
     state.admins = snap.docs.map(d => ({ uid: d.id, ...d.data() }));
     renderAdmins();
@@ -3839,6 +4135,14 @@ function subscribeAdmins() {
 }
 
 function renderAdmins() {
+  // Populate Sales Demos URLs (idempotent — same value every render).
+  const mgrUrl = demoUrl("manager");
+  const admUrl = demoUrl("admin");
+  $("#demoMgrUrl").value = mgrUrl;
+  $("#demoAdmUrl").value = admUrl;
+  $("#demoMgrOpen").href = mgrUrl;
+  $("#demoAdmOpen").href = admUrl;
+
   $("#adminCount").textContent = `${state.admins.length} admin${state.admins.length === 1 ? "" : "s"}`;
   if (state.admins.length === 0) {
     $("#adminListWrap").innerHTML = `<div class="empty">No admins. Click <strong>+ Add admin</strong> to add one.</div>`;
@@ -3884,6 +4188,7 @@ $("#newAdminBtn").addEventListener("click", () => {
 });
 
 $("#aaSaveBtn").addEventListener("click", async () => {
+  if (demoBlock("admin add")) return;
   const uid = $("#aaUid").value.trim();
   const email = $("#aaEmail").value.trim().toLowerCase();
   const name = $("#aaName").value.trim();
