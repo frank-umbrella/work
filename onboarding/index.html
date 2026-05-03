@@ -6,7 +6,7 @@
 <title>Onboarding &middot; Umbrella Automation</title>
 <meta name="description" content="Client onboarding system for Umbrella Automation managed service clients. Submit new hire, termination, and position change requests.">
 <meta name="robots" content="noindex">
-<meta name="app-version" content="0.5.1">
+<meta name="app-version" content="0.5.2">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -926,6 +926,9 @@
     </div>
     <div class="modal-body" id="subModalBody"></div>
     <div class="modal-foot">
+      <button class="btn" type="button" id="subFootCancelBtn" hidden
+        style="border-color:var(--danger);color:var(--danger);">Cancel this request</button>
+      <span class="spacer"></span>
       <button class="btn" type="button" data-close-modal>Close</button>
     </div>
   </div>
@@ -1199,7 +1202,7 @@
 <div class="toast" id="toast" hidden></div>
 
 <footer class="foot" id="appFooter" hidden>
-  <p><a href="../">&larr; Work hub</a> &middot; Onboarding v0.5.1</p>
+  <p><a href="../">&larr; Work hub</a> &middot; Onboarding v0.5.2</p>
 </footer>
 
 <script type="module">
@@ -1240,7 +1243,7 @@ const firebaseConfig = {
   appId: "1:330286523878:web:27c4e2ffca3496ebc32227"
 };
 
-const APP_VERSION = "0.5.1";
+const APP_VERSION = "0.5.2";
 const STATUSES = ["Submitted", "In Progress", "Completed", "Cancelled"];
 const MSP_DOMAIN = "umbrellaautomation.com"; // Google sign-in restricted to this domain
 
@@ -2744,15 +2747,11 @@ function renderSubmissionDetail() {
   } else if (state.role === "manager"
              && s.submittedByUid === state.user.uid
              && s.status === "Submitted") {
-    // Manager looking at their own still-Submitted request — let them
-    // cancel it before MSP starts working. Once MSP moves it to In
-    // Progress / Completed, this button disappears (rule also enforces).
-    statusCtrl = `
-      <div style="margin:0 0 16px;display:flex;justify-content:flex-end;">
-        <button class="btn btn-sm" id="subCancelBtn" type="button"
-          style="border-color:var(--danger);color:var(--danger);">Cancel this request</button>
-      </div>
-    `;
+    // Manager looking at their own still-Submitted request. The actual
+    // "Cancel this request" button lives in the modal foot (see
+    // subFootCancelBtn) so it's beside Close where destructive actions
+    // belong, not floating in the body. We toggle its visibility below.
+    statusCtrl = "";
   } else if (state.role === "manager" && s.status === "Cancelled") {
     statusCtrl = `
       <div style="margin:0 0 14px;padding:10px 12px;background:var(--surface-2);border:1px solid var(--line);border-radius:7px;font-size:12.5px;color:var(--ink-soft);">
@@ -2806,10 +2805,18 @@ function renderSubmissionDetail() {
     $("#subStatusSave").addEventListener("click", saveStatus);
     const compBtn = $("#subCompleteBtn");
     if (compBtn) compBtn.addEventListener("click", openCompletion);
-  } else if (state.role === "manager") {
-    const cxlBtn = $("#subCancelBtn");
-    if (cxlBtn) cxlBtn.addEventListener("click", cancelMySubmission);
   }
+
+  // Toggle the modal-foot Cancel button. Manager only, on their own
+  // still-Submitted request. Re-bind the handler each render since
+  // state.openSubmission may have changed since last open.
+  const footCancelBtn = $("#subFootCancelBtn");
+  const showFootCancel = state.role === "manager"
+    && s.submittedByUid === state.user.uid
+    && s.status === "Submitted";
+  footCancelBtn.hidden = !showFootCancel;
+  footCancelBtn.onclick = showFootCancel ? cancelMySubmission : null;
+
   $("#evSendBtn").addEventListener("click", sendEvent);
 }
 
@@ -2818,7 +2825,7 @@ async function cancelMySubmission() {
   if (!s) return;
   if (demoBlock("cancellation")) return;
   if (!confirm("Cancel this request? The MSP will see it as Cancelled and won't act on it. This can't be undone.")) return;
-  const btn = $("#subCancelBtn");
+  const btn = $("#subFootCancelBtn");
   if (btn) btn.disabled = true;
   try {
     await updateDoc(doc(db, "clients", s.clientId, "submissions", s.id), {
