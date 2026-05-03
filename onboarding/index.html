@@ -6,7 +6,7 @@
 <title>Onboarding &middot; Umbrella Automation</title>
 <meta name="description" content="Client onboarding system for Umbrella Automation managed service clients. Submit new hire, termination, and position change requests.">
 <meta name="robots" content="noindex">
-<meta name="app-version" content="0.2.4">
+<meta name="app-version" content="0.3.0">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -60,7 +60,29 @@
   header.bar .wrap {
     max-width: 1200px; margin: 0 auto;
     display: flex; align-items: center; gap: 16px;
+    position: relative;  /* anchor for centered client brand */
   }
+  /* Client logo + name, absolutely centered in the topbar. Manager view
+     only — admin sees neutral topbar. Hidden if the client has no
+     logo set (then we still show the name as a small label so context
+     isn't lost). */
+  .brand-client {
+    position: absolute; left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+    display: flex; align-items: center; gap: 8px;
+    pointer-events: none;  /* don't block tab clicks underneath */
+    max-width: 40%;
+  }
+  .brand-client img {
+    width: 28px; height: 28px; object-fit: contain;
+    border-radius: 5px; background: var(--surface-2);
+    border: 1px solid var(--line);
+  }
+  .brand-client .name {
+    font-size: 14px; font-weight: 600; color: var(--ink);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .brand-client[hidden] { display: none; }
   .brand {
     display: flex; align-items: center; gap: 10px;
     font-weight: 700; letter-spacing: -0.01em; color: var(--ink);
@@ -605,6 +627,10 @@
         <h1 id="brandTitle">Onboarding</h1>
       </div>
     </a>
+    <div class="brand-client" id="brandClient" hidden>
+      <img id="brandClientLogo" alt="">
+      <span class="name" id="brandClientName"></span>
+    </div>
     <nav class="tabs" id="tabsNav">
       <button data-tab="newrequest" class="active">New Request</button>
       <button data-tab="myrequests">My Requests</button>
@@ -885,6 +911,17 @@
         <input id="cmDomain" type="text" placeholder="e.g. acme.com">
         <div class="help">The client's primary email domain. Used in form templates.</div>
       </div>
+      <div class="field" style="margin-bottom:12px;">
+        <label>Logo (small)</label>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <img id="cmLogoPreview" alt="" style="width:48px;height:48px;object-fit:contain;background:var(--surface-2);border:1px solid var(--line);border-radius:6px;display:none;">
+          <div style="flex:1;display:flex;flex-direction:column;gap:6px;">
+            <input id="cmLogoFile" type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp" style="font-size:12px;">
+            <button type="button" id="cmLogoRemoveBtn" class="btn btn-sm" style="align-self:flex-start;border-color:var(--danger);color:var(--danger);display:none;">Remove logo</button>
+          </div>
+        </div>
+        <div class="help">PNG / JPG / SVG / WebP. Max 1 MB. Shown in the topbar for this client's managers. Square ~64×64 looks best.</div>
+      </div>
     </div>
     <div class="modal-foot">
       <button class="btn btn-danger" id="cmDeleteBtn" type="button" hidden>Delete</button>
@@ -1054,7 +1091,7 @@
 <div class="toast" id="toast" hidden></div>
 
 <footer class="foot" id="appFooter" hidden>
-  <p><a href="../">&larr; Work hub</a> &middot; Onboarding v0.2.4</p>
+  <p><a href="../">&larr; Work hub</a> &middot; Onboarding v0.3.0</p>
 </footer>
 
 <script type="module">
@@ -1078,6 +1115,10 @@ import {
   serverTimestamp, Timestamp,
   writeBatch
 } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
+import {
+  getStorage, ref as storageRef,
+  uploadBytes, getDownloadURL, deleteObject
+} from "https://www.gstatic.com/firebasejs/12.12.1/firebase-storage.js";
 
 // ------------------------------------------------------------------
 // Firebase config — onboarding-a563d project (ua-onboarding web app).
@@ -1091,13 +1132,14 @@ const firebaseConfig = {
   appId: "1:330286523878:web:27c4e2ffca3496ebc32227"
 };
 
-const APP_VERSION = "0.2.4";
+const APP_VERSION = "0.3.0";
 const STATUSES = ["Submitted", "In Progress", "Completed", "Cancelled"];
 const MSP_DOMAIN = "umbrellaautomation.com"; // Google sign-in restricted to this domain
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+const storage = getStorage(app);
 
 // ============== state ==============
 const state = {
@@ -1555,6 +1597,25 @@ function enterApp() {
     $("#brandMeta").textContent = state.client ? state.client.name : "Onboarding";
     $("#newReqClientName").textContent = state.client ? "for " + state.client.name : "";
 
+    // Center-of-topbar client logo + name (manager view only). If the
+    // client doc has logoURL, show the logo + name; if not, just show
+    // the name as a label so the client context is still visible.
+    if (state.client) {
+      const cb = $("#brandClient");
+      const logo = $("#brandClientLogo");
+      const nameEl = $("#brandClientName");
+      nameEl.textContent = state.client.name || state.client.id;
+      if (state.client.logoURL) {
+        logo.src = state.client.logoURL;
+        logo.style.display = "";
+      } else {
+        logo.style.display = "none";
+      }
+      cb.hidden = false;
+    } else {
+      $("#brandClient").hidden = true;
+    }
+
     // Manager tabs only.
     $$("nav.tabs button").forEach(b => {
       const t = b.dataset.tab;
@@ -1572,6 +1633,7 @@ function enterApp() {
     $("#brandTitle").textContent = "Onboarding · Admin";
     $("#brandMeta").textContent = "Umbrella Automation";
     $("#newReqClientName").textContent = "";
+    $("#brandClient").hidden = true;
 
     $$("nav.tabs button").forEach(b => {
       const t = b.dataset.tab;
@@ -3132,6 +3194,10 @@ $("#newClientBtn").addEventListener("click", () => openClientModal(null));
 
 function openClientModal(clientId) {
   state.editingClient = clientId;
+  state._cmLogoPendingFile = null;     // file to upload on save
+  state._cmLogoMarkedForRemoval = false;
+  $("#cmLogoFile").value = "";
+
   if (clientId) {
     const c = state.clients.find(x => x.id === clientId);
     if (!c) return;
@@ -3141,6 +3207,14 @@ function openClientModal(clientId) {
     $("#cmName").value = c.name || "";
     $("#cmDomain").value = c.domain || "";
     $("#cmDeleteBtn").hidden = false;
+    if (c.logoURL) {
+      $("#cmLogoPreview").src = c.logoURL;
+      $("#cmLogoPreview").style.display = "";
+      $("#cmLogoRemoveBtn").style.display = "";
+    } else {
+      $("#cmLogoPreview").style.display = "none";
+      $("#cmLogoRemoveBtn").style.display = "none";
+    }
   } else {
     $("#clientModalTitle").textContent = "New client";
     $("#cmId").value = "";
@@ -3148,9 +3222,39 @@ function openClientModal(clientId) {
     $("#cmName").value = "";
     $("#cmDomain").value = "";
     $("#cmDeleteBtn").hidden = true;
+    $("#cmLogoPreview").style.display = "none";
+    $("#cmLogoRemoveBtn").style.display = "none";
   }
   $("#clientModal").hidden = false;
 }
+
+// Live-preview when a new file is picked, plus mark for upload on save.
+$("#cmLogoFile").addEventListener("change", e => {
+  const f = e.target.files && e.target.files[0];
+  if (!f) return;
+  if (f.size > 1024 * 1024) {
+    toast("Logo too large — max 1 MB.", true);
+    e.target.value = "";
+    return;
+  }
+  state._cmLogoPendingFile = f;
+  state._cmLogoMarkedForRemoval = false;
+  const reader = new FileReader();
+  reader.onload = () => {
+    $("#cmLogoPreview").src = reader.result;
+    $("#cmLogoPreview").style.display = "";
+    $("#cmLogoRemoveBtn").style.display = "";
+  };
+  reader.readAsDataURL(f);
+});
+
+$("#cmLogoRemoveBtn").addEventListener("click", () => {
+  state._cmLogoMarkedForRemoval = true;
+  state._cmLogoPendingFile = null;
+  $("#cmLogoFile").value = "";
+  $("#cmLogoPreview").style.display = "none";
+  $("#cmLogoRemoveBtn").style.display = "none";
+});
 
 $("#cmSaveBtn").addEventListener("click", async () => {
   const id = $("#cmId").value.trim().toLowerCase().replace(/[^a-z0-9-]/g, "");
@@ -3175,6 +3279,34 @@ $("#cmSaveBtn").addEventListener("click", async () => {
     } else {
       await updateDoc(doc(db, "clients", state.editingClient), { name, domain });
     }
+
+    // Logo handling — runs after the client doc exists so the storage
+    // path uses the final id. Upload OR remove, never both.
+    const targetId = isNew ? id : state.editingClient;
+    if (state._cmLogoPendingFile) {
+      const f = state._cmLogoPendingFile;
+      const ext = (f.name.match(/\.([a-z0-9]+)$/i)?.[1] || "png").toLowerCase();
+      const path = `clients/${targetId}/logo.${ext}`;
+      try {
+        const sref = storageRef(storage, path);
+        await uploadBytes(sref, f, { contentType: f.type });
+        const url = await getDownloadURL(sref);
+        await updateDoc(doc(db, "clients", targetId), { logoURL: url, logoPath: path });
+      } catch (le) {
+        console.error("logo upload failed", le);
+        toast("Client saved, but logo upload failed: " + (le.message || le.code), true);
+      }
+    } else if (state._cmLogoMarkedForRemoval) {
+      const c = state.clients.find(x => x.id === targetId);
+      if (c?.logoPath) {
+        try { await deleteObject(storageRef(storage, c.logoPath)); }
+        catch (de) { console.warn("logo delete failed (non-fatal)", de); }
+      }
+      try {
+        await updateDoc(doc(db, "clients", targetId), { logoURL: null, logoPath: null });
+      } catch (e) { console.warn("logo metadata clear failed", e); }
+    }
+
     $("#clientModal").hidden = true;
     toast("Client saved.");
   } catch (e) {

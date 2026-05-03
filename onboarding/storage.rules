@@ -45,6 +45,22 @@ service firebase.storage {
       allow update: if false;
     }
 
+    // -------- /clients/{clientId}/logo.{ext} --------
+    // Per-client logo shown in the manager-side topbar (and reusable
+    // in welcome emails). MSP admin uploads / replaces / removes via
+    // the Client modal in the admin app. Reads are PUBLIC because the
+    // download URL gets embedded into the rendered manager UI; the
+    // path itself is unguessable enough for our purposes (clients
+    // listed only to admin + their own manager). 1 MB cap, image
+    // content-types only.
+    match /clients/{clientId}/{file} {
+      allow read: if true;
+      allow write: if isMSPAdmin()
+        && request.resource.size < 1 * 1024 * 1024
+        && request.resource.contentType.matches("image/.*");
+      allow delete: if isMSPAdmin();
+    }
+
     // Default deny for all other paths.
     match /{allPaths=**} {
       allow read, write: if false;
