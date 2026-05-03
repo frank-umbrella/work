@@ -248,6 +248,20 @@ service cloud.firestore {
       }
     }
 
+    // -------- collection-group: /{any}/submissions/{subId} --------
+    // The admin queue uses collectionGroup("submissions") to span every
+    // client. Per Firestore rules, collection-group queries require a
+    // separate rule path that uses a recursive `{path=**}` wildcard at
+    // the root level — the nested /clients/{clientId}/submissions rule
+    // above is only evaluated for direct queries on a specific client's
+    // submissions collection. This rule is additive (Firestore unions
+    // matching rule grants), so the per-client manager-isolation logic
+    // in the nested rule above is unaffected for non-collection-group
+    // reads. Restricted to MSP admins.
+    match /{anyPath=**}/submissions/{submissionId} {
+      allow get, list: if isMSPAdmin();
+    }
+
     // -------- /mail/{mailId} --------
     // Outbound email queue picked up by the Firebase "Trigger Email from
     // Firestore" extension (firebase-extensions/firestore-send-email).
