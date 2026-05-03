@@ -6,7 +6,7 @@
 <title>Onboarding &middot; Umbrella Automation</title>
 <meta name="description" content="Client onboarding system for Umbrella Automation managed service clients. Submit new hire, termination, and position change requests.">
 <meta name="robots" content="noindex">
-<meta name="app-version" content="0.2.3">
+<meta name="app-version" content="0.2.4">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -1054,7 +1054,7 @@
 <div class="toast" id="toast" hidden></div>
 
 <footer class="foot" id="appFooter" hidden>
-  <p><a href="../">&larr; Work hub</a> &middot; Onboarding v0.2.3</p>
+  <p><a href="../">&larr; Work hub</a> &middot; Onboarding v0.2.4</p>
 </footer>
 
 <script type="module">
@@ -1091,7 +1091,7 @@ const firebaseConfig = {
   appId: "1:330286523878:web:27c4e2ffca3496ebc32227"
 };
 
-const APP_VERSION = "0.2.3";
+const APP_VERSION = "0.2.4";
 const STATUSES = ["Submitted", "In Progress", "Completed", "Cancelled"];
 const MSP_DOMAIN = "umbrellaautomation.com"; // Google sign-in restricted to this domain
 
@@ -1658,8 +1658,38 @@ $("#formPicker").addEventListener("change", e => {
 function loadCurrentForm() {
   const f = state.forms.find(x => x.id === state.currentFormId);
   if (!f) { $("#dynForm").innerHTML = ""; return; }
-  state.currentFormSchema = f.schema || { pages: [{ fields: [] }] };
+  // Defensive auto-unwrap: if the admin pasted the FULL seed JSON
+  // (including _about / formMeta / schema keys) into the schema editor
+  // instead of just the inner schema contents, f.schema will be the
+  // wrapper object and the real schema lives one level deeper. Detect
+  // and unwrap so the form renders correctly without forcing the admin
+  // to re-upload.
+  let schema = f.schema || { pages: [{ fields: [] }] };
+  if (schema && !schema.pages && !schema.fields && schema.schema
+      && (schema.schema.pages || schema.schema.fields)) {
+    schema = schema.schema;
+  }
+  state.currentFormSchema = schema;
   renderDynamicForm(state.currentFormSchema);
+
+  // Warn if the form has no fields after unwrap — usually means the
+  // pasted JSON was malformed (or empty). Friendlier than a silently
+  // blank form.
+  const pages = Array.isArray(schema.pages) ? schema.pages : [{ fields: schema.fields || [] }];
+  const totalFields = pages.reduce((n, p) => n + (Array.isArray(p.fields) ? p.fields.length : 0), 0);
+  if (totalFields === 0) {
+    $("#dynForm").innerHTML = `
+      <div class="empty" style="color:var(--danger);padding:20px;border:1px dashed var(--danger);border-radius:8px;">
+        <strong>This form has no fields.</strong>
+        <div style="margin-top:8px;font-size:13px;color:var(--ink-soft);">
+          Likely cause: when uploading the schema, the wrong JSON was pasted.
+          The schema editor expects just the inner <code>schema</code> object's contents
+          (the <code>pages</code> array), not the full seed file with <code>_about</code> /
+          <code>formMeta</code> wrappers. Ask your MSP admin to re-edit this form and paste
+          only the <code>pages</code> array contents.
+        </div>
+      </div>`;
+  }
 }
 
 // ============== dynamic form renderer ==============
@@ -2319,6 +2349,24 @@ function renderSubmissionDetail() {
         ${completeBtn ? `<span style="flex:1;"></span>${completeBtn}` : ""}
       </div>
     `;
+  } else if (state.role === "manager"
+             && s.submittedByUid === state.user.uid
+             && s.status === "Submitted") {
+    // Manager looking at their own still-Submitted request — let them
+    // cancel it before MSP starts working. Once MSP moves it to In
+    // Progress / Completed, this button disappears (rule also enforces).
+    statusCtrl = `
+      <div style="margin:0 0 16px;display:flex;justify-content:flex-end;">
+        <button class="btn btn-sm" id="subCancelBtn" type="button"
+          style="border-color:var(--danger);color:var(--danger);">Cancel this request</button>
+      </div>
+    `;
+  } else if (state.role === "manager" && s.status === "Cancelled") {
+    statusCtrl = `
+      <div style="margin:0 0 14px;padding:10px 12px;background:var(--surface-2);border:1px solid var(--line);border-radius:7px;font-size:12.5px;color:var(--ink-soft);">
+        This request was cancelled${s.cancelledAt ? " on " + escapeHTML(fmtDate(s.cancelledAt)) : ""}.
+      </div>
+    `;
   }
 
   // Events log + add event form.
@@ -2366,8 +2414,47 @@ function renderSubmissionDetail() {
     $("#subStatusSave").addEventListener("click", saveStatus);
     const compBtn = $("#subCompleteBtn");
     if (compBtn) compBtn.addEventListener("click", openCompletion);
+  } else if (state.role === "manager") {
+    const cxlBtn = $("#subCancelBtn");
+    if (cxlBtn) cxlBtn.addEventListener("click", cancelMySubmission);
   }
   $("#evSendBtn").addEventListener("click", sendEvent);
+}
+
+async function cancelMySubmission() {
+  const s = state.openSubmission;
+  if (!s) return;
+  if (!confirm("Cancel this request? The MSP will see it as Cancelled and won't act on it. This can't be undone.")) return;
+  const btn = $("#subCancelBtn");
+  if (btn) btn.disabled = true;
+  try {
+    await updateDoc(doc(db, "clients", s.clientId, "submissions", s.id), {
+      status: "Cancelled",
+      cancelledAt: serverTimestamp(),
+      cancelledByUid: state.user.uid,
+      cancelledByEmail: state.user.email,
+      lastActivityAt: serverTimestamp()
+    });
+    await addDoc(
+      collection(db, "clients", s.clientId, "submissions", s.id, "events"),
+      {
+        type: "status",
+        statusFrom: s.status,
+        statusTo: "Cancelled",
+        message: "Request cancelled by the requester.",
+        byUid: state.user.uid,
+        byEmail: state.user.email,
+        byName: ((state.managerDoc?.firstName || "") + " " + (state.managerDoc?.lastName || "")).trim() || state.user.email,
+        at: serverTimestamp()
+      }
+    );
+    toast("Request cancelled.");
+    $("#subModal").hidden = true;
+  } catch (e) {
+    console.error("cancel failed", e);
+    toast(friendlyErr(e, "Could not cancel the request"), true);
+    if (btn) btn.disabled = false;
+  }
 }
 
 function renderAnswerRow(field, v) {
@@ -2800,23 +2887,54 @@ function updateCompletionPreview({ rebuildPreviewPane = false } = {}) {
   const tplVars = { ...values, clientName, firstName };
 
   // ----- Recipients -----
+  // Auto-derived from the captured fields + original submission, deduped.
+  // Each recipient is a checkbox so the admin can opt-out before sending
+  // (e.g. Resend sandbox blocks anything other than the account-owner
+  // address; admin may also just not want a particular party copied).
+  // _compState.uncheckedRecipients is a Set of addresses the admin has
+  // explicitly unchecked; everything else is checked by default.
   const recipients = deriveCompletionRecipients(values, submission, alternateEmail);
-  const annotated = recipients.map(addr => {
-    const tags = [];
-    if (addr === (values.workEmail || "").toLowerCase()) tags.push(`<span class="badge">new hire (work)</span>`);
-    if (addr === (alternateEmail || "").toLowerCase()) tags.push(`<span class="badge">new hire (personal)</span>`);
-    if (addr === (values.managerEmail || "").toLowerCase()) tags.push(`<span class="badge">direct manager</span>`);
-    if (addr === (submission.submittedByEmail || "").toLowerCase()) tags.push(`<span class="badge">client manager</span>`);
-    return `<li>${escapeHTML(addr)} ${tags.join(" ")}</li>`;
-  }).join("");
+  if (!_compState.uncheckedRecipients) _compState.uncheckedRecipients = new Set();
   const recEl = $("#compRecipients");
   if (recEl) {
-    recEl.innerHTML = `
-      <h4>Recipients (auto-derived, deduped)</h4>
-      ${recipients.length
-        ? `<ul>${annotated}</ul>`
-        : `<p style="margin:0;font-size:13px;color:var(--danger);">No valid email addresses yet — fill in Work email and Direct manager email above.</p>`}
-    `;
+    if (recipients.length === 0) {
+      recEl.innerHTML = `
+        <h4>Recipients (auto-derived, deduped)</h4>
+        <p style="margin:0;font-size:13px;color:var(--danger);">No valid email addresses yet — fill in Work email and Direct manager email above.</p>
+      `;
+    } else {
+      const rows = recipients.map(addr => {
+        const tags = [];
+        if (addr === (values.workEmail || "").toLowerCase()) tags.push(`<span class="badge">new hire (work)</span>`);
+        if (addr === (alternateEmail || "").toLowerCase()) tags.push(`<span class="badge">new hire (personal)</span>`);
+        if (addr === (values.managerEmail || "").toLowerCase()) tags.push(`<span class="badge">direct manager</span>`);
+        if (addr === (submission.submittedByEmail || "").toLowerCase()) tags.push(`<span class="badge">client manager</span>`);
+        const checked = _compState.uncheckedRecipients.has(addr) ? "" : "checked";
+        return `<li style="list-style:none;display:flex;align-items:center;gap:8px;padding:3px 0;">
+          <input type="checkbox" data-recipient="${escapeHTML(addr)}" ${checked} style="margin:0;">
+          <span>${escapeHTML(addr)}</span>
+          ${tags.join(" ")}
+        </li>`;
+      }).join("");
+      const checkedCount = recipients.filter(a => !_compState.uncheckedRecipients.has(a)).length;
+      recEl.innerHTML = `
+        <h4>Recipients (${checkedCount} of ${recipients.length} will receive)</h4>
+        <ul style="padding-left:0;">${rows}</ul>
+        <p style="margin:8px 0 0;font-size:11.5px;color:var(--ink-faint);">Uncheck any address you don't want to email. In Resend sandbox mode you can only send to your Resend account address — uncheck anything else.</p>
+      `;
+      // Wire checkbox handlers — toggle uncheckedRecipients set.
+      $$("#compRecipients [data-recipient]").forEach(cb => {
+        cb.addEventListener("change", () => {
+          const addr = cb.dataset.recipient;
+          if (cb.checked) _compState.uncheckedRecipients.delete(addr);
+          else _compState.uncheckedRecipients.add(addr);
+          // Update the count in the header without rebuilding the list.
+          const checkedNow = recipients.filter(a => !_compState.uncheckedRecipients.has(a)).length;
+          const h4 = recEl.querySelector("h4");
+          if (h4) h4.textContent = `Recipients (${checkedNow} of ${recipients.length} will receive)`;
+        });
+      });
+    }
   }
 
   // ----- Subject -----
@@ -2875,9 +2993,16 @@ async function sendCompletion() {
     return;
   }
 
-  const recipients = deriveCompletionRecipients(values, submission, alternateEmail);
+  // Honor any recipients the admin unchecked in the modal — only the
+  // checked ones actually receive the email.
+  const allRecipients = deriveCompletionRecipients(values, submission, alternateEmail);
+  const skipped = _compState.uncheckedRecipients || new Set();
+  const recipients = allRecipients.filter(a => !skipped.has(a));
   if (recipients.length === 0) {
-    toast("No valid recipients — fill in Work email and Direct manager email at minimum.", true);
+    toast(allRecipients.length === 0
+      ? "No valid recipients — fill in Work email and Direct manager email at minimum."
+      : "All recipients are unchecked — check at least one before sending.",
+      true);
     return;
   }
 

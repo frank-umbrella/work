@@ -185,10 +185,16 @@ service cloud.firestore {
           && request.resource.data.clientId == resource.data.clientId
           && request.resource.data.submittedAt == resource.data.submittedAt;
 
+        // Manager self-update while still in Submitted state. Allowed
+        // target statuses: Submitted (typo fix on the form values) or
+        // Cancelled (manager pulls it back before MSP starts working).
+        // Once MSP moves it to In Progress / Completed, the manager
+        // can no longer touch it.
         allow update: if isManagerOf(clientId)
           && resource.data.submittedByUid == request.auth.uid
           && resource.data.status == 'Submitted'
-          && request.resource.data.status == 'Submitted'
+          && (request.resource.data.status == 'Submitted'
+              || request.resource.data.status == 'Cancelled')
           && request.resource.data.submittedByUid == resource.data.submittedByUid
           && request.resource.data.clientId == resource.data.clientId
           && request.resource.data.submittedAt == resource.data.submittedAt;
