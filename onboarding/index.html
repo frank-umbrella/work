@@ -6,7 +6,7 @@
 <title>Onboarding &middot; Umbrella Automation</title>
 <meta name="description" content="Client onboarding system for Umbrella Automation managed service clients. Submit new hire, termination, and position change requests.">
 <meta name="robots" content="noindex">
-<meta name="app-version" content="0.3.0">
+<meta name="app-version" content="0.4.0">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -890,6 +890,54 @@
 </div>
 
 <!-- ================= client editor modal ================= -->
+<!-- ================= per-client welcome-template editor ================= -->
+<div class="modal-bg" id="templateModal" hidden>
+  <div class="modal wide">
+    <div class="modal-head">
+      <h3 id="templateModalTitle">Welcome email template</h3>
+      <button class="close" type="button" data-close-modal>&times;</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--ink-soft);margin:0 0 14px;">
+        Per-client overrides for this client's <strong>New Hire / Rehire</strong> welcome email.
+        If you leave this blank (or click <em>Reset to default</em>), the system-default template is used.
+        Use <code>{{firstName}}</code>, <code>{{clientName}}</code>, <code>{{fullName}}</code>, <code>{{startDate}}</code>, etc.
+        — see <code>DEFAULT_COMPLETION_TEMPLATE</code> in <code>index.html</code> for the full placeholder list.
+      </p>
+      <div class="form-grid">
+        <div class="field">
+          <label for="teFromName">FROM name</label>
+          <input id="teFromName" type="text" placeholder="Umbrella Automation">
+        </div>
+        <div class="field">
+          <label for="teFromEmail">FROM email</label>
+          <input id="teFromEmail" type="email" placeholder="welcome@umbrellaautomation.com">
+        </div>
+      </div>
+      <div class="field" style="margin-top:10px;">
+        <label for="teSubject">Subject template</label>
+        <input id="teSubject" type="text" placeholder="Welcome to {{clientName}}, {{firstName}}!">
+      </div>
+      <div class="field" style="margin-top:10px;">
+        <label for="teBody">Body HTML template</label>
+        <textarea id="teBody" spellcheck="false" style="min-height:280px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;"></textarea>
+        <div class="help">Inline-style your CSS — most email clients strip &lt;style&gt; tags. <code>{{#field}}…{{/field}}</code> blocks render only when the field has a value.</div>
+      </div>
+      <div class="field" style="margin-top:10px;">
+        <label for="teFields">Fields JSON (controls the completion form's inputs)</label>
+        <textarea id="teFields" spellcheck="false" style="min-height:160px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;"></textarea>
+        <div class="help">Array of <code>{ id, label, type, section, required?, options?, placeholder?, full? }</code>. Leave blank to use the default fields.</div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-danger" id="teResetBtn" type="button" hidden>Reset to default</button>
+      <span class="spacer"></span>
+      <button class="btn" type="button" data-close-modal>Cancel</button>
+      <button class="btn btn-primary" id="teSaveBtn" type="button">Save template</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-bg" id="clientModal" hidden>
   <div class="modal">
     <div class="modal-head">
@@ -1091,7 +1139,7 @@
 <div class="toast" id="toast" hidden></div>
 
 <footer class="foot" id="appFooter" hidden>
-  <p><a href="../">&larr; Work hub</a> &middot; Onboarding v0.3.0</p>
+  <p><a href="../">&larr; Work hub</a> &middot; Onboarding v0.4.0</p>
 </footer>
 
 <script type="module">
@@ -1132,7 +1180,7 @@ const firebaseConfig = {
   appId: "1:330286523878:web:27c4e2ffca3496ebc32227"
 };
 
-const APP_VERSION = "0.3.0";
+const APP_VERSION = "0.4.0";
 const STATUSES = ["Submitted", "In Progress", "Completed", "Cancelled"];
 const MSP_DOMAIN = "umbrellaautomation.com"; // Google sign-in restricted to this domain
 
@@ -3149,6 +3197,93 @@ async function sendCompletion() {
 
 $("#completionSendBtn").addEventListener("click", sendCompletion);
 
+// ============== per-client welcome-template editor ==============
+// Lives at /clients/{clientId}/completionTemplates/newhire-rehire.
+// Currently scoped to the newhire-rehire kind only — add more kinds by
+// extending this UI to a kind picker. Pre-fills from the existing
+// per-client doc if one exists, otherwise from DEFAULT_COMPLETION_TEMPLATE
+// so the admin can edit-from-baseline rather than type from scratch.
+async function openTemplateEditor(clientId) {
+  state._editingTemplate = { clientId, kind: "newhire-rehire", existed: false };
+  const c = state.clients.find(x => x.id === clientId);
+  $("#templateModalTitle").textContent =
+    `Welcome email template — ${c?.name || clientId}`;
+
+  // Try to load the per-client doc; fall back to DEFAULT.
+  let tpl = null;
+  try {
+    const snap = await getDoc(doc(db, "clients", clientId, "completionTemplates", "newhire-rehire"));
+    if (snap.exists()) {
+      tpl = snap.data();
+      state._editingTemplate.existed = true;
+    }
+  } catch (e) { console.warn("template load failed", e); }
+  // Bust the in-memory cache so the next openCompletion picks up changes.
+  completionTemplateCache.delete(`${clientId}|newhire-rehire`);
+
+  const merged = { ...DEFAULT_COMPLETION_TEMPLATE, ...(tpl || {}) };
+  $("#teFromName").value   = merged.fromName || "";
+  $("#teFromEmail").value  = merged.fromEmail || "";
+  $("#teSubject").value    = merged.subjectTemplate || "";
+  $("#teBody").value       = merged.bodyTemplate || "";
+  $("#teFields").value     = JSON.stringify(merged.fields || [], null, 2);
+  $("#teResetBtn").hidden  = !state._editingTemplate.existed;
+  $("#templateModal").hidden = false;
+}
+
+$("#teSaveBtn").addEventListener("click", async () => {
+  const ed = state._editingTemplate;
+  if (!ed) return;
+  const fromName = $("#teFromName").value.trim();
+  const fromEmail = $("#teFromEmail").value.trim();
+  const subjectTemplate = $("#teSubject").value.trim();
+  const bodyTemplate = $("#teBody").value;
+  let fields;
+  try {
+    fields = JSON.parse($("#teFields").value || "[]");
+    if (!Array.isArray(fields)) throw new Error("Fields JSON must be an array.");
+  } catch (e) {
+    toast("Fields JSON is invalid: " + e.message, true);
+    return;
+  }
+  const btn = $("#teSaveBtn");
+  btn.disabled = true;
+  try {
+    await setDoc(
+      doc(db, "clients", ed.clientId, "completionTemplates", ed.kind),
+      { fromName, fromEmail, subjectTemplate, bodyTemplate, fields,
+        updatedAt: serverTimestamp(), updatedByUid: state.user.uid }
+    );
+    completionTemplateCache.delete(`${ed.clientId}|${ed.kind}`);
+    $("#templateModal").hidden = true;
+    toast("Template saved.");
+  } catch (e) {
+    console.error("template save failed", e);
+    toast(friendlyErr(e, "Save failed"), true);
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+$("#teResetBtn").addEventListener("click", async () => {
+  const ed = state._editingTemplate;
+  if (!ed || !ed.existed) return;
+  if (!confirm("Delete this client's custom welcome template? Future welcome emails for this client will use the system default.")) return;
+  const btn = $("#teResetBtn");
+  btn.disabled = true;
+  try {
+    await deleteDoc(doc(db, "clients", ed.clientId, "completionTemplates", ed.kind));
+    completionTemplateCache.delete(`${ed.clientId}|${ed.kind}`);
+    $("#templateModal").hidden = true;
+    toast("Reset to default.");
+  } catch (e) {
+    console.error("template reset failed", e);
+    toast(friendlyErr(e, "Reset failed"), true);
+  } finally {
+    btn.disabled = false;
+  }
+});
+
 // ============== clients: subscribe (admin) ==============
 function subscribeClients() {
   state.unsub.clients = onSnapshot(query(collection(db, "clients")), snap => {
@@ -3367,6 +3502,7 @@ function showFormsListModal(clientId, client, forms) {
     <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
       <strong style="font-size:13px;">Existing forms</strong>
       <span style="margin-left:auto;"></span>
+      <button class="btn btn-sm" id="editTemplateBtn" type="button">Welcome email template…</button>
       <button class="btn btn-sm" id="newFormBtn" type="button">+ New form</button>
     </div>
     <div class="form-list" style="margin-bottom:18px;">
@@ -3385,6 +3521,8 @@ function showFormsListModal(clientId, client, forms) {
   `;
   // Hide the editor part initially.
   toggleFormEditor(false);
+
+  $("#editTemplateBtn").onclick = () => openTemplateEditor(clientId);
 
   $("#newFormBtn").onclick = () => {
     state.editingForm = { clientId, formId: null, isNew: true };

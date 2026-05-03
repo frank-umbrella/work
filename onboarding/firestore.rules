@@ -156,6 +156,16 @@ service cloud.firestore {
         allow create, update, delete: if isMSPAdmin();
       }
 
+      // -------- /clients/{clientId}/completionTemplates/{kind} --------
+      // Per-client overrides for welcome-email content. Admin-only —
+      // managers don't need to read these (they just receive the
+      // rendered email). Writes ONLY happen from the admin's
+      // template editor UI.
+      match /completionTemplates/{kind} {
+        allow get, list: if isMSPAdmin();
+        allow create, update, delete: if isMSPAdmin();
+      }
+
       // -------- /clients/{clientId}/submissions/{submissionId} --------
       // Submitted requests. Manager can only read their own (enforced
       // per-doc). MSP admin sees everything. Status updates are MSP-only.
