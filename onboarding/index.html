@@ -6,7 +6,7 @@
 <title>Onboarding &middot; Umbrella Automation</title>
 <meta name="description" content="Client onboarding system for Umbrella Automation managed service clients. Submit new hire, termination, and position change requests.">
 <meta name="robots" content="noindex">
-<meta name="app-version" content="0.5.3">
+<meta name="app-version" content="0.5.4">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -1207,7 +1207,7 @@
 <div class="toast" id="toast" hidden></div>
 
 <footer class="foot" id="appFooter" hidden>
-  <p><a href="../">&larr; Work hub</a> &middot; Onboarding v0.5.3</p>
+  <p><a href="../">&larr; Work hub</a> &middot; Onboarding v0.5.4</p>
 </footer>
 
 <script type="module">
@@ -1248,7 +1248,7 @@ const firebaseConfig = {
   appId: "1:330286523878:web:27c4e2ffca3496ebc32227"
 };
 
-const APP_VERSION = "0.5.3";
+const APP_VERSION = "0.5.4";
 const STATUSES = ["Submitted", "In Progress", "Completed", "Cancelled"];
 const MSP_DOMAIN = "umbrellaautomation.com"; // Google sign-in restricted to this domain
 
@@ -1316,11 +1316,11 @@ const DEMO_FIXTURES = {
   submissions: [
     { id: "sub1", clientId: "jem-medspa-demo", clientName: "JEM MedSpa",
       formId: "newhire", formTitle: "New Hire", formKind: "newhire",
-      summary: "New Hire: Art Vandelay",
+      summary: "New Hire: Carter Reyes",
       status: "Submitted", submittedAt: _demoTs(0), lastActivityAt: _demoTs(0),
       submittedByUid: "demo-mgr-uid", submittedByEmail: "sarah.johnson@jemmedspa.com",
       submittedByName: "Sarah Johnson",
-      values: { firstName: "Art", lastName: "Vandelay", title: "Latex Salesman", preferredEmail: "art.vandelay@jemmedspa.com", hireDate: "2026-05-15", managerEmail: "ops@jemmedspa.com", employeeStatus: "New Hire" }},
+      values: { firstName: "Carter", lastName: "Reyes", title: "Front Desk Associate", preferredEmail: "carter.reyes@jemmedspa.com", hireDate: "2026-05-15", managerEmail: "ops@jemmedspa.com", employeeStatus: "New Hire" }},
     { id: "sub2", clientId: "jem-medspa-demo", clientName: "JEM MedSpa",
       formId: "newhire", formTitle: "New Hire", formKind: "newhire",
       summary: "New Hire: Maya Patel",
