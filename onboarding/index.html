@@ -6,7 +6,7 @@
 <title>Onboarding &middot; Umbrella Automation</title>
 <meta name="description" content="Client onboarding system for Umbrella Automation managed service clients. Submit new hire, termination, and position change requests.">
 <meta name="robots" content="noindex">
-<meta name="app-version" content="0.5.2">
+<meta name="app-version" content="0.5.3">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -638,6 +638,18 @@
 </head>
 <body>
 
+<!-- ================= demo / preview banner =================
+     MUST come before the topbar in DOM. Both elements use
+     position: sticky; top: 0 — when stacked, the first sticky
+     element in source order wins the top slot and the second
+     sticks below it (with the appropriate top offset set in CSS
+     via body.demo-mode header.bar { top: 36px }). -->
+<div id="demoBanner" hidden>
+  <strong>Demo mode</strong>
+  <span>— sandboxed, fake data. Changes are not saved.</span>
+  <a href="https://umbrellaautomation.com/contact" target="_blank" rel="noopener">Get the real thing →</a>
+</div>
+
 <!-- ================= top bar ================= -->
 <header class="bar" id="topbar" hidden>
   <div class="wrap">
@@ -670,13 +682,6 @@
     </div>
   </div>
 </header>
-
-<!-- ================= demo / preview banner ================= -->
-<div id="demoBanner" hidden>
-  <strong>Demo mode</strong>
-  <span>— sandboxed, fake data. Changes are not saved.</span>
-  <a href="https://umbrellaautomation.com/contact" target="_blank" rel="noopener">Get the real thing →</a>
-</div>
 
 <!-- ================= initial auth-state loader =================
      Shown while Firebase reads the persisted auth token. Without this,
@@ -1202,7 +1207,7 @@
 <div class="toast" id="toast" hidden></div>
 
 <footer class="foot" id="appFooter" hidden>
-  <p><a href="../">&larr; Work hub</a> &middot; Onboarding v0.5.2</p>
+  <p><a href="../">&larr; Work hub</a> &middot; Onboarding v0.5.3</p>
 </footer>
 
 <script type="module">
@@ -1243,7 +1248,7 @@ const firebaseConfig = {
   appId: "1:330286523878:web:27c4e2ffca3496ebc32227"
 };
 
-const APP_VERSION = "0.5.2";
+const APP_VERSION = "0.5.3";
 const STATUSES = ["Submitted", "In Progress", "Completed", "Cancelled"];
 const MSP_DOMAIN = "umbrellaautomation.com"; // Google sign-in restricted to this domain
 
