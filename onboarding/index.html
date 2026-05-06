@@ -6,7 +6,7 @@
 <title>Onboarding &middot; Umbrella Automation</title>
 <meta name="description" content="Client onboarding system for Umbrella Automation managed service clients. Submit new hire, termination, and position change requests.">
 <meta name="robots" content="noindex">
-<meta name="app-version" content="0.5.4">
+<meta name="app-version" content="0.5.5">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -96,15 +96,46 @@
   .brand img { width: 22px; height: 22px; }
   .brand .meta { font-size: 11px; color: var(--ink-faint); font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; }
   .brand h1 { font-size: 16px; margin: 0; line-height: 1.1; }
-  nav.tabs { display: flex; gap: 2px; margin-left: 12px; }
+  /* Tabs as underline-style indicators rather than pill buttons. The
+     active tab's accent bottom-border overlaps the topbar's own
+     bottom border (via margin-bottom: -1px) so it visually "notches
+     into" the page below — both tabs read as tabs of equal stature,
+     with the current page clearly indicated. */
+  nav.tabs { display: flex; gap: 4px; margin-left: 12px; align-self: stretch; }
   nav.tabs button {
-    background: transparent; border: 0; padding: 7px 12px;
-    border-radius: 7px; cursor: pointer; color: var(--ink-soft);
+    background: transparent;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    padding: 0 12px;
+    margin-bottom: -1px; /* overlap topbar's 1px bottom border */
+    border-radius: 0;
+    cursor: pointer;
+    color: var(--ink-soft);
     font-size: 13.5px; font-weight: 500;
+    line-height: 1;
+    transition: color 100ms, border-bottom-color 100ms;
   }
-  nav.tabs button:hover { background: var(--accent-soft); color: var(--accent); }
-  nav.tabs button.active { background: var(--accent); color: #fff; }
+  nav.tabs button:hover {
+    color: var(--accent);
+    border-bottom-color: var(--accent-soft);
+  }
+  nav.tabs button.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+    font-weight: 600;
+  }
   nav.tabs button[hidden] { display: none; }
+  /* Anchor variant for "Onboarding →" link in the incidents app etc. */
+  nav.tabs a.tab-link {
+    display: inline-flex; align-items: center;
+    padding: 0 12px; margin-bottom: -1px;
+    border-bottom: 2px solid transparent;
+    color: var(--ink-soft); font-size: 13.5px; font-weight: 500;
+    text-decoration: none; line-height: 1;
+  }
+  nav.tabs a.tab-link:hover {
+    color: var(--accent); border-bottom-color: var(--accent-soft);
+  }
   .userbar { margin-left: auto; display: flex; align-items: center; gap: 10px; font-size: 13px; }
   .userbar .who { display: flex; flex-direction: column; line-height: 1.2; align-items: flex-end; }
   .userbar .who .n { color: var(--ink); font-weight: 600; font-size: 13px; }
@@ -1207,7 +1238,7 @@
 <div class="toast" id="toast" hidden></div>
 
 <footer class="foot" id="appFooter" hidden>
-  <p><a href="../">&larr; Work hub</a> &middot; Onboarding v0.5.4</p>
+  <p><a href="../">&larr; Work hub</a> &middot; Onboarding v0.5.5</p>
 </footer>
 
 <script type="module">
@@ -1248,7 +1279,7 @@ const firebaseConfig = {
   appId: "1:330286523878:web:27c4e2ffca3496ebc32227"
 };
 
-const APP_VERSION = "0.5.4";
+const APP_VERSION = "0.5.5";
 const STATUSES = ["Submitted", "In Progress", "Completed", "Cancelled"];
 const MSP_DOMAIN = "umbrellaautomation.com"; // Google sign-in restricted to this domain
 
