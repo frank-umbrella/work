@@ -18,6 +18,10 @@
 <meta name="twitter:title" content="Umbrella LogMeIn Installer">
 <meta name="twitter:description" content="Install the Umbrella support helper in three short steps.">
 <meta name="twitter:image" content="og-image.png">
+<meta name="version" content="1.0.0">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Saira:wght@900&display=swap" rel="stylesheet">
 <style>
   :root {
     --bg: #f6f7f9;
@@ -67,25 +71,46 @@
   header.page {
     background: var(--surface);
     border-bottom: 1px solid var(--line);
-    padding: 22px 24px 18px;
+    padding: 18px 24px 16px;
   }
   header.page .wrap {
     max-width: 980px;
     margin: 0 auto;
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-start;
     gap: 16px;
   }
   header.page .brand {
     display: flex;
     align-items: center;
-    gap: 10px;
-    font-weight: 700;
-    color: var(--ink);
-    letter-spacing: -0.005em;
   }
-  header.page .brand svg { display: block; }
+  header.page .brand svg {
+    display: block;
+    height: 44px;
+    width: auto;
+  }
+  @media (max-width: 540px) {
+    header.page .brand svg { height: 36px; }
+  }
+
+  /* Mobile-only "open on desktop" notice */
+  .mobile-notice {
+    display: none;
+    background: var(--warn-soft);
+    border: 1px solid #f3d6a8;
+    border-left: 3px solid var(--warn);
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin: 0 0 20px;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--ink);
+  }
+  .mobile-notice strong { color: var(--warn); }
+  @media (max-width: 720px), (hover: none) and (pointer: coarse) {
+    .mobile-notice { display: block; }
+  }
   header.page nav { display: flex; gap: 4px; }
   header.page nav a {
     display: inline-block;
@@ -316,6 +341,10 @@
   .contact-card.email:hover { border-color: var(--good); background: #f5fbf7; }
   .contact-card.ticket .icon { background: var(--accent-soft); color: var(--accent); }
   .contact-card.ticket:hover { border-color: var(--accent); background: #f7faff; }
+  /* Non-interactive info variant — same shape, no hover lift, normal wrapping detail */
+  .contact-card.info { cursor: default; }
+  .contact-card.info:hover { transform: none; box-shadow: none; border-color: var(--line); background: var(--surface); }
+  .contact-card.info .detail { white-space: normal; font-weight: 500; color: var(--ink-soft); }
   .contact-card .text { display: flex; flex-direction: column; min-width: 0; }
   .contact-card .label {
     font-size: 11.5px;
@@ -356,25 +385,63 @@
 
 <header class="page">
   <div class="wrap">
-    <div class="brand" aria-label="Umbrella">
-      <svg width="24" height="24" viewBox="0 0 32 32" aria-hidden="true">
-        <rect width="32" height="32" rx="7" fill="#1a56db"/>
-        <g stroke="#fff" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="16" y1="7" x2="16" y2="19"/>
-          <polyline points="10,14 16,20 22,14"/>
-          <line x1="9" y1="24" x2="23" y2="24"/>
-        </g>
+    <div class="brand" aria-label="Umbrella Automation">
+      <svg viewBox="0 0 1300 280" role="img" aria-label="Umbrella Automation">
+        <defs>
+          <linearGradient id="ua-h-house" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#dde0e3"/>
+            <stop offset="1" stop-color="#7e8489"/>
+          </linearGradient>
+          <linearGradient id="ua-h-blue" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#a4d6ed"/>
+            <stop offset="0.18" stop-color="#26a6e6"/>
+            <stop offset="0.5" stop-color="#0c5e9c"/>
+            <stop offset="0.82" stop-color="#26a6e6"/>
+            <stop offset="1" stop-color="#5fc1ec"/>
+          </linearGradient>
+          <linearGradient id="ua-h-gray" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#c8c8c8"/>
+            <stop offset="1" stop-color="#6e6e6e"/>
+          </linearGradient>
+          <filter id="ua-h-bevel" x="-20%" y="-20%" width="140%" height="140%">
+            <feOffset dx="-0.4" dy="-0.4" in="SourceAlpha" result="hl-shape"/>
+            <feFlood flood-color="white" flood-opacity="0.55" result="hl-color"/>
+            <feComposite in="hl-color" in2="hl-shape" operator="in" result="hl"/>
+            <feGaussianBlur in="SourceAlpha" stdDeviation="0.5" result="sh-blur"/>
+            <feOffset dx="0.7" dy="1" in="sh-blur" result="sh-shape"/>
+            <feFlood flood-color="black" flood-opacity="0.35" result="sh-color"/>
+            <feComposite in="sh-color" in2="sh-shape" operator="in" result="sh"/>
+            <feMerge><feMergeNode in="sh"/><feMergeNode in="SourceGraphic"/><feMergeNode in="hl"/></feMerge>
+          </filter>
+        </defs>
+        <svg x="0" y="20" width="240" height="240" viewBox="70 92 116 102" filter="url(#ua-h-bevel)">
+          <path d="M 126.48 98.88 C 127.20 98.96 127.92 99.04 128.64 99.12 C 145.99 114.08 163.36 129.04 180.72 144.00 C 180.72 146.32 180.72 148.64 180.72 150.96 C 162.88 135.68 145.04 120.40 127.20 105.12 C 127.04 105.12 126.88 105.12 126.72 105.12 C 109.84 119.28 92.96 133.44 76.08 147.60 C 76.08 145.20 76.08 142.80 76.08 140.40 C 93.77 127.76 108.93 111.87 126.48 98.88 Z" fill="url(#ua-h-house)"/>
+          <path d="M 91.68 183.60 C 115.28 183.60 138.88 183.60 162.48 183.60 C 162.48 170.48 162.48 157.36 162.48 144.24 C 164.32 146.08 166.16 147.92 168.00 149.76 C 168.00 159.52 168.00 169.28 168.00 179.04 C 168.00 181.41 168.81 187.66 167.28 188.64 C 165.78 189.94 150.75 189.12 147.36 189.12 C 133.36 189.12 119.36 189.12 105.36 189.12 C 99.28 189.12 91.39 189.95 86.16 188.64 C 86.08 179.04 86.00 169.44 85.92 159.84 C 87.84 157.92 89.76 156.00 91.68 154.08 C 91.68 163.92 91.68 173.76 91.68 183.60 Z" fill="url(#ua-h-house)"/>
+          <g stroke="#1A9BE8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none">
+            <path d="M 130 142 L 137 149 L 161 149"/>
+            <line x1="93" y1="163" x2="120" y2="163"/>
+            <line x1="132" y1="174" x2="161" y2="174"/>
+          </g>
+          <circle cx="128" cy="140" r="4.4" fill="#1A9BE8"/>
+          <circle cx="118" cy="163" r="4.4" fill="#1A9BE8"/>
+          <circle cx="134" cy="174" r="4.4" fill="#1A9BE8"/>
+        </svg>
+        <text x="280" y="130" font-family='"Saira","Eurostile","Eurostile LT W01","Microgramma D","Aldrich","Antonio",system-ui,sans-serif' font-weight="900" font-size="130" letter-spacing="3.5" fill="url(#ua-h-blue)">UMBRELLA</text>
+        <text x="280" y="240" font-family='"Saira","Eurostile","Eurostile LT W01","Microgramma D","Aldrich","Antonio",system-ui,sans-serif' font-weight="900" font-size="130" letter-spacing="3.5" fill="url(#ua-h-gray)">AUTOMATION</text>
       </svg>
-      <span>Umbrella</span>
     </div>
   </div>
 </header>
 
 <main>
 
+  <div class="mobile-notice" role="note">
+    <strong>On a phone or tablet?</strong> This page installs a Windows program. Please open this link on the Windows PC where you'd like remote support set up.
+  </div>
+
   <section class="hero" aria-labelledby="title">
     <h1 id="title">Umbrella LogMeIn Installer</h1>
-    <p class="lede">Three short steps. The download should start automatically &mdash; if it didn't, use the button below.</p>
+    <p class="lede">Three short steps.<br>The download should start automatically &mdash; if it didn't, use the button below.</p>
     <div class="actions">
       <a class="btn-primary" href="http://files.umbrellabs.com/help/Umbrella-Slim.exe" download>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -705,7 +772,7 @@
           <span class="detail">it@umbrellaautomation.com</span>
         </span>
       </a>
-      <a class="contact-card ticket" href="https://support.umbrellaautomation.com" target="_blank" rel="noopener">
+      <div class="contact-card ticket info">
         <span class="icon" aria-hidden="true">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M3 9a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-2a2 2 0 0 0 0 -4z"/>
@@ -715,17 +782,17 @@
           </svg>
         </span>
         <span class="text">
-          <span class="label">Open a ticket</span>
-          <span class="detail">support.umbrellaautomation.com</span>
+          <span class="label">Or open a ticket</span>
+          <span class="detail">at your company's support portal, if you have one.</span>
         </span>
-      </a>
+      </div>
     </div>
   </section>
 
 </main>
 
 <footer class="page">
-  <p>Need a hand? Email <a href="mailto:it@umbrellaautomation.com">it@umbrellaautomation.com</a></p>
+  <p>v1.0.0</p>
 </footer>
 
 <script>
