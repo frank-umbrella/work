@@ -126,7 +126,7 @@ def build_og():
 
     # URL footer
     url_font = load_font(22)
-    draw.text((96, H - 96), "umbrellabs.com", fill=INK_SOFT, font=url_font)
+    draw.text((96, H - 96), "umbrellaautomation.com", fill=INK_SOFT, font=url_font)
 
     out = OUT / "og-image.png"
     img.save(out, "PNG", optimize=True)

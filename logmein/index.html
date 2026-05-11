@@ -276,32 +276,64 @@
   }
   .alt-find code { background: #fff; }
 
-  /* Final email card */
-  .email-card {
+  /* Contact options (email or ticket) */
+  .contact-options {
     margin-top: 14px;
-    background: var(--good-soft);
-    border: 1px solid #c2e3cf;
-    border-radius: 10px;
-    padding: 16px 18px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  @media (max-width: 540px) {
+    .contact-options { grid-template-columns: 1fr; }
+  }
+  .contact-card {
     display: flex;
     align-items: center;
     gap: 14px;
-    flex-wrap: wrap;
+    padding: 14px 16px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--surface);
+    color: var(--ink);
+    text-decoration: none;
+    transition: border-color .12s ease, box-shadow .12s ease, transform .12s ease, background .12s ease;
   }
-  .email-card .label {
-    font-size: 13px;
-    color: var(--good);
+  .contact-card:hover {
+    text-decoration: none;
+    transform: translateY(-1px);
+    box-shadow: var(--shadow);
+  }
+  .contact-card .icon {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .contact-card.email .icon { background: var(--good-soft); color: var(--good); }
+  .contact-card.email:hover { border-color: var(--good); background: #f5fbf7; }
+  .contact-card.ticket .icon { background: var(--accent-soft); color: var(--accent); }
+  .contact-card.ticket:hover { border-color: var(--accent); background: #f7faff; }
+  .contact-card .text { display: flex; flex-direction: column; min-width: 0; }
+  .contact-card .label {
+    font-size: 11.5px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.07em;
+    color: var(--ink-soft);
+    line-height: 1.2;
   }
-  .email-card .addr {
-    font-family: var(--mono);
-    font-size: 15px;
-    color: var(--ink);
+  .contact-card .detail {
+    font-size: 14.5px;
     font-weight: 600;
+    color: var(--ink);
+    margin-top: 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
-  .email-card .addr a { color: var(--ink); }
 
   footer.page {
     max-width: 980px;
@@ -335,10 +367,6 @@
       </svg>
       <span>Umbrella</span>
     </div>
-    <nav aria-label="Help pages">
-      <a href="https://support.microsoft.com/en-us/windows/quick-assist-d0fb7c6c-acd3-4cb6-aa4c-c20b85bc5b5c">Quick Assist</a>
-      <a class="current" href="index.html" aria-current="page">LogMeIn Installer</a>
-    </nav>
   </div>
 </header>
 
@@ -410,7 +438,7 @@
           <!-- tab -->
           <path d="M14 34 q4 -22 22 -22 h160 q18 0 22 22 z" fill="#fff"/>
           <circle cx="32" cy="22" r="6" fill="#fff" stroke="#bdc1c6"/>
-          <text x="46" y="26" font-family="Segoe UI, Arial" font-size="11" fill="#3c4043">files.umbrellabs.com</text>
+          <text x="46" y="26" font-family="Segoe UI, Arial" font-size="11" fill="#3c4043">files.umbrellaautomation.com</text>
           <!-- new tab + -->
           <text x="220" y="26" font-family="Segoe UI, Arial" font-size="16" fill="#5f6368">+</text>
           <!-- window controls -->
@@ -428,7 +456,7 @@
           <text x="70" y="60" font-family="Arial" font-size="11" fill="#5f6368">&#8634;</text>
           <!-- omnibox -->
           <rect x="98" y="44" width="560" height="24" rx="12" fill="#fff" stroke="#dadce0"/>
-          <text x="112" y="60" font-family="Segoe UI, Arial" font-size="11" fill="#5f6368">files.umbrellabs.com/help/logmein</text>
+          <text x="112" y="60" font-family="Segoe UI, Arial" font-size="11" fill="#5f6368">files.umbrellaautomation.com/logmein</text>
           <!-- downloads tray button (highlighted) -->
           <rect x="678" y="42" width="28" height="28" rx="6" fill="#e8f0fe" stroke="#1a73e8" stroke-width="2"/>
           <g transform="translate(692,56)" stroke="#1a73e8" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
@@ -454,7 +482,7 @@
             <rect x="8" y="42" width="32" height="32" rx="4" fill="#e8f0fe"/>
             <text x="14" y="62" font-family="Segoe UI, Arial" font-size="9" font-weight="700" fill="#1a73e8">EXE</text>
             <text x="48" y="56" font-family="Segoe UI, Arial" font-size="12" font-weight="600" fill="#3c4043">Umbrella-Slim.exe</text>
-            <text x="48" y="70" font-family="Segoe UI, Arial" font-size="10" fill="#5f6368">Done &middot; files.umbrellabs.com</text>
+            <text x="48" y="70" font-family="Segoe UI, Arial" font-size="10" fill="#5f6368">Done &middot; files.umbrellaautomation.com</text>
             <line x1="0" y1="86" x2="240" y2="86" stroke="#e8eaed"/>
             <text x="14" y="104" font-family="Segoe UI, Arial" font-size="11" fill="#1a73e8">Show all downloads</text>
           </g>
@@ -475,7 +503,7 @@
           <rect width="800" height="34" fill="#e6e6e6"/>
           <path d="M14 34 q4 -22 22 -22 h160 q18 0 22 22 z" fill="#fff"/>
           <circle cx="32" cy="22" r="6" fill="#fff" stroke="#a19f9d"/>
-          <text x="46" y="26" font-family="Segoe UI, Arial" font-size="11" fill="#323130">files.umbrellabs.com</text>
+          <text x="46" y="26" font-family="Segoe UI, Arial" font-size="11" fill="#323130">files.umbrellaautomation.com</text>
           <text x="220" y="26" font-family="Segoe UI, Arial" font-size="16" fill="#605e5c">+</text>
           <text x="730" y="22" font-family="Segoe UI, Arial" font-size="12" fill="#605e5c">&#8211;</text>
           <text x="755" y="22" font-family="Segoe UI, Arial" font-size="12" fill="#605e5c">&#9633;</text>
@@ -488,7 +516,7 @@
           <circle cx="74" cy="56" r="10" fill="#fff" stroke="#d2d0ce"/>
           <text x="70" y="60" font-family="Arial" font-size="11" fill="#605e5c">&#8634;</text>
           <rect x="98" y="44" width="560" height="24" rx="6" fill="#fff" stroke="#d2d0ce"/>
-          <text x="112" y="60" font-family="Segoe UI, Arial" font-size="11" fill="#605e5c">files.umbrellabs.com/help/logmein</text>
+          <text x="112" y="60" font-family="Segoe UI, Arial" font-size="11" fill="#605e5c">files.umbrellaautomation.com/logmein</text>
           <!-- downloads -->
           <rect x="678" y="42" width="28" height="28" rx="6" fill="#deecf9" stroke="#0078d4" stroke-width="2"/>
           <g transform="translate(692,56)" stroke="#0078d4" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
@@ -528,7 +556,7 @@
           <rect width="800" height="34" fill="#f0f0f4"/>
           <path d="M14 34 q4 -22 22 -22 h160 q18 0 22 22 z" fill="#fff"/>
           <circle cx="32" cy="22" r="6" fill="#fff" stroke="#cfcfd8"/>
-          <text x="46" y="26" font-family="Segoe UI, Arial" font-size="11" fill="#15141a">files.umbrellabs.com</text>
+          <text x="46" y="26" font-family="Segoe UI, Arial" font-size="11" fill="#15141a">files.umbrellaautomation.com</text>
           <text x="730" y="22" font-family="Segoe UI, Arial" font-size="12" fill="#52525e">&#8211;</text>
           <text x="755" y="22" font-family="Segoe UI, Arial" font-size="12" fill="#52525e">&#9633;</text>
           <text x="780" y="22" font-family="Segoe UI, Arial" font-size="14" fill="#52525e">&#10005;</text>
@@ -537,7 +565,7 @@
           <text x="44" y="60" font-family="Arial" font-size="14" fill="#cfcfd8">&#8594;</text>
           <text x="70" y="60" font-family="Arial" font-size="12" fill="#52525e">&#8634;</text>
           <rect x="98" y="44" width="560" height="24" rx="6" fill="#fff" stroke="#cfcfd8"/>
-          <text x="112" y="60" font-family="Segoe UI, Arial" font-size="11" fill="#52525e">files.umbrellabs.com/help/logmein</text>
+          <text x="112" y="60" font-family="Segoe UI, Arial" font-size="11" fill="#52525e">files.umbrellaautomation.com/logmein</text>
           <!-- downloads arrow (highlighted) -->
           <rect x="678" y="42" width="28" height="28" rx="6" fill="#e7e2ff" stroke="#7542e5" stroke-width="2"/>
           <g transform="translate(692,56)" stroke="#7542e5" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
@@ -582,7 +610,7 @@
           <text x="140" y="29" font-family="-apple-system, Helvetica" font-size="13" fill="#1d1d1f">&#9633;</text>
           <!-- url bar -->
           <rect x="170" y="14" width="430" height="22" rx="6" fill="#ececec"/>
-          <text x="370" y="29" font-family="-apple-system, Helvetica" font-size="11" fill="#1d1d1f" text-anchor="middle">files.umbrellabs.com</text>
+          <text x="370" y="29" font-family="-apple-system, Helvetica" font-size="11" fill="#1d1d1f" text-anchor="middle">files.umbrellaautomation.com</text>
           <!-- share + downloads + tabs -->
           <text x="618" y="29" font-family="-apple-system, Helvetica" font-size="13" fill="#1d1d1f">&#9650;</text>
           <!-- downloads (highlighted) -->
@@ -664,16 +692,40 @@
     <p>The installer window opens &mdash; click <strong>Install</strong>. When it finishes, a file called <code>Computer-Info.txt</code> opens automatically and a copy is saved to your <strong>Desktop</strong>.</p>
     <p>Send us that file (or paste its contents) so we can finish setting you up.</p>
 
-    <div class="email-card">
-      <span class="label">Email to</span>
-      <span class="addr"><a href="mailto:it@umbrellabs.com?subject=LogMeIn%20Installer%20%E2%80%93%20Computer-Info.txt">it@umbrellabs.com</a></span>
+    <div class="contact-options">
+      <a class="contact-card email" href="mailto:it@umbrellaautomation.com?subject=LogMeIn%20Installer%20%E2%80%93%20Computer-Info.txt">
+        <span class="icon" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="5" width="18" height="14" rx="2"/>
+            <polyline points="3 7 12 13 21 7"/>
+          </svg>
+        </span>
+        <span class="text">
+          <span class="label">Email us</span>
+          <span class="detail">it@umbrellaautomation.com</span>
+        </span>
+      </a>
+      <a class="contact-card ticket" href="https://support.umbrellaautomation.com" target="_blank" rel="noopener">
+        <span class="icon" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M3 9a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-2a2 2 0 0 0 0 -4z"/>
+            <line x1="9" y1="9" x2="9" y2="15"/>
+            <line x1="13" y1="11" x2="17" y2="11"/>
+            <line x1="13" y1="14" x2="15" y2="14"/>
+          </svg>
+        </span>
+        <span class="text">
+          <span class="label">Open a ticket</span>
+          <span class="detail">support.umbrellaautomation.com</span>
+        </span>
+      </a>
     </div>
   </section>
 
 </main>
 
 <footer class="page">
-  <p>Need a hand? Email <a href="mailto:it@umbrellabs.com">it@umbrellabs.com</a></p>
+  <p>Need a hand? Email <a href="mailto:it@umbrellaautomation.com">it@umbrellaautomation.com</a></p>
 </footer>
 
 <script>
