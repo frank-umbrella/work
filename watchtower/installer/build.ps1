@@ -177,7 +177,7 @@ if (-not (Test-Path (Join-Path $buildDir 'watchtower-tray.exe'))) {
 # ---------------------------------------------------------------------------
 $icoPath = Join-Path $here 'watchtower.ico'
 if (-not (Test-Path $icoPath)) {
-    $brandingPng = Join-Path (Split-Path $here -Parent) 'branding\source\Logo-House-Icon.png'
+    $brandingPng = Join-Path (Split-Path (Split-Path $here -Parent) -Parent) 'branding\source\Logo-House-Icon.png'
     if (Test-Path $brandingPng) {
         Write-Host "==> Generating installer icon from branding/source/Logo-House-Icon.png" -ForegroundColor Cyan
         $makeIconScript = Join-Path $here 'make_icon.py'
@@ -199,7 +199,7 @@ if (-not (Test-Path $icoPath)) {
 $wizardLarge = Join-Path $here 'watchtower-wizard.bmp'
 $wizardSmall = Join-Path $here 'watchtower-wizard-small.bmp'
 if (-not (Test-Path $wizardLarge) -or -not (Test-Path $wizardSmall)) {
-    $brandingPng = Join-Path (Split-Path $here -Parent) 'branding\source\Logo-House-Icon.png'
+    $brandingPng = Join-Path (Split-Path (Split-Path $here -Parent) -Parent) 'branding\source\Logo-House-Icon.png'
     if (Test-Path $brandingPng) {
         Write-Host "==> Generating Inno Setup wizard images from branding source" -ForegroundColor Cyan
         $makeWizardScript = Join-Path $here 'make_wizard_images.py'
