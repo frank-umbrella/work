@@ -301,6 +301,7 @@
             <option value="dead">Dead (&gt;7d)</option>
             <option value="disabled">Disabled</option>
             <option value="backup-failing">Backup failing</option>
+            <option value="omsa-warning">OMSA warning</option>
           </select>
           <span class="spacer"></span>
           <span class="count" id="fleetCount"></span>
@@ -425,7 +426,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.8.0";
+const APP_VERSION = "0.8.1";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -492,6 +493,29 @@ function statusOf(agent) {
   if (hrs > 24 * 7) return { kind: "bad", label: "Dead" };
   if (hrs > 30) return { kind: "warn", label: "Stale" };
   return { kind: "ok", label: "Healthy" };
+}
+
+function omsaHealthOf(agent) {
+  // Returns null when OMSA isn't installed on this host OR rollup is OK.
+  // Otherwise returns { kind: "warn" | "bad", label } with a duration
+  // suffix derived from the worker-tracked omsaFirstWarnAt timestamp.
+  // The duration is "how long since the warning was first seen by the
+  // worker", not "how long the underlying RAID has actually been bad" —
+  // close enough for triage and we get it for free from check-ins.
+  const omsa = agent.report && agent.report.omsa;
+  if (!omsa || !omsa.installed) return null;
+  const rollup = omsa.healthRollup;
+  if (rollup !== "warn" && rollup !== "bad") return null;
+
+  const firstWarnAt = agent.omsaFirstWarnAt;
+  let suffix = "";
+  if (firstWarnAt) {
+    const days = Math.floor((Date.now() - new Date(firstWarnAt).getTime()) / 86400000);
+    suffix = days > 0 ? ` ${days}d` : " new";
+  }
+
+  if (rollup === "bad") return { kind: "bad", label: `OMSA critical${suffix}` };
+  return { kind: "warn", label: `OMSA warn${suffix}` };
 }
 
 function backupHealthOf(agent) {
@@ -607,6 +631,10 @@ function renderFleet() {
       const bh = backupHealthOf(a);
       if (!bh || bh.kind === "ok") return false;
     }
+    if (sf === "omsa-warning") {
+      const oh = omsaHealthOf(a);
+      if (!oh) return false;
+    }
     if (q) {
       const hay = [a.hostname, a.client, a.externalIp, a.id].filter(Boolean).join(" ").toLowerCase();
       if (!hay.includes(q)) return false;
@@ -629,11 +657,15 @@ function renderFleet() {
   tbody.innerHTML = rows.map(a => {
     const st = statusOf(a);
     const bh = backupHealthOf(a);
+    const oh = omsaHealthOf(a);
     const os = (a.report && a.report.system && a.report.system.os && a.report.system.os.name) || "—";
     const stBadge = `<span class="badge ${st.kind === "ok" ? "ok" : st.kind === "warn" ? "warn" : st.kind === "bad" ? "bad" : "muted"}"><span class="badge-dot"></span>${esc(st.label)}</span>`;
-    // Only show backup badge when there's something to flag — keeps healthy rows uncluttered.
+    // Only show secondary badges when there's something to flag — keeps healthy rows uncluttered.
     const bhBadge = (bh && bh.kind !== "ok")
       ? ` <span class="badge ${bh.kind === "warn" ? "warn" : "bad"}" title="Windows Server Backup status">${esc(bh.label)}</span>`
+      : "";
+    const ohBadge = oh
+      ? ` <span class="badge ${oh.kind === "warn" ? "warn" : "bad"}" title="Dell OMSA storage health">${esc(oh.label)}</span>`
       : "";
     return `
       <tr data-id="${esc(a.id)}" class="${state.openPcId === a.id ? 'selected' : ''}">
@@ -642,7 +674,7 @@ function renderFleet() {
         <td class="ip">${esc(a.externalIp || "—")}</td>
         <td class="col-os client">${esc(os)}</td>
         <td class="age">${fmtAge(a.lastCheckin)}</td>
-        <td>${stBadge}${bhBadge}</td>
+        <td>${stBadge}${bhBadge}${ohBadge}</td>
       </tr>
     `;
   }).join("");

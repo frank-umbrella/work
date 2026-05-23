@@ -436,6 +436,30 @@ async function handleCheckin(request, env, ctx) {
   const firstSeen = existing === null;
   const nowIso = new Date().toISOString();
 
+  // ----- 3c. Track OMSA storage warning duration -----
+  // omsaFirstWarnAt is the timestamp at which OMSA's healthRollup first
+  // went non-OK. We set it on the OK→warn/bad transition, preserve it
+  // while the warning persists across check-ins, and clear it on the
+  // warn/bad→OK transition (or when OMSA is no longer installed). The
+  // dashboard computes "Nd warn" from this field.
+  //
+  // "unknown" rollup is treated as OK for this purpose — we don't want
+  // to flag a host just because the probe couldn't read its state on
+  // one check-in.
+  const omsaCurrent = report?.omsa;
+  const omsaPrevWarnAt = existing?.fields?.omsaFirstWarnAt?.stringValue || null;
+  const omsaInstalled = omsaCurrent?.installed === true;
+  const omsaRollup = omsaCurrent?.healthRollup;
+  const omsaIsNonOk = omsaInstalled && (omsaRollup === 'warn' || omsaRollup === 'bad');
+  let omsaFirstWarnAt;
+  if (omsaIsNonOk && !omsaPrevWarnAt) {
+    omsaFirstWarnAt = nowIso;  // first detected this check-in
+  } else if (!omsaIsNonOk) {
+    omsaFirstWarnAt = null;  // back to OK / not installed → clear
+  } else {
+    omsaFirstWarnAt = omsaPrevWarnAt;  // still warning → preserve start
+  }
+
   // ----- 3b. Detect new WSB backup failure -----
   // Dedupe on lastBackupTime: a host with a failing daily backup will
   // produce one alert per failed attempt (since each attempt advances
@@ -484,6 +508,7 @@ async function handleCheckin(request, env, ctx) {
     externalIp: newExternalIp,
     ...(firstSeen ? { installedAt: nowIso } : {}),
     ...(ipChanged || firstSeen ? { externalIpChangedAt: nowIso } : {}),
+    omsaFirstWarnAt,
     report,
   };
   await firestoreSetDoc(env, accessToken, `agents/${pcId}`, statusUpdate);

@@ -95,7 +95,7 @@
       </svg>
       <div>
         <div class="meta">Umbrella Automation</div>
-        <h1>Watchtower &middot; Docs <span class="version-chip">v0.8.0</span></h1>
+        <h1>Watchtower &middot; Docs <span class="version-chip">v0.8.1</span></h1>
       </div>
     </div>
     <a class="btn brand-link" href="index.html">&larr; Back to dashboard</a>
@@ -136,6 +136,9 @@
   <a href="#backup-monitoring" class="section">Backup monitoring</a>
   <a href="#backup-fleet">Fleet visibility</a>
   <a href="#backup-drawer">Per-host drawer</a>
+  <a href="#storage-monitoring" class="section">Storage health (OMSA)</a>
+  <a href="#storage-fleet">Fleet visibility</a>
+  <a href="#storage-how">How duration tracks</a>
   <a href="#backup-alerts">Email alerts</a>
   <a href="#troubleshooting" class="section">Troubleshooting</a>
   <a href="#layout" class="section">What gets installed</a>
@@ -532,6 +535,24 @@ Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" 
 
 <h3 id="backup-drawer">Per-host drawer</h3>
 <p>Opening a host's drawer shows a red banner at the top of the Windows Server Backup section when the latest attempt failed, with the gap to last successful backup and the WSB-reported error message. Below the standard summary, a <i>Recent backup attempts</i> details disclosure expands the last 10 jobs with their individual results and errors &mdash; useful for spotting "started failing 3 days ago" versus "this is a one-day blip".</p>
+
+<h2 id="storage-monitoring">Storage health (Dell OMSA)</h2>
+<p>On Dell hosts with OMSA installed, the worst-case health rollup across controllers / virtual disks (RAID arrays) / physical disks is computed agent-side on every check-in. When it goes non-OK, the dashboard surfaces it at the fleet level so you don't have to click into every Dell host to find the one with a degraded array.</p>
+
+<h3 id="storage-fleet">Fleet-level visibility</h3>
+<p>When OMSA reports a non-OK rollup, an extra badge appears next to the host's Status (alongside the existing health + backup badges):</p>
+<ul>
+  <li><span style="background:var(--warn-soft);color:#854d0e;padding:2px 8px;border-radius:999px;font-size:11.5px;font-weight:600;">OMSA warn 3d</span> &mdash; rollup is "Non-Critical" (e.g. a degraded array still functioning).</li>
+  <li><span style="background:var(--danger-soft);color:#7f1d1d;padding:2px 8px;border-radius:999px;font-size:11.5px;font-weight:600;">OMSA critical 5d</span> &mdash; rollup is "Critical" (e.g. a failed physical disk, an array offline).</li>
+  <li>The trailing number is days since the warning was first detected by the worker. <code>new</code> shows for warnings less than 24 hours old.</li>
+</ul>
+<p>The Status filter dropdown has an <b>OMSA warning</b> option that narrows the fleet to just the hosts with any non-OK rollup.</p>
+
+<h3 id="storage-how">How duration tracking works</h3>
+<p>The worker stamps <code>omsaFirstWarnAt</code> on the agent doc the first check-in that reports a non-OK rollup. The timestamp persists across subsequent check-ins for as long as the rollup stays non-OK, and clears when it returns to OK. The dashboard's duration is "<i>now</i> minus <code>omsaFirstWarnAt</code>" — so it's "how long since the worker first saw the warning", not necessarily how long the underlying RAID has actually been bad. Close enough for triage, and we get it for free from the existing check-in cadence.</p>
+<p>If OMSA's probe transiently fails (the agent's probe couldn't read state, returns <code>"unknown"</code>), no warning is flagged — we wait for a clear signal to avoid flapping.</p>
+
+<h2 id="backup-monitoring">Backup monitoring (continued)</h2>
 
 <h3 id="backup-alerts">Email alerts on new failures</h3>
 <p>The worker fires a Resend email when a check-in arrives showing a new failed backup attempt. Deduping is based on the WSB <code>lastBackupTime</code> field: one email per new failed attempt, not one per check-in for an ongoing failure. So a daily backup that fails 5 days in a row produces 5 emails (one per day), not dozens.</p>
