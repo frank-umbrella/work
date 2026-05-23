@@ -24,6 +24,8 @@ The probe times out generously (45s total) because `omreport storage
 pdisk` on a big array can take 10+ seconds per controller.
 """
 
+import csv
+import io
 import os
 import subprocess
 
@@ -60,60 +62,86 @@ def _run(omreport, args, timeout=20):
         return None
 
 
-def _parse_ssv_table(stdout, header_marker=None):
+def _parse_csv_table(stdout):
     """
-    omreport -fmt ssv emits sections separated by blank lines, each
-    section is a labeled table. Example:
+    omreport `storage controller`, `storage pdisk`, `storage vdisk` (and
+    other resource-listing subcommands) emit -fmt ssv as CSV-style: one
+    header row + one data row per record, all semicolon-separated.
 
-      Storage Controller Information
-      Controller PERC H730P Mini (Embedded)
-      ID;0
-      Status;Ok
-      Name;PERC H730P Mini
-      ...
+    Returns a list of dicts (one per data row), keyed by the header
+    column names. Empty rows and section-header lines (no semicolons)
+    are skipped automatically.
+    """
+    if not stdout or not stdout.strip():
+        return []
+    # Strip blank lines + any leading non-CSV section headers. A real CSV
+    # header line will have multiple semicolons (≥ 3 to be safe vs a
+    # stray punctuation match).
+    lines = [ln for ln in stdout.splitlines() if ln.strip()]
+    start = next((i for i, ln in enumerate(lines) if ln.count(";") >= 3), -1)
+    if start < 0:
+        return []
+    csv_text = "\n".join(lines[start:])
+    reader = csv.DictReader(io.StringIO(csv_text), delimiter=";")
+    out = []
+    for row in reader:
+        # Drop rows that are entirely empty (csv.DictReader emits one for
+        # trailing newlines).
+        if not any((v or "").strip() for v in row.values()):
+            continue
+        # Strip whitespace + None-out empties for consistency.
+        out.append({k.strip(): (v.strip() if v else None) for k, v in row.items() if k})
+    return out
 
-    Records are key;value lines. Multiple records are separated by
-    blank lines. We yield a list of dicts, one per record.
 
-    If header_marker is given, skip everything until a section heading
-    containing that string is found.
+def _parse_kv_table(stdout):
+    """
+    omreport `about` and a handful of metadata subcommands emit -fmt ssv
+    as key;value pairs — one field per line. Different format from the
+    storage CSV-style tables above.
+
+    Returns a list of dicts, where blank-line-separated blocks become
+    separate records (rare — `about` is usually one block).
     """
     records = []
     current = {}
-    in_target = header_marker is None
-
-    for raw in stdout.splitlines():
+    for raw in (stdout or "").splitlines():
         line = raw.strip()
         if not line:
             if current:
                 records.append(current)
                 current = {}
             continue
-        if header_marker and not in_target:
-            if header_marker.lower() in line.lower():
-                in_target = True
-            continue
         if ";" not in line:
-            # Section heading or table label — flush current record.
             if current:
                 records.append(current)
                 current = {}
             continue
         key, _, val = line.partition(";")
         current[key.strip()] = val.strip()
-
     if current:
         records.append(current)
     return records
 
 
+def _pick(record, *keys):
+    """Return the first non-empty value from `record` matching any of `keys`.
+    Used to absorb OMSA's field-name drift across versions (e.g. older
+    OMSA 8.x uses 'Controller Status' where 10.x uses 'Status')."""
+    for k in keys:
+        v = record.get(k)
+        if v not in (None, ""):
+            return v
+    return None
+
+
 def _version(omreport):
-    """OMSA version via `omreport about`."""
+    """OMSA version via `omreport about` (key;value format)."""
     out = _run(omreport, ["about"], timeout=10)
     if not out:
         return None
-    for record in _parse_ssv_table(out):
-        v = record.get("Version") or record.get("Build")
+    for record in _parse_kv_table(out):
+        v = _pick(record, "Version", "Build")
         if v:
             return v
     return None
@@ -124,16 +152,18 @@ def _controllers(omreport):
     if not out:
         return []
     controllers = []
-    for record in _parse_ssv_table(out):
-        cid = record.get("ID")
-        if cid is None:
+    for record in _parse_csv_table(out):
+        # OMSA field-name variations: 8.x uses "Slot ID" + "Controller Status";
+        # 10.x uses "ID" + "Status". We accept both.
+        cid = _pick(record, "ID", "Slot ID", "Controller Slot ID")
+        if not cid:
             continue
         controllers.append({
             "id": cid,
-            "name": record.get("Name"),
-            "status": record.get("Status"),
-            "firmware": record.get("Firmware Version"),
-            "driver": record.get("Driver Version"),
+            "name": _pick(record, "Name"),
+            "status": _pick(record, "Status", "Controller Status"),
+            "firmware": _pick(record, "Firmware Version"),
+            "driver": _pick(record, "Driver Version"),
         })
     return controllers
 
@@ -143,20 +173,21 @@ def _pdisks(omreport, controller_id):
     if not out:
         return []
     disks = []
-    for record in _parse_ssv_table(out):
-        if not record.get("ID"):
+    for record in _parse_csv_table(out):
+        did = _pick(record, "ID")
+        if not did:
             continue
         disks.append({
-            "id": record.get("ID"),
-            "status": record.get("Status"),
-            "state": record.get("State"),
-            "name": record.get("Name"),
-            "vendor": record.get("Vendor ID"),
-            "product": record.get("Product ID"),
-            "serial": record.get("Serial No."),
-            "capacity": record.get("Capacity"),
-            "mediaType": record.get("Media"),
-            "predictiveFailure": record.get("Failure Predicted"),
+            "id": did,
+            "status": _pick(record, "Status"),
+            "state": _pick(record, "State"),
+            "name": _pick(record, "Name"),
+            "vendor": _pick(record, "Vendor ID", "Vendor"),
+            "product": _pick(record, "Product ID", "Product"),
+            "serial": _pick(record, "Serial No.", "Serial Number", "Serial"),
+            "capacity": _pick(record, "Capacity"),
+            "mediaType": _pick(record, "Media", "Media Type"),
+            "predictiveFailure": _pick(record, "Failure Predicted", "Predictive Failure"),
         })
     return disks
 
@@ -166,16 +197,17 @@ def _vdisks(omreport, controller_id):
     if not out:
         return []
     arrays = []
-    for record in _parse_ssv_table(out):
-        if not record.get("ID"):
+    for record in _parse_csv_table(out):
+        vid = _pick(record, "ID")
+        if not vid:
             continue
         arrays.append({
-            "id": record.get("ID"),
-            "status": record.get("Status"),
-            "state": record.get("State"),
-            "name": record.get("Name"),
-            "layout": record.get("Layout"),  # RAID level
-            "size": record.get("Size"),
+            "id": vid,
+            "status": _pick(record, "Status"),
+            "state": _pick(record, "State"),
+            "name": _pick(record, "Name"),
+            "layout": _pick(record, "Layout"),  # RAID level
+            "size": _pick(record, "Size"),
         })
     return arrays
 

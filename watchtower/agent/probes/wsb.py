@@ -39,13 +39,23 @@ try {
     Import-Module WindowsServerBackup -ErrorAction Stop
     $s = Get-WBSummary
 
+    # Get-WBSummary returns [datetime]::MinValue (0001-01-01T00:00:00) for
+    # date fields on hosts with no backup history yet — not $null. We have
+    # to filter those out client-side so the dashboard's no-policy
+    # empty-state branch fires correctly (it gates on the field being
+    # null/falsy).
+    $minDate = [datetime]::MinValue
+    function _DateOrNull($d) {
+        if ($d -and $d -ne $minDate) { return $d.ToString('o') } else { return $null }
+    }
+
     $jobs = @()
     try {
         $rawJobs = Get-WBJob -Previous 10 -ErrorAction Stop
         $jobs = @($rawJobs | ForEach-Object {
             [PSCustomObject]@{
-                startTime = if ($_.StartTime) { $_.StartTime.ToString('o') } else { $null }
-                endTime   = if ($_.EndTime)   { $_.EndTime.ToString('o') }   else { $null }
+                startTime = _DateOrNull $_.StartTime
+                endTime   = _DateOrNull $_.EndTime
                 jobType   = "$($_.JobType)"
                 jobState  = "$($_.JobState)"
                 hresult   = $_.HResult
@@ -59,10 +69,10 @@ try {
 
     $out = [PSCustomObject]@{
         installed              = $true
-        lastBackupTime         = if ($s.LastBackupTime) { $s.LastBackupTime.ToString('o') } else { $null }
+        lastBackupTime         = _DateOrNull $s.LastBackupTime
         lastBackupResultHR     = $s.LastBackupResultHR
-        lastSuccessfulBackup   = if ($s.LastSuccessfulBackupTime) { $s.LastSuccessfulBackupTime.ToString('o') } else { $null }
-        nextBackupTime         = if ($s.NextBackupTime) { $s.NextBackupTime.ToString('o') } else { $null }
+        lastSuccessfulBackup   = _DateOrNull $s.LastSuccessfulBackupTime
+        nextBackupTime         = _DateOrNull $s.NextBackupTime
         numberOfVersions       = $s.NumberOfVersions
         currentOperationStatus = "$($s.CurrentOperationStatus)"
         detailedMessage        = $s.DetailedMessage
