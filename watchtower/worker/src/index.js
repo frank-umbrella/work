@@ -71,10 +71,6 @@ export default {
       return withCors(await handleWarranty(request, env, ctx), env, request);
     }
 
-    if (url.pathname === '/notify-client-added' && request.method === 'POST') {
-      return withCors(await handleNotifyClientAdded(request, env, ctx), env, request);
-    }
-
     return jsonResponse({ error: 'Not found', path: url.pathname }, 404);
   },
 };
@@ -366,154 +362,6 @@ function normalizeDellWarranty(tag, record) {
 }
 
 // ═════════════════════════════════════════════════════════════════════
-// POST /notify-client-added — email the MSP admin a record of a new
-// client + its initial install token
-// ═════════════════════════════════════════════════════════════════════
-//
-// Called by the dashboard immediately after the "+ New client" flow
-// generates the initial token. Sends an email containing the raw
-// token + install instructions so the admin has a permanent record
-// (Watchtower never stores the raw token — only the SHA-256 hash).
-//
-// Auth: Bearer <Firebase ID token>, same as /warranty.
-//
-// Request body:
-//   { clientId: "uuid", rawToken: "wt_...", tokenHash: "sha256hex" }
-//
-// We refetch the client doc + token doc from Firestore to make the
-// email reflect what's actually stored, not what the dashboard claimed.
-// The rawToken is the one field that has to come from the POST body —
-// Watchtower never stores it.
-//
-// Response:
-//   200 { ok: true }
-//   401 { error: "Invalid or expired sign-in token" }
-//   400 { error: "Missing field: ..." }
-//   404 { error: "Client or token not found" }
-//
-async function handleNotifyClientAdded(request, env, ctx) {
-  // ----- 1. Verify the caller -----
-  const authHeader = request.headers.get('Authorization') || '';
-  const idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
-  if (!idToken) {
-    return jsonResponse({ error: 'Missing sign-in token' }, 401);
-  }
-  let claims;
-  try {
-    claims = await verifyFirebaseIdToken(idToken);
-  } catch (e) {
-    return jsonResponse({ error: 'Invalid or expired sign-in token' }, 401);
-  }
-  const email = (claims.email || '').toLowerCase();
-  if (!claims.email_verified || !email.endsWith('@umbrellaautomation.com')) {
-    return jsonResponse({ error: 'Not authorized — domain mismatch' }, 403);
-  }
-
-  // ----- 2. Parse + validate body -----
-  let body;
-  try {
-    body = await request.json();
-  } catch (e) {
-    return jsonResponse({ error: 'Body must be JSON' }, 400);
-  }
-  const { clientId, rawToken, tokenHash } = body || {};
-  if (!clientId || typeof clientId !== 'string') {
-    return jsonResponse({ error: 'Missing field: clientId' }, 400);
-  }
-  if (!rawToken || typeof rawToken !== 'string' || !rawToken.startsWith('wt_')) {
-    return jsonResponse({ error: 'Missing or malformed field: rawToken' }, 400);
-  }
-  if (!tokenHash || typeof tokenHash !== 'string') {
-    return jsonResponse({ error: 'Missing field: tokenHash' }, 400);
-  }
-
-  // ----- 3. Refetch the canonical client + token docs from Firestore -----
-  const accessToken = await getServiceAccountToken(env);
-  const clientDoc = await firestoreGetDoc(env, accessToken, `clients/${clientId}`);
-  const tokenDoc = await firestoreGetDoc(env, accessToken, `install_tokens/${tokenHash}`);
-  if (!clientDoc || !clientDoc.fields) {
-    return jsonResponse({ error: 'Client not found' }, 404);
-  }
-  if (!tokenDoc || !tokenDoc.fields) {
-    return jsonResponse({ error: 'Token not found' }, 404);
-  }
-
-  // ----- 4. Send the email (fire-and-don't-wait, but await for status) -----
-  if (!env.RESEND_API_KEY) {
-    return jsonResponse({ error: 'Resend not configured on worker (RESEND_API_KEY missing)' }, 503);
-  }
-  try {
-    await sendClientAddedEmail(env, {
-      clientName: clientDoc.fields.name?.stringValue || '(unnamed)',
-      notes: clientDoc.fields.notes?.stringValue || null,
-      createdAt: clientDoc.fields.createdAt?.stringValue || new Date().toISOString(),
-      createdBy: clientDoc.fields.createdBy?.stringValue || email,
-      tokenLabel: tokenDoc.fields.label?.stringValue || null,
-      rawToken,
-    });
-  } catch (e) {
-    return jsonResponse({ error: 'Email send failed', detail: String(e).slice(0, 200) }, 502);
-  }
-  return jsonResponse({ ok: true }, 200);
-}
-
-async function sendClientAddedEmail(env, { clientName, notes, createdAt, createdBy, tokenLabel, rawToken }) {
-  const subject = `Watchtower: Client added — ${clientName}`;
-  const html = `
-    <div style="font-family: system-ui, -apple-system, Segoe UI, sans-serif; color:#1a1f2b; max-width:640px;">
-      <h2 style="color:#0a6b6b; margin:0 0 4px; font-size:18px;">Client added to Watchtower</h2>
-      <p style="color:#475063; margin:0 0 20px; font-size:14px;">${escapeHtml(createdBy)} added a new client. Below is a permanent record of the client and the initial install token (Watchtower only stores the token's hash, so this email is your one copy).</p>
-
-      <table cellpadding="6" style="border-collapse:collapse; font-size:14px; margin-bottom:18px;">
-        <tr><td style="color:#666; width:120px;">Client name</td><td><b>${escapeHtml(clientName)}</b></td></tr>
-        ${notes ? `<tr><td style="color:#666; vertical-align:top;">Notes</td><td>${escapeHtml(notes)}</td></tr>` : ''}
-        <tr><td style="color:#666;">Created at</td><td>${escapeHtml(createdAt)}</td></tr>
-        <tr><td style="color:#666;">Created by</td><td>${escapeHtml(createdBy)}</td></tr>
-        ${tokenLabel ? `<tr><td style="color:#666;">Token label</td><td>${escapeHtml(tokenLabel)}</td></tr>` : ''}
-      </table>
-
-      <div style="background:#fef3c7; border:1px solid #fde68a; color:#78350f; padding:10px 14px; border-radius:8px; margin-bottom:16px; font-size:13px;">
-        <b>This is your only copy of the raw token.</b> Watchtower stores only the SHA-256 hash. File this email; if you lose it, revoke the token in the dashboard and generate a new one.
-      </div>
-
-      <div style="margin-bottom:6px; font-size:11px; text-transform:uppercase; color:#8892a4; letter-spacing:0.06em; font-weight:700;">Install token</div>
-      <div style="background:#1a1f2b; color:#f5f5f5; font-family:ui-monospace,'SF Mono',Consolas,monospace; font-size:13px; padding:12px 14px; border-radius:8px; word-break:break-all; line-height:1.5; margin-bottom:22px;">${escapeHtml(rawToken)}</div>
-
-      <div style="font-size:11px; text-transform:uppercase; color:#8892a4; letter-spacing:0.06em; font-weight:700; margin-bottom:6px;">Deploy on a target PC</div>
-      <div style="font-size:13px; margin-bottom:14px; color:#1a1f2b;">
-        <b>Wizard install:</b> Run <code>Watchtower-Setup.exe</code> as admin and paste the token when the wizard prompts.
-      </div>
-      <div style="font-size:13px; color:#1a1f2b;">
-        <b>Silent / RMM install:</b>
-        <div style="background:#fafbfc; border:1px solid #e3e6ec; padding:8px 12px; border-radius:6px; font-family:ui-monospace,'SF Mono',Consolas,monospace; font-size:12.5px; margin-top:4px; word-break:break-all;">Watchtower-Setup.exe /VERYSILENT /SUPPRESSMSGBOXES /TOKEN=${escapeHtml(rawToken)}</div>
-      </div>
-
-      <p style="color:#8892a4; font-size:12px; margin-top:28px;">
-        Manage at <a href="https://frank-umbrella.github.io/work/watchtower/" style="color:#0a6b6b;">the Watchtower dashboard</a>.
-        Sent automatically when a new client is added; you'll get one of these per client, not per token.
-      </p>
-    </div>
-  `;
-  const resp = await fetch(`${RESEND_BASE}/emails`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${env.RESEND_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      from: env.SENDER_FROM || 'Watchtower <onboarding@resend.dev>',
-      to: [env.ALERT_TO],
-      subject,
-      html,
-    }),
-  });
-  if (!resp.ok) {
-    const txt = await resp.text();
-    throw new Error(`Resend ${resp.status}: ${txt}`);
-  }
-}
-
-// ═════════════════════════════════════════════════════════════════════
 // POST /checkin — the only meaningful endpoint
 // ═════════════════════════════════════════════════════════════════════
 //
@@ -642,6 +490,26 @@ async function handleCheckin(request, env, ctx) {
     firstSeen,
     agentVersion: agentVersion || 'unknown',
   });
+
+  // ----- 6b. First-time intake email -----
+  // When this is the host's first check-in (no previous /agents/{pcId}
+  // doc), email a comprehensive summary of what the probes found.
+  // The admin gets a one-time "welcome to the fleet, here's what's on
+  // this box" report. Fires exactly once per pcId by construction —
+  // firstSeen only happens before the first setDoc above.
+  if (firstSeen && config.enabled && config.emailEnabled && env.RESEND_API_KEY) {
+    ctx.waitUntil(
+      sendIntakeEmail(env, {
+        pcId,
+        hostname,
+        client: resolvedClient,
+        agentVersion: agentVersion || 'unknown',
+        when: nowIso,
+        externalIp: newExternalIp,
+        report,
+      }).catch((e) => console.error('Intake email failed:', e))
+    );
+  }
 
   // ----- 7. Notify on IP change (unless silenced by per-PC config) -----
   // ctx.waitUntil lets the worker return to the agent quickly while
@@ -844,6 +712,168 @@ async function sendIpChangeEmail(env, { pcId, hostname, client, previousIp, newI
       </p>
     </div>
   `;
+  const resp = await fetch(`${RESEND_BASE}/emails`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${env.RESEND_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: env.SENDER_FROM || 'Watchtower <onboarding@resend.dev>',
+      to: [env.ALERT_TO],
+      subject,
+      html,
+    }),
+  });
+  if (!resp.ok) {
+    const txt = await resp.text();
+    throw new Error(`Resend ${resp.status}: ${txt}`);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Resend email — first-time host intake (one per pcId, on firstSeen)
+// ─────────────────────────────────────────────────────────────────────
+async function sendIntakeEmail(env, { pcId, hostname, client, agentVersion, when, externalIp, report }) {
+  const subject = `Watchtower: New host onboarded — ${hostname} (${client})`;
+  const r = report || {};
+  const sys = r.system || {};
+  const os = sys.os || {};
+  const net = r.network || {};
+  const stor = r.storage || {};
+  const sw = r.software || {};
+  const hf = r.hotfixes || {};
+
+  const isDell = /dell/i.test(sys.manufacturer || '');
+  const tagHtml = sys.serviceTag
+    ? (isDell
+        ? `<a href="https://www.dell.com/support/home/en-us/product-support/servicetag/${encodeURIComponent(sys.serviceTag)}" style="color:#0a6b6b;"><code>${escapeHtml(sys.serviceTag)}</code></a>`
+        : `<code>${escapeHtml(sys.serviceTag)}</code>`)
+    : '—';
+
+  const row = (label, value) => value
+    ? `<tr><td style="color:#666; padding:4px 10px 4px 0; vertical-align:top;">${escapeHtml(label)}</td><td style="padding:4px 0; vertical-align:top;">${value}</td></tr>`
+    : '';
+
+  const sectionHeader = (title) => `<div style="margin:18px 0 6px; font-size:11px; text-transform:uppercase; color:#8892a4; letter-spacing:0.06em; font-weight:700;">${escapeHtml(title)}</div>`;
+
+  // Build optional product-detection sections only when present.
+  const veeam = r.veeam;
+  const wsb = r.wsb;
+  const carbonite = r.carbonite;
+  const lmi = r.logmein;
+  const s1 = r.sentinelone;
+  const def = r.defender;
+  const omsa = r.omsa;
+  const idrac = r.idrac;
+  const usb = r.usb;
+
+  const veeamHtml = veeam && veeam.installed
+    ? (veeam.products || []).map(p => `<div>${p.edition === 'br' ? 'Veeam Backup & Replication' : 'Veeam Agent for Windows'} <b>${escapeHtml(p.version || '?')}</b>${p.lastJob && p.lastJob.result ? ` — last job: <b>${escapeHtml(p.lastJob.result)}</b>` : ''}</div>`).join('')
+    : '';
+
+  const wsbHtml = wsb && wsb.installed
+    ? `<div>WSB <b>${escapeHtml(wsb.lastBackupResult || 'no runs yet')}</b>${wsb.lastSuccessfulBackup ? ` · last success ${escapeHtml(wsb.lastSuccessfulBackup)}` : ''} · ${wsb.numberOfVersions || 0} version(s) retained</div>`
+    : '';
+
+  const carboniteHtml = carbonite && carbonite.installed
+    ? (carbonite.products || []).map(p => `<div>${escapeHtml(p.name)} <b>${escapeHtml(p.version || '?')}</b></div>`).join('')
+    : '';
+
+  const omsaHtml = omsa && omsa.installed
+    ? `<div>Dell OMSA <b>${escapeHtml(omsa.version || '?')}</b> · rollup: <b>${escapeHtml(omsa.healthRollup || 'unknown')}</b> · ${(omsa.physicalDisks || []).length} disks, ${(omsa.virtualDisks || []).length} RAID arrays</div>`
+    : '';
+
+  const idracHtml = idrac && idrac.installed
+    ? `<div>iDRAC Service Module <b>${escapeHtml(idrac.version || '?')}</b> · service ${escapeHtml(idrac.serviceState || '?')}</div>`
+    : '';
+
+  const lmiHtml = lmi && lmi.installed
+    ? `<div>LogMeIn <b>${escapeHtml(lmi.version || '?')}</b> · service ${escapeHtml(lmi.serviceState || '?')}${lmi.description ? ` · "${escapeHtml(lmi.description)}"` : ''}</div>`
+    : '';
+
+  const s1Html = s1 && s1.installed
+    ? `<div>SentinelOne <b>${escapeHtml(s1.version || '?')}</b> · service ${escapeHtml(s1.serviceState || '?')}</div>`
+    : '';
+
+  const defHtml = def
+    ? `<div>Defender: enabled=<b>${def.enabled ? 'yes' : 'no'}</b>, realtime=<b>${def.realtimeOn ? 'on' : 'off'}</b>, definitions ${escapeHtml(def.definitionsVersion || '?')} (${escapeHtml(def.definitionsUpdated || '?')})</div>`
+    : '';
+
+  const backupsBlock = (veeamHtml || wsbHtml || carboniteHtml)
+    ? sectionHeader('Backups') + `<div style="font-size:13px; line-height:1.6;">${veeamHtml}${wsbHtml}${carboniteHtml}</div>`
+    : '';
+
+  const securityBlock = (defHtml || s1Html)
+    ? sectionHeader('Security') + `<div style="font-size:13px; line-height:1.6;">${defHtml}${s1Html}</div>`
+    : '';
+
+  const remoteBlock = (lmiHtml || idracHtml)
+    ? sectionHeader('Remote access') + `<div style="font-size:13px; line-height:1.6;">${lmiHtml}${idracHtml}</div>`
+    : '';
+
+  const storageBlock = omsaHtml
+    ? sectionHeader('Storage (Dell OMSA)') + `<div style="font-size:13px; line-height:1.6;">${omsaHtml}</div>`
+    : '';
+
+  const volumes = (stor.volumes || []).map(v => `<li>${escapeHtml(v.letter)} (${escapeHtml(v.filesystem || '?')}) — ${v.sizeGB || 0} GB total, ${v.freeGB || 0} GB free</li>`).join('');
+  const nics = (net.nics || []).filter(n => (n.ipv4 || []).length).map(n => `<li>${escapeHtml(n.name || n.description || '?')} — ${escapeHtml((n.ipv4 || []).join(', '))}${n.speedMbps ? ` @ ${n.speedMbps} Mbps` : ''}</li>`).join('');
+
+  const html = `
+    <div style="font-family: system-ui, -apple-system, Segoe UI, sans-serif; color:#1a1f2b; max-width:680px;">
+      <h2 style="color:#0a6b6b; margin:0 0 4px; font-size:18px;">New host onboarded</h2>
+      <p style="color:#475063; margin:0 0 18px; font-size:14px;"><b>${escapeHtml(hostname)}</b> joined the Watchtower fleet at ${escapeHtml(when)}. Below is the intake report from its first check-in — a one-time summary so you have a record of what was on this machine when it came in. Future check-ins won't send this email.</p>
+
+      ${sectionHeader('Identity')}
+      <table cellpadding="0" style="font-size:13.5px; line-height:1.5;">
+        ${row('Hostname', `<b>${escapeHtml(hostname)}</b>`)}
+        ${row('Client', escapeHtml(client))}
+        ${row('External IP', `<code>${escapeHtml(externalIp || '?')}</code>`)}
+        ${row('pcId', `<code style="font-size:11px;">${escapeHtml(pcId)}</code>`)}
+        ${row('Agent version', escapeHtml(agentVersion))}
+      </table>
+
+      ${sectionHeader('Hardware')}
+      <table cellpadding="0" style="font-size:13.5px; line-height:1.5;">
+        ${row('Manufacturer', escapeHtml(sys.manufacturer))}
+        ${row('Model', escapeHtml(sys.model))}
+        ${row('Service Tag', tagHtml)}
+        ${row('CPU', `${escapeHtml((sys.cpu && sys.cpu.name) || '?')}${sys.cpu && sys.cpu.cores ? ` (${sys.cpu.cores} cores)` : ''}`)}
+        ${row('RAM', sys.memory && sys.memory.totalGB ? `${sys.memory.totalGB} GB` : null)}
+        ${row('TPM', sys.tpm ? (sys.tpm.present ? `present, spec ${escapeHtml(sys.tpm.specVersion || '?')}` : 'absent') : null)}
+        ${row('BIOS', `${escapeHtml(sys.biosVersion || '?')} (${escapeHtml(sys.biosDate || '?')})`)}
+      </table>
+
+      ${sectionHeader('Operating system')}
+      <table cellpadding="0" style="font-size:13.5px; line-height:1.5;">
+        ${row('OS', escapeHtml(os.name))}
+        ${row('Build', escapeHtml(os.build))}
+        ${row('Install date', escapeHtml(os.installDate))}
+        ${row('Domain', sys.partOfDomain ? escapeHtml(sys.workgroup || 'unknown domain') : `workgroup: ${escapeHtml(sys.workgroup || 'WORKGROUP')}`)}
+      </table>
+
+      ${volumes ? sectionHeader('Volumes') + `<ul style="font-size:13.5px; line-height:1.6; margin:0; padding-left:22px;">${volumes}</ul>` : ''}
+      ${nics ? sectionHeader('Network interfaces') + `<ul style="font-size:13.5px; line-height:1.6; margin:0; padding-left:22px;">${nics}</ul>` : ''}
+
+      ${storageBlock}
+      ${backupsBlock}
+      ${securityBlock}
+      ${remoteBlock}
+
+      ${sectionHeader('Inventory')}
+      <div style="font-size:13.5px; line-height:1.6;">
+        ${sw.count ? `<div>${sw.count} installed applications</div>` : ''}
+        ${hf.total ? `<div>${hf.total} hotfixes installed</div>` : ''}
+        ${usb && usb.devices ? `<div>${usb.devices.length} USB device(s) in history</div>` : ''}
+      </div>
+
+      <p style="color:#8892a4; font-size:12px; margin-top:28px;">
+        View full details at the <a href="https://frank-umbrella.github.io/work/watchtower/" style="color:#0a6b6b;">Watchtower dashboard</a> → click <b>${escapeHtml(hostname)}</b> in the Fleet tab.
+        This is a one-time email per host. If you want to silence future alerts for this host, flip <code>emailEnabled</code> off in its per-PC config.
+      </p>
+    </div>
+  `;
+
   const resp = await fetch(`${RESEND_BASE}/emails`, {
     method: 'POST',
     headers: {
