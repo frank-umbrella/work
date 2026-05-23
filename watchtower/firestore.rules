@@ -46,6 +46,19 @@ service cloud.firestore {
         && request.auth.token.email.matches('.*@umbrellaautomation[.]com');
     }
 
+    // -------- /settings/{key} --------
+    // Global settings docs. Currently only /settings/webhook is used —
+    // it holds the master webhook URL that all per-agent webhook
+    // events post to. The per-agent webhookEnabled toggle still gates
+    // whether THAT agent's events fire; the URL itself lives here so
+    // it's set once for the whole fleet, not per host.
+    //
+    // Admin RW. Worker reads via service account (bypasses these rules).
+    match /settings/{key} {
+      allow get, list: if isMSPAdmin();
+      allow create, update, delete: if isMSPAdmin();
+    }
+
     // -------- /clients/{clientId} --------
     // Client roster (the MSP's customers). Dashboard creates/manages
     // these from the "+ New install" flow. Admins-only — no agent or

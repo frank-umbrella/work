@@ -95,7 +95,7 @@
       </svg>
       <div>
         <div class="meta">Umbrella Automation</div>
-        <h1>Watchtower &middot; Docs <span class="version-chip">v0.7.1</span></h1>
+        <h1>Watchtower &middot; Docs <span class="version-chip">v0.8.0</span></h1>
       </div>
     </div>
     <a class="btn brand-link" href="index.html">&larr; Back to dashboard</a>
@@ -123,6 +123,8 @@
   <a href="#uninstall-local">Local (UI or CLI)</a>
   <a href="#tokens" class="section">Install tokens</a>
   <a href="#tokens-revoke">Revoking a token</a>
+  <a href="#settings" class="section">Settings</a>
+  <a href="#settings-webhook">Master webhook URL</a>
   <a href="#dell" class="section">Dell-aware UX</a>
   <a href="#dell-tag">Service Tag + Express Code</a>
   <a href="#captured" class="section">What gets captured</a>
@@ -478,6 +480,17 @@ Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" 
 }</code></pre>
 
 <div class="callout info"><b>Where this ends up:</b> the worker writes most of <code>report</code> into <code>/agents/&lt;pcId&gt;</code> in Firestore, with a small <code>/agents/&lt;pcId&gt;/history/&lt;ts&gt;</code> append per check-in tracking just the IP-change delta. Total size per host in Firestore is typically 40-80 KB.</div>
+
+<h2 id="settings">Settings</h2>
+<p>The <b>Settings</b> tab on the dashboard holds fleet-wide configuration. Currently:</p>
+
+<h3 id="settings-webhook">Master webhook URL</h3>
+<p>A single URL that all per-agent webhook events POST to. Set once here; whether each agent fires events to it is controlled by the per-PC <b>Webhook on IP change &amp; backup failure</b> toggle in that host's drawer.</p>
+<ul>
+  <li>If the URL is empty, no webhook events fire fleet-wide regardless of per-PC toggles.</li>
+  <li>If a host has a legacy per-agent <code>webhookUrl</code> set (from before v0.8.0), that wins over the master URL for that one host &mdash; the drawer shows the override inline. To clear it, toggle <code>webhookEnabled</code> off then on, or edit <code>/agents/&lt;pcId&gt;/config/current</code> directly in the Firebase console.</li>
+  <li>Same JSON payload as before: <code>{ event, pcId, hostname, client, ...event-specific fields, when }</code>. Events: <code>external_ip_changed</code>, <code>wsb_backup_failed</code>.</li>
+</ul>
 
 <h2 id="intake-email">Intake email on first check-in</h2>
 <p>The first time a brand-new host's agent reports in (no existing record in the dashboard), the worker fires a one-time intake email summarizing what the probes found on that machine. Think of it as a "welcome to the fleet, here's what's on this box" report you can archive for your records.</p>

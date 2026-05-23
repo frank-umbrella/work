@@ -284,6 +284,7 @@
     <div class="tabs">
       <button class="tab active" data-tab="fleet">Fleet</button>
       <button class="tab" data-tab="clients">Clients</button>
+      <button class="tab" data-tab="settings">Settings</button>
     </div>
 
     <div class="tab-pane" data-tab="fleet">
@@ -322,6 +323,27 @@
         <div id="fleetEmpty" class="empty" hidden>
           <h3>No agents reporting yet</h3>
           <p>Build an installer with <code>installer\build.ps1</code> and deploy it on a client PC.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-pane" data-tab="settings" hidden>
+      <div class="panel">
+        <div class="panel-header">
+          <h2>Settings</h2>
+        </div>
+        <div class="panel-body">
+          <h3 style="margin:0 0 4px;font-size:14px;">Master webhook URL</h3>
+          <p style="margin:0 0 10px;color:var(--ink-soft);font-size:13px;">All per-agent webhook events (IP changes, backup failures) POST a JSON payload to this URL when their per-PC <code>webhookEnabled</code> toggle is on. Set once for the whole fleet.</p>
+          <input type="url" id="masterWebhookUrl" placeholder="https://your-webhook.example.com/" style="width:100%;max-width:560px;padding:7px 10px;border:1px solid var(--line-strong);border-radius:7px;font-size:13.5px;background:var(--surface);">
+          <div style="margin-top:10px;display:flex;gap:8px;align-items:center;">
+            <button class="btn btn-primary btn-sm" id="saveMasterWebhook">Save</button>
+            <button class="btn btn-sm" id="clearMasterWebhook">Clear</button>
+            <span class="meta" id="masterWebhookStatus" style="margin-left:6px;"></span>
+          </div>
+          <div class="callout" style="background:var(--info-soft);border:1px solid #bae6fd;color:#075985;padding:10px 12px;border-radius:8px;margin-top:14px;font-size:12.5px;">
+            Whether each agent fires events to this URL is controlled by the per-PC <b>Webhook on IP change</b> toggle in that host's drawer. Leaving the master URL empty silences all webhook events fleet-wide.
+          </div>
         </div>
       </div>
     </div>
@@ -403,7 +425,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.7.1";
+const APP_VERSION = "0.8.0";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -424,10 +446,11 @@ const state = {
   agents: [],
   clients: [],
   tokens: [],
+  globalWebhookUrl: "",
   expandedClientId: null,
   filter: { search: "", client: "", status: "" },
   openPcId: null,
-  unsub: { agents: null, clients: null, tokens: null, config: null }
+  unsub: { agents: null, clients: null, tokens: null, settings: null, config: null }
 };
 
 const $ = sel => document.querySelector(sel);
@@ -542,6 +565,7 @@ onAuthStateChanged(auth, async (user) => {
   subscribeAgents();
   subscribeClients();
   subscribeTokens();
+  subscribeSettings();
 });
 
 // ============== /agents live subscription ==============
@@ -642,6 +666,15 @@ $$(".tab").forEach(btn => {
   });
 });
 
+// ============== Settings tab wiring ==============
+document.getElementById("saveMasterWebhook").addEventListener("click", () => {
+  saveMasterWebhook(document.getElementById("masterWebhookUrl").value);
+});
+document.getElementById("clearMasterWebhook").addEventListener("click", () => {
+  document.getElementById("masterWebhookUrl").value = "";
+  saveMasterWebhook("");
+});
+
 // ============== /clients live subscription ==============
 function subscribeClients() {
   if (state.unsub.clients) state.unsub.clients();
@@ -664,6 +697,47 @@ function subscribeTokens() {
   }, err => {
     toast("Failed to load tokens: " + (err.message || err), true);
   });
+}
+
+// ============== /settings/webhook live subscription ==============
+function subscribeSettings() {
+  if (state.unsub.settings) state.unsub.settings();
+  state.unsub.settings = onSnapshot(doc(db, "settings", "webhook"), snap => {
+    state.globalWebhookUrl = snap.exists() ? (snap.data().url || "") : "";
+    // Reflect into the Settings tab field if the user is currently looking
+    // at it. Don't clobber an in-progress edit — only update when the
+    // current value doesn't match either the saved value or what's already
+    // in the input (avoids stomping mid-type).
+    const input = document.getElementById("masterWebhookUrl");
+    if (input && document.activeElement !== input) {
+      input.value = state.globalWebhookUrl;
+    }
+    // If the drawer's open for some host, re-render so the "current master
+    // URL" hint reflects whatever just changed.
+    if (state.openPcId) renderDrawer(state.openPcId);
+  }, err => {
+    toast("Failed to load settings: " + (err.message || err), true);
+  });
+}
+
+async function saveMasterWebhook(url) {
+  const trimmed = (url || "").trim();
+  const status = document.getElementById("masterWebhookStatus");
+  if (trimmed && !/^https?:\/\//i.test(trimmed)) {
+    if (status) status.textContent = "URL must start with http:// or https://";
+    return;
+  }
+  try {
+    await setDoc(doc(db, "settings", "webhook"), {
+      url: trimmed,
+      updatedAt: new Date().toISOString(),
+      updatedBy: state.user.email,
+    });
+    if (status) status.textContent = trimmed ? "Saved." : "Cleared.";
+    setTimeout(() => { if (status) status.textContent = ""; }, 2500);
+  } catch (e) {
+    if (status) status.textContent = "Save failed: " + (e.message || e);
+  }
 }
 
 function renderClients() {
@@ -1034,14 +1108,17 @@ function renderDrawer(pcId) {
       </div>
       <div class="toggle-row">
         <div>
-          <div class="label">Webhook on IP change</div>
-          <div class="desc">POST a JSON payload to the URL below.</div>
+          <div class="label">Webhook on IP change &amp; backup failure</div>
+          <div class="desc">POST a JSON payload to the master webhook URL when this agent reports an event. Set the URL once in <a href="#" id="dGoToSettings">Settings</a>.</div>
         </div>
         <label class="switch"><input type="checkbox" data-cfg="webhookEnabled" ${cfg.webhookEnabled === true ? "checked" : ""}><span class="slider"></span></label>
       </div>
-      <input type="url" id="dWebhookUrl" placeholder="https://example.com/webhook" value="${esc(cfg.webhookUrl || "")}" style="margin-top:6px;">
+      <div class="meta" style="margin-top:4px;">
+        Master URL: ${state.globalWebhookUrl
+          ? `<code>${esc(state.globalWebhookUrl)}</code>`
+          : `<i>not set</i>`}${cfg.webhookUrl ? ` &middot; <span style="color:var(--warn-ink, #854d0e);">overridden on this host: <code>${esc(cfg.webhookUrl)}</code></span>` : ""}
+      </div>
       <div class="config-actions">
-        <button class="btn btn-sm" id="dSaveWebhook">Save webhook URL</button>
         <button class="btn btn-sm btn-danger" id="dDecommission">Decommission</button>
       </div>
     </div>
@@ -1162,10 +1239,19 @@ function renderDrawer(pcId) {
   $$("#dBody input[data-cfg]").forEach(input => {
     input.addEventListener("change", () => writeConfig(pcId, input.dataset.cfg, input.checked));
   });
-  $("#dSaveWebhook").addEventListener("click", () => {
-    const url = $("#dWebhookUrl").value.trim();
-    writeConfig(pcId, "webhookUrl", url);
-  });
+  // "Settings" link in the webhook description — close the drawer + flip to Settings tab.
+  const settingsLink = document.getElementById("dGoToSettings");
+  if (settingsLink) {
+    settingsLink.addEventListener("click", (e) => {
+      e.preventDefault();
+      closeDrawer();
+      // Activate the Settings tab.
+      $$(".tab").forEach(t => t.classList.toggle("active", t.dataset.tab === "settings"));
+      $$(".tab-pane").forEach(p => p.hidden = (p.dataset.tab !== "settings"));
+      // Focus the URL input for immediate editing.
+      setTimeout(() => document.getElementById("masterWebhookUrl")?.focus(), 50);
+    });
+  }
   $("#dDecommission").addEventListener("click", () => decommission(pcId, a.hostname));
 
   // Async warranty fetch for Dell hosts.

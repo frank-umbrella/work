@@ -459,6 +459,16 @@ async function handleCheckin(request, env, ctx) {
   const configDoc = await firestoreGetDoc(env, accessToken, `agents/${pcId}/config/current`);
   const config = readConfig(configDoc);
 
+  // ----- 4b. Read global webhook URL (single fleet-wide value) -----
+  // Per-agent webhookUrl is legacy — we keep it as a fallback for hosts
+  // that were configured before the global setting existed, but new
+  // installs should be controlled via /settings/webhook in Firestore.
+  // Resolution order: agent's own URL > global URL > none. (Agent-level
+  // wins so a host can override the global for one-off testing.)
+  const settingsDoc = await firestoreGetDoc(env, accessToken, 'settings/webhook');
+  const globalWebhookUrl = settingsDoc?.fields?.url?.stringValue || null;
+  const effectiveWebhookUrl = config.webhookUrl || globalWebhookUrl;
+
   // ----- 5. Write status doc (PATCH = upsert when doc id is in path) -----
   // We pass the entire report as nested fields. Firestore can take maps up
   // to 1 MB per doc — Belarc-lite reports are well under that even with
@@ -528,9 +538,9 @@ async function handleCheckin(request, env, ctx) {
         }).catch((e) => console.error('Resend email failed:', e))
       );
     }
-    if (config.webhookEnabled && config.webhookUrl) {
+    if (config.webhookEnabled && effectiveWebhookUrl) {
       ctx.waitUntil(
-        postWebhook(config.webhookUrl, {
+        postWebhook(effectiveWebhookUrl, {
           event: 'external_ip_changed',
           pcId,
           hostname,
@@ -565,9 +575,9 @@ async function handleCheckin(request, env, ctx) {
         }).catch((e) => console.error('WSB failure email failed:', e))
       );
     }
-    if (config.webhookEnabled && config.webhookUrl) {
+    if (config.webhookEnabled && effectiveWebhookUrl) {
       ctx.waitUntil(
-        postWebhook(config.webhookUrl, {
+        postWebhook(effectiveWebhookUrl, {
           event: 'wsb_backup_failed',
           pcId,
           hostname,
