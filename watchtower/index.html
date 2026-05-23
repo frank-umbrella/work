@@ -159,9 +159,14 @@
   #drawer details.section-config .config-summary { flex: 1; font-size: 12px; color: var(--ink-soft); margin-left: 4px; }
   #drawer details.section-config .config-chevron { font-size: 11px; color: var(--ink-faint); transition: transform 0.15s; }
   #drawer details.section-config[open] .config-chevron { transform: rotate(90deg); }
-  /* When open, the toggles need their own padding so they don't crowd the summary edge. */
-  #drawer details.section-config > *:not(summary) { padding: 0 14px; }
-  #drawer details.section-config > *:not(summary):last-child { padding-bottom: 14px; }
+  /* When open, the toggles need their own padding so they don't crowd the
+     section edge. Use margin-left/right rather than padding so the existing
+     vertical padding on .toggle-row (8px 0) isn't clobbered -- shorthand
+     `padding: 0 14px` was overriding our `padding: 8px 0` and removing the
+     row's vertical breathing room, which made adjacent rows visually
+     collide into the switches above and below them. */
+  #drawer details.section-config > *:not(summary) { margin-left: 14px; margin-right: 14px; }
+  #drawer details.section-config > *:not(summary):last-child { margin-bottom: 14px; }
   #drawer .kv { display: grid; grid-template-columns: 160px 1fr; row-gap: 4px; column-gap: 12px; font-size: 13px; }
   #drawer .kv .k { color: var(--ink-faint); }
   #drawer .kv .v { color: var(--ink); word-break: break-word; }
@@ -171,11 +176,13 @@
   #drawer .list .row:last-child { border-bottom: 0; }
   #drawer .list .name { color: var(--ink); }
   #drawer .list .meta { color: var(--ink-faint); font-size: 12px; }
-  #drawer .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; gap: 14px; }
-  /* Without flex-shrink:0 the switch gets squashed to a few pixels wide when
-     the label's description is long — happens in the new narrow-padding
-     config panel especially. Pin the toggle's intrinsic size. */
-  #drawer .toggle-row > div:first-child { min-width: 0; }
+  /* Toggle rows: grid is more predictable than flex here because we need
+     the switch to keep its 38px no matter what, AND the label/desc column
+     to wrap any unbreakable content (URLs, code spans) instead of pushing
+     the switch off the row. `1fr auto` + min-width:0 on the text column
+     gives us both. */
+  #drawer .toggle-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 14px; padding: 8px 0; }
+  #drawer .toggle-row > div:first-child { min-width: 0; word-break: break-word; overflow-wrap: anywhere; }
   #drawer .toggle-row .switch { flex-shrink: 0; }
   #drawer .toggle-row .label { font-size: 13.5px; }
   #drawer .toggle-row .desc { font-size: 12px; color: var(--ink-faint); }
@@ -612,7 +619,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.12.6";
+const APP_VERSION = "0.12.7";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
