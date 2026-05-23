@@ -59,11 +59,32 @@ ShowLanguageDialog=no
 UninstallDisplayName={#AppName}
 
 ; ----------------------------------------------------------------------------
+; Optional component: bundle a LogMeIn MSI to install alongside the agent.
+; Only active when /DLogMeInMsi=<path> is passed at compile time (build.ps1
+; -LogmeinMsi handles this). Without the define, no Components page appears
+; and the installer behaves exactly as before.
+; ----------------------------------------------------------------------------
+#ifdef LogMeInMsi
+[Types]
+Name: "full"; Description: "Full installation"
+
+[Components]
+Name: "logmein"; Description: "Also install LogMeIn remote access"; Types: full
+#endif
+
+; ----------------------------------------------------------------------------
 ; Files — produced by build.ps1 / PyInstaller into installer\build\
 ; ----------------------------------------------------------------------------
 [Files]
 Source: "build\watchtower-svc.exe";  DestDir: "{app}"; Flags: ignoreversion
 Source: "build\watchtower-tray.exe"; DestDir: "{app}"; Flags: ignoreversion
+#ifdef LogMeInMsi
+; LogMeIn MSI extracted to {tmp} during install, renamed to a stable filename
+; so the [Run] entry can hardcode the path. deleteafterinstall cleans it up
+; once msiexec finishes.
+Source: "{#LogMeInMsi}"; DestDir: "{tmp}"; DestName: "LogMeIn.msi"; \
+    Components: logmein; Flags: deleteafterinstall
+#endif
 
 ; ----------------------------------------------------------------------------
 ; %ProgramData%\Watchtower — created with users-modify so the tray
@@ -103,6 +124,17 @@ Filename: "{sys}\sc.exe"; \
     Parameters: "start {#ServiceName}"; \
     Flags: runhidden; \
     StatusMsg: "Starting Umbrella Watchtower service..."
+
+#ifdef LogMeInMsi
+; LogMeIn install — only when the operator left the Components checkbox on.
+; runhidden + msiexec /quiet means no LogMeIn UI flashes up. The MSI is
+; bundled with this installer; we never reach out to the network for it.
+Filename: "{sys}\msiexec.exe"; \
+    Parameters: "/i ""{tmp}\LogMeIn.msi"" /quiet /norestart"; \
+    Components: logmein; \
+    Flags: runhidden waituntilterminated; \
+    StatusMsg: "Installing LogMeIn remote access..."
+#endif
 
 ; ----------------------------------------------------------------------------
 ; Uninstall: stop + delete service, then [Code] cleans up ProgramData.

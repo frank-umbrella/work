@@ -1,3 +1,8 @@
 build/
 dist/
 *.spec
+
+# Vendor MSIs (LogMeIn, etc.) — kept locally for build.ps1 -LogmeinMsi but
+# never tracked. Each MSP has their own copy; bytes don't belong in the repo.
+vendor/
+*.msi

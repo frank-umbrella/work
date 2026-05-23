@@ -25,6 +25,12 @@
 param(
     [string] $WorkerUrl   = "https://watchtower-worker.umbrelladev.workers.dev",
     [string] $AppVersion  = "0.3.0",
+    # Optional path to a LogMeIn host MSI to bundle into the installer. When
+    # set, the wizard shows an "Also install LogMeIn remote access" checkbox
+    # (checked by default). Operator can uncheck per install. Silent install
+    # honors /COMPONENTS="logmein" — pass /COMPONENTS="" to skip LogMeIn.
+    # When omitted, no LogMeIn UI appears and the installer behaves as before.
+    [string] $LogmeinMsi  = "",
     [switch] $SkipPyInstaller
 )
 
@@ -128,10 +134,21 @@ if (-not (Test-Path (Join-Path $buildDir 'watchtower-tray.exe'))) {
 Write-Host "==> ISCC: Watchtower-Setup.exe" -ForegroundColor Cyan
 $iss = Join-Path $here 'watchtower.iss'
 
-& $iscc `
-    "/DWorkerUrl=$WorkerUrl" `
-    "/DAppVersion=$AppVersion" `
-    $iss
+$isccArgs = @(
+    "/DWorkerUrl=$WorkerUrl",
+    "/DAppVersion=$AppVersion"
+)
+
+if ($LogmeinMsi) {
+    if (-not (Test-Path $LogmeinMsi)) {
+        throw "LogmeinMsi path does not exist: $LogmeinMsi"
+    }
+    $resolved = (Resolve-Path $LogmeinMsi).Path
+    Write-Host "==> Bundling LogMeIn MSI: $resolved" -ForegroundColor DarkGray
+    $isccArgs += "/DLogMeInMsi=$resolved"
+}
+
+& $iscc @isccArgs $iss
 
 if ($LASTEXITCODE -ne 0) {
     throw "ISCC failed with exit code $LASTEXITCODE"
@@ -142,6 +159,9 @@ if (Test-Path $out) {
     Write-Host ""
     Write-Host "Done: $out" -ForegroundColor Green
     Write-Host "Ship this same file to every client; the install token is entered at install time." -ForegroundColor DarkGray
+    if ($LogmeinMsi) {
+        Write-Host "LogMeIn MSI is bundled — wizard will show an 'Also install LogMeIn' checkbox (checked by default)." -ForegroundColor DarkGray
+    }
 } else {
     throw "Expected output missing: $out"
 }
