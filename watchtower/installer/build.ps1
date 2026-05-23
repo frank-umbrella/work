@@ -1,16 +1,16 @@
-# build.ps1 — builds the generic Watchtower-Setup.exe installer.
+# build.ps1 - builds the generic Watchtower-Setup.exe installer.
 #
 # Single installer for every client. The operator running it on the target
 # PC pastes their install token into the wizard (or passes /TOKEN= for a
 # silent install). The token is validated against the worker before the
-# install completes — see installer\watchtower.iss [Code] section.
+# install completes - see installer\watchtower.iss [Code] section.
 #
 # Steps:
 #   1. Verify Python + PyInstaller + Inno Setup are available.
 #   2. PyInstaller --onefile for watchtower_service.py and watchtower_tray.py
 #      → installer\build\watchtower-svc.exe + watchtower-tray.exe.
 #   3. ISCC.exe compiles watchtower.iss with /DWorkerUrl + /DAppVersion
-#      defines (no per-client values — those are runtime now).
+#      defines (no per-client values - those are runtime now).
 #   4. Output: installer\dist\Watchtower-Setup.exe
 #
 # Usage:
@@ -28,7 +28,7 @@ param(
     # Optional path to a LogMeIn host MSI to bundle into the installer. When
     # set, the wizard shows an "Also install LogMeIn remote access" checkbox
     # (checked by default). Operator can uncheck per install. Silent install
-    # honors /COMPONENTS="logmein" — pass /COMPONENTS="" to skip LogMeIn.
+    # honors /COMPONENTS="logmein" - pass /COMPONENTS="" to skip LogMeIn.
     # When omitted, no LogMeIn UI appears and the installer behaves as before.
     [string] $LogmeinMsi  = "",
 
@@ -65,7 +65,7 @@ if (-not $SkipPyInstaller) {
 # Inno Setup may land in any of three places depending on how it was
 # installed: system-wide 32-bit (the classic location), system-wide 64-bit
 # (rare but possible), or per-user (what `winget install JRSoftware.InnoSetup`
-# does when run without elevation — drops into %LOCALAPPDATA%\Programs).
+# does when run without elevation - drops into %LOCALAPPDATA%\Programs).
 $isccCandidates = @(
     "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe",
     "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
@@ -78,7 +78,7 @@ if (-not $iscc) {
 Write-Host "Using ISCC: $iscc" -ForegroundColor DarkGray
 
 # ---------------------------------------------------------------------------
-# PyInstaller — two --onefile EXEs from the agent source
+# PyInstaller - two --onefile EXEs from the agent source
 # ---------------------------------------------------------------------------
 New-Item -ItemType Directory -Force -Path $buildDir | Out-Null
 
@@ -137,7 +137,7 @@ if (-not (Test-Path (Join-Path $buildDir 'watchtower-tray.exe'))) {
 }
 
 # ---------------------------------------------------------------------------
-# Inno Setup — compile generic installer (no per-client defines)
+# Inno Setup - compile generic installer (no per-client defines)
 # ---------------------------------------------------------------------------
 Write-Host "==> ISCC: Watchtower-Setup.exe" -ForegroundColor Cyan
 $iss = Join-Path $here 'watchtower.iss'
@@ -174,7 +174,7 @@ if (Test-Path $out) {
     Write-Host "Done: $out" -ForegroundColor Green
     Write-Host "Ship this same file to every client; the install token is entered at install time." -ForegroundColor DarkGray
     if ($LogmeinMsi) {
-        Write-Host "LogMeIn MSI is bundled — wizard will show an 'Also install LogMeIn' checkbox (checked by default)." -ForegroundColor DarkGray
+        Write-Host "LogMeIn MSI is bundled - wizard will show an 'Also install LogMeIn' checkbox (checked by default)." -ForegroundColor DarkGray
     }
 } else {
     throw "Expected output missing: $out"
