@@ -1,0 +1,34 @@
+name = "watchtower-worker"
+main = "src/index.js"
+compatibility_date = "2026-05-22"
+compatibility_flags = ["nodejs_compat"]
+
+# No cron trigger — watchtower-worker is purely event-driven by agent check-ins.
+# (usage-worker and stocks-worker have crons; this one doesn't need one.)
+
+# Public-equivalent variables. Real secrets go through `wrangler secret put`.
+[vars]
+# Firebase project ID — same one referenced in the dashboard's web config.
+# Not a secret; it's already in the public dashboard SPA.
+FIREBASE_PROJECT_ID = "umbrella-watchtower"
+
+# Sender for IP-change alert emails. Resend's sandbox sender works for now
+# because the recipient is always the MSP (Resend account owner), and the
+# sandbox sender is allowed to deliver only to the account owner's email.
+# Graduate to a verified alerts.umbrellaautomation.com (or similar) when
+# we want proper branding.
+SENDER_FROM = "Watchtower <onboarding@resend.dev>"
+
+# Default recipient for IP-change alerts. The agent's per-PC config doc
+# may override this with a custom recipient or webhook URL.
+ALERT_TO = "frank.l.rizzo@gmail.com"
+
+# Comma-separated list of dashboard origins allowed to call any future
+# admin-facing endpoints (none right now — the dashboard talks to Firestore
+# directly, not to this worker). Kept here for future use.
+ALLOWED_ORIGINS = "https://frank-umbrella.github.io"
+
+# Secrets — set with `wrangler secret put <NAME>`, never live in this file:
+#   wrangler secret put FIREBASE_SERVICE_ACCOUNT_JSON  # Service-account JSON for Firestore admin writes
+#   wrangler secret put RESEND_API_KEY                  # Resend API key for IP-change alerts
+#   wrangler secret put WATCHTOWER_INSTALL_TOKEN        # Shared secret baked into the agent installer

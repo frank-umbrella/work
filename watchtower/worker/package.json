@@ -1,0 +1,16 @@
+{
+  "name": "watchtower-worker",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Cloudflare Worker that receives daily check-ins from watchtower agents, writes status to Firestore via service account, and sends Resend email + webhook on external-IP change.",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail"
+  },
+  "devDependencies": {
+    "wrangler": "^3.78.0"
+  }
+}
