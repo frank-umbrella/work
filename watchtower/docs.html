@@ -126,6 +126,10 @@
   <a href="#captured" class="section">What gets captured</a>
   <a href="#captured-summary">Per-probe summary</a>
   <a href="#captured-example">Example check-in payload</a>
+  <a href="#backup-monitoring" class="section">Backup monitoring</a>
+  <a href="#backup-fleet">Fleet visibility</a>
+  <a href="#backup-drawer">Per-host drawer</a>
+  <a href="#backup-alerts">Email alerts</a>
   <a href="#troubleshooting" class="section">Troubleshooting</a>
   <a href="#layout" class="section">What gets installed</a>
 </nav>
@@ -296,7 +300,7 @@ Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" 
   <tr><td><code>software</code></td><td>Every installed app from the Uninstall registry tree: name, version, publisher. Count + full list.</td></tr>
   <tr><td><code>defender</code></td><td>Enabled, realtime status, definitions version + age, last quick + full scan timestamps, AV engine + product versions.</td></tr>
   <tr><td><code>veeam</code></td><td>Per Veeam product (B&amp;R and/or Agent for Windows): edition, version, last session result + start/end times.</td></tr>
-  <tr><td><code>wsb</code></td><td>Windows Server Backup (server SKUs only): last backup time, last <i>successful</i> backup time (these diverge on failure), next scheduled, retained versions, current operation, last result mapped from HRESULT.</td></tr>
+  <tr><td><code>wsb</code></td><td>Windows Server Backup (server SKUs only): last backup time, last <i>successful</i> backup time (these diverge on failure), next scheduled, retained versions, current operation, last result mapped from HRESULT, plus a <code>recentJobs</code> array carrying the last 10 backup attempts (<code>Get-WBJob -Previous 10</code>) with per-job result + error description.</td></tr>
   <tr><td><code>carbonite</code></td><td>Product flavor + version + publisher (Server Backup / Endpoint / Safe), service state.</td></tr>
   <tr><td><code>logmein</code></td><td>Install state, agent version, service state, guardian-service state, Central computer description.</td></tr>
   <tr><td><code>sentinelone</code></td><td>Agent version, service state.</td></tr>
@@ -430,6 +434,29 @@ Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" 
 }</code></pre>
 
 <div class="callout info"><b>Where this ends up:</b> the worker writes most of <code>report</code> into <code>/agents/&lt;pcId&gt;</code> in Firestore, with a small <code>/agents/&lt;pcId&gt;/history/&lt;ts&gt;</code> append per check-in tracking just the IP-change delta. Total size per host in Firestore is typically 40-80 KB.</div>
+
+<h2 id="backup-monitoring">Backup monitoring</h2>
+<p>Windows Server Backup gets first-class treatment because backup failures are the kind of thing you want to know about immediately, not the next time someone happens to look at the dashboard.</p>
+
+<h3 id="backup-fleet">Fleet-level visibility</h3>
+<p>When a host's most recent backup attempt didn't succeed, an extra badge appears next to its Status in the Fleet table:</p>
+<ul>
+  <li><span style="background:var(--warn-soft);color:#854d0e;padding:2px 8px;border-radius:999px;font-size:11.5px;font-weight:600;">Backup failing</span> &mdash; latest attempt failed, but a successful backup is less than 3 days old.</li>
+  <li><span style="background:var(--danger-soft);color:#7f1d1d;padding:2px 8px;border-radius:999px;font-size:11.5px;font-weight:600;">5d no backup</span> &mdash; 3 or more days since the last successful backup. The number is the actual count.</li>
+  <li><span style="background:var(--danger-soft);color:#7f1d1d;padding:2px 8px;border-radius:999px;font-size:11.5px;font-weight:600;">No backup on record</span> &mdash; WSB is installed but has never completed a successful backup.</li>
+</ul>
+<p>The Status filter dropdown has a "Backup failing" option that narrows the fleet to just the hosts with any of the above states.</p>
+
+<h3 id="backup-drawer">Per-host drawer</h3>
+<p>Opening a host's drawer shows a red banner at the top of the Windows Server Backup section when the latest attempt failed, with the gap to last successful backup and the WSB-reported error message. Below the standard summary, a <i>Recent backup attempts</i> details disclosure expands the last 10 jobs with their individual results and errors &mdash; useful for spotting "started failing 3 days ago" versus "this is a one-day blip".</p>
+
+<h3 id="backup-alerts">Email alerts on new failures</h3>
+<p>The worker fires a Resend email when a check-in arrives showing a new failed backup attempt. Deduping is based on the WSB <code>lastBackupTime</code> field: one email per new failed attempt, not one per check-in for an ongoing failure. So a daily backup that fails 5 days in a row produces 5 emails (one per day), not dozens.</p>
+<ul>
+  <li><b>Honors the per-PC kill switches</b> &mdash; flipping <code>emailEnabled</code> off in the drawer silences backup alerts for that host the same way it silences IP-change alerts.</li>
+  <li><b>Webhook payload</b> &mdash; if <code>webhookEnabled</code> is on, a JSON POST also fires with <code>event: "wsb_backup_failed"</code> and the full failure context (result, attemptedAt, lastSuccess, daysSinceSuccess).</li>
+  <li><b>Recovery</b> &mdash; when a backup eventually succeeds, no email fires (no point celebrating a normal day). The next failure starts the cycle again.</li>
+</ul>
 
 <h2 id="troubleshooting">Troubleshooting</h2>
 
