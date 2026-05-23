@@ -295,9 +295,14 @@ var
 begin
   // Ask PowerShell for a fresh UUID. Capture by writing to a tmp file
   // because Inno's Exec() doesn't return stdout.
+  //
+  // Uses .NET's [IO.File]::WriteAllText rather than Out-File because
+  // Out-File's -NoNewline switch requires PowerShell 5.0+, and Server
+  // 2012 R2 ships with PowerShell 4.0 by default. WriteAllText is .NET
+  // and works on any PS version (2.0+, i.e. Vista onward).
   TmpPath := ExpandConstant('{tmp}\watchtower-pcid.txt');
   Exec('powershell.exe',
-       '-NoProfile -Command "[guid]::NewGuid().ToString() | Out-File -FilePath ''' + TmpPath + ''' -Encoding ASCII -NoNewline"',
+       '-NoProfile -Command "[IO.File]::WriteAllText(''' + TmpPath + ''', [guid]::NewGuid().ToString())"',
        '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
 
   if FileExists(TmpPath) and LoadStringFromFile(TmpPath, AnsiContent) then
