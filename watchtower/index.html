@@ -49,7 +49,8 @@
   .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; color: var(--ink); }
   .brand svg { width: 24px; height: 24px; }
   .brand .meta { font-size: 11px; color: var(--ink-faint); font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; }
-  .brand h1 { font-size: 16px; margin: 0; line-height: 1.1; }
+  .brand h1 { font-size: 16px; margin: 0; line-height: 1.1; display: inline-flex; align-items: baseline; gap: 6px; }
+  .brand h1 .version-chip { font-size: 11px; color: var(--ink-faint); font-weight: 500; letter-spacing: 0.02em; background: var(--surface-2); border: 1px solid var(--line); padding: 1px 6px; border-radius: 4px; font-variant-numeric: tabular-nums; }
   .userbar { margin-left: auto; display: flex; align-items: center; gap: 10px; font-size: 13px; }
   .userbar img.avatar { width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--line); }
   .userbar .who { display: flex; flex-direction: column; line-height: 1.2; align-items: flex-end; }
@@ -267,7 +268,7 @@
         </svg>
         <div>
           <div class="meta">Umbrella Automation</div>
-          <h1>Watchtower</h1>
+          <h1>Watchtower <span class="version-chip" id="versionChip"></span></h1>
         </div>
       </div>
       <div class="userbar">
@@ -402,13 +403,20 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.6.4";
+const APP_VERSION = "0.7.0";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+
+// Populate the header version chip as soon as JS is alive — doesn't
+// depend on sign-in, so it's visible the moment the app shell mounts.
+// `defer` on the script tag would also work, but doing it at module
+// init means we don't need to wait for DOMContentLoaded.
+const _versionChip = document.getElementById("versionChip");
+if (_versionChip) _versionChip.textContent = `v${APP_VERSION}`;
 
 const state = {
   user: null,
@@ -795,7 +803,7 @@ $("#newClientBtn").addEventListener("click", () => {
       // pops up immediately on top, but the toast at the bottom is the
       // explicit "yes, the create succeeded" cue that the modal alone
       // doesn't convey.
-      toast(`Created ${name}. Token generated. Email record sent.`);
+      toast(`Created ${name}. Token generated.`);
       // Chain straight into token generation — creating a client without
       // also generating a token is virtually never what you want, and
       // the auto-flow saves a separate "+ Token" click.
@@ -860,16 +868,6 @@ async function generateToken(clientId, opts = {}) {
     return;
   }
 
-  // Auto-flow only (initial token created with the client itself) —
-  // email the admin a permanent record of the client + raw token so
-  // there's a copy outside the dashboard. Manual "+ Token" clicks for
-  // existing clients don't fire this — only the first-token-per-client.
-  // Best-effort: failure is toast'd but doesn't block the token modal.
-  if (opts.auto) {
-    notifyClientAddedByEmail(clientId, rawToken, hash).catch(e => {
-      toast(`Token saved, but email notify failed: ${e.message || e}`, true);
-    });
-  }
 
   openModal({
     title: "Install token generated",
@@ -910,24 +908,6 @@ async function generateToken(clientId, opts = {}) {
 async function sha256Hex(s) {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
-}
-
-async function notifyClientAddedByEmail(clientId, rawToken, tokenHash) {
-  const user = auth.currentUser;
-  if (!user) throw new Error("Not signed in");
-  const idToken = await user.getIdToken();
-  const r = await fetch(`${WORKER_URL}/notify-client-added`, {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${idToken}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ clientId, rawToken, tokenHash }),
-  });
-  if (!r.ok) {
-    const body = await r.json().catch(() => ({}));
-    throw new Error(body.error || `HTTP ${r.status}`);
-  }
 }
 
 async function revokeToken(hash) {
