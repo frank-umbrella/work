@@ -187,6 +187,30 @@
   table.clients .tokens-list .tmeta { color: var(--ink-faint); font-size: 12px; }
   table.clients .tokens-list .trevoked { text-decoration: line-through; opacity: 0.6; }
 
+  /* compact tables used inside drawer sections (OMSA disks etc.) — smaller
+     than .fleet/.clients since the drawer is narrow and these can have lots of rows */
+  table.compact { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 6px; }
+  table.compact th { text-align: left; padding: 6px 10px; font-size: 10.5px; text-transform: uppercase; color: var(--ink-faint); letter-spacing: 0.06em; font-weight: 700; border-bottom: 1px solid var(--line); background: var(--surface-2); }
+  table.compact td { padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  table.compact tbody tr:last-child td { border-bottom: 0; }
+  table.compact tbody tr:hover td { background: var(--surface-2); }
+  table.compact td.num { font-variant-numeric: tabular-nums; color: var(--ink-soft); }
+  table.compact td.mono { font-family: var(--mono); font-size: 12px; color: var(--ink-soft); }
+  table.compact td.right { text-align: right; }
+  table.compact td .model { color: var(--ink); font-weight: 500; }
+  table.compact td .submeta { font-size: 11.5px; color: var(--ink-faint); margin-top: 1px; }
+
+  /* drawer section summary line — used by OMSA + WSB headers */
+  .section-summary { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
+  .section-summary .label { font-size: 14px; color: var(--ink); }
+  .section-summary .meta { font-size: 12.5px; color: var(--ink-faint); }
+  .section-footer { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 12px; color: var(--ink-faint); }
+  .section-footer code { background: var(--surface-2); }
+
+  /* empty-state line inside a drawer section (no data to show but probe ran) */
+  .empty-state { padding: 14px 0; text-align: center; color: var(--ink-faint); font-size: 13.5px; }
+  .empty-state b { color: var(--ink); display: block; margin-bottom: 4px; font-weight: 600; font-size: 14px; }
+
   /* modal */
   #modal { position: fixed; inset: 0; background: rgba(20,25,40,0.45); display: none; align-items: center; justify-content: center; z-index: 200; padding: 20px; }
   #modal.show { display: flex; }
@@ -378,7 +402,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.6.1";
+const APP_VERSION = "0.6.2";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -1223,10 +1247,38 @@ function renderWarranty(data) {
 
 function renderWsb(w) {
   if (w._error) return `<div class="meta">Probe error: ${esc(w._error)}</div>`;
+
+  const hasVersions = (w.numberOfVersions || 0) > 0;
+  const hasAttempt = !!w.lastBackupTime;
+  const hasSchedule = !!w.nextBackupTime;
   const ok = w.lastBackupResult === "Success";
 
-  // Days-since-success banner — show only when latest attempt failed
-  // (or there's no record). Calculated from the data we already have.
+  // ----- Clean states for hosts with no backup history yet -----
+  // The kv grid full of "—" for every field is noisy and unhelpful;
+  // show a single-line state instead. We only fall through to the full
+  // grid when this host actually has backup data.
+
+  // State A: WSB installed, but no schedule, no attempts, no versions.
+  if (!hasVersions && !hasAttempt && !hasSchedule) {
+    return `<div class="empty-state">
+      <b>No backup policy configured</b>
+      Windows Server Backup is installed on this host but no backups have been scheduled.
+      <div style="margin-top:10px;font-size:12px;">Configure via <code>wbadmin enable backup</code> or the Windows Server Backup MMC.</div>
+    </div>`;
+  }
+
+  // State B: schedule exists but no run has happened yet (and no failed attempts either).
+  if (!hasVersions && !hasAttempt && hasSchedule) {
+    return `<div class="empty-state">
+      <b>First scheduled backup at ${esc(w.nextBackupTime)}</b>
+      <span class="meta">(${fmtAge(w.nextBackupTime)})</span>
+      <div style="margin-top:4px;">No backup runs yet.</div>
+    </div>`;
+  }
+
+  // State C+: attempts have happened (success or failure) — fall through to full display.
+
+  // Days-since-success banner — show only when latest attempt failed.
   let banner = "";
   if (!ok) {
     if (w.lastSuccessfulBackup) {
@@ -1275,12 +1327,10 @@ function renderWsb(w) {
       </div>
       <div class="k">Last successful</div>
       <div class="v">${esc(w.lastSuccessfulBackup || "—")} <span class="meta">(${fmtAge(w.lastSuccessfulBackup)})</span></div>
-      <div class="k">Next backup</div>
-      <div class="v">${esc(w.nextBackupTime || "—")}</div>
+      ${hasSchedule ? `<div class="k">Next backup</div><div class="v">${esc(w.nextBackupTime)} <span class="meta">(${fmtAge(w.nextBackupTime)})</span></div>` : ""}
       <div class="k">Versions retained</div>
-      <div class="v">${esc(w.numberOfVersions)}</div>
-      <div class="k">Current op</div>
-      <div class="v">${esc(w.currentOperation || "idle")}</div>
+      <div class="v">${w.numberOfVersions || 0}</div>
+      ${w.currentOperation && w.currentOperation !== "idle" ? `<div class="k">Current op</div><div class="v">${esc(w.currentOperation)}</div>` : ""}
     </div>
     ${jobsBlock}
   `;
@@ -1309,57 +1359,113 @@ function renderCarbonite(c) {
 
 function renderOmsa(o) {
   if (o._error) return `<div class="meta">Probe error: ${esc(o._error)}</div>`;
+
+  const controllers = o.controllers || [];
+  const vdisks = o.virtualDisks || [];
+  const pdisks = o.physicalDisks || [];
+
   const rollup = o.healthRollup || "unknown";
   const rollupBadge = rollup === "ok" ? "ok" : rollup === "warn" ? "warn" : rollup === "bad" ? "bad" : "muted";
   const rollupLabel = { ok: "All healthy", warn: "Non-critical issues", bad: "Critical issues", unknown: "Unknown" }[rollup];
 
-  const ctlRows = (o.controllers || []).map(c => `
-    <div class="row">
-      <div><div class="name">Controller ${esc(c.id)}: ${esc(c.name || "?")}</div>
-           <div class="meta">FW ${esc(c.firmware || "?")} &middot; driver ${esc(c.driver || "?")}</div></div>
-      <div class="meta"><span class="badge ${statusBadge(c.status)}">${esc(c.status || "?")}</span></div>
-    </div>
-  `).join("");
+  // Collect specific issues for the alert callout.
+  const badPdisks = pdisks.filter(d => statusBadge(d.status) !== "ok");
+  const smartFlagged = pdisks.filter(d => (d.predictiveFailure || "").toLowerCase() === "yes");
+  const badVdisks = vdisks.filter(v => statusBadge(v.status) !== "ok");
+  const issues = [];
+  if (badPdisks.length) issues.push(`${badPdisks.length} physical disk${badPdisks.length === 1 ? "" : "s"} not healthy`);
+  if (smartFlagged.length) issues.push(`${smartFlagged.length} disk${smartFlagged.length === 1 ? "" : "s"} flagged by SMART`);
+  if (badVdisks.length) issues.push(`${badVdisks.length} RAID array${badVdisks.length === 1 ? "" : "s"} not healthy`);
 
-  const vdiskRows = (o.virtualDisks || []).map(v => `
-    <div class="row">
-      <div><div class="name">${esc(v.name || ("vDisk " + v.id))}</div>
-           <div class="meta">Ctl ${esc(v.controllerId)} &middot; ${esc(v.layout || "?")} &middot; ${esc(v.size || "?")}</div></div>
-      <div class="meta"><span class="badge ${statusBadge(v.status)}">${esc(v.status || "?")}</span> ${v.state ? `<small>${esc(v.state)}</small>` : ""}</div>
-    </div>
-  `).join("");
+  // Summary line at the top — version + rollup badge + one-line text.
+  const summaryText = issues.length
+    ? issues.join(" · ")
+    : `${pdisks.length} disk${pdisks.length === 1 ? "" : "s"}${vdisks.length ? `, ${vdisks.length} RAID array${vdisks.length === 1 ? "" : "s"}` : ""} — all healthy`;
 
-  const badDisks = (o.physicalDisks || []).filter(d => statusBadge(d.status) !== "ok");
-  const allDiskRows = (o.physicalDisks || []).map(d => `
-    <div class="row">
-      <div><div class="name">${esc(d.name || ("Disk " + d.id))}</div>
-           <div class="meta">Ctl ${esc(d.controllerId)} &middot; ${esc(d.product || d.vendor || "?")} &middot; ${esc(d.capacity || "")}</div></div>
-      <div class="meta">
-        <span class="badge ${statusBadge(d.status)}">${esc(d.status || "?")}</span>
-        ${d.predictiveFailure && d.predictiveFailure.toLowerCase() === "yes" ? `<span class="badge bad" style="margin-left:4px;">SMART warn</span>` : ""}
-      </div>
-    </div>
-  `).join("");
-
-  return `
-    <div style="margin-bottom:10px;">
-      OMSA <code>${esc(o.version || "?")}</code> &middot;
+  const summaryHtml = `
+    <div class="section-summary">
       <span class="badge ${rollupBadge}">${esc(rollupLabel)}</span>
+      <span class="label">${esc(summaryText)}</span>
+      <span class="meta" style="margin-left:auto;">OMSA <code>${esc(o.version || "?")}</code></span>
     </div>
-    ${ctlRows ? `<div class="list" style="margin-bottom:10px;">${ctlRows}</div>` : ""}
-    ${vdiskRows ? `<h4 style="font-size:12px;text-transform:uppercase;color:var(--ink-faint);margin:10px 0 4px;letter-spacing:0.06em;">Virtual disks (RAID)</h4><div class="list">${vdiskRows}</div>` : ""}
-    ${badDisks.length ? `<h4 style="font-size:12px;text-transform:uppercase;color:var(--danger);margin:10px 0 4px;letter-spacing:0.06em;">Physical disks needing attention (${badDisks.length})</h4>
-      <div class="list">${badDisks.map(d => `
-        <div class="row">
-          <div><div class="name">${esc(d.name || ("Disk " + d.id))}</div>
-               <div class="meta">Ctl ${esc(d.controllerId)} &middot; ${esc(d.product || d.vendor || "?")} &middot; ${esc(d.capacity || "")}</div></div>
-          <div class="meta"><span class="badge bad">${esc(d.status || "?")}</span></div>
-        </div>
-      `).join("")}</div>` : ""}
-    ${allDiskRows ? `<details style="margin-top:10px;"><summary>All ${(o.physicalDisks || []).length} physical disks</summary>
-      <div class="list" style="margin-top:6px;">${allDiskRows}</div>
-    </details>` : ""}
   `;
+
+  // Issues callout — only when there's something specific to flag.
+  const callout = (badPdisks.length || badVdisks.length || smartFlagged.length) ? `
+    <div class="callout" style="background:var(--danger-soft);border:1px solid #fca5a5;color:#7f1d1d;padding:10px 12px;border-radius:8px;margin:10px 0;font-size:13.5px;">
+      <b>Needs attention:</b>
+      <ul style="margin:6px 0 0 16px;padding:0;">
+        ${badVdisks.map(v => `<li>${esc(v.name || ("Virtual disk " + v.id))} (${esc(v.layout || "?")}, ${esc(v.size || "?")}) — <b>${esc(v.status)}</b>${v.state ? ` / ${esc(v.state)}` : ""}</li>`).join("")}
+        ${badPdisks.map(d => `<li>Physical disk <code>${esc(d.id || d.name)}</code> on controller ${esc(d.controllerId)} — <b>${esc(d.status)}</b></li>`).join("")}
+        ${smartFlagged.filter(d => statusBadge(d.status) === "ok").map(d => `<li>Physical disk <code>${esc(d.id || d.name)}</code> — SMART predictive failure</li>`).join("")}
+      </ul>
+    </div>
+  ` : "";
+
+  // Virtual disks (RAID arrays) table.
+  const vdiskTable = vdisks.length ? `
+    <h4 style="font-size:12px;text-transform:uppercase;color:var(--ink-faint);margin:14px 0 4px;letter-spacing:0.06em;font-weight:700;">Virtual disks · RAID</h4>
+    <table class="compact">
+      <thead><tr><th>Name</th><th>RAID</th><th>Size</th><th>State</th><th class="right">Status</th></tr></thead>
+      <tbody>
+        ${vdisks.map(v => `
+          <tr>
+            <td><span class="model">${esc(v.name || "vDisk " + v.id)}</span><div class="submeta">Ctl ${esc(v.controllerId)}</div></td>
+            <td>${esc(v.layout || "—")}</td>
+            <td class="num">${esc(v.size || "—")}</td>
+            <td class="meta">${esc(v.state || "—")}</td>
+            <td class="right"><span class="badge ${statusBadge(v.status)}">${esc(v.status || "?")}</span></td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>
+  ` : "";
+
+  // Physical disks table — alphabetical-ish sort by ID, with bad disks bubbled to the top.
+  const sortedPdisks = pdisks.slice().sort((a, b) => {
+    const aBad = statusBadge(a.status) !== "ok" ? 0 : 1;
+    const bBad = statusBadge(b.status) !== "ok" ? 0 : 1;
+    if (aBad !== bBad) return aBad - bBad;
+    return String(a.id || "").localeCompare(String(b.id || ""), undefined, { numeric: true });
+  });
+  const pdiskTable = pdisks.length ? `
+    <h4 style="font-size:12px;text-transform:uppercase;color:var(--ink-faint);margin:14px 0 4px;letter-spacing:0.06em;font-weight:700;">Physical disks (${pdisks.length})</h4>
+    <table class="compact">
+      <thead><tr><th>ID</th><th>Model</th><th>Capacity</th><th>SMART</th><th class="right">Status</th></tr></thead>
+      <tbody>
+        ${sortedPdisks.map(d => {
+          const smartBad = (d.predictiveFailure || "").toLowerCase() === "yes";
+          return `
+            <tr>
+              <td class="mono">${esc(d.id || "—")}<div class="submeta">Ctl ${esc(d.controllerId)}</div></td>
+              <td>
+                <span class="model">${esc(d.product || d.vendor || "—")}</span>
+                ${d.serial ? `<div class="submeta">SN ${esc(d.serial)}</div>` : ""}
+              </td>
+              <td class="num">${esc(d.capacity || "—")}</td>
+              <td>${smartBad ? `<span class="badge bad">Warn</span>` : `<span class="meta">—</span>`}</td>
+              <td class="right"><span class="badge ${statusBadge(d.status)}">${esc(d.status || "?")}</span></td>
+            </tr>
+          `;
+        }).join("")}
+      </tbody>
+    </table>
+  ` : "";
+
+  // Controllers as a small footer — admins rarely need this unless triaging.
+  const ctlFooter = controllers.length ? `
+    <div class="section-footer">
+      ${controllers.map(c => `
+        <div style="margin-bottom:2px;">
+          <b>Controller ${esc(c.id)}: ${esc(c.name || "?")}</b> ·
+          FW ${esc(c.firmware || "?")} · driver ${esc(c.driver || "?")} ·
+          <span class="badge ${statusBadge(c.status)}">${esc(c.status || "?")}</span>
+        </div>
+      `).join("")}
+    </div>
+  ` : "";
+
+  return summaryHtml + callout + vdiskTable + pdiskTable + ctlFooter;
 }
 
 function isDellHost(manufacturer) {
