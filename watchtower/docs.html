@@ -131,7 +131,19 @@
 <p class="lede">Everything you need to roll out the Watchtower agent on a client PC, customize the install, and tear it down cleanly.</p>
 
 <h2 id="what">What Watchtower is</h2>
-<p>A small Windows agent that calls home once a day with the host's external IP, asset inventory, Veeam backup status, LogMeIn state, Defender status, USB device history, and a handful of other Belarc-lite probes. The dashboard shows the fleet and lets you toggle per-PC kill switches.</p>
+<p>A small Windows agent that calls home once a day with the host's external IP, asset inventory, backup status, RAID/disk health, and the state of the management/security software you typically rely on. The dashboard shows the fleet and lets you toggle per-PC kill switches.</p>
+<p>Per-host probes:</p>
+<ul>
+  <li><b>System &middot; network &middot; storage &middot; users &middot; software &middot; hotfixes &middot; USB history</b> &mdash; Belarc-lite asset inventory pulled from WMI + registry.</li>
+  <li><b>Defender</b> &mdash; enabled, realtime status, definitions version + age, last scan times.</li>
+  <li><b>Veeam</b> &mdash; detects Backup &amp; Replication and/or Agent for Windows side-by-side (both can be installed on the same host), with last-session result.</li>
+  <li><b>Windows Server Backup</b> &mdash; <code>Get-WBSummary</code> on Server SKUs. Last backup time, last successful backup, retained versions, next scheduled backup, current operation.</li>
+  <li><b>Carbonite</b> &mdash; presence + version + service state for Server Backup, Endpoint Backup, or Safe variants.</li>
+  <li><b>LogMeIn</b> &mdash; install state, service + guardian state, Central computer description.</li>
+  <li><b>SentinelOne</b> &mdash; agent version + service state.</li>
+  <li><b>Dell OMSA</b> &mdash; on hosts with OMSA installed, pulls controllers, virtual disks (RAID arrays), and physical disks via <code>omreport</code>. Surfaces a worst-case rollup so a single failed drive shows up as a red badge in the dashboard at a glance.</li>
+  <li><b>iDRAC Service Module</b> &mdash; on Dell servers with iSM installed, reports version + service state. (BMC firmware version is a future addition.)</li>
+</ul>
 <p>Two processes on each client PC:</p>
 <ul>
   <li><code>watchtower-svc.exe</code> &mdash; runs as the <code>WatchtowerAgent</code> Windows service under <code>LocalSystem</code>. Does the probes + check-in.</li>
