@@ -71,9 +71,64 @@ export default {
       return withCors(await handleWarranty(request, env, ctx), env, request);
     }
 
+    if (url.pathname === '/latest-version' && request.method === 'GET') {
+      return withCors(await handleLatestVersion(request, env, ctx), env, request);
+    }
+
     return jsonResponse({ error: 'Not found', path: url.pathname }, 404);
   },
 };
+
+// ═════════════════════════════════════════════════════════════════════
+// GET /latest-version — what's the newest agent build available?
+// ═════════════════════════════════════════════════════════════════════
+//
+// Reads /settings/agentVersion from Firestore, which the dashboard's
+// Settings tab writes after the operator publishes a new build to
+// GitHub Releases via `build.ps1 -Publish`. Doc shape:
+//   { version: "0.9.0", downloadUrl: "https://github.com/.../...exe",
+//     sha256: "abc123...", notes: "what changed", updatedAt, updatedBy }
+//
+// No auth — version info is public (the EXE on GitHub Releases is too).
+// Agents call this on every check-in to learn whether they're behind.
+//
+// Cached at the edge for 60s so a busy fleet doesn't hammer Firestore.
+async function handleLatestVersion(request, env, ctx) {
+  const cacheKey = new Request('https://internal-cache/latest-version', { method: 'GET' });
+  const cache = caches.default;
+  const cached = await cache.match(cacheKey);
+  if (cached) {
+    return new Response(cached.body, { status: cached.status, headers: cached.headers });
+  }
+
+  let payload;
+  try {
+    const accessToken = await getServiceAccountToken(env);
+    const doc = await firestoreGetDoc(env, accessToken, 'settings/agentVersion');
+    if (!doc || !doc.fields) {
+      payload = { ok: false, error: 'no version published yet' };
+    } else {
+      payload = {
+        ok: true,
+        version: doc.fields.version?.stringValue || null,
+        downloadUrl: doc.fields.downloadUrl?.stringValue || null,
+        sha256: doc.fields.sha256?.stringValue || null,
+        notes: doc.fields.notes?.stringValue || null,
+        updatedAt: doc.fields.updatedAt?.stringValue || null,
+      };
+    }
+  } catch (e) {
+    return jsonResponse({ error: 'lookup failed', detail: String(e).slice(0, 200) }, 502);
+  }
+
+  const resp = jsonResponse(payload, 200);
+  // Cache 60s — agents check daily, dashboard polls on Settings page,
+  // tray "Check for updates" is the only interactive caller.
+  const cacheCopy = jsonResponse(payload, 200);
+  cacheCopy.headers.set('Cache-Control', 'public, max-age=60');
+  ctx.waitUntil(cache.put(cacheKey, cacheCopy));
+  return resp;
+}
 
 // ═════════════════════════════════════════════════════════════════════
 // CORS — only the dashboard origin(s) listed in ALLOWED_ORIGINS get
@@ -634,6 +689,7 @@ async function handleCheckin(request, env, ctx) {
       emailEnabled: config.emailEnabled,
       webhookEnabled: config.webhookEnabled,
       webhookUrl: config.webhookUrl || null,
+      autoUpdate: config.autoUpdate,
     },
     uninstall: config.uninstall,
   }, 200);
@@ -735,6 +791,7 @@ function readConfig(doc) {
     webhookEnabled: false,
     webhookUrl: null,
     uninstall: false,
+    autoUpdate: false,  // safety default — opt-in per host
   };
   if (!doc || !doc.fields) return defaults;
   return {
@@ -743,6 +800,7 @@ function readConfig(doc) {
     webhookEnabled: fieldBool(doc.fields.webhookEnabled, defaults.webhookEnabled),
     webhookUrl: doc.fields.webhookUrl?.stringValue || null,
     uninstall: fieldBool(doc.fields.uninstall, defaults.uninstall),
+    autoUpdate: fieldBool(doc.fields.autoUpdate, defaults.autoUpdate),
   };
 }
 
