@@ -28,14 +28,35 @@ WSB_RESULT_MAP = {
 }
 
 
-# PowerShell snippet — runs Get-WBSummary, falls back to $null if the
-# module isn't available, then JSON-emits a flat object. Keeps the
-# Python side simple.
+# PowerShell snippet — runs Get-WBSummary + Get-WBJob -Previous 10,
+# falls back to $null if the module isn't available, then JSON-emits a
+# flat object. Get-WBJob is wrapped in its own try so a host that has
+# WSB installed but hasn't run any jobs yet still gets a summary back
+# without the recentJobs section.
 PS_SNIPPET = r"""
 $ErrorActionPreference = 'Stop'
 try {
     Import-Module WindowsServerBackup -ErrorAction Stop
     $s = Get-WBSummary
+
+    $jobs = @()
+    try {
+        $rawJobs = Get-WBJob -Previous 10 -ErrorAction Stop
+        $jobs = @($rawJobs | ForEach-Object {
+            [PSCustomObject]@{
+                startTime = if ($_.StartTime) { $_.StartTime.ToString('o') } else { $null }
+                endTime   = if ($_.EndTime)   { $_.EndTime.ToString('o') }   else { $null }
+                jobType   = "$($_.JobType)"
+                jobState  = "$($_.JobState)"
+                hresult   = $_.HResult
+                errorDescription = $_.ErrorDescription
+            }
+        })
+    } catch {
+        # No jobs ever run, or Get-WBJob throws on this host — leave $jobs empty.
+        $jobs = @()
+    }
+
     $out = [PSCustomObject]@{
         installed              = $true
         lastBackupTime         = if ($s.LastBackupTime) { $s.LastBackupTime.ToString('o') } else { $null }
@@ -45,8 +66,11 @@ try {
         numberOfVersions       = $s.NumberOfVersions
         currentOperationStatus = "$($s.CurrentOperationStatus)"
         detailedMessage        = $s.DetailedMessage
+        recentJobs             = $jobs
     }
-    $out | ConvertTo-Json -Compress
+    # Depth=4 covers our recentJobs array of objects. ConvertTo-Json defaults
+    # to depth=2 which would silently truncate the array into "Length=10".
+    $out | ConvertTo-Json -Compress -Depth 4
 } catch {
     # Module not installed, or no backup policy set — return a tiny
     # marker the Python side can route to None.
@@ -109,6 +133,28 @@ def collect():
             except (TypeError, ValueError):
                 last_result = str(hr)
 
+        # Normalize each recent job's HRESULT to text the same way we
+        # do for the summary. Empty array if WSB has no run history yet.
+        raw_jobs = data.get("recentJobs") or []
+        recent_jobs = []
+        for j in raw_jobs:
+            j_hr = j.get("hresult")
+            j_result = None
+            if j_hr is not None:
+                try:
+                    j_hr_int = int(j_hr)
+                    j_result = WSB_RESULT_MAP.get(j_hr_int, f"code: {j_hr_int}")
+                except (TypeError, ValueError):
+                    j_result = str(j_hr)
+            recent_jobs.append({
+                "startTime": j.get("startTime"),
+                "endTime": j.get("endTime"),
+                "jobType": j.get("jobType"),
+                "jobState": j.get("jobState"),
+                "result": j_result,
+                "errorDescription": j.get("errorDescription"),
+            })
+
         return {
             "installed": True,
             "lastBackupTime": data.get("lastBackupTime"),
@@ -118,6 +164,7 @@ def collect():
             "numberOfVersions": data.get("numberOfVersions"),
             "currentOperation": data.get("currentOperationStatus"),
             "detail": data.get("detailedMessage"),
+            "recentJobs": recent_jobs,
         }
 
     except subprocess.TimeoutExpired:
