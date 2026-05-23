@@ -212,33 +212,88 @@ async function handleLatestVersion(request, env, ctx) {
     return new Response(cached.body, { status: cached.status, headers: cached.headers });
   }
 
-  let payload;
+  let payload = null;
+
+  // ----- 1. Try Firestore /settings/agentVersion (explicit override) -----
+  // Operator-set; used to pin a specific version, or to point at a
+  // staging build that isn't the most recent GitHub release yet. If set,
+  // wins over the GitHub fallback below.
   try {
     const accessToken = await getServiceAccountToken(env);
     const doc = await firestoreGetDoc(env, accessToken, 'settings/agentVersion');
-    if (!doc || !doc.fields) {
-      payload = { ok: false, error: 'no version published yet' };
-    } else {
+    const v = doc?.fields?.version?.stringValue;
+    const u = doc?.fields?.downloadUrl?.stringValue;
+    if (v && u) {
       payload = {
         ok: true,
-        version: doc.fields.version?.stringValue || null,
-        downloadUrl: doc.fields.downloadUrl?.stringValue || null,
+        version: v,
+        downloadUrl: u,
         sha256: doc.fields.sha256?.stringValue || null,
         notes: doc.fields.notes?.stringValue || null,
         updatedAt: doc.fields.updatedAt?.stringValue || null,
+        source: 'settings',
       };
     }
   } catch (e) {
-    return jsonResponse({ error: 'lookup failed', detail: String(e).slice(0, 200) }, 502);
+    // Non-fatal — fall through to GitHub
+  }
+
+  // ----- 2. Fall back to GitHub Releases API -----
+  // When /settings/agentVersion isn't set, query the public Releases API
+  // for the latest watchtower-v* tag. build.ps1 -Publish puts the EXE
+  // there + writes "SHA256: <hex>" into the release notes which we parse.
+  // This is the "zero-paste-required" path — after a Publish the Download
+  // Installer button + auto-update awareness both work without the operator
+  // touching Settings.
+  if (!payload) {
+    try {
+      payload = await fetchLatestFromGitHub();
+    } catch (e) {
+      payload = { ok: false, error: 'no version published yet', detail: String(e).slice(0, 200) };
+    }
   }
 
   const resp = jsonResponse(payload, 200);
-  // Cache 60s — agents check daily, dashboard polls on Settings page,
-  // tray "Check for updates" is the only interactive caller.
+  // Cache 5 min — agents check daily, dashboard polls on Settings page,
+  // tray "Check for updates" is the only interactive caller. GitHub API
+  // has a 60/hr unauthenticated rate limit so caching keeps us well clear.
   const cacheCopy = jsonResponse(payload, 200);
-  cacheCopy.headers.set('Cache-Control', 'public, max-age=60');
+  cacheCopy.headers.set('Cache-Control', 'public, max-age=300');
   ctx.waitUntil(cache.put(cacheKey, cacheCopy));
   return resp;
+}
+
+async function fetchLatestFromGitHub() {
+  // Pull the 10 most recent releases (not just /releases/latest, which
+  // can return drafts or non-watchtower tags if the work repo grows other
+  // products). Filter ourselves so we only ever match watchtower-v* tags.
+  const r = await fetch('https://api.github.com/repos/frank-umbrella/work/releases?per_page=10', {
+    headers: {
+      'User-Agent': 'watchtower-worker',
+      'Accept': 'application/vnd.github+json',
+    },
+  });
+  if (!r.ok) throw new Error(`GitHub API ${r.status}`);
+  const releases = await r.json();
+  if (!Array.isArray(releases)) throw new Error('unexpected GitHub API response');
+  const latest = releases.find(rel => !rel.draft && /^watchtower-v/i.test(rel.tag_name || ''));
+  if (!latest) throw new Error('no watchtower-v* release found');
+  const asset = (latest.assets || []).find(a => /watchtower-setup\.exe$/i.test(a.name || ''));
+  if (!asset) throw new Error('no Watchtower-Setup.exe asset in latest release');
+  // build.ps1 -Publish writes "Watchtower agent X.Y.Z. SHA256: <hex>" into
+  // the release body. Parse out the hex; if missing, return null and let
+  // the dashboard / agent decide how to handle (manual download = fine
+  // without SHA, auto-update path refuses without SHA — see updater.py).
+  const shaMatch = (latest.body || '').match(/SHA256:\s*([a-f0-9]{64})/i);
+  return {
+    ok: true,
+    version: (latest.tag_name || '').replace(/^watchtower-v/i, ''),
+    downloadUrl: asset.browser_download_url,
+    sha256: shaMatch ? shaMatch[1].toLowerCase() : null,
+    notes: latest.body || latest.name || null,
+    updatedAt: latest.published_at || latest.created_at || null,
+    source: 'github',
+  };
 }
 
 // ═════════════════════════════════════════════════════════════════════
@@ -752,6 +807,44 @@ async function handleCheckin(request, env, ctx) {
     }
   }
 
+  // ----- 7a. Notify on new OMSA storage warning -----
+  // Fires once on the OK -> warn/bad transition. The omsaFirstWarnAt
+  // computation above gives us transition detection for free:
+  //   omsaIsNonOk && !omsaPrevWarnAt  =  fresh warning
+  // Persistent warnings (omsaIsNonOk && omsaPrevWarnAt) don't re-fire.
+  // Re-fires only after the warning clears (back to OK) and reappears.
+  const omsaNewWarning = omsaIsNonOk && !omsaPrevWarnAt;
+  if (omsaNewWarning && config.enabled) {
+    const issues = extractOmsaIssues(omsaCurrent);
+    if (config.emailEnabled && env.RESEND_API_KEY) {
+      ctx.waitUntil(
+        sendOmsaWarningEmail(env, {
+          pcId,
+          hostname,
+          client: resolvedClient,
+          rollup: omsaRollup,
+          version: omsaCurrent?.version || null,
+          issues,
+          when: nowIso,
+        }).catch((e) => console.error('OMSA email failed:', e))
+      );
+    }
+    if (config.webhookEnabled && effectiveWebhookUrl) {
+      ctx.waitUntil(
+        postWebhook(effectiveWebhookUrl, {
+          event: 'omsa_warning',
+          pcId,
+          hostname,
+          client: resolvedClient,
+          rollup: omsaRollup,
+          omsaVersion: omsaCurrent?.version || null,
+          issues,
+          when: nowIso,
+        }).catch((e) => console.error('Webhook POST failed:', e))
+      );
+    }
+  }
+
   // ----- 7b. Notify on new WSB backup failure -----
   if (wsbNewFailure && config.enabled) {
     const lastSuccess = wsbCurrent?.lastSuccessfulBackup || null;
@@ -1106,6 +1199,82 @@ async function sendIntakeEmail(env, { pcId, hostname, client, agentVersion, when
     </div>
   `;
 
+  const resp = await fetch(`${RESEND_BASE}/emails`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${env.RESEND_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: env.SENDER_FROM || 'Watchtower <onboarding@resend.dev>',
+      to: [env.ALERT_TO],
+      subject,
+      html,
+    }),
+  });
+  if (!resp.ok) {
+    const txt = await resp.text();
+    throw new Error(`Resend ${resp.status}: ${txt}`);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Extract OMSA issue list — strings describing each non-OK disk / array
+// for the email + webhook payloads. Same view the dashboard's red
+// callout shows, but flattened for non-HTML consumers.
+// ─────────────────────────────────────────────────────────────────────
+function extractOmsaIssues(omsa) {
+  if (!omsa) return [];
+  const issues = [];
+  for (const vd of (omsa.virtualDisks || [])) {
+    if (vd.status && vd.status.toLowerCase() !== 'ok') {
+      issues.push(`Virtual disk ${vd.name || vd.id}: ${vd.status}${vd.state ? ` / ${vd.state}` : ''}${vd.layout ? ` (${vd.layout})` : ''}`);
+    }
+  }
+  for (const pd of (omsa.physicalDisks || [])) {
+    if (pd.status && pd.status.toLowerCase() !== 'ok') {
+      issues.push(`Physical disk ${pd.id || pd.name} on controller ${pd.controllerId}: ${pd.status}${pd.product ? ` (${pd.product})` : ''}`);
+    }
+    if ((pd.predictiveFailure || '').toLowerCase() === 'yes') {
+      issues.push(`Physical disk ${pd.id || pd.name}: SMART predictive failure flagged`);
+    }
+  }
+  return issues;
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Resend email — OMSA storage warning
+// ─────────────────────────────────────────────────────────────────────
+async function sendOmsaWarningEmail(env, { pcId, hostname, client, rollup, version, issues, when }) {
+  const sevLabel = rollup === 'bad' ? 'CRITICAL' : 'WARNING';
+  const sevColor = rollup === 'bad' ? '#b00' : '#b4632b';
+  const subject = `Watchtower: OMSA ${sevLabel} — ${hostname} (${client})`;
+  const issuesHtml = issues.length
+    ? `<ul style="margin:6px 0 0 16px; padding:0;">${issues.map(i => `<li>${escapeHtml(i)}</li>`).join('')}</ul>`
+    : `<i>No per-disk detail in this check-in.</i>`;
+  const html = `
+    <div style="font-family: system-ui, -apple-system, Segoe UI, sans-serif; color:#222; max-width:640px;">
+      <h2 style="color:${sevColor}; margin:0 0 12px;">Dell OMSA storage health: ${sevLabel}</h2>
+      <p style="color:#475063; margin:0 0 16px; font-size:14px;">
+        ${escapeHtml(hostname)} (${escapeHtml(client)}) is reporting OMSA rollup <b style="color:${sevColor};">${escapeHtml(rollup)}</b>.
+      </p>
+      <table cellpadding="6" style="border-collapse:collapse; font-size:14px; margin-bottom:16px;">
+        <tr><td style="color:#666; width:120px;">Host</td><td><b>${escapeHtml(hostname)}</b></td></tr>
+        <tr><td style="color:#666;">Client</td><td>${escapeHtml(client)}</td></tr>
+        <tr><td style="color:#666;">OMSA version</td><td>${escapeHtml(version || '?')}</td></tr>
+        <tr><td style="color:#666;">Detected at</td><td>${escapeHtml(when)}</td></tr>
+        <tr><td style="color:#666;">pcId</td><td><code style="font-size:12px;">${escapeHtml(pcId)}</code></td></tr>
+      </table>
+      <div style="background:#fef3c7; border:1px solid #fde68a; color:#78350f; padding:10px 14px; border-radius:8px; font-size:13.5px;">
+        <b>What needs attention:</b>
+        ${issuesHtml}
+      </div>
+      <p style="color:#888; font-size:12px; margin-top:24px;">
+        Sent once per OMSA warning episode (dedupe by omsaFirstWarnAt). You won't get a second email for the same incident; if it clears and reappears, the cycle restarts.
+        Silence per-host: flip <code>emailEnabled</code> off in the host's drawer.
+      </p>
+    </div>
+  `;
   const resp = await fetch(`${RESEND_BASE}/emails`, {
     method: 'POST',
     headers: {
