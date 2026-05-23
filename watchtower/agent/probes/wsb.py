@@ -67,31 +67,95 @@ try {
         $jobs = @()
     }
 
-    # Backup targets — where the backup is being written. From Get-WBPolicy
-    # which returns the current scheduled-backup policy. BackupTargets is
+    # Pull the full WBPolicy once so we can extract targets + sources +
+    # schedule + VSS options without re-calling Get-WBPolicy three times.
+    # Hosts with no policy yet have $null here, which we coerce to empty
+    # arrays / nulls below so the JSON shape stays consistent.
+    $policy = $null
+    try { $policy = Get-WBPolicy -ErrorAction Stop } catch { $policy = $null }
+
+    # Backup targets — where the backup is being written. BackupTargets is
     # an array of WBBackupTarget objects; each has Label + TargetType +
-    # one of (Path / Volume / UncPath) depending on type. Hosts with no
-    # policy yet have $null here, which we coerce to an empty array.
+    # one of (Path / Volume / UncPath) depending on type.
     $targets = @()
-    try {
-        $policy = Get-WBPolicy -ErrorAction Stop
-        if ($policy -and $policy.BackupTargets) {
-            $targets = @($policy.BackupTargets | ForEach-Object {
-                # WBBackupTarget has different properties per type. Try
-                # several so we surface whatever's set without crashing.
-                $path = $null
-                try { if ($_.Path)    { $path = "$($_.Path)" } } catch {}
-                try { if (-not $path -and $_.UncPath) { $path = "$($_.UncPath)" } } catch {}
-                try { if (-not $path -and $_.Source)  { $path = "$($_.Source)"  } } catch {}
-                [PSCustomObject]@{
-                    label = "$($_.Label)"
-                    type  = "$($_.TargetType)"
-                    path  = $path
+    if ($policy -and $policy.BackupTargets) {
+        $targets = @($policy.BackupTargets | ForEach-Object {
+            $path = $null
+            try { if ($_.Path)    { $path = "$($_.Path)" } } catch {}
+            try { if (-not $path -and $_.UncPath) { $path = "$($_.UncPath)" } } catch {}
+            try { if (-not $path -and $_.Source)  { $path = "$($_.Source)"  } } catch {}
+            [PSCustomObject]@{
+                label = "$($_.Label)"
+                type  = "$($_.TargetType)"
+                path  = $path
+            }
+        })
+    }
+
+    # Backup sources — what gets backed up. The policy carries up to four
+    # source collections; admins typically pick exactly one model:
+    #   VolumesToBackup       — full-volume backups (most common)
+    #   FilesSpecsToBackup    — selective file/folder includes
+    #   BareMetalRecovery     — bare-metal recovery (system + boot volume + system state)
+    #   SystemState           — system state backup (registry, AD, etc)
+    # We flatten all four into one array tagged with category so the
+    # dashboard can render them grouped or flat.
+    $sources = @()
+    if ($policy) {
+        try {
+            foreach ($v in @($policy.VolumesToBackup)) {
+                if ($v) {
+                    $sources += [PSCustomObject]@{
+                        category = "volume"
+                        label    = "$($v.MountPath)"
+                        detail   = "$($v.FileSystem) $([math]::Round($v.TotalSpace / 1GB, 1))GB"
+                    }
                 }
-            })
+            }
+        } catch {}
+        try {
+            foreach ($f in @($policy.FilesSpecsToBackup)) {
+                if ($f) {
+                    $sources += [PSCustomObject]@{
+                        category = "files"
+                        label    = "$($f.FileSpec)"
+                        detail   = if ($f.IsInclusion) { "include" } else { "exclude" }
+                    }
+                }
+            }
+        } catch {}
+        if ($policy.BareMetalRecovery) {
+            $sources += [PSCustomObject]@{ category = "bare-metal"; label = "Bare metal recovery"; detail = "enabled" }
         }
-    } catch {
-        $targets = @()
+        if ($policy.SystemState) {
+            $sources += [PSCustomObject]@{ category = "system-state"; label = "System state"; detail = "enabled" }
+        }
+    }
+
+    # Schedule — array of DateTime objects (one per scheduled run per day).
+    # Get-WBPolicy returns them as DateTime with the date floor at 1601-01-01,
+    # so only the time portion matters. Format as HH:mm strings for display.
+    $schedule = @()
+    if ($policy -and $policy.Schedule) {
+        try {
+            $schedule = @($policy.Schedule | ForEach-Object {
+                if ($_) { $_.ToString("HH:mm") }
+            })
+        } catch { $schedule = @() }
+    }
+
+    # VSS backup mode + housekeeping flags.
+    #   VssBackupOptions: VssCopyBackup (default — doesn't clear app logs)
+    #                     vs VssFullBackup (clears app logs, marks files as backed up)
+    #   AllowDeleteOldBackups: when target fills, can WSB prune old versions
+    #   OverwriteOldFormatVhd: deal with legacy VHD formats from older OSes
+    $vssMode = $null
+    $allowDeleteOld = $null
+    $overwriteOld = $null
+    if ($policy) {
+        try { $vssMode        = "$($policy.VssBackupOptions)" } catch {}
+        try { $allowDeleteOld = [bool]$policy.AllowDeleteOldBackups } catch {}
+        try { $overwriteOld   = [bool]$policy.OverwriteOldFormatVhd } catch {}
     }
 
     $out = [PSCustomObject]@{
@@ -105,6 +169,12 @@ try {
         detailedMessage        = $s.DetailedMessage
         recentJobs             = $jobs
         targets                = $targets
+        sources                = $sources
+        schedule               = $schedule
+        vssMode                = $vssMode
+        allowDeleteOldBackups  = $allowDeleteOld
+        overwriteOldFormatVhd  = $overwriteOld
+        hasPolicy              = ($policy -ne $null)
     }
     # Depth=4 covers our recentJobs array of objects. ConvertTo-Json defaults
     # to depth=2 which would silently truncate the array into "Length=10".
@@ -204,6 +274,14 @@ def collect():
             "detail": data.get("detailedMessage"),
             "recentJobs": recent_jobs,
             "targets": data.get("targets") or [],
+            # Policy details (v0.12.3+). Empty / null when WSB is installed
+            # but no scheduled backup policy has been configured yet.
+            "sources": data.get("sources") or [],
+            "schedule": data.get("schedule") or [],
+            "vssMode": data.get("vssMode"),
+            "allowDeleteOldBackups": data.get("allowDeleteOldBackups"),
+            "overwriteOldFormatVhd": data.get("overwriteOldFormatVhd"),
+            "hasPolicy": data.get("hasPolicy", False),
         }
 
     except subprocess.TimeoutExpired:

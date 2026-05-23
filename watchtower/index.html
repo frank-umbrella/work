@@ -591,7 +591,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.12.2";
+const APP_VERSION = "0.12.3";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -2094,7 +2094,33 @@ function buildReportDom(a, logoPngDataUrl) {
 
     ${(veeam || wsb || carbonite) ? sectionHdr("Backups") + `
       ${veeam && veeam.installed ? (veeam.products || []).map(p => `<div style="font-size:12px;margin-bottom:4px;"><b>${p.edition === "br" ? "Veeam Backup &amp; Replication" : "Veeam Agent for Windows"}</b> v${esc(p.version || "?")}${p.lastJob && p.lastJob.result ? ` &middot; last job: <b>${esc(p.lastJob.result)}</b>${p.lastJob.endTime ? ` (${esc(p.lastJob.endTime)})` : ""}` : ""}</div>`).join("") : ""}
-      ${wsb && wsb.installed ? `<div style="font-size:12px;margin-bottom:4px;"><b>Windows Server Backup</b> &middot; last result: <b>${esc(wsb.lastBackupResult || "?")}</b>${wsb.lastSuccessfulBackup ? ` &middot; last success: ${tsToStr(wsb.lastSuccessfulBackup)}` : ""} &middot; ${wsb.numberOfVersions || 0} version(s) retained${(wsb.targets || []).length ? ` &middot; targets: ${wsb.targets.map(t => esc(t.path || t.label || "?")).join(", ")}` : ""}</div>` : ""}
+      ${wsb && wsb.installed ? (() => {
+        const tgts = (wsb.targets || []).map(t => `${esc(t.path || t.label || "?")}${t.type ? ` <span style="color:#888;">(${esc(t.type)})</span>` : ""}`).join(", ");
+        const srcs = (wsb.sources || []).map(s => {
+          // Color the category chip by what it backs up — volumes/files = neutral, system = warning, bare-metal = red
+          const bg = { "volume": "#dbeafe", "files": "#e0e7ff", "system-state": "#fef3c7", "bare-metal": "#fee2e2" }[s.category] || "#e5e7eb";
+          const fg = { "volume": "#1e40af", "files": "#3730a3", "system-state": "#78350f", "bare-metal": "#7f1d1d" }[s.category] || "#374151";
+          return `<span style="display:inline-block;background:${bg};color:${fg};padding:1px 6px;border-radius:3px;font-size:10.5px;font-weight:600;margin-right:4px;">${esc(s.category)}</span><code style="font-size:11px;">${esc(s.label)}</code>${s.detail ? ` <span style="color:#888;font-size:11px;">${esc(s.detail)}</span>` : ""}`;
+        }).join("<br>");
+        const sched = (wsb.schedule || []).map(t => `<code>${esc(t)}</code>`).join(" &middot; ");
+        const vssNote = wsb.vssMode === "VssFullBackup"
+          ? `<span style="color:#78350f;"> &mdash; full backup (clears app logs)</span>`
+          : wsb.vssMode === "VssCopyBackup"
+            ? `<span style="color:#666;"> &mdash; copy backup (default)</span>`
+            : "";
+        return `
+          <div style="font-size:12px;margin-bottom:8px;line-height:1.55;">
+            <div><b>Windows Server Backup</b> &middot; last result: <b>${esc(wsb.lastBackupResult || "?")}</b>${wsb.lastSuccessfulBackup ? ` &middot; last success: ${tsToStr(wsb.lastSuccessfulBackup)}` : ""} &middot; ${wsb.numberOfVersions || 0} version(s) retained</div>
+            ${tgts ? `<div style="margin-top:3px;">&nbsp;&nbsp;&nbsp;&nbsp;<b>Destinations:</b> ${tgts}</div>` : ""}
+            ${srcs ? `<div style="margin-top:3px;">&nbsp;&nbsp;&nbsp;&nbsp;<b>Sources:</b><br>&nbsp;&nbsp;&nbsp;&nbsp;${srcs}</div>` : ""}
+            ${sched ? `<div style="margin-top:3px;">&nbsp;&nbsp;&nbsp;&nbsp;<b>Schedule:</b> ${sched} <span style="color:#888;">daily</span></div>` : ""}
+            ${wsb.vssMode ? `<div style="margin-top:3px;">&nbsp;&nbsp;&nbsp;&nbsp;<b>VSS mode:</b> <code>${esc(wsb.vssMode)}</code>${vssNote}</div>` : ""}
+            ${(wsb.allowDeleteOldBackups !== null && wsb.allowDeleteOldBackups !== undefined)
+              ? `<div style="margin-top:3px;color:#666;">&nbsp;&nbsp;&nbsp;&nbsp;${wsb.allowDeleteOldBackups ? "Auto-prunes oldest versions when target fills" : "Will stop backing up when target fills"}</div>`
+              : ""}
+          </div>
+        `;
+      })() : ""}
       ${carbonite && carbonite.installed ? (carbonite.products || []).map(p => `<div style="font-size:12px;margin-bottom:4px;"><b>${esc(p.name)}</b> v${esc(p.version || "?")}</div>`).join("") : ""}
     ` : ""}
 
@@ -2365,6 +2391,44 @@ function buildHostSections(a) {
     });
   }
 
+  // Dedicated WSB sources sheet — what's being backed up (volumes / files
+  // / system state / bare metal). One row per source so admins can filter
+  // "show me every host that backs up volume X" or "every host with bare-
+  // metal recovery enabled."
+  if (wsb && wsb.installed && Array.isArray(wsb.sources) && wsb.sources.length) {
+    sections.push({
+      title: "WSB sources",
+      headers: ["Category", "Label / Path", "Detail"],
+      rows: wsb.sources.map(s => [
+        s.category || "",
+        s.label || "",
+        s.detail || "",
+      ]),
+    });
+  }
+
+  // WSB policy summary — single-row sheet with schedule, VSS mode, and
+  // housekeeping flags. Schedule joined with " · " since admins read it
+  // as a list of clock times not a sortable column.
+  if (wsb && wsb.installed && (wsb.hasPolicy || (wsb.schedule && wsb.schedule.length) || wsb.vssMode)) {
+    sections.push({
+      title: "WSB policy",
+      headers: ["Field", "Value"],
+      rows: [
+        ["Schedule (daily)", Array.isArray(wsb.schedule) ? wsb.schedule.join(" · ") : ""],
+        ["VSS mode", wsb.vssMode || ""],
+        ["VSS mode meaning",
+          wsb.vssMode === "VssFullBackup" ? "Full backup — clears app logs, marks files as backed up"
+          : wsb.vssMode === "VssCopyBackup" ? "Copy backup — preserves app logs (default)"
+          : ""],
+        ["Prune when full", wsb.allowDeleteOldBackups === true ? "yes — auto-delete oldest" : wsb.allowDeleteOldBackups === false ? "no — stop backing up" : ""],
+        ["Overwrite old-format VHD", wsb.overwriteOldFormatVhd === true ? "yes" : wsb.overwriteOldFormatVhd === false ? "no" : ""],
+        ["Next scheduled", wsb.nextBackupTime || ""],
+        ["Versions retained", wsb.numberOfVersions || 0],
+      ],
+    });
+  }
+
   // Security / Remote access / iDRAC — single-row mini sections per product
   const secRows = [];
   if (def) secRows.push(["Defender",
@@ -2500,7 +2564,7 @@ function buildFleetRows() {
     "RAM (GB)", "CPU", "Agent version",
     "Last check-in", "Status",
     "Decommissioned", "Decommissioned by", "Decommissioned at",
-    "OMSA rollup", "WSB last result", "WSB last success", "WSB destination(s)",
+    "OMSA rollup", "WSB last result", "WSB last success", "WSB destination(s)", "WSB schedule", "WSB sources",
     "LogMeIn description", "Defender realtime",
     "pcId",
   ];
@@ -2533,6 +2597,12 @@ function buildFleetRows() {
             const p = t.path || t.label || "?";
             return t.type ? `${p} (${t.type})` : p;
           }).join("; ")
+        : "",
+      (wsb && wsb.installed && Array.isArray(wsb.schedule) && wsb.schedule.length)
+        ? wsb.schedule.join(" · ") + " daily"
+        : "",
+      (wsb && wsb.installed && Array.isArray(wsb.sources) && wsb.sources.length)
+        ? wsb.sources.map(s => `${s.category}:${s.label}`).join("; ")
         : "",
       (lmi && lmi.installed) ? (lmi.description || "") : "",
       def ? (def.realtimeOn ? "on" : "off") : "",
@@ -3108,6 +3178,37 @@ function renderWsb(w) {
           const kind = t.type ? ` <span class="meta">(${esc(t.type)})</span>` : "";
           return `<div><code>${esc(where)}</code>${kind}${t.label && t.path ? ` <span class="meta">${esc(t.label)}</span>` : ""}</div>`;
         }).join("")}</div>
+      ` : ""}
+      ${Array.isArray(w.sources) && w.sources.length ? `
+        <div class="k">Source${w.sources.length === 1 ? "" : "s"}</div>
+        <div class="v">${w.sources.map(s => {
+          // Category badge color: volumes = teal, files = blue, system = purple, bare metal = red
+          const tone = {
+            "volume": "ok",
+            "files": "muted",
+            "system-state": "warn",
+            "bare-metal": "bad",
+          }[s.category] || "muted";
+          return `<div style="margin-bottom:2px;"><span class="badge ${tone}" style="margin-right:6px;">${esc(s.category)}</span><code>${esc(s.label)}</code>${s.detail ? ` <span class="meta">${esc(s.detail)}</span>` : ""}</div>`;
+        }).join("")}</div>
+      ` : ""}
+      ${Array.isArray(w.schedule) && w.schedule.length ? `
+        <div class="k">Schedule</div>
+        <div class="v">${w.schedule.map(t => `<code>${esc(t)}</code>`).join(" &middot; ")} <span class="meta">daily</span></div>
+      ` : ""}
+      ${w.vssMode ? `
+        <div class="k">VSS mode</div>
+        <div class="v"><code>${esc(w.vssMode)}</code>
+          ${w.vssMode === "VssFullBackup"
+            ? ` <span class="meta">— full backup (clears app logs, marks files backed up)</span>`
+            : w.vssMode === "VssCopyBackup"
+              ? ` <span class="meta">— copy backup (preserves app logs; default)</span>`
+              : ""}
+        </div>
+      ` : ""}
+      ${(w.allowDeleteOldBackups !== null && w.allowDeleteOldBackups !== undefined) ? `
+        <div class="k">Prune when full</div>
+        <div class="v">${w.allowDeleteOldBackups ? "yes — WSB deletes oldest versions when target fills" : "no — WSB stops when target fills"}</div>
       ` : ""}
       ${(() => {
         // WSB's CurrentOperationStatus can be the enum name, the friendly text,

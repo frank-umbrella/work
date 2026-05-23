@@ -108,7 +108,7 @@
       </svg>
       <div>
         <div class="meta">Umbrella Automation</div>
-        <h1>Watchtower &middot; Docs <span class="version-chip">v0.12.2</span></h1>
+        <h1>Watchtower &middot; Docs <span class="version-chip">v0.12.3</span></h1>
       </div>
     </div>
     <a class="btn brand-link" href="index.html">&larr; Back to dashboard</a>
@@ -608,6 +608,17 @@ Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" 
 <h3 id="backup-drawer">Per-host drawer</h3>
 <p>Opening a host's drawer shows a red banner at the top of the Windows Server Backup section when the latest attempt failed, with the gap to last successful backup and the WSB-reported error message. Below the standard summary, a <i>Recent backup attempts</i> details disclosure expands the last 10 jobs with their individual results and errors &mdash; useful for spotting "started failing 3 days ago" versus "this is a one-day blip".</p>
 
+<h4>Full policy detail captured (v0.12.3+)</h4>
+<p>The probe pulls the whole <code>Get-WBPolicy</code> object on every check-in so the drawer / PDF / Excel export show:</p>
+<ul>
+  <li><b>Destinations</b> &mdash; every backup target with drive letter / UNC path / volume label and target type (Volume / Network / Disk).</li>
+  <li><b>Sources</b> &mdash; what's being backed up, categorized: <b>volume</b> (full-volume), <b>files</b> (selective file/folder includes), <b>system-state</b>, <b>bare-metal</b>. Each gets a colored chip in the drawer so you can spot bare-metal-recovery hosts at a glance.</li>
+  <li><b>Schedule</b> &mdash; daily run times (e.g. <code>21:00</code> / <code>03:00 &middot; 15:00</code>). Days-of-week aren't surfaced separately because WSB only supports "every day at these times."</li>
+  <li><b>VSS mode</b> &mdash; <code>VssCopyBackup</code> (default; preserves application logs) vs <code>VssFullBackup</code> (clears app logs, marks files as backed up &mdash; matters for Exchange / SQL retention).</li>
+  <li><b>Prune-when-full flag</b> &mdash; whether WSB auto-deletes oldest backups when the target fills or stops backing up entirely.</li>
+</ul>
+<p>This is the data you'd otherwise have to RDP in and run <code>Get-WBPolicy | Format-List *</code> for. Capture is per-check-in (24h max staleness), so a policy change on the host shows up in the next check-in cycle.</p>
+
 <h2 id="updates">Agent auto-update</h2>
 <p>v0.9.0 onward, agents can update themselves on a daily cadence. The flow:</p>
 <ol class="steps">
@@ -674,12 +685,12 @@ Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" 
 <p>Open any host's drawer &rarr; <b>PDF</b> / <b>CSV</b> / <b>Excel</b> buttons in the top right.</p>
 <ul>
   <li><b>PDF</b> &mdash; formatted report with the Umbrella Automation header, full system summary, all probe sections, OMSA disk rows highlighted yellow/red for non-critical/critical issues, LogMeIn description compared against the Windows hostname.</li>
-  <li><b>CSV</b> &mdash; one file with sections concatenated (Summary, Volumes, NICs, OMSA RAID, OMSA disks, Backups, <b>WSB destinations</b>, Security, LogMeIn, iDRAC, Installed apps, Hotfixes, USB devices). UTF-8 BOM so Excel opens it cleanly with the correct character encoding.</li>
-  <li><b>Excel</b> &mdash; full <code>.xlsx</code> workbook with one sheet per section. Sheet names are capped at Excel's 31-char limit. Column widths are pre-set so the workbook is readable the moment it opens. <b>Backups</b> sheet carries an inline "WSB destination(s)" column with the target drive(s) and type, and a separate <b>WSB destinations</b> sheet gives one row per backup target (label / type / path) for downstream filtering.</li>
+  <li><b>CSV</b> &mdash; one file with sections concatenated (Summary, Volumes, NICs, OMSA RAID, OMSA disks, Backups, <b>WSB destinations</b>, <b>WSB sources</b>, <b>WSB policy</b>, Security, LogMeIn, iDRAC, Installed apps, Hotfixes, USB devices). UTF-8 BOM so Excel opens it cleanly with the correct character encoding.</li>
+  <li><b>Excel</b> &mdash; full <code>.xlsx</code> workbook with one sheet per section. Sheet names are capped at Excel's 31-char limit. Column widths are pre-set so the workbook is readable the moment it opens. WSB gets three dedicated sheets: <b>WSB destinations</b> (one row per drive/share), <b>WSB sources</b> (one row per backed-up volume / file spec / system-state / bare-metal entry), and <b>WSB policy</b> (schedule, VSS mode, prune-when-full, retention).</li>
 </ul>
 
 <h3>All endpoints (from the Endpoints tab)</h3>
-<p>The <b>CSV</b> and <b>Excel</b> buttons in the Endpoints filter bar export <b>exactly what you see</b> &mdash; the active search, client filter, and status filter all apply. Each row carries hostname, client, IPs, OS, manufacturer/model, Service Tag, agent version, last check-in, status, OMSA rollup, WSB last result + last success + <b>destination(s)</b>, LogMeIn description, Defender realtime, decommission state, and pcId.</p>
+<p>The <b>CSV</b> and <b>Excel</b> buttons in the Endpoints filter bar export <b>exactly what you see</b> &mdash; the active search, client filter, and status filter all apply. Each row carries hostname, client, IPs, OS, manufacturer/model, Service Tag, agent version, last check-in, status, OMSA rollup, WSB last result + last success + <b>destination(s)</b> + <b>schedule</b> + <b>sources</b>, LogMeIn description, Defender realtime, decommission state, and pcId.</p>
 <ul>
   <li><b>Want to ship a status report?</b> Filter to <code>All (active)</code>, click Excel &mdash; you get every live endpoint, header row frozen, ready to mail.</li>
   <li><b>Auditing decom'd hosts?</b> Filter to <code>Decommissioned only</code>, click CSV &mdash; you get the cleanup list with reasons.</li>
