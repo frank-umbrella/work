@@ -40,6 +40,12 @@ every client.
 - `-WorkerUrl` overrides the worker URL baked into the installer (the
   default points at production). Useful when iterating against a
   staging worker.
+- `-LogmeinMsi <path>` bakes a LogMeIn host MSI into the installer.
+  The wizard then shows an opt-out "Also install LogMeIn remote access"
+  checkbox (checked by default). The MSI runs as
+  `msiexec /i /quiet /norestart` after the agent install. Silent
+  override: `Watchtower-Setup.exe /COMPONENTS=""` to skip it.
+  Drop the MSI in `installer\vendor\` — that path is gitignored.
 
 ## Generating install tokens
 

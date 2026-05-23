@@ -114,6 +114,7 @@
   <a href="#customize" class="section">Customize install</a>
   <a href="#customize-silent">Silent / RMM install</a>
   <a href="#customize-build">build.ps1 parameters</a>
+  <a href="#customize-logmein">Bundle LogMeIn MSI</a>
   <a href="#customize-dir">Custom install directory</a>
   <a href="#customize-worker">Alternate worker URL</a>
   <a href="#uninstall" class="section">Uninstall</a>
@@ -225,6 +226,7 @@
   <tr><td><code>/TOKEN=&lt;wt_...&gt;</code></td><td>Install token. Required for silent installs (no wizard to enter it). Validated against the worker before install completes &mdash; bad token = non-zero exit code.</td></tr>
   <tr><td><code>/CLIENT="Acme Corp"</code></td><td>Override the client label shown in Add/Remove Programs and the tray tooltip. If omitted, the worker's token-bound client name is used.</td></tr>
   <tr><td><code>/WORKERURL=https://...</code></td><td>Hit a different worker (staging / testing only). Defaults to production.</td></tr>
+  <tr><td><code>/COMPONENTS="logmein"</code></td><td>Only relevant when the installer was built with <code>-LogmeinMsi</code>. Default behavior is to include LogMeIn install; pass <code>/COMPONENTS=""</code> to explicitly skip it.</td></tr>
   <tr><td><code>/VERYSILENT</code></td><td>Standard Inno Setup &mdash; suppresses the wizard.</td></tr>
   <tr><td><code>/SUPPRESSMSGBOXES</code></td><td>Suppress error dialogs (failures still produce non-zero exit codes and write to the install log).</td></tr>
 </table>
@@ -236,9 +238,28 @@
   <tr><th>Parameter</th><th>Default</th><th>Notes</th></tr>
   <tr><td><code>-WorkerUrl</code></td><td><code>https://watchtower-worker.umbrelladev.workers.dev</code></td><td>Baked-in default the wizard pings. Override only when you need installs to default to a staging worker.</td></tr>
   <tr><td><code>-AppVersion</code></td><td><code>0.3.0</code></td><td>Cosmetic &mdash; appears in Add/Remove Programs and the wizard title.</td></tr>
+  <tr><td><code>-LogmeinMsi</code></td><td>(none)</td><td>Optional path to a LogMeIn host MSI. When set, the wizard shows an opt-out checkbox for installing LogMeIn alongside the agent &mdash; see <a href="#customize-logmein">below</a>.</td></tr>
   <tr><td><code>-SkipPyInstaller</code></td><td>off</td><td>Reuse cached <code>build\*.exe</code> when iterating on the <code>.iss</code>. Saves ~2 minutes per build.</td></tr>
 </table>
 <div class="callout info"><b>No <code>-ClientName</code> or <code>-InstallToken</code> at build time.</b> Both are runtime inputs as of v0.3.0 &mdash; either prompted in the wizard or passed via <code>/TOKEN=</code> <code>/CLIENT=</code> for silent installs.</div>
+
+<h3 id="customize-logmein">Bundle LogMeIn MSI</h3>
+<p>Optional. If you have a LogMeIn host MSI you typically install alongside the agent, you can bake it into the installer EXE so a single deploy puts both on the target. The wizard shows a checkbox <i>Also install LogMeIn remote access</i> (checked by default) on a Components page after token validation; operators can uncheck it on hosts that already have LogMeIn or don't need it.</p>
+<p>Build with:</p>
+<pre><code>cd work\watchtower\installer
+.\build.ps1 -LogmeinMsi "T:\ClaudeCodeRepo\work\watchtower\installer\vendor\LogMeIn.msi"</code></pre>
+<p>Or from anywhere &mdash; absolute path is fine:</p>
+<pre><code>.\build.ps1 -LogmeinMsi "C:\path\to\your\LogMeIn.msi"</code></pre>
+<p>The resulting <code>Watchtower-Setup.exe</code> grows by the MSI's size (LogMeIn host MSIs are typically 20-50 MB). Behavior:</p>
+<ul>
+  <li>Wizard install &mdash; user sees a Components page with the LogMeIn checkbox checked by default; can uncheck per install.</li>
+  <li>Silent install with default args &mdash; LogMeIn installs too.</li>
+  <li>Silent install skipping LogMeIn &mdash; <code>Watchtower-Setup.exe /VERYSILENT /TOKEN=wt_xxx /COMPONENTS=""</code></li>
+  <li>MSI is invoked as <code>msiexec /i /quiet /norestart</code> &mdash; no UI flashes, no reboot triggered.</li>
+</ul>
+<div class="callout info"><b>The MSI is bundled, not downloaded.</b> The installer never reaches out for it at runtime &mdash; the MSI is extracted from inside the EXE to <code>%TEMP%</code>, installed, then deleted. Works on offline target machines as long as the MSI itself is offline-installable (most LogMeIn MSIs are).</div>
+<div class="callout info"><b>The <code>installer\vendor\</code> directory is gitignored.</b> Drop the MSI there (or anywhere else on your dev box); it won't accidentally get committed.</div>
+<p>When <code>-LogmeinMsi</code> isn't passed, the resulting installer has no Components page at all and behaves exactly like a non-LogMeIn build.</p>
 
 <h3 id="customize-dir">Custom install directory</h3>
 <p>Defaults to <code>C:\Program Files\Umbrella Watchtower\</code>. Override with:</p>
@@ -290,6 +311,7 @@ Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" 
 
 <h3 id="captured-summary">Per-probe summary</h3>
 <p>Each daily check-in posts a payload to the worker with a <code>report</code> object containing one key per probe that found anything. Probes silently skip themselves when the product isn't installed (e.g. <code>omsa</code> doesn't appear on an HP host).</p>
+<div class="callout info"><b>All probes are auto-detect.</b> Nothing to configure per host or per client. Drop the agent on a server that already has Veeam, Carbonite, LogMeIn, SentinelOne, OMSA, iDRAC iSM, Windows Server Backup, etc. and each section populates on the next check-in (within ~60 seconds of install). If a product isn't installed, its section is omitted from the report entirely &mdash; the drawer just doesn't show it for that host.</div>
 
 <table class="opts">
   <tr><th>Field</th><th>What's in it</th></tr>
