@@ -591,7 +591,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.12.1";
+const APP_VERSION = "0.12.2";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -2305,7 +2305,18 @@ function buildHostSections(a) {
     });
   }
 
-  // Backups (one row per product detected)
+  // Backups (one row per product detected). WSB row carries an inline
+  // summary of where it writes ("D: (Volume), \\\\nas\\backups (Network)")
+  // so a single-glance Excel reader sees the destination without flipping
+  // to the WSB targets sheet. Veeam / Carbonite don't have an equivalent
+  // structured destination field in our probe output.
+  const wsbDestSummary = (wsb && wsb.installed && Array.isArray(wsb.targets) && wsb.targets.length)
+    ? wsb.targets.map(t => {
+        const p = t.path || t.label || "?";
+        return t.type ? `${p} (${t.type})` : p;
+      }).join("; ")
+    : "";
+
   const backupRows = [];
   if (veeam && veeam.installed) {
     (veeam.products || []).forEach(p => backupRows.push([
@@ -2313,6 +2324,7 @@ function buildHostSections(a) {
       p.version || "",
       (p.lastJob && p.lastJob.result) || "",
       (p.lastJob && p.lastJob.endTime) || "",
+      "", "", "",  // no destination fields for Veeam
     ]));
   }
   if (wsb && wsb.installed) {
@@ -2321,18 +2333,35 @@ function buildHostSections(a) {
       wsb.version || "",
       wsb.lastBackupResult || "",
       wsb.lastBackupTime || "",
+      wsb.lastSuccessfulBackup || "",
+      wsb.numberOfVersions || 0,
+      wsbDestSummary,
     ]);
   }
   if (carbonite && carbonite.installed) {
     (carbonite.products || []).forEach(p => backupRows.push([
-      p.name, p.version || "", "", "",
+      p.name, p.version || "", "", "", "", "", "",
     ]));
   }
   if (backupRows.length) {
     sections.push({
       title: "Backups",
-      headers: ["Product", "Version", "Last result", "Last attempt"],
+      headers: ["Product", "Version", "Last result", "Last attempt", "Last success", "Versions retained", "WSB destination(s)"],
       rows: backupRows,
+    });
+  }
+
+  // Dedicated WSB destinations sheet — one row per target so each drive /
+  // network share gets its own line for downstream filtering / reporting.
+  if (wsb && wsb.installed && Array.isArray(wsb.targets) && wsb.targets.length) {
+    sections.push({
+      title: "WSB destinations",
+      headers: ["Label", "Type", "Path / Drive"],
+      rows: wsb.targets.map(t => [
+        t.label || "",
+        t.type || "",
+        t.path || "",
+      ]),
     });
   }
 
@@ -2471,7 +2500,7 @@ function buildFleetRows() {
     "RAM (GB)", "CPU", "Agent version",
     "Last check-in", "Status",
     "Decommissioned", "Decommissioned by", "Decommissioned at",
-    "OMSA rollup", "WSB last result", "WSB last success",
+    "OMSA rollup", "WSB last result", "WSB last success", "WSB destination(s)",
     "LogMeIn description", "Defender realtime",
     "pcId",
   ];
@@ -2499,6 +2528,12 @@ function buildFleetRows() {
       (omsa && omsa.installed) ? (omsa.healthRollup || "") : "",
       (wsb && wsb.installed) ? (wsb.lastBackupResult || "") : "",
       (wsb && wsb.installed) ? (wsb.lastSuccessfulBackup || "") : "",
+      (wsb && wsb.installed && Array.isArray(wsb.targets) && wsb.targets.length)
+        ? wsb.targets.map(t => {
+            const p = t.path || t.label || "?";
+            return t.type ? `${p} (${t.type})` : p;
+          }).join("; ")
+        : "",
       (lmi && lmi.installed) ? (lmi.description || "") : "",
       def ? (def.realtimeOn ? "on" : "off") : "",
       a.id,

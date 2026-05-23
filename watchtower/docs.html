@@ -108,7 +108,7 @@
       </svg>
       <div>
         <div class="meta">Umbrella Automation</div>
-        <h1>Watchtower &middot; Docs <span class="version-chip">v0.12.1</span></h1>
+        <h1>Watchtower &middot; Docs <span class="version-chip">v0.12.2</span></h1>
       </div>
     </div>
     <a class="btn brand-link" href="index.html">&larr; Back to dashboard</a>
@@ -274,6 +274,7 @@
 
 <h3 id="customize-logmein">Bundle LogMeIn MSI</h3>
 <p>Optional. If you have a LogMeIn host MSI you typically install alongside the agent, you can bake it into the installer EXE so a single deploy puts both on the target. The wizard shows a checkbox <i>Also install LogMeIn remote access</i> (checked by default) on a <b>Select Additional Tasks</b> page after token validation; operators can uncheck it on hosts that already have LogMeIn or don't need it.</p>
+<div class="callout warn"><b>The MSI is NOT in this repo.</b> LogMeIn host MSIs are licensed per LogMeIn Central account; we don't commit a vendor binary into a public repo. Download your own from LogMeIn Central (<b>Deploy</b> &rarr; <b>Mass Deployment</b>), keep it somewhere local (e.g. <code>D:\Downloads\LogMeIn.msi</code> on the build box), and point <code>-LogmeinMsi</code> at it. When <code>-LogmeinMsi</code> isn't passed, the build produces a clean Watchtower-only installer with no Tasks page at all.</div>
 
 <h4>If your MSI is a "Deploy Installation Package" download from LogMeIn Central</h4>
 <p>That's the common case &mdash; the DEPLOYID is baked into the MSI itself, so you don't need to pass any LogMeIn properties on the command line. Just point <code>-LogmeinMsi</code> at the file:</p>
@@ -673,12 +674,12 @@ Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" 
 <p>Open any host's drawer &rarr; <b>PDF</b> / <b>CSV</b> / <b>Excel</b> buttons in the top right.</p>
 <ul>
   <li><b>PDF</b> &mdash; formatted report with the Umbrella Automation header, full system summary, all probe sections, OMSA disk rows highlighted yellow/red for non-critical/critical issues, LogMeIn description compared against the Windows hostname.</li>
-  <li><b>CSV</b> &mdash; one file with sections concatenated (Summary, Volumes, NICs, OMSA RAID, OMSA disks, Backups, Security, LogMeIn, iDRAC, Installed apps, Hotfixes, USB devices). UTF-8 BOM so Excel opens it cleanly with the correct character encoding.</li>
-  <li><b>Excel</b> &mdash; full <code>.xlsx</code> workbook with one sheet per section. Sheet names are capped at Excel's 31-char limit. Column widths are pre-set so the workbook is readable the moment it opens.</li>
+  <li><b>CSV</b> &mdash; one file with sections concatenated (Summary, Volumes, NICs, OMSA RAID, OMSA disks, Backups, <b>WSB destinations</b>, Security, LogMeIn, iDRAC, Installed apps, Hotfixes, USB devices). UTF-8 BOM so Excel opens it cleanly with the correct character encoding.</li>
+  <li><b>Excel</b> &mdash; full <code>.xlsx</code> workbook with one sheet per section. Sheet names are capped at Excel's 31-char limit. Column widths are pre-set so the workbook is readable the moment it opens. <b>Backups</b> sheet carries an inline "WSB destination(s)" column with the target drive(s) and type, and a separate <b>WSB destinations</b> sheet gives one row per backup target (label / type / path) for downstream filtering.</li>
 </ul>
 
 <h3>All endpoints (from the Endpoints tab)</h3>
-<p>The <b>CSV</b> and <b>Excel</b> buttons in the Endpoints filter bar export <b>exactly what you see</b> &mdash; the active search, client filter, and status filter all apply. Each row carries hostname, client, IPs, OS, manufacturer/model, Service Tag, agent version, last check-in, status, OMSA rollup, WSB last result + last success, LogMeIn description, Defender realtime, decommission state, and pcId.</p>
+<p>The <b>CSV</b> and <b>Excel</b> buttons in the Endpoints filter bar export <b>exactly what you see</b> &mdash; the active search, client filter, and status filter all apply. Each row carries hostname, client, IPs, OS, manufacturer/model, Service Tag, agent version, last check-in, status, OMSA rollup, WSB last result + last success + <b>destination(s)</b>, LogMeIn description, Defender realtime, decommission state, and pcId.</p>
 <ul>
   <li><b>Want to ship a status report?</b> Filter to <code>All (active)</code>, click Excel &mdash; you get every live endpoint, header row frozen, ready to mail.</li>
   <li><b>Auditing decom'd hosts?</b> Filter to <code>Decommissioned only</code>, click CSV &mdash; you get the cleanup list with reasons.</li>
