@@ -436,6 +436,7 @@
             <option value="disabled">Disabled</option>
             <option value="backup-failing">Backup failing</option>
             <option value="omsa-warning">OMSA warning</option>
+            <option value="omsa-blind">OMSA installed, no controller</option>
             <option value="update-available">Update available</option>
             <option value="decommissioned">Decommissioned only</option>
             <option value="all-with-decom">All + decommissioned</option>
@@ -633,7 +634,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.13.0";
+const APP_VERSION = "0.13.1";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -808,14 +809,30 @@ function statusOf(agent) {
 }
 
 function omsaHealthOf(agent) {
-  // Returns null when OMSA isn't installed on this host OR rollup is OK.
-  // Otherwise returns { kind: "warn" | "bad", label } with a duration
-  // suffix derived from the worker-tracked omsaFirstWarnAt timestamp.
-  // The duration is "how long since the warning was first seen by the
-  // worker", not "how long the underlying RAID has actually been bad" —
-  // close enough for triage and we get it for free from check-ins.
+  // Returns null when OMSA isn't installed on this host OR rollup is OK
+  // with at least one controller / RAID / disk detected (the truly
+  // healthy state).
+  //
+  // Otherwise returns one of:
+  //   { kind: "bad",  label: "OMSA critical <Nd>" } — rollup says bad
+  //   { kind: "warn", label: "OMSA warn <Nd>" }    — rollup says warn
+  //   { kind: "info", label: "OMSA blind" }        — installed but no
+  //     controllers / vdisks / pdisks detected. Not an alert, but
+  //     important to flag because the host has NO disk-health
+  //     visibility via OMSA -- common on hosts with onboard SATA only,
+  //     paravirtualized VM disks, or stale PERC firmware.
   const omsa = agent.report && agent.report.omsa;
   if (!omsa || !omsa.installed) return null;
+
+  // OMSA-blind: installed but reports nothing. Surface in the row so
+  // operators can spot the gap without opening each drawer.
+  const ctlCount = (omsa.controllers   || []).length;
+  const vdCount  = (omsa.virtualDisks  || []).length;
+  const pdCount  = (omsa.physicalDisks || []).length;
+  if (ctlCount === 0 && vdCount === 0 && pdCount === 0) {
+    return { kind: "info", label: "OMSA blind" };
+  }
+
   const rollup = omsa.healthRollup;
   if (rollup !== "warn" && rollup !== "bad") return null;
 
@@ -966,7 +983,13 @@ function renderFleet() {
     }
     if (sf === "omsa-warning") {
       const oh = omsaHealthOf(a);
-      if (!oh) return false;
+      // Only the actionable states (warn / bad). Don't include "info" /
+      // blind hosts here — they have their own filter option below.
+      if (!oh || oh.kind === "info") return false;
+    }
+    if (sf === "omsa-blind") {
+      const oh = omsaHealthOf(a);
+      if (!oh || oh.kind !== "info") return false;
     }
     if (sf === "update-available" && !updateAvailableFor(a)) return false;
     if (q) {
@@ -1023,7 +1046,7 @@ function renderFleet() {
       ? ` <span class="badge ${bh.kind === "warn" ? "warn" : "bad"}" title="Windows Server Backup status">${esc(bh.label)}</span>`
       : "";
     const ohBadge = oh
-      ? ` <span class="badge ${oh.kind === "warn" ? "warn" : "bad"}" title="Dell OMSA storage health">${esc(oh.label)}</span>`
+      ? ` <span class="badge ${oh.kind === "bad" ? "bad" : oh.kind === "warn" ? "warn" : "muted"}" title="${oh.kind === "info" ? "OMSA is installed but reports no controllers / RAID / disks on this host — open the drawer for likely causes" : "Dell OMSA storage health"}">${esc(oh.label)}</span>`
       : "";
     // Update badge intentionally dropped from the fleet row in v0.10.1 —
     // agent version + update-available hint live in the drawer's Status
