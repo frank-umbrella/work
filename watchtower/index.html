@@ -66,6 +66,12 @@
   .brand .meta { font-size: 11px; color: var(--ink-faint); font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; }
   .brand h1 { font-size: 16px; margin: 0; line-height: 1.1; display: inline-flex; align-items: baseline; gap: 6px; }
   .brand h1 .version-chip { font-size: 11px; color: var(--ink-faint); font-weight: 500; letter-spacing: 0.02em; background: var(--surface-2); border: 1px solid var(--line); padding: 1px 6px; border-radius: 4px; font-variant-numeric: tabular-nums; }
+  /* Installer version chip on the Download Installer button — tells the
+     operator at a glance which EXE the dashboard will hand out, so they
+     can spot when a fresh build.ps1 -Publish hasn't been run lately
+     (e.g. v0.9.0 still being served while the dashboard is at v0.12.x). */
+  #downloadInstallerLink .installer-ver { font-weight: 600; font-size: 10.5px; color: var(--accent); margin-left: 5px; font-variant-numeric: tabular-nums; }
+  #downloadInstallerLink .installer-ver:empty { display: none; }
   .userbar { margin-left: auto; display: flex; align-items: center; gap: 10px; font-size: 13px; }
   .userbar img.avatar { width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--line); }
   .userbar .who { display: flex; flex-direction: column; line-height: 1.2; align-items: flex-end; }
@@ -390,7 +396,7 @@
         </div>
       </a>
       <div class="userbar">
-        <a class="btn btn-sm" href="#" id="downloadInstallerLink" title="Download Watchtower-Setup.exe (latest published version)">Download installer</a>
+        <a class="btn btn-sm" href="#" id="downloadInstallerLink" title="Download Watchtower-Setup.exe (latest published version)">Download installer <span class="installer-ver" id="installerVerChip"></span></a>
         <a class="btn btn-sm" href="docs.html" target="_blank" rel="noopener">Docs</a>
         <div class="who"><span class="e" id="userEmail"></span><span class="r">MSP admin</span></div>
         <img class="avatar" id="userAvatar" alt="">
@@ -619,7 +625,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.12.8";
+const APP_VERSION = "0.12.9";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -1112,6 +1118,17 @@ function subscribeSettings() {
   });
 }
 
+// Stamp the version chip next to the header's Download Installer link
+// whenever state.latestAgent updates. Empty version = clear the chip
+// (avoids a stale value flashing during signed-out -> signed-in
+// transitions).
+function paintInstallerVerChip() {
+  const chip = document.getElementById("installerVerChip");
+  if (!chip) return;
+  const v = state.latestAgent && state.latestAgent.version;
+  chip.textContent = v ? `v${v}` : "";
+}
+
 // ============== /settings/agentVersion live subscription ==============
 function subscribeLatestAgent() {
   if (state.unsub.latestAgent) state.unsub.latestAgent();
@@ -1135,12 +1152,14 @@ function subscribeLatestAgent() {
               notes: data.notes || "",
               source: data.source || "github",
             };
+            paintInstallerVerChip();
             renderFleet();
             if (state.openPcId) renderDrawer(state.openPcId);
           }
         })
         .catch(() => {});
     }
+    paintInstallerVerChip();
     // Reflect into the Settings tab inputs if they exist and aren't focused.
     // (Only inputs from the Settings doc — don't pre-fill from GitHub fallback
     // since those values aren't "saved" and saving would commit them.)

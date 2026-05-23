@@ -1164,24 +1164,50 @@ async function handleCheckin(request, env, ctx) {
     }));
   }
 
-  // ----- 6b. First-time intake email -----
+  // ----- 6b. First-time intake email + webhook -----
   // When this is the host's first check-in (no previous /agents/{pcId}
-  // doc), email a comprehensive summary of what the probes found.
-  // The admin gets a one-time "welcome to the fleet, here's what's on
-  // this box" report. Fires exactly once per pcId by construction —
-  // firstSeen only happens before the first setDoc above.
-  if (firstSeen && config.enabled && config.emailEnabled && env.RESEND_API_KEY) {
-    ctx.waitUntil(
-      sendIntakeEmail(env, {
-        pcId,
-        hostname,
-        client: resolvedClient,
-        agentVersion: agentVersion || 'unknown',
-        when: nowIso,
-        externalIp: newExternalIp,
-        report,
-      }).catch((e) => console.error('Intake email failed:', e))
-    );
+  // doc), notify the admin via whichever channels are configured. The
+  // email is the comprehensive HTML report; the webhook gets a compact
+  // structured payload so chat channels (Teams / Slack / Google Chat)
+  // get the "new endpoint joined" ping at the same time the email lands.
+  // Both fire exactly once per pcId — firstSeen only triggers before the
+  // first setDoc above.
+  if (firstSeen && config.enabled) {
+    if (config.emailEnabled && env.RESEND_API_KEY) {
+      ctx.waitUntil(
+        sendIntakeEmail(env, {
+          pcId,
+          hostname,
+          client: resolvedClient,
+          agentVersion: agentVersion || 'unknown',
+          when: nowIso,
+          externalIp: newExternalIp,
+          report,
+        }).catch((e) => console.error('Intake email failed:', e))
+      );
+    }
+    if (config.webhookEnabled !== false && effectiveWebhookUrl) {
+      // Match the shape of the other event webhooks (event + pcId + hostname
+      // + client + when + relevant extras). humanSummary() in postWebhook
+      // turns event='host_onboarded' into a readable line for chat receivers.
+      const sys = report?.system || {};
+      const os = sys.os || {};
+      ctx.waitUntil(
+        postWebhook(effectiveWebhookUrl, {
+          event: 'host_onboarded',
+          pcId,
+          hostname,
+          client: resolvedClient,
+          agentVersion: agentVersion || 'unknown',
+          when: nowIso,
+          externalIp: newExternalIp,
+          manufacturer: sys.manufacturer || null,
+          model: sys.model || null,
+          serviceTag: sys.serviceTag || null,
+          os: os.name || null,
+        }).catch((e) => console.error('Intake webhook failed:', e))
+      );
+    }
   }
 
   // ----- 7. Notify on IP change (unless silenced by per-PC config) -----
@@ -1988,6 +2014,8 @@ function humanSummary(p) {
   switch (p.event) {
     case 'test':
       return `Watchtower test event from ${p.triggeredBy || 'dashboard'} at ${p.when || new Date().toISOString()}`;
+    case 'host_onboarded':
+      return `Watchtower: new endpoint joined — ${host} (${client})${p.manufacturer || p.model ? ` · ${[p.manufacturer, p.model].filter(Boolean).join(' ')}` : ''}${p.os ? ` · ${p.os}` : ''}${p.externalIp ? ` · IP ${p.externalIp}` : ''}`;
     case 'external_ip_changed':
       return `Watchtower: external IP changed on ${host} (${client}): ${p.previousIp || '?'} → ${p.newIp || '?'}`;
     case 'omsa_warning':
