@@ -58,7 +58,7 @@ service cloud.firestore {
     // -------- /install_tokens/{tokenHash} --------
     // Per-client install tokens. Doc id is the SHA-256 hex digest of the
     // raw token; the raw token itself is never stored (shown once at
-    // generation time, baked into the installer at build time).
+    // generation time, entered at install time in the agent wizard).
     //
     // Write: admins only (from the dashboard).
     // Read: admins (to manage). The worker reads via service account

@@ -108,13 +108,14 @@
   <a href="#what" class="section">What Watchtower is</a>
   <a href="#quick">Quick start</a>
   <a href="#install" class="section">Install</a>
-  <a href="#install-prereqs">Prerequisites</a>
-  <a href="#install-flow">Build + deploy</a>
+  <a href="#install-build">Build the installer (once)</a>
+  <a href="#install-flow">Deploy to a client PC</a>
   <a href="#install-verify">Verify check-in</a>
   <a href="#customize" class="section">Customize install</a>
+  <a href="#customize-silent">Silent / RMM install</a>
   <a href="#customize-build">build.ps1 parameters</a>
-  <a href="#customize-silent">Silent install</a>
   <a href="#customize-dir">Custom install directory</a>
+  <a href="#customize-worker">Alternate worker URL</a>
   <a href="#uninstall" class="section">Uninstall</a>
   <a href="#uninstall-remote">Remote (preferred)</a>
   <a href="#uninstall-local">Local (UI or CLI)</a>
@@ -138,76 +139,94 @@
 </ul>
 
 <h2 id="quick">Quick start</h2>
-<p>The 60-second path:</p>
+<p>The 60-second path. You build <code>Watchtower-Setup.exe</code> <i>once</i> (or grab the most recent build from the dist folder) and ship the same EXE to every client &mdash; the token is entered at install time.</p>
 <ol class="steps">
-  <li>Open the <a href="index.html">dashboard</a> &rarr; <b>Clients</b> tab &rarr; <b>+ New client</b>. Give it a name.</li>
-  <li>On that client's row, click <b>+ Token</b>. Copy the token that appears (you only get to see it once).</li>
-  <li>On your build box, run:
-    <pre><code>.\installer\build.ps1 -ClientName "Acme Corp" -InstallToken "wt_xxxxx"</code></pre>
+  <li>
+    Open the <a href="index.html">dashboard</a> &rarr; <b>Clients</b> tab &rarr; <b>+ New client</b> (if needed) &rarr; click <b>+ Token</b> on the client's row. Copy the token (you only get to see it once).
   </li>
-  <li>Ship <code>installer\dist\Watchtower-Setup-Acme Corp.exe</code> to the target PC and run it as admin.</li>
-  <li>Wait up to 24h (or restart the service to force an immediate check-in). The host shows up in the <b>Fleet</b> tab.</li>
+  <li>
+    Run <code>Watchtower-Setup.exe</code> as admin on the target PC. Paste the token into the wizard when prompted; the installer pings Watchtower to verify the token before continuing.
+  </li>
+  <li>
+    Wait ~60 seconds for the first check-in. The host appears in the dashboard's <b>Fleet</b> tab.
+  </li>
 </ol>
+<div class="callout info"><b>Why only one installer?</b> Older versions baked the token into the EXE at build time, so you needed a custom build per client. Since v0.3.0 the installer carries no per-client data &mdash; the worker resolves the client name from the token at install time and the wizard writes the right config.</div>
 
 <h2 id="install">Install</h2>
 
-<h3 id="install-prereqs">Prerequisites on your build box</h3>
+<h3 id="install-build">Build the installer (once)</h3>
+<p>You only need to do this when the agent code itself changes &mdash; not per client. Prerequisites on your build box:</p>
 <ul>
   <li>Windows 10/11 with admin rights</li>
   <li>Python 3.11+ &mdash; <code>winget install Python.Python.3.11</code></li>
-  <li>PyInstaller &mdash; <code>pip install pyinstaller pywin32 pystray pillow requests</code></li>
+  <li>PyInstaller and the agent's Python deps &mdash; <code>pip install pyinstaller pywin32 pystray pillow requests</code></li>
   <li>Inno Setup 6 &mdash; <code>winget install JRSoftware.InnoSetup -e</code></li>
 </ul>
-<p>You only build installers once per client (or whenever you re-issue a token); the agent itself doesn't need any of these on the target PC.</p>
+<p>Then:</p>
+<pre><code>cd work\watchtower\installer
+.\build.ps1</code></pre>
+<p>Output lands at <code>installer\dist\Watchtower-Setup.exe</code>. Keep that EXE around &mdash; it's the same file you'll deploy to every client.</p>
 
-<h3 id="install-flow">Build + deploy</h3>
+<h3 id="install-flow">Deploy to a client PC</h3>
 <ol class="steps">
   <li>
-    <b>Generate a token in the dashboard.</b> Clients &rarr; <i>(client)</i> &rarr; <b>+ Token</b>. Copy it immediately &mdash; Watchtower only stores the SHA-256 hash, so it can't show you the raw value again.
+    <b>Generate a token in the dashboard.</b> Clients tab &rarr; <i>(client)</i> &rarr; <b>+ Token</b>. Copy it immediately &mdash; Watchtower only stores the SHA-256 hash, so it can't show you the raw value again.
   </li>
   <li>
-    <b>Build the installer.</b> From the repo root:
-    <pre><code>cd work\watchtower\installer
-.\build.ps1 -ClientName "Acme Corp" -InstallToken "wt_xxxxx"</code></pre>
-    The token is baked into the installer at compile time &mdash; it is not a runtime input.
+    <b>Get the EXE to the target PC.</b> Push <code>Watchtower-Setup.exe</code> however you normally distribute software (LogMeIn, RMM, copy-paste, email, file share &mdash; it's a self-contained EXE).
   </li>
   <li>
-    <b>Ship the EXE.</b> The output lands at <code>installer\dist\Watchtower-Setup-&lt;ClientName&gt;.exe</code>. Push it to the target however you normally distribute installers (LogMeIn, RMM, copy-paste, etc.).
+    <b>Run it as admin.</b> Double-click works (UAC will prompt). For unattended deploys see <a href="#customize-silent">silent install</a> below.
   </li>
   <li>
-    <b>Run as admin on the target PC.</b> The installer needs elevation &mdash; it creates a service. Double-click works; for unattended deploys see <a href="#customize-silent">silent install</a>.
+    <b>Paste the token at the wizard prompt.</b> The installer makes a quick call to the Watchtower worker to verify the token. If the token is wrong, revoked, or unreachable the wizard refuses to advance &mdash; nothing is written to the PC. On success it proceeds and writes <code>%ProgramData%\Watchtower\config.json</code> with the token + worker-resolved client name + a fresh per-install pcId.
   </li>
 </ol>
+<div class="callout warn"><b>Network requirement at install time:</b> the wizard needs to reach the worker to validate the token. If the target PC is behind a strict firewall, allow outbound HTTPS to <code>watchtower-worker.umbrelladev.workers.dev</code> before running the installer.</div>
 
 <h3 id="install-verify">Verify check-in</h3>
-<p>After install, the service kicks off its first check-in immediately. Allow up to 60 seconds for the worker round-trip + Firestore write. Then:</p>
+<p>After install, the service kicks off its first check-in within a minute. Then:</p>
 <ul>
-  <li>Dashboard &rarr; <b>Fleet</b>: the host should appear at the top, status <b>Healthy</b>.</li>
+  <li>Dashboard &rarr; <b>Fleet</b>: the host appears at the top, status <b>Healthy</b>.</li>
   <li>If it doesn't show up, on the target PC run <code>sc.exe query WatchtowerAgent</code> &mdash; should report <code>STATE: 4 RUNNING</code>.</li>
   <li>Force a re-check-in: <code>sc.exe stop WatchtowerAgent; sc.exe start WatchtowerAgent</code></li>
 </ul>
 
 <h2 id="customize">Customize install</h2>
 
+<h3 id="customize-silent">Silent / RMM install</h3>
+<p>For unattended deploys, pass the token on the command line &mdash; the wizard is skipped entirely:</p>
+<pre><code>Watchtower-Setup.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /TOKEN=wt_xxxxx</code></pre>
+<p>Optional overrides:</p>
+<table class="opts">
+  <tr><th>Flag</th><th>Purpose</th></tr>
+  <tr><td><code>/TOKEN=&lt;wt_...&gt;</code></td><td>Install token. Required for silent installs (no wizard to enter it). Validated against the worker before install completes &mdash; bad token = non-zero exit code.</td></tr>
+  <tr><td><code>/CLIENT="Acme Corp"</code></td><td>Override the client label shown in Add/Remove Programs and the tray tooltip. If omitted, the worker's token-bound client name is used.</td></tr>
+  <tr><td><code>/WORKERURL=https://...</code></td><td>Hit a different worker (staging / testing only). Defaults to production.</td></tr>
+  <tr><td><code>/VERYSILENT</code></td><td>Standard Inno Setup &mdash; suppresses the wizard.</td></tr>
+  <tr><td><code>/SUPPRESSMSGBOXES</code></td><td>Suppress error dialogs (failures still produce non-zero exit codes and write to the install log).</td></tr>
+</table>
+<p>Exit code 0 = success. Non-zero = something failed; check the install log at <code>%TEMP%\Setup Log YYYY-MM-DD #NNN.txt</code>.</p>
+
 <h3 id="customize-build">build.ps1 parameters</h3>
+<p>Build-time customization (rare &mdash; the defaults are right for production):</p>
 <table class="opts">
   <tr><th>Parameter</th><th>Default</th><th>Notes</th></tr>
-  <tr><td><code>-ClientName</code></td><td>(required)</td><td>Shown in dashboard, Add/Remove Programs, and the installer filename.</td></tr>
-  <tr><td><code>-InstallToken</code></td><td>(required)</td><td>The <code>wt_…</code> string from the dashboard's token modal.</td></tr>
-  <tr><td><code>-WorkerUrl</code></td><td><code>https://watchtower-worker.umbrelladev.workers.dev</code></td><td>Override only when testing against a staging worker.</td></tr>
-  <tr><td><code>-AppVersion</code></td><td><code>0.1.0</code></td><td>Cosmetic &mdash; appears in Add/Remove Programs.</td></tr>
-  <tr><td><code>-SkipPyInstaller</code></td><td>off</td><td>Reuse cached <code>build\*.exe</code> when iterating on the <code>.iss</code> &mdash; saves a couple of minutes per build.</td></tr>
+  <tr><td><code>-WorkerUrl</code></td><td><code>https://watchtower-worker.umbrelladev.workers.dev</code></td><td>Baked-in default the wizard pings. Override only when you need installs to default to a staging worker.</td></tr>
+  <tr><td><code>-AppVersion</code></td><td><code>0.3.0</code></td><td>Cosmetic &mdash; appears in Add/Remove Programs and the wizard title.</td></tr>
+  <tr><td><code>-SkipPyInstaller</code></td><td>off</td><td>Reuse cached <code>build\*.exe</code> when iterating on the <code>.iss</code>. Saves ~2 minutes per build.</td></tr>
 </table>
-
-<h3 id="customize-silent">Silent install</h3>
-<p>For RMM or scripted deploys, run the EXE with Inno Setup's silent flags:</p>
-<pre><code>"Watchtower-Setup-Acme Corp.exe" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART</code></pre>
-<p>Exit code 0 = success. The installer never reboots and never prompts.</p>
+<div class="callout info"><b>No <code>-ClientName</code> or <code>-InstallToken</code> at build time.</b> Both are runtime inputs as of v0.3.0 &mdash; either prompted in the wizard or passed via <code>/TOKEN=</code> <code>/CLIENT=</code> for silent installs.</div>
 
 <h3 id="customize-dir">Custom install directory</h3>
 <p>Defaults to <code>C:\Program Files\Umbrella Watchtower\</code>. Override with:</p>
-<pre><code>"Watchtower-Setup-Acme Corp.exe" /VERYSILENT /DIR="D:\Tools\Watchtower"</code></pre>
+<pre><code>Watchtower-Setup.exe /VERYSILENT /TOKEN=wt_xxxxx /DIR="D:\Tools\Watchtower"</code></pre>
 <div class="callout info"><b>Note:</b> <code>%ProgramData%\Watchtower\</code> (for <code>config.json</code> and <code>state.json</code>) is always used regardless of <code>/DIR</code>. That path is shared between the service and the per-user tray.</div>
+
+<h3 id="customize-worker">Alternate worker URL</h3>
+<p>When the install token belongs to a different worker (staging, a parallel test environment, etc.), pass it on the command line so both the wizard's validation call AND the resulting <code>config.json</code> use it:</p>
+<pre><code>Watchtower-Setup.exe /TOKEN=wt_xxxxx /WORKERURL=https://watchtower-worker-staging.umbrelladev.workers.dev</code></pre>
 
 <h2 id="uninstall">Uninstall</h2>
 
@@ -232,7 +251,7 @@ Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" 
 
 <h2 id="tokens">Install tokens</h2>
 <p>Each client gets its own install token. The dashboard generates 32 cryptographically-random bytes (256 bits of entropy), base64url-encodes them, and prefixes <code>wt_</code> for easy spotting in logs. Only the SHA-256 hash is stored in Firestore &mdash; you see the raw token exactly once, in the modal that pops up right after generation.</p>
-<p>Bake the token into the installer at build time (it becomes part of <code>%ProgramData%\Watchtower\config.json</code> on the target PC). Don't share tokens across clients &mdash; the worker enforces the binding on every check-in, and using a token outside its assigned client makes alert routing wrong.</p>
+<p>Paste the token into the wizard at install time (or pass <code>/TOKEN=...</code> for silent installs). The installer validates it against the worker before completing and writes the verified token to <code>%ProgramData%\Watchtower\config.json</code> on the target PC. Don't share tokens across clients &mdash; the worker enforces the binding on every check-in, and using a token outside its assigned client makes alert routing wrong.</p>
 
 <h3 id="tokens-revoke">Revoking a token</h3>
 <p>From the Clients tab, click <b>Tokens</b> on the client's row to expand the token list, then click <b>Revoke</b> on the token in question. The token doc is kept (with <code>revoked: true</code>) so you have an audit trail; the worker treats revoked + unknown identically so an attacker can't tell which tokens ever existed.</p>
@@ -243,7 +262,7 @@ Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" 
 <h3>Agent installed but not appearing in dashboard</h3>
 <ul>
   <li>Confirm the service is running: <code>sc.exe query WatchtowerAgent</code> &mdash; <code>STATE: 4 RUNNING</code>.</li>
-  <li>Check the worker logs in the Cloudflare dashboard for the most recent check-in. 401s mean a bad token (typo at build time, or revoked). 5xx means worker or Firestore is having a bad day.</li>
+  <li>Check the worker logs in the Cloudflare dashboard for the most recent check-in. 401s mean a bad token (typo at install time, or revoked since). 5xx means worker or Firestore is having a bad day. Note: with the v0.3.0 wizard, 401s on first check-in should be rare &mdash; the installer pre-validates against the worker.</li>
   <li>Worker URL mismatch: open <code>%ProgramData%\Watchtower\config.json</code> on the target PC and confirm <code>workerUrl</code> matches what's deployed.</li>
 </ul>
 
