@@ -587,7 +587,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.11.5";
+const APP_VERSION = "0.11.6";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -1960,13 +1960,93 @@ function buildReportDom(a, logoSvg) {
       </ul>
     ` : ""}
 
-    ${omsa && omsa.installed ? sectionHdr("Dell OMSA · storage") + `
-      <div style="font-size:12px;margin-bottom:8px;">OMSA <code>${esc(omsa.version || "?")}</code> &middot; rollup <b>${esc(omsa.healthRollup || "unknown")}</b></div>
-      ${(omsa.virtualDisks || []).length ? `<div style="font-size:11px;color:#666;text-transform:uppercase;margin:6px 0 2px;">Virtual disks</div>
-        <ul style="margin:0 0 10px;padding-left:20px;font-size:12px;">${omsa.virtualDisks.map(v => `<li>${esc(v.name || v.id)} &middot; ${esc(v.layout || "?")} &middot; ${esc(v.size || "?")} &middot; <b>${esc(v.status)}</b>${v.state ? ` / ${esc(v.state)}` : ""}</li>`).join("")}</ul>` : ""}
-      ${(omsa.physicalDisks || []).length ? `<div style="font-size:11px;color:#666;text-transform:uppercase;margin:6px 0 2px;">Physical disks</div>
-        <ul style="margin:0 0 10px;padding-left:20px;font-size:12px;">${omsa.physicalDisks.map(d => `<li><code>${esc(d.id)}</code> &middot; ${esc(d.product || d.vendor || "?")} &middot; ${esc(d.capacity || "?")} &middot; <b>${esc(d.status)}</b>${d.predictiveFailure && d.predictiveFailure.toLowerCase() === "yes" ? " &middot; <b>SMART warn</b>" : ""}</li>`).join("")}</ul>` : ""}
-    ` : ""}
+    ${omsa && omsa.installed ? (() => {
+      // Row-level highlight helper: yellow for non-critical (SMART warn,
+      // "Non-Critical" state), orange/red for critical (anything failed
+      // / offline / degraded). The row-status function returns inline
+      // CSS for the <tr> background + a left border accent.
+      const rowStyleForDisk = (d) => {
+        const status = (d.status || "").toLowerCase();
+        const smartBad = (d.predictiveFailure || "").toLowerCase() === "yes";
+        const critical = status === "critical" || status === "failed" || status === "offline" || status === "bad";
+        const warn = smartBad || status === "non-critical" || status === "warn" || status === "warning";
+        if (critical) return "background:#fee2e2;border-left:4px solid #d04646;";
+        if (warn)     return "background:#fef3c7;border-left:4px solid #d97706;";
+        return "";
+      };
+      const rowStyleForVd = (v) => {
+        const s = (v.status || "").toLowerCase();
+        if (s === "critical" || s === "failed" || s === "offline") return "background:#fee2e2;border-left:4px solid #d04646;";
+        if (s === "non-critical" || s === "warn" || s === "warning" || s === "degraded") return "background:#fef3c7;border-left:4px solid #d97706;";
+        return "";
+      };
+
+      const vdHtml = (omsa.virtualDisks || []).length ? `
+        <div style="font-size:10.5px;color:#666;text-transform:uppercase;letter-spacing:0.06em;margin:8px 0 4px;font-weight:700;">Virtual disks (RAID)</div>
+        <table style="width:100%;border-collapse:collapse;margin-bottom:10px;font-size:12px;">
+          <thead><tr style="background:#fafbfc;color:#666;font-size:10.5px;text-transform:uppercase;">
+            <th style="padding:6px 8px;text-align:left;border-bottom:1px solid #e3e6ec;">Name</th>
+            <th style="padding:6px 8px;text-align:left;border-bottom:1px solid #e3e6ec;">RAID</th>
+            <th style="padding:6px 8px;text-align:right;border-bottom:1px solid #e3e6ec;">Size</th>
+            <th style="padding:6px 8px;text-align:left;border-bottom:1px solid #e3e6ec;">State</th>
+            <th style="padding:6px 8px;text-align:right;border-bottom:1px solid #e3e6ec;">Status</th>
+          </tr></thead>
+          <tbody>
+            ${omsa.virtualDisks.map(v => `
+              <tr style="${rowStyleForVd(v)}">
+                <td style="padding:5px 8px;border-bottom:1px solid #f0f1f4;"><b>${esc(v.name || ("vDisk " + v.id))}</b></td>
+                <td style="padding:5px 8px;border-bottom:1px solid #f0f1f4;">${esc(v.layout || "—")}</td>
+                <td style="padding:5px 8px;text-align:right;border-bottom:1px solid #f0f1f4;">${esc(v.size || "—")}</td>
+                <td style="padding:5px 8px;border-bottom:1px solid #f0f1f4;color:#475063;">${esc(v.state || "—")}</td>
+                <td style="padding:5px 8px;text-align:right;border-bottom:1px solid #f0f1f4;"><b>${esc(v.status || "?")}</b></td>
+              </tr>`).join("")}
+          </tbody>
+        </table>
+      ` : "";
+
+      const pdHtml = (omsa.physicalDisks || []).length ? `
+        <div style="font-size:10.5px;color:#666;text-transform:uppercase;letter-spacing:0.06em;margin:8px 0 4px;font-weight:700;">Physical disks (${omsa.physicalDisks.length})</div>
+        <table style="width:100%;border-collapse:collapse;margin-bottom:10px;font-size:12px;">
+          <thead><tr style="background:#fafbfc;color:#666;font-size:10.5px;text-transform:uppercase;">
+            <th style="padding:6px 8px;text-align:left;border-bottom:1px solid #e3e6ec;">ID</th>
+            <th style="padding:6px 8px;text-align:left;border-bottom:1px solid #e3e6ec;">Model</th>
+            <th style="padding:6px 8px;text-align:right;border-bottom:1px solid #e3e6ec;">Capacity</th>
+            <th style="padding:6px 8px;text-align:left;border-bottom:1px solid #e3e6ec;">SMART</th>
+            <th style="padding:6px 8px;text-align:right;border-bottom:1px solid #e3e6ec;">Status</th>
+          </tr></thead>
+          <tbody>
+            ${omsa.physicalDisks.map(d => {
+              const smartBad = (d.predictiveFailure || "").toLowerCase() === "yes";
+              return `
+                <tr style="${rowStyleForDisk(d)}">
+                  <td style="padding:5px 8px;border-bottom:1px solid #f0f1f4;font-family:monospace;font-size:11px;">${esc(d.id || "—")}</td>
+                  <td style="padding:5px 8px;border-bottom:1px solid #f0f1f4;">${esc(d.product || d.vendor || "—")}</td>
+                  <td style="padding:5px 8px;text-align:right;border-bottom:1px solid #f0f1f4;">${esc(d.capacity || "—")}</td>
+                  <td style="padding:5px 8px;border-bottom:1px solid #f0f1f4;">${smartBad ? `<b style="color:#7f1d1d;background:#fde68a;padding:1px 6px;border-radius:3px;">SMART WARN</b>` : `<span style="color:#888;">—</span>`}</td>
+                  <td style="padding:5px 8px;text-align:right;border-bottom:1px solid #f0f1f4;"><b>${esc(d.status || "?")}</b></td>
+                </tr>`;
+            }).join("")}
+          </tbody>
+        </table>
+      ` : "";
+
+      // Rollup callout — bright at the top of the OMSA section if rollup
+      // isn't OK, so a busy PDF still surfaces the problem.
+      const rollup = (omsa.healthRollup || "unknown").toLowerCase();
+      const rollupCallout = (rollup === "warn" || rollup === "bad") ? `
+        <div style="background:${rollup === "bad" ? "#fee2e2" : "#fef3c7"};border:1px solid ${rollup === "bad" ? "#fca5a5" : "#fde68a"};color:${rollup === "bad" ? "#7f1d1d" : "#78350f"};padding:8px 12px;border-radius:6px;margin:4px 0 8px;font-size:12.5px;">
+          <b>OMSA rollup: ${rollup === "bad" ? "CRITICAL" : "WARNING"}.</b>
+          Highlighted rows below show what needs attention.
+        </div>
+      ` : "";
+
+      return sectionHdr("Dell OMSA · storage") + `
+        <div style="font-size:12px;margin-bottom:6px;">OMSA <code>${esc(omsa.version || "?")}</code> &middot; rollup <b>${esc(omsa.healthRollup || "unknown")}</b></div>
+        ${rollupCallout}
+        ${vdHtml}
+        ${pdHtml}
+      `;
+    })() : ""}
 
     ${(veeam || wsb || carbonite) ? sectionHdr("Backups") + `
       ${veeam && veeam.installed ? (veeam.products || []).map(p => `<div style="font-size:12px;margin-bottom:4px;"><b>${p.edition === "br" ? "Veeam Backup &amp; Replication" : "Veeam Agent for Windows"}</b> v${esc(p.version || "?")}${p.lastJob && p.lastJob.result ? ` &middot; last job: <b>${esc(p.lastJob.result)}</b>${p.lastJob.endTime ? ` (${esc(p.lastJob.endTime)})` : ""}` : ""}</div>`).join("") : ""}
@@ -1980,7 +2060,23 @@ function buildReportDom(a, logoSvg) {
     ` : ""}
 
     ${(lmi || idrac) ? sectionHdr("Remote access") + `
-      ${lmi && lmi.installed ? `<div style="font-size:12px;margin-bottom:4px;"><b>LogMeIn</b> v${esc(lmi.version || "?")} &middot; service ${esc(lmi.serviceState || "?")}${lmi.description ? ` &middot; "${esc(lmi.description)}"` : ""}</div>` : ""}
+      ${lmi && lmi.installed ? (() => {
+        // Description vs hostname compare: case-insensitive, trim. When
+        // they don't match it's almost always intentional (a friendlier
+        // label for the customer like "Reception PC" vs the Windows
+        // hostname like "RECEPTION-DT") but worth flagging so the MSP
+        // can spot a stale description from a hardware swap.
+        const desc = (lmi.description || "").trim();
+        const host = (a.hostname || "").trim();
+        const matches = desc && host && desc.toLowerCase() === host.toLowerCase();
+        const descCell = desc
+          ? (matches
+              ? `<b>"${esc(desc)}"</b> <span style="color:#16a34a;">&middot; matches hostname</span>`
+              : `<b>"${esc(desc)}"</b> <span style="background:#fef3c7;color:#78350f;padding:1px 6px;border-radius:3px;font-size:11px;font-weight:700;">DIFFERS from hostname "${esc(host)}"</span>`)
+          : `<i style="color:#888;">no description set</i>`;
+        return `<div style="font-size:12px;margin-bottom:4px;"><b>LogMeIn</b> v${esc(lmi.version || "?")} &middot; service ${esc(lmi.serviceState || "?")}</div>
+          <div style="font-size:12px;margin-bottom:6px;color:#475063;">&nbsp;&nbsp;&nbsp;&nbsp;Description: ${descCell}</div>`;
+      })() : ""}
       ${idrac && idrac.installed ? `<div style="font-size:12px;margin-bottom:4px;"><b>iDRAC Service Module</b> v${esc(idrac.version || "?")} &middot; service ${esc(idrac.serviceState || "?")}</div>` : ""}
     ` : ""}
 
@@ -2168,13 +2264,23 @@ function renderDrawer(pcId) {
       ["Service", esc(idrac.serviceName) + " (" + esc(idrac.serviceState || "?") + ")"],
     ])}</div>` : ""}
 
-    ${lmi ? `<div class="section"><h3>LogMeIn</h3>${kv([
-      ["Installed", "yes"],
-      ["Version", esc(lmi.version)],
-      ["Service", esc(lmi.serviceState)],
-      ["Guardian svc", esc(lmi.guardianServiceState)],
-      ["Description", esc(lmi.description) || "—"],
-    ])}</div>` : ""}
+    ${lmi ? (() => {
+      const desc = (lmi.description || "").trim();
+      const host = (a.hostname || "").trim();
+      const matches = desc && host && desc.toLowerCase() === host.toLowerCase();
+      const descRow = desc
+        ? (matches
+            ? `${esc(desc)} <span class="badge ok" style="margin-left:6px;">matches hostname</span>`
+            : `${esc(desc)} <span class="badge warn" style="margin-left:6px;" title="The LogMeIn description and the Windows hostname don't match — this is often intentional (a friendly label like 'Reception PC') but worth confirming.">differs from hostname</span>`)
+        : `<span class="meta">— (no description set in LogMeIn)</span>`;
+      return `<div class="section"><h3>LogMeIn</h3>${kv([
+        ["Installed", "yes"],
+        ["Version", esc(lmi.version)],
+        ["Service", esc(lmi.serviceState)],
+        ["Guardian svc", esc(lmi.guardianServiceState)],
+        ["Description", descRow],
+      ])}</div>`;
+    })() : ""}
 
     ${s1 ? `<div class="section"><h3>SentinelOne</h3>${kv([
       ["Installed", "yes"],
