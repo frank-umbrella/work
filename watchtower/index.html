@@ -587,7 +587,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.11.6";
+const APP_VERSION = "0.11.7";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -1696,18 +1696,60 @@ function loadHtml2Pdf() {
   return _html2pdfLoading;
 }
 
-// Cache the branded SVG logo once per session so PDF generation is instant
-// after the first use.
-let _brandLogoSvg = null;
+// Cache the branded logo as a PNG data URL. Why PNG and not the raw SVG:
+// logo-primary.svg uses an inner <svg>, <filter> with feGaussianBlur /
+// feMerge / feOffset, gradients, AND custom font-family on the wordmark
+// text. html2canvas silently drops every one of those features when it
+// renders the report inside its capture iframe, leaving the logo as
+// invisible blank space. The browser itself, however, renders the SVG
+// perfectly (with proper font fallbacks). So we rasterize the SVG to a
+// PNG here in the parent page, cache the data URL, and embed it as an
+// <img> in the report — html2canvas handles <img src="data:..."> with
+// zero issues regardless of the underlying complexity.
+let _brandLogoPng = null;
 async function loadBrandLogo() {
-  if (_brandLogoSvg !== null) return _brandLogoSvg;
+  if (_brandLogoPng !== null) return _brandLogoPng;
   try {
     const r = await fetch("../branding/assets/logo-primary.svg");
-    _brandLogoSvg = r.ok ? await r.text() : "";
-  } catch {
-    _brandLogoSvg = "";
+    if (!r.ok) { _brandLogoPng = ""; return _brandLogoPng; }
+    const svgText = await r.text();
+
+    // Render the SVG via the browser's native SVG engine into an Image,
+    // then draw to a canvas at 2x source resolution so it stays sharp
+    // when html2canvas captures at scale: 2 on top.
+    const blob = new Blob([svgText], { type: "image/svg+xml" });
+    const url = URL.createObjectURL(blob);
+    try {
+      _brandLogoPng = await new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+          // logo-primary.svg has viewBox 0 0 1300 280 (~4.64:1). The
+          // PDF header allocates 280px wide, so the natural display
+          // height is ~60px. Rasterize at 4x (1120 wide) for crispness
+          // at print resolution.
+          const TARGET_W = 1120;
+          const aspect = (img.naturalWidth && img.naturalHeight)
+            ? img.naturalWidth / img.naturalHeight
+            : 1300 / 280;
+          const canvas = document.createElement("canvas");
+          canvas.width = TARGET_W;
+          canvas.height = Math.round(TARGET_W / aspect);
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL("image/png"));
+        };
+        img.onerror = (e) => reject(new Error("SVG → Image failed: " + (e.message || e)));
+        img.src = url;
+      });
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+    console.log("[PDF] brand logo rasterized:", (_brandLogoPng || "").length, "bytes");
+  } catch (e) {
+    console.warn("[PDF] brand logo load failed:", e);
+    _brandLogoPng = "";
   }
-  return _brandLogoSvg;
+  return _brandLogoPng;
 }
 
 // Toggle to true (via DevTools console: window.PDF_DEBUG_CANVAS = true) to
@@ -1730,8 +1772,8 @@ async function exportHostPdf(pcId) {
     }
     console.log("[PDF] html2pdf loaded");
 
-    const logoSvg = await loadBrandLogo();
-    console.log("[PDF] logoSvg length:", (logoSvg || "").length);
+    const logoPngDataUrl = await loadBrandLogo();
+    console.log("[PDF] brand logo PNG data URL length:", (logoPngDataUrl || "").length);
 
     // Full-screen overlay so the operator never sees the iframe flash on
     // screen. z-index above the iframe.
@@ -1775,7 +1817,7 @@ async function exportHostPdf(pcId) {
       throw new Error("Iframe contentDocument unavailable (same-origin issue?)");
     }
 
-    const reportDiv = buildReportDom(agent, logoSvg);
+    const reportDiv = buildReportDom(agent, logoPngDataUrl);
     reportDiv.style.cssText = "width:720px;padding:32px 36px;background:#ffffff;color:#1a1f2b;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-size:13px;line-height:1.5;";
     fdoc.body.appendChild(reportDiv);
 
@@ -1845,7 +1887,7 @@ async function exportHostPdf(pcId) {
   }
 }
 
-function buildReportDom(a, logoSvg) {
+function buildReportDom(a, logoPngDataUrl) {
   const r = a.report || {};
   const sys = r.system || {};
   const os = sys.os || {};
@@ -1877,18 +1919,12 @@ function buildReportDom(a, logoSvg) {
   const def = r.defender;
   const idrac = r.idrac;
 
-  // Logo: branding/assets/logo-primary.svg is a wide-format wordmark (1300x280
-  // viewBox, ~4.6:1). We allocate ~280px wide so it doesn't get squashed --
-  // the previous 110px slot clipped most of the wordmark. Strip the SVG's
-  // own width/height and inject our own via inline style so the viewBox does
-  // the scaling math.
-  const logoBlock = logoSvg
-    ? `<div style="width:280px;flex:0 0 280px;">${
-        logoSvg
-          .replace(/<svg([^>]*?)\s+width="[^"]*"/, '<svg$1')
-          .replace(/<svg([^>]*?)\s+height="[^"]*"/, '<svg$1')
-          .replace(/<svg([^>]*)>/, '<svg$1 style="display:block;width:280px;height:auto;">')
-      }</div>`
+  // Logo: rasterized to PNG data URL by loadBrandLogo() so html2canvas can
+  // actually render it (inline SVG with filters/inner-svg/custom fonts comes
+  // out blank from html2canvas). Embed as <img> at 280px wide; height auto
+  // preserves the 4.64:1 aspect of logo-primary.svg.
+  const logoBlock = logoPngDataUrl
+    ? `<div style="width:280px;flex:0 0 280px;"><img src="${logoPngDataUrl}" alt="Umbrella Automation" style="display:block;width:280px;height:auto;"></div>`
     : `<div style="width:280px;flex:0 0 280px;font-weight:900;color:#0c5e9c;font-size:22px;letter-spacing:0.02em;line-height:1.1;">UMBRELLA<br><span style="color:#6e6e6e;">AUTOMATION</span></div>`;
 
   div.innerHTML = `
