@@ -191,6 +191,28 @@ if (-not (Test-Path $icoPath)) {
 }
 
 # ---------------------------------------------------------------------------
+# Wizard branding BMPs - large left-banner + small top-right icon for the
+# Inno Setup wizard pages. Generated from the same branding house logo.
+# Re-run make_wizard_images.py manually after changing branding assets to
+# refresh; build.ps1 only generates when files are missing.
+# ---------------------------------------------------------------------------
+$wizardLarge = Join-Path $here 'watchtower-wizard.bmp'
+$wizardSmall = Join-Path $here 'watchtower-wizard-small.bmp'
+if (-not (Test-Path $wizardLarge) -or -not (Test-Path $wizardSmall)) {
+    $brandingPng = Join-Path (Split-Path $here -Parent) 'branding\source\Logo-House-Icon.png'
+    if (Test-Path $brandingPng) {
+        Write-Host "==> Generating Inno Setup wizard images from branding source" -ForegroundColor Cyan
+        $makeWizardScript = Join-Path $here 'make_wizard_images.py'
+        & python $makeWizardScript
+        if ($LASTEXITCODE -ne 0) {
+            Write-Warning "make_wizard_images.py failed; installer will compile without wizard branding."
+        }
+    } else {
+        Write-Warning "branding asset not found at $brandingPng; installer will compile without wizard branding."
+    }
+}
+
+# ---------------------------------------------------------------------------
 # Inno Setup - compile generic installer (no per-client defines)
 # ---------------------------------------------------------------------------
 Write-Host "==> ISCC: Watchtower-Setup.exe" -ForegroundColor Cyan
