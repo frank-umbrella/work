@@ -241,8 +241,22 @@
   table.clients .actions { text-align: right; white-space: nowrap; }
   table.clients .actions .btn { margin-left: 4px; }
   table.clients tr.expanded td { background: var(--accent-soft); }
-  table.clients tr.tokens-row td { background: var(--surface-2); padding: 12px 18px; }
-  table.clients .tokens-list { font-size: 13px; }
+  table.clients tr.client-row { cursor: pointer; }
+  table.clients tr.client-row:hover td { background: var(--surface-2); }
+  table.clients tr.client-row.expanded td { background: var(--surface-2); }
+  table.clients .row-chevron { font-size: 10px; color: var(--ink-faint); margin-left: 4px; transition: transform 0.15s; display: inline-block; }
+  table.clients tr.tokens-row td { background: var(--surface-2); padding: 6px 0 14px; }
+  /* Section labels inside the expanded row -- separates Endpoints from Install tokens. */
+  table.clients .client-section-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-faint); font-weight: 700; padding: 12px 18px 6px; }
+  /* Endpoints list inside expanded row -- compact rows, click anywhere to open drawer. */
+  table.clients .hosts-list { padding: 0 12px; }
+  table.clients .hrow { display: grid; grid-template-columns: minmax(140px, 1fr) 2fr auto; align-items: center; gap: 12px; padding: 8px 10px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+  table.clients .hrow:hover { background: var(--surface); }
+  table.clients .hrow .hname { font-weight: 600; color: var(--ink); }
+  table.clients .hrow .hmeta { color: var(--ink-faint); font-size: 12px; font-family: var(--mono); }
+  table.clients .hrow .hstatus { justify-self: end; }
+  /* Tokens list (existing block, padding tightened so it sits cleanly under the section label) */
+  table.clients .tokens-list { font-size: 13px; padding: 0 18px; }
   table.clients .tokens-list .trow { display: flex; align-items: center; gap: 12px; padding: 6px 0; border-bottom: 1px dashed var(--line); }
   table.clients .tokens-list .trow:last-child { border-bottom: 0; }
   table.clients .tokens-list .thash { font-family: var(--mono); font-size: 12px; color: var(--ink-faint); }
@@ -640,7 +654,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.13.4";
+const APP_VERSION = "0.13.5";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -1663,6 +1677,15 @@ function renderClients() {
   });
   paintSortHeaders("table.clients", state.sort.clients);
 
+  // Pre-bucket agents per clientId so the per-row expansion is O(1) lookup
+  // rather than O(n*m) re-filter when many clients are expanded one after
+  // the other. Same idea as tokensByClient above.
+  const agentsByClient = {};
+  for (const a of state.agents) {
+    if (!a.clientId) continue;
+    (agentsByClient[a.clientId] ||= []).push(a);
+  }
+
   const rows = [];
   for (const c of sortedClients) {
     const expanded = state.expandedClientId === c.id;
@@ -1670,16 +1693,15 @@ function renderClients() {
     const activeTokens = tokens.filter(t => !t.revoked).length;
 
     rows.push(`
-      <tr data-id="${esc(c.id)}" class="${expanded ? 'expanded' : ''}">
+      <tr data-id="${esc(c.id)}" class="client-row ${expanded ? 'expanded' : ''}" data-act="toggle">
         <td>
-          <div class="name">${esc(c.name)}</div>
+          <div class="name">${esc(c.name)} <span class="row-chevron" aria-hidden="true">${expanded ? "▾" : "▸"}</span></div>
           ${c.notes ? `<div class="notes">${esc(c.notes)}</div>` : ""}
         </td>
         <td class="num">${agentCount[c.id] || 0}</td>
         <td class="num">${activeTokens}${tokens.length > activeTokens ? ` <span class="meta">(+${tokens.length - activeTokens} revoked)</span>` : ""}</td>
         <td class="num">${fmtAge(c.createdAt)}</td>
         <td class="actions">
-          <button class="btn btn-sm" data-act="toggle" data-id="${esc(c.id)}">${expanded ? "Hide" : "Tokens"}</button>
           <button class="btn btn-sm btn-primary" data-act="gen" data-id="${esc(c.id)}">+ Token</button>
           <button class="btn btn-sm btn-danger" data-act="del" data-id="${esc(c.id)}">Delete</button>
         </td>
@@ -1687,39 +1709,92 @@ function renderClients() {
     `);
 
     if (expanded) {
+      const hosts = (agentsByClient[c.id] || []).slice().sort((a, b) => {
+        // Decommissioned hosts to the bottom, then active hosts alphabetical
+        if ((a.decommissioned === true) !== (b.decommissioned === true)) return a.decommissioned ? 1 : -1;
+        return (a.hostname || a.id || "").localeCompare(b.hostname || b.id || "", undefined, { numeric: true, sensitivity: "base" });
+      });
+
+      const hostsHtml = hosts.length ? `
+        <div class="client-section-label">Endpoints (${hosts.length})</div>
+        <div class="hosts-list">
+          ${hosts.map(a => {
+            const st = statusOf(a);
+            const isDecom = a.decommissioned === true;
+            const stBadge = isDecom
+              ? `<span class="badge muted">Decommissioned</span>`
+              : `<span class="badge ${st.kind === "ok" ? "ok" : st.kind === "warn" ? "warn" : st.kind === "bad" ? "bad" : "muted"}">${esc(st.label)}</span>`;
+            return `
+              <div class="hrow" data-act="openhost" data-pcid="${esc(a.id)}">
+                <div class="hname">${esc(a.hostname || a.id)}</div>
+                <div class="hmeta">${esc(a.externalIp || "—")} &middot; agent v${esc(a.agentVersion || "?")} &middot; ${esc(fmtAge(a.lastCheckin))}</div>
+                <div class="hstatus">${stBadge}</div>
+              </div>
+            `;
+          }).join("")}
+        </div>
+      ` : `<div class="client-section-label">Endpoints</div><div class="meta" style="padding:6px 12px 14px;">No hosts have checked in for this client yet.</div>`;
+
+      // Each token row shows how many hosts in THIS client could be using
+      // it. We can't disambiguate per-token (the agent doc doesn't store
+      // which specific token it used at install time -- the worker just
+      // validates the SHA hash on each check-in) but we CAN tell the
+      // operator "this client has 2 active tokens shared across 5 hosts."
+      const tokensHtml = tokens.length ? `
+        <div class="client-section-label">Install tokens (${tokens.length})</div>
+        <div class="tokens-list">${tokens.map(t => `
+          <div class="trow ${t.revoked ? 'trevoked' : ''}">
+            <div class="thash">${esc(t.hash.slice(0, 12))}…</div>
+            <div class="tlabel">${esc(t.label || "(no label)")}</div>
+            <div class="tmeta">${fmtAge(t.createdAt)} &middot; by ${esc((t.createdBy || "").split("@")[0])}${!t.revoked && hosts.length ? ` &middot; <span title="Agents don't record which specific token they were installed with -- the worker only validates the SHA hash on each check-in. So we know this client has ${hosts.length} host(s), and any of them could be using this token.">${hosts.length} host${hosts.length === 1 ? "" : "s"} in scope</span>` : ""}</div>
+            ${t.revoked
+              ? `<span class="badge muted">Revoked</span>`
+              : `<button class="btn btn-sm btn-danger" data-act="revoke" data-hash="${esc(t.hash)}">Revoke</button>`}
+          </div>
+        `).join("")}</div>
+      ` : `<div class="client-section-label">Install tokens</div><div class="meta" style="padding:6px 12px 14px;">No tokens yet. Click <b>+ Token</b> to generate one.</div>`;
+
       rows.push(`
         <tr class="tokens-row"><td colspan="5">
-          ${tokens.length ? `<div class="tokens-list">${tokens.map(t => `
-            <div class="trow ${t.revoked ? 'trevoked' : ''}">
-              <div class="thash">${esc(t.hash.slice(0, 12))}…</div>
-              <div class="tlabel">${esc(t.label || "(no label)")}</div>
-              <div class="tmeta">${fmtAge(t.createdAt)} &middot; by ${esc((t.createdBy || "").split("@")[0])}</div>
-              ${t.revoked
-                ? `<span class="badge muted">Revoked</span>`
-                : `<button class="btn btn-sm btn-danger" data-act="revoke" data-hash="${esc(t.hash)}">Revoke</button>`}
-            </div>
-          `).join("")}</div>` : `<div class="meta">No tokens yet. Click <b>+ Token</b> to generate one.</div>`}
+          ${hostsHtml}
+          ${tokensHtml}
         </td></tr>
       `);
     }
   }
   tbody.innerHTML = rows.join("");
 
-  // Wire up row actions.
-  $$("#clientsBody [data-act]").forEach(btn => {
-    btn.addEventListener("click", () => {
+  // Wire up row actions. Clicking anywhere on the client row toggles
+  // expand/collapse; clicking specific action buttons stops propagation
+  // so the row's own click handler doesn't fire too.
+  $$("#clientsBody tr.client-row").forEach(tr => {
+    tr.addEventListener("click", (e) => {
+      // Buttons inside the actions cell have their own data-act handlers
+      // (next loop). Don't double-fire.
+      if (e.target.closest("button[data-act]")) return;
+      const id = tr.dataset.id;
+      state.expandedClientId = (state.expandedClientId === id) ? null : id;
+      renderClients();
+    });
+  });
+  $$("#clientsBody [data-act='gen'], #clientsBody [data-act='del'], #clientsBody [data-act='revoke']").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
       const act = btn.dataset.act;
       const id = btn.dataset.id;
-      if (act === "toggle") {
-        state.expandedClientId = (state.expandedClientId === id) ? null : id;
-        renderClients();
-      } else if (act === "gen") {
-        generateToken(id);
-      } else if (act === "del") {
-        deleteClient(id);
-      } else if (act === "revoke") {
-        revokeToken(btn.dataset.hash);
-      }
+      if (act === "gen") generateToken(id);
+      else if (act === "del") deleteClient(id);
+      else if (act === "revoke") revokeToken(btn.dataset.hash);
+    });
+  });
+  $$("#clientsBody .hrow[data-act='openhost']").forEach(row => {
+    row.addEventListener("click", (e) => {
+      e.stopPropagation();
+      // Switch to Endpoints tab, then open the host's drawer. Same flow as
+      // clicking a hostlink in the Activity tab.
+      const pcId = row.dataset.pcid;
+      activateTab("fleet");
+      openDrawer(pcId);
     });
   });
 }
