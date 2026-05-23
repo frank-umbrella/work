@@ -36,10 +36,12 @@ SENDER_FROM = "Watchtower <onboarding@resend.dev>"
 # ALERT_TO can be any address including a distribution list.
 ALERT_TO = "frank@umbrellaautomation.com"
 
-# Comma-separated list of dashboard origins allowed to call any future
-# admin-facing endpoints (none right now — the dashboard talks to Firestore
-# directly, not to this worker). Kept here for future use.
-ALLOWED_ORIGINS = "https://frank-umbrella.github.io"
+# Comma-separated list of dashboard origins allowed to call worker
+# admin-facing endpoints (/warranty, /notify-*, /test-webhook).
+# Production is the GitHub Pages site; the localhost entries let
+# `python -m http.server` style local dev hit the prod worker for
+# end-to-end testing without needing wrangler dev.
+ALLOWED_ORIGINS = "https://frank-umbrella.github.io,http://localhost:8096,http://127.0.0.1:8096"
 
 # Secrets — set with `wrangler secret put <NAME>`, never live in this file:
 #   wrangler secret put FIREBASE_SERVICE_ACCOUNT_JSON  # Service-account JSON for Firestore admin writes
