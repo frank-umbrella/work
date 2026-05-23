@@ -247,6 +247,7 @@
         </div>
       </div>
       <div class="userbar">
+        <a class="btn btn-sm" href="docs.html" target="_blank" rel="noopener">Docs</a>
         <div class="who"><span class="e" id="userEmail"></span><span class="r">MSP admin</span></div>
         <img class="avatar" id="userAvatar" alt="">
         <button class="btn btn-sm" id="signoutBtn">Sign out</button>
@@ -472,24 +473,11 @@ onAuthStateChanged(auth, async (user) => {
   }
 
   state.user = user;
+  state.profile = { uid: user.uid, email };
 
-  // Gate on /msp_admins/{uid} — bootstrap first admin via Firebase console.
-  try {
-    const ref = doc(db, "msp_admins", user.uid);
-    const snap = await getDoc(ref);
-    if (!snap.exists()) {
-      await signOut(auth);
-      $("#signinErr").innerHTML = `<b>${esc(email)}</b> is not a Watchtower admin yet. Add a document at <code>/msp_admins/${esc(user.uid)}</code> in the Firebase console, then sign in again.`;
-      $("#signinErr").hidden = false;
-      return;
-    }
-    state.profile = { uid: user.uid, ...snap.data() };
-  } catch (e) {
-    await signOut(auth);
-    $("#signinErr").textContent = "Could not verify admin membership: " + (e.message || e);
-    $("#signinErr").hidden = false;
-    return;
-  }
+  // No /msp_admins lookup — Firestore rules grant admin to any verified
+  // @umbrellaautomation.com email. The domain check above is just for a
+  // clean client-side error before we attempt any reads.
 
   // Mount the app.
   $("#signin").style.display = "none";
@@ -782,8 +770,8 @@ async function generateToken(clientId) {
       <div class="token-display" id="modalToken">${esc(rawToken)}</div>
       <div class="info">
         Bake into the installer at build time:
-        <pre style="margin:6px 0 0;font-size:12.5px;"><code>$env:WATCHTOWER_INSTALL_TOKEN = '${esc(rawToken)}'
-.\\installer\\build.ps1</code></pre>
+        <pre style="margin:6px 0 0;font-size:12.5px;"><code>.\\installer\\build.ps1 -ClientName "${esc(client.name)}" -InstallToken "${esc(rawToken)}"</code></pre>
+        See <a href="docs.html" target="_blank">docs</a> for the full install flow.
       </div>
     `,
     foot: `

@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Watchtower Docs &middot; Umbrella Automation</title>
+<meta name="description" content="Operator guide for Watchtower — install, customize, uninstall, troubleshoot.">
+<meta name="robots" content="noindex">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --surface: #ffffff;
+    --surface-2: #fafbfc;
+    --ink: #1a1f2b;
+    --ink-soft: #475063;
+    --ink-faint: #8892a4;
+    --line: #e3e6ec;
+    --line-strong: #c9cfdb;
+    --accent: #0a6b6b;
+    --accent-soft: #e6f4f4;
+    --accent-ink: #074a4a;
+    --warn-soft: #fef3c7;
+    --warn-ink: #78350f;
+    --info-soft: #e0f2fe;
+    --info-ink: #075985;
+    --radius: 10px;
+    --shadow: 0 1px 2px rgba(20, 25, 40, 0.04), 0 4px 14px rgba(20, 25, 40, 0.05);
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 15px; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+  a { color: var(--accent); }
+  a:hover { color: var(--accent-ink); }
+
+  header.bar { background: var(--surface); border-bottom: 1px solid var(--line); padding: 10px 20px; position: sticky; top: 0; z-index: 50; }
+  header.bar .wrap { max-width: 980px; margin: 0 auto; display: flex; align-items: center; gap: 16px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; }
+  .brand svg { width: 24px; height: 24px; }
+  .brand .meta { font-size: 11px; color: var(--ink-faint); font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; }
+  .brand h1 { font-size: 16px; margin: 0; line-height: 1.1; }
+  .brand-link { margin-left: auto; }
+  .btn { background: var(--surface); border: 1px solid var(--line-strong); color: var(--ink); font-size: 13px; font-weight: 600; padding: 7px 13px; border-radius: 7px; text-decoration: none; }
+  .btn:hover { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+
+  main { max-width: 980px; margin: 0 auto; padding: 28px 24px 80px; display: grid; grid-template-columns: 220px 1fr; gap: 36px; }
+  nav.toc { position: sticky; top: 74px; align-self: start; font-size: 13.5px; }
+  nav.toc h2 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-faint); margin: 0 0 10px; font-weight: 700; }
+  nav.toc a { display: block; padding: 5px 0; color: var(--ink-soft); text-decoration: none; border-left: 2px solid transparent; padding-left: 10px; margin-left: -12px; }
+  nav.toc a:hover { color: var(--ink); }
+  nav.toc a.section { font-weight: 600; color: var(--ink); margin-top: 10px; }
+
+  article { min-width: 0; }
+  article h1 { font-size: 28px; margin: 0 0 6px; letter-spacing: -0.01em; }
+  article .lede { color: var(--ink-soft); font-size: 15.5px; margin: 0 0 28px; }
+  article h2 { font-size: 20px; margin: 36px 0 12px; padding-top: 14px; border-top: 1px solid var(--line); letter-spacing: -0.01em; }
+  article h2:first-of-type { border-top: 0; padding-top: 0; margin-top: 8px; }
+  article h3 { font-size: 16px; margin: 22px 0 8px; }
+  article p, article ul, article ol { margin: 0 0 14px; }
+  article ul, article ol { padding-left: 24px; }
+  article li { margin-bottom: 4px; }
+  article code { font-family: var(--mono); font-size: 0.92em; background: var(--surface); border: 1px solid var(--line); padding: 1px 6px; border-radius: 5px; color: var(--accent-ink); }
+  article pre { background: var(--ink); color: #f5f5f5; padding: 14px 16px; border-radius: 9px; overflow-x: auto; font-family: var(--mono); font-size: 13px; line-height: 1.55; margin: 6px 0 18px; }
+  article pre code { background: none; border: 0; color: inherit; padding: 0; font-size: inherit; }
+  article .callout { padding: 12px 14px; border-radius: 8px; margin: 14px 0; font-size: 14px; border: 1px solid; }
+  article .callout.warn { background: var(--warn-soft); border-color: #fde68a; color: var(--warn-ink); }
+  article .callout.info { background: var(--info-soft); border-color: #bae6fd; color: var(--info-ink); }
+  article .callout b { color: inherit; }
+  article .steps { counter-reset: step; list-style: none; padding-left: 0; }
+  article .steps > li { counter-increment: step; padding-left: 44px; position: relative; margin-bottom: 18px; }
+  article .steps > li::before { content: counter(step); position: absolute; left: 0; top: 0; width: 28px; height: 28px; border-radius: 50%; background: var(--accent); color: #fff; font-weight: 700; font-size: 14px; display: flex; align-items: center; justify-content: center; }
+  article table.opts { width: 100%; border-collapse: collapse; font-size: 13.5px; margin: 8px 0 16px; }
+  article table.opts th { text-align: left; padding: 8px 12px; background: var(--surface-2); border-bottom: 1px solid var(--line); font-size: 11px; text-transform: uppercase; color: var(--ink-faint); letter-spacing: 0.06em; }
+  article table.opts td { padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  article table.opts td code { white-space: nowrap; }
+
+  @media (max-width: 760px) {
+    main { grid-template-columns: 1fr; gap: 18px; }
+    nav.toc { position: static; }
+  }
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <div class="wrap">
+    <div class="brand">
+      <svg viewBox="0 0 64 64" fill="none">
+        <circle cx="32" cy="32" r="14" stroke="#0a6b6b" stroke-width="3"/>
+        <circle cx="32" cy="32" r="5" fill="#0a6b6b"/>
+        <path d="M32 8 L32 18 M32 46 L32 56 M8 32 L18 32 M46 32 L56 32" stroke="#0a6b6b" stroke-width="3" stroke-linecap="round"/>
+      </svg>
+      <div>
+        <div class="meta">Umbrella Automation</div>
+        <h1>Watchtower &middot; Docs</h1>
+      </div>
+    </div>
+    <a class="btn brand-link" href="index.html">&larr; Back to dashboard</a>
+  </div>
+</header>
+
+<main>
+
+<nav class="toc">
+  <h2>On this page</h2>
+  <a href="#what" class="section">What Watchtower is</a>
+  <a href="#quick">Quick start</a>
+  <a href="#install" class="section">Install</a>
+  <a href="#install-prereqs">Prerequisites</a>
+  <a href="#install-flow">Build + deploy</a>
+  <a href="#install-verify">Verify check-in</a>
+  <a href="#customize" class="section">Customize install</a>
+  <a href="#customize-build">build.ps1 parameters</a>
+  <a href="#customize-silent">Silent install</a>
+  <a href="#customize-dir">Custom install directory</a>
+  <a href="#uninstall" class="section">Uninstall</a>
+  <a href="#uninstall-remote">Remote (preferred)</a>
+  <a href="#uninstall-local">Local (UI or CLI)</a>
+  <a href="#tokens" class="section">Install tokens</a>
+  <a href="#tokens-revoke">Revoking a token</a>
+  <a href="#troubleshooting" class="section">Troubleshooting</a>
+  <a href="#layout" class="section">What gets installed</a>
+</nav>
+
+<article>
+
+<h1>Watchtower Operator's Guide</h1>
+<p class="lede">Everything you need to roll out the Watchtower agent on a client PC, customize the install, and tear it down cleanly.</p>
+
+<h2 id="what">What Watchtower is</h2>
+<p>A small Windows agent that calls home once a day with the host's external IP, asset inventory, Veeam backup status, LogMeIn state, Defender status, USB device history, and a handful of other Belarc-lite probes. The dashboard shows the fleet and lets you toggle per-PC kill switches.</p>
+<p>Two processes on each client PC:</p>
+<ul>
+  <li><code>watchtower-svc.exe</code> &mdash; runs as the <code>WatchtowerAgent</code> Windows service under <code>LocalSystem</code>. Does the probes + check-in.</li>
+  <li><code>watchtower-tray.exe</code> &mdash; runs in the interactive user session, shows a status icon in the system tray.</li>
+</ul>
+
+<h2 id="quick">Quick start</h2>
+<p>The 60-second path:</p>
+<ol class="steps">
+  <li>Open the <a href="index.html">dashboard</a> &rarr; <b>Clients</b> tab &rarr; <b>+ New client</b>. Give it a name.</li>
+  <li>On that client's row, click <b>+ Token</b>. Copy the token that appears (you only get to see it once).</li>
+  <li>On your build box, run:
+    <pre><code>.\installer\build.ps1 -ClientName "Acme Corp" -InstallToken "wt_xxxxx"</code></pre>
+  </li>
+  <li>Ship <code>installer\dist\Watchtower-Setup-Acme Corp.exe</code> to the target PC and run it as admin.</li>
+  <li>Wait up to 24h (or restart the service to force an immediate check-in). The host shows up in the <b>Fleet</b> tab.</li>
+</ol>
+
+<h2 id="install">Install</h2>
+
+<h3 id="install-prereqs">Prerequisites on your build box</h3>
+<ul>
+  <li>Windows 10/11 with admin rights</li>
+  <li>Python 3.11+ &mdash; <code>winget install Python.Python.3.11</code></li>
+  <li>PyInstaller &mdash; <code>pip install pyinstaller pywin32 pystray pillow requests</code></li>
+  <li>Inno Setup 6 &mdash; <code>winget install JRSoftware.InnoSetup -e</code></li>
+</ul>
+<p>You only build installers once per client (or whenever you re-issue a token); the agent itself doesn't need any of these on the target PC.</p>
+
+<h3 id="install-flow">Build + deploy</h3>
+<ol class="steps">
+  <li>
+    <b>Generate a token in the dashboard.</b> Clients &rarr; <i>(client)</i> &rarr; <b>+ Token</b>. Copy it immediately &mdash; Watchtower only stores the SHA-256 hash, so it can't show you the raw value again.
+  </li>
+  <li>
+    <b>Build the installer.</b> From the repo root:
+    <pre><code>cd work\watchtower\installer
+.\build.ps1 -ClientName "Acme Corp" -InstallToken "wt_xxxxx"</code></pre>
+    The token is baked into the installer at compile time &mdash; it is not a runtime input.
+  </li>
+  <li>
+    <b>Ship the EXE.</b> The output lands at <code>installer\dist\Watchtower-Setup-&lt;ClientName&gt;.exe</code>. Push it to the target however you normally distribute installers (LogMeIn, RMM, copy-paste, etc.).
+  </li>
+  <li>
+    <b>Run as admin on the target PC.</b> The installer needs elevation &mdash; it creates a service. Double-click works; for unattended deploys see <a href="#customize-silent">silent install</a>.
+  </li>
+</ol>
+
+<h3 id="install-verify">Verify check-in</h3>
+<p>After install, the service kicks off its first check-in immediately. Allow up to 60 seconds for the worker round-trip + Firestore write. Then:</p>
+<ul>
+  <li>Dashboard &rarr; <b>Fleet</b>: the host should appear at the top, status <b>Healthy</b>.</li>
+  <li>If it doesn't show up, on the target PC run <code>sc.exe query WatchtowerAgent</code> &mdash; should report <code>STATE: 4 RUNNING</code>.</li>
+  <li>Force a re-check-in: <code>sc.exe stop WatchtowerAgent; sc.exe start WatchtowerAgent</code></li>
+</ul>
+
+<h2 id="customize">Customize install</h2>
+
+<h3 id="customize-build">build.ps1 parameters</h3>
+<table class="opts">
+  <tr><th>Parameter</th><th>Default</th><th>Notes</th></tr>
+  <tr><td><code>-ClientName</code></td><td>(required)</td><td>Shown in dashboard, Add/Remove Programs, and the installer filename.</td></tr>
+  <tr><td><code>-InstallToken</code></td><td>(required)</td><td>The <code>wt_…</code> string from the dashboard's token modal.</td></tr>
+  <tr><td><code>-WorkerUrl</code></td><td><code>https://watchtower-worker.umbrelladev.workers.dev</code></td><td>Override only when testing against a staging worker.</td></tr>
+  <tr><td><code>-AppVersion</code></td><td><code>0.1.0</code></td><td>Cosmetic &mdash; appears in Add/Remove Programs.</td></tr>
+  <tr><td><code>-SkipPyInstaller</code></td><td>off</td><td>Reuse cached <code>build\*.exe</code> when iterating on the <code>.iss</code> &mdash; saves a couple of minutes per build.</td></tr>
+</table>
+
+<h3 id="customize-silent">Silent install</h3>
+<p>For RMM or scripted deploys, run the EXE with Inno Setup's silent flags:</p>
+<pre><code>"Watchtower-Setup-Acme Corp.exe" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART</code></pre>
+<p>Exit code 0 = success. The installer never reboots and never prompts.</p>
+
+<h3 id="customize-dir">Custom install directory</h3>
+<p>Defaults to <code>C:\Program Files\Umbrella Watchtower\</code>. Override with:</p>
+<pre><code>"Watchtower-Setup-Acme Corp.exe" /VERYSILENT /DIR="D:\Tools\Watchtower"</code></pre>
+<div class="callout info"><b>Note:</b> <code>%ProgramData%\Watchtower\</code> (for <code>config.json</code> and <code>state.json</code>) is always used regardless of <code>/DIR</code>. That path is shared between the service and the per-user tray.</div>
+
+<h2 id="uninstall">Uninstall</h2>
+
+<h3 id="uninstall-remote">Remote (preferred)</h3>
+<p>From the dashboard:</p>
+<ol class="steps">
+  <li>Fleet tab &rarr; click the row for the host you want to remove.</li>
+  <li>In the drawer, click <b>Decommission</b>.</li>
+  <li>The agent self-uninstalls on its next check-in (within 24h). The dashboard row stays until you manually delete it &mdash; useful for audit.</li>
+</ol>
+<div class="callout warn"><b>Heads up:</b> Decommission flips <code>uninstall: true</code> on the per-agent config doc. If the PC is offline at decommission time it will pick up the flag whenever it next reaches the worker. If it never reaches the worker again, the install stays in place &mdash; you'll need to <a href="#uninstall-local">uninstall locally</a>.</div>
+
+<h3 id="uninstall-local">Local (UI or CLI)</h3>
+<p><b>UI:</b> Settings &rarr; Apps &rarr; Installed apps &rarr; <i>Umbrella Watchtower Agent</i> &rarr; Uninstall.</p>
+<p><b>CLI</b> (elevated PowerShell, in case the GUI uninstaller is broken or unreachable):</p>
+<pre><code>sc.exe stop WatchtowerAgent
+sc.exe delete WatchtowerAgent
+taskkill /im watchtower-tray.exe /f
+Remove-Item "C:\Program Files\Umbrella Watchtower" -Recurse -Force
+Remove-Item "C:\ProgramData\Watchtower" -Recurse -Force
+Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" -Name "WatchtowerTray" -ErrorAction SilentlyContinue</code></pre>
+
+<h2 id="tokens">Install tokens</h2>
+<p>Each client gets its own install token. The dashboard generates 32 cryptographically-random bytes (256 bits of entropy), base64url-encodes them, and prefixes <code>wt_</code> for easy spotting in logs. Only the SHA-256 hash is stored in Firestore &mdash; you see the raw token exactly once, in the modal that pops up right after generation.</p>
+<p>Bake the token into the installer at build time (it becomes part of <code>%ProgramData%\Watchtower\config.json</code> on the target PC). Don't share tokens across clients &mdash; the worker enforces the binding on every check-in, and using a token outside its assigned client makes alert routing wrong.</p>
+
+<h3 id="tokens-revoke">Revoking a token</h3>
+<p>From the Clients tab, click <b>Tokens</b> on the client's row to expand the token list, then click <b>Revoke</b> on the token in question. The token doc is kept (with <code>revoked: true</code>) so you have an audit trail; the worker treats revoked + unknown identically so an attacker can't tell which tokens ever existed.</p>
+<p>Agents using a revoked token will start returning 401 on check-in. They keep running locally &mdash; they just stop reporting until you push a rebuilt installer with a fresh token.</p>
+
+<h2 id="troubleshooting">Troubleshooting</h2>
+
+<h3>Agent installed but not appearing in dashboard</h3>
+<ul>
+  <li>Confirm the service is running: <code>sc.exe query WatchtowerAgent</code> &mdash; <code>STATE: 4 RUNNING</code>.</li>
+  <li>Check the worker logs in the Cloudflare dashboard for the most recent check-in. 401s mean a bad token (typo at build time, or revoked). 5xx means worker or Firestore is having a bad day.</li>
+  <li>Worker URL mismatch: open <code>%ProgramData%\Watchtower\config.json</code> on the target PC and confirm <code>workerUrl</code> matches what's deployed.</li>
+</ul>
+
+<h3>Service won't start</h3>
+<ul>
+  <li>Event Viewer &rarr; Windows Logs &rarr; System &rarr; filter on Source = Service Control Manager. Most failures are a missing dependency in the PyInstaller bundle &mdash; rebuild without <code>-SkipPyInstaller</code>.</li>
+  <li>Run the EXE directly to see the error: <code>"C:\Program Files\Umbrella Watchtower\watchtower-svc.exe"</code> from an elevated prompt.</li>
+</ul>
+
+<h3>Tray icon missing on RDP'd servers</h3>
+<p>The tray is registered in <code>HKLM\…\Run</code>, which fires once per interactive logon. RDP into a server creates a new interactive session &mdash; the tray should launch on the second login. If it doesn't, check Task Manager for <code>watchtower-tray.exe</code>; if it's missing, run it manually from the install dir.</p>
+
+<h3>"Token revoked" by accident</h3>
+<p>You can't un-revoke (intentional &mdash; revocation is a one-way audit event). Generate a fresh token, rebuild the installer, and re-deploy. The pcId is preserved across reinstalls so the host stays the same dashboard row.</p>
+
+<h2 id="layout">What gets installed</h2>
+<table class="opts">
+  <tr><th>Path</th><th>Contents</th></tr>
+  <tr><td><code>C:\Program Files\Umbrella Watchtower\</code></td><td>watchtower-svc.exe, watchtower-tray.exe, unins000.exe</td></tr>
+  <tr><td><code>C:\ProgramData\Watchtower\</code></td><td>config.json (workerUrl, installToken, client, pcId), state.json (last check-in)</td></tr>
+  <tr><td><code>HKLM\SYSTEM\CurrentControlSet\Services\WatchtowerAgent</code></td><td>Service registration (auto-start, LocalSystem)</td></tr>
+  <tr><td><code>HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run\WatchtowerTray</code></td><td>System-wide tray autostart</td></tr>
+</table>
+
+</article>
+
+</main>
+
+</body>
+</html>

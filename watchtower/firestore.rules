@@ -23,9 +23,13 @@ rules_version = '2';
 // admins (via the dashboard, for config) and the worker (via service
 // account, for status + history).
 //
-// Bootstrap: the very first MSP admin must be added by editing
-// /msp_admins/{uid} directly in the Firebase console after their first
-// sign-in. After that, admins can add more admins through the UI.
+// Admin membership: any signed-in Google account whose verified email
+// ends with @umbrellaautomation.com. No per-user database entries to
+// maintain — adding/removing admins is a Google Workspace action.
+//
+// Trade-off: everyone on the domain gets full read/write across the
+// whole fleet. If we ever need viewer-only or per-client scoping,
+// reintroduce a roster doc and gate on that instead.
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -38,18 +42,8 @@ service cloud.firestore {
 
     function isMSPAdmin() {
       return isSignedIn()
-        && exists(/databases/$(database)/documents/msp_admins/$(request.auth.uid));
-    }
-
-    // -------- /msp_admins/{uid} --------
-    // MSP team roster. Doc id is the user's auth uid. Self-readable;
-    // admins can list and manage. No self-creation — first admin must
-    // be added via the Firebase console; subsequent admins are added
-    // by an existing admin through the dashboard.
-    match /msp_admins/{uid} {
-      allow get: if isSignedIn() && (request.auth.uid == uid || isMSPAdmin());
-      allow list: if isMSPAdmin();
-      allow create, update, delete: if isMSPAdmin();
+        && request.auth.token.email_verified == true
+        && request.auth.token.email.matches('.*@umbrellaautomation[.]com');
     }
 
     // -------- /clients/{clientId} --------
