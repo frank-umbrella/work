@@ -37,14 +37,27 @@ DASHBOARD_URL = "https://frank-umbrella.github.io/work/watchtower/"
 
 
 def _make_icon(color_hex):
-    """Draw a small monochrome eye icon in the requested color. Loaded
-    once and re-rendered when the status color needs to change."""
+    """Draw the Watchtower reticle (matches favicon.svg) in the requested
+    color. Re-rendered when the status color needs to change so the same
+    shape stays consistent across green/amber/red/grey states.
+
+    Geometry mirrors favicon.svg exactly so the tray icon and the dashboard
+    favicon are visually unified:
+      - Outer circle: cx=32 cy=32 r=14 (bounds 18,18 → 46,46), stroke=4
+      - Center dot:   cx=32 cy=32 r=5  (bounds 27,27 → 37,37), filled
+      - Four cardinal tick marks: from edge to circle, stroke=4
+    """
     img = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-    # Outer eye silhouette
-    d.ellipse((6, 18, 58, 46), outline=color_hex, width=4)
-    # Pupil
-    d.ellipse((26, 24, 38, 40), fill=color_hex)
+    # Outer circle outline
+    d.ellipse((18, 18, 46, 46), outline=color_hex, width=4)
+    # Center dot (filled)
+    d.ellipse((27, 27, 37, 37), fill=color_hex)
+    # Cardinal tick marks (top, bottom, left, right)
+    d.line((32, 6, 32, 18), fill=color_hex, width=4)
+    d.line((32, 46, 32, 58), fill=color_hex, width=4)
+    d.line((6, 32, 18, 32), fill=color_hex, width=4)
+    d.line((46, 32, 58, 32), fill=color_hex, width=4)
     return img
 
 
