@@ -59,17 +59,20 @@ ShowLanguageDialog=no
 UninstallDisplayName={#AppName}
 
 ; ----------------------------------------------------------------------------
-; Optional component: bundle a LogMeIn MSI to install alongside the agent.
+; Optional task: bundle a LogMeIn MSI to install alongside the agent.
 ; Only active when /DLogMeInMsi=<path> is passed at compile time (build.ps1
-; -LogmeinMsi handles this). Without the define, no Components page appears
-; and the installer behaves exactly as before.
+; -LogmeinMsi handles this). Without the define, no Tasks page appears and
+; the installer behaves exactly as before.
+;
+; Why Tasks instead of Components: with a single optional item, Inno's
+; Components system collapses the per-checkbox UI into the Type dropdown
+; (operator only sees "Full installation" with no visible checkbox).
+; Tasks always render as an explicit "Select Additional Tasks" page with
+; a real checkbox the operator can see and toggle, which is what we want.
 ; ----------------------------------------------------------------------------
 #ifdef LogMeInMsi
-[Types]
-Name: "full"; Description: "Full installation"
-
-[Components]
-Name: "logmein"; Description: "Also install LogMeIn remote access"; Types: full
+[Tasks]
+Name: "logmein"; Description: "Also install LogMeIn remote access"; GroupDescription: "Optional add-ons:"
 #endif
 
 ; ----------------------------------------------------------------------------
@@ -81,9 +84,10 @@ Source: "build\watchtower-tray.exe"; DestDir: "{app}"; Flags: ignoreversion
 #ifdef LogMeInMsi
 ; LogMeIn MSI extracted to {tmp} during install, renamed to a stable filename
 ; so the [Run] entry can hardcode the path. deleteafterinstall cleans it up
-; once msiexec finishes.
+; once msiexec finishes. Tasks: logmein gates the extract on the operator
+; leaving the Tasks-page checkbox on.
 Source: "{#LogMeInMsi}"; DestDir: "{tmp}"; DestName: "LogMeIn.msi"; \
-    Components: logmein; Flags: deleteafterinstall
+    Tasks: logmein; Flags: deleteafterinstall
 #endif
 
 ; ----------------------------------------------------------------------------
@@ -126,7 +130,7 @@ Filename: "{sys}\sc.exe"; \
     StatusMsg: "Starting Umbrella Watchtower service..."
 
 #ifdef LogMeInMsi
-; LogMeIn install — only when the operator left the Components checkbox on.
+; LogMeIn install -- only when the operator left the Tasks checkbox on.
 ; runhidden + msiexec /quiet means no LogMeIn UI flashes up. The MSI is
 ; bundled with this installer; we never reach out to the network for it.
 ;
@@ -135,13 +139,13 @@ Filename: "{sys}\sc.exe"; \
 ; like DEPLOYID=<central-deploy-id> INSTALLMETHOD=5 FQDNDESC=1 or
 ; LMIDESCRIPTION="<host name>". When the MSI is the pre-customized one
 ; from LogMeIn Central's "Deploy Installation Package", no extras are
-; needed — DEPLOYID is already baked in.
+; needed -- DEPLOYID is already baked in.
 #ifndef LogMeInMsiArgs
   #define LogMeInMsiArgs ""
 #endif
 Filename: "{sys}\msiexec.exe"; \
     Parameters: "/i ""{tmp}\LogMeIn.msi"" /quiet /norestart {#LogMeInMsiArgs}"; \
-    Components: logmein; \
+    Tasks: logmein; \
     Flags: runhidden waituntilterminated; \
     StatusMsg: "Installing LogMeIn remote access..."
 #endif

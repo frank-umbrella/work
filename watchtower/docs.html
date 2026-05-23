@@ -230,7 +230,7 @@
   <tr><td><code>/TOKEN=&lt;wt_...&gt;</code></td><td>Install token. Required for silent installs (no wizard to enter it). Validated against the worker before install completes &mdash; bad token = non-zero exit code.</td></tr>
   <tr><td><code>/CLIENT="Acme Corp"</code></td><td>Override the client label shown in Add/Remove Programs and the tray tooltip. If omitted, the worker's token-bound client name is used.</td></tr>
   <tr><td><code>/WORKERURL=https://...</code></td><td>Hit a different worker (staging / testing only). Defaults to production.</td></tr>
-  <tr><td><code>/COMPONENTS="logmein"</code></td><td>Only relevant when the installer was built with <code>-LogmeinMsi</code>. Default behavior is to include LogMeIn install; pass <code>/COMPONENTS=""</code> to explicitly skip it.</td></tr>
+  <tr><td><code>/TASKS="logmein"</code></td><td>Only relevant when the installer was built with <code>-LogmeinMsi</code>. Default behavior (no <code>/TASKS</code>) is to install LogMeIn since the checkbox defaults to checked. Pass <code>/TASKS="!logmein"</code> to explicitly skip it on a silent install.</td></tr>
   <tr><td><code>/VERYSILENT</code></td><td>Standard Inno Setup &mdash; suppresses the wizard.</td></tr>
   <tr><td><code>/SUPPRESSMSGBOXES</code></td><td>Suppress error dialogs (failures still produce non-zero exit codes and write to the install log).</td></tr>
 </table>
@@ -249,7 +249,7 @@
 <div class="callout info"><b>No <code>-ClientName</code> or <code>-InstallToken</code> at build time.</b> Both are runtime inputs as of v0.3.0 &mdash; either prompted in the wizard or passed via <code>/TOKEN=</code> <code>/CLIENT=</code> for silent installs.</div>
 
 <h3 id="customize-logmein">Bundle LogMeIn MSI</h3>
-<p>Optional. If you have a LogMeIn host MSI you typically install alongside the agent, you can bake it into the installer EXE so a single deploy puts both on the target. The wizard shows a checkbox <i>Also install LogMeIn remote access</i> (checked by default) on a Components page after token validation; operators can uncheck it on hosts that already have LogMeIn or don't need it.</p>
+<p>Optional. If you have a LogMeIn host MSI you typically install alongside the agent, you can bake it into the installer EXE so a single deploy puts both on the target. The wizard shows a checkbox <i>Also install LogMeIn remote access</i> (checked by default) on a <b>Select Additional Tasks</b> page after token validation; operators can uncheck it on hosts that already have LogMeIn or don't need it.</p>
 
 <h4>If your MSI is a "Deploy Installation Package" download from LogMeIn Central</h4>
 <p>That's the common case &mdash; the DEPLOYID is baked into the MSI itself, so you don't need to pass any LogMeIn properties on the command line. Just point <code>-LogmeinMsi</code> at the file:</p>
@@ -273,14 +273,14 @@
 
 <h4>How the LogMeIn install runs</h4>
 <ul>
-  <li>Wizard install &mdash; user sees a Components page with the LogMeIn checkbox checked by default; can uncheck per install.</li>
+  <li>Wizard install &mdash; user sees a <b>Select Additional Tasks</b> page with the LogMeIn checkbox checked by default; can uncheck per install.</li>
   <li>Silent install with default args &mdash; LogMeIn installs too.</li>
-  <li>Silent install skipping LogMeIn &mdash; <code>Watchtower-Setup.exe /VERYSILENT /TOKEN=wt_xxx /COMPONENTS=""</code></li>
+  <li>Silent install skipping LogMeIn &mdash; <code>Watchtower-Setup.exe /VERYSILENT /TOKEN=wt_xxx /TASKS="!logmein"</code></li>
   <li>MSI is invoked as <code>msiexec /i /quiet /norestart &lt;your -LogmeinMsiArgs here&gt;</code> &mdash; no UI flashes, no reboot triggered.</li>
 </ul>
 <div class="callout info"><b>The MSI is bundled, not downloaded.</b> The installer never reaches out for it at runtime &mdash; the MSI is extracted from inside the EXE to <code>%TEMP%</code>, installed, then deleted. Works on offline target machines as long as the MSI itself is offline-installable (most LogMeIn MSIs are).</div>
 <div class="callout info"><b>The <code>installer\vendor\</code> directory is gitignored.</b> Drop the MSI there (or anywhere else on your dev box); it won't accidentally get committed.</div>
-<p>When <code>-LogmeinMsi</code> isn't passed, the resulting installer has no Components page at all and behaves exactly like a non-LogMeIn build.</p>
+<p>When <code>-LogmeinMsi</code> isn't passed, the resulting installer has no Tasks page at all and behaves exactly like a non-LogMeIn build.</p>
 
 <h3 id="customize-dir">Custom install directory</h3>
 <p>Defaults to <code>C:\Program Files\Umbrella Watchtower\</code>. Override with:</p>

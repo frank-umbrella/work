@@ -45,7 +45,9 @@ every client.
   checkbox (checked by default). The MSI runs as
   `msiexec /i /quiet /norestart` after the agent install. Silent
   override: `Watchtower-Setup.exe /COMPONENTS=""` to skip it.
-  Drop the MSI in `installer\vendor\` — that path is gitignored.
+  Drop the MSI in `installer\vendor\` -- that path is gitignored.
+  Silent override: `Watchtower-Setup.exe /TASKS="!logmein"` to skip on
+  a host that already has LogMeIn.
 
 ## Generating install tokens
 
