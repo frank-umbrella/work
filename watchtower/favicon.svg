@@ -1,16 +1,22 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <!-- Filled disc bg gives the icon presence in browser tabs at 16x16 -->
+  <!-- Crenellated watchtower silhouette: filled disc bg + battlements + arrow slits + door -->
   <circle cx="32" cy="32" r="30" fill="#0a6b6b"/>
-  <!-- Glow halo around the beacon -->
-  <circle cx="32" cy="14" r="9" fill="#5af4e3" opacity="0.35"/>
-  <!-- Tower body, white silhouette -->
-  <rect x="22" y="26" width="20" height="26" fill="#ffffff"/>
-  <!-- Top platform -->
-  <rect x="18" y="22" width="28" height="4" fill="#ffffff"/>
-  <!-- Beacon at the top, cyan with white center -->
-  <circle cx="32" cy="14" r="5" fill="#5af4e3"/>
-  <circle cx="32" cy="14" r="2" fill="#ffffff"/>
-  <!-- Window slits down the tower body, cyan accents -->
-  <rect x="30" y="30" width="4" height="6" fill="#5af4e3"/>
-  <rect x="30" y="40" width="4" height="6" fill="#5af4e3"/>
+  <!-- Glow halo behind the beacon at center -->
+  <circle cx="32" cy="32" r="10" fill="#5af4e3" opacity="0.3"/>
+  <!-- Crenellations across the top -->
+  <rect x="18" y="14" width="4" height="6" fill="#ffffff"/>
+  <rect x="26" y="14" width="4" height="6" fill="#ffffff"/>
+  <rect x="34" y="14" width="4" height="6" fill="#ffffff"/>
+  <rect x="42" y="14" width="4" height="6" fill="#ffffff"/>
+  <!-- Battlement platform under the crenellations -->
+  <rect x="16" y="20" width="32" height="4" fill="#ffffff"/>
+  <!-- Tower body -->
+  <rect x="20" y="24" width="24" height="30" fill="#ffffff"/>
+  <!-- Glowing beacon at center of body -->
+  <circle cx="32" cy="32" r="4" fill="#5af4e3"/>
+  <!-- Arrow-slit windows flanking the beacon -->
+  <rect x="24" y="38" width="3" height="8" fill="#0a6b6b"/>
+  <rect x="37" y="38" width="3" height="8" fill="#0a6b6b"/>
+  <!-- Arched door at the base -->
+  <path d="M28 54 L28 50 Q32 46 36 50 L36 54 Z" fill="#0a6b6b"/>
 </svg>
