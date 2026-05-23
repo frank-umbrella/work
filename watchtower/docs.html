@@ -40,7 +40,8 @@
   .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; }
   .brand svg { width: 24px; height: 24px; }
   .brand .meta { font-size: 11px; color: var(--ink-faint); font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; }
-  .brand h1 { font-size: 16px; margin: 0; line-height: 1.1; }
+  .brand h1 { font-size: 16px; margin: 0; line-height: 1.1; display: inline-flex; align-items: baseline; gap: 6px; }
+  .brand h1 .version-chip { font-size: 11px; color: var(--ink-faint); font-weight: 500; letter-spacing: 0.02em; background: var(--surface-2); border: 1px solid var(--line); padding: 1px 6px; border-radius: 4px; font-variant-numeric: tabular-nums; }
   .brand-link { margin-left: auto; }
   .btn { background: var(--surface); border: 1px solid var(--line-strong); color: var(--ink); font-size: 13px; font-weight: 600; padding: 7px 13px; border-radius: 7px; text-decoration: none; }
   .btn:hover { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
@@ -94,7 +95,7 @@
       </svg>
       <div>
         <div class="meta">Umbrella Automation</div>
-        <h1>Watchtower &middot; Docs</h1>
+        <h1>Watchtower &middot; Docs <span class="version-chip">v0.7.0</span></h1>
       </div>
     </div>
     <a class="btn brand-link" href="index.html">&larr; Back to dashboard</a>
@@ -122,12 +123,14 @@
   <a href="#uninstall-local">Local (UI or CLI)</a>
   <a href="#tokens" class="section">Install tokens</a>
   <a href="#tokens-revoke">Revoking a token</a>
-  <a href="#tokens-email">Email record on create</a>
   <a href="#dell" class="section">Dell-aware UX</a>
   <a href="#dell-tag">Service Tag + Express Code</a>
   <a href="#captured" class="section">What gets captured</a>
   <a href="#captured-summary">Per-probe summary</a>
   <a href="#captured-example">Example check-in payload</a>
+  <a href="#intake-email" class="section">Intake email</a>
+  <a href="#intake-when">When it fires</a>
+  <a href="#intake-contents">What's in it</a>
   <a href="#backup-monitoring" class="section">Backup monitoring</a>
   <a href="#backup-fleet">Fleet visibility</a>
   <a href="#backup-drawer">Per-host drawer</a>
@@ -317,15 +320,6 @@ Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" 
 <p>From the Clients tab, click <b>Tokens</b> on the client's row to expand the token list, then click <b>Revoke</b> on the token in question. The token doc is kept (with <code>revoked: true</code>) so you have an audit trail; the worker treats revoked + unknown identically so an attacker can't tell which tokens ever existed.</p>
 <p>Agents using a revoked token will start returning 401 on check-in. They keep running locally &mdash; they just stop reporting until you push a rebuilt installer with a fresh token.</p>
 
-<h3 id="tokens-email">Permanent record by email</h3>
-<p>When you create a client via the <b>+ New client</b> flow, Watchtower emails you a complete record of what was created &mdash; the client name + notes + the initial install token (raw, the one and only copy you'll ever see) + the install commands to deploy it. The dashboard only stores the SHA-256 hash of the token, so this email becomes your <i>permanent</i> copy of the raw value.</p>
-<p>Email fires:</p>
-<ul>
-  <li><b>Once per client</b>, on the initial create. Not per check-in, not per fleet event.</li>
-  <li><b>Not on manual <code>+ Token</code> clicks</b> for existing clients (re-issued tokens after revocation, etc.). The dashboard's one-time-display modal is your copy in those cases &mdash; file the token elsewhere if you need a longer-term record.</li>
-  <li>Sent to whatever <code>ALERT_TO</code> is configured on the worker (currently your Resend-verified address; see <a href="#troubleshooting">troubleshooting</a> if it's not arriving).</li>
-</ul>
-<div class="callout warn"><b>Email contains a credential.</b> Anyone with access to the inbox can deploy an agent for that client. Same trust level as the dashboard itself (which auths via your <code>@umbrellaautomation.com</code> Google account), so this is consistent with the existing model, but worth knowing. If you've ever needed to nuke a token, revoke it from the dashboard and create a new one.</div>
 
 <h2 id="dell">Dell-aware UX</h2>
 <p>When a host's manufacturer reports as Dell, the dashboard layers in two extras automatically. No agent change needed — the manufacturer field is already in the system probe.</p>
@@ -484,6 +478,32 @@ Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" 
 }</code></pre>
 
 <div class="callout info"><b>Where this ends up:</b> the worker writes most of <code>report</code> into <code>/agents/&lt;pcId&gt;</code> in Firestore, with a small <code>/agents/&lt;pcId&gt;/history/&lt;ts&gt;</code> append per check-in tracking just the IP-change delta. Total size per host in Firestore is typically 40-80 KB.</div>
+
+<h2 id="intake-email">Intake email on first check-in</h2>
+<p>The first time a brand-new host's agent reports in (no existing record in the dashboard), the worker fires a one-time intake email summarizing what the probes found on that machine. Think of it as a "welcome to the fleet, here's what's on this box" report you can archive for your records.</p>
+
+<h3 id="intake-when">When it fires</h3>
+<ul>
+  <li><b>Once per host.</b> Triggered inside the <code>/checkin</code> handler when there's no previous <code>/agents/{pcId}</code> doc in Firestore (the <code>firstSeen</code> flag in <code>history</code>). Subsequent check-ins from the same host don't re-fire it.</li>
+  <li><b>Per-PC kill switches apply.</b> The same <code>config.enabled</code> and <code>config.emailEnabled</code> flags that gate the IP-change and backup-failure emails also gate this one. (Defaults are <code>true</code>, so a fresh agent that's never had its config touched WILL get an intake email.)</li>
+  <li><b>Honored across reinstalls</b> &mdash; the installer preserves <code>pcId</code> when re-running over an existing install, so a re-install of the same agent on the same machine does NOT generate a second intake email.</li>
+</ul>
+
+<h3 id="intake-contents">What's in it</h3>
+<p>A formatted HTML summary with:</p>
+<ul>
+  <li><b>Identity</b> &mdash; hostname, client, external IP, pcId, agent version</li>
+  <li><b>Hardware</b> &mdash; manufacturer, model, Service Tag (with Dell support link if Dell), CPU, RAM, TPM, BIOS</li>
+  <li><b>Operating system</b> &mdash; Windows version, build, install date, domain/workgroup</li>
+  <li><b>Volumes</b> &mdash; per-drive size + free space</li>
+  <li><b>Network interfaces</b> &mdash; all NICs with IPv4 addresses</li>
+  <li><b>Storage</b> &mdash; Dell OMSA RAID rollup + disk/array counts (only if OMSA detected)</li>
+  <li><b>Backups</b> &mdash; Veeam products + last-job result, WSB status, Carbonite products (whichever are present)</li>
+  <li><b>Security</b> &mdash; Defender status + definitions, SentinelOne (if present)</li>
+  <li><b>Remote access</b> &mdash; LogMeIn details, iDRAC iSM (if present)</li>
+  <li><b>Inventory</b> &mdash; installed app count, hotfix count, USB device count</li>
+</ul>
+<p>Sections for products that aren't installed on this host are skipped, not shown empty.</p>
 
 <h2 id="backup-monitoring">Backup monitoring</h2>
 <p>Windows Server Backup gets first-class treatment because backup failures are the kind of thing you want to know about immediately, not the next time someone happens to look at the dashboard.</p>
