@@ -24,7 +24,10 @@
 [CmdletBinding()]
 param(
     [string] $WorkerUrl   = "https://watchtower-worker.umbrelladev.workers.dev",
-    [string] $AppVersion  = "0.3.0",
+    # Default reads agent/VERSION — single source of truth, also read by
+    # checkin.py at runtime. Pass -AppVersion explicitly to override for
+    # a one-off (e.g. a hotfix build that needs to differ from VERSION).
+    [string] $AppVersion  = "",
     # Optional path to a LogMeIn host MSI to bundle into the installer. When
     # set, the wizard shows an "Also install LogMeIn remote access" checkbox
     # (checked by default). Operator can uncheck per install. Silent install
@@ -39,6 +42,15 @@ param(
     #   -LogmeinMsiArgs "DEPLOYID=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx INSTALLMETHOD=5 FQDNDESC=1"
     [string] $LogmeinMsiArgs = "",
 
+    # When set, after a successful build the resulting EXE is uploaded
+    # to a GitHub Release tagged "v$AppVersion" on frank-umbrella/work.
+    # Requires `gh` CLI authenticated as a user with push access; the
+    # global `gh auth switch -u frank-umbrella` rule applies here.
+    # Prints the public download URL + SHA256 on success so they can be
+    # set in the Watchtower dashboard's Settings tab to roll the update
+    # out fleet-wide.
+    [switch] $Publish,
+
     [switch] $SkipPyInstaller
 )
 
@@ -47,6 +59,17 @@ $here = Split-Path -Parent $MyInvocation.MyCommand.Path
 $agentDir = Join-Path (Split-Path $here -Parent) 'agent'
 $buildDir = Join-Path $here 'build'
 $distDir  = Join-Path $here 'dist'
+
+# Resolve AppVersion: -AppVersion arg > agent/VERSION file content. If both
+# are empty we hard-fail rather than ship an unversioned build.
+if (-not $AppVersion) {
+    $versionFile = Join-Path $agentDir 'VERSION'
+    if (-not (Test-Path $versionFile)) {
+        throw "agent/VERSION not found and no -AppVersion override given."
+    }
+    $AppVersion = (Get-Content $versionFile -Raw).Trim()
+}
+Write-Host "==> Agent version: $AppVersion" -ForegroundColor DarkGray
 
 # ---------------------------------------------------------------------------
 # Sanity check tools
@@ -95,6 +118,7 @@ if (-not $SkipPyInstaller) {
             --workpath (Join-Path $buildDir '_work_svc') `
             --specpath (Join-Path $buildDir '_spec_svc') `
             --noconsole `
+            --add-data "VERSION;." `
             --hidden-import probes.system `
             --hidden-import probes.network `
             --hidden-import probes.storage `
@@ -110,6 +134,7 @@ if (-not $SkipPyInstaller) {
             --hidden-import probes.idrac `
             --hidden-import probes.hotfixes `
             --hidden-import probes.usb `
+            --hidden-import updater `
             watchtower_service.py
         if ($LASTEXITCODE -ne 0) { throw "PyInstaller failed for watchtower-svc" }
 
@@ -122,6 +147,9 @@ if (-not $SkipPyInstaller) {
             --specpath (Join-Path $buildDir '_spec_tray') `
             --noconsole `
             --windowed `
+            --add-data "VERSION;." `
+            --hidden-import updater `
+            --hidden-import checkin `
             watchtower_tray.py
         if ($LASTEXITCODE -ne 0) { throw "PyInstaller failed for watchtower-tray" }
     } finally {
@@ -178,4 +206,46 @@ if (Test-Path $out) {
     }
 } else {
     throw "Expected output missing: $out"
+}
+
+# ---------------------------------------------------------------------------
+# Optional publish to GitHub Releases
+# ---------------------------------------------------------------------------
+if ($Publish) {
+    Write-Host ""
+    Write-Host "==> Publishing to GitHub Releases" -ForegroundColor Cyan
+
+    if (-not (Get-Command 'gh' -ErrorAction SilentlyContinue)) {
+        throw "gh CLI not on PATH. Install via 'winget install GitHub.cli' or skip -Publish."
+    }
+
+    # SHA256 -- agents verify this before running the downloaded EXE so a
+    # tampered upload can't be executed silently as LocalSystem.
+    $hash = (Get-FileHash -Algorithm SHA256 $out).Hash.ToLower()
+    Write-Host "SHA256: $hash" -ForegroundColor DarkGray
+
+    $tag = "watchtower-v$AppVersion"
+    $assetName = 'Watchtower-Setup.exe'
+    $repo = 'frank-umbrella/work'
+
+    # Create release if missing; otherwise reuse + clobber the asset.
+    $existing = & gh release view $tag --repo $repo 2>$null
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "Creating release $tag" -ForegroundColor DarkGray
+        $notes = "Watchtower agent $AppVersion. SHA256: $hash"
+        & gh release create $tag $out --repo $repo --title "Watchtower $AppVersion" --notes $notes
+        if ($LASTEXITCODE -ne 0) { throw "gh release create failed" }
+    } else {
+        Write-Host "Release $tag exists, replacing asset" -ForegroundColor DarkGray
+        & gh release upload $tag $out --repo $repo --clobber
+        if ($LASTEXITCODE -ne 0) { throw "gh release upload failed" }
+    }
+
+    $downloadUrl = "https://github.com/$repo/releases/download/$tag/$assetName"
+    Write-Host ""
+    Write-Host "Published:" -ForegroundColor Green
+    Write-Host "  URL:    $downloadUrl" -ForegroundColor Green
+    Write-Host "  SHA256: $hash" -ForegroundColor Green
+    Write-Host ""
+    Write-Host "Paste into the Watchtower dashboard Settings tab to roll this version out to opted-in hosts." -ForegroundColor DarkGray
 }
