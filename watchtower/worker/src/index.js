@@ -606,10 +606,36 @@ async function fetchLatestFromGitHub() {
   if (!r.ok) throw new Error(`GitHub API ${r.status}`);
   const releases = await r.json();
   if (!Array.isArray(releases)) throw new Error('unexpected GitHub API response');
-  const latest = releases.find(rel => !rel.draft && /^watchtower-v/i.test(rel.tag_name || ''));
-  if (!latest) throw new Error('no watchtower-v* release found');
+
+  // GitHub returns releases in an order that LOOKS like newest-first but
+  // isn't reliable -- in practice we've seen v0.9.0 (oldest by date) come
+  // back at index 0 ahead of v0.13.1 (newest). Probably ordered by some
+  // internal release-id rather than created_at. So we filter to
+  // watchtower-v* + non-draft + has the asset, then explicitly semver-sort
+  // and take the highest. "Latest" = highest version number, which is what
+  // an MSP operator means even if it happens to be older calendar-wise
+  // than some weird out-of-band release.
+  const candidates = releases
+    .filter(rel => !rel.draft && /^watchtower-v/i.test(rel.tag_name || ''))
+    .filter(rel => (rel.assets || []).some(a => /watchtower-setup\.exe$/i.test(a.name || '')));
+  if (!candidates.length) throw new Error('no watchtower-v* release with Watchtower-Setup.exe asset found');
+
+  const semverParts = (tag) => {
+    return String(tag).replace(/^watchtower-v/i, '').split('.').map(p => parseInt(p, 10) || 0);
+  };
+  candidates.sort((a, b) => {
+    const pa = semverParts(a.tag_name);
+    const pb = semverParts(b.tag_name);
+    while (pa.length < 3) pa.push(0);
+    while (pb.length < 3) pb.push(0);
+    for (let i = 0; i < 3; i++) {
+      if (pa[i] !== pb[i]) return pb[i] - pa[i];   // descending
+    }
+    return 0;
+  });
+  const latest = candidates[0];
+
   const asset = (latest.assets || []).find(a => /watchtower-setup\.exe$/i.test(a.name || ''));
-  if (!asset) throw new Error('no Watchtower-Setup.exe asset in latest release');
   // build.ps1 -Publish writes "Watchtower agent X.Y.Z. SHA256: <hex>" into
   // the release body. Parse out the hex; if missing, return null and let
   // the dashboard / agent decide how to handle (manual download = fine
