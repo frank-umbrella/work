@@ -108,7 +108,7 @@
       </svg>
       <div>
         <div class="meta">Umbrella Automation</div>
-        <h1>Watchtower &middot; Docs <span class="version-chip">v0.10.3</span></h1>
+        <h1>Watchtower &middot; Docs <span class="version-chip">v0.11.0</span></h1>
       </div>
     </div>
     <a class="btn brand-link" href="index.html">&larr; Back to dashboard</a>
@@ -131,9 +131,11 @@
   <a href="#customize-logmein">Bundle LogMeIn MSI</a>
   <a href="#customize-dir">Custom install directory</a>
   <a href="#customize-worker">Alternate worker URL</a>
-  <a href="#uninstall" class="section">Uninstall</a>
-  <a href="#uninstall-remote">Remote (preferred)</a>
-  <a href="#uninstall-local">Local (UI or CLI)</a>
+  <a href="#uninstall" class="section">Uninstall &amp; decommission</a>
+  <a href="#uninstall-remote">Remote (admin)</a>
+  <a href="#uninstall-local">Local (on the host)</a>
+  <a href="#reactivation">Reactivation</a>
+  <a href="#filtering-decom">Finding decom'd hosts</a>
   <a href="#tokens" class="section">Install tokens</a>
   <a href="#tokens-revoke">Revoking a token</a>
   <a href="#settings" class="section">Settings</a>
@@ -312,26 +314,60 @@
 <p>When the install token belongs to a different worker (staging, a parallel test environment, etc.), pass it on the command line so both the wizard's validation call AND the resulting <code>config.json</code> use it:</p>
 <pre><code>Watchtower-Setup.exe /TOKEN=wt_xxxxx /WORKERURL=https://watchtower-worker-staging.umbrelladev.workers.dev</code></pre>
 
-<h2 id="uninstall">Uninstall</h2>
+<h2 id="uninstall">Uninstall &amp; decommission</h2>
 
-<h3 id="uninstall-remote">Remote (preferred)</h3>
-<p>From the dashboard:</p>
+<p>The two paths land at the same place in the dashboard &mdash; a <b>Decommissioned</b> badge on the row &mdash; but they tell you <i>how</i> the host left the fleet:</p>
+<ul>
+  <li><b>agent-uninstall</b> &mdash; someone removed the agent on the box itself (Control Panel or CLI). The uninstaller phoned home as it was being removed.</li>
+  <li><b>admin</b> &mdash; an MSP admin clicked <b>Decommission</b> in the dashboard.</li>
+</ul>
+<p>You can distinguish them in the host's drawer banner and in the Activity tab (<code>agent_uninstalled</code> vs <code>agent_decommissioned</code>).</p>
+
+<h3 id="uninstall-remote">Remote (admin in the dashboard)</h3>
 <ol class="steps">
-  <li>Fleet tab &rarr; click the row for the host you want to remove.</li>
-  <li>In the drawer, click <b>Decommission</b>.</li>
-  <li>The agent self-uninstalls on its next check-in (within 24h). The dashboard row stays until you manually delete it &mdash; useful for audit.</li>
+  <li>Endpoints tab &rarr; click the row for the host.</li>
+  <li>In the drawer, click <b>Decommission</b>. Add an optional reason (visible in the banner + activity log).</li>
+  <li>Two things happen at once:
+    <ul style="margin-top:6px;">
+      <li>The host is flagged <code>decommissioned</code> in Firestore immediately, with source <code>admin</code>, and hidden from the default Endpoints view.</li>
+      <li>The per-agent config doc gets <code>uninstall: true</code> &mdash; if the agent is alive, it self-removes on its next check-in (within 24h).</li>
+    </ul>
+  </li>
+  <li>If the agent does come back to do the uninstall, the uninstaller phones home and flips the source from <code>admin</code> to <code>agent-uninstall</code>.</li>
 </ol>
-<div class="callout warn"><b>Heads up:</b> Decommission flips <code>uninstall: true</code> on the per-agent config doc. If the PC is offline at decommission time it will pick up the flag whenever it next reaches the worker. If it never reaches the worker again, the install stays in place &mdash; you'll need to <a href="#uninstall-local">uninstall locally</a>.</div>
+<div class="callout"><b>If the host is dead/offline forever:</b> the admin decommission still works &mdash; it just stays at source <code>admin</code> because nobody's there to phone home. Use <b>Delete row</b> in the drawer banner when you're sure the machine isn't coming back.</div>
 
-<h3 id="uninstall-local">Local (UI or CLI)</h3>
+<h3 id="uninstall-local">Local (on the host)</h3>
 <p><b>UI:</b> Settings &rarr; Apps &rarr; Installed apps &rarr; <i>Umbrella Watchtower Agent</i> &rarr; Uninstall.</p>
-<p><b>CLI</b> (elevated PowerShell, in case the GUI uninstaller is broken or unreachable):</p>
+<p>The Inno Setup uninstaller does all of this in order:</p>
+<ol class="steps">
+  <li><b>Phones home</b> to <code>POST /uninstall</code> with the host's install token and pcId. Marks the host decommissioned in Firestore with source <code>agent-uninstall</code> and writes an <code>agent_uninstalled</code> activity entry. <i>Best-effort &mdash; if the worker is unreachable, the uninstall continues anyway and the dashboard can be cleaned up manually.</i></li>
+  <li>Stops + deletes the <code>WatchtowerAgent</code> service via <code>sc.exe</code>.</li>
+  <li>Kills <code>watchtower-tray.exe</code>.</li>
+  <li>Removes the HKLM <code>Run</code> autostart for the tray.</li>
+  <li>Deletes <code>C:\Program Files\Umbrella Watchtower\</code> and <code>C:\ProgramData\Watchtower\</code>.</li>
+  <li>Removes the Add/Remove Programs entry.</li>
+</ol>
+
+<p><b>CLI</b> (elevated PowerShell, only if the Inno uninstaller is broken or the EXE is gone &mdash; this path doesn't phone home):</p>
 <pre><code>sc.exe stop WatchtowerAgent
 sc.exe delete WatchtowerAgent
 taskkill /im watchtower-tray.exe /f
 Remove-Item "C:\Program Files\Umbrella Watchtower" -Recurse -Force
 Remove-Item "C:\ProgramData\Watchtower" -Recurse -Force
 Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" -Name "WatchtowerTray" -ErrorAction SilentlyContinue</code></pre>
+<p>After the manual CLI path, the dashboard will still show the host as active until it goes stale (no check-ins for &gt;30h). Use the admin Decommission button to flag it sooner.</p>
+
+<h3 id="reactivation">Reactivation</h3>
+<p>If a previously decommissioned host checks in again &mdash; e.g. you reinstalled the agent, or the admin Decommission was a mistake and the agent didn't get the uninstall flag in time &mdash; the worker auto-clears the decommissioned fields on that check-in and writes an <code>agent_reactivated</code> activity entry. No manual undo needed; the host just shows up in the active fleet view again.</p>
+
+<h3 id="filtering-decom">Finding decommissioned hosts</h3>
+<p>The Endpoints status filter has three relevant options:</p>
+<ul>
+  <li><b>All (active)</b> &mdash; default. Hides decommissioned hosts.</li>
+  <li><b>Decommissioned only</b> &mdash; shows only the retired hosts. Use for cleanup / audit.</li>
+  <li><b>All + decommissioned</b> &mdash; everything in one view, decommissioned rows dimmed.</li>
+</ul>
 
 <h2 id="tokens">Install tokens</h2>
 <p>Each client gets its own install token. The dashboard generates 32 cryptographically-random bytes (256 bits of entropy), base64url-encodes them, and prefixes <code>wt_</code> for easy spotting in logs. Only the SHA-256 hash is stored in Firestore &mdash; you see the raw token exactly once, in the modal that pops up right after generation.</p>

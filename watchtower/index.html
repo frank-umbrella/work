@@ -117,6 +117,11 @@
   table.fleet td { padding: 11px 14px; border-bottom: 1px solid var(--line); vertical-align: middle; }
   table.fleet tr:hover td { background: var(--surface-2); cursor: pointer; }
   table.fleet tr.selected td { background: var(--accent-soft); }
+  /* Decommissioned rows: dim everything so they read as "still here but
+     retired" — operator can still click in for history but the row no
+     longer competes for attention with the live fleet. */
+  table.fleet tr.decom td { opacity: 0.55; }
+  table.fleet tr.decom td .badge.muted { opacity: 1; }
   table.fleet .host { font-weight: 600; color: var(--ink); }
   table.fleet .ip { font-family: var(--mono); font-size: 12.5px; color: var(--ink-soft); }
   table.fleet .client { font-size: 12.5px; color: var(--ink-soft); }
@@ -259,6 +264,8 @@
   .activity-icon.t-token_generated  { background: #0a6b6b; }
   .activity-icon.t-token_revoked    { background: #6b7280; }
   .activity-icon.t-agent_decommissioned { background: #d04646; }
+  .activity-icon.t-agent_uninstalled    { background: #475063; }
+  .activity-icon.t-agent_reactivated    { background: #1bb978; }
   .activity-icon.t-update_applied   { background: #ca8a04; }
   .activity-body { flex: 1; min-width: 0; }
   .activity-summary { color: var(--ink); }
@@ -379,7 +386,7 @@
           <select id="clientFilter"><option value="">All</option></select>
           <label>Status</label>
           <select id="statusFilter">
-            <option value="">All</option>
+            <option value="">All (active)</option>
             <option value="ok">Healthy</option>
             <option value="stale">Stale (&gt;30h)</option>
             <option value="dead">Dead (&gt;7d)</option>
@@ -387,6 +394,8 @@
             <option value="backup-failing">Backup failing</option>
             <option value="omsa-warning">OMSA warning</option>
             <option value="update-available">Update available</option>
+            <option value="decommissioned">Decommissioned only</option>
+            <option value="all-with-decom">All + decommissioned</option>
           </select>
           <span class="spacer"></span>
           <span class="count" id="fleetCount"></span>
@@ -432,6 +441,8 @@
             <option value="token_generated">Token generated</option>
             <option value="token_revoked">Token revoked</option>
             <option value="agent_decommissioned">Agent decommissioned</option>
+            <option value="agent_uninstalled">Agent uninstalled (host side)</option>
+            <option value="agent_reactivated">Agent reactivated</option>
           </select>
           <span class="spacer"></span>
           <span class="count" id="activityCount"></span>
@@ -575,7 +586,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.10.3";
+const APP_VERSION = "0.11.0";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -804,6 +815,19 @@ function renderFleet() {
 
   const rows = state.agents.filter(a => {
     if (cf && a.client !== cf) return false;
+    // Decommissioned hosts are hidden from every default view (sf=""/healthy/
+    // stale/etc) so the active fleet stays clean. They're visible only when
+    // explicitly requested via the "Decommissioned only" or "All + decommissioned"
+    // filter options. This way clients who keep a steady churn of retired
+    // machines don't see them every time they open the dashboard.
+    const isDecom = a.decommissioned === true;
+    if (sf === "decommissioned") {
+      if (!isDecom) return false;
+    } else if (sf === "all-with-decom") {
+      // include everything
+    } else {
+      if (isDecom) return false;
+    }
     const st = statusOf(a).kind;
     if (sf === "ok"       && st !== "ok") return false;
     if (sf === "stale"    && st !== "warn") return false;
@@ -842,7 +866,10 @@ function renderFleet() {
     const bh = backupHealthOf(a);
     const oh = omsaHealthOf(a);
     const os = (a.report && a.report.system && a.report.system.os && a.report.system.os.name) || "—";
-    const stBadge = `<span class="badge ${st.kind === "ok" ? "ok" : st.kind === "warn" ? "warn" : st.kind === "bad" ? "bad" : "muted"}"><span class="badge-dot"></span>${esc(st.label)}</span>`;
+    const isDecom = a.decommissioned === true;
+    const stBadge = isDecom
+      ? `<span class="badge muted" title="${esc(a.decommissionedBy === 'agent-uninstall' ? 'Uninstalled at the host' : 'Marked decommissioned by admin')} on ${esc(tsToStr(a.decommissionedAt))}"><span class="badge-dot"></span>Decommissioned</span>`
+      : `<span class="badge ${st.kind === "ok" ? "ok" : st.kind === "warn" ? "warn" : st.kind === "bad" ? "bad" : "muted"}"><span class="badge-dot"></span>${esc(st.label)}</span>`;
     // Only show secondary badges when there's something to flag — keeps healthy rows uncluttered.
     const bhBadge = (bh && bh.kind !== "ok")
       ? ` <span class="badge ${bh.kind === "warn" ? "warn" : "bad"}" title="Windows Server Backup status">${esc(bh.label)}</span>`
@@ -869,8 +896,12 @@ function renderFleet() {
     if (r.idrac && r.idrac.installed) remotePills.push(`<span class="pill pill-idrac" title="Dell iDRAC iSM">iDRAC</span>`);
     const remoteCell = remotePills.length ? remotePills.join(" ") : `<span class="meta">—</span>`;
 
+    const rowClasses = [
+      state.openPcId === a.id ? 'selected' : '',
+      isDecom ? 'decom' : '',
+    ].filter(Boolean).join(' ');
     return `
-      <tr data-id="${esc(a.id)}" class="${state.openPcId === a.id ? 'selected' : ''}">
+      <tr data-id="${esc(a.id)}" class="${rowClasses}">
         <td data-label="Host"><div class="host">${esc(a.hostname || a.id)}</div></td>
         <td class="col-client client" data-label="Client">${esc(a.client || "—")}</td>
         <td class="col-intip ip" data-label="Internal IP">${esc(a.internalIp || "—")}</td>
@@ -1195,6 +1226,8 @@ function renderActivityRow(e) {
     token_generated: "T",
     token_revoked: "X",
     agent_decommissioned: "-",
+    agent_uninstalled: "✕",
+    agent_reactivated: "↻",
     update_applied: "↑",
   })[e.type] || "·";
 
@@ -1240,6 +1273,12 @@ function renderActivityRow(e) {
       break;
     case "agent_decommissioned":
       summary = `${hostLink}${clientLabel} decommissioned`;
+      break;
+    case "agent_uninstalled":
+      summary = `${hostLink}${clientLabel} uninstalled at the host${e.details?.reason ? ` &middot; <span class="meta">${esc(e.details.reason)}</span>` : ""}`;
+      break;
+    case "agent_reactivated":
+      summary = `${hostLink}${clientLabel} reactivated &middot; <span class="meta">re-checked in after being marked decommissioned</span>`;
       break;
     case "update_applied":
       summary = `Agent updated on ${hostLink}${clientLabel}: v${esc(e.details?.from || "?")} &rarr; v${esc(e.details?.to || "?")}`;
@@ -1865,7 +1904,35 @@ function renderDrawer(pcId) {
 
   const cfg = a.config || { enabled: true, emailEnabled: true, webhookEnabled: false, webhookUrl: "", uninstall: false, autoUpdate: false, clientIdOverride: null };
 
+  // Decommissioned banner — shown above the Status block when the host
+  // has been marked decommissioned, either by the agent's uninstall
+  // phone-home (source='agent-uninstall') or by an admin clicking
+  // Decommission from this drawer (source='admin'). Stays until the
+  // host either re-checks in (auto-reactivates) or an admin deletes
+  // the row entirely.
+  const isDecom = a.decommissioned === true;
+  const decomBanner = isDecom ? `
+    <div class="section" style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:14px 16px;">
+      <div style="font-weight:600;color:#7f1d1d;font-size:14px;margin-bottom:4px;">
+        Host decommissioned
+      </div>
+      <div style="font-size:12.5px;color:#7f1d1d;line-height:1.55;">
+        ${a.decommissionedBy === 'agent-uninstall'
+          ? `The Watchtower agent was <b>uninstalled at the host</b> (Control Panel / Add &amp; Remove Programs, or an operator-initiated uninstall). The agent phoned home as it was being removed.`
+          : a.decommissionedBy === 'admin'
+            ? `Marked decommissioned by an admin from the dashboard${a.decommissionedByEmail ? ` (<code>${esc(a.decommissionedByEmail)}</code>)` : ""}. The agent will self-uninstall on its next check-in if it's still alive.`
+            : `This host is flagged decommissioned.`}
+        <br>
+        <span class="meta">${esc(tsToStr(a.decommissionedAt))}${a.decommissionedReason ? ` &middot; ${esc(a.decommissionedReason)}` : ""}</span>
+      </div>
+      <div style="margin-top:10px;">
+        <button class="btn btn-sm btn-danger" id="dDeleteRow" title="Permanently delete this host's record from Firestore. Cannot be undone — history is gone too.">Delete row</button>
+      </div>
+    </div>
+  ` : "";
+
   $("#dBody").innerHTML = `
+    ${decomBanner}
     <div class="section">
       <h3>Status</h3>
       ${kv([
@@ -1933,7 +2000,9 @@ function renderDrawer(pcId) {
         <label class="switch"><input type="checkbox" data-cfg="autoUpdate" ${cfg.autoUpdate === true ? "checked" : ""}><span class="slider"></span></label>
       </div>
       <div class="config-actions" style="margin-top:14px;">
-        <button class="btn btn-sm btn-danger" id="dDecommission">Decommission</button>
+        ${isDecom
+          ? `<span class="meta">Already decommissioned. Use <b>Delete row</b> in the banner above to remove this entry entirely.</span>`
+          : `<button class="btn btn-sm btn-danger" id="dDecommission" title="Mark this host decommissioned in the dashboard AND schedule the agent to self-uninstall on its next check-in.">Decommission</button>`}
       </div>
     </div>
 
@@ -2101,7 +2170,13 @@ function renderDrawer(pcId) {
       setTimeout(() => document.getElementById("latestAgentVersion")?.focus(), 50);
     });
   }
-  $("#dDecommission").addEventListener("click", () => decommission(pcId, a.hostname));
+  // Decommission button only appears when the host isn't already
+  // decommissioned. Decommissioned hosts get a "Delete row" button in
+  // the banner instead.
+  const decomBtn = document.getElementById("dDecommission");
+  if (decomBtn) decomBtn.addEventListener("click", () => decommission(pcId, a.hostname));
+  const delBtn = document.getElementById("dDeleteRow");
+  if (delBtn) delBtn.addEventListener("click", () => deleteAgentRow(pcId, a.hostname));
 
   // Client reassignment dropdown — calls the worker, which atomically
   // updates /agents/{pcId} (so the table refreshes now) AND the config
@@ -2543,16 +2618,64 @@ async function writeConfig(pcId, field, value) {
 }
 
 async function decommission(pcId, hostname) {
-  if (!confirm(`Decommission ${hostname || pcId}?\n\nThe agent will uninstall itself on its next check-in (within 24h).\n\nThe agent record stays in the dashboard until you manually delete it.`)) return;
-  await writeConfig(pcId, "uninstall", true);
-  toast(`Decommission scheduled — agent will self-remove on next check-in.`);
-  const a = state.agents.find(x => x.id === pcId);
-  logActivity({
-    type: "agent_decommissioned",
-    target: { type: "host", id: pcId, label: hostname || pcId },
-    client: a?.client || null,
-    details: {},
-  });
+  const msg = `Decommission ${hostname || pcId}?\n\n` +
+    `• Host is hidden from the active fleet view immediately (still visible under "Decommissioned only" filter)\n` +
+    `• If the agent is alive, it'll self-uninstall on its next check-in (within 24h)\n` +
+    `• If the host then phones home from the uninstaller, the source flips to "agent-uninstall"\n` +
+    `• The row stays so you have audit history — use "Delete row" in the banner to remove it entirely\n\n` +
+    `Optional reason (visible in the banner and activity log):`;
+  const reason = window.prompt(msg, "");
+  // Cancel = null. Empty string is allowed (no reason supplied).
+  if (reason === null) return;
+
+  try {
+    const idToken = await state.user.getIdToken();
+    const resp = await fetch(`${WORKER_URL}/decommission`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${idToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ pcId, reason: reason || null }),
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ error: `HTTP ${resp.status}` }));
+      throw new Error(err.error || `HTTP ${resp.status}`);
+    }
+    toast(`Decommissioned. The agent will self-remove on next check-in.`);
+    // Activity log entry is written by the worker — no client-side logActivity
+    // call here, otherwise we'd get a duplicate event.
+  } catch (e) {
+    toast(`Decommission failed: ${e.message || e}`, true);
+  }
+}
+
+async function deleteAgentRow(pcId, hostname) {
+  if (!confirm(
+    `Permanently delete ${hostname || pcId} from Firestore?\n\n` +
+    `• Removes /agents/${pcId} and all its history\n` +
+    `• Cannot be undone\n` +
+    `• Activity log entries for this host stay (they reference it by id)\n\n` +
+    `Only do this for hosts you're sure won't return. If the same machine reinstalls Watchtower with the same pcId, it'll appear again as a brand new entry.`
+  )) return;
+  try {
+    const a = state.agents.find(x => x.id === pcId);
+    const client = a?.client || null;
+    await deleteDoc(doc(db, "agents", pcId));
+    toast(`Deleted ${hostname || pcId}.`);
+    closeDrawer();
+    // Local audit so the operator can see what they did even though the
+    // host doc is gone. Type reuses agent_decommissioned since deletion is
+    // the terminal state of the same workflow.
+    logActivity({
+      type: "agent_decommissioned",
+      target: { type: "host", id: pcId, label: hostname || pcId },
+      client,
+      details: { action: "deleted" },
+    });
+  } catch (e) {
+    toast(`Delete failed: ${e.message || e}`, true);
+  }
 }
 </script>
 

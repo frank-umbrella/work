@@ -30,7 +30,7 @@
   #define WorkerUrl "https://watchtower-worker.umbrelladev.workers.dev"
 #endif
 #ifndef AppVersion
-  #define AppVersion "0.3.0"
+  #define AppVersion "0.11.0"
 #endif
 
 #define AppName       "Umbrella Watchtower Agent"
@@ -442,6 +442,91 @@ begin
   if ClientName = '' then Exit;
   KeyPath := 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{F4D2A1E6-9B3C-4A82-8F7E-1D2C3B4A5E6F}_is1';
   RegWriteStringValue(HKLM, KeyPath, 'DisplayName', '{#AppName} (' + ClientName + ')');
+end;
+
+// ──────────────────────────────────────────────────────────────────────
+// Uninstall: phone home so the dashboard knows the agent left the host
+// ──────────────────────────────────────────────────────────────────────
+//
+// Reads %ProgramData%\Watchtower\config.json (still on disk during the
+// usUninstall step, before [UninstallDelete] runs), pulls out the
+// install token + pcId + workerUrl, POSTs /uninstall.
+//
+// Best-effort: short timeouts, swallow every error. We never want a
+// network blip to wedge or roll back an uninstall — the host machine
+// might be offline (laptop on a plane, server already on the way out).
+// The dashboard's own admin Decommission button handles the case where
+// the phone-home never lands.
+
+function ReadJsonField(const Content, Key: string): string;
+var
+  Search: string;
+  StartPos, EndPos: Integer;
+begin
+  Result := '';
+  Search := '"' + Key + '":"';
+  StartPos := Pos(Search, Content);
+  if StartPos = 0 then Exit;
+  StartPos := StartPos + Length(Search);
+  EndPos := StartPos;
+  while (EndPos <= Length(Content)) and (Content[EndPos] <> '"') do
+    EndPos := EndPos + 1;
+  Result := Copy(Content, StartPos, EndPos - StartPos);
+end;
+
+procedure PhoneHomeUninstall;
+var
+  ConfigPath, Body: string;
+  AnsiContent: AnsiString;
+  Token, PcId, WorkerUrlValue, Hostname: string;
+  WinHttp: Variant;
+begin
+  ConfigPath := ExpandConstant('{commonappdata}\Watchtower\config.json');
+  if not FileExists(ConfigPath) then Exit;
+  if not LoadStringFromFile(ConfigPath, AnsiContent) then Exit;
+
+  Token          := ReadJsonField(string(AnsiContent), 'installToken');
+  PcId           := ReadJsonField(string(AnsiContent), 'pcId');
+  WorkerUrlValue := ReadJsonField(string(AnsiContent), 'workerUrl');
+
+  // If the config is missing critical fields we bail silently. The dashboard
+  // can clean up via the admin Decommission button instead.
+  if (Token = '') or (PcId = '') or (WorkerUrlValue = '') then Exit;
+
+  Hostname := GetComputerNameString;
+
+  // Minimal JSON — no need for nested arrays/objects. Hostname is alphanumeric
+  // + hyphens on Windows so we don't bother escaping it.
+  Body := '{"pcId":"' + PcId + '","hostname":"' + Hostname +
+          '","reason":"Control Panel uninstall"}';
+
+  try
+    WinHttp := CreateOleObject('WinHttp.WinHttpRequest.5.1');
+    WinHttp.Open('POST', WorkerUrlValue + '/uninstall', False);
+    WinHttp.SetRequestHeader('Authorization', 'Bearer ' + Token);
+    WinHttp.SetRequestHeader('Content-Type', 'application/json');
+    // Resolve / Connect / Send / Receive (ms). Aggressive timeouts on
+    // purpose — an unreachable worker shouldn't block the uninstall by
+    // more than ~10s total.
+    WinHttp.SetTimeouts(3000, 3000, 3000, 5000);
+    WinHttp.Send(Body);
+    // We don't check status — if it failed, the dashboard's admin
+    // Decommission button is the recovery path.
+  except
+    // Network/COM errors: swallow. Logged to the uninstall log so an
+    // operator running with /LOG= can see it.
+    Log('Watchtower uninstall phone-home failed: ' + GetExceptionMessage);
+  end;
+end;
+
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+begin
+  // usUninstall fires just before files start being removed. Perfect
+  // timing — config.json still exists, services still need cleanup,
+  // and we're far enough into the uninstall that the operator has
+  // committed. usPostUninstall would be too late (config.json wiped).
+  if CurUninstallStep = usUninstall then
+    PhoneHomeUninstall;
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);

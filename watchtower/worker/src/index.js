@@ -83,6 +83,21 @@ export default {
       return withCors(await handleReassignClient(request, env, ctx), env, request);
     }
 
+    // POST /uninstall — agent phones home from Inno Setup's uninstall step.
+    // Auth is the install token (same as /checkin), NOT a Firebase ID token.
+    // No CORS — called from native WinHttp, not the browser.
+    if (url.pathname === '/uninstall' && request.method === 'POST') {
+      return handleUninstall(request, env, ctx);
+    }
+
+    // POST /decommission — admin marks a host decommissioned from the
+    // dashboard. Used for offline / dead hosts that can't phone home on
+    // their own, or to schedule a live host's uninstall + immediately
+    // hide it from the active fleet view.
+    if (url.pathname === '/decommission' && request.method === 'POST') {
+      return withCors(await handleAdminDecommission(request, env, ctx), env, request);
+    }
+
     return jsonResponse({ error: 'Not found', path: url.pathname }, 404);
   },
 };
@@ -208,6 +223,185 @@ async function handleReassignClient(request, env, ctx) {
     clientId: newClientId,
     cleared: !clientId,
   }, 200);
+}
+
+// ═════════════════════════════════════════════════════════════════════
+// POST /uninstall — agent phones home as it's being uninstalled
+// ═════════════════════════════════════════════════════════════════════
+//
+// Called by the Inno Setup uninstaller from CurUninstallStepChanged
+// (best-effort, fire-and-forget) before files are removed. Same Bearer
+// install-token auth as /checkin so a random script can't spoof a
+// decommission; the token is read out of config.json on the host.
+//
+// Marks the host decommissioned with source='agent-uninstall' so the
+// dashboard can show "this agent was uninstalled at the host side" vs
+// "an admin clicked Decommission in the dashboard".
+//
+// Idempotent: re-uninstalling (or a retry) just rewrites the same fields
+// and re-stamps decommissionedAt. We don't error on already-decommissioned.
+//
+// Request body:
+//   { pcId, hostname?, reason? }   reason is an optional free-text note
+//
+// Response:
+//   200 { ok: true }            — even if Firestore is unhappy under the
+//                                  hood, we never want to block the
+//                                  uninstaller. Worker logs the failure.
+//   401 { error }               — invalid/missing token (do nothing)
+//   400 { error }               — missing pcId
+async function handleUninstall(request, env, ctx) {
+  const authHeader = request.headers.get('Authorization') || '';
+  const presented = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+  if (!presented) {
+    return jsonResponse({ error: 'Missing install token' }, 401);
+  }
+  const accessToken = await getServiceAccountToken(env);
+  const auth = await validateToken(presented, env, accessToken);
+  if (!auth.ok) {
+    return jsonResponse({ error: 'Invalid install token' }, 401);
+  }
+
+  let body;
+  try {
+    body = await request.json();
+  } catch (e) {
+    return jsonResponse({ error: 'Body must be JSON' }, 400);
+  }
+  const { pcId, hostname, reason } = body || {};
+  if (!pcId || typeof pcId !== 'string') {
+    return jsonResponse({ error: 'pcId required' }, 400);
+  }
+
+  // Confirm the agent doc exists before we PATCH — avoids creating a
+  // stub /agents/{pcId} from a typo'd pcId.
+  const agentDoc = await firestoreGetDoc(env, accessToken, `agents/${pcId}`);
+  if (!agentDoc || !agentDoc.fields) {
+    // The host was never registered (or already deleted). Treat as OK so
+    // the uninstaller doesn't hang on a 404.
+    return jsonResponse({ ok: true, noop: true }, 200);
+  }
+
+  const nowIso = new Date().toISOString();
+  const resolvedHost = hostname
+    || agentDoc.fields.hostname?.stringValue
+    || pcId;
+  const resolvedClient = agentDoc.fields.client?.stringValue || 'unknown';
+
+  await firestoreSetDoc(env, accessToken, `agents/${pcId}`, {
+    decommissioned: true,
+    decommissionedAt: nowIso,
+    decommissionedBy: 'agent-uninstall',
+    decommissionedByEmail: null,
+    decommissionedReason: reason || null,
+  });
+
+  // Activity log: type matches the dashboard's icon mapping.
+  ctx.waitUntil(logActivity(env, accessToken, {
+    type: 'agent_uninstalled',
+    actor: { type: 'agent', id: pcId },
+    target: { type: 'host', id: pcId, label: resolvedHost },
+    client: resolvedClient,
+    details: { reason: reason || null, when: nowIso },
+  }));
+
+  // Optional email — same channel as IP-change / WSB failure alerts so
+  // admins get a heads-up that an agent left the fleet on its own.
+  if (env.RESEND_API_KEY) {
+    ctx.waitUntil(
+      sendUninstallEmail(env, {
+        pcId,
+        hostname: resolvedHost,
+        client: resolvedClient,
+        source: 'agent-uninstall',
+        reason: reason || null,
+        when: nowIso,
+      }).catch((e) => console.error('Uninstall email failed:', e))
+    );
+  }
+
+  return jsonResponse({ ok: true }, 200);
+}
+
+// ═════════════════════════════════════════════════════════════════════
+// POST /decommission — admin marks a host decommissioned
+// ═════════════════════════════════════════════════════════════════════
+//
+// Used for two scenarios:
+//   1. Live host: admin wants to retire it. Sets decommissioned=true AND
+//      schedules config.uninstall=true so the agent self-removes on its
+//      next check-in. When the uninstaller phones /uninstall, this
+//      decommissioned record will be overwritten with source='agent-
+//      uninstall' to reflect that the agent actually left the box.
+//   2. Dead host: agent is offline / hardware is gone / Windows was
+//      wiped. Admin just wants to clean up the dashboard. Sets
+//      decommissioned=true; the config.uninstall flag is set anyway but
+//      will never be picked up (host won't check in again).
+//
+// Auth: Bearer Firebase ID token, verified + @umbrellaautomation.com.
+//
+// Body: { pcId, reason? }
+async function handleAdminDecommission(request, env, ctx) {
+  const authHeader = request.headers.get('Authorization') || '';
+  const idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+  if (!idToken) return jsonResponse({ error: 'Missing sign-in token' }, 401);
+  let claims;
+  try {
+    claims = await verifyFirebaseIdToken(idToken);
+  } catch (e) {
+    return jsonResponse({ error: 'Invalid or expired sign-in token' }, 401);
+  }
+  const email = (claims.email || '').toLowerCase();
+  if (!claims.email_verified || !email.endsWith('@umbrellaautomation.com')) {
+    return jsonResponse({ error: 'Not authorized — domain mismatch' }, 403);
+  }
+
+  let body;
+  try {
+    body = await request.json();
+  } catch (e) {
+    return jsonResponse({ error: 'Body must be JSON' }, 400);
+  }
+  const { pcId, reason } = body || {};
+  if (!pcId || typeof pcId !== 'string') {
+    return jsonResponse({ error: 'pcId required' }, 400);
+  }
+
+  const accessToken = await getServiceAccountToken(env);
+  const agentDoc = await firestoreGetDoc(env, accessToken, `agents/${pcId}`);
+  if (!agentDoc || !agentDoc.fields) {
+    return jsonResponse({ error: 'Agent not found' }, 404);
+  }
+  const resolvedHost = agentDoc.fields.hostname?.stringValue || pcId;
+  const resolvedClient = agentDoc.fields.client?.stringValue || 'unknown';
+
+  const nowIso = new Date().toISOString();
+
+  // Mark decommissioned + schedule uninstall in parallel-ish (one PATCH
+  // each). If the host is alive it'll pick up uninstall=true on next
+  // check-in and the /uninstall ping will overwrite decommissionedBy.
+  await firestoreSetDoc(env, accessToken, `agents/${pcId}`, {
+    decommissioned: true,
+    decommissionedAt: nowIso,
+    decommissionedBy: 'admin',
+    decommissionedByEmail: email,
+    decommissionedReason: reason || null,
+  });
+  await firestoreSetDoc(env, accessToken, `agents/${pcId}/config/current`, {
+    uninstall: true,
+    updatedAt: nowIso,
+    updatedBy: email,
+  });
+
+  ctx.waitUntil(logActivity(env, accessToken, {
+    type: 'agent_decommissioned',
+    actor: { type: 'admin', id: email },
+    target: { type: 'host', id: pcId, label: resolvedHost },
+    client: resolvedClient,
+    details: { reason: reason || null, when: nowIso },
+  }));
+
+  return jsonResponse({ ok: true }, 200);
 }
 
 // ═════════════════════════════════════════════════════════════════════
@@ -788,6 +982,20 @@ async function handleCheckin(request, env, ctx) {
   const firstSeen = existing === null;
   const nowIso = new Date().toISOString();
 
+  // ----- 3z. Reactivation: a check-in from a previously decommissioned host -----
+  // Could happen for a few reasons:
+  //   - admin clicked Decommission, then changed mind before the agent
+  //     received uninstall=true
+  //   - host was offline at decommission time, came back online before
+  //     the uninstall flag could be applied
+  //   - somebody reinstalled with the same pcId (config.json preserved
+  //     across re-install — see ExtractExistingPcId in the .iss)
+  // In every case the right move is to clear the decommissioned fields
+  // and log a reactivation event. The uninstall config flag stays where
+  // it is — the agent will see it on this same response and act if it's
+  // set; if it's not (e.g. admin cleared it), nothing happens.
+  const wasDecommissioned = existing?.fields?.decommissioned?.booleanValue === true;
+
   // ----- 3d. Pick a "primary" internal IP for the fleet table -----
   // Heuristic: first NIC with a default gateway AND a non-link-local IPv4.
   // That's almost always the one an admin would RDP to. Falls back to any
@@ -881,6 +1089,16 @@ async function handleCheckin(request, env, ctx) {
     ...(ipChanged || firstSeen ? { externalIpChangedAt: nowIso } : {}),
     internalIp: newInternalIp,
     omsaFirstWarnAt,
+    // Clear decommissioned flags on any successful check-in — a live
+    // agent reporting in is the definition of "not decommissioned." If
+    // the host was flagged, we log a reactivation activity entry below.
+    ...(wasDecommissioned ? {
+      decommissioned: false,
+      decommissionedAt: null,
+      decommissionedBy: null,
+      decommissionedByEmail: null,
+      decommissionedReason: null,
+    } : {}),
     report,
   };
   await firestoreSetDoc(env, accessToken, `agents/${pcId}`, statusUpdate);
@@ -918,6 +1136,22 @@ async function handleCheckin(request, env, ctx) {
       target: { type: 'host', id: pcId, label: hostname },
       client: resolvedClient,
       details: { previousIp: previousExternalIp, newIp: newExternalIp },
+    }));
+  }
+  if (wasDecommissioned) {
+    // Pull the original decommission metadata off the previous doc so
+    // the activity entry says "reactivated after admin decommission on
+    // <date>" rather than just "reactivated."
+    const prevBy = existing?.fields?.decommissionedBy?.stringValue || null;
+    const prevAt = existing?.fields?.decommissionedAt?.timestampValue
+      || existing?.fields?.decommissionedAt?.stringValue
+      || null;
+    ctx.waitUntil(logActivity(env, accessToken, {
+      type: 'agent_reactivated',
+      actor: { type: 'agent', id: pcId },
+      target: { type: 'host', id: pcId, label: hostname },
+      client: resolvedClient,
+      details: { previousDecommissionedBy: prevBy, previousDecommissionedAt: prevAt },
     }));
   }
 
@@ -1534,6 +1768,61 @@ async function sendBackupFailureEmail(env, { pcId, hostname, client, result, det
         Sent once per new failed attempt (deduped by lastBackupTime). To silence
         these emails for this host, flip <code>emailEnabled</code> off in the
         agent's per-PC config from the Watchtower dashboard.
+      </p>
+    </div>
+  `;
+  const resp = await fetch(`${RESEND_BASE}/emails`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${env.RESEND_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: env.SENDER_FROM || 'Watchtower <onboarding@resend.dev>',
+      to: [env.ALERT_TO],
+      subject,
+      html,
+    }),
+  });
+  if (!resp.ok) {
+    const txt = await resp.text();
+    throw new Error(`Resend ${resp.status}: ${txt}`);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Resend email — agent uninstalled at the host side
+// ─────────────────────────────────────────────────────────────────────
+// Fires once from the /uninstall endpoint. Distinct from the admin's
+// own click of "Decommission" in the dashboard, which doesn't email
+// (the admin's already aware they did it). This email is the heads-up
+// that someone (or something) removed the agent on the box itself.
+async function sendUninstallEmail(env, { pcId, hostname, client, source, reason, when }) {
+  const subject = `Watchtower: agent uninstalled — ${hostname} (${client})`;
+  const sourceLabel = source === 'agent-uninstall'
+    ? 'Uninstalled at the host (Control Panel or operator-initiated)'
+    : source === 'admin'
+      ? 'Marked decommissioned by an admin from the dashboard'
+      : `source: ${source || 'unknown'}`;
+  const html = `
+    <div style="font-family: system-ui, -apple-system, Segoe UI, sans-serif; color:#222; max-width:600px;">
+      <h2 style="color:#475063; margin:0 0 12px;">Agent decommissioned</h2>
+      <p style="color:#475063; margin:0 0 16px; font-size:14px;">
+        <b>${escapeHtml(hostname)}</b> (${escapeHtml(client)}) has left the Watchtower fleet.
+        ${escapeHtml(sourceLabel)}.
+      </p>
+      <table cellpadding="6" style="border-collapse:collapse; font-size:14px;">
+        <tr><td style="color:#666; width:120px;">Host</td><td><b>${escapeHtml(hostname)}</b></td></tr>
+        <tr><td style="color:#666;">Client</td><td>${escapeHtml(client)}</td></tr>
+        <tr><td style="color:#666;">Source</td><td><code>${escapeHtml(source || 'unknown')}</code></td></tr>
+        <tr><td style="color:#666;">When</td><td>${escapeHtml(when)}</td></tr>
+        ${reason ? `<tr><td style="color:#666;">Reason</td><td>${escapeHtml(reason)}</td></tr>` : ''}
+        <tr><td style="color:#666;">pcId</td><td><code style="font-size:12px;">${escapeHtml(pcId)}</code></td></tr>
+      </table>
+      <p style="color:#888; font-size:12px; margin-top:24px;">
+        The host's row stays in the dashboard with a Decommissioned badge until you delete it.
+        If the same machine is re-installed with the Watchtower agent (preserving its pcId),
+        it'll automatically reactivate on next check-in.
       </p>
     </div>
   `;
