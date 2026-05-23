@@ -587,7 +587,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.11.1";
+const APP_VERSION = "0.11.2";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -1711,26 +1711,46 @@ async function exportHostPdf(pcId) {
   toast("Generating PDF…");
 
   let reportDiv = null;
+  let overlay = null;
   try {
     await loadHtml2Pdf();
+    if (!window.html2pdf) {
+      throw new Error("html2pdf failed to load — check network / CDN access");
+    }
+    console.log("[PDF] html2pdf loaded");
+
     const logoSvg = await loadBrandLogo();
+    console.log("[PDF] logoSvg length:", (logoSvg || "").length);
+
     reportDiv = buildReportDom(agent, logoSvg);
+    console.log("[PDF] reportDiv built, innerHTML length:", reportDiv.innerHTML.length);
+
+    // Full-screen overlay hides the briefly-visible report from the
+    // operator. The report div itself is rendered on-screen at fixed
+    // top/left because that's the ONLY positioning where html2canvas
+    // reliably captures pixels across browsers + html2canvas versions.
+    // Off-screen tricks (left:-20000px, opacity:0, display:none,
+    // visibility:hidden) all produced blank captures in at least one
+    // browser/version combination — the overlay approach side-steps
+    // the entire class of bugs.
+    overlay = document.createElement("div");
+    overlay.style.cssText = "position:fixed;inset:0;background:rgba(255,255,255,0.97);z-index:99999;display:flex;align-items:center;justify-content:center;font:600 16px system-ui,-apple-system,Segoe UI,sans-serif;color:#0a6b6b;";
+    overlay.textContent = "Generating PDF…";
+
+    // The report div: fully visible, on-screen, at fixed top:0 left:0,
+    // z-index just below the overlay so the overlay covers it for the
+    // user. White background, fixed 720px width.
+    reportDiv.style.cssText = "position:fixed;top:0;left:0;width:720px;padding:32px 36px;background:#ffffff;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:#1a1f2b;font-size:13px;line-height:1.5;opacity:1;z-index:99998;";
+
     document.body.appendChild(reportDiv);
+    document.body.appendChild(overlay);
 
-    // The element MUST be fully visible (opacity:1, in the document flow,
-    // not display:none) for html2canvas to capture pixels. The previous
-    // attempts at opacity:0 + position:fixed off-screen produced a blank
-    // PDF because html2canvas faithfully captures opacity — opacity:0 in,
-    // transparent capture out, blank PDF.
-    //
-    // We park it at left:-20000px so it's painted by the browser but the
-    // user never sees it, then explicitly read getBoundingClientRect to
-    // force synchronous layout before the capture begins.
+    // Force layout + paint sequence
     reportDiv.getBoundingClientRect();
+    const rect = reportDiv.getBoundingClientRect();
+    console.log("[PDF] reportDiv dimensions:", rect.width, "x", rect.height);
 
-    // Wait for any embedded <img> tags (logo etc) to finish loading. SVG
-    // inlined as a string doesn't trigger image loads — but if anyone
-    // ever drops an <img> in the report, this is the safety net.
+    // Wait for any embedded <img> tags (logo etc) to finish loading.
     const imgs = Array.from(reportDiv.querySelectorAll("img"));
     await Promise.all(imgs.map(img =>
       (img.complete && img.naturalHeight)
@@ -1738,9 +1758,7 @@ async function exportHostPdf(pcId) {
         : new Promise(r => { img.addEventListener("load", r, { once: true }); img.addEventListener("error", r, { once: true }); setTimeout(r, 2000); })
     ));
 
-    // Two RAFs after layout so the browser has actually painted the
-    // off-screen content before html2canvas reads it. Layout alone
-    // isn't enough — paint comes a frame later.
+    // Two RAFs so the browser has actually painted before capture.
     await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
 
     // Filename: <Client>_<Host>_<YYYY-MM-DD_HH-MM-SS>.pdf, sanitized.
@@ -1751,10 +1769,6 @@ async function exportHostPdf(pcId) {
     const safeHost = (agent.hostname || agent.id || "host").replace(/[^A-Za-z0-9._-]/g, "_");
     const filename = `${safeClient}_${safeHost}_${dateStr}.pdf`;
 
-    // html2canvas: pin width + windowWidth to the report's actual width so
-    // it ignores the page's real viewport (where the parked element lives
-    // at left:-20000px). Without these the captured canvas can come out
-    // sized to the negative offset and render as a thin sliver / blank.
     const opts = {
       margin: [24, 24, 24, 24],
       filename,
@@ -1763,35 +1777,22 @@ async function exportHostPdf(pcId) {
         scale: 2,
         useCORS: true,
         backgroundColor: "#ffffff",
-        logging: false,
-        width: 720,
-        windowWidth: 720,
-        // onclone runs against the offscreen-iframe DOM html2canvas builds
-        // for capture. We unparked the clone — set it back to a neutral
-        // position so it lays out at (0,0) inside the iframe rather than
-        // inheriting the -20000px offset.
-        onclone: (clonedDoc) => {
-          const clones = clonedDoc.querySelectorAll('[data-watchtower-report]');
-          clones.forEach(c => {
-            c.style.position = 'static';
-            c.style.left = 'auto';
-            c.style.top = 'auto';
-            c.style.opacity = '1';
-            c.style.pointerEvents = 'auto';
-            c.style.zIndex = 'auto';
-          });
-        },
+        logging: true,  // verbose so we see what html2canvas is doing
       },
       jsPDF: { unit: "pt", format: "letter", orientation: "portrait" },
       pagebreak: { mode: ["css", "legacy"] },
     };
+
+    console.log("[PDF] starting html2pdf...");
     await window.html2pdf().set(opts).from(reportDiv).save();
+    console.log("[PDF] save() resolved");
     toast(`Saved ${filename}`);
   } catch (e) {
     toast(`PDF export failed: ${e.message || e}`, true);
-    console.error("PDF export error:", e);
+    console.error("[PDF] export error:", e);
   } finally {
     if (reportDiv && reportDiv.parentNode) reportDiv.remove();
+    if (overlay && overlay.parentNode) overlay.remove();
   }
 }
 
@@ -1813,14 +1814,10 @@ function buildReportDom(a, logoSvg) {
   const sectionHdr = (title) => `<h3 style="font-size:13px;text-transform:uppercase;color:#0a6b6b;letter-spacing:0.06em;margin:18px 0 6px;border-bottom:1px solid #e3e6ec;padding-bottom:4px;">${esc(title)}</h3>`;
 
   const div = document.createElement("div");
-  // Visible (opacity:1) but parked far off-screen so the user never sees
-  // it. html2canvas captures pixels — anything with opacity:0 / display:
-  // none / visibility:hidden produces a blank capture. The onclone hook
-  // in exportHostPdf above resets the positioning inside html2canvas's
-  // capture iframe so the clone lays out at (0,0) without inheriting
-  // our negative left offset.
+  // Positioning + base typography are set by exportHostPdf on the wrapper
+  // before appending — keeps the "where does this live during capture"
+  // logic in one place. buildReportDom only owns the report's content.
   div.setAttribute("data-watchtower-report", "1");
-  div.style.cssText = "position:absolute;left:-20000px;top:0;width:720px;padding:32px 36px;background:#ffffff;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:#1a1f2b;font-size:13px;line-height:1.5;opacity:1;";
 
   const omsa = r.omsa;
   const veeam = r.veeam;
