@@ -90,15 +90,18 @@ class WatchtowerService(win32serviceutil.ServiceFramework):
 
 def _spawn_uninstaller():
     """Detach the uninstaller so it can remove our own service while we
-    exit cleanly. The installer drops the uninstaller path into the
-    standard Windows uninstall registry tree, but we also keep a
-    direct reference at %ProgramData%\\Watchtower\\unins000.exe path
-    that the installer writes."""
-    # Inno Setup default uninstaller is named unins000.exe in the install dir.
-    # Standard install dir: C:\Program Files\Watchtower\
+    exit cleanly. Inno Setup drops `unins000.exe` into the install dir.
+
+    Probes both the current install path (Umbrella Watchtower) and the
+    legacy path (Watchtower) — installs from v0.1.0 land at the legacy
+    path, and re-running their installer won't relocate them since
+    Inno Setup honors the existing install location for the same AppId.
+    """
     candidates = [
-        r"C:\Program Files\Watchtower\unins000.exe",
-        r"C:\Program Files (x86)\Watchtower\unins000.exe",
+        r"C:\Program Files\Umbrella Watchtower\unins000.exe",
+        r"C:\Program Files (x86)\Umbrella Watchtower\unins000.exe",
+        r"C:\Program Files\Watchtower\unins000.exe",            # legacy
+        r"C:\Program Files (x86)\Watchtower\unins000.exe",      # legacy
     ]
     for p in candidates:
         if os.path.exists(p):

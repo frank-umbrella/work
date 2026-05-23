@@ -33,8 +33,17 @@
   #define AppVersion "0.1.0"
 #endif
 
-#define AppName       "Watchtower Agent"
+; Display name shown in Add/Remove Programs, the install wizard title,
+; the uninstaller window — basically everywhere the user sees the app.
+#define AppName       "Umbrella Watchtower Agent"
 #define AppPublisher  "Umbrella Automation"
+
+; ServiceName is the Windows service identifier used by sc.exe. We
+; deliberately keep this as the original "WatchtowerAgent" string
+; (without the Umbrella prefix) so in-place upgrades over existing
+; installs work — service IDs are not safely renamable mid-flight.
+; The service's DISPLAY name in services.msc is the user-facing label
+; and IS updated below.
 #define ServiceName   "WatchtowerAgent"
 
 [Setup]
@@ -43,7 +52,7 @@ AppId={{F4D2A1E6-9B3C-4A82-8F7E-1D2C3B4A5E6F}
 AppName={#AppName}
 AppVersion={#AppVersion}
 AppPublisher={#AppPublisher}
-DefaultDirName={autopf}\Watchtower
+DefaultDirName={autopf}\Umbrella Watchtower
 DisableProgramGroupPage=yes
 DisableDirPage=yes
 PrivilegesRequired=admin
@@ -87,9 +96,9 @@ Root: HKLM; Subkey: "SOFTWARE\Microsoft\Windows\CurrentVersion\Run"; \
 ; ----------------------------------------------------------------------------
 [Run]
 Filename: "{sys}\sc.exe"; \
-    Parameters: "create {#ServiceName} binPath= ""\""{app}\watchtower-svc.exe\"""" start= auto obj= LocalSystem DisplayName= ""Watchtower Monitoring Agent"""; \
+    Parameters: "create {#ServiceName} binPath= ""\""{app}\watchtower-svc.exe\"""" start= auto obj= LocalSystem DisplayName= ""Umbrella Watchtower Agent"""; \
     Flags: runhidden; \
-    StatusMsg: "Registering Watchtower service..."
+    StatusMsg: "Registering Umbrella Watchtower service..."
 Filename: "{sys}\sc.exe"; \
     Parameters: "description {#ServiceName} ""Daily check-in to Umbrella Automation's Watchtower. Reports external IP, Veeam backup status, LogMeIn state, and asset inventory."""; \
     Flags: runhidden
@@ -99,7 +108,7 @@ Filename: "{sys}\sc.exe"; \
 Filename: "{sys}\sc.exe"; \
     Parameters: "start {#ServiceName}"; \
     Flags: runhidden; \
-    StatusMsg: "Starting Watchtower service..."
+    StatusMsg: "Starting Umbrella Watchtower service..."
 
 ; ----------------------------------------------------------------------------
 ; Uninstall: stop + delete service, then [Code] cleans up ProgramData.

@@ -75,12 +75,12 @@ def _status_color(state):
 
 def _tooltip(state):
     if not state:
-        return "Watchtower — never checked in"
+        return "Umbrella Watchtower — never checked in"
     if not state.get("ok", True):
-        return f"Watchtower — error: {state.get('error', 'unknown')}"
+        return f"Umbrella Watchtower — error: {state.get('error', 'unknown')}"
     last = state.get("lastCheckinAt") or "never"
     ip = (state.get("lastReport") or {}).get("externalIp") or "?"
-    return f"Watchtower — last check-in {last} (IP {ip})"
+    return f"Umbrella Watchtower — last check-in {last} (IP {ip})"
 
 
 def _on_check_now(icon, item):
