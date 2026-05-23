@@ -436,6 +436,13 @@ async function handleCheckin(request, env, ctx) {
   const firstSeen = existing === null;
   const nowIso = new Date().toISOString();
 
+  // ----- 3d. Pick a "primary" internal IP for the fleet table -----
+  // Heuristic: first NIC with a default gateway AND a non-link-local IPv4.
+  // That's almost always the one an admin would RDP to. Falls back to any
+  // routable-looking IPv4 if no NIC has a gateway set (which can happen
+  // on isolated subnets / point-to-point links).
+  const newInternalIp = pickPrimaryInternalIp(report?.network?.nics);
+
   // ----- 3c. Track OMSA storage warning duration -----
   // omsaFirstWarnAt is the timestamp at which OMSA's healthRollup first
   // went non-OK. We set it on the OK→warn/bad transition, preserve it
@@ -508,6 +515,7 @@ async function handleCheckin(request, env, ctx) {
     externalIp: newExternalIp,
     ...(firstSeen ? { installedAt: nowIso } : {}),
     ...(ipChanged || firstSeen ? { externalIpChangedAt: nowIso } : {}),
+    internalIp: newInternalIp,
     omsaFirstWarnAt,
     report,
   };
@@ -682,6 +690,26 @@ async function validateToken(presented, env, accessToken) {
     client: doc.fields.clientName?.stringValue || null,
     clientId: doc.fields.clientId?.stringValue || null,
   };
+}
+
+function pickPrimaryInternalIp(nics) {
+  if (!Array.isArray(nics)) return null;
+  const usable = (ip) => ip && ip !== '0.0.0.0' && ip !== '127.0.0.1' && !ip.startsWith('169.254.');
+  // First pass: NICs with a default gateway (= internet-facing or LAN-routed)
+  for (const nic of nics) {
+    if (Array.isArray(nic.gateways) && nic.gateways.length && Array.isArray(nic.ipv4)) {
+      const ip = nic.ipv4.find(usable);
+      if (ip) return ip;
+    }
+  }
+  // Fallback: any usable IPv4 anywhere
+  for (const nic of nics) {
+    if (Array.isArray(nic.ipv4)) {
+      const ip = nic.ipv4.find(usable);
+      if (ip) return ip;
+    }
+  }
+  return null;
 }
 
 async function sha256Hex(s) {

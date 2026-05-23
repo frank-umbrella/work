@@ -230,7 +230,7 @@
   #modal .info code { background: rgba(255,255,255,0.5); padding: 1px 5px; border-radius: 4px; }
 
   @media (max-width: 760px) {
-    table.fleet .col-client, table.fleet .col-os { display: none; }
+    table.fleet .col-client, table.fleet .col-os, table.fleet .col-intip { display: none; }
     #drawer { width: 100vw; }
   }
 </style>
@@ -312,6 +312,7 @@
               <tr>
                 <th>Host</th>
                 <th class="col-client">Client</th>
+                <th class="col-intip">Internal IP</th>
                 <th>External IP</th>
                 <th class="col-os">OS</th>
                 <th>Last check</th>
@@ -426,7 +427,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.8.1";
+const APP_VERSION = "0.8.2";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -671,6 +672,7 @@ function renderFleet() {
       <tr data-id="${esc(a.id)}" class="${state.openPcId === a.id ? 'selected' : ''}">
         <td><div class="host">${esc(a.hostname || a.id)}</div></td>
         <td class="col-client client">${esc(a.client || "—")}</td>
+        <td class="col-intip ip">${esc(a.internalIp || "—")}</td>
         <td class="ip">${esc(a.externalIp || "—")}</td>
         <td class="col-os client">${esc(os)}</td>
         <td class="age">${fmtAge(a.lastCheckin)}</td>
@@ -1115,6 +1117,7 @@ function renderDrawer(pcId) {
     <div class="section">
       <h3>Status</h3>
       ${kv([
+        ["Internal IP", a.internalIp ? `<code>${esc(a.internalIp)}</code>` : "—"],
         ["External IP", `<code>${esc(a.externalIp)}</code>`],
         ["Last check-in", esc(a.lastCheckin || "never") + ` <span class="meta">(${fmtAge(a.lastCheckin)})</span>`],
         ["Installed at", esc(a.installedAt || "—")],
