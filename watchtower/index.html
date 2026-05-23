@@ -324,7 +324,7 @@
         </div>
         <div id="clientsEmpty" class="empty" hidden>
           <h3>No clients yet</h3>
-          <p>Add a client, then generate an install token for them. The token is baked into the installer at build time.</p>
+          <p>Add a client, then generate an install token for them. The token is entered at install time in the agent's wizard (or passed via <code>/TOKEN=</code> for silent deploys).</p>
         </div>
       </div>
     </div>
@@ -377,7 +377,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.2.0";
+const APP_VERSION = "0.3.0";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 
 const app = initializeApp(firebaseConfig);
@@ -769,8 +769,11 @@ async function generateToken(clientId) {
       <div class="warn"><b>Copy this now.</b> Watchtower only stores the SHA-256 hash, so you can't retrieve the raw token later. If you lose it, revoke and generate a new one.</div>
       <div class="token-display" id="modalToken">${esc(rawToken)}</div>
       <div class="info">
-        Bake into the installer at build time:
-        <pre style="margin:6px 0 0;font-size:12.5px;"><code>.\\installer\\build.ps1 -ClientName "${esc(client.name)}" -InstallToken "${esc(rawToken)}"</code></pre>
+        Run <code>Watchtower-Setup.exe</code> on the target PC and paste this token when the wizard prompts for it. The installer verifies the token against Watchtower before completing.
+      </div>
+      <div class="info">
+        Silent / RMM install:
+        <pre style="margin:6px 0 0;font-size:12.5px;"><code>Watchtower-Setup.exe /VERYSILENT /SUPPRESSMSGBOXES /TOKEN=${esc(rawToken)}</code></pre>
         See <a href="docs.html" target="_blank">docs</a> for the full install flow.
       </div>
     `,
