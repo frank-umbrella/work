@@ -95,7 +95,7 @@
       </svg>
       <div>
         <div class="meta">Umbrella Automation</div>
-        <h1>Watchtower &middot; Docs <span class="version-chip">v0.8.3</span></h1>
+        <h1>Watchtower &middot; Docs <span class="version-chip">v0.9.0</span></h1>
       </div>
     </div>
     <a class="btn brand-link" href="index.html">&larr; Back to dashboard</a>
@@ -125,6 +125,9 @@
   <a href="#tokens-revoke">Revoking a token</a>
   <a href="#settings" class="section">Settings</a>
   <a href="#settings-webhook">Master webhook URL</a>
+  <a href="#updates" class="section">Agent auto-update</a>
+  <a href="#updates-safety">Safety guarantees</a>
+  <a href="#updates-tray">Tray "Check for updates"</a>
   <a href="#dell" class="section">Dell-aware UX</a>
   <a href="#dell-tag">Service Tag + Express Code</a>
   <a href="#captured" class="section">What gets captured</a>
@@ -535,6 +538,39 @@ Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" 
 
 <h3 id="backup-drawer">Per-host drawer</h3>
 <p>Opening a host's drawer shows a red banner at the top of the Windows Server Backup section when the latest attempt failed, with the gap to last successful backup and the WSB-reported error message. Below the standard summary, a <i>Recent backup attempts</i> details disclosure expands the last 10 jobs with their individual results and errors &mdash; useful for spotting "started failing 3 days ago" versus "this is a one-day blip".</p>
+
+<h2 id="updates">Agent auto-update</h2>
+<p>v0.9.0 onward, agents can update themselves on a daily cadence. The flow:</p>
+<ol class="steps">
+  <li>You build a new agent: <code>build.ps1 -Publish</code>. This compiles the EXE, computes its SHA256, and uploads it to a GitHub Release tagged <code>watchtower-vX.Y.Z</code>. Output prints the download URL + SHA256.</li>
+  <li>Paste the URL + SHA256 into the dashboard's <b>Settings</b> tab under "Latest agent version" + Save.</li>
+  <li>The worker now reports that version as available via <code>GET /latest-version</code>. The dashboard's Fleet tab shows an <span style="background:#e5e7eb;color:#4b5563;padding:2px 8px;border-radius:999px;font-size:11.5px;font-weight:600;">Update X.Y.Z</span> badge on every host running an older version. Status filter has an "Update available" option.</li>
+  <li>Per host, you can either:
+    <ul>
+      <li>Push the installer manually as before (the badge tells you which hosts to target)</li>
+      <li>Flip <b>Auto-install updates</b> on in the drawer. On the next daily check-in (or immediate if the tray's "Check for updates" is clicked), the agent downloads the EXE to <code>%TEMP%</code>, verifies the SHA256 against what the worker advertised, and spawns the installer silently. The existing install token from <code>%ProgramData%\Watchtower\config.json</code> is reused so no operator interaction is needed.</li>
+    </ul>
+  </li>
+</ol>
+
+<h3 id="updates-safety">Safety guarantees</h3>
+<ul>
+  <li><b>SHA256 verification.</b> The agent refuses to run an EXE whose hash doesn't match what the worker said. Tampered uploads at GitHub Releases won't execute unless the attacker also has Firestore write access (gated by <code>@umbrellaautomation.com</code> Google auth).</li>
+  <li><b>No downgrades.</b> Semver comparison blocks installing an older version even if you accidentally pasted an old URL into Settings.</li>
+  <li><b>Per-host opt-in.</b> Default for new + existing hosts is <i>off</i>. You explicitly flip the toggle per host you want auto-updated. Production-critical boxes can stay manual.</li>
+  <li><b>Manual fallback.</b> The tray menu's "Check for updates" item works whether or not Auto-install is on — operators can pull updates on-demand from the local PC.</li>
+  <li><b>Token-bound silent install.</b> The installer is spawned with <code>/VERYSILENT /SUPPRESSMSGBOXES /TOKEN=&lt;existing&gt; /TASKS=""</code>. The empty <code>/TASKS</code> means a future build that adds new optional tasks (e.g. a new bundled MSI) won't surprise-install those during an update — you'd have to re-deploy explicitly.</li>
+  <li><b>Service self-update is safe.</b> Inno Setup's installer stops the WatchtowerAgent service, replaces the binary, restarts it. If anything fails before the service stop, the running agent is untouched — worst case is "we tried to update and bailed, next check-in retries".</li>
+</ul>
+
+<h3 id="updates-tray">Tray "Check for updates"</h3>
+<p>The system-tray icon's right-click menu includes a <b>Check for updates</b> item. Clicking it:</p>
+<ul>
+  <li>Fetches the latest version from the worker</li>
+  <li>If newer: downloads, verifies SHA256, spawns the installer silently (UAC prompt unless tray is already elevated, which it normally isn't)</li>
+  <li>Otherwise: balloon notification "Up to date (vX.Y.Z)"</li>
+</ul>
+<p>Useful for the operator-on-a-specific-PC case &mdash; pulling a hotfix without you having to log in and trigger an admin push.</p>
 
 <h2 id="storage-monitoring">Storage health (Dell OMSA)</h2>
 <p>On Dell hosts with OMSA installed, the worst-case health rollup across controllers / virtual disks (RAID arrays) / physical disks is computed agent-side on every check-in. When it goes non-OK, the dashboard surfaces it at the fleet level so you don't have to click into every Dell host to find the one with a degraded array.</p>

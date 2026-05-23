@@ -302,6 +302,7 @@
             <option value="disabled">Disabled</option>
             <option value="backup-failing">Backup failing</option>
             <option value="omsa-warning">OMSA warning</option>
+            <option value="update-available">Update available</option>
           </select>
           <span class="spacer"></span>
           <span class="count" id="fleetCount"></span>
@@ -345,6 +346,31 @@
           </div>
           <div class="callout" style="background:var(--info-soft);border:1px solid #bae6fd;color:#075985;padding:10px 12px;border-radius:8px;margin-top:14px;font-size:12.5px;">
             Whether each agent fires events to this URL is controlled by the per-PC <b>Webhook on IP change</b> toggle in that host's drawer. Leaving the master URL empty silences all webhook events fleet-wide.
+          </div>
+
+          <hr style="margin:24px 0;border:0;border-top:1px solid var(--line);">
+
+          <h3 style="margin:0 0 4px;font-size:14px;">Latest agent version</h3>
+          <p style="margin:0 0 10px;color:var(--ink-soft);font-size:13px;">Set after publishing a new build to GitHub Releases via <code>build.ps1 -Publish</code>. Hosts running an older version get an "Update available" badge in the Fleet table; hosts with <b>Auto-install updates</b> on download + install on their next check-in.</p>
+          <div style="display:grid;grid-template-columns:120px 1fr;gap:10px 12px;max-width:720px;align-items:center;">
+            <label for="latestAgentVersion" style="font-size:12px;text-transform:uppercase;color:var(--ink-faint);font-weight:600;">Version</label>
+            <input type="text" id="latestAgentVersion" placeholder="0.9.0" style="padding:7px 10px;border:1px solid var(--line-strong);border-radius:7px;font-size:13.5px;font-family:var(--mono);">
+
+            <label for="latestAgentUrl" style="font-size:12px;text-transform:uppercase;color:var(--ink-faint);font-weight:600;">Download URL</label>
+            <input type="url" id="latestAgentUrl" placeholder="https://github.com/frank-umbrella/work/releases/download/watchtower-v0.9.0/Watchtower-Setup.exe" style="padding:7px 10px;border:1px solid var(--line-strong);border-radius:7px;font-size:12.5px;font-family:var(--mono);">
+
+            <label for="latestAgentSha" style="font-size:12px;text-transform:uppercase;color:var(--ink-faint);font-weight:600;">SHA256</label>
+            <input type="text" id="latestAgentSha" placeholder="64-char hex" style="padding:7px 10px;border:1px solid var(--line-strong);border-radius:7px;font-size:12px;font-family:var(--mono);">
+
+            <label for="latestAgentNotes" style="font-size:12px;text-transform:uppercase;color:var(--ink-faint);font-weight:600;align-self:start;padding-top:7px;">Notes</label>
+            <textarea id="latestAgentNotes" rows="2" placeholder="What changed in this release" style="padding:7px 10px;border:1px solid var(--line-strong);border-radius:7px;font-size:13.5px;font-family:var(--sans);resize:vertical;"></textarea>
+          </div>
+          <div style="margin-top:10px;display:flex;gap:8px;align-items:center;">
+            <button class="btn btn-primary btn-sm" id="saveLatestAgent">Save</button>
+            <span class="meta" id="latestAgentStatus" style="margin-left:6px;"></span>
+          </div>
+          <div class="callout" style="background:var(--info-soft);border:1px solid #bae6fd;color:#075985;padding:10px 12px;border-radius:8px;margin-top:14px;font-size:12.5px;">
+            Agents verify the SHA256 of the downloaded EXE against this value before running it. A mismatch refuses the install — protects against tampered uploads.
           </div>
         </div>
       </div>
@@ -427,7 +453,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.8.3";
+const APP_VERSION = "0.9.0";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -449,10 +475,11 @@ const state = {
   clients: [],
   tokens: [],
   globalWebhookUrl: "",
+  latestAgent: { version: "", downloadUrl: "", sha256: "", notes: "" },
   expandedClientId: null,
   filter: { search: "", client: "", status: "" },
   openPcId: null,
-  unsub: { agents: null, clients: null, tokens: null, settings: null, config: null }
+  unsub: { agents: null, clients: null, tokens: null, settings: null, latestAgent: null, config: null }
 };
 
 const $ = sel => document.querySelector(sel);
@@ -591,6 +618,7 @@ onAuthStateChanged(auth, async (user) => {
   subscribeClients();
   subscribeTokens();
   subscribeSettings();
+  subscribeLatestAgent();
 });
 
 // ============== /agents live subscription ==============
@@ -636,6 +664,7 @@ function renderFleet() {
       const oh = omsaHealthOf(a);
       if (!oh) return false;
     }
+    if (sf === "update-available" && !updateAvailableFor(a)) return false;
     if (q) {
       const hay = [a.hostname, a.client, a.externalIp, a.id].filter(Boolean).join(" ").toLowerCase();
       if (!hay.includes(q)) return false;
@@ -668,6 +697,9 @@ function renderFleet() {
     const ohBadge = oh
       ? ` <span class="badge ${oh.kind === "warn" ? "warn" : "bad"}" title="Dell OMSA storage health">${esc(oh.label)}</span>`
       : "";
+    const updBadge = updateAvailableFor(a)
+      ? ` <span class="badge muted" title="Latest available: ${esc(state.latestAgent.version)}">Update ${esc(state.latestAgent.version)}</span>`
+      : "";
     return `
       <tr data-id="${esc(a.id)}" class="${state.openPcId === a.id ? 'selected' : ''}">
         <td><div class="host">${esc(a.hostname || a.id)}</div></td>
@@ -676,7 +708,7 @@ function renderFleet() {
         <td class="ip">${esc(a.externalIp || "—")}</td>
         <td class="col-os client">${esc(os)}</td>
         <td class="age">${fmtAge(a.lastCheckin)}</td>
-        <td>${stBadge}${bhBadge}${ohBadge}</td>
+        <td>${stBadge}${bhBadge}${ohBadge}${updBadge}</td>
       </tr>
     `;
   }).join("");
@@ -708,6 +740,7 @@ document.getElementById("clearMasterWebhook").addEventListener("click", () => {
   document.getElementById("masterWebhookUrl").value = "";
   saveMasterWebhook("");
 });
+document.getElementById("saveLatestAgent").addEventListener("click", saveLatestAgent);
 
 // ============== /clients live subscription ==============
 function subscribeClients() {
@@ -752,6 +785,74 @@ function subscribeSettings() {
   }, err => {
     toast("Failed to load settings: " + (err.message || err), true);
   });
+}
+
+// ============== /settings/agentVersion live subscription ==============
+function subscribeLatestAgent() {
+  if (state.unsub.latestAgent) state.unsub.latestAgent();
+  state.unsub.latestAgent = onSnapshot(doc(db, "settings", "agentVersion"), snap => {
+    state.latestAgent = snap.exists() ? snap.data() : { version: "", downloadUrl: "", sha256: "", notes: "" };
+    // Reflect into the Settings tab inputs if they exist and aren't focused.
+    for (const id of ["latestAgentVersion", "latestAgentUrl", "latestAgentSha", "latestAgentNotes"]) {
+      const el = document.getElementById(id);
+      if (el && document.activeElement !== el) {
+        const key = id.replace("latestAgent", "").toLowerCase()
+          .replace("version", "version").replace("url", "downloadUrl").replace("sha", "sha256").replace("notes", "notes");
+        el.value = state.latestAgent[key] || "";
+      }
+    }
+    // Re-render the fleet so "Update available" badges reflect any change.
+    renderFleet();
+    if (state.openPcId) renderDrawer(state.openPcId);
+  }, err => {
+    toast("Failed to load latest agent version: " + (err.message || err), true);
+  });
+}
+
+async function saveLatestAgent() {
+  const version = document.getElementById("latestAgentVersion").value.trim();
+  const downloadUrl = document.getElementById("latestAgentUrl").value.trim();
+  const sha256 = document.getElementById("latestAgentSha").value.trim().toLowerCase();
+  const notes = document.getElementById("latestAgentNotes").value.trim();
+  const status = document.getElementById("latestAgentStatus");
+
+  if (!version) { if (status) status.textContent = "Version required."; return; }
+  if (downloadUrl && !/^https?:\/\//i.test(downloadUrl)) {
+    if (status) status.textContent = "downloadUrl must start with http(s)://"; return;
+  }
+  if (sha256 && !/^[a-f0-9]{64}$/.test(sha256)) {
+    if (status) status.textContent = "sha256 must be 64 lowercase hex chars."; return;
+  }
+
+  try {
+    await setDoc(doc(db, "settings", "agentVersion"), {
+      version, downloadUrl, sha256, notes,
+      updatedAt: new Date().toISOString(),
+      updatedBy: state.user.email,
+    });
+    if (status) status.textContent = "Saved.";
+    setTimeout(() => { if (status) status.textContent = ""; }, 2500);
+  } catch (e) {
+    if (status) status.textContent = "Save failed: " + (e.message || e);
+  }
+}
+
+function updateAvailableFor(agent) {
+  // Returns true if the host's agentVersion is strictly older than
+  // state.latestAgent.version. Defensive: missing fields = no badge.
+  if (!state.latestAgent || !state.latestAgent.version) return false;
+  if (!agent.agentVersion) return false;
+  const cmp = (a, b) => {
+    const pa = String(a).replace(/^v/i, "").split(".").map(p => parseInt(p, 10) || 0);
+    const pb = String(b).replace(/^v/i, "").split(".").map(p => parseInt(p, 10) || 0);
+    while (pa.length < 3) pa.push(0);
+    while (pb.length < 3) pb.push(0);
+    for (let i = 0; i < 3; i++) {
+      if (pa[i] !== pb[i]) return pa[i] - pb[i];
+    }
+    return 0;
+  };
+  return cmp(agent.agentVersion, state.latestAgent.version) < 0;
 }
 
 async function saveMasterWebhook(url) {
@@ -1111,7 +1212,7 @@ function renderDrawer(pcId) {
   const usb = r.usb;
   const errs = r.probeErrors || [];
 
-  const cfg = a.config || { enabled: true, emailEnabled: true, webhookEnabled: false, webhookUrl: "", uninstall: false };
+  const cfg = a.config || { enabled: true, emailEnabled: true, webhookEnabled: false, webhookUrl: "", uninstall: false, autoUpdate: false };
 
   $("#dBody").innerHTML = `
     <div class="section">
@@ -1152,6 +1253,13 @@ function renderDrawer(pcId) {
         Master URL: ${state.globalWebhookUrl
           ? `<code>${esc(state.globalWebhookUrl)}</code>`
           : `<i>not set</i>`}${cfg.webhookUrl ? ` &middot; <span style="color:var(--warn-ink, #854d0e);">overridden on this host: <code>${esc(cfg.webhookUrl)}</code></span>` : ""}
+      </div>
+      <div class="toggle-row" style="margin-top:10px;">
+        <div>
+          <div class="label">Auto-install updates</div>
+          <div class="desc">When a newer agent version is published in <a href="#" id="dGoToSettingsUpdate">Settings</a>, download + install on this host's next check-in. Verifies SHA256 + blocks downgrades. Current: <code>${esc(a.agentVersion || "?")}</code>${updateAvailableFor(a) ? ` &rarr; available: <code>${esc(state.latestAgent.version)}</code>` : ""}</div>
+        </div>
+        <label class="switch"><input type="checkbox" data-cfg="autoUpdate" ${cfg.autoUpdate === true ? "checked" : ""}><span class="slider"></span></label>
       </div>
       <div class="config-actions">
         <button class="btn btn-sm btn-danger" id="dDecommission">Decommission</button>
@@ -1280,11 +1388,20 @@ function renderDrawer(pcId) {
     settingsLink.addEventListener("click", (e) => {
       e.preventDefault();
       closeDrawer();
-      // Activate the Settings tab.
       $$(".tab").forEach(t => t.classList.toggle("active", t.dataset.tab === "settings"));
       $$(".tab-pane").forEach(p => p.hidden = (p.dataset.tab !== "settings"));
-      // Focus the URL input for immediate editing.
       setTimeout(() => document.getElementById("masterWebhookUrl")?.focus(), 50);
+    });
+  }
+  // Same pattern for the auto-update Settings link.
+  const settingsUpdateLink = document.getElementById("dGoToSettingsUpdate");
+  if (settingsUpdateLink) {
+    settingsUpdateLink.addEventListener("click", (e) => {
+      e.preventDefault();
+      closeDrawer();
+      $$(".tab").forEach(t => t.classList.toggle("active", t.dataset.tab === "settings"));
+      $$(".tab-pane").forEach(p => p.hidden = (p.dataset.tab !== "settings"));
+      setTimeout(() => document.getElementById("latestAgentVersion")?.focus(), 50);
     });
   }
   $("#dDecommission").addEventListener("click", () => decommission(pcId, a.hostname));
