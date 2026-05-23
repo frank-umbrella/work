@@ -400,6 +400,8 @@
           </select>
           <span class="spacer"></span>
           <span class="count" id="fleetCount"></span>
+          <button class="btn btn-sm" id="fleetExportCsv" title="Download the visible fleet rows as CSV">CSV</button>
+          <button class="btn btn-sm" id="fleetExportXlsx" title="Download the visible fleet rows as an Excel workbook">Excel</button>
         </div>
         <div id="fleetWrap">
           <table class="fleet">
@@ -558,7 +560,9 @@
         <div class="sub" id="dSub"></div>
       </div>
       <div class="right" style="display:flex;gap:6px;">
-        <button class="btn btn-sm" id="exportPdfBtn" title="Generate a PDF report for this host">Export PDF</button>
+        <button class="btn btn-sm" id="exportPdfBtn" title="Generate a PDF report for this host">PDF</button>
+        <button class="btn btn-sm" id="exportCsvBtn" title="Download this host's data as CSV">CSV</button>
+        <button class="btn btn-sm" id="exportXlsxBtn" title="Download this host's data as an Excel workbook (one sheet per section)">Excel</button>
         <button class="btn btn-sm" id="closeDrawer">Close</button>
       </div>
     </div>
@@ -587,7 +591,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.11.7";
+const APP_VERSION = "0.12.0";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -1679,6 +1683,14 @@ $("#scrim").addEventListener("click", closeDrawer);
 $("#exportPdfBtn").addEventListener("click", () => {
   if (state.openPcId) exportHostPdf(state.openPcId);
 });
+$("#exportCsvBtn").addEventListener("click", () => {
+  if (state.openPcId) exportHostCsv(state.openPcId);
+});
+$("#exportXlsxBtn").addEventListener("click", () => {
+  if (state.openPcId) exportHostXlsx(state.openPcId);
+});
+$("#fleetExportCsv").addEventListener("click", () => exportFleetCsv());
+$("#fleetExportXlsx").addEventListener("click", () => exportFleetXlsx());
 
 // ============== Per-host PDF export ==============
 // Lazy-loads html2pdf.bundle on first click to keep initial page weight small.
@@ -1919,32 +1931,28 @@ function buildReportDom(a, logoPngDataUrl) {
   const def = r.defender;
   const idrac = r.idrac;
 
-  // Logo: rasterized to PNG data URL by loadBrandLogo() so html2canvas can
-  // actually render it (inline SVG with filters/inner-svg/custom fonts comes
-  // out blank from html2canvas). Embed as <img> at 280px wide; height auto
-  // preserves the 4.64:1 aspect of logo-primary.svg.
+  // Logo block (rasterized PNG, see loadBrandLogo). 180px wide reads as
+  // proportional letterhead without crowding the right-side metadata.
   const logoBlock = logoPngDataUrl
-    ? `<div style="width:280px;flex:0 0 280px;"><img src="${logoPngDataUrl}" alt="Umbrella Automation" style="display:block;width:280px;height:auto;"></div>`
-    : `<div style="width:280px;flex:0 0 280px;font-weight:900;color:#0c5e9c;font-size:22px;letter-spacing:0.02em;line-height:1.1;">UMBRELLA<br><span style="color:#6e6e6e;">AUTOMATION</span></div>`;
+    ? `<img src="${logoPngDataUrl}" alt="Umbrella Automation" style="display:block;width:180px;height:auto;flex:0 0 180px;">`
+    : `<div style="flex:0 0 180px;font-weight:900;color:#0c5e9c;font-size:18px;letter-spacing:0.02em;line-height:1.1;">UMBRELLA<br><span style="color:#6e6e6e;">AUTOMATION</span></div>`;
 
   div.innerHTML = `
-    <!-- HEADER -->
-    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:24px;border-bottom:2px solid #0a6b6b;padding-bottom:16px;margin-bottom:18px;">
+    <!-- HEADER (compact, single-row, logo + metadata aligned baseline) -->
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:20px;border-bottom:1.5px solid #0a6b6b;padding-bottom:10px;margin-bottom:12px;">
       ${logoBlock}
-      <div style="flex:0 0 auto;text-align:right;font-size:10px;color:#8892a4;line-height:1.5;padding-top:6px;">
-        <div style="font-size:13px;color:#0a6b6b;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;margin-bottom:4px;">Watchtower</div>
-        <div>Per-host monitoring report</div>
-        <div>Generated ${new Date().toLocaleString()}</div>
-        <div>Dashboard v${APP_VERSION}</div>
+      <div style="flex:0 0 auto;text-align:right;font-size:9.5px;color:#8892a4;line-height:1.45;">
+        <div style="font-size:11px;color:#0a6b6b;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;">Watchtower &middot; Per-host report</div>
+        <div>Generated ${new Date().toLocaleString()} &middot; Dashboard v${APP_VERSION}</div>
       </div>
     </div>
 
-    <!-- HOST IDENTITY -->
-    <h2 style="margin:0 0 2px;font-size:22px;color:#1a1f2b;">${esc(a.hostname || a.id)}</h2>
-    <div style="font-size:12px;color:#475063;margin-bottom:14px;">
+    <!-- HOST IDENTITY -- promoted, since it's the headline of the report -->
+    <h2 style="margin:0 0 3px;font-size:20px;color:#1a1f2b;letter-spacing:-0.01em;">${esc(a.hostname || a.id)}</h2>
+    <div style="font-size:11.5px;color:#475063;margin-bottom:14px;">
       Client: <b>${esc(a.client || "unknown")}</b>
-      &middot; pcId <code style="font-size:11px;">${esc(a.id)}</code>
-      &middot; Agent <code style="font-size:11px;">v${esc(a.agentVersion || "?")}</code>
+      &middot; pcId <code style="font-size:10.5px;">${esc(a.id)}</code>
+      &middot; Agent <code style="font-size:10.5px;">v${esc(a.agentVersion || "?")}</code>
     </div>
 
     ${sectionHdr("Status")}
@@ -2128,6 +2136,406 @@ function buildReportDom(a, logoPngDataUrl) {
     </div>
   `;
   return div;
+}
+
+// ============== CSV + Excel export ==============
+// Lazy-loads SheetJS (xlsx.full.min.js) only when the operator clicks
+// Excel — saves ~1MB on initial page load for the common case where
+// nobody exports.
+let _xlsxLoading = null;
+function loadXlsx() {
+  if (window.XLSX) return Promise.resolve();
+  if (_xlsxLoading) return _xlsxLoading;
+  _xlsxLoading = new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error("Failed to load xlsx (SheetJS)"));
+    document.head.appendChild(s);
+  });
+  return _xlsxLoading;
+}
+
+// Robust CSV cell escape: wrap in quotes if value contains comma, quote,
+// newline, or leading/trailing whitespace. Doubles inner quotes per RFC 4180.
+function csvCell(v) {
+  if (v === null || v === undefined) return "";
+  const s = String(v);
+  if (/[",\r\n]/.test(s) || /^\s|\s$/.test(s)) {
+    return `"${s.replace(/"/g, '""')}"`;
+  }
+  return s;
+}
+function rowsToCsv(rows) {
+  return rows.map(r => r.map(csvCell).join(",")).join("\r\n");
+}
+
+// Trigger a file download from a string or Blob.
+function downloadBlob(content, filename, mimeType) {
+  const blob = content instanceof Blob ? content : new Blob([content], { type: mimeType || "text/plain" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
+}
+
+// Canonical export filename: Client_Host_YYYY-MM-DD_HH-MM-SS.<ext>
+function exportFilename(client, host, ext) {
+  const ts = new Date();
+  const pad = n => String(n).padStart(2, "0");
+  const dateStr = `${ts.getFullYear()}-${pad(ts.getMonth() + 1)}-${pad(ts.getDate())}_${pad(ts.getHours())}-${pad(ts.getMinutes())}-${pad(ts.getSeconds())}`;
+  const safeClient = (client || "unknown").replace(/[^A-Za-z0-9._-]/g, "_");
+  const safeHost = (host || "host").replace(/[^A-Za-z0-9._-]/g, "_");
+  return `${safeClient}_${safeHost}_${dateStr}.${ext}`;
+}
+
+// ---------- per-host structured data ----------
+// Returns an array of { title, headers, rows } sections used by both
+// the CSV and Excel exporters. Sections without data are dropped so
+// the export only contains what's actually present.
+function buildHostSections(a) {
+  const r = a.report || {};
+  const sys = r.system || {};
+  const os = sys.os || {};
+  const net = r.network || {};
+  const stor = r.storage || {};
+  const sw = r.software || {};
+  const hf = r.hotfixes || {};
+  const usb = r.usb || {};
+  const omsa = r.omsa;
+  const veeam = r.veeam;
+  const wsb = r.wsb;
+  const carbonite = r.carbonite;
+  const lmi = r.logmein;
+  const s1 = r.sentinelone;
+  const def = r.defender;
+  const idrac = r.idrac;
+
+  const sections = [];
+
+  // Summary — flat key/value
+  sections.push({
+    title: "Summary",
+    headers: ["Field", "Value"],
+    rows: [
+      ["Hostname", a.hostname || ""],
+      ["Client", a.client || ""],
+      ["pcId", a.id || ""],
+      ["Agent version", a.agentVersion || ""],
+      ["Internal IP", a.internalIp || ""],
+      ["External IP", a.externalIp || ""],
+      ["Last check-in", a.lastCheckin || ""],
+      ["Installed at", a.installedAt || ""],
+      ["Decommissioned", a.decommissioned ? "yes" : "no"],
+      ["Decommissioned by", a.decommissionedBy || ""],
+      ["Decommissioned at", a.decommissionedAt || ""],
+      ["Manufacturer", sys.manufacturer || ""],
+      ["Model", sys.model || ""],
+      ["Service tag", sys.serviceTag || ""],
+      ["Virtual machine", sys.isVirtual ? `yes (${sys.hypervisor || "?"})` : "no"],
+      ["CPU", (sys.cpu && sys.cpu.name) || ""],
+      ["CPU cores", (sys.cpu && sys.cpu.cores) || ""],
+      ["RAM (GB)", (sys.memory && sys.memory.totalGB) || ""],
+      ["TPM present", sys.tpm ? (sys.tpm.present ? "yes" : "no") : ""],
+      ["TPM spec", (sys.tpm && sys.tpm.specVersion) || ""],
+      ["BIOS version", sys.biosVersion || ""],
+      ["BIOS date", sys.biosDate || ""],
+      ["OS", os.name || ""],
+      ["OS build", os.build || ""],
+      ["OS architecture", os.architecture || ""],
+      ["OS install date", os.installDate || ""],
+      ["Domain / workgroup", sys.workgroup || ""],
+      ["Part of domain", sys.partOfDomain ? "yes" : "no"],
+    ],
+  });
+
+  // Volumes
+  if (stor.volumes && stor.volumes.length) {
+    sections.push({
+      title: "Volumes",
+      headers: ["Drive", "Filesystem", "Size (GB)", "Free (GB)", "Used (GB)", "% used"],
+      rows: stor.volumes.map(v => [
+        v.letter || "", v.filesystem || "",
+        v.sizeGB || 0, v.freeGB || 0,
+        Math.max(0, (v.sizeGB || 0) - (v.freeGB || 0)),
+        v.sizeGB ? Math.round((1 - (v.freeGB || 0) / v.sizeGB) * 100) + "%" : "",
+      ]),
+    });
+  }
+
+  // NICs
+  if (net.nics && net.nics.length) {
+    sections.push({
+      title: "Network interfaces",
+      headers: ["Name", "Description", "MAC", "IPv4", "Gateways", "DNS", "Speed (Mbps)"],
+      rows: net.nics.map(n => [
+        n.name || "", n.description || "", n.mac || "",
+        (n.ipv4 || []).join("; "),
+        (n.gateways || []).join("; "),
+        (n.dns || []).join("; "),
+        n.speedMbps || "",
+      ]),
+    });
+  }
+
+  // OMSA — virtual disks
+  if (omsa && (omsa.virtualDisks || []).length) {
+    sections.push({
+      title: "OMSA RAID arrays",
+      headers: ["Name", "Layout", "Size", "State", "Status", "Controller"],
+      rows: omsa.virtualDisks.map(v => [
+        v.name || ("vDisk " + v.id), v.layout || "", v.size || "",
+        v.state || "", v.status || "", v.controllerId || "",
+      ]),
+    });
+  }
+  // OMSA — physical disks
+  if (omsa && (omsa.physicalDisks || []).length) {
+    sections.push({
+      title: "OMSA physical disks",
+      headers: ["ID", "Model", "Capacity", "SMART warning", "Status", "Controller", "Serial"],
+      rows: omsa.physicalDisks.map(d => [
+        d.id || "", d.product || d.vendor || "", d.capacity || "",
+        ((d.predictiveFailure || "").toLowerCase() === "yes") ? "YES" : "",
+        d.status || "", d.controllerId || "", d.serial || "",
+      ]),
+    });
+  }
+
+  // Backups (one row per product detected)
+  const backupRows = [];
+  if (veeam && veeam.installed) {
+    (veeam.products || []).forEach(p => backupRows.push([
+      p.edition === "br" ? "Veeam Backup & Replication" : "Veeam Agent for Windows",
+      p.version || "",
+      (p.lastJob && p.lastJob.result) || "",
+      (p.lastJob && p.lastJob.endTime) || "",
+    ]));
+  }
+  if (wsb && wsb.installed) {
+    backupRows.push([
+      "Windows Server Backup",
+      wsb.version || "",
+      wsb.lastBackupResult || "",
+      wsb.lastBackupTime || "",
+    ]);
+  }
+  if (carbonite && carbonite.installed) {
+    (carbonite.products || []).forEach(p => backupRows.push([
+      p.name, p.version || "", "", "",
+    ]));
+  }
+  if (backupRows.length) {
+    sections.push({
+      title: "Backups",
+      headers: ["Product", "Version", "Last result", "Last attempt"],
+      rows: backupRows,
+    });
+  }
+
+  // Security / Remote access / iDRAC — single-row mini sections per product
+  const secRows = [];
+  if (def) secRows.push(["Defender",
+    def.enabled ? "enabled" : "disabled",
+    def.realtimeOn ? "realtime on" : "realtime off",
+    `${def.definitionsVersion || "?"} (${def.definitionsUpdated || "?"})`,
+  ]);
+  if (s1 && s1.installed) secRows.push(["SentinelOne",
+    s1.version || "?", s1.serviceState || "?", "",
+  ]);
+  if (secRows.length) sections.push({ title: "Security", headers: ["Product", "Field A", "Field B", "Field C"], rows: secRows });
+
+  if (lmi && lmi.installed) {
+    sections.push({
+      title: "LogMeIn",
+      headers: ["Field", "Value"],
+      rows: [
+        ["Version", lmi.version || ""],
+        ["Service", lmi.serviceState || ""],
+        ["Guardian service", lmi.guardianServiceState || ""],
+        ["Description", lmi.description || ""],
+        ["Hostname", a.hostname || ""],
+        ["Description matches hostname",
+          (lmi.description && a.hostname && lmi.description.trim().toLowerCase() === a.hostname.trim().toLowerCase()) ? "yes" : "no"],
+      ],
+    });
+  }
+
+  if (idrac && idrac.installed) {
+    sections.push({
+      title: "iDRAC iSM",
+      headers: ["Field", "Value"],
+      rows: [
+        ["Version", idrac.version || ""],
+        ["Service", idrac.serviceState || ""],
+        ["Service name", idrac.serviceName || ""],
+      ],
+    });
+  }
+
+  // Installed apps — flat list, capped by report itself
+  if (sw.installed && sw.installed.length) {
+    sections.push({
+      title: "Installed applications",
+      headers: ["Name", "Version", "Publisher", "Install date"],
+      rows: sw.installed.map(p => [p.name || "", p.version || "", p.publisher || "", p.installDate || ""]),
+    });
+  }
+
+  // Hotfixes
+  if (hf.recent && hf.recent.length) {
+    sections.push({
+      title: "Hotfixes",
+      headers: ["KB ID", "Installed on", "Description"],
+      rows: hf.recent.map(h => [h.id || "", h.installedOn || "", h.description || ""]),
+    });
+  }
+
+  // USB device history
+  if (usb.devices && usb.devices.length) {
+    sections.push({
+      title: "USB devices",
+      headers: ["Name", "Product", "Serial", "First seen"],
+      rows: usb.devices.map(d => [d.friendlyName || "", d.product || "", d.serial || "", d.firstSeen || ""]),
+    });
+  }
+
+  return sections;
+}
+
+function exportHostCsv(pcId) {
+  const a = state.agents.find(x => x.id === pcId);
+  if (!a) { toast("Agent not found.", true); return; }
+  const sections = buildHostSections(a);
+  // CSV is single-stream — concatenate sections with a blank line + section
+  // header row separator. Excel handles this fine; plain CSV consumers may
+  // see it as one big sheet with section headers inline.
+  const parts = [
+    `Watchtower per-host report,${a.hostname || a.id},${a.client || "unknown"},generated ${new Date().toISOString()}`,
+    "",
+  ];
+  for (const s of sections) {
+    parts.push(s.title.toUpperCase());
+    parts.push(s.headers.join(","));
+    parts.push(rowsToCsv(s.rows));
+    parts.push("");
+  }
+  const filename = exportFilename(a.client, a.hostname || a.id, "csv");
+  downloadBlob("﻿" + parts.join("\r\n"), filename, "text/csv;charset=utf-8");
+  // BOM (﻿) so Excel auto-detects UTF-8 on open.
+  toast(`Saved ${filename}`);
+}
+
+async function exportHostXlsx(pcId) {
+  const a = state.agents.find(x => x.id === pcId);
+  if (!a) { toast("Agent not found.", true); return; }
+  toast("Building workbook…");
+  try {
+    await loadXlsx();
+    const wb = XLSX.utils.book_new();
+    const sections = buildHostSections(a);
+    for (const s of sections) {
+      const aoa = [s.headers, ...s.rows];
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+      // Reasonable column widths so the workbook is readable on open.
+      ws["!cols"] = s.headers.map(() => ({ wch: 22 }));
+      // Sheet names: max 31 chars, no slash/colon/bracket
+      const safeName = s.title.replace(/[\\\/?*\[\]:]/g, " ").slice(0, 31);
+      XLSX.utils.book_append_sheet(wb, ws, safeName);
+    }
+    const filename = exportFilename(a.client, a.hostname || a.id, "xlsx");
+    XLSX.writeFile(wb, filename);
+    toast(`Saved ${filename}`);
+  } catch (e) {
+    toast(`Excel export failed: ${e.message || e}`, true);
+    console.error("[XLSX] export error:", e);
+  }
+}
+
+// ---------- fleet-wide ----------
+// Builds the rows currently visible in the Endpoints table — respects
+// the active search / client / status filters so the export matches
+// what the operator sees.
+function buildFleetRows() {
+  const visible = $$("#fleetBody tr").length
+    ? $$("#fleetBody tr").map(tr => tr.dataset.id)
+    : state.agents.map(a => a.id);
+  const set = new Set(visible);
+  const agents = state.agents.filter(a => set.has(a.id));
+  const headers = [
+    "Hostname", "Client", "Internal IP", "External IP",
+    "OS", "Manufacturer", "Model", "Service tag",
+    "RAM (GB)", "CPU", "Agent version",
+    "Last check-in", "Status",
+    "Decommissioned", "Decommissioned by", "Decommissioned at",
+    "OMSA rollup", "WSB last result", "WSB last success",
+    "LogMeIn description", "Defender realtime",
+    "pcId",
+  ];
+  const rows = agents.map(a => {
+    const r = a.report || {};
+    const sys = r.system || {};
+    const os = sys.os || {};
+    const wsb = r.wsb;
+    const omsa = r.omsa;
+    const lmi = r.logmein;
+    const def = r.defender;
+    const st = statusOf(a);
+    return [
+      a.hostname || a.id, a.client || "",
+      a.internalIp || "", a.externalIp || "",
+      os.name || "", sys.manufacturer || "", sys.model || "",
+      sys.serviceTag || "",
+      (sys.memory && sys.memory.totalGB) || "",
+      (sys.cpu && sys.cpu.name) || "",
+      a.agentVersion || "",
+      a.lastCheckin || "", st.label || "",
+      a.decommissioned ? "yes" : "no",
+      a.decommissionedBy || "",
+      a.decommissionedAt || "",
+      (omsa && omsa.installed) ? (omsa.healthRollup || "") : "",
+      (wsb && wsb.installed) ? (wsb.lastBackupResult || "") : "",
+      (wsb && wsb.installed) ? (wsb.lastSuccessfulBackup || "") : "",
+      (lmi && lmi.installed) ? (lmi.description || "") : "",
+      def ? (def.realtimeOn ? "on" : "off") : "",
+      a.id,
+    ];
+  });
+  return { headers, rows, count: agents.length };
+}
+
+function exportFleetCsv() {
+  const { headers, rows, count } = buildFleetRows();
+  if (!count) { toast("No hosts in the current view.", true); return; }
+  const csv = rowsToCsv([headers, ...rows]);
+  const filename = exportFilename("Umbrella", "Fleet", "csv");
+  downloadBlob("﻿" + csv, filename, "text/csv;charset=utf-8");
+  toast(`Saved ${filename} (${count} host${count === 1 ? "" : "s"})`);
+}
+
+async function exportFleetXlsx() {
+  const { headers, rows, count } = buildFleetRows();
+  if (!count) { toast("No hosts in the current view.", true); return; }
+  toast("Building workbook…");
+  try {
+    await loadXlsx();
+    const wb = XLSX.utils.book_new();
+    const aoa = [headers, ...rows];
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    // Freeze the header row so it stays visible when scrolling a large fleet.
+    ws["!freeze"] = { xSplit: 0, ySplit: 1 };
+    ws["!cols"] = headers.map(h => ({ wch: Math.max(12, Math.min(28, h.length + 4)) }));
+    XLSX.utils.book_append_sheet(wb, ws, "Fleet");
+    const filename = exportFilename("Umbrella", "Fleet", "xlsx");
+    XLSX.writeFile(wb, filename);
+    toast(`Saved ${filename} (${count} host${count === 1 ? "" : "s"})`);
+  } catch (e) {
+    toast(`Excel export failed: ${e.message || e}`, true);
+    console.error("[XLSX] fleet export error:", e);
+  }
 }
 
 function kv(rows) {

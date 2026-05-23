@@ -108,7 +108,7 @@
       </svg>
       <div>
         <div class="meta">Umbrella Automation</div>
-        <h1>Watchtower &middot; Docs <span class="version-chip">v0.11.7</span></h1>
+        <h1>Watchtower &middot; Docs <span class="version-chip">v0.12.0</span></h1>
       </div>
     </div>
     <a class="btn brand-link" href="index.html">&larr; Back to dashboard</a>
@@ -158,6 +158,7 @@
   <a href="#storage-fleet">Fleet visibility</a>
   <a href="#storage-how">How duration tracks</a>
   <a href="#backup-alerts">Email alerts</a>
+  <a href="#exports" class="section">Exports (PDF / CSV / Excel)</a>
   <a href="#troubleshooting" class="section">Troubleshooting</a>
   <a href="#layout" class="section">What gets installed</a>
 </nav>
@@ -664,6 +665,26 @@ Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" 
   <li><b>Webhook payload</b> &mdash; if <code>webhookEnabled</code> is on, a JSON POST also fires with <code>event: "wsb_backup_failed"</code> and the full failure context (result, attemptedAt, lastSuccess, daysSinceSuccess).</li>
   <li><b>Recovery</b> &mdash; when a backup eventually succeeds, no email fires (no point celebrating a normal day). The next failure starts the cycle again.</li>
 </ul>
+
+<h2 id="exports">Exports (PDF / CSV / Excel)</h2>
+<p>Every export is generated entirely in the browser &mdash; no server round trip, no data leaves the dashboard. Filenames follow the convention <code>Client_Hostname_YYYY-MM-DD_HH-MM-SS.&lt;ext&gt;</code> (per-host) or <code>Umbrella_Fleet_&lt;date&gt;.&lt;ext&gt;</code> (fleet).</p>
+
+<h3>Per-host (from the drawer)</h3>
+<p>Open any host's drawer &rarr; <b>PDF</b> / <b>CSV</b> / <b>Excel</b> buttons in the top right.</p>
+<ul>
+  <li><b>PDF</b> &mdash; formatted report with the Umbrella Automation header, full system summary, all probe sections, OMSA disk rows highlighted yellow/red for non-critical/critical issues, LogMeIn description compared against the Windows hostname.</li>
+  <li><b>CSV</b> &mdash; one file with sections concatenated (Summary, Volumes, NICs, OMSA RAID, OMSA disks, Backups, Security, LogMeIn, iDRAC, Installed apps, Hotfixes, USB devices). UTF-8 BOM so Excel opens it cleanly with the correct character encoding.</li>
+  <li><b>Excel</b> &mdash; full <code>.xlsx</code> workbook with one sheet per section. Sheet names are capped at Excel's 31-char limit. Column widths are pre-set so the workbook is readable the moment it opens.</li>
+</ul>
+
+<h3>Fleet-wide (from the Endpoints tab)</h3>
+<p>The <b>CSV</b> and <b>Excel</b> buttons in the Endpoints filter bar export <b>exactly what you see</b> &mdash; the active search, client filter, and status filter all apply. Each row carries hostname, client, IPs, OS, manufacturer/model, Service Tag, agent version, last check-in, status, OMSA rollup, WSB last result + last success, LogMeIn description, Defender realtime, decommission state, and pcId.</p>
+<ul>
+  <li><b>Want to ship a status report?</b> Filter to <code>All (active)</code>, click Excel &mdash; you get the live fleet, header row frozen, ready to mail.</li>
+  <li><b>Auditing decom'd hosts?</b> Filter to <code>Decommissioned only</code>, click CSV &mdash; you get the cleanup list with reasons.</li>
+  <li><b>One client at a time?</b> Filter by Client, export &mdash; you get just that client's machines.</li>
+</ul>
+<p><b>SheetJS</b> (the library that writes the <code>.xlsx</code> bytes) is lazy-loaded from CDN on the first Excel click, so the initial dashboard load isn't slowed by ~1MB of unused code. PDF uses html2pdf (also lazy-loaded).</p>
 
 <h2 id="troubleshooting">Troubleshooting</h2>
 
