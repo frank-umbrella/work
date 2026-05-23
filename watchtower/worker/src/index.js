@@ -183,23 +183,23 @@ async function handleReassignClient(request, env, ctx) {
     newClientId = agentDoc.fields.clientId?.stringValue || null;
   }
 
-  // Write 1: agent doc fields. firestoreSetDoc on this worker is a
-  // PATCH with documentMask in the existing helper, so it only touches
-  // these two fields — won't clobber lastCheckin, report, etc.
+  // Write 1: agent doc fields. PARTIAL via updateMask so we touch only
+  // client + clientId and leave lastCheckin / hostname / report / etc
+  // intact. Without partial=true, Firestore PATCH would REPLACE the
+  // entire doc with just these two fields -- the bug that made
+  // reassigned hosts vanish from the Endpoints table (the dashboard's
+  // orderBy('lastCheckin', 'desc') query then excludes the doc).
   await firestoreSetDoc(env, accessToken, `agents/${pcId}`, {
     client: newClient,
     clientId: newClientId,
-  });
+  }, /* partial */ true);
 
-  // Write 2: config doc. Always include clientIdOverride so the field
-  // is present (set or explicitly null) — that way the existing
-  // optimistic merge in firestoreSetDoc updates it cleanly. Also
-  // stamp updatedAt + updatedBy for audit.
+  // Write 2: config doc. PARTIAL same reason.
   await firestoreSetDoc(env, accessToken, `agents/${pcId}/config/current`, {
     clientIdOverride: clientId || null,
     updatedAt: new Date().toISOString(),
     updatedBy: email,
-  });
+  }, /* partial */ true);
 
   // Activity log
   ctx.waitUntil(logActivity(env, accessToken, {
@@ -294,7 +294,7 @@ async function handleUninstall(request, env, ctx) {
     decommissionedBy: 'agent-uninstall',
     decommissionedByEmail: null,
     decommissionedReason: reason || null,
-  });
+  }, /* partial */ true);
 
   // Activity log: type matches the dashboard's icon mapping.
   ctx.waitUntil(logActivity(env, accessToken, {
@@ -386,12 +386,12 @@ async function handleAdminDecommission(request, env, ctx) {
     decommissionedBy: 'admin',
     decommissionedByEmail: email,
     decommissionedReason: reason || null,
-  });
+  }, /* partial */ true);
   await firestoreSetDoc(env, accessToken, `agents/${pcId}/config/current`, {
     uninstall: true,
     updatedAt: nowIso,
     updatedBy: email,
-  });
+  }, /* partial */ true);
 
   ctx.waitUntil(logActivity(env, accessToken, {
     type: 'agent_decommissioned',
@@ -2116,15 +2116,39 @@ async function firestoreGetDoc(env, accessToken, path) {
   return resp.json();
 }
 
-// PATCH with no field mask → upsert. We replace the doc wholesale; the
-// status doc always reflects the latest check-in's complete report so
-// stale fields don't linger.
-async function firestoreSetDoc(env, accessToken, path, jsObject) {
-  const url = `${FIRESTORE_BASE}/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents/${path}`;
+// Firestore PATCH. CRITICAL: Firestore's REST API PATCH with no
+// updateMask REPLACES the entire document with just the fields in the
+// request body -- it does NOT merge. So a caller writing only
+// { client, clientId } would wipe hostname, lastCheckin, externalIp,
+// report, and everything else. That bug bit handleReassignClient and
+// silently broke decommission / uninstall too: the next agent check-in
+// repopulated everything, masking the issue, but a host that hadn't
+// checked in yet became invisible to the dashboard (which queries
+// orderBy('lastCheckin', 'desc'), and orderBy excludes docs missing
+// the ordered field).
+//
+// Signature now takes an OPTIONAL `partial` flag (default false ->
+// full-replace behavior, matching the original handleCheckin call
+// site which DOES write the entire doc shape on every check-in).
+// Partial-update callers pass `partial: true` -- we build an
+// updateMask from the field keys so only those fields change.
+//
+// Usage:
+//   firestoreSetDoc(env, t, path, obj)             // full replace (default)
+//   firestoreSetDoc(env, t, path, obj, true)       // partial update via mask
+async function firestoreSetDoc(env, accessToken, path, jsObject, partial = false) {
   const fields = {};
+  const fieldKeys = [];
   for (const [k, v] of Object.entries(jsObject)) {
     if (v === undefined) continue;
     fields[k] = jsToFsValue(v);
+    fieldKeys.push(k);
+  }
+  let url = `${FIRESTORE_BASE}/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents/${path}`;
+  if (partial && fieldKeys.length) {
+    // updateMask.fieldPaths must be repeated per field. URL-encode each.
+    const maskParams = fieldKeys.map(k => `updateMask.fieldPaths=${encodeURIComponent(k)}`).join('&');
+    url += `?${maskParams}`;
   }
   const resp = await fetch(url, {
     method: 'PATCH',
