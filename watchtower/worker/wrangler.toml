@@ -27,7 +27,14 @@ SENDER_FROM = "Watchtower <onboarding@resend.dev>"
 
 # Default recipient for IP-change alerts. The agent's per-PC config doc
 # may override this with a custom recipient or webhook URL.
-ALERT_TO = "frank.l.rizzo@gmail.com"
+#
+# Until we verify a domain on Resend (e.g. umbrellaautomation.com), the
+# sandbox sender (onboarding@resend.dev) can only deliver to the email
+# that the Resend account is verified with — so this must match. When
+# moving to a distro group later, verify a domain on Resend, swap
+# SENDER_FROM to alerts@umbrellaautomation.com (or similar), then
+# ALERT_TO can be any address including a distribution list.
+ALERT_TO = "frank@umbrellaautomation.com"
 
 # Comma-separated list of dashboard origins allowed to call any future
 # admin-facing endpoints (none right now — the dashboard talks to Firestore
