@@ -123,7 +123,9 @@
   <a href="#tokens-revoke">Revoking a token</a>
   <a href="#dell" class="section">Dell-aware UX</a>
   <a href="#dell-tag">Service Tag + Express Code</a>
-  <a href="#dell-warranty">Warranty (TechDirect)</a>
+  <a href="#captured" class="section">What gets captured</a>
+  <a href="#captured-summary">Per-probe summary</a>
+  <a href="#captured-example">Example check-in payload</a>
   <a href="#troubleshooting" class="section">Troubleshooting</a>
   <a href="#layout" class="section">What gets installed</a>
 </nav>
@@ -280,29 +282,154 @@ Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" 
 <pre><code>https://www.dell.com/support/home/en-us/product-support/servicetag/&lt;tag&gt;</code></pre>
 <p>Next to the tag we show the Express Service Code &mdash; the same value converted from base-36 to base-10 (e.g. <code>5BXYZ12</code> &rarr; <code>12345650770</code>). Some Dell support phone trees only accept the numeric code, so having it pre-computed saves a step. Non-Dell hosts keep showing the serial as plain text (no link, no Express code).</p>
 
-<h3 id="dell-warranty">Warranty status (Dell TechDirect)</h3>
-<p>If you set up a Dell TechDirect API key, the drawer also shows a <b>Dell warranty</b> section with the warranty status (Active / Expired), days remaining, end date, service level (e.g. ProSupport Plus 4HR Mission Critical), ship date, and machine description. Useful for end-of-warranty triage and for quoting renewals.</p>
-<p>Setup is one-time:</p>
-<ol class="steps">
-  <li>
-    <b>Register at <a href="https://techdirect.dell.com" target="_blank">techdirect.dell.com</a></b> with your Umbrella Automation Dell partner account. Apply for API access &mdash; for warranty lookups specifically, request access to the <i>Asset Entitlement Warranty</i> API.
-  </li>
-  <li>
-    <b>Get your client_id + client_secret</b> from TechDirect's API portal once your application is approved (usually within 1 business day).
-  </li>
-  <li>
-    <b>Set them as worker secrets:</b>
-    <pre><code>cd work\watchtower\worker
-wrangler secret put DELL_API_CLIENT_ID
-wrangler secret put DELL_API_CLIENT_SECRET
-wrangler deploy</code></pre>
-  </li>
-  <li>
-    <b>Open any Dell host in the dashboard.</b> The warranty section populates within ~1s on first load (server-side cached for 24h after that, session-cached client-side for repeat opens).
-  </li>
-</ol>
-<div class="callout info"><b>Until configured, the section is hidden.</b> The worker returns 503 + a friendly "not configured" marker; the dashboard sees that and silently skips rendering the section, so admins don't see a permanent "not configured" placeholder until you actually wire it up.</div>
-<div class="callout warn"><b>Privacy:</b> the warranty lookup sends only the Service Tag to Dell's API. No host name, no client name, no other identifying data. Cached results are stored at the Cloudflare edge under a synthetic URL (<code>https://internal-cache/warranty/&lt;tag&gt;</code>), accessible only to the worker.</div>
+<h2 id="captured">What gets captured</h2>
+
+<h3 id="captured-summary">Per-probe summary</h3>
+<p>Each daily check-in posts a payload to the worker with a <code>report</code> object containing one key per probe that found anything. Probes silently skip themselves when the product isn't installed (e.g. <code>omsa</code> doesn't appear on an HP host).</p>
+
+<table class="opts">
+  <tr><th>Field</th><th>What's in it</th></tr>
+  <tr><td><code>system</code></td><td>Hostname, domain/workgroup, manufacturer, model, Service Tag, BIOS version + date, full OS info (name, build, install date, last boot, edition, architecture), CPU (name + cores + speed + sockets), memory (total + per-DIMM), TPM (present, enabled, spec version).</td></tr>
+  <tr><td><code>network</code></td><td>Per-NIC: name, MAC, IPv4 addresses, link speed. External IP (resolved via the worker's <code>cf-connecting-ip</code> header on check-in).</td></tr>
+  <tr><td><code>storage</code></td><td>Per-volume: drive letter, filesystem, type (fixed/removable), total + free GB.</td></tr>
+  <tr><td><code>users</code></td><td>Local user accounts with status (enabled/disabled, password-required, lockout), plus recent interactive logon history.</td></tr>
+  <tr><td><code>software</code></td><td>Every installed app from the Uninstall registry tree: name, version, publisher. Count + full list.</td></tr>
+  <tr><td><code>defender</code></td><td>Enabled, realtime status, definitions version + age, last quick + full scan timestamps, AV engine + product versions.</td></tr>
+  <tr><td><code>veeam</code></td><td>Per Veeam product (B&amp;R and/or Agent for Windows): edition, version, last session result + start/end times.</td></tr>
+  <tr><td><code>wsb</code></td><td>Windows Server Backup (server SKUs only): last backup time, last <i>successful</i> backup time (these diverge on failure), next scheduled, retained versions, current operation, last result mapped from HRESULT.</td></tr>
+  <tr><td><code>carbonite</code></td><td>Product flavor + version + publisher (Server Backup / Endpoint / Safe), service state.</td></tr>
+  <tr><td><code>logmein</code></td><td>Install state, agent version, service state, guardian-service state, Central computer description.</td></tr>
+  <tr><td><code>sentinelone</code></td><td>Agent version, service state.</td></tr>
+  <tr><td><code>omsa</code></td><td>Dell OpenManage: per-controller info (model, firmware, driver, status), virtual disks (RAID arrays with layout + size + state), physical disks (vendor, product, capacity, status, SMART predictive-failure flag). Worst-case rollup so a single bad disk shows red.</td></tr>
+  <tr><td><code>idrac</code></td><td>Dell iDRAC Service Module: version, service state.</td></tr>
+  <tr><td><code>hotfixes</code></td><td>Total count + the most recent ~10 (ID + install date).</td></tr>
+  <tr><td><code>usb</code></td><td>USB device history from the registry: friendly name, product, serial. (Last-used timestamps are a roadmap item.)</td></tr>
+  <tr><td><code>probeErrors</code></td><td>Any probes that threw during collection — recorded but don't block the rest of the report.</td></tr>
+</table>
+
+<h3 id="captured-example">Example check-in payload</h3>
+<p>What a real check-in from a Dell PowerEdge running Server 2019 with B&amp;R, OMSA, iDRAC iSM, and LogMeIn looks like. The actual <code>software</code> + <code>hotfixes</code> + <code>usb</code> arrays are much longer in practice — trimmed here for readability.</p>
+
+<pre><code>{
+  "pcId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "hostname": "OPFD-SERVER",
+  "client": "OPFD",
+  "ts": "2026-05-23T08:00:14Z",
+  "agentVersion": "0.5.0",
+  "report": {
+    "collectedAt": "2026-05-23T08:00:00Z",
+    "collectionMs": 4127,
+
+    "system": {
+      "hostname": "OPFD-SERVER",
+      "workgroup": "opfd.local",
+      "partOfDomain": true,
+      "manufacturer": "Dell Inc.",
+      "model": "PowerEdge R740xd",
+      "serviceTag": "5BXYZ12",
+      "biosVersion": "2.21.2",
+      "biosDate": "20240611",
+      "os": {
+        "name": "Microsoft Windows Server 2019 Standard",
+        "version": "10.0.17763",
+        "build": "17763",
+        "installDate": "20211015103000",
+        "lastBoot": "20260412091245",
+        "architecture": "64-bit"
+      },
+      "cpu": {
+        "name": "Intel(R) Xeon(R) Silver 4214 CPU @ 2.20GHz",
+        "cores": 12, "logicalProcessors": 24, "socketCount": 2, "speedMhz": 2200
+      },
+      "memory": { "totalGB": 96 },
+      "tpm": { "present": true, "enabled": true, "specVersion": "2.0" }
+    },
+
+    "network": {
+      "externalIp": "203.0.113.42",
+      "nics": [
+        { "name": "Ethernet 0", "mac": "C8:1F:66:AA:BB:CC", "ipv4": ["10.0.0.10"], "speedMbps": 1000 },
+        { "name": "iDRAC Virtual",  "mac": "C8:1F:66:AA:BB:CD", "ipv4": ["10.0.0.11"], "speedMbps": 1000 }
+      ]
+    },
+
+    "storage": {
+      "volumes": [
+        { "letter": "C:", "filesystem": "NTFS", "type": "Fixed", "sizeGB": 465, "freeGB": 318 },
+        { "letter": "E:", "filesystem": "NTFS", "type": "Fixed", "sizeGB": 5400, "freeGB": 1820 }
+      ]
+    },
+
+    "defender": {
+      "enabled": true, "realtimeOn": true, "serviceEnabled": true,
+      "definitionsVersion": "1.421.812.0", "definitionsUpdated": "2026-05-23T03:14:11Z",
+      "lastQuickScan": "2026-05-22T18:00:00Z", "lastFullScan": "2026-05-18T22:30:00Z",
+      "engineVersion": "1.1.24050.4", "productVersion": "4.18.24050.7"
+    },
+
+    "veeam": {
+      "installed": true,
+      "products": [
+        { "edition": "br", "version": "12.1.2.172",
+          "lastJob": { "name": "Daily Backup", "jobType": "Backup", "result": "Success",
+                       "startTime": "2026-05-23 02:00:00", "endTime": "2026-05-23 02:14:11" } }
+      ]
+    },
+
+    "wsb": {
+      "installed": true,
+      "lastBackupTime": "2026-05-23T01:00:00Z",
+      "lastBackupResult": "Success",
+      "lastSuccessfulBackup": "2026-05-23T01:00:00Z",
+      "nextBackupTime": "2026-05-24T01:00:00Z",
+      "numberOfVersions": 14,
+      "currentOperation": "idle"
+    },
+
+    "logmein": {
+      "installed": true, "version": "4.1.16294",
+      "serviceState": "running", "guardianServiceState": "running",
+      "description": "OPFD - Primary File Server"
+    },
+
+    "omsa": {
+      "installed": true, "version": "10.2.0", "healthRollup": "warn",
+      "controllers": [
+        { "id": "0", "name": "PERC H730P Mini", "status": "Ok",
+          "firmware": "25.5.9.0001", "driver": "6.604.06.00" }
+      ],
+      "virtualDisks": [
+        { "id": "0", "name": "Virtual Disk 0", "controllerId": "0",
+          "layout": "RAID-5", "size": "5.45 TB", "status": "Non-Critical", "state": "Degraded" }
+      ],
+      "physicalDisks": [
+        { "id": "0:1:0", "controllerId": "0", "status": "Ok",       "product": "ST2000NM0125", "capacity": "1.82 TB", "predictiveFailure": "No" },
+        { "id": "0:1:3", "controllerId": "0", "status": "Critical", "product": "ST2000NM0125", "capacity": "1.82 TB", "predictiveFailure": "Yes" }
+      ]
+    },
+
+    "idrac": {
+      "installed": true, "version": "5.2.0.0",
+      "serviceName": "dcism", "serviceState": "running"
+    },
+
+    "software": { "count": 184, "installed": [
+      { "name": "Veeam Backup &amp; Replication", "version": "12.1.2.172", "publisher": "Veeam Software" },
+      { "name": "Dell OpenManage Server Administrator Managed Node", "version": "10.2.0", "publisher": "Dell Inc." }
+    ] },
+
+    "hotfixes": { "total": 47, "recent": [
+      { "id": "KB5037765", "installedOn": "2026-05-15" },
+      { "id": "KB5036899", "installedOn": "2026-04-09" }
+    ] },
+
+    "usb": { "devices": [
+      { "friendlyName": "SanDisk Cruzer Glide", "product": "Cruzer Glide", "serial": "4C530001..." }
+    ] }
+  }
+}</code></pre>
+
+<div class="callout info"><b>Where this ends up:</b> the worker writes most of <code>report</code> into <code>/agents/&lt;pcId&gt;</code> in Firestore, with a small <code>/agents/&lt;pcId&gt;/history/&lt;ts&gt;</code> append per check-in tracking just the IP-change delta. Total size per host in Firestore is typically 40-80 KB.</div>
 
 <h2 id="troubleshooting">Troubleshooting</h2>
 
