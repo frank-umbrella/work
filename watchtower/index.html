@@ -507,7 +507,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.9.3";
+const APP_VERSION = "0.9.4";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -1604,7 +1604,7 @@ function renderDrawer(pcId) {
   const usb = r.usb;
   const errs = r.probeErrors || [];
 
-  const cfg = a.config || { enabled: true, emailEnabled: true, webhookEnabled: false, webhookUrl: "", uninstall: false, autoUpdate: false };
+  const cfg = a.config || { enabled: true, emailEnabled: true, webhookEnabled: false, webhookUrl: "", uninstall: false, autoUpdate: false, clientIdOverride: null };
 
   $("#dBody").innerHTML = `
     <div class="section">
@@ -1620,6 +1620,17 @@ function renderDrawer(pcId) {
 
     <div class="section">
       <h3>Config &amp; kill-switches</h3>
+
+      <div style="margin-bottom:14px;">
+        <div style="font-size:13.5px;font-weight:600;margin-bottom:2px;">Client assignment</div>
+        <div class="desc" style="margin-bottom:6px;">Override the token-bound client for this host. Useful when a host was installed with the wrong token. Change takes effect immediately in the fleet table and persists across check-ins.</div>
+        <select id="dClientReassign" style="width:100%;padding:7px 10px;border:1px solid var(--line-strong);border-radius:7px;font-size:13.5px;background:var(--surface);">
+          <option value="">(token-bound default: ${esc(a.client || "—")})</option>
+          ${state.clients.map(c => `<option value="${esc(c.id)}" ${cfg.clientIdOverride === c.id ? "selected" : ""}>${esc(c.name)}</option>`).join("")}
+        </select>
+        <div class="meta" id="dClientReassignStatus" style="margin-top:4px;"></div>
+      </div>
+
       <div class="toggle-row">
         <div>
           <div class="label">Agent enabled</div>
@@ -1813,6 +1824,41 @@ function renderDrawer(pcId) {
     });
   }
   $("#dDecommission").addEventListener("click", () => decommission(pcId, a.hostname));
+
+  // Client reassignment dropdown — calls the worker, which atomically
+  // updates /agents/{pcId} (so the table refreshes now) AND the config
+  // doc (so future check-ins keep the new assignment).
+  const reassignSelect = document.getElementById("dClientReassign");
+  if (reassignSelect) {
+    reassignSelect.addEventListener("change", async (e) => {
+      const newClientId = e.target.value || null;
+      const status = document.getElementById("dClientReassignStatus");
+      if (status) status.textContent = "Reassigning…";
+      try {
+        const idToken = await auth.currentUser.getIdToken();
+        const r = await fetch(`${WORKER_URL}/reassign-client`, {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${idToken}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ pcId, clientId: newClientId }),
+        });
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok || !data.ok) {
+          throw new Error(data.error || `HTTP ${r.status}`);
+        }
+        // Optimistic: snapshot listener will update soon, but show the
+        // confirmation now so the operator knows it worked.
+        if (status) status.textContent = `Reassigned to ${data.client}.`;
+        toast(`${a.hostname || a.id} reassigned to ${data.client}.`);
+        setTimeout(() => { if (status) status.textContent = ""; }, 3000);
+      } catch (err) {
+        if (status) status.textContent = `Failed: ${err.message || err}`;
+        toast(`Reassign failed: ${err.message || err}`, true);
+        // Revert the dropdown to the current value so it doesn't look like
+        // the change took effect.
+        reassignSelect.value = cfg.clientIdOverride || "";
+      }
+    });
+  }
 
   // Async warranty fetch for Dell hosts.
   if (isDellHost(sys.manufacturer) && sys.serviceTag) {

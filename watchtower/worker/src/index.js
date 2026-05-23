@@ -79,9 +79,118 @@ export default {
       return withCors(await handleTestWebhook(request, env, ctx), env, request);
     }
 
+    if (url.pathname === '/reassign-client' && request.method === 'POST') {
+      return withCors(await handleReassignClient(request, env, ctx), env, request);
+    }
+
     return jsonResponse({ error: 'Not found', path: url.pathname }, 404);
   },
 };
+
+// ═════════════════════════════════════════════════════════════════════
+// POST /reassign-client — change a host's client assignment
+// ═════════════════════════════════════════════════════════════════════
+//
+// Operator picks a different client in the drawer's "Client" dropdown.
+// The agent's check-in normally trusts the token-bound client name
+// (commit acb34ac, the per-client install token model), so without this
+// endpoint the only way to re-label a host would be to revoke its
+// token + reinstall with a new one — overkill for a typo.
+//
+// Two writes, atomic from the operator's perspective:
+//   1. /agents/{pcId} client + clientId fields — so the fleet table
+//      reflects the change immediately without waiting for the next
+//      check-in to refresh
+//   2. /agents/{pcId}/config/current clientIdOverride — so subsequent
+//      check-ins preserve the change instead of reverting to the
+//      token's binding (handleCheckin reads this; see resolveClient)
+//
+// Pass clientId=null in the body to clear the override and let the
+// token-bound default take effect on the next check-in.
+//
+// Auth: Bearer <Firebase ID token>, same as other admin endpoints.
+async function handleReassignClient(request, env, ctx) {
+  const authHeader = request.headers.get('Authorization') || '';
+  const idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+  if (!idToken) return jsonResponse({ error: 'Missing sign-in token' }, 401);
+  let claims;
+  try {
+    claims = await verifyFirebaseIdToken(idToken);
+  } catch (e) {
+    return jsonResponse({ error: 'Invalid or expired sign-in token' }, 401);
+  }
+  const email = (claims.email || '').toLowerCase();
+  if (!claims.email_verified || !email.endsWith('@umbrellaautomation.com')) {
+    return jsonResponse({ error: 'Not authorized — domain mismatch' }, 403);
+  }
+
+  let body;
+  try {
+    body = await request.json();
+  } catch (e) {
+    return jsonResponse({ error: 'Body must be JSON' }, 400);
+  }
+  const { pcId, clientId } = body || {};
+  if (!pcId || typeof pcId !== 'string') {
+    return jsonResponse({ error: 'pcId required' }, 400);
+  }
+
+  const accessToken = await getServiceAccountToken(env);
+
+  // Confirm the agent exists. Avoids creating stub /agents docs by
+  // mistyping pcId in the dashboard.
+  const agentDoc = await firestoreGetDoc(env, accessToken, `agents/${pcId}`);
+  if (!agentDoc || !agentDoc.fields) {
+    return jsonResponse({ error: 'Agent not found' }, 404);
+  }
+
+  // Resolve the new client name. clientId=null/empty means reset to
+  // the token-bound default; in that case we fall back to whatever the
+  // most recent check-in's `client` field was (best approximation —
+  // we don't know which token was used at install time).
+  let newClient = null;
+  let newClientId = null;
+  if (clientId) {
+    const clientDoc = await firestoreGetDoc(env, accessToken, `clients/${clientId}`);
+    if (!clientDoc || !clientDoc.fields) {
+      return jsonResponse({ error: 'Client not found' }, 404);
+    }
+    newClient = clientDoc.fields.name?.stringValue || '(unnamed)';
+    newClientId = clientId;
+  } else {
+    // Reset — preserve existing client name from the agent doc since
+    // it's our best guess at what the token would have said. The next
+    // check-in will overwrite from the actual token-bound value.
+    newClient = agentDoc.fields.client?.stringValue || 'unknown';
+    newClientId = agentDoc.fields.clientId?.stringValue || null;
+  }
+
+  // Write 1: agent doc fields. firestoreSetDoc on this worker is a
+  // PATCH with documentMask in the existing helper, so it only touches
+  // these two fields — won't clobber lastCheckin, report, etc.
+  await firestoreSetDoc(env, accessToken, `agents/${pcId}`, {
+    client: newClient,
+    clientId: newClientId,
+  });
+
+  // Write 2: config doc. Always include clientIdOverride so the field
+  // is present (set or explicitly null) — that way the existing
+  // optimistic merge in firestoreSetDoc updates it cleanly. Also
+  // stamp updatedAt + updatedBy for audit.
+  await firestoreSetDoc(env, accessToken, `agents/${pcId}/config/current`, {
+    clientIdOverride: clientId || null,
+    updatedAt: new Date().toISOString(),
+    updatedBy: email,
+  });
+
+  return jsonResponse({
+    ok: true,
+    pcId,
+    client: newClient,
+    clientId: newClientId,
+    cleared: !clientId,
+  }, 200);
+}
 
 // ═════════════════════════════════════════════════════════════════════
 // POST /test-webhook — fire a sample payload at the master webhook URL
@@ -646,8 +755,12 @@ async function handleCheckin(request, env, ctx) {
   // agent can't lie about which client it belongs to — the binding is set
   // at token-generation time in the dashboard. Legacy tokens (env var) fall
   // back to whatever the agent reports, since they have no binding.
-  const resolvedClient = auth.client || client || 'unknown';
-  const resolvedClientId = auth.clientId || null;
+  //
+  // The per-PC config can override this with clientIdOverride — set via
+  // POST /reassign-client when the admin needs to fix a mislabeled host.
+  // The override is applied below after we've read the config doc.
+  let resolvedClient = auth.client || client || 'unknown';
+  let resolvedClientId = auth.clientId || null;
 
   // ----- 3. Fetch existing status doc to detect IP changes + backup-failure transitions -----
   const existing = await firestoreGetDoc(env, accessToken, `agents/${pcId}`);
@@ -710,6 +823,18 @@ async function handleCheckin(request, env, ctx) {
   // ----- 4. Read per-PC config (kill switches) — but treat absence as defaults -----
   const configDoc = await firestoreGetDoc(env, accessToken, `agents/${pcId}/config/current`);
   const config = readConfig(configDoc);
+
+  // ----- 4a. Apply clientIdOverride if the admin reassigned the host -----
+  if (config.clientIdOverride) {
+    const overrideDoc = await firestoreGetDoc(env, accessToken, `clients/${config.clientIdOverride}`);
+    if (overrideDoc && overrideDoc.fields) {
+      resolvedClientId = config.clientIdOverride;
+      resolvedClient = overrideDoc.fields.name?.stringValue || resolvedClient;
+    }
+    // If the client doc was deleted out from under the override, fall
+    // back silently to the token-bound value rather than crashing the
+    // check-in. Operator can clean up by clearing the override in the UI.
+  }
 
   // ----- 4b. Read global webhook URL (single fleet-wide value) -----
   // Per-agent webhookUrl is legacy — we keep it as a fallback for hosts
@@ -996,6 +1121,7 @@ function readConfig(doc) {
     webhookUrl: null,
     uninstall: false,
     autoUpdate: false,  // safety default — opt-in per host
+    clientIdOverride: null,
   };
   if (!doc || !doc.fields) return defaults;
   return {
@@ -1005,6 +1131,7 @@ function readConfig(doc) {
     webhookUrl: doc.fields.webhookUrl?.stringValue || null,
     uninstall: fieldBool(doc.fields.uninstall, defaults.uninstall),
     autoUpdate: fieldBool(doc.fields.autoUpdate, defaults.autoUpdate),
+    clientIdOverride: doc.fields.clientIdOverride?.stringValue || null,
   };
 }
 
