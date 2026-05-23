@@ -377,7 +377,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.3.0";
+const APP_VERSION = "0.4.0";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 
 const app = initializeApp(firebaseConfig);
@@ -885,8 +885,12 @@ function renderDrawer(pcId) {
   const stor = r.storage || {};
   const sw = r.software || {};
   const veeam = r.veeam;
+  const wsb = r.wsb;
+  const carbonite = r.carbonite;
   const lmi = r.logmein;
   const s1 = r.sentinelone;
+  const omsa = r.omsa;
+  const idrac = r.idrac;
   const def = r.defender;
   const hf = r.hotfixes;
   const usb = r.usb;
@@ -951,6 +955,18 @@ function renderDrawer(pcId) {
     </div>
 
     ${veeam ? `<div class="section"><h3>Veeam</h3>${renderVeeam(veeam)}</div>` : ""}
+
+    ${wsb ? `<div class="section"><h3>Windows Server Backup</h3>${renderWsb(wsb)}</div>` : ""}
+
+    ${carbonite ? `<div class="section"><h3>Carbonite</h3>${renderCarbonite(carbonite)}</div>` : ""}
+
+    ${omsa ? `<div class="section"><h3>Dell OMSA &middot; storage</h3>${renderOmsa(omsa)}</div>` : ""}
+
+    ${idrac ? `<div class="section"><h3>iDRAC Service Module</h3>${kv([
+      ["Installed", "yes"],
+      ["Version", esc(idrac.version)],
+      ["Service", esc(idrac.serviceName) + " (" + esc(idrac.serviceState || "?") + ")"],
+    ])}</div>` : ""}
 
     ${lmi ? `<div class="section"><h3>LogMeIn</h3>${kv([
       ["Installed", "yes"],
@@ -1039,6 +1055,112 @@ function renderDrawer(pcId) {
     writeConfig(pcId, "webhookUrl", url);
   });
   $("#dDecommission").addEventListener("click", () => decommission(pcId, a.hostname));
+}
+
+function renderWsb(w) {
+  if (w._error) return `<div class="meta">Probe error: ${esc(w._error)}</div>`;
+  const ok = w.lastBackupResult === "Success";
+  return `
+    <div class="kv">
+      <div class="k">Last backup</div>
+      <div class="v">${esc(w.lastBackupTime || "—")} <span class="meta">(${fmtAge(w.lastBackupTime)})</span> &middot;
+        <span class="badge ${ok ? "ok" : "warn"}">${esc(w.lastBackupResult || "?")}</span>
+      </div>
+      <div class="k">Last successful</div>
+      <div class="v">${esc(w.lastSuccessfulBackup || "—")} <span class="meta">(${fmtAge(w.lastSuccessfulBackup)})</span></div>
+      <div class="k">Next backup</div>
+      <div class="v">${esc(w.nextBackupTime || "—")}</div>
+      <div class="k">Versions retained</div>
+      <div class="v">${esc(w.numberOfVersions)}</div>
+      <div class="k">Current op</div>
+      <div class="v">${esc(w.currentOperation || "idle")}</div>
+    </div>
+  `;
+}
+
+function renderCarbonite(c) {
+  if (c._error) return `<div class="meta">Probe error: ${esc(c._error)}</div>`;
+  const products = (c.products || []).map(p => `
+    <div class="row">
+      <div><div class="name">${esc(p.name)}</div><div class="meta">${esc(p.publisher || "")}</div></div>
+      <div class="meta">v${esc(p.version || "?")}</div>
+    </div>
+  `).join("");
+  const services = (c.services || []).map(s => `
+    <div class="row">
+      <div class="name">${esc(s.name)}</div>
+      <div class="meta"><span class="badge ${s.state === "running" ? "ok" : "warn"}">${esc(s.state)}</span></div>
+    </div>
+  `).join("");
+  return `
+    ${products ? `<div class="list">${products}</div>` : ""}
+    ${services ? `<div class="list" style="margin-top:8px;">${services}</div>` : ""}
+    ${!products && !services ? `<div class="meta">Detected — no product or service details available.</div>` : ""}
+  `;
+}
+
+function renderOmsa(o) {
+  if (o._error) return `<div class="meta">Probe error: ${esc(o._error)}</div>`;
+  const rollup = o.healthRollup || "unknown";
+  const rollupBadge = rollup === "ok" ? "ok" : rollup === "warn" ? "warn" : rollup === "bad" ? "bad" : "muted";
+  const rollupLabel = { ok: "All healthy", warn: "Non-critical issues", bad: "Critical issues", unknown: "Unknown" }[rollup];
+
+  const ctlRows = (o.controllers || []).map(c => `
+    <div class="row">
+      <div><div class="name">Controller ${esc(c.id)}: ${esc(c.name || "?")}</div>
+           <div class="meta">FW ${esc(c.firmware || "?")} &middot; driver ${esc(c.driver || "?")}</div></div>
+      <div class="meta"><span class="badge ${statusBadge(c.status)}">${esc(c.status || "?")}</span></div>
+    </div>
+  `).join("");
+
+  const vdiskRows = (o.virtualDisks || []).map(v => `
+    <div class="row">
+      <div><div class="name">${esc(v.name || ("vDisk " + v.id))}</div>
+           <div class="meta">Ctl ${esc(v.controllerId)} &middot; ${esc(v.layout || "?")} &middot; ${esc(v.size || "?")}</div></div>
+      <div class="meta"><span class="badge ${statusBadge(v.status)}">${esc(v.status || "?")}</span> ${v.state ? `<small>${esc(v.state)}</small>` : ""}</div>
+    </div>
+  `).join("");
+
+  const badDisks = (o.physicalDisks || []).filter(d => statusBadge(d.status) !== "ok");
+  const allDiskRows = (o.physicalDisks || []).map(d => `
+    <div class="row">
+      <div><div class="name">${esc(d.name || ("Disk " + d.id))}</div>
+           <div class="meta">Ctl ${esc(d.controllerId)} &middot; ${esc(d.product || d.vendor || "?")} &middot; ${esc(d.capacity || "")}</div></div>
+      <div class="meta">
+        <span class="badge ${statusBadge(d.status)}">${esc(d.status || "?")}</span>
+        ${d.predictiveFailure && d.predictiveFailure.toLowerCase() === "yes" ? `<span class="badge bad" style="margin-left:4px;">SMART warn</span>` : ""}
+      </div>
+    </div>
+  `).join("");
+
+  return `
+    <div style="margin-bottom:10px;">
+      OMSA <code>${esc(o.version || "?")}</code> &middot;
+      <span class="badge ${rollupBadge}">${esc(rollupLabel)}</span>
+    </div>
+    ${ctlRows ? `<div class="list" style="margin-bottom:10px;">${ctlRows}</div>` : ""}
+    ${vdiskRows ? `<h4 style="font-size:12px;text-transform:uppercase;color:var(--ink-faint);margin:10px 0 4px;letter-spacing:0.06em;">Virtual disks (RAID)</h4><div class="list">${vdiskRows}</div>` : ""}
+    ${badDisks.length ? `<h4 style="font-size:12px;text-transform:uppercase;color:var(--danger);margin:10px 0 4px;letter-spacing:0.06em;">Physical disks needing attention (${badDisks.length})</h4>
+      <div class="list">${badDisks.map(d => `
+        <div class="row">
+          <div><div class="name">${esc(d.name || ("Disk " + d.id))}</div>
+               <div class="meta">Ctl ${esc(d.controllerId)} &middot; ${esc(d.product || d.vendor || "?")} &middot; ${esc(d.capacity || "")}</div></div>
+          <div class="meta"><span class="badge bad">${esc(d.status || "?")}</span></div>
+        </div>
+      `).join("")}</div>` : ""}
+    ${allDiskRows ? `<details style="margin-top:10px;"><summary>All ${(o.physicalDisks || []).length} physical disks</summary>
+      <div class="list" style="margin-top:6px;">${allDiskRows}</div>
+    </details>` : ""}
+  `;
+}
+
+function statusBadge(s) {
+  if (!s) return "muted";
+  const low = String(s).toLowerCase();
+  if (low === "ok") return "ok";
+  if (low.includes("non-critical") || low === "warning") return "warn";
+  if (low === "critical" || low.includes("non-recoverable")) return "bad";
+  return "muted";
 }
 
 function renderVeeam(veeam) {
