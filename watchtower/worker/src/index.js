@@ -143,6 +143,9 @@ async function handleReassignClient(request, env, ctx) {
   if (!agentDoc || !agentDoc.fields) {
     return jsonResponse({ error: 'Agent not found' }, 404);
   }
+  const previousClient = agentDoc.fields.client?.stringValue || null;
+  const previousClientId = agentDoc.fields.clientId?.stringValue || null;
+  const hostname = agentDoc.fields.hostname?.stringValue || pcId;
 
   // Resolve the new client name. clientId=null/empty means reset to
   // the token-bound default; in that case we fall back to whatever the
@@ -182,6 +185,21 @@ async function handleReassignClient(request, env, ctx) {
     updatedAt: new Date().toISOString(),
     updatedBy: email,
   });
+
+  // Activity log
+  ctx.waitUntil(logActivity(env, accessToken, {
+    type: 'host_reassigned',
+    actor: { type: 'admin', id: email },
+    target: { type: 'host', id: pcId, label: hostname },
+    client: newClient,
+    details: {
+      previousClient,
+      previousClientId,
+      newClient,
+      newClientId,
+      cleared: !clientId,
+    },
+  }));
 
   return jsonResponse({
     ok: true,
@@ -880,6 +898,29 @@ async function handleCheckin(request, env, ctx) {
     agentVersion: agentVersion || 'unknown',
   });
 
+  // ----- 6a. Activity log entries for significant events -----
+  // first_seen + ip_change get explicit activity entries here. OMSA + WSB
+  // events are logged inside their notification blocks below alongside
+  // the email/webhook fires (they share the same transition detection).
+  if (firstSeen) {
+    ctx.waitUntil(logActivity(env, accessToken, {
+      type: 'host_first_seen',
+      actor: { type: 'agent', id: pcId },
+      target: { type: 'host', id: pcId, label: hostname },
+      client: resolvedClient,
+      details: { agentVersion: agentVersion || 'unknown', externalIp: newExternalIp },
+    }));
+  }
+  if (ipChanged) {
+    ctx.waitUntil(logActivity(env, accessToken, {
+      type: 'ip_change',
+      actor: { type: 'agent', id: pcId },
+      target: { type: 'host', id: pcId, label: hostname },
+      client: resolvedClient,
+      details: { previousIp: previousExternalIp, newIp: newExternalIp },
+    }));
+  }
+
   // ----- 6b. First-time intake email -----
   // When this is the host's first check-in (no previous /agents/{pcId}
   // doc), email a comprehensive summary of what the probes found.
@@ -939,8 +980,17 @@ async function handleCheckin(request, env, ctx) {
   // Persistent warnings (omsaIsNonOk && omsaPrevWarnAt) don't re-fire.
   // Re-fires only after the warning clears (back to OK) and reappears.
   const omsaNewWarning = omsaIsNonOk && !omsaPrevWarnAt;
+  const omsaCleared = !omsaIsNonOk && omsaPrevWarnAt;
   if (omsaNewWarning && config.enabled) {
     const issues = extractOmsaIssues(omsaCurrent);
+    // Activity entry for the warning start
+    ctx.waitUntil(logActivity(env, accessToken, {
+      type: 'omsa_warning',
+      actor: { type: 'agent', id: pcId },
+      target: { type: 'host', id: pcId, label: hostname },
+      client: resolvedClient,
+      details: { rollup: omsaRollup, issues, omsaVersion: omsaCurrent?.version || null },
+    }));
     if (config.emailEnabled && env.RESEND_API_KEY) {
       ctx.waitUntil(
         sendOmsaWarningEmail(env, {
@@ -976,6 +1026,21 @@ async function handleCheckin(request, env, ctx) {
     const daysSinceSuccess = lastSuccess
       ? Math.floor((Date.now() - new Date(lastSuccess).getTime()) / 86400000)
       : null;
+
+    // Activity entry for the new failed attempt
+    ctx.waitUntil(logActivity(env, accessToken, {
+      type: 'wsb_failure',
+      actor: { type: 'agent', id: pcId },
+      target: { type: 'host', id: pcId, label: hostname },
+      client: resolvedClient,
+      details: {
+        result: wsbCurrentResult,
+        attemptedAt: wsbCurrentTime,
+        lastSuccess,
+        daysSinceSuccess,
+        detail: wsbCurrent?.detail || null,
+      },
+    }));
 
     if (config.emailEnabled && env.RESEND_API_KEY) {
       ctx.waitUntil(
@@ -1342,6 +1407,28 @@ async function sendIntakeEmail(env, { pcId, hostname, client, agentVersion, when
   if (!resp.ok) {
     const txt = await resp.text();
     throw new Error(`Resend ${resp.status}: ${txt}`);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Activity log writer — both worker (agent events) and dashboard
+// (admin actions) append to /activity. Doc id is a sortable timestamp
+// prefix + short random suffix, matching the /history convention so a
+// burst of events from one check-in is naturally ordered.
+//
+// Fire-and-forget (no await) when called from handleCheckin — activity
+// logging shouldn't block the agent's response on Firestore latency.
+// ─────────────────────────────────────────────────────────────────────
+async function logActivity(env, accessToken, event) {
+  const nowIso = new Date().toISOString();
+  const id = `${nowIso.replace(/[:.]/g, '-')}-${randomShortId()}`;
+  try {
+    await firestoreSetDoc(env, accessToken, `activity/${id}`, {
+      ts: nowIso,
+      ...event,
+    });
+  } catch (e) {
+    console.error('Activity log write failed:', e, event);
   }
 }
 

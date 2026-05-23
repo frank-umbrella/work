@@ -46,6 +46,20 @@ service cloud.firestore {
         && request.auth.token.email.matches('.*@umbrellaautomation[.]com');
     }
 
+    // -------- /activity/{eventId} --------
+    // Append-only audit log of fleet events: agent first-seen, IP changes,
+    // OMSA warnings, backup failures, admin actions (client added/deleted,
+    // token generated/revoked, host reassigned, decommissioned), etc.
+    //
+    // Read: admins (the Activity tab in the dashboard).
+    // Write: admins (dashboard logs admin actions) AND worker via service
+    //        account (which bypasses these rules anyway, for agent events).
+    // Update/delete: admins, so a typo can be cleaned up.
+    match /activity/{eventId} {
+      allow get, list: if isMSPAdmin();
+      allow create, update, delete: if isMSPAdmin();
+    }
+
     // -------- /settings/{key} --------
     // Global settings docs. Currently only /settings/webhook is used —
     // it holds the master webhook URL that all per-agent webhook
