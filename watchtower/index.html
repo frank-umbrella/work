@@ -377,8 +377,9 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.4.0";
+const APP_VERSION = "0.5.0";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
+const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
@@ -946,13 +947,18 @@ function renderDrawer(pcId) {
         ["Architecture", esc(os.architecture)],
         ["Manufacturer", esc(sys.manufacturer)],
         ["Model", esc(sys.model)],
-        ["Service tag", `<code>${esc(sys.serviceTag)}</code>`],
+        ["Service tag", renderServiceTag(sys.serviceTag, sys.manufacturer)],
         ["CPU", esc(sys.cpu && sys.cpu.name)],
         ["RAM", sys.memory ? `${sys.memory.totalGB} GB` : "—"],
         ["TPM", sys.tpm ? (sys.tpm.present ? `present, spec ${esc(sys.tpm.specVersion)}` : "absent") : "—"],
         ["Workgroup/Domain", esc(sys.workgroup)],
       ])}
     </div>
+
+    ${isDellHost(sys.manufacturer) && sys.serviceTag ? `<div class="section" id="warrantySection">
+      <h3>Dell warranty</h3>
+      <div id="warrantySlot" class="meta">Loading…</div>
+    </div>` : ""}
 
     ${veeam ? `<div class="section"><h3>Veeam</h3>${renderVeeam(veeam)}</div>` : ""}
 
@@ -1055,6 +1061,96 @@ function renderDrawer(pcId) {
     writeConfig(pcId, "webhookUrl", url);
   });
   $("#dDecommission").addEventListener("click", () => decommission(pcId, a.hostname));
+
+  // Async warranty fetch for Dell hosts.
+  if (isDellHost(sys.manufacturer) && sys.serviceTag) {
+    loadWarrantyAsync(sys.serviceTag);
+  }
+}
+
+// ============== Dell warranty (Stage 2) ==============
+async function loadWarrantyAsync(tag) {
+  const slot = document.getElementById("warrantySlot");
+  if (!slot) return;
+
+  // Session-cache so closing/reopening the drawer doesn't refetch. The
+  // worker also caches server-side for 24h, but this saves us a round
+  // trip during normal click-around.
+  const cacheKey = `warranty:${tag}`;
+  const cached = sessionStorage.getItem(cacheKey);
+  if (cached) {
+    try {
+      renderWarranty(JSON.parse(cached));
+      return;
+    } catch { /* fall through to refetch */ }
+  }
+
+  try {
+    const data = await fetchWarranty(tag);
+    if (data.notConfigured) {
+      // Dell API isn't set up — hide the section entirely so admins
+      // don't see a permanent "not configured" badge.
+      const section = document.getElementById("warrantySection");
+      if (section) section.style.display = "none";
+      return;
+    }
+    sessionStorage.setItem(cacheKey, JSON.stringify(data));
+    renderWarranty(data);
+  } catch (e) {
+    if (slot) slot.innerHTML = `<span class="meta">Warranty lookup failed: ${esc(e.message || e)}</span>`;
+  }
+}
+
+async function fetchWarranty(tag) {
+  const user = auth.currentUser;
+  if (!user) throw new Error("Not signed in");
+  const idToken = await user.getIdToken();
+
+  const r = await fetch(`${WORKER_URL}/warranty?serviceTag=${encodeURIComponent(tag)}`, {
+    headers: { "Authorization": `Bearer ${idToken}` },
+  });
+  const body = await r.json().catch(() => ({}));
+  if (r.status === 503) {
+    return { notConfigured: true };
+  }
+  if (r.status === 404) {
+    return { notFound: true };
+  }
+  if (!r.ok) {
+    throw new Error(body.error || `HTTP ${r.status}`);
+  }
+  return body;
+}
+
+function renderWarranty(data) {
+  const slot = document.getElementById("warrantySlot");
+  if (!slot) return;
+
+  if (data.notFound) {
+    slot.innerHTML = `<span class="meta">Service tag not found in Dell records.</span>`;
+    return;
+  }
+
+  const badgeClass = data.status === "active" ? "ok" : data.status === "expired" ? "bad" : "muted";
+  const headline = data.status === "active"
+    ? `Active${data.daysRemaining != null ? ` · ${data.daysRemaining} days left` : ""}`
+    : data.status === "expired"
+    ? `Expired${data.daysRemaining != null ? ` · ${Math.abs(data.daysRemaining)}d ago` : ""}`
+    : "Unknown";
+
+  slot.innerHTML = `
+    <div style="margin-bottom:8px;">
+      <span class="badge ${badgeClass}">${esc(headline)}</span>
+      ${data.endDate ? `<span class="meta" style="margin-left:8px;">through ${esc(data.endDate.slice(0, 10))}</span>` : ""}
+    </div>
+    <div class="kv">
+      ${data.level         ? `<div class="k">Service level</div><div class="v">${esc(data.level)}</div>` : ""}
+      ${data.productLine   ? `<div class="k">Product line</div><div class="v">${esc(data.productLine)}</div>` : ""}
+      ${data.machineDescription ? `<div class="k">Machine</div><div class="v">${esc(data.machineDescription)}</div>` : ""}
+      ${data.shipDate      ? `<div class="k">Ship date</div><div class="v">${esc(data.shipDate.slice(0, 10))}</div>` : ""}
+      ${data.entitlementCount > 1 ? `<div class="k">Contracts</div><div class="v">${data.entitlementCount} entitlements (showing latest)</div>` : ""}
+    </div>
+  `;
 }
 
 function renderWsb(w) {
@@ -1152,6 +1248,36 @@ function renderOmsa(o) {
       <div class="list" style="margin-top:6px;">${allDiskRows}</div>
     </details>` : ""}
   `;
+}
+
+function isDellHost(manufacturer) {
+  return !!manufacturer && /dell/i.test(manufacturer);
+}
+
+function expressServiceCode(tag) {
+  if (!tag) return null;
+  const cleaned = String(tag).toUpperCase().replace(/[^0-9A-Z]/g, "");
+  // Service tags are 7 chars of base-36. 36^7 ≈ 7.8e12 — fits safely in a JS number.
+  // If it's longer (older 11-char tags) we'd lose precision; the worker-side
+  // warranty lookup uses the raw tag anyway so the Express code is for phone
+  // support only and a degraded display there is fine.
+  if (!cleaned) return null;
+  const n = parseInt(cleaned, 36);
+  if (!Number.isFinite(n)) return null;
+  return n.toString(10);
+}
+
+function renderServiceTag(tag, manufacturer) {
+  if (!tag) return "—";
+  const safe = esc(tag);
+  if (!isDellHost(manufacturer)) {
+    return `<code>${safe}</code>`;
+  }
+  // Dell: link the tag to the Dell Support page + show Express Service Code.
+  const url = `https://www.dell.com/support/home/en-us/product-support/servicetag/${encodeURIComponent(tag)}`;
+  const express = expressServiceCode(tag);
+  return `<a href="${url}" target="_blank" rel="noopener"><code>${safe}</code></a>` +
+         (express ? ` <span class="meta" title="Express Service Code (base-10 of the tag) — useful for Dell support phone trees">· Express ${esc(express)}</span>` : "");
 }
 
 function statusBadge(s) {
