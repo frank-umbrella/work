@@ -229,6 +229,29 @@
   #modal .info { background: var(--info-soft); border: 1px solid #bae6fd; color: #075985; padding: 10px 12px; border-radius: 8px; font-size: 12.5px; margin: 12px 0; }
   #modal .info code { background: rgba(255,255,255,0.5); padding: 1px 5px; border-radius: 4px; }
 
+  /* Activity feed — one row per event */
+  .activity-row { display: flex; gap: 12px; align-items: flex-start; padding: 10px 18px; border-bottom: 1px solid var(--line); }
+  .activity-row:last-child { border-bottom: 0; }
+  .activity-row:hover { background: var(--surface-2); }
+  .activity-icon { flex: 0 0 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: #fff; }
+  .activity-icon.t-host_first_seen { background: #1bb978; }
+  .activity-icon.t-ip_change        { background: #0ea5e9; }
+  .activity-icon.t-omsa_warning     { background: #d04646; }
+  .activity-icon.t-omsa_cleared     { background: #16a34a; }
+  .activity-icon.t-wsb_failure      { background: #d04646; }
+  .activity-icon.t-host_reassigned  { background: #8b5cf6; }
+  .activity-icon.t-client_added     { background: #0a6b6b; }
+  .activity-icon.t-client_deleted   { background: #6b7280; }
+  .activity-icon.t-token_generated  { background: #0a6b6b; }
+  .activity-icon.t-token_revoked    { background: #6b7280; }
+  .activity-icon.t-agent_decommissioned { background: #d04646; }
+  .activity-icon.t-update_applied   { background: #ca8a04; }
+  .activity-body { flex: 1; min-width: 0; }
+  .activity-summary { color: var(--ink); }
+  .activity-summary code { font-size: 0.92em; }
+  .activity-meta { font-size: 12px; color: var(--ink-faint); margin-top: 2px; }
+  .activity-meta a { color: var(--ink-faint); text-decoration: underline; }
+
   /* Product pills shown in the Backup / Remote fleet columns */
   .pill { display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 11px; font-weight: 600; letter-spacing: 0.02em; font-family: var(--sans); border: 1px solid; }
   .pill-veeam      { background: #ecfdf5; border-color: #6ee7b7; color: #065f46; }
@@ -328,7 +351,8 @@
 
   <main>
     <div class="tabs">
-      <button class="tab active" data-tab="fleet">Fleet</button>
+      <button class="tab active" data-tab="fleet">Hosts</button>
+      <button class="tab" data-tab="activity">Activity</button>
       <button class="tab" data-tab="clients">Clients</button>
       <button class="tab" data-tab="settings">Settings</button>
     </div>
@@ -374,6 +398,36 @@
         <div id="fleetEmpty" class="empty" hidden>
           <h3>No agents reporting yet</h3>
           <p>Build an installer with <code>installer\build.ps1</code> and deploy it on a client PC.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-pane" data-tab="activity" hidden>
+      <div class="panel">
+        <div class="filters">
+          <label>Type</label>
+          <select id="activityFilter">
+            <option value="">All</option>
+            <option value="host_first_seen">Host first seen</option>
+            <option value="ip_change">IP change</option>
+            <option value="omsa_warning">OMSA warning</option>
+            <option value="wsb_failure">Backup failure</option>
+            <option value="host_reassigned">Host reassigned</option>
+            <option value="client_added">Client added</option>
+            <option value="client_deleted">Client deleted</option>
+            <option value="token_generated">Token generated</option>
+            <option value="token_revoked">Token revoked</option>
+            <option value="agent_decommissioned">Agent decommissioned</option>
+          </select>
+          <span class="spacer"></span>
+          <span class="count" id="activityCount"></span>
+        </div>
+        <div id="activityWrap" style="padding:0 0 8px;">
+          <div id="activityList" style="font-size:13.5px;"></div>
+        </div>
+        <div id="activityEmpty" class="empty" hidden>
+          <h3>No activity yet</h3>
+          <p>Events from agents (check-ins, IP changes, OMSA warnings, backup failures) and admin actions (client added, host reassigned, etc) appear here as they happen.</p>
         </div>
       </div>
     </div>
@@ -491,7 +545,7 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js";
-import { getFirestore, collection, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot, query, where, orderBy } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
+import { getFirestore, collection, doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, onSnapshot, query, where, orderBy, limit } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
 
 // ------------------------------------------------------------------
 // Firebase config — watchtower-6fbe1 project (separate from the
@@ -507,7 +561,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.9.4";
+const APP_VERSION = "0.10.0";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -528,12 +582,14 @@ const state = {
   agents: [],
   clients: [],
   tokens: [],
+  activity: [],
   globalWebhookUrl: "",
   latestAgent: { version: "", downloadUrl: "", sha256: "", notes: "" },
   expandedClientId: null,
   filter: { search: "", client: "", status: "" },
+  activityFilter: { type: "" },
   openPcId: null,
-  unsub: { agents: null, clients: null, tokens: null, settings: null, latestAgent: null, config: null }
+  unsub: { agents: null, clients: null, tokens: null, settings: null, latestAgent: null, activity: null, config: null }
 };
 
 const $ = sel => document.querySelector(sel);
@@ -701,6 +757,7 @@ onAuthStateChanged(auth, async (user) => {
   subscribeTokens();
   subscribeSettings();
   subscribeLatestAgent();
+  subscribeActivity();
 });
 
 // ============== /agents live subscription ==============
@@ -829,6 +886,12 @@ $$(".tab").forEach(btn => {
     $$(".tab").forEach(t => t.classList.toggle("active", t === btn));
     $$(".tab-pane").forEach(p => p.hidden = (p.dataset.tab !== target));
   });
+});
+
+// Activity filter wiring
+document.getElementById("activityFilter").addEventListener("change", e => {
+  state.activityFilter.type = e.target.value;
+  renderActivity();
 });
 
 // ============== Settings tab wiring ==============
@@ -1043,6 +1106,148 @@ function updateAvailableFor(agent) {
   return cmp(agent.agentVersion, state.latestAgent.version) < 0;
 }
 
+// ============== /activity live subscription ==============
+function subscribeActivity() {
+  if (state.unsub.activity) state.unsub.activity();
+  // Pull the most recent 200 events ordered by ts desc — enough for
+  // a productive scrollback without paying for the entire history.
+  const q = query(collection(db, "activity"), orderBy("ts", "desc"), limit(200));
+  state.unsub.activity = onSnapshot(q, snap => {
+    state.activity = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderActivity();
+  }, err => {
+    toast("Failed to load activity: " + (err.message || err), true);
+  });
+}
+
+// Fire-and-forget admin-action logger. Writes to /activity with the
+// signed-in admin as actor. Failures are toast'd but don't block the
+// originating operation.
+async function logActivity(event) {
+  const email = (state.user && state.user.email) || "unknown@unknown";
+  try {
+    const id = `${new Date().toISOString().replace(/[:.]/g, "-")}-${Math.random().toString(36).slice(2, 8)}`;
+    await setDoc(doc(db, "activity", id), {
+      ts: new Date().toISOString(),
+      actor: { type: "admin", id: email },
+      ...event,
+    });
+  } catch (e) {
+    console.error("Activity log failed:", e);
+  }
+}
+
+function renderActivity() {
+  const body = document.getElementById("activityList");
+  const empty = document.getElementById("activityEmpty");
+  const countEl = document.getElementById("activityCount");
+  if (!body) return;
+
+  const filterType = state.activityFilter.type;
+  const rows = state.activity.filter(e => !filterType || e.type === filterType);
+  if (countEl) {
+    countEl.textContent = rows.length === state.activity.length
+      ? `${rows.length} event${rows.length === 1 ? "" : "s"}`
+      : `${rows.length} of ${state.activity.length}`;
+  }
+  if (!rows.length) {
+    body.innerHTML = "";
+    if (empty) empty.hidden = false;
+    return;
+  }
+  if (empty) empty.hidden = true;
+
+  body.innerHTML = rows.map(e => renderActivityRow(e)).join("");
+  // Wire up host-jump links (clicking the host name opens its drawer).
+  body.querySelectorAll("a[data-pcid]").forEach(a => {
+    a.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      openDrawer(a.dataset.pcid);
+    });
+  });
+}
+
+function renderActivityRow(e) {
+  const iconLetter = ({
+    host_first_seen: "+",
+    ip_change: "↔",
+    omsa_warning: "!",
+    omsa_cleared: "✓",
+    wsb_failure: "!",
+    host_reassigned: "→",
+    client_added: "+",
+    client_deleted: "-",
+    token_generated: "T",
+    token_revoked: "X",
+    agent_decommissioned: "-",
+    update_applied: "↑",
+  })[e.type] || "·";
+
+  const ago = fmtAge(e.ts);
+  const when = tsToStr(e.ts);
+  const targetLabel = e.target?.label || e.target?.id || "?";
+  const hostLink = (e.target?.type === "host" && e.target?.id)
+    ? `<a href="#" data-pcid="${esc(e.target.id)}"><b>${esc(targetLabel)}</b></a>`
+    : `<b>${esc(targetLabel)}</b>`;
+  const clientLabel = e.client ? ` <span class="meta">(${esc(e.client)})</span>` : "";
+
+  let summary = "";
+  switch (e.type) {
+    case "host_first_seen":
+      summary = `${hostLink}${clientLabel} first checked in &middot; agent v${esc(e.details?.agentVersion || "?")}`;
+      break;
+    case "ip_change":
+      summary = `${hostLink}${clientLabel} external IP changed: <code>${esc(e.details?.previousIp || "?")}</code> &rarr; <code>${esc(e.details?.newIp || "?")}</code>`;
+      break;
+    case "omsa_warning":
+      summary = `OMSA <b>${esc(e.details?.rollup || "warn")}</b> on ${hostLink}${clientLabel} &middot; ${esc((e.details?.issues || []).slice(0, 2).join("; ") || "details in drawer")}`;
+      break;
+    case "omsa_cleared":
+      summary = `OMSA storage warning cleared on ${hostLink}${clientLabel}`;
+      break;
+    case "wsb_failure":
+      summary = `Windows Server Backup failed on ${hostLink}${clientLabel} &middot; <code>${esc(e.details?.result || "?")}</code>`;
+      break;
+    case "host_reassigned":
+      summary = `${hostLink} reassigned: ${esc(e.details?.previousClient || "?")} &rarr; ${esc(e.details?.newClient || "?")}`;
+      break;
+    case "client_added":
+      summary = `Client added: <b>${esc(targetLabel)}</b>`;
+      break;
+    case "client_deleted":
+      summary = `Client deleted: <b>${esc(targetLabel)}</b>`;
+      break;
+    case "token_generated":
+      summary = `Install token generated for <b>${esc(targetLabel)}</b>${e.details?.label ? ` &middot; <span class="meta">${esc(e.details.label)}</span>` : ""}`;
+      break;
+    case "token_revoked":
+      summary = `Install token revoked for <b>${esc(targetLabel)}</b>`;
+      break;
+    case "agent_decommissioned":
+      summary = `${hostLink}${clientLabel} decommissioned`;
+      break;
+    case "update_applied":
+      summary = `Agent updated on ${hostLink}${clientLabel}: v${esc(e.details?.from || "?")} &rarr; v${esc(e.details?.to || "?")}`;
+      break;
+    default:
+      summary = `${esc(e.type)} &middot; ${hostLink}${clientLabel}`;
+  }
+
+  const actor = e.actor?.id
+    ? (e.actor.type === "admin" ? `by ${esc(e.actor.id.split("@")[0])}` : `by agent`)
+    : "";
+
+  return `
+    <div class="activity-row">
+      <div class="activity-icon t-${esc(e.type)}">${iconLetter}</div>
+      <div class="activity-body">
+        <div class="activity-summary">${summary}</div>
+        <div class="activity-meta">${esc(when)} &middot; ${esc(ago)}${actor ? ` &middot; ${actor}` : ""}</div>
+      </div>
+    </div>
+  `;
+}
+
 async function saveMasterWebhook(url) {
   const trimmed = (url || "").trim();
   const status = document.getElementById("masterWebhookStatus");
@@ -1196,6 +1401,12 @@ $("#newClientBtn").addEventListener("click", () => {
       state.expandedClientId = id;
       renderClients();
       closeModal();
+      // Activity log
+      logActivity({
+        type: "client_added",
+        target: { type: "client", id, label: name },
+        details: { notes: notes || null },
+      });
       // Confirmation feedback for the create itself — the token modal
       // pops up immediately on top, but the toast at the bottom is the
       // explicit "yes, the create succeeded" cue that the modal alone
@@ -1260,6 +1471,12 @@ async function generateToken(clientId, opts = {}) {
       });
       renderClients();
     }
+    // Activity log
+    logActivity({
+      type: "token_generated",
+      target: { type: "client", id: clientId, label: client.name },
+      details: { label: (label || "").trim() || null, auto: !!opts.auto },
+    });
   } catch (e) {
     toast("Token create failed: " + (e.message || e), true);
     return;
@@ -1319,6 +1536,12 @@ async function revokeToken(hash) {
       revokedBy: state.user.email,
     });
     toast("Token revoked.");
+    const tok = state.tokens.find(t => t.hash === hash);
+    logActivity({
+      type: "token_revoked",
+      target: { type: "client", id: tok?.clientId || null, label: tok?.clientName || "?" },
+      details: { hash, label: tok?.label || null },
+    });
   } catch (e) {
     toast("Revoke failed: " + (e.message || e), true);
   }
@@ -1338,6 +1561,11 @@ async function deleteClient(clientId) {
   try {
     await deleteDoc(doc(db, "clients", clientId));
     toast(`Deleted ${client.name}.`);
+    logActivity({
+      type: "client_deleted",
+      target: { type: "client", id: clientId, label: client.name },
+      details: { tokenCount, notes: client.notes || null },
+    });
     if (state.expandedClientId === clientId) state.expandedClientId = null;
   } catch (e) {
     toast("Delete failed: " + (e.message || e), true);
@@ -1416,12 +1644,25 @@ async function exportHostPdf(pcId) {
     const reportDiv = buildReportDom(agent, logoSvg);
     document.body.appendChild(reportDiv);
 
-    const filename = `${(agent.hostname || agent.id || "host").replace(/[^A-Za-z0-9._-]/g, "_")}-watchtower.pdf`;
+    // Wait two animation frames so the browser has painted the off-screen
+    // layout before html2canvas tries to capture it. Without this the
+    // capture can come back blank (element exists in DOM but hasn't been
+    // laid out yet, especially with the SVG logo).
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
+    // Filename: <Client>_<Host>_<YYYY-MM-DD_HH-MM-SS>.pdf, sanitized.
+    const ts = new Date();
+    const pad = n => String(n).padStart(2, "0");
+    const dateStr = `${ts.getFullYear()}-${pad(ts.getMonth() + 1)}-${pad(ts.getDate())}_${pad(ts.getHours())}-${pad(ts.getMinutes())}-${pad(ts.getSeconds())}`;
+    const safeClient = (agent.client || "unknown").replace(/[^A-Za-z0-9._-]/g, "_");
+    const safeHost = (agent.hostname || agent.id || "host").replace(/[^A-Za-z0-9._-]/g, "_");
+    const filename = `${safeClient}_${safeHost}_${dateStr}.pdf`;
+
     const opts = {
       margin: [24, 24, 24, 24],
       filename,
       image: { type: "jpeg", quality: 0.95 },
-      html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff" },
+      html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff", logging: false },
       jsPDF: { unit: "pt", format: "letter", orientation: "portrait" },
       pagebreak: { mode: ["css", "legacy"] },
     };
@@ -1451,7 +1692,10 @@ function buildReportDom(a, logoSvg) {
   const sectionHdr = (title) => `<h3 style="font-size:13px;text-transform:uppercase;color:#0a6b6b;letter-spacing:0.06em;margin:18px 0 6px;border-bottom:1px solid #e3e6ec;padding-bottom:4px;">${esc(title)}</h3>`;
 
   const div = document.createElement("div");
-  div.style.cssText = "position:fixed;top:-9999px;left:-9999px;width:720px;padding:32px 36px;background:#ffffff;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:#1a1f2b;font-size:13px;line-height:1.5;";
+  // Render in normal flow at fixed width but with opacity 0 so html2canvas
+  // can actually compute layout. position:fixed off-screen was causing
+  // blank captures since the element wasn't painted before grab.
+  div.style.cssText = "position:absolute;left:0;top:0;width:720px;padding:32px 36px;background:#ffffff;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:#1a1f2b;font-size:13px;line-height:1.5;opacity:0;pointer-events:none;z-index:-1;";
 
   const omsa = r.omsa;
   const veeam = r.veeam;
@@ -2268,6 +2512,13 @@ async function decommission(pcId, hostname) {
   if (!confirm(`Decommission ${hostname || pcId}?\n\nThe agent will uninstall itself on its next check-in (within 24h).\n\nThe agent record stays in the dashboard until you manually delete it.`)) return;
   await writeConfig(pcId, "uninstall", true);
   toast(`Decommission scheduled — agent will self-remove on next check-in.`);
+  const a = state.agents.find(x => x.id === pcId);
+  logActivity({
+    type: "agent_decommissioned",
+    target: { type: "host", id: pcId, label: hostname || pcId },
+    client: a?.client || null,
+    details: {},
+  });
 }
 </script>
 
