@@ -109,6 +109,13 @@ if (-not $SkipPyInstaller) {
     Write-Host "==> PyInstaller: watchtower-svc.exe" -ForegroundColor Cyan
     Push-Location $agentDir
     try {
+        # PyInstaller resolves --add-data source paths relative to --specpath
+        # (NOT cwd), so we pass VERSION as an absolute path. Otherwise it
+        # looks in installer\build\_spec_svc\VERSION and fails.
+        $versionFile = Join-Path $agentDir 'VERSION'
+        if (-not (Test-Path $versionFile)) {
+            throw "VERSION file missing at $versionFile"
+        }
         # --hidden-import covers the dynamically-imported probes/* modules
         # since PyInstaller's static analysis won't see importlib.import_module.
         pyinstaller `
@@ -118,7 +125,7 @@ if (-not $SkipPyInstaller) {
             --workpath (Join-Path $buildDir '_work_svc') `
             --specpath (Join-Path $buildDir '_spec_svc') `
             --noconsole `
-            --add-data "VERSION;." `
+            --add-data "${versionFile};." `
             --hidden-import probes.system `
             --hidden-import probes.network `
             --hidden-import probes.storage `
@@ -147,7 +154,7 @@ if (-not $SkipPyInstaller) {
             --specpath (Join-Path $buildDir '_spec_tray') `
             --noconsole `
             --windowed `
-            --add-data "VERSION;." `
+            --add-data "${versionFile};." `
             --hidden-import updater `
             --hidden-import checkin `
             watchtower_tray.py
