@@ -31,6 +31,14 @@ param(
     # honors /COMPONENTS="logmein" — pass /COMPONENTS="" to skip LogMeIn.
     # When omitted, no LogMeIn UI appears and the installer behaves as before.
     [string] $LogmeinMsi  = "",
+
+    # Optional extra args appended to the LogMeIn msiexec command. /quiet
+    # /norestart are always passed by the .iss; pass DEPLOYID + related
+    # LogMeIn properties here when the MSI isn't a pre-customized
+    # "Deploy Installation Package" download. Example:
+    #   -LogmeinMsiArgs "DEPLOYID=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx INSTALLMETHOD=5 FQDNDESC=1"
+    [string] $LogmeinMsiArgs = "",
+
     [switch] $SkipPyInstaller
 )
 
@@ -146,6 +154,12 @@ if ($LogmeinMsi) {
     $resolved = (Resolve-Path $LogmeinMsi).Path
     Write-Host "==> Bundling LogMeIn MSI: $resolved" -ForegroundColor DarkGray
     $isccArgs += "/DLogMeInMsi=$resolved"
+    if ($LogmeinMsiArgs) {
+        Write-Host "==> LogMeIn extra args: $LogmeinMsiArgs" -ForegroundColor DarkGray
+        $isccArgs += "/DLogMeInMsiArgs=$LogmeinMsiArgs"
+    }
+} elseif ($LogmeinMsiArgs) {
+    Write-Warning "-LogmeinMsiArgs supplied without -LogmeinMsi; ignored."
 }
 
 & $iscc @isccArgs $iss

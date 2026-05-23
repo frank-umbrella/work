@@ -129,8 +129,18 @@ Filename: "{sys}\sc.exe"; \
 ; LogMeIn install — only when the operator left the Components checkbox on.
 ; runhidden + msiexec /quiet means no LogMeIn UI flashes up. The MSI is
 ; bundled with this installer; we never reach out to the network for it.
+;
+; /quiet /norestart are always passed. LogMeInMsiArgs (set via build.ps1
+; -LogmeinMsiArgs) gets appended for MSPs whose MSI needs extra properties
+; like DEPLOYID=<central-deploy-id> INSTALLMETHOD=5 FQDNDESC=1 or
+; LMIDESCRIPTION="<host name>". When the MSI is the pre-customized one
+; from LogMeIn Central's "Deploy Installation Package", no extras are
+; needed — DEPLOYID is already baked in.
+#ifndef LogMeInMsiArgs
+  #define LogMeInMsiArgs ""
+#endif
 Filename: "{sys}\msiexec.exe"; \
-    Parameters: "/i ""{tmp}\LogMeIn.msi"" /quiet /norestart"; \
+    Parameters: "/i ""{tmp}\LogMeIn.msi"" /quiet /norestart {#LogMeInMsiArgs}"; \
     Components: logmein; \
     Flags: runhidden waituntilterminated; \
     StatusMsg: "Installing LogMeIn remote access..."
