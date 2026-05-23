@@ -476,6 +476,12 @@ async function handleTestWebhook(request, env, ctx) {
     note: 'This is a test event from the Watchtower dashboard. No real fleet event occurred.',
   };
 
+  // Adapt the sample payload to the receiver's expected shape (Google Chat,
+  // Teams, Slack, Discord, generic). Without this, Google Chat returns
+  // HTTP 400 "Unknown name 'event'", Teams classic silently drops the
+  // message, etc.
+  const adaptedBody = buildWebhookBody(targetUrl, samplePayload);
+
   let upstreamStatus = 0;
   let upstreamBody = '';
   let networkError = null;
@@ -483,7 +489,7 @@ async function handleTestWebhook(request, env, ctx) {
     const r = await fetch(targetUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'User-Agent': 'Watchtower-Webhook-Test/1.0' },
-      body: JSON.stringify(samplePayload),
+      body: JSON.stringify(adaptedBody),
     });
     upstreamStatus = r.status;
     try {
@@ -508,6 +514,9 @@ async function handleTestWebhook(request, env, ctx) {
     url: targetUrl,
     status: upstreamStatus,
     body: upstreamBody,
+    // Expose what we actually sent so the operator can debug payload-
+    // shape issues without needing wrangler tail.
+    sent: adaptedBody,
   }, 200);
 }
 
@@ -1848,15 +1857,115 @@ async function sendUninstallEmail(env, { pcId, hostname, client, source, reason,
 // ─────────────────────────────────────────────────────────────────────
 // Webhook POST — optional per-PC custom endpoint for IP changes
 // ─────────────────────────────────────────────────────────────────────
+//
+// Routes through buildWebhookBody so the JSON shape matches the receiver
+// the operator pointed us at. Google Chat / Discord / Teams / Slack each
+// want different shapes; without adaptation a Google Chat URL returns
+// HTTP 400 "Unknown name 'event'", a Teams classic connector silently
+// drops the message, etc.
 async function postWebhook(url, payload) {
+  const body = buildWebhookBody(url, payload);
   const resp = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
+    headers: { 'Content-Type': 'application/json', 'User-Agent': 'Watchtower-Worker/1.0' },
+    body: JSON.stringify(body),
   });
   if (!resp.ok) {
     const txt = await resp.text();
     throw new Error(`Webhook ${url} returned ${resp.status}: ${txt.slice(0, 200)}`);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Webhook payload adapter — match the receiver's required shape
+// ─────────────────────────────────────────────────────────────────────
+//
+// Detection by URL host. We always include the raw structured payload
+// (under the `watchtower` key for generic receivers, or alongside the
+// receiver-specific fields for ones that ignore extra keys) so n8n /
+// Zapier / custom HTTP receivers can pull the structured data, while
+// chat receivers render the human-readable summary.
+//
+// Adds:
+//   Google Chat (chat.googleapis.com)       → { text }
+//   Discord (discord.com|discordapp.com)    → { content }
+//   Teams classic (outlook.office.com,
+//                  webhook.office.com)      → MessageCard
+//   Slack (hooks.slack.com)                 → { text, attachments }
+//   Generic / unknown                       → { text, ...payload }
+function buildWebhookBody(url, payload) {
+  const summary = humanSummary(payload);
+  const u = (url || '').toLowerCase();
+
+  // Google Chat — strict schema, drops the connection if extra fields exist
+  if (u.includes('chat.googleapis.com')) {
+    return { text: summary };
+  }
+  // Discord — uses `content` not `text`
+  if (u.includes('discord.com/api/webhooks') || u.includes('discordapp.com/api/webhooks')) {
+    return { content: summary };
+  }
+  // Microsoft Teams classic connectors. Workflows-based Teams webhooks
+  // accept Adaptive Cards; sending MessageCard to a Workflows endpoint
+  // still renders, just without the card styling — acceptable fallback.
+  if (u.includes('outlook.office.com') || u.includes('webhook.office.com') || u.includes('.office.com/webhook')) {
+    const facts = [];
+    if (payload.hostname) facts.push({ name: 'Host', value: String(payload.hostname) });
+    if (payload.client) facts.push({ name: 'Client', value: String(payload.client) });
+    if (payload.event) facts.push({ name: 'Event', value: String(payload.event) });
+    if (payload.when) facts.push({ name: 'When', value: String(payload.when) });
+    if (payload.previousIp && payload.newIp) {
+      facts.push({ name: 'Previous IP', value: String(payload.previousIp) });
+      facts.push({ name: 'New IP', value: String(payload.newIp) });
+    }
+    if (payload.result) facts.push({ name: 'Result', value: String(payload.result) });
+    if (payload.rollup) facts.push({ name: 'OMSA rollup', value: String(payload.rollup) });
+    const color = (payload.event === 'wsb_backup_failed' || payload.event === 'omsa_warning')
+      ? 'd04646'
+      : payload.event === 'agent_uninstalled' || payload.event === 'agent_decommissioned'
+        ? '6b7280'
+        : '0a6b6b';
+    return {
+      '@type': 'MessageCard',
+      '@context': 'https://schema.org/extensions',
+      summary: summary.slice(0, 250),
+      themeColor: color,
+      title: 'Watchtower',
+      text: summary,
+      sections: facts.length ? [{ facts }] : undefined,
+    };
+  }
+  // Slack — `text` is mandatory; extra fields beyond text/attachments/blocks
+  // are silently ignored by Slack itself, which is fine.
+  if (u.includes('hooks.slack.com')) {
+    return { text: summary, watchtower: payload };
+  }
+  // Generic / unknown receivers (n8n, Zapier, Make, custom HTTP endpoints).
+  // Send everything: a `text` summary that chat-style receivers will pick
+  // up, plus all the original structured fields for receivers that want
+  // structured data.
+  return { text: summary, ...payload };
+}
+
+function humanSummary(p) {
+  if (!p || typeof p !== 'object') return 'Watchtower event';
+  const host = p.hostname || '?';
+  const client = p.client || 'unknown';
+  switch (p.event) {
+    case 'test':
+      return `Watchtower test event from ${p.triggeredBy || 'dashboard'} at ${p.when || new Date().toISOString()}`;
+    case 'external_ip_changed':
+      return `Watchtower: external IP changed on ${host} (${client}): ${p.previousIp || '?'} → ${p.newIp || '?'}`;
+    case 'omsa_warning':
+      return `Watchtower: OMSA ${p.rollup || 'warn'} on ${host} (${client})${(p.issues && p.issues.length) ? ` — ${p.issues.slice(0, 3).join('; ')}` : ''}`;
+    case 'wsb_backup_failed':
+      return `Watchtower: backup failed on ${host} (${client}). Result: ${p.result || '?'}${p.daysSinceSuccess != null ? `, ${p.daysSinceSuccess}d since last success` : ''}`;
+    case 'agent_uninstalled':
+      return `Watchtower: agent uninstalled on ${host} (${client})${p.reason ? ` — ${p.reason}` : ''}`;
+    case 'agent_decommissioned':
+      return `Watchtower: ${host} (${client}) marked decommissioned by admin`;
+    default:
+      return `Watchtower event: ${p.event || 'unknown'} on ${host} (${client})`;
   }
 }
 

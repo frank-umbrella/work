@@ -108,7 +108,7 @@
       </svg>
       <div>
         <div class="meta">Umbrella Automation</div>
-        <h1>Watchtower &middot; Docs <span class="version-chip">v0.11.4</span></h1>
+        <h1>Watchtower &middot; Docs <span class="version-chip">v0.11.5</span></h1>
       </div>
     </div>
     <a class="btn brand-link" href="index.html">&larr; Back to dashboard</a>
@@ -544,8 +544,26 @@ Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" 
 <ul>
   <li>If the URL is empty, no webhook events fire fleet-wide regardless of per-PC toggles.</li>
   <li>If a host has a legacy per-agent <code>webhookUrl</code> set (from before v0.8.0), that wins over the master URL for that one host &mdash; the drawer shows the override inline. To clear it, toggle <code>webhookEnabled</code> off then on, or edit <code>/agents/&lt;pcId&gt;/config/current</code> directly in the Firebase console.</li>
-  <li>Same JSON payload as before: <code>{ event, pcId, hostname, client, ...event-specific fields, when }</code>. Events: <code>external_ip_changed</code>, <code>wsb_backup_failed</code>.</li>
+  <li>Events fired: <code>external_ip_changed</code>, <code>omsa_warning</code>, <code>wsb_backup_failed</code>, <code>agent_uninstalled</code>, and <code>test</code> (from the Test webhook button).</li>
 </ul>
+
+<h4>Payload format per receiver (auto-detected)</h4>
+<p>The worker inspects the URL host and reshapes the JSON body so it matches what each chat platform expects. You don't pick the format &mdash; just paste the URL and click Test.</p>
+<table style="width:100%;border-collapse:collapse;font-size:13.5px;margin:8px 0 14px;">
+  <thead><tr style="background:#fafbfc;text-align:left;">
+    <th style="padding:6px 10px;border-bottom:1px solid #e3e6ec;">URL pattern</th>
+    <th style="padding:6px 10px;border-bottom:1px solid #e3e6ec;">Receiver</th>
+    <th style="padding:6px 10px;border-bottom:1px solid #e3e6ec;">Body shape sent</th>
+  </tr></thead>
+  <tbody>
+    <tr><td style="padding:5px 10px;border-bottom:1px solid #f0f1f4;"><code>chat.googleapis.com/...</code></td><td style="padding:5px 10px;border-bottom:1px solid #f0f1f4;">Google Chat</td><td style="padding:5px 10px;border-bottom:1px solid #f0f1f4;"><code>{ text }</code></td></tr>
+    <tr><td style="padding:5px 10px;border-bottom:1px solid #f0f1f4;"><code>discord.com/api/webhooks/...</code></td><td style="padding:5px 10px;border-bottom:1px solid #f0f1f4;">Discord</td><td style="padding:5px 10px;border-bottom:1px solid #f0f1f4;"><code>{ content }</code></td></tr>
+    <tr><td style="padding:5px 10px;border-bottom:1px solid #f0f1f4;"><code>outlook.office.com/...</code>, <code>webhook.office.com/...</code></td><td style="padding:5px 10px;border-bottom:1px solid #f0f1f4;">Microsoft Teams (classic + Workflows)</td><td style="padding:5px 10px;border-bottom:1px solid #f0f1f4;">MessageCard with facts table</td></tr>
+    <tr><td style="padding:5px 10px;border-bottom:1px solid #f0f1f4;"><code>hooks.slack.com/services/...</code></td><td style="padding:5px 10px;border-bottom:1px solid #f0f1f4;">Slack</td><td style="padding:5px 10px;border-bottom:1px solid #f0f1f4;"><code>{ text, watchtower: {...full payload} }</code></td></tr>
+    <tr><td style="padding:5px 10px;">anything else</td><td style="padding:5px 10px;">Generic (n8n, Zapier, Make, custom HTTP)</td><td style="padding:5px 10px;"><code>{ text, event, pcId, hostname, client, ... }</code></td></tr>
+  </tbody>
+</table>
+<p>The Test webhook button's result panel includes a <code>sent</code> field showing exactly what was POSTed, so you can confirm the adapted shape if a custom receiver rejects it.</p>
 
 <h2 id="intake-email">Intake email on first check-in</h2>
 <p>The first time a brand-new host's agent reports in (no existing record in the dashboard), the worker fires a one-time intake email summarizing what the probes found on that machine. Think of it as a "welcome to the fleet, here's what's on this box" report you can archive for your records.</p>
