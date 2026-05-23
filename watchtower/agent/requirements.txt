@@ -1,0 +1,14 @@
+# Runtime dependencies for the watchtower agent.
+# Windows-only — pywin32 / wmi / pystray are all Windows-specific.
+#
+# Pinned to versions known to work with PyInstaller 6.x and Python 3.11+.
+
+requests==2.32.3        # HTTP client for check-ins to watchtower-worker
+pywin32==306            # Win32 service framework (watchtower_service.py)
+wmi==1.5.1              # Pythonic wrapper over WMI/CIM, used by most probes
+pystray==0.19.5         # System tray icon for watchtower_tray.py
+Pillow==10.4.0          # Image lib pystray needs to render the tray icon
+psutil==6.0.0           # Cross-platform process/system info (NICs, RAM stats)
+
+# Build-time only (don't bundle into the produced EXE):
+#   pyinstaller==6.10.0
