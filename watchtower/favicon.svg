@@ -1,5 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
-  <circle cx="32" cy="32" r="14" stroke="#0a6b6b" stroke-width="4"/>
-  <circle cx="32" cy="32" r="5" fill="#0a6b6b"/>
-  <path d="M32 6 L32 18 M32 46 L32 58 M6 32 L18 32 M46 32 L58 32" stroke="#0a6b6b" stroke-width="4" stroke-linecap="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Filled disc bg gives the icon presence in browser tabs at 16x16 -->
+  <circle cx="32" cy="32" r="30" fill="#0a6b6b"/>
+  <!-- Glow halo around the beacon -->
+  <circle cx="32" cy="14" r="9" fill="#5af4e3" opacity="0.35"/>
+  <!-- Tower body, white silhouette -->
+  <rect x="22" y="26" width="20" height="26" fill="#ffffff"/>
+  <!-- Top platform -->
+  <rect x="18" y="22" width="28" height="4" fill="#ffffff"/>
+  <!-- Beacon at the top, cyan with white center -->
+  <circle cx="32" cy="14" r="5" fill="#5af4e3"/>
+  <circle cx="32" cy="14" r="2" fill="#ffffff"/>
+  <!-- Window slits down the tower body, cyan accents -->
+  <rect x="30" y="30" width="4" height="6" fill="#5af4e3"/>
+  <rect x="30" y="40" width="4" height="6" fill="#5af4e3"/>
 </svg>

@@ -1,0 +1,133 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#020817"/>
+      <stop offset="60%" stop-color="#061227"/>
+      <stop offset="100%" stop-color="#0a1f3a"/>
+    </linearGradient>
+    <linearGradient id="towerGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#15494e"/>
+      <stop offset="50%" stop-color="#0a3035"/>
+      <stop offset="100%" stop-color="#021015"/>
+    </linearGradient>
+    <radialGradient id="beaconGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#5af4e3" stop-opacity="0.95"/>
+      <stop offset="40%" stop-color="#0a6b6b" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#0a6b6b" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="titleGlow" x="-20%" y="-50%" width="140%" height="200%">
+      <feGaussianBlur stdDeviation="4" result="b1"/>
+      <feGaussianBlur stdDeviation="12" result="b2"/>
+      <feMerge>
+        <feMergeNode in="b2"/>
+        <feMergeNode in="b1"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <linearGradient id="horizonLine" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#0a6b6b" stop-opacity="0"/>
+      <stop offset="50%" stop-color="#5af4e3" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#0a6b6b" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#bg)"/>
+
+  <g fill="#9bb3b3" opacity="0.5">
+    <circle cx="80"   cy="80"  r="1"/>
+    <circle cx="180"  cy="40"  r="1.2"/>
+    <circle cx="260"  cy="110" r="0.8"/>
+    <circle cx="340"  cy="60"  r="1"/>
+    <circle cx="450"  cy="100" r="1.5"/>
+    <circle cx="550"  cy="50"  r="1"/>
+    <circle cx="620"  cy="120" r="0.8"/>
+    <circle cx="720"  cy="70"  r="1.2"/>
+    <circle cx="820"  cy="40"  r="1"/>
+    <circle cx="1050" cy="90"  r="1.4"/>
+    <circle cx="1130" cy="50"  r="1"/>
+    <circle cx="1170" cy="130" r="0.8"/>
+    <circle cx="120"  cy="180" r="1"/>
+    <circle cx="40"   cy="240" r="0.8"/>
+    <circle cx="380"  cy="200" r="1"/>
+  </g>
+
+  <g stroke="#0a6b6b" stroke-width="1" opacity="0.18" fill="none">
+    <line x1="0" y1="430" x2="1200" y2="430"/>
+    <line x1="0" y1="460" x2="1200" y2="460"/>
+    <line x1="0" y1="495" x2="1200" y2="495"/>
+    <line x1="0" y1="535" x2="1200" y2="535"/>
+    <line x1="0" y1="580" x2="1200" y2="580"/>
+    <line x1="600" y1="430" x2="-100"  y2="630"/>
+    <line x1="600" y1="430" x2="150"   y2="630"/>
+    <line x1="600" y1="430" x2="400"   y2="630"/>
+    <line x1="600" y1="430" x2="600"   y2="630"/>
+    <line x1="600" y1="430" x2="800"   y2="630"/>
+    <line x1="600" y1="430" x2="1050"  y2="630"/>
+    <line x1="600" y1="430" x2="1300"  y2="630"/>
+  </g>
+
+  <rect x="0" y="429" width="1200" height="2" fill="url(#horizonLine)"/>
+
+  <path d="M 0,430 L 100,380 L 180,410 L 280,360 L 380,400 L 480,370 L 580,395 L 700,355 L 820,400 L 930,375 L 1040,395 L 1140,365 L 1200,395 L 1200,430 Z"
+        fill="#020817" opacity="0.7"/>
+
+  <g transform="translate(960, 130)">
+    <circle cx="0" cy="0" r="120" fill="url(#beaconGlow)"/>
+    <rect x="-55" y="60" width="110" height="240" fill="url(#towerGrad)"/>
+    <rect x="-72" y="40" width="144" height="24" fill="url(#towerGrad)"/>
+    <rect x="-72" y="22" width="16" height="18" fill="url(#towerGrad)"/>
+    <rect x="-48" y="22" width="16" height="18" fill="url(#towerGrad)"/>
+    <rect x="-24" y="22" width="16" height="18" fill="url(#towerGrad)"/>
+    <rect x="0"   y="22" width="16" height="18" fill="url(#towerGrad)"/>
+    <rect x="24"  y="22" width="16" height="18" fill="url(#towerGrad)"/>
+    <rect x="48"  y="22" width="16" height="18" fill="url(#towerGrad)"/>
+    <circle cx="0" cy="0" r="9" fill="#5af4e3"/>
+    <circle cx="0" cy="0" r="14" fill="#5af4e3" opacity="0.5"/>
+    <rect x="-8" y="100" width="16" height="36" fill="#5af4e3" opacity="0.7"/>
+    <rect x="-8" y="170" width="16" height="36" fill="#5af4e3" opacity="0.55"/>
+    <rect x="-8" y="240" width="16" height="36" fill="#5af4e3" opacity="0.4"/>
+    <line x1="-55" y1="80" x2="-55" y2="290" stroke="#5af4e3" stroke-width="1" opacity="0.4"/>
+    <line x1="55"  y1="80" x2="55"  y2="290" stroke="#5af4e3" stroke-width="1" opacity="0.4"/>
+  </g>
+
+  <g stroke="#5af4e3" stroke-width="2" fill="none" opacity="0.7">
+    <path d="M 80 235 L 70 235 L 70 250"/>
+    <path d="M 80 365 L 70 365 L 70 350"/>
+  </g>
+
+  <text x="100" y="320"
+        font-family="'Orbitron', 'Segoe UI', Arial Black, sans-serif"
+        font-size="86"
+        font-weight="900"
+        fill="#ffffff"
+        letter-spacing="10"
+        filter="url(#titleGlow)">WATCHTOWER</text>
+
+  <text x="102" y="360"
+        font-family="'Orbitron', 'Segoe UI', sans-serif"
+        font-size="20"
+        font-weight="600"
+        fill="#5af4e3"
+        letter-spacing="8"
+        opacity="0.95">UMBRELLA &#xB7; AUTOMATION</text>
+
+  <g transform="translate(102, 510)">
+    <circle cx="0" cy="0" r="16" stroke="#5af4e3" stroke-width="2.2" fill="none" opacity="0.85"/>
+    <circle cx="0" cy="0" r="5" fill="#5af4e3"/>
+    <path d="M0 -24 L0 -18 M0 18 L0 24 M-24 0 L-18 0 M18 0 L24 0"
+          stroke="#5af4e3" stroke-width="2.2" stroke-linecap="round" opacity="0.85"/>
+  </g>
+  <text x="148" y="517"
+        font-family="'Orbitron', 'Segoe UI', sans-serif"
+        font-size="16"
+        fill="#7fb3b3"
+        letter-spacing="3.5"
+        font-weight="500">FLEET MONITORING &#xB7; ALWAYS WATCHING</text>
+
+  <text x="1100" y="600"
+        text-anchor="end"
+        font-family="'Segoe UI', monospace"
+        font-size="11"
+        fill="#3a5666"
+        letter-spacing="2">v1.0 / msp &#xB7; ops</text>
+</svg>
