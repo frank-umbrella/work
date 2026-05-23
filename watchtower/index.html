@@ -587,7 +587,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.11.2";
+const APP_VERSION = "0.11.3";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -1705,12 +1705,18 @@ async function loadBrandLogo() {
   return _brandLogoSvg;
 }
 
+// Toggle to true (via DevTools console: window.PDF_DEBUG_CANVAS = true) to
+// have the captured canvas appear on-screen for 6 seconds before the PDF
+// downloads. Lets us SEE what html2canvas actually grabbed in cases where
+// save() resolves but the PDF is blank.
+window.PDF_DEBUG_CANVAS = window.PDF_DEBUG_CANVAS || false;
+
 async function exportHostPdf(pcId) {
   const agent = state.agents.find(a => a.id === pcId);
   if (!agent) { toast("Agent not found.", true); return; }
   toast("Generating PDF…");
 
-  let reportDiv = null;
+  let frame = null;
   let overlay = null;
   try {
     await loadHtml2Pdf();
@@ -1722,35 +1728,59 @@ async function exportHostPdf(pcId) {
     const logoSvg = await loadBrandLogo();
     console.log("[PDF] logoSvg length:", (logoSvg || "").length);
 
-    reportDiv = buildReportDom(agent, logoSvg);
-    console.log("[PDF] reportDiv built, innerHTML length:", reportDiv.innerHTML.length);
-
-    // Full-screen overlay hides the briefly-visible report from the
-    // operator. The report div itself is rendered on-screen at fixed
-    // top/left because that's the ONLY positioning where html2canvas
-    // reliably captures pixels across browsers + html2canvas versions.
-    // Off-screen tricks (left:-20000px, opacity:0, display:none,
-    // visibility:hidden) all produced blank captures in at least one
-    // browser/version combination — the overlay approach side-steps
-    // the entire class of bugs.
+    // Full-screen overlay so the operator never sees the iframe flash on
+    // screen. z-index above the iframe.
     overlay = document.createElement("div");
     overlay.style.cssText = "position:fixed;inset:0;background:rgba(255,255,255,0.97);z-index:99999;display:flex;align-items:center;justify-content:center;font:600 16px system-ui,-apple-system,Segoe UI,sans-serif;color:#0a6b6b;";
     overlay.textContent = "Generating PDF…";
-
-    // The report div: fully visible, on-screen, at fixed top:0 left:0,
-    // z-index just below the overlay so the overlay covers it for the
-    // user. White background, fixed 720px width.
-    reportDiv.style.cssText = "position:fixed;top:0;left:0;width:720px;padding:32px 36px;background:#ffffff;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:#1a1f2b;font-size:13px;line-height:1.5;opacity:1;z-index:99998;";
-
-    document.body.appendChild(reportDiv);
     document.body.appendChild(overlay);
 
-    // Force layout + paint sequence
+    // ────────────────────────────────────────────────────────────────
+    // Render in an isolated iframe — this is the fix for "save() resolves
+    // but PDF is blank." The previous on-screen render leaked the page's
+    // CSS variables (--ink, --bg, etc) into the cloned document html2canvas
+    // builds for capture. Inside html2canvas's iframe, some of those vars
+    // resolved differently or to white, producing white-on-white text and
+    // a blank canvas. Rendering inside our own iframe with `srcdoc` gives
+    // us a guaranteed clean styling baseline — only the styles we put in
+    // the iframe's <head> apply.
+    // ────────────────────────────────────────────────────────────────
+    frame = document.createElement("iframe");
+    frame.style.cssText = "position:fixed;top:0;left:0;width:720px;height:2400px;border:0;background:#ffffff;z-index:99998;";
+    // srcdoc gives the iframe a same-origin clean doc with only the
+    // styling we control — no inheritance from the parent page.
+    frame.srcdoc = `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>
+  html, body { margin: 0; padding: 0; background: #ffffff; color: #1a1f2b; }
+  body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; font-size: 13px; line-height: 1.5; }
+  * { box-sizing: border-box; }
+</style></head><body></body></html>`;
+    document.body.appendChild(frame);
+
+    // Wait for the iframe to load before we can write into it.
+    await new Promise((resolve, reject) => {
+      let done = false;
+      frame.addEventListener("load", () => { if (!done) { done = true; resolve(); } }, { once: true });
+      // Safety timeout — srcdoc usually loads in <50ms
+      setTimeout(() => { if (!done) { done = true; resolve(); } }, 1000);
+    });
+
+    const fdoc = frame.contentDocument;
+    if (!fdoc || !fdoc.body) {
+      throw new Error("Iframe contentDocument unavailable (same-origin issue?)");
+    }
+
+    const reportDiv = buildReportDom(agent, logoSvg);
+    reportDiv.style.cssText = "width:720px;padding:32px 36px;background:#ffffff;color:#1a1f2b;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;font-size:13px;line-height:1.5;";
+    fdoc.body.appendChild(reportDiv);
+
+    // Force layout in the iframe + log dimensions to console
     reportDiv.getBoundingClientRect();
     const rect = reportDiv.getBoundingClientRect();
-    console.log("[PDF] reportDiv dimensions:", rect.width, "x", rect.height);
+    console.log("[PDF] reportDiv built, innerHTML length:", reportDiv.innerHTML.length);
+    console.log("[PDF] reportDiv dimensions in iframe:", rect.width, "x", rect.height);
 
-    // Wait for any embedded <img> tags (logo etc) to finish loading.
+    // Wait for any embedded <img> tags (logo etc).
     const imgs = Array.from(reportDiv.querySelectorAll("img"));
     await Promise.all(imgs.map(img =>
       (img.complete && img.naturalHeight)
@@ -1758,7 +1788,6 @@ async function exportHostPdf(pcId) {
         : new Promise(r => { img.addEventListener("load", r, { once: true }); img.addEventListener("error", r, { once: true }); setTimeout(r, 2000); })
     ));
 
-    // Two RAFs so the browser has actually painted before capture.
     await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
 
     // Filename: <Client>_<Host>_<YYYY-MM-DD_HH-MM-SS>.pdf, sanitized.
@@ -1777,21 +1806,36 @@ async function exportHostPdf(pcId) {
         scale: 2,
         useCORS: true,
         backgroundColor: "#ffffff",
-        logging: true,  // verbose so we see what html2canvas is doing
+        logging: true,
       },
       jsPDF: { unit: "pt", format: "letter", orientation: "portrait" },
       pagebreak: { mode: ["css", "legacy"] },
     };
 
     console.log("[PDF] starting html2pdf...");
-    await window.html2pdf().set(opts).from(reportDiv).save();
+
+    // Worker chain: toCanvas → (optional debug preview) → toPdf → save.
+    // Splitting it lets us inspect the canvas mid-pipeline if PDF_DEBUG_CANVAS
+    // is on, without re-running the expensive capture twice.
+    const worker = window.html2pdf().set(opts).from(reportDiv);
+    const canvas = await worker.toCanvas().get('canvas');
+    console.log("[PDF] canvas captured:", canvas.width, "x", canvas.height);
+
+    if (window.PDF_DEBUG_CANVAS) {
+      overlay.innerHTML = "Captured canvas (closing in 6s)…";
+      canvas.style.cssText = "max-width:80vw;max-height:70vh;border:3px solid #d04646;margin-top:60px;background:#fff;";
+      overlay.appendChild(canvas);
+      await new Promise(r => setTimeout(r, 6000));
+    }
+
+    await worker.toPdf().save();
     console.log("[PDF] save() resolved");
     toast(`Saved ${filename}`);
   } catch (e) {
     toast(`PDF export failed: ${e.message || e}`, true);
     console.error("[PDF] export error:", e);
   } finally {
-    if (reportDiv && reportDiv.parentNode) reportDiv.remove();
+    if (frame && frame.parentNode) frame.remove();
     if (overlay && overlay.parentNode) overlay.remove();
   }
 }
