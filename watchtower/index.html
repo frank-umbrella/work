@@ -162,6 +162,48 @@
   .empty h3 { color: var(--ink); margin: 0 0 8px; font-size: 18px; }
   .empty p { margin: 0 0 16px; font-size: 14px; }
 
+  /* tabs */
+  .tabs { display: flex; gap: 4px; margin-bottom: 14px; border-bottom: 1px solid var(--line); }
+  .tab { background: none; border: none; padding: 10px 16px; font-size: 13.5px; font-weight: 600; color: var(--ink-faint); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .tab:hover { color: var(--ink); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* clients table */
+  table.clients { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  table.clients th { text-align: left; padding: 10px 14px; font-size: 11px; text-transform: uppercase; color: var(--ink-faint); letter-spacing: 0.06em; font-weight: 700; border-bottom: 1px solid var(--line); background: var(--surface-2); }
+  table.clients td { padding: 11px 14px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  table.clients .name { font-weight: 600; color: var(--ink); }
+  table.clients .notes { font-size: 12.5px; color: var(--ink-soft); margin-top: 2px; }
+  table.clients .num { font-variant-numeric: tabular-nums; color: var(--ink-soft); }
+  table.clients .actions { text-align: right; white-space: nowrap; }
+  table.clients .actions .btn { margin-left: 4px; }
+  table.clients tr.expanded td { background: var(--accent-soft); }
+  table.clients tr.tokens-row td { background: var(--surface-2); padding: 12px 18px; }
+  table.clients .tokens-list { font-size: 13px; }
+  table.clients .tokens-list .trow { display: flex; align-items: center; gap: 12px; padding: 6px 0; border-bottom: 1px dashed var(--line); }
+  table.clients .tokens-list .trow:last-child { border-bottom: 0; }
+  table.clients .tokens-list .thash { font-family: var(--mono); font-size: 12px; color: var(--ink-faint); }
+  table.clients .tokens-list .tlabel { color: var(--ink); flex: 1; }
+  table.clients .tokens-list .tmeta { color: var(--ink-faint); font-size: 12px; }
+  table.clients .tokens-list .trevoked { text-decoration: line-through; opacity: 0.6; }
+
+  /* modal */
+  #modal { position: fixed; inset: 0; background: rgba(20,25,40,0.45); display: none; align-items: center; justify-content: center; z-index: 200; padding: 20px; }
+  #modal.show { display: flex; }
+  #modal .modal-card { background: var(--surface); border-radius: 12px; box-shadow: var(--shadow-lift); max-width: 520px; width: 100%; max-height: 90vh; overflow-y: auto; }
+  #modal .modal-head { padding: 18px 22px; border-bottom: 1px solid var(--line); }
+  #modal .modal-head h3 { margin: 0; font-size: 17px; }
+  #modal .modal-head .sub { font-size: 12.5px; color: var(--ink-faint); margin-top: 2px; }
+  #modal .modal-body { padding: 18px 22px; }
+  #modal .modal-body label { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-faint); font-weight: 600; margin: 0 0 6px; }
+  #modal .modal-body input[type="text"], #modal .modal-body textarea { width: 100%; padding: 8px 11px; border: 1px solid var(--line-strong); border-radius: 7px; font-size: 14px; background: var(--surface); margin-bottom: 14px; }
+  #modal .modal-body textarea { min-height: 70px; resize: vertical; }
+  #modal .modal-foot { padding: 14px 22px; border-top: 1px solid var(--line); display: flex; justify-content: flex-end; gap: 8px; background: var(--surface-2); border-radius: 0 0 12px 12px; }
+  #modal .token-display { font-family: var(--mono); font-size: 13px; background: var(--ink); color: #f5f5f5; padding: 12px 14px; border-radius: 8px; word-break: break-all; line-height: 1.5; user-select: all; }
+  #modal .warn { background: var(--warn-soft); border: 1px solid #fde68a; color: #78350f; padding: 10px 12px; border-radius: 8px; font-size: 12.5px; margin: 12px 0; }
+  #modal .info { background: var(--info-soft); border: 1px solid #bae6fd; color: #075985; padding: 10px 12px; border-radius: 8px; font-size: 12.5px; margin: 12px 0; }
+  #modal .info code { background: rgba(255,255,255,0.5); padding: 1px 5px; border-radius: 4px; }
+
   @media (max-width: 760px) {
     table.fleet .col-client, table.fleet .col-os { display: none; }
     #drawer { width: 100vw; }
@@ -213,43 +255,91 @@
   </header>
 
   <main>
-    <div class="panel">
-      <div class="filters">
-        <input type="search" id="search" placeholder="Search hostname, IP, client...">
-        <label>Client</label>
-        <select id="clientFilter"><option value="">All</option></select>
-        <label>Status</label>
-        <select id="statusFilter">
-          <option value="">All</option>
-          <option value="ok">Healthy</option>
-          <option value="stale">Stale (&gt;30h)</option>
-          <option value="dead">Dead (&gt;7d)</option>
-          <option value="disabled">Disabled</option>
-        </select>
-        <span class="spacer"></span>
-        <span class="count" id="fleetCount"></span>
+    <div class="tabs">
+      <button class="tab active" data-tab="fleet">Fleet</button>
+      <button class="tab" data-tab="clients">Clients</button>
+    </div>
+
+    <div class="tab-pane" data-tab="fleet">
+      <div class="panel">
+        <div class="filters">
+          <input type="search" id="search" placeholder="Search hostname, IP, client...">
+          <label>Client</label>
+          <select id="clientFilter"><option value="">All</option></select>
+          <label>Status</label>
+          <select id="statusFilter">
+            <option value="">All</option>
+            <option value="ok">Healthy</option>
+            <option value="stale">Stale (&gt;30h)</option>
+            <option value="dead">Dead (&gt;7d)</option>
+            <option value="disabled">Disabled</option>
+          </select>
+          <span class="spacer"></span>
+          <span class="count" id="fleetCount"></span>
+        </div>
+        <div id="fleetWrap">
+          <table class="fleet">
+            <thead>
+              <tr>
+                <th>Host</th>
+                <th class="col-client">Client</th>
+                <th>External IP</th>
+                <th class="col-os">OS</th>
+                <th>Last check</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="fleetBody"></tbody>
+          </table>
+        </div>
+        <div id="fleetEmpty" class="empty" hidden>
+          <h3>No agents reporting yet</h3>
+          <p>Build an installer with <code>installer\build.ps1</code> and deploy it on a client PC.</p>
+        </div>
       </div>
-      <div id="fleetWrap">
-        <table class="fleet">
-          <thead>
-            <tr>
-              <th>Host</th>
-              <th class="col-client">Client</th>
-              <th>External IP</th>
-              <th class="col-os">OS</th>
-              <th>Last check</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody id="fleetBody"></tbody>
-        </table>
-      </div>
-      <div id="fleetEmpty" class="empty" hidden>
-        <h3>No agents reporting yet</h3>
-        <p>Build an installer with <code>installer\build.ps1</code> and deploy it on a client PC.</p>
+    </div>
+
+    <div class="tab-pane" data-tab="clients" hidden>
+      <div class="panel">
+        <div class="panel-header">
+          <h2>Clients</h2>
+          <div class="right">
+            <button class="btn btn-primary btn-sm" id="newClientBtn">+ New client</button>
+          </div>
+        </div>
+        <div id="clientsWrap">
+          <table class="clients">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Agents</th>
+                <th>Tokens</th>
+                <th>Created</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="clientsBody"></tbody>
+          </table>
+        </div>
+        <div id="clientsEmpty" class="empty" hidden>
+          <h3>No clients yet</h3>
+          <p>Add a client, then generate an install token for them. The token is baked into the installer at build time.</p>
+        </div>
       </div>
     </div>
   </main>
+
+  <!-- modal -->
+  <div id="modal" role="dialog" aria-modal="true">
+    <div class="modal-card">
+      <div class="modal-head">
+        <h3 id="modalTitle">—</h3>
+        <div class="sub" id="modalSub"></div>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+      <div class="modal-foot" id="modalFoot"></div>
+    </div>
+  </div>
 
   <!-- scrim + drawer -->
   <div id="scrim"></div>
@@ -270,7 +360,7 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js";
-import { getFirestore, collection, doc, getDoc, setDoc, updateDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
+import { getFirestore, collection, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot, query, where, orderBy } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
 
 // ------------------------------------------------------------------
 // Firebase config — watchtower-6fbe1 project (separate from the
@@ -286,7 +376,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.1.0";
+const APP_VERSION = "0.2.0";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 
 const app = initializeApp(firebaseConfig);
@@ -297,9 +387,12 @@ const state = {
   user: null,
   profile: null,
   agents: [],
+  clients: [],
+  tokens: [],
+  expandedClientId: null,
   filter: { search: "", client: "", status: "" },
   openPcId: null,
-  unsub: { agents: null, config: null }
+  unsub: { agents: null, clients: null, tokens: null, config: null }
 };
 
 const $ = sel => document.querySelector(sel);
@@ -405,6 +498,8 @@ onAuthStateChanged(auth, async (user) => {
   if (user.photoURL) $("#userAvatar").src = user.photoURL; else $("#userAvatar").style.display = "none";
 
   subscribeAgents();
+  subscribeClients();
+  subscribeTokens();
 });
 
 // ============== /agents live subscription ==============
@@ -485,6 +580,271 @@ function renderFleet() {
 $("#search").addEventListener("input", e => { state.filter.search = e.target.value; renderFleet(); });
 $("#clientFilter").addEventListener("change", e => { state.filter.client = e.target.value; renderFleet(); });
 $("#statusFilter").addEventListener("change", e => { state.filter.status = e.target.value; renderFleet(); });
+
+// ============== tabs ==============
+$$(".tab").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const target = btn.dataset.tab;
+    $$(".tab").forEach(t => t.classList.toggle("active", t === btn));
+    $$(".tab-pane").forEach(p => p.hidden = (p.dataset.tab !== target));
+  });
+});
+
+// ============== /clients live subscription ==============
+function subscribeClients() {
+  if (state.unsub.clients) state.unsub.clients();
+  const q = query(collection(db, "clients"), orderBy("name"));
+  state.unsub.clients = onSnapshot(q, snap => {
+    state.clients = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderClients();
+  }, err => {
+    toast("Failed to load clients: " + (err.message || err), true);
+  });
+}
+
+function subscribeTokens() {
+  if (state.unsub.tokens) state.unsub.tokens();
+  // No orderBy — createdAt may be missing on legacy docs, and we sort
+  // client-side anyway when rendering per-client.
+  state.unsub.tokens = onSnapshot(collection(db, "install_tokens"), snap => {
+    state.tokens = snap.docs.map(d => ({ hash: d.id, ...d.data() }));
+    renderClients();
+  }, err => {
+    toast("Failed to load tokens: " + (err.message || err), true);
+  });
+}
+
+function renderClients() {
+  const tbody = $("#clientsBody");
+  if (!state.clients.length) {
+    tbody.innerHTML = "";
+    $("#clientsEmpty").hidden = false;
+    return;
+  }
+  $("#clientsEmpty").hidden = true;
+
+  // Count agents + active tokens per client.
+  const agentCount = {};
+  for (const a of state.agents) {
+    if (a.clientId) agentCount[a.clientId] = (agentCount[a.clientId] || 0) + 1;
+  }
+  const tokensByClient = {};
+  for (const t of state.tokens) {
+    if (!t.clientId) continue;
+    (tokensByClient[t.clientId] ||= []).push(t);
+  }
+
+  const rows = [];
+  for (const c of state.clients) {
+    const expanded = state.expandedClientId === c.id;
+    const tokens = (tokensByClient[c.id] || []).slice().sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
+    const activeTokens = tokens.filter(t => !t.revoked).length;
+
+    rows.push(`
+      <tr data-id="${esc(c.id)}" class="${expanded ? 'expanded' : ''}">
+        <td>
+          <div class="name">${esc(c.name)}</div>
+          ${c.notes ? `<div class="notes">${esc(c.notes)}</div>` : ""}
+        </td>
+        <td class="num">${agentCount[c.id] || 0}</td>
+        <td class="num">${activeTokens}${tokens.length > activeTokens ? ` <span class="meta">(+${tokens.length - activeTokens} revoked)</span>` : ""}</td>
+        <td class="num">${fmtAge(c.createdAt)}</td>
+        <td class="actions">
+          <button class="btn btn-sm" data-act="toggle" data-id="${esc(c.id)}">${expanded ? "Hide" : "Tokens"}</button>
+          <button class="btn btn-sm btn-primary" data-act="gen" data-id="${esc(c.id)}">+ Token</button>
+          <button class="btn btn-sm btn-danger" data-act="del" data-id="${esc(c.id)}">Delete</button>
+        </td>
+      </tr>
+    `);
+
+    if (expanded) {
+      rows.push(`
+        <tr class="tokens-row"><td colspan="5">
+          ${tokens.length ? `<div class="tokens-list">${tokens.map(t => `
+            <div class="trow ${t.revoked ? 'trevoked' : ''}">
+              <div class="thash">${esc(t.hash.slice(0, 12))}…</div>
+              <div class="tlabel">${esc(t.label || "(no label)")}</div>
+              <div class="tmeta">${fmtAge(t.createdAt)} &middot; by ${esc((t.createdBy || "").split("@")[0])}</div>
+              ${t.revoked
+                ? `<span class="badge muted">Revoked</span>`
+                : `<button class="btn btn-sm btn-danger" data-act="revoke" data-hash="${esc(t.hash)}">Revoke</button>`}
+            </div>
+          `).join("")}</div>` : `<div class="meta">No tokens yet. Click <b>+ Token</b> to generate one.</div>`}
+        </td></tr>
+      `);
+    }
+  }
+  tbody.innerHTML = rows.join("");
+
+  // Wire up row actions.
+  $$("#clientsBody [data-act]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const act = btn.dataset.act;
+      const id = btn.dataset.id;
+      if (act === "toggle") {
+        state.expandedClientId = (state.expandedClientId === id) ? null : id;
+        renderClients();
+      } else if (act === "gen") {
+        generateToken(id);
+      } else if (act === "del") {
+        deleteClient(id);
+      } else if (act === "revoke") {
+        revokeToken(btn.dataset.hash);
+      }
+    });
+  });
+}
+
+// ============== modal helper ==============
+function openModal({ title, sub, body, foot }) {
+  $("#modalTitle").textContent = title || "";
+  $("#modalSub").textContent = sub || "";
+  $("#modalBody").innerHTML = body || "";
+  $("#modalFoot").innerHTML = foot || `<button class="btn" data-modal-close>Close</button>`;
+  $("#modal").classList.add("show");
+  $$("#modal [data-modal-close]").forEach(b => b.addEventListener("click", closeModal));
+}
+function closeModal() { $("#modal").classList.remove("show"); }
+$("#modal").addEventListener("click", e => { if (e.target.id === "modal") closeModal(); });
+
+// ============== new-client flow ==============
+$("#newClientBtn").addEventListener("click", () => {
+  openModal({
+    title: "New client",
+    sub: "Create a customer entry. You can generate install tokens for them next.",
+    body: `
+      <label for="ncName">Client name</label>
+      <input type="text" id="ncName" placeholder="Acme Corp" autocomplete="off">
+      <label for="ncNotes">Notes <span style="text-transform:none;font-weight:400;color:var(--ink-faint);">(optional)</span></label>
+      <textarea id="ncNotes" placeholder="Account manager, contract dates, anything useful..."></textarea>
+    `,
+    foot: `
+      <button class="btn" data-modal-close>Cancel</button>
+      <button class="btn btn-primary" id="ncCreate">Create client</button>
+    `
+  });
+  setTimeout(() => $("#ncName")?.focus(), 50);
+  $("#ncCreate").addEventListener("click", async () => {
+    const name = $("#ncName").value.trim();
+    const notes = $("#ncNotes").value.trim();
+    if (!name) { toast("Name is required.", true); return; }
+    const id = crypto.randomUUID();
+    try {
+      await setDoc(doc(db, "clients", id), {
+        name, notes: notes || null,
+        createdAt: new Date().toISOString(),
+        createdBy: state.user.email,
+      });
+      closeModal();
+      toast(`Created ${name}.`);
+      state.expandedClientId = id;
+    } catch (e) {
+      toast("Create failed: " + (e.message || e), true);
+    }
+  });
+});
+
+// ============== token generation ==============
+async function generateToken(clientId) {
+  const client = state.clients.find(c => c.id === clientId);
+  if (!client) return;
+
+  // 32 bytes = 256 bits of entropy. base64url-encoded with a `wt_` prefix
+  // so it's easy to spot in logs and pastes. The worker hashes the entire
+  // string (prefix included) — match exactly when baking into the installer.
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  const b64 = btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  const rawToken = `wt_${b64}`;
+  const hash = await sha256Hex(rawToken);
+
+  const label = prompt(`Optional label for this token (e.g. "Initial rollout 2026", "Re-issue after laptop refresh"):`, "");
+  if (label === null) return;  // cancelled
+
+  try {
+    await setDoc(doc(db, "install_tokens", hash), {
+      clientId,
+      clientName: client.name,
+      label: label.trim() || null,
+      createdAt: new Date().toISOString(),
+      createdBy: state.user.email,
+      revoked: false,
+    });
+  } catch (e) {
+    toast("Token create failed: " + (e.message || e), true);
+    return;
+  }
+
+  openModal({
+    title: "Install token generated",
+    sub: `Bound to ${client.name}. This is the only time you'll see the raw token.`,
+    body: `
+      <div class="warn"><b>Copy this now.</b> Watchtower only stores the SHA-256 hash, so you can't retrieve the raw token later. If you lose it, revoke and generate a new one.</div>
+      <div class="token-display" id="modalToken">${esc(rawToken)}</div>
+      <div class="info">
+        Bake into the installer at build time:
+        <pre style="margin:6px 0 0;font-size:12.5px;"><code>$env:WATCHTOWER_INSTALL_TOKEN = '${esc(rawToken)}'
+.\\installer\\build.ps1</code></pre>
+      </div>
+    `,
+    foot: `
+      <button class="btn" data-modal-close>Done</button>
+      <button class="btn btn-primary" id="copyTokenBtn">Copy token</button>
+    `
+  });
+  $("#copyTokenBtn").addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(rawToken);
+      $("#copyTokenBtn").textContent = "Copied ✓";
+    } catch {
+      // Fallback: select the token text so the user can ctrl+c.
+      const range = document.createRange();
+      range.selectNodeContents($("#modalToken"));
+      const sel = getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      toast("Couldn't copy automatically — token is selected, press Ctrl+C.", true);
+    }
+  });
+}
+
+async function sha256Hex(s) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+async function revokeToken(hash) {
+  if (!confirm("Revoke this token?\n\nAgents using it will be locked out on their next check-in. The doc stays for audit; use a separate purge if you want it gone.")) return;
+  try {
+    await updateDoc(doc(db, "install_tokens", hash), {
+      revoked: true,
+      revokedAt: new Date().toISOString(),
+      revokedBy: state.user.email,
+    });
+    toast("Token revoked.");
+  } catch (e) {
+    toast("Revoke failed: " + (e.message || e), true);
+  }
+}
+
+async function deleteClient(clientId) {
+  const client = state.clients.find(c => c.id === clientId);
+  if (!client) return;
+  const tokenCount = state.tokens.filter(t => t.clientId === clientId).length;
+  const agentCount = state.agents.filter(a => a.clientId === clientId).length;
+  if (agentCount > 0) {
+    alert(`Can't delete ${client.name} — ${agentCount} agent(s) still reporting under this client. Decommission them first.`);
+    return;
+  }
+  const extra = tokenCount > 0 ? `\n\n${tokenCount} install token(s) for this client will keep working until you revoke them individually.` : "";
+  if (!confirm(`Delete client "${client.name}"?${extra}`)) return;
+  try {
+    await deleteDoc(doc(db, "clients", clientId));
+    toast(`Deleted ${client.name}.`);
+    if (state.expandedClientId === clientId) state.expandedClientId = null;
+  } catch (e) {
+    toast("Delete failed: " + (e.message || e), true);
+  }
+}
 
 // ============== detail drawer ==============
 function openDrawer(pcId) {
