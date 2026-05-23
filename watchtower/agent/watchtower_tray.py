@@ -107,6 +107,37 @@ def _on_check_now(icon, item):
         pass
 
 
+def _on_check_for_updates(icon, item):
+    """Manual update check. Fetches latest version from worker, compares
+    to currently-installed version. If newer, downloads + verifies +
+    spawns the installer silently using the install token from
+    config.json. No-op if already up-to-date.
+
+    Runs in this tray process (per-user session), so UAC may pop up
+    when the spawned installer needs admin elevation."""
+    try:
+        cfg = cfg_mod.load_config()
+        # Lazy import — keeps tray startup snappy (updater pulls in requests).
+        import updater
+        import checkin as _checkin  # for AGENT_VERSION
+        result = updater.apply_update_if_needed(
+            worker_url=cfg["workerUrl"],
+            current_version=_checkin.AGENT_VERSION,
+            install_token=cfg.get("installToken"),
+        )
+        if result.get("applied"):
+            icon.notify(f"Update {result['from']} -> {result['version']} installing now.", "Watchtower update")
+        elif result.get("reason") == "up-to-date":
+            icon.notify(f"Up to date (v{result.get('current', '?')}).", "Watchtower update")
+        else:
+            icon.notify(f"No update applied: {result.get('reason', 'unknown')}", "Watchtower update")
+    except Exception as e:
+        try:
+            icon.notify(f"Update check failed: {e}", "Watchtower update")
+        except Exception:
+            pass
+
+
 def _on_open_dashboard(icon, item):
     if DASHBOARD_URL:
         webbrowser.open(DASHBOARD_URL)
@@ -139,6 +170,7 @@ def main():
     initial_state = cfg_mod.load_state()
     menu = pystray.Menu(
         pystray.MenuItem("Check now", _on_check_now),
+        pystray.MenuItem("Check for updates", _on_check_for_updates),
         pystray.MenuItem("Open Watchtower dashboard", _on_open_dashboard),
         pystray.MenuItem("Show data folder", _on_show_status_file),
         pystray.Menu.SEPARATOR,
