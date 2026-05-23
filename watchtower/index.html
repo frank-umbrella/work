@@ -121,6 +121,14 @@
   /* fleet table */
   table.fleet { width: 100%; border-collapse: collapse; font-size: 13.5px; }
   table.fleet th { text-align: left; padding: 10px 14px; font-size: 11px; text-transform: uppercase; color: var(--ink-faint); letter-spacing: 0.06em; font-weight: 700; border-bottom: 1px solid var(--line); background: var(--surface-2); position: sticky; top: 0; }
+  /* Sortable-header polish: clickable cursor + hover state + chevron
+     marker on the active column. The chevron uses simple CSS unicode
+     so we don't need an icon font or SVG sprite. */
+  table.sortable th[data-sort] { cursor: pointer; user-select: none; position: relative; padding-right: 22px; }
+  table.sortable th[data-sort]:hover { color: var(--ink); }
+  table.sortable th[data-sort]::after { content: "\2195"; position: absolute; right: 8px; top: 50%; transform: translateY(-50%); opacity: 0.3; font-size: 10px; }
+  table.sortable th.sorted-asc::after  { content: "\25B2"; opacity: 1; color: var(--accent); }
+  table.sortable th.sorted-desc::after { content: "\25BC"; opacity: 1; color: var(--accent); }
   table.fleet td { padding: 11px 14px; border-bottom: 1px solid var(--line); vertical-align: middle; }
   table.fleet tr:hover td { background: var(--surface-2); cursor: pointer; }
   table.fleet tr.selected td { background: var(--accent-soft); }
@@ -438,18 +446,18 @@
           <button class="btn btn-sm" id="fleetExportXlsx" title="Download the visible endpoint rows as an Excel workbook">Excel</button>
         </div>
         <div id="fleetWrap">
-          <table class="fleet">
+          <table class="fleet sortable" data-sort-table="fleet">
             <thead>
               <tr>
-                <th>Host</th>
-                <th class="col-client">Client</th>
-                <th class="col-intip">Internal IP</th>
-                <th>External IP</th>
-                <th class="col-os">OS</th>
+                <th data-sort="hostname">Host</th>
+                <th class="col-client" data-sort="client">Client</th>
+                <th class="col-intip" data-sort="internalIp">Internal IP</th>
+                <th data-sort="externalIp">External IP</th>
+                <th class="col-os" data-sort="os">OS</th>
                 <th class="col-products">Backup</th>
                 <th class="col-products">Remote</th>
-                <th>Last check</th>
-                <th>Status</th>
+                <th data-sort="lastCheckin">Last check</th>
+                <th data-sort="status">Status</th>
               </tr>
             </thead>
             <tbody id="fleetBody"></tbody>
@@ -552,13 +560,13 @@
           </div>
         </div>
         <div id="clientsWrap">
-          <table class="clients">
+          <table class="clients sortable" data-sort-table="clients">
             <thead>
               <tr>
-                <th>Name</th>
-                <th>Agents</th>
-                <th>Tokens</th>
-                <th>Created</th>
+                <th data-sort="name">Name</th>
+                <th data-sort="agents">Agents</th>
+                <th data-sort="tokens">Tokens</th>
+                <th data-sort="created">Created</th>
                 <th></th>
               </tr>
             </thead>
@@ -625,7 +633,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.12.10";
+const APP_VERSION = "0.13.0";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -651,6 +659,14 @@ const state = {
   latestAgent: { version: "", downloadUrl: "", sha256: "", notes: "" },
   expandedClientId: null,
   filter: { search: "", client: "", status: "" },
+  // Click-to-sort state per table. `key` = which data-sort attribute is
+  // active, `dir` = "asc" or "desc". null = use the table's natural
+  // default order. Persists across re-renders within the session so
+  // sorting an open table doesn't reset on each onSnapshot tick.
+  sort: {
+    fleet:   { key: null, dir: "asc" },
+    clients: { key: null, dir: "asc" },
+  },
   activityFilter: { type: "" },
   openPcId: null,
   unsub: { agents: null, clients: null, tokens: null, settings: null, latestAgent: null, activity: null, config: null }
@@ -658,6 +674,72 @@ const state = {
 
 const $ = sel => document.querySelector(sel);
 const $$ = sel => Array.from(document.querySelectorAll(sel));
+
+// ============== Click-to-sort table headers ==============
+// Generic comparator that handles strings (case-insensitive locale
+// compare, numeric-aware so "10" sorts after "2"), numbers, dates (any
+// value Date.parse handles), null/undefined (always sort last regardless
+// of direction so missing data doesn't poison the top of the list).
+function _cmpValues(a, b, dir) {
+  const mult = dir === "desc" ? -1 : 1;
+  const aMissing = a === null || a === undefined || a === "";
+  const bMissing = b === null || b === undefined || b === "";
+  if (aMissing && bMissing) return 0;
+  if (aMissing) return 1;   // missing always last regardless of dir
+  if (bMissing) return -1;
+  // Try numeric
+  const aNum = typeof a === "number" ? a : Number(a);
+  const bNum = typeof b === "number" ? b : Number(b);
+  if (!Number.isNaN(aNum) && !Number.isNaN(bNum) && typeof a !== "string" && typeof b !== "string") {
+    return (aNum - bNum) * mult;
+  }
+  // Try date — only if BOTH parse cleanly. Avoids accidentally sorting
+  // "1" and "2" as January and February.
+  if (typeof a === "string" && typeof b === "string") {
+    const aDate = Date.parse(a);
+    const bDate = Date.parse(b);
+    if (!Number.isNaN(aDate) && !Number.isNaN(bDate) && a.length >= 10 && b.length >= 10) {
+      return (aDate - bDate) * mult;
+    }
+    return String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: "base" }) * mult;
+  }
+  return String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: "base" }) * mult;
+}
+
+// Apply current sort + paint header chevrons. Called from renderFleet
+// / renderClients after their existing filter pipeline runs.
+function applySort(rows, sortState, valueGetter) {
+  if (!sortState.key) return rows;
+  return rows.slice().sort((a, b) => _cmpValues(valueGetter(a, sortState.key), valueGetter(b, sortState.key), sortState.dir));
+}
+
+function paintSortHeaders(tableSelector, sortState) {
+  $$(`${tableSelector} thead th[data-sort]`).forEach(th => {
+    const isActive = th.dataset.sort === sortState.key;
+    th.classList.toggle("sorted-asc", isActive && sortState.dir === "asc");
+    th.classList.toggle("sorted-desc", isActive && sortState.dir === "desc");
+  });
+}
+
+// Wire click handlers on every sortable header. Called once at page
+// load (delegated would also work but explicit is clearer for two
+// tables of fixed column sets).
+function wireSortableHeaders(tableSelector, stateKey, rerender) {
+  $$(`${tableSelector} thead th[data-sort]`).forEach(th => {
+    th.addEventListener("click", () => {
+      const key = th.dataset.sort;
+      const cur = state.sort[stateKey];
+      if (cur.key === key) {
+        // Same column clicked → flip direction.
+        cur.dir = cur.dir === "asc" ? "desc" : "asc";
+      } else {
+        cur.key = key;
+        cur.dir = "asc";
+      }
+      rerender();
+    });
+  });
+}
 
 function toast(msg, isErr = false) {
   const t = $("#toast");
@@ -816,6 +898,12 @@ onAuthStateChanged(auth, async (user) => {
   $("#userEmail").textContent = email;
   if (user.photoURL) $("#userAvatar").src = user.photoURL; else $("#userAvatar").style.display = "none";
 
+  // Wire sortable headers once per sign-in. Idempotent if called more than
+  // once (handlers don't accumulate because the tables are static; we'd
+  // re-bind on the same elements).
+  wireSortableHeaders("table.fleet", "fleet", renderFleet);
+  wireSortableHeaders("table.clients", "clients", renderClients);
+
   subscribeAgents();
   subscribeClients();
   subscribeTokens();
@@ -888,19 +976,40 @@ function renderFleet() {
     return true;
   });
 
-  $("#fleetCount").textContent = rows.length === state.agents.length
-    ? `${rows.length} host${rows.length === 1 ? "" : "s"}`
-    : `${rows.length} of ${state.agents.length}`;
+  // Apply click-to-sort, falling through to the natural lastCheckin-desc
+  // order from the Firestore query when no header is active.
+  const sortedRows = applySort(rows, state.sort.fleet, (a, key) => {
+    switch (key) {
+      case "hostname":   return a.hostname;
+      case "client":     return a.client;
+      case "internalIp": return a.internalIp;
+      case "externalIp": return a.externalIp;
+      case "os":         return a.report && a.report.system && a.report.system.os && a.report.system.os.name;
+      case "lastCheckin":return a.lastCheckin;
+      case "status":     {
+        // Order by severity: bad → warn → muted → disabled → ok so an
+        // ascending sort surfaces the broken hosts first.
+        const order = { bad: 0, warn: 1, muted: 2, disabled: 3, ok: 4 };
+        return order[statusOf(a).kind] ?? 5;
+      }
+      default: return null;
+    }
+  });
+  paintSortHeaders("table.fleet", state.sort.fleet);
+
+  $("#fleetCount").textContent = sortedRows.length === state.agents.length
+    ? `${sortedRows.length} host${sortedRows.length === 1 ? "" : "s"}`
+    : `${sortedRows.length} of ${state.agents.length}`;
 
   const tbody = $("#fleetBody");
-  if (!rows.length) {
+  if (!sortedRows.length) {
     tbody.innerHTML = "";
     $("#fleetEmpty").hidden = state.agents.length > 0;  // show only if nothing exists at all
     return;
   }
   $("#fleetEmpty").hidden = true;
 
-  tbody.innerHTML = rows.map(a => {
+  tbody.innerHTML = sortedRows.map(a => {
     const st = statusOf(a);
     const bh = backupHealthOf(a);
     const oh = omsaHealthOf(a);
@@ -1415,9 +1524,23 @@ function renderClients() {
     if (!t.clientId) continue;
     (tokensByClient[t.clientId] ||= []).push(t);
   }
+  const activeTokenCount = (clientId) => (tokensByClient[clientId] || []).filter(t => !t.revoked).length;
+
+  // Apply click-to-sort. Default (no header active) keeps the existing
+  // natural order from the Firestore query (alphabetical by name).
+  const sortedClients = applySort(state.clients, state.sort.clients, (c, key) => {
+    switch (key) {
+      case "name":    return c.name;
+      case "agents":  return agentCount[c.id] || 0;
+      case "tokens":  return activeTokenCount(c.id);
+      case "created": return c.createdAt;
+      default: return null;
+    }
+  });
+  paintSortHeaders("table.clients", state.sort.clients);
 
   const rows = [];
-  for (const c of state.clients) {
+  for (const c of sortedClients) {
     const expanded = state.expandedClientId === c.id;
     const tokens = (tokensByClient[c.id] || []).slice().sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
     const activeTokens = tokens.filter(t => !t.revoked).length;
@@ -2052,6 +2175,25 @@ function buildReportDom(a, logoPngDataUrl) {
     ` : ""}
 
     ${omsa && omsa.installed ? (() => {
+      // No-controller short-circuit: same logic as the drawer's
+      // renderOmsa empty-state branch. OMSA daemon is up but it
+      // doesn't see a supported storage controller (onboard SATA,
+      // paravirtualized VM disk, stale PERC firmware). Saying "all
+      // healthy" with 0 disks is misleading -- we don't have any
+      // visibility at all in this state.
+      const ctlCount = (omsa.controllers || []).length;
+      const vdCount  = (omsa.virtualDisks || []).length;
+      const pdCount  = (omsa.physicalDisks || []).length;
+      if (ctlCount === 0 && vdCount === 0 && pdCount === 0) {
+        return sectionHdr("Dell OMSA · storage") + `
+          <div style="font-size:12px;margin-bottom:4px;">OMSA <code>${esc(omsa.version || "?")}</code></div>
+          <div style="background:#f0f9ff;border:1px solid #bae6fd;color:#075985;padding:10px 12px;border-radius:6px;margin:4px 0 10px;font-size:12px;line-height:1.5;">
+            <b>No storage controller detected.</b>
+            OMSA is installed but reports zero controllers / RAID arrays / physical disks. Typical on hosts with onboard SATA only (no PERC / SAS controller), VMs with paravirtualized disk controllers, or PERC firmware too old for this OMSA version. Disk health on this host needs to come from somewhere other than OMSA.
+          </div>
+        `;
+      }
+
       // Row-level highlight helper: yellow for non-critical (SMART warn,
       // "Non-Critical" state), orange/red for critical (anything failed
       // / offline / degraded). The row-status function returns inline
@@ -3336,6 +3478,36 @@ function renderOmsa(o) {
   const controllers = o.controllers || [];
   const vdisks = o.virtualDisks || [];
   const pdisks = o.physicalDisks || [];
+
+  // Empty-state: OMSA is installed (we wouldn't be in this renderer
+  // otherwise) but it reports zero controllers, zero RAID arrays, and
+  // zero physical disks. That's the "OMSA daemon is up but there's no
+  // supported storage controller on this box" scenario -- common on:
+  //   - Optiplex / Inspiron desktops with onboard SATA only (OMSA
+  //     doesn't read native SATA, just PERC / SAS / NVMe via PERC)
+  //   - VMs where the disk controller is paravirtualized (no PERC)
+  //   - Servers where the PERC firmware needs an update before OMSA
+  //     can talk to it
+  // Calling this "all healthy" is misleading -- we have NO health
+  // visibility at all because the layer that would give it to us isn't
+  // detecting anything. Surface that explicitly.
+  if (controllers.length === 0 && vdisks.length === 0 && pdisks.length === 0) {
+    return `
+      <div class="section-summary">
+        <span class="badge muted">No storage controller detected</span>
+        <span class="meta" style="margin-left:auto;">OMSA <code>${esc(o.version || "?")}</code></span>
+      </div>
+      <div class="callout" style="background:var(--info-soft,#f0f9ff);border:1px solid #bae6fd;color:#075985;padding:10px 12px;border-radius:8px;margin-top:10px;font-size:13px;line-height:1.5;">
+        OMSA is installed and running, but it isn't reporting any controllers, RAID arrays, or physical disks on this host. Common causes:
+        <ul style="margin:6px 0 0 18px;padding:0;">
+          <li>Onboard SATA only (no PERC / SAS controller) — OMSA can't read native SATA SMART, so desktops / workstations typically land here.</li>
+          <li>Virtual machine with a paravirtualized disk controller.</li>
+          <li>PERC firmware too old for the installed OMSA version — try updating both.</li>
+        </ul>
+        Disk health on this host needs to come from somewhere other than OMSA (S.M.A.R.T. via wmic, the disk vendor's own tool, or hardware-level monitoring).
+      </div>
+    `;
+  }
 
   const rollup = o.healthRollup || "unknown";
   const rollupBadge = rollup === "ok" ? "ok" : rollup === "warn" ? "warn" : rollup === "bad" ? "bad" : "muted";
