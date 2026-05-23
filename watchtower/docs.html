@@ -108,7 +108,7 @@
       </svg>
       <div>
         <div class="meta">Umbrella Automation</div>
-        <h1>Watchtower &middot; Docs <span class="version-chip">v0.12.3</span></h1>
+        <h1>Watchtower &middot; Docs <span class="version-chip">v0.12.4</span></h1>
       </div>
     </div>
     <a class="btn brand-link" href="index.html">&larr; Back to dashboard</a>
@@ -125,6 +125,7 @@
   <a href="#install-build">Build the installer (once)</a>
   <a href="#install-flow">Deploy to a client PC</a>
   <a href="#install-verify">Verify check-in</a>
+  <a href="#install-reinstall">Re-installing</a>
   <a href="#customize" class="section">Customize install</a>
   <a href="#customize-silent">Silent / RMM install</a>
   <a href="#customize-build">build.ps1 parameters</a>
@@ -241,6 +242,16 @@
   <li>Dashboard &rarr; <b>Endpoints</b>: the host appears at the top, status <b>Healthy</b>.</li>
   <li>If it doesn't show up, on the target PC run <code>sc.exe query WatchtowerAgent</code> &mdash; should report <code>STATE: 4 RUNNING</code>.</li>
   <li>Force a re-check-in: <code>sc.exe stop WatchtowerAgent; sc.exe start WatchtowerAgent</code></li>
+</ul>
+
+<h3 id="install-reinstall">Re-installing over an existing install</h3>
+<p>Running a newer installer on a host that already has Watchtower installed (e.g. to refresh the binaries or pick up a new <code>watchtower.iss</code> like the v0.11.0 uninstall phone-home support):</p>
+<ul>
+  <li><b>Token: no re-entry needed.</b> The installer reads the existing token out of <code>%ProgramData%\Watchtower\config.json</code> and skips the wizard page entirely. The worker still <code>/validate</code>s the token before install completes, so a token revoked since the original install fails cleanly.</li>
+  <li><b>pcId: preserved.</b> The host stays on the same dashboard row with its history intact &mdash; no duplicate entry.</li>
+  <li><b>Client binding: preserved.</b> Whatever client the original token resolved to is still in effect (unless you've used the dashboard's Reassign Client dropdown since).</li>
+  <li><b>Silent re-installs work without <code>/TOKEN=</code>.</b> Same precedence applies: command-line override &gt; wizard input &gt; existing config.json. RMM scripts can just push <code>Watchtower-Setup.exe /VERYSILENT /SUPPRESSMSGBOXES</code> and the existing token gets re-validated and re-used.</li>
+  <li><b>To rotate to a different token</b> (e.g. you're migrating the host to a new client): pass <code>/TOKEN=wt_new...</code> on the command line, or delete <code>%ProgramData%\Watchtower\config.json</code> first to force the wizard prompt.</li>
 </ul>
 
 <h2 id="customize">Customize install</h2>

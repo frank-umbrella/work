@@ -203,7 +203,15 @@ end;
 // Custom wizard page — single input field for the install token
 // ──────────────────────────────────────────────────────────────────────
 
+// Forward decls — Pascal Script needs these because InitializeWizard
+// and ShouldSkipPage call ExtractExistingToken, which is defined below
+// alongside ExtractExistingPcId (down with the other config.json
+// helpers).
+function ExtractExistingToken(): string; forward;
+
 procedure InitializeWizard;
+var
+  ExistingToken: string;
 begin
   TokenPage := CreateInputQueryPage(wpWelcome,
     'Client Setup',
@@ -212,14 +220,38 @@ begin
     Chr(13) + Chr(10) + Chr(13) + Chr(10) +
     'The installer will contact Watchtower to verify the token before continuing — the install cannot complete without a valid token.');
   TokenPage.Add('&Install token:', False);
+
+  // Re-install: pre-fill the field with the existing token from
+  // config.json. Operator can replace it (e.g. token rotation) or
+  // just click Next. ShouldSkipPage below auto-skips the page entirely
+  // when an existing token is found, so this pre-fill is mostly a
+  // belt-and-suspenders -- it only shows if something goes wrong with
+  // the auto-skip path.
+  ExistingToken := ExtractExistingToken();
+  if ExistingToken <> '' then
+    TokenPage.Values[0] := ExistingToken;
 end;
 
 function ShouldSkipPage(PageID: Integer): Boolean;
 begin
   Result := False;
-  // Skip the token prompt when /TOKEN= was passed on the command line.
-  if (PageID = TokenPage.ID) and (GetCmdToken <> '') then
+  if PageID <> TokenPage.ID then Exit;
+
+  // Skip 1: /TOKEN= passed on the command line (RMM / scripted deploys)
+  if GetCmdToken <> '' then begin
     Result := True;
+    Exit;
+  end;
+
+  // Skip 2: re-install over an existing install -- token is already in
+  // config.json. ssInstall will re-validate it against the worker, so a
+  // revoked token still fails the install (just at the validation step
+  // rather than at the wizard prompt). Saves the operator a paste on
+  // routine upgrades AND lets silent re-installs work without /TOKEN=.
+  if ExtractExistingToken() <> '' then begin
+    Result := True;
+    Exit;
+  end;
 end;
 
 // ──────────────────────────────────────────────────────────────────────
@@ -389,6 +421,29 @@ begin
     Result := ExtractJsonString(string(AnsiContent), 'pcId');
 end;
 
+function ExtractExistingToken(): string;
+var
+  ConfigPath: string;
+  AnsiContent: AnsiString;
+  Token: string;
+begin
+  // Re-installs reuse the existing install token from config.json so the
+  // operator doesn't have to paste it again. Returns '' if no config
+  // exists yet (first install). Worker /validate is called regardless
+  // before install completes, so a revoked-token re-install still fails
+  // cleanly at the validation step.
+  Result := '';
+  ConfigPath := ExpandConstant('{commonappdata}\Watchtower\config.json');
+  if not FileExists(ConfigPath) then Exit;
+  if not LoadStringFromFile(ConfigPath, AnsiContent) then Exit;
+  Token := Trim(ExtractJsonString(string(AnsiContent), 'installToken'));
+  // Sanity check on shape: our tokens are 'wt_' + ~43 chars base64url.
+  // If config.json was corrupted or hand-edited and the field is empty
+  // or garbage, fall back to prompting.
+  if (Length(Token) >= 8) and (Copy(Token, 1, 3) = 'wt_') then
+    Result := Token;
+end;
+
 function JsonEscape(const S: string): string;
 var
   i: Integer;
@@ -535,11 +590,20 @@ var
 begin
   if CurStep = ssInstall then
   begin
-    // Resolve the token: command-line override wins, else use the wizard
-    // input. NextButtonClick already validated wizard input; silent
-    // installs hit validation here for the first time.
+    // Resolve the token in priority order:
+    //   1. /TOKEN= command-line override (always wins; lets RMM / scripted
+    //      deploys rotate a token without depending on what's on the box)
+    //   2. Wizard input (operator typed/pasted it)
+    //   3. Existing config.json (re-install over an already-registered
+    //      host; ShouldSkipPage skipped the wizard entirely in this case
+    //      so Values[0] is empty and we fall through to here)
+    //
+    // Whatever wins, ValidateTokenWithWorker re-checks it below -- so a
+    // revoked token still fails the install cleanly, regardless of which
+    // path supplied it.
     Token := GetCmdToken;
     if Token = '' then Token := Trim(TokenPage.Values[0]);
+    if Token = '' then Token := ExtractExistingToken();
 
     if Token = '' then
     begin
