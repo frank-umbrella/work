@@ -239,23 +239,40 @@
   <tr><td><code>-WorkerUrl</code></td><td><code>https://watchtower-worker.umbrelladev.workers.dev</code></td><td>Baked-in default the wizard pings. Override only when you need installs to default to a staging worker.</td></tr>
   <tr><td><code>-AppVersion</code></td><td><code>0.3.0</code></td><td>Cosmetic &mdash; appears in Add/Remove Programs and the wizard title.</td></tr>
   <tr><td><code>-LogmeinMsi</code></td><td>(none)</td><td>Optional path to a LogMeIn host MSI. When set, the wizard shows an opt-out checkbox for installing LogMeIn alongside the agent &mdash; see <a href="#customize-logmein">below</a>.</td></tr>
+  <tr><td><code>-LogmeinMsiArgs</code></td><td>(none)</td><td>Optional extra args to append to the LogMeIn msiexec call. Used when the MSI isn't pre-customized (e.g. needs <code>DEPLOYID=...</code>). <code>/quiet /norestart</code> are always passed by the .iss regardless.</td></tr>
   <tr><td><code>-SkipPyInstaller</code></td><td>off</td><td>Reuse cached <code>build\*.exe</code> when iterating on the <code>.iss</code>. Saves ~2 minutes per build.</td></tr>
 </table>
 <div class="callout info"><b>No <code>-ClientName</code> or <code>-InstallToken</code> at build time.</b> Both are runtime inputs as of v0.3.0 &mdash; either prompted in the wizard or passed via <code>/TOKEN=</code> <code>/CLIENT=</code> for silent installs.</div>
 
 <h3 id="customize-logmein">Bundle LogMeIn MSI</h3>
 <p>Optional. If you have a LogMeIn host MSI you typically install alongside the agent, you can bake it into the installer EXE so a single deploy puts both on the target. The wizard shows a checkbox <i>Also install LogMeIn remote access</i> (checked by default) on a Components page after token validation; operators can uncheck it on hosts that already have LogMeIn or don't need it.</p>
-<p>Build with:</p>
+
+<h4>If your MSI is a "Deploy Installation Package" download from LogMeIn Central</h4>
+<p>That's the common case &mdash; the DEPLOYID is baked into the MSI itself, so you don't need to pass any LogMeIn properties on the command line. Just point <code>-LogmeinMsi</code> at the file:</p>
 <pre><code>cd work\watchtower\installer
-.\build.ps1 -LogmeinMsi "T:\ClaudeCodeRepo\work\watchtower\installer\vendor\LogMeIn.msi"</code></pre>
-<p>Or from anywhere &mdash; absolute path is fine:</p>
-<pre><code>.\build.ps1 -LogmeinMsi "C:\path\to\your\LogMeIn.msi"</code></pre>
-<p>The resulting <code>Watchtower-Setup.exe</code> grows by the MSI's size (LogMeIn host MSIs are typically 20-50 MB). Behavior:</p>
+.\build.ps1 -LogmeinMsi "D:\Downloads\LogMeIn.msi"</code></pre>
+
+<h4>If your MSI is the generic LogMeIn host MSI</h4>
+<p>You'll need to pass <code>DEPLOYID</code> + a couple of related properties so the host registers with your LogMeIn Central account. Per the <a href="https://support.logmein.com/central/help/mass-deployment-of-logmein-host-software-silent-install-central-t-central-deploy-silent-install" target="_blank">LogMeIn Central deployment docs</a>:</p>
+<pre><code>.\build.ps1 `
+  -LogmeinMsi "D:\Downloads\LogMeIn.msi" `
+  -LogmeinMsiArgs "DEPLOYID=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx INSTALLMETHOD=5 FQDNDESC=1"</code></pre>
+<p>Common LogMeIn MSI properties you might want:</p>
+<table class="opts">
+  <tr><th>Property</th><th>Purpose</th></tr>
+  <tr><td><code>DEPLOYID</code></td><td>Your deployment package ID from LogMeIn Central. Find it under <i>Deploy Installation Package</i> in the Central console.</td></tr>
+  <tr><td><code>INSTALLMETHOD=5</code></td><td>Standard install method.</td></tr>
+  <tr><td><code>FQDNDESC=1</code></td><td>Display fully qualified domain name as the host name in Central.</td></tr>
+  <tr><td><code>LMIDESCRIPTION="..."</code></td><td>Set the computer name shown in Central. Otherwise the FQDN/hostname is used.</td></tr>
+  <tr><td><code>LMIACCESSCODE=...</code></td><td>Set an access code (password) for connecting to this host.</td></tr>
+</table>
+
+<h4>How the LogMeIn install runs</h4>
 <ul>
   <li>Wizard install &mdash; user sees a Components page with the LogMeIn checkbox checked by default; can uncheck per install.</li>
   <li>Silent install with default args &mdash; LogMeIn installs too.</li>
   <li>Silent install skipping LogMeIn &mdash; <code>Watchtower-Setup.exe /VERYSILENT /TOKEN=wt_xxx /COMPONENTS=""</code></li>
-  <li>MSI is invoked as <code>msiexec /i /quiet /norestart</code> &mdash; no UI flashes, no reboot triggered.</li>
+  <li>MSI is invoked as <code>msiexec /i /quiet /norestart &lt;your -LogmeinMsiArgs here&gt;</code> &mdash; no UI flashes, no reboot triggered.</li>
 </ul>
 <div class="callout info"><b>The MSI is bundled, not downloaded.</b> The installer never reaches out for it at runtime &mdash; the MSI is extracted from inside the EXE to <code>%TEMP%</code>, installed, then deleted. Works on offline target machines as long as the MSI itself is offline-installable (most LogMeIn MSIs are).</div>
 <div class="callout info"><b>The <code>installer\vendor\</code> directory is gitignored.</b> Drop the MSI there (or anywhere else on your dev box); it won't accidentally get committed.</div>
