@@ -473,7 +473,7 @@ async function handleTestWebhook(request, env, ctx) {
     client: 'Test Client',
     triggeredBy: email,
     when: new Date().toISOString(),
-    note: 'This is a test event from the Watchtower dashboard. No real fleet event occurred.',
+    note: 'This is a test event from the Watchtower dashboard. No real endpoint event occurred.',
   };
 
   // Adapt the sample payload to the receiver's expected shape (Google Chat,
@@ -1582,7 +1582,7 @@ async function sendIntakeEmail(env, { pcId, hostname, client, agentVersion, when
   const html = `
     <div style="font-family: system-ui, -apple-system, Segoe UI, sans-serif; color:#1a1f2b; max-width:680px;">
       <h2 style="color:#0a6b6b; margin:0 0 4px; font-size:18px;">New host onboarded</h2>
-      <p style="color:#475063; margin:0 0 18px; font-size:14px;"><b>${escapeHtml(hostname)}</b> joined the Watchtower fleet at ${escapeHtml(when)}. Below is the intake report from its first check-in — a one-time summary so you have a record of what was on this machine when it came in. Future check-ins won't send this email.</p>
+      <p style="color:#475063; margin:0 0 18px; font-size:14px;"><b>${escapeHtml(hostname)}</b> joined Watchtower at ${escapeHtml(when)}. Below is the intake report from its first check-in — a one-time summary so you have a record of what was on this machine when it came in. Future check-ins won't send this email.</p>
 
       ${sectionHeader('Identity')}
       <table cellpadding="0" style="font-size:13.5px; line-height:1.5;">
@@ -1628,7 +1628,7 @@ async function sendIntakeEmail(env, { pcId, hostname, client, agentVersion, when
       </div>
 
       <p style="color:#8892a4; font-size:12px; margin-top:28px;">
-        View full details at the <a href="https://frank-umbrella.github.io/work/watchtower/" style="color:#0a6b6b;">Watchtower dashboard</a> → click <b>${escapeHtml(hostname)}</b> in the Fleet tab.
+        View full details at the <a href="https://frank-umbrella.github.io/work/watchtower/" style="color:#0a6b6b;">Watchtower dashboard</a> → click <b>${escapeHtml(hostname)}</b> in the Endpoints tab.
         This is a one-time email per host. If you want to silence future alerts for this host, flip <code>emailEnabled</code> off in its per-PC config.
       </p>
     </div>
@@ -1817,7 +1817,7 @@ async function sendUninstallEmail(env, { pcId, hostname, client, source, reason,
     <div style="font-family: system-ui, -apple-system, Segoe UI, sans-serif; color:#222; max-width:600px;">
       <h2 style="color:#475063; margin:0 0 12px;">Agent decommissioned</h2>
       <p style="color:#475063; margin:0 0 16px; font-size:14px;">
-        <b>${escapeHtml(hostname)}</b> (${escapeHtml(client)}) has left the Watchtower fleet.
+        <b>${escapeHtml(hostname)}</b> (${escapeHtml(client)}) has been removed from Watchtower.
         ${escapeHtml(sourceLabel)}.
       </p>
       <table cellpadding="6" style="border-collapse:collapse; font-size:14px;">

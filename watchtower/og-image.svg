@@ -122,7 +122,7 @@
         font-size="16"
         fill="#7fb3b3"
         letter-spacing="3.5"
-        font-weight="500">FLEET MONITORING &#xB7; ALWAYS WATCHING</text>
+        font-weight="500">ENDPOINT MONITORING &#xB7; ALWAYS WATCHING</text>
 
   <text x="1100" y="600"
         text-anchor="end"

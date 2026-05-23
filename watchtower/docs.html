@@ -10,7 +10,7 @@
 
 <!-- Open Graph / Twitter card -->
 <meta property="og:title" content="Watchtower Operator's Guide">
-<meta property="og:description" content="Install, customize, uninstall, troubleshoot. The full operator manual for the Watchtower fleet-monitoring agent.">
+<meta property="og:description" content="Install, customize, uninstall, troubleshoot. The full operator manual for the Watchtower endpoint monitoring agent.">
 <meta property="og:type" content="article">
 <meta property="og:url" content="https://frank-umbrella.github.io/work/watchtower/docs.html">
 <meta property="og:image" content="https://frank-umbrella.github.io/work/watchtower/og-image.png">
@@ -108,7 +108,7 @@
       </svg>
       <div>
         <div class="meta">Umbrella Automation</div>
-        <h1>Watchtower &middot; Docs <span class="version-chip">v0.12.0</span></h1>
+        <h1>Watchtower &middot; Docs <span class="version-chip">v0.12.1</span></h1>
       </div>
     </div>
     <a class="btn brand-link" href="index.html">&larr; Back to dashboard</a>
@@ -152,10 +152,10 @@
   <a href="#intake-when">When it fires</a>
   <a href="#intake-contents">What's in it</a>
   <a href="#backup-monitoring" class="section">Backup monitoring</a>
-  <a href="#backup-fleet">Fleet visibility</a>
+  <a href="#backup-fleet">Endpoint visibility</a>
   <a href="#backup-drawer">Per-host drawer</a>
   <a href="#storage-monitoring" class="section">Storage health (OMSA)</a>
-  <a href="#storage-fleet">Fleet visibility</a>
+  <a href="#storage-fleet">Endpoint visibility</a>
   <a href="#storage-how">How duration tracks</a>
   <a href="#backup-alerts">Email alerts</a>
   <a href="#exports" class="section">Exports (PDF / CSV / Excel)</a>
@@ -169,7 +169,7 @@
 <p class="lede">Everything you need to roll out the Watchtower agent on a client PC, customize the install, and tear it down cleanly.</p>
 
 <h2 id="what">What Watchtower is</h2>
-<p>A small Windows agent that calls home once a day with the host's external IP, asset inventory, backup status, RAID/disk health, and the state of the management/security software you typically rely on. The dashboard shows the fleet and lets you toggle per-PC kill switches.</p>
+<p>A small Windows agent that calls home once a day with the host's external IP, asset inventory, backup status, RAID/disk health, and the state of the management/security software you typically rely on. The dashboard shows every endpoint and lets you toggle per-PC kill switches.</p>
 <p>Per-host probes:</p>
 <ul>
   <li><b>System &middot; network &middot; storage &middot; users &middot; software &middot; hotfixes &middot; USB history</b> &mdash; Belarc-lite asset inventory pulled from WMI + registry.</li>
@@ -198,7 +198,7 @@
     Run <code>Watchtower-Setup.exe</code> as admin on the target PC. Paste the token into the wizard when prompted; the installer pings Watchtower to verify the token before continuing.
   </li>
   <li>
-    Wait ~60 seconds for the first check-in. The host appears in the dashboard's <b>Fleet</b> tab.
+    Wait ~60 seconds for the first check-in. The host appears in the dashboard's <b>Endpoints</b> tab.
   </li>
 </ol>
 <div class="callout info"><b>Why only one installer?</b> Older versions baked the token into the EXE at build time, so you needed a custom build per client. Since v0.3.0 the installer carries no per-client data &mdash; the worker resolves the client name from the token at install time and the wizard writes the right config.</div>
@@ -238,7 +238,7 @@
 <h3 id="install-verify">Verify check-in</h3>
 <p>After install, the service kicks off its first check-in within a minute. Then:</p>
 <ul>
-  <li>Dashboard &rarr; <b>Fleet</b>: the host appears at the top, status <b>Healthy</b>.</li>
+  <li>Dashboard &rarr; <b>Endpoints</b>: the host appears at the top, status <b>Healthy</b>.</li>
   <li>If it doesn't show up, on the target PC run <code>sc.exe query WatchtowerAgent</code> &mdash; should report <code>STATE: 4 RUNNING</code>.</li>
   <li>Force a re-check-in: <code>sc.exe stop WatchtowerAgent; sc.exe start WatchtowerAgent</code></li>
 </ul>
@@ -317,7 +317,7 @@
 
 <h2 id="uninstall">Uninstall &amp; decommission</h2>
 
-<p>The two paths land at the same place in the dashboard &mdash; a <b>Decommissioned</b> badge on the row &mdash; but they tell you <i>how</i> the host left the fleet:</p>
+<p>The two paths land at the same place in the dashboard &mdash; a <b>Decommissioned</b> badge on the row &mdash; but they tell you <i>how</i> the host was retired:</p>
 <ul>
   <li><b>agent-uninstall</b> &mdash; someone removed the agent on the box itself (Control Panel or CLI). The uninstaller phoned home as it was being removed.</li>
   <li><b>admin</b> &mdash; an MSP admin clicked <b>Decommission</b> in the dashboard.</li>
@@ -360,7 +360,7 @@ Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" 
 <p>After the manual CLI path, the dashboard will still show the host as active until it goes stale (no check-ins for &gt;30h). Use the admin Decommission button to flag it sooner.</p>
 
 <h3 id="reactivation">Reactivation</h3>
-<p>If a previously decommissioned host checks in again &mdash; e.g. you reinstalled the agent, or the admin Decommission was a mistake and the agent didn't get the uninstall flag in time &mdash; the worker auto-clears the decommissioned fields on that check-in and writes an <code>agent_reactivated</code> activity entry. No manual undo needed; the host just shows up in the active fleet view again.</p>
+<p>If a previously decommissioned host checks in again &mdash; e.g. you reinstalled the agent, or the admin Decommission was a mistake and the agent didn't get the uninstall flag in time &mdash; the worker auto-clears the decommissioned fields on that check-in and writes an <code>agent_reactivated</code> activity entry. No manual undo needed; the host just shows up in the active Endpoints view again.</p>
 
 <h3 id="filtering-decom">Finding decommissioned hosts</h3>
 <p>The Endpoints status filter has three relevant options:</p>
@@ -538,12 +538,12 @@ Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" 
 <div class="callout info"><b>Where this ends up:</b> the worker writes most of <code>report</code> into <code>/agents/&lt;pcId&gt;</code> in Firestore, with a small <code>/agents/&lt;pcId&gt;/history/&lt;ts&gt;</code> append per check-in tracking just the IP-change delta. Total size per host in Firestore is typically 40-80 KB.</div>
 
 <h2 id="settings">Settings</h2>
-<p>The <b>Settings</b> tab on the dashboard holds fleet-wide configuration. Currently:</p>
+<p>The <b>Settings</b> tab on the dashboard holds configuration that applies to every endpoint. Currently:</p>
 
 <h3 id="settings-webhook">Master webhook URL</h3>
 <p>A single URL that all per-agent webhook events POST to. Set once here; whether each agent fires events to it is controlled by the per-PC <b>Webhook on IP change &amp; backup failure</b> toggle in that host's drawer.</p>
 <ul>
-  <li>If the URL is empty, no webhook events fire fleet-wide regardless of per-PC toggles.</li>
+  <li>If the URL is empty, no webhook events fire across any endpoint regardless of per-PC toggles.</li>
   <li>If a host has a legacy per-agent <code>webhookUrl</code> set (from before v0.8.0), that wins over the master URL for that one host &mdash; the drawer shows the override inline. To clear it, toggle <code>webhookEnabled</code> off then on, or edit <code>/agents/&lt;pcId&gt;/config/current</code> directly in the Firebase console.</li>
   <li>Events fired: <code>external_ip_changed</code>, <code>omsa_warning</code>, <code>wsb_backup_failed</code>, <code>agent_uninstalled</code>, and <code>test</code> (from the Test webhook button).</li>
 </ul>
@@ -567,7 +567,7 @@ Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" 
 <p>The Test webhook button's result panel includes a <code>sent</code> field showing exactly what was POSTed, so you can confirm the adapted shape if a custom receiver rejects it.</p>
 
 <h2 id="intake-email">Intake email on first check-in</h2>
-<p>The first time a brand-new host's agent reports in (no existing record in the dashboard), the worker fires a one-time intake email summarizing what the probes found on that machine. Think of it as a "welcome to the fleet, here's what's on this box" report you can archive for your records.</p>
+<p>The first time a brand-new host's agent reports in (no existing record in the dashboard), the worker fires a one-time intake email summarizing what the probes found on that machine. Think of it as a "new endpoint onboarded, here's what's on this box" report you can archive for your records.</p>
 
 <h3 id="intake-when">When it fires</h3>
 <ul>
@@ -595,14 +595,14 @@ Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" 
 <h2 id="backup-monitoring">Backup monitoring</h2>
 <p>Windows Server Backup gets first-class treatment because backup failures are the kind of thing you want to know about immediately, not the next time someone happens to look at the dashboard.</p>
 
-<h3 id="backup-fleet">Fleet-level visibility</h3>
-<p>When a host's most recent backup attempt didn't succeed, an extra badge appears next to its Status in the Fleet table:</p>
+<h3 id="backup-fleet">Endpoint-level visibility</h3>
+<p>When a host's most recent backup attempt didn't succeed, an extra badge appears next to its Status in the Endpoints table:</p>
 <ul>
   <li><span style="background:var(--warn-soft);color:#854d0e;padding:2px 8px;border-radius:999px;font-size:11.5px;font-weight:600;">Backup failing</span> &mdash; latest attempt failed, but a successful backup is less than 3 days old.</li>
   <li><span style="background:var(--danger-soft);color:#7f1d1d;padding:2px 8px;border-radius:999px;font-size:11.5px;font-weight:600;">5d no backup</span> &mdash; 3 or more days since the last successful backup. The number is the actual count.</li>
   <li><span style="background:var(--danger-soft);color:#7f1d1d;padding:2px 8px;border-radius:999px;font-size:11.5px;font-weight:600;">No backup on record</span> &mdash; WSB is installed but has never completed a successful backup.</li>
 </ul>
-<p>The Status filter dropdown has a "Backup failing" option that narrows the fleet to just the hosts with any of the above states.</p>
+<p>The Status filter dropdown has a "Backup failing" option that narrows the table to just the hosts with any of the above states.</p>
 
 <h3 id="backup-drawer">Per-host drawer</h3>
 <p>Opening a host's drawer shows a red banner at the top of the Windows Server Backup section when the latest attempt failed, with the gap to last successful backup and the WSB-reported error message. Below the standard summary, a <i>Recent backup attempts</i> details disclosure expands the last 10 jobs with their individual results and errors &mdash; useful for spotting "started failing 3 days ago" versus "this is a one-day blip".</p>
@@ -612,7 +612,7 @@ Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" 
 <ol class="steps">
   <li>You build a new agent: <code>build.ps1 -Publish</code>. This compiles the EXE, computes its SHA256, and uploads it to a GitHub Release tagged <code>watchtower-vX.Y.Z</code>. Output prints the download URL + SHA256.</li>
   <li>Paste the URL + SHA256 into the dashboard's <b>Settings</b> tab under "Latest agent version" + Save.</li>
-  <li>The worker now reports that version as available via <code>GET /latest-version</code>. The dashboard's Fleet tab shows an <span style="background:#e5e7eb;color:#4b5563;padding:2px 8px;border-radius:999px;font-size:11.5px;font-weight:600;">Update X.Y.Z</span> badge on every host running an older version. Status filter has an "Update available" option.</li>
+  <li>The worker now reports that version as available via <code>GET /latest-version</code>. The dashboard's Endpoints tab shows an <span style="background:#e5e7eb;color:#4b5563;padding:2px 8px;border-radius:999px;font-size:11.5px;font-weight:600;">Update X.Y.Z</span> badge on every host running an older version. Status filter has an "Update available" option.</li>
   <li>Per host, you can either:
     <ul>
       <li>Push the installer manually as before (the badge tells you which hosts to target)</li>
@@ -641,16 +641,16 @@ Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" 
 <p>Useful for the operator-on-a-specific-PC case &mdash; pulling a hotfix without you having to log in and trigger an admin push.</p>
 
 <h2 id="storage-monitoring">Storage health (Dell OMSA)</h2>
-<p>On Dell hosts with OMSA installed, the worst-case health rollup across controllers / virtual disks (RAID arrays) / physical disks is computed agent-side on every check-in. When it goes non-OK, the dashboard surfaces it at the fleet level so you don't have to click into every Dell host to find the one with a degraded array.</p>
+<p>On Dell hosts with OMSA installed, the worst-case health rollup across controllers / virtual disks (RAID arrays) / physical disks is computed agent-side on every check-in. When it goes non-OK, the dashboard surfaces it in the Endpoints table so you don't have to click into every Dell host to find the one with a degraded array.</p>
 
-<h3 id="storage-fleet">Fleet-level visibility</h3>
+<h3 id="storage-fleet">Endpoint-level visibility</h3>
 <p>When OMSA reports a non-OK rollup, an extra badge appears next to the host's Status (alongside the existing health + backup badges):</p>
 <ul>
   <li><span style="background:var(--warn-soft);color:#854d0e;padding:2px 8px;border-radius:999px;font-size:11.5px;font-weight:600;">OMSA warn 3d</span> &mdash; rollup is "Non-Critical" (e.g. a degraded array still functioning).</li>
   <li><span style="background:var(--danger-soft);color:#7f1d1d;padding:2px 8px;border-radius:999px;font-size:11.5px;font-weight:600;">OMSA critical 5d</span> &mdash; rollup is "Critical" (e.g. a failed physical disk, an array offline).</li>
   <li>The trailing number is days since the warning was first detected by the worker. <code>new</code> shows for warnings less than 24 hours old.</li>
 </ul>
-<p>The Status filter dropdown has an <b>OMSA warning</b> option that narrows the fleet to just the hosts with any non-OK rollup.</p>
+<p>The Status filter dropdown has an <b>OMSA warning</b> option that narrows the table to just the hosts with any non-OK rollup.</p>
 
 <h3 id="storage-how">How duration tracking works</h3>
 <p>The worker stamps <code>omsaFirstWarnAt</code> on the agent doc the first check-in that reports a non-OK rollup. The timestamp persists across subsequent check-ins for as long as the rollup stays non-OK, and clears when it returns to OK. The dashboard's duration is "<i>now</i> minus <code>omsaFirstWarnAt</code>" — so it's "how long since the worker first saw the warning", not necessarily how long the underlying RAID has actually been bad. Close enough for triage, and we get it for free from the existing check-in cadence.</p>
@@ -667,7 +667,7 @@ Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" 
 </ul>
 
 <h2 id="exports">Exports (PDF / CSV / Excel)</h2>
-<p>Every export is generated entirely in the browser &mdash; no server round trip, no data leaves the dashboard. Filenames follow the convention <code>Client_Hostname_YYYY-MM-DD_HH-MM-SS.&lt;ext&gt;</code> (per-host) or <code>Umbrella_Fleet_&lt;date&gt;.&lt;ext&gt;</code> (fleet).</p>
+<p>Every export is generated entirely in the browser &mdash; no server round trip, no data leaves the dashboard. Filenames follow the convention <code>Client_Hostname_YYYY-MM-DD_HH-MM-SS.&lt;ext&gt;</code> (per-host) or <code>Umbrella_Endpoints_&lt;date&gt;.&lt;ext&gt;</code> (whole-tab export).</p>
 
 <h3>Per-host (from the drawer)</h3>
 <p>Open any host's drawer &rarr; <b>PDF</b> / <b>CSV</b> / <b>Excel</b> buttons in the top right.</p>
@@ -677,10 +677,10 @@ Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" 
   <li><b>Excel</b> &mdash; full <code>.xlsx</code> workbook with one sheet per section. Sheet names are capped at Excel's 31-char limit. Column widths are pre-set so the workbook is readable the moment it opens.</li>
 </ul>
 
-<h3>Fleet-wide (from the Endpoints tab)</h3>
+<h3>All endpoints (from the Endpoints tab)</h3>
 <p>The <b>CSV</b> and <b>Excel</b> buttons in the Endpoints filter bar export <b>exactly what you see</b> &mdash; the active search, client filter, and status filter all apply. Each row carries hostname, client, IPs, OS, manufacturer/model, Service Tag, agent version, last check-in, status, OMSA rollup, WSB last result + last success, LogMeIn description, Defender realtime, decommission state, and pcId.</p>
 <ul>
-  <li><b>Want to ship a status report?</b> Filter to <code>All (active)</code>, click Excel &mdash; you get the live fleet, header row frozen, ready to mail.</li>
+  <li><b>Want to ship a status report?</b> Filter to <code>All (active)</code>, click Excel &mdash; you get every live endpoint, header row frozen, ready to mail.</li>
   <li><b>Auditing decom'd hosts?</b> Filter to <code>Decommissioned only</code>, click CSV &mdash; you get the cleanup list with reasons.</li>
   <li><b>One client at a time?</b> Filter by Client, export &mdash; you get just that client's machines.</li>
 </ul>
