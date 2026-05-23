@@ -402,7 +402,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.6.2";
+const APP_VERSION = "0.6.3";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -791,6 +791,11 @@ $("#newClientBtn").addEventListener("click", () => {
       state.expandedClientId = id;
       renderClients();
       closeModal();
+      // Confirmation feedback for the create itself — the token modal
+      // pops up immediately on top, but the toast at the bottom is the
+      // explicit "yes, the create succeeded" cue that the modal alone
+      // doesn't convey.
+      toast(`Created ${name}. Token generated.`);
       // Chain straight into token generation — creating a client without
       // also generating a token is virtually never what you want, and
       // the auto-flow saves a separate "+ Token" click.
