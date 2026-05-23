@@ -640,7 +640,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.13.3";
+const APP_VERSION = "0.13.4";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -955,7 +955,20 @@ function rebuildClientFilter() {
   const sel = $("#clientFilter");
   const current = sel.value;
   sel.innerHTML = '<option value="">All</option>' + clients.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join("");
-  if (clients.includes(current)) sel.value = current;
+  if (clients.includes(current)) {
+    sel.value = current;
+  } else {
+    // The previously selected client no longer has any hosts (e.g. their
+    // only host was just reassigned to another client). Programmatic
+    // sel.value = '' doesn't fire a 'change' event, so without this
+    // reset state.filter.client stays pointing at the old name and
+    // renderFleet filters out EVERY remaining host -- the bug that made
+    // a reassigned host look like it disappeared from the table.
+    sel.value = "";
+    if (state.filter.client !== "") {
+      state.filter.client = "";
+    }
+  }
 }
 
 function renderFleet() {
