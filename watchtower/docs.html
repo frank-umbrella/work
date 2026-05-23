@@ -121,6 +121,9 @@
   <a href="#uninstall-local">Local (UI or CLI)</a>
   <a href="#tokens" class="section">Install tokens</a>
   <a href="#tokens-revoke">Revoking a token</a>
+  <a href="#dell" class="section">Dell-aware UX</a>
+  <a href="#dell-tag">Service Tag + Express Code</a>
+  <a href="#dell-warranty">Warranty (TechDirect)</a>
   <a href="#troubleshooting" class="section">Troubleshooting</a>
   <a href="#layout" class="section">What gets installed</a>
 </nav>
@@ -268,6 +271,38 @@ Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" 
 <h3 id="tokens-revoke">Revoking a token</h3>
 <p>From the Clients tab, click <b>Tokens</b> on the client's row to expand the token list, then click <b>Revoke</b> on the token in question. The token doc is kept (with <code>revoked: true</code>) so you have an audit trail; the worker treats revoked + unknown identically so an attacker can't tell which tokens ever existed.</p>
 <p>Agents using a revoked token will start returning 401 on check-in. They keep running locally &mdash; they just stop reporting until you push a rebuilt installer with a fresh token.</p>
+
+<h2 id="dell">Dell-aware UX</h2>
+<p>When a host's manufacturer reports as Dell, the dashboard layers in two extras automatically. No agent change needed — the manufacturer field is already in the system probe.</p>
+
+<h3 id="dell-tag">Service Tag + Express Service Code</h3>
+<p>The Service Tag (from <code>Win32_BIOS.SerialNumber</code> — Dell's BIOS reports it there) becomes a clickable link straight to that host's Dell Support page:</p>
+<pre><code>https://www.dell.com/support/home/en-us/product-support/servicetag/&lt;tag&gt;</code></pre>
+<p>Next to the tag we show the Express Service Code &mdash; the same value converted from base-36 to base-10 (e.g. <code>5BXYZ12</code> &rarr; <code>12345650770</code>). Some Dell support phone trees only accept the numeric code, so having it pre-computed saves a step. Non-Dell hosts keep showing the serial as plain text (no link, no Express code).</p>
+
+<h3 id="dell-warranty">Warranty status (Dell TechDirect)</h3>
+<p>If you set up a Dell TechDirect API key, the drawer also shows a <b>Dell warranty</b> section with the warranty status (Active / Expired), days remaining, end date, service level (e.g. ProSupport Plus 4HR Mission Critical), ship date, and machine description. Useful for end-of-warranty triage and for quoting renewals.</p>
+<p>Setup is one-time:</p>
+<ol class="steps">
+  <li>
+    <b>Register at <a href="https://techdirect.dell.com" target="_blank">techdirect.dell.com</a></b> with your Umbrella Automation Dell partner account. Apply for API access &mdash; for warranty lookups specifically, request access to the <i>Asset Entitlement Warranty</i> API.
+  </li>
+  <li>
+    <b>Get your client_id + client_secret</b> from TechDirect's API portal once your application is approved (usually within 1 business day).
+  </li>
+  <li>
+    <b>Set them as worker secrets:</b>
+    <pre><code>cd work\watchtower\worker
+wrangler secret put DELL_API_CLIENT_ID
+wrangler secret put DELL_API_CLIENT_SECRET
+wrangler deploy</code></pre>
+  </li>
+  <li>
+    <b>Open any Dell host in the dashboard.</b> The warranty section populates within ~1s on first load (server-side cached for 24h after that, session-cached client-side for repeat opens).
+  </li>
+</ol>
+<div class="callout info"><b>Until configured, the section is hidden.</b> The worker returns 503 + a friendly "not configured" marker; the dashboard sees that and silently skips rendering the section, so admins don't see a permanent "not configured" placeholder until you actually wire it up.</div>
+<div class="callout warn"><b>Privacy:</b> the warranty lookup sends only the Service Tag to Dell's API. No host name, no client name, no other identifying data. Cached results are stored at the Cloudflare edge under a synthetic URL (<code>https://internal-cache/warranty/&lt;tag&gt;</code>), accessible only to the worker.</div>
 
 <h2 id="troubleshooting">Troubleshooting</h2>
 
