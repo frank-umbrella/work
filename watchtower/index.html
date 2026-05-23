@@ -402,7 +402,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.6.3";
+const APP_VERSION = "0.6.4";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -795,7 +795,7 @@ $("#newClientBtn").addEventListener("click", () => {
       // pops up immediately on top, but the toast at the bottom is the
       // explicit "yes, the create succeeded" cue that the modal alone
       // doesn't convey.
-      toast(`Created ${name}. Token generated.`);
+      toast(`Created ${name}. Token generated. Email record sent.`);
       // Chain straight into token generation — creating a client without
       // also generating a token is virtually never what you want, and
       // the auto-flow saves a separate "+ Token" click.
@@ -860,6 +860,17 @@ async function generateToken(clientId, opts = {}) {
     return;
   }
 
+  // Auto-flow only (initial token created with the client itself) —
+  // email the admin a permanent record of the client + raw token so
+  // there's a copy outside the dashboard. Manual "+ Token" clicks for
+  // existing clients don't fire this — only the first-token-per-client.
+  // Best-effort: failure is toast'd but doesn't block the token modal.
+  if (opts.auto) {
+    notifyClientAddedByEmail(clientId, rawToken, hash).catch(e => {
+      toast(`Token saved, but email notify failed: ${e.message || e}`, true);
+    });
+  }
+
   openModal({
     title: "Install token generated",
     sub: `Bound to ${client.name}. This is the only time you'll see the raw token.`,
@@ -899,6 +910,24 @@ async function generateToken(clientId, opts = {}) {
 async function sha256Hex(s) {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
   return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+async function notifyClientAddedByEmail(clientId, rawToken, tokenHash) {
+  const user = auth.currentUser;
+  if (!user) throw new Error("Not signed in");
+  const idToken = await user.getIdToken();
+  const r = await fetch(`${WORKER_URL}/notify-client-added`, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${idToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ clientId, rawToken, tokenHash }),
+  });
+  if (!r.ok) {
+    const body = await r.json().catch(() => ({}));
+    throw new Error(body.error || `HTTP ${r.status}`);
+  }
 }
 
 async function revokeToken(hash) {
