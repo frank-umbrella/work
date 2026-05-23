@@ -172,6 +172,25 @@ if (-not (Test-Path (Join-Path $buildDir 'watchtower-tray.exe'))) {
 }
 
 # ---------------------------------------------------------------------------
+# Installer EXE icon - generate watchtower.ico from the branding house
+# logo if it doesn't already exist. Cached on disk after the first build.
+# ---------------------------------------------------------------------------
+$icoPath = Join-Path $here 'watchtower.ico'
+if (-not (Test-Path $icoPath)) {
+    $brandingPng = Join-Path (Split-Path $here -Parent) 'branding\source\Logo-House-Icon.png'
+    if (Test-Path $brandingPng) {
+        Write-Host "==> Generating installer icon from branding/source/Logo-House-Icon.png" -ForegroundColor Cyan
+        $makeIconScript = Join-Path $here 'make_icon.py'
+        & python $makeIconScript $brandingPng $icoPath
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path $icoPath)) {
+            Write-Warning "make_icon.py failed; installer will compile without a custom icon."
+        }
+    } else {
+        Write-Warning "branding asset not found at $brandingPng; installer will compile without a custom icon."
+    }
+}
+
+# ---------------------------------------------------------------------------
 # Inno Setup - compile generic installer (no per-client defines)
 # ---------------------------------------------------------------------------
 Write-Host "==> ISCC: Watchtower-Setup.exe" -ForegroundColor Cyan
