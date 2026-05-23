@@ -235,9 +235,21 @@ if ($Publish) {
     $assetName = 'Watchtower-Setup.exe'
     $repo = 'frank-umbrella/work'
 
-    # Create release if missing; otherwise reuse + clobber the asset.
-    $existing = & gh release view $tag --repo $repo 2>$null
-    if ($LASTEXITCODE -ne 0) {
+    # Check if release exists. PS 5.1 wraps native stderr as
+    # NativeCommandError under $ErrorActionPreference=Stop, so we
+    # temporarily switch to SilentlyContinue + check $LASTEXITCODE
+    # ourselves. "release not found" is the expected case for a new tag.
+    $releaseExists = $false
+    $prevPref = $ErrorActionPreference
+    $ErrorActionPreference = 'SilentlyContinue'
+    try {
+        $null = & gh release view $tag --repo $repo 2>&1
+        if ($LASTEXITCODE -eq 0) { $releaseExists = $true }
+    } finally {
+        $ErrorActionPreference = $prevPref
+    }
+
+    if (-not $releaseExists) {
         Write-Host "Creating release $tag" -ForegroundColor DarkGray
         $notes = "Watchtower agent $AppVersion. SHA256: $hash"
         & gh release create $tag $out --repo $repo --title "Watchtower $AppVersion" --notes $notes
