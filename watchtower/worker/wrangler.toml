@@ -44,4 +44,4 @@ ALLOWED_ORIGINS = "https://frank-umbrella.github.io"
 # Secrets — set with `wrangler secret put <NAME>`, never live in this file:
 #   wrangler secret put FIREBASE_SERVICE_ACCOUNT_JSON  # Service-account JSON for Firestore admin writes
 #   wrangler secret put RESEND_API_KEY                  # Resend API key for IP-change alerts
-#   wrangler secret put WATCHTOWER_INSTALL_TOKEN        # Shared secret baked into the agent installer
+#   wrangler secret put WATCHTOWER_INSTALL_TOKEN        # Optional legacy shared-secret fallback; per-client tokens are the steady-state path

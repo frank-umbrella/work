@@ -40,19 +40,15 @@ wrangler deploy
 
 Worker URL: `https://watchtower-worker.umbrelladev.workers.dev`
 
-## Generating the install token
+## Install tokens
 
-The install token is the shared secret that the installer bakes into
-every deployed agent. Generate it once and reuse it across all
-installations (until you decide to rotate):
+Per-client tokens are generated in the dashboard's Clients tab and
+stored as `/install_tokens/{sha256(rawToken)}` documents in Firestore.
+The agent presents its token on every `/checkin`; the worker SHA-256s
+the presented value and looks up the doc to confirm validity + binding.
+See `src/index.js` `validateToken()`.
 
-```powershell
-# In PowerShell:
-$bytes = New-Object byte[] 32
-[Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
-[Convert]::ToBase64String($bytes)
-```
-
-Set it as both `WATCHTOWER_INSTALL_TOKEN` (here in Cloudflare) and
-`-InstallToken <value>` when building the installer (see
-`work/watchtower/installer/build.ps1`).
+The legacy `WATCHTOWER_INSTALL_TOKEN` env var is still honored as a
+single shared-secret fallback &mdash; useful as an emergency backdoor
+if Firestore is unreachable, or for one-off testing. Leave it unset in
+steady-state production once all installs are on per-client tokens.
