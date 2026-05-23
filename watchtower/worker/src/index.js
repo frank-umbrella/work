@@ -19,8 +19,27 @@
 //
 // No cron handler here — this worker is event-driven by agent POSTs.
 
+import { createRemoteJWKSet, jwtVerify } from 'jose';
+
 const FIRESTORE_BASE = 'https://firestore.googleapis.com/v1';
 const RESEND_BASE = 'https://api.resend.com';
+const DELL_API_BASE = 'https://apigtwb2c.us.dell.com';
+const FIREBASE_PROJECT_ID = 'watchtower-6fbe1';
+
+// JWKS for verifying Firebase ID tokens. createRemoteJWKSet handles
+// caching + key rotation across requests automatically; this lives at
+// module scope so a single worker instance reuses one JWKS across many
+// requests.
+const FIREBASE_JWKS = createRemoteJWKSet(
+  new URL('https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com')
+);
+
+// In-memory cache for the Dell OAuth access token. Tokens live ~1h; we
+// refresh 5 min early. Module scope = shared across requests on the
+// same worker isolate. The Cache API isn't used here because the token
+// is a single global value, not per-request, and Cache API has
+// stronger consistency guarantees than we need.
+let _dellTokenCache = { token: null, expiresAt: 0 };
 
 // ═════════════════════════════════════════════════════════════════════
 // HTTP entrypoint
@@ -29,6 +48,11 @@ const RESEND_BASE = 'https://api.resend.com';
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+
+    // CORS preflight — only allowed origins (set in wrangler.toml) get a 204.
+    if (request.method === 'OPTIONS') {
+      return handleOptions(request, env);
+    }
 
     // Liveness probe — no auth.
     if (url.pathname === '/healthz' && request.method === 'GET') {
@@ -43,9 +67,50 @@ export default {
       return handleValidate(request, env, ctx);
     }
 
+    if (url.pathname === '/warranty' && request.method === 'GET') {
+      return withCors(await handleWarranty(request, env, ctx), env, request);
+    }
+
     return jsonResponse({ error: 'Not found', path: url.pathname }, 404);
   },
 };
+
+// ═════════════════════════════════════════════════════════════════════
+// CORS — only the dashboard origin(s) listed in ALLOWED_ORIGINS get
+// cross-origin access. Agent endpoints (/checkin, /validate) are
+// called from native code (no Origin header), so we don't bother with
+// CORS for those — only /warranty needs it.
+// ═════════════════════════════════════════════════════════════════════
+
+function _allowedOrigins(env) {
+  return (env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
+}
+
+function handleOptions(request, env) {
+  const origin = request.headers.get('Origin') || '';
+  if (!_allowedOrigins(env).includes(origin)) {
+    return new Response(null, { status: 403 });
+  }
+  return new Response(null, {
+    status: 204,
+    headers: {
+      'Access-Control-Allow-Origin': origin,
+      'Access-Control-Allow-Methods': 'GET, OPTIONS',
+      'Access-Control-Allow-Headers': 'Authorization, Content-Type',
+      'Access-Control-Max-Age': '86400',
+      'Vary': 'Origin',
+    },
+  });
+}
+
+function withCors(response, env, request) {
+  const origin = request.headers.get('Origin') || '';
+  if (_allowedOrigins(env).includes(origin)) {
+    response.headers.set('Access-Control-Allow-Origin', origin);
+    response.headers.set('Vary', 'Origin');
+  }
+  return response;
+}
 
 // ═════════════════════════════════════════════════════════════════════
 // GET /validate — token pre-check for the installer
@@ -78,6 +143,222 @@ async function handleValidate(request, env, ctx) {
     clientId: auth.clientId || '',
     legacy: auth.legacy === true,
   }, 200);
+}
+
+// ═════════════════════════════════════════════════════════════════════
+// GET /warranty?serviceTag=XXX — Dell TechDirect warranty proxy
+// ═════════════════════════════════════════════════════════════════════
+//
+// Called by the dashboard when a Dell host's drawer opens. Returns
+// normalized warranty data for the given service tag.
+//
+// Auth: Bearer <Firebase ID token>. Same trust model as the dashboard's
+//   Firestore rules — any verified @umbrellaautomation.com Google
+//   account gets through.
+//
+// Caching: per-tag for 24h via the Cache API. Dell's own OAuth token
+//   is cached at module scope and refreshed 5 min before expiry.
+//
+// Response shape:
+//   200 { ok: true, tag, status: "active"|"expired"|"unknown",
+//         endDate, daysRemaining, level, productLine, shipDate, vendor }
+//   401 { error: "Invalid or expired sign-in token" }
+//   503 { error: "Dell warranty integration not configured",
+//         setup: "..." }  // when DELL_API_CLIENT_ID secret is missing
+//   404 { error: "Service tag not found in Dell records" }
+//
+async function handleWarranty(request, env, ctx) {
+  // ----- 1. Verify the caller is a signed-in admin -----
+  const authHeader = request.headers.get('Authorization') || '';
+  const idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+  if (!idToken) {
+    return jsonResponse({ error: 'Missing sign-in token' }, 401);
+  }
+  let claims;
+  try {
+    claims = await verifyFirebaseIdToken(idToken);
+  } catch (e) {
+    return jsonResponse({ error: 'Invalid or expired sign-in token' }, 401);
+  }
+  const email = (claims.email || '').toLowerCase();
+  if (!claims.email_verified || !email.endsWith('@umbrellaautomation.com')) {
+    return jsonResponse({ error: 'Not authorized — domain mismatch' }, 403);
+  }
+
+  // ----- 2. Parse + validate service tag -----
+  const url = new URL(request.url);
+  const tag = (url.searchParams.get('serviceTag') || '').trim().toUpperCase();
+  if (!/^[A-Z0-9]{5,15}$/.test(tag)) {
+    return jsonResponse({ error: 'Invalid serviceTag (expected 5-15 alphanumeric chars)' }, 400);
+  }
+
+  // ----- 3. Bail clean if Dell creds aren't configured -----
+  if (!env.DELL_API_CLIENT_ID || !env.DELL_API_CLIENT_SECRET) {
+    return jsonResponse({
+      error: 'Dell warranty integration not configured',
+      setup: 'Set DELL_API_CLIENT_ID and DELL_API_CLIENT_SECRET via wrangler secret put (see worker/README.md).',
+    }, 503);
+  }
+
+  // ----- 4. Cache lookup (24h per tag) -----
+  const cacheKey = new Request(`https://internal-cache/warranty/${tag}`, { method: 'GET' });
+  const cache = caches.default;
+  const cached = await cache.match(cacheKey);
+  if (cached) {
+    const body = await cached.json();
+    return jsonResponse(body, 200);
+  }
+
+  // ----- 5. Hit Dell -----
+  let dellRecords;
+  try {
+    dellRecords = await fetchDellWarranty(tag, env, ctx);
+  } catch (e) {
+    return jsonResponse({ error: 'Dell API request failed', detail: String(e).slice(0, 200) }, 502);
+  }
+  if (!dellRecords || dellRecords.length === 0) {
+    return jsonResponse({ error: 'Service tag not found in Dell records', tag }, 404);
+  }
+
+  // ----- 6. Normalize + cache -----
+  const normalized = normalizeDellWarranty(tag, dellRecords[0]);
+  const response = jsonResponse(normalized, 200);
+  // Cache the body for 24h. Note: cache.put expects a Response with a
+  // body that can be consumed twice — we serialize fresh here so the
+  // returned response and the cached one don't fight over the stream.
+  const cacheCopy = jsonResponse(normalized, 200);
+  cacheCopy.headers.set('Cache-Control', 'public, max-age=86400');
+  ctx.waitUntil(cache.put(cacheKey, cacheCopy));
+  return response;
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Firebase ID token verification — used by /warranty to gate on the
+// same "verified @umbrellaautomation.com Google account" rule that
+// Firestore enforces. JWKS is fetched + cached automatically by jose.
+// ─────────────────────────────────────────────────────────────────────
+
+async function verifyFirebaseIdToken(idToken) {
+  const { payload } = await jwtVerify(idToken, FIREBASE_JWKS, {
+    issuer: `https://securetoken.google.com/${FIREBASE_PROJECT_ID}`,
+    audience: FIREBASE_PROJECT_ID,
+    algorithms: ['RS256'],
+  });
+  return payload;
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Dell TechDirect API client
+// ─────────────────────────────────────────────────────────────────────
+// OAuth2 client_credentials grant → bearer token → asset-entitlements.
+// Docs: https://techdirect.dell.com  (Dell-published spec is behind a
+// login but the endpoint shapes used here are stable and have been the
+// same since v5 launched in 2018).
+
+async function getDellApiToken(env) {
+  // Use cached token if it has at least 5 minutes of life left.
+  if (_dellTokenCache.token && _dellTokenCache.expiresAt > Date.now() + 5 * 60 * 1000) {
+    return _dellTokenCache.token;
+  }
+
+  const body = new URLSearchParams({
+    grant_type: 'client_credentials',
+    client_id: env.DELL_API_CLIENT_ID,
+    client_secret: env.DELL_API_CLIENT_SECRET,
+  });
+
+  const r = await fetch(`${DELL_API_BASE}/auth/oauth/v2/token`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Accept': 'application/json',
+    },
+    body: body.toString(),
+  });
+  if (!r.ok) {
+    const text = await r.text();
+    throw new Error(`Dell OAuth failed: ${r.status} ${text.slice(0, 200)}`);
+  }
+  const data = await r.json();
+  if (!data.access_token) {
+    throw new Error('Dell OAuth: no access_token in response');
+  }
+  const expiresInMs = (data.expires_in || 3600) * 1000;
+  _dellTokenCache = {
+    token: data.access_token,
+    expiresAt: Date.now() + expiresInMs,
+  };
+  return data.access_token;
+}
+
+async function fetchDellWarranty(tag, env, ctx) {
+  const token = await getDellApiToken(env);
+  const url = `${DELL_API_BASE}/PROD/sbil/eapi/v5/asset-entitlements?servicetags=${encodeURIComponent(tag)}`;
+  const r = await fetch(url, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Accept': 'application/json',
+    },
+  });
+  if (r.status === 401) {
+    // Token expired between cache check and use — invalidate + retry once.
+    _dellTokenCache = { token: null, expiresAt: 0 };
+    const fresh = await getDellApiToken(env);
+    const retry = await fetch(url, {
+      headers: {
+        'Authorization': `Bearer ${fresh}`,
+        'Accept': 'application/json',
+      },
+    });
+    if (!retry.ok) {
+      throw new Error(`Dell API ${retry.status} after token refresh`);
+    }
+    return retry.json();
+  }
+  if (!r.ok) {
+    throw new Error(`Dell API ${r.status}`);
+  }
+  return r.json();
+}
+
+function normalizeDellWarranty(tag, record) {
+  // Dell returns an "entitlements" array — one per warranty/contract
+  // tier (initial, extended, etc). We pick the one with the latest
+  // endDate as the headline value, since that's what determines when
+  // the host actually drops off support.
+  const entitlements = Array.isArray(record.entitlements) ? record.entitlements : [];
+  let latest = null;
+  for (const e of entitlements) {
+    if (!e.endDate) continue;
+    if (!latest || new Date(e.endDate) > new Date(latest.endDate)) {
+      latest = e;
+    }
+  }
+
+  const endDate = latest?.endDate || null;
+  const now = Date.now();
+  let status = 'unknown';
+  let daysRemaining = null;
+  if (endDate) {
+    const endMs = new Date(endDate).getTime();
+    daysRemaining = Math.round((endMs - now) / (1000 * 60 * 60 * 24));
+    status = endMs > now ? 'active' : 'expired';
+  }
+
+  return {
+    ok: true,
+    tag,
+    status,
+    endDate,
+    daysRemaining,
+    level: latest?.serviceLevelDescription || latest?.serviceLevelCode || null,
+    productLine: record.productLineDescription || record.productFamily || null,
+    machineDescription: record.machineDescription || null,
+    shipDate: record.shipDate || null,
+    vendor: record.vendor || 'Dell',
+    entitlementCount: entitlements.length,
+    fetchedAt: new Date().toISOString(),
+  };
 }
 
 // ═════════════════════════════════════════════════════════════════════

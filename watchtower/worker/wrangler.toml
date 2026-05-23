@@ -45,3 +45,5 @@ ALLOWED_ORIGINS = "https://frank-umbrella.github.io"
 #   wrangler secret put FIREBASE_SERVICE_ACCOUNT_JSON  # Service-account JSON for Firestore admin writes
 #   wrangler secret put RESEND_API_KEY                  # Resend API key for IP-change alerts
 #   wrangler secret put WATCHTOWER_INSTALL_TOKEN        # Optional legacy shared-secret fallback; per-client tokens are the steady-state path
+#   wrangler secret put DELL_API_CLIENT_ID              # Optional — Dell TechDirect OAuth client id (for /warranty endpoint)
+#   wrangler secret put DELL_API_CLIENT_SECRET          # Optional — Dell TechDirect OAuth client secret
