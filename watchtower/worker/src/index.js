@@ -75,9 +75,120 @@ export default {
       return withCors(await handleLatestVersion(request, env, ctx), env, request);
     }
 
+    if (url.pathname === '/test-webhook' && request.method === 'POST') {
+      return withCors(await handleTestWebhook(request, env, ctx), env, request);
+    }
+
     return jsonResponse({ error: 'Not found', path: url.pathname }, 404);
   },
 };
+
+// ═════════════════════════════════════════════════════════════════════
+// POST /test-webhook — fire a sample payload at the master webhook URL
+// ═════════════════════════════════════════════════════════════════════
+//
+// Operator clicks "Test webhook" in the dashboard's Settings tab. We
+// resolve the URL from /settings/webhook (or the request body's `url`
+// field if the operator wants to test before saving), POST a sample
+// JSON event to it, and return the upstream status + a small slice of
+// the response body so the operator can confirm their receiver took it.
+//
+// Routing the test through the worker (rather than directly from the
+// browser) is deliberate: matches the real webhook code path exactly,
+// and side-steps CORS — most webhook receivers don't allow arbitrary
+// browser origins.
+//
+// Auth: Bearer <Firebase ID token>, same as /warranty + /notify-*.
+//
+// Optional request body: { url: "https://override-for-testing/..." }
+// If omitted, reads /settings/webhook.
+//
+// Response:
+//   200 { ok: true, status: 200, body: "first 500 chars of response" }
+//   200 { ok: false, status: 502, body: "...", error: "upstream failed" }
+//   400 { error: "no webhook URL configured" }
+//   401 { error: "invalid sign-in token" }
+async function handleTestWebhook(request, env, ctx) {
+  const authHeader = request.headers.get('Authorization') || '';
+  const idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+  if (!idToken) return jsonResponse({ error: 'Missing sign-in token' }, 401);
+  let claims;
+  try {
+    claims = await verifyFirebaseIdToken(idToken);
+  } catch (e) {
+    return jsonResponse({ error: 'Invalid or expired sign-in token' }, 401);
+  }
+  const email = (claims.email || '').toLowerCase();
+  if (!claims.email_verified || !email.endsWith('@umbrellaautomation.com')) {
+    return jsonResponse({ error: 'Not authorized — domain mismatch' }, 403);
+  }
+
+  // Where to POST. Body URL wins for "test before save" workflows.
+  let overrideUrl = null;
+  try {
+    const body = await request.json();
+    overrideUrl = body && body.url;
+  } catch (e) {
+    // Empty body is fine — fall back to saved URL.
+  }
+
+  let targetUrl = overrideUrl;
+  if (!targetUrl) {
+    const accessToken = await getServiceAccountToken(env);
+    const settingsDoc = await firestoreGetDoc(env, accessToken, 'settings/webhook');
+    targetUrl = settingsDoc?.fields?.url?.stringValue || null;
+  }
+  if (!targetUrl) {
+    return jsonResponse({ error: 'No webhook URL configured. Save one in Settings or pass {url} in request body.' }, 400);
+  }
+  if (!/^https?:\/\//i.test(targetUrl)) {
+    return jsonResponse({ error: 'webhook URL must start with http(s)://' }, 400);
+  }
+
+  const samplePayload = {
+    event: 'test',
+    pcId: '00000000-0000-0000-0000-000000000000',
+    hostname: 'Watchtower-Test',
+    client: 'Test Client',
+    triggeredBy: email,
+    when: new Date().toISOString(),
+    note: 'This is a test event from the Watchtower dashboard. No real fleet event occurred.',
+  };
+
+  let upstreamStatus = 0;
+  let upstreamBody = '';
+  let networkError = null;
+  try {
+    const r = await fetch(targetUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'User-Agent': 'Watchtower-Webhook-Test/1.0' },
+      body: JSON.stringify(samplePayload),
+    });
+    upstreamStatus = r.status;
+    try {
+      upstreamBody = (await r.text()).slice(0, 500);
+    } catch (e) {
+      upstreamBody = '(could not read response body)';
+    }
+  } catch (e) {
+    networkError = String(e).slice(0, 200);
+  }
+
+  if (networkError) {
+    return jsonResponse({
+      ok: false,
+      url: targetUrl,
+      error: `Network error: ${networkError}`,
+    }, 502);
+  }
+
+  return jsonResponse({
+    ok: upstreamStatus >= 200 && upstreamStatus < 300,
+    url: targetUrl,
+    status: upstreamStatus,
+    body: upstreamBody,
+  }, 200);
+}
 
 // ═════════════════════════════════════════════════════════════════════
 // GET /latest-version — what's the newest agent build available?

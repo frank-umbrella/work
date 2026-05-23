@@ -390,9 +390,11 @@
           <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
             <button class="btn btn-primary btn-sm" id="saveMasterWebhook">Save</button>
             <button class="btn btn-sm" id="clearMasterWebhook">Clear</button>
+            <button class="btn btn-sm" id="testMasterWebhook" title="POST a sample event to the URL above via the worker (matches the real webhook code path; bypasses browser CORS).">Test webhook</button>
             <button class="btn btn-sm btn-danger" id="resetAllHostsWebhook" title="Clears per-host webhookUrl on every agent — they all fall back to the master URL above.">Reset all hosts to master</button>
             <span class="meta" id="masterWebhookStatus" style="margin-left:6px;"></span>
           </div>
+          <div id="testWebhookResult" class="meta" style="margin-top:8px;font-family:var(--mono);font-size:11.5px;word-break:break-all;"></div>
           <div class="callout" style="background:var(--info-soft);border:1px solid #bae6fd;color:#075985;padding:10px 12px;border-radius:8px;margin-top:14px;font-size:12.5px;">
             Per-host drawer lets you set a different URL just for that PC; the master URL above is the fleet-wide default. <b>Reset all hosts to master</b> wipes every per-host override in one shot — useful after consolidating from a multi-URL setup.
           </div>
@@ -505,7 +507,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.9.1";
+const APP_VERSION = "0.9.2";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -836,6 +838,35 @@ document.getElementById("saveMasterWebhook").addEventListener("click", () => {
 document.getElementById("clearMasterWebhook").addEventListener("click", () => {
   document.getElementById("masterWebhookUrl").value = "";
   saveMasterWebhook("");
+});
+document.getElementById("testMasterWebhook").addEventListener("click", async () => {
+  // Use whatever's currently in the input (not necessarily saved yet) so
+  // the operator can test before committing the URL to settings.
+  const url = document.getElementById("masterWebhookUrl").value.trim();
+  const result = document.getElementById("testWebhookResult");
+  if (!url) {
+    if (result) result.innerHTML = `<span style="color:var(--danger);">No URL entered to test.</span>`;
+    return;
+  }
+  if (result) result.innerHTML = `<span class="meta">Sending sample event…</span>`;
+  try {
+    const idToken = await auth.currentUser.getIdToken();
+    const r = await fetch(`${WORKER_URL}/test-webhook`, {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${idToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ url }),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (data.ok) {
+      result.innerHTML = `<span style="color:var(--ok);">✓ ${esc(String(data.status))} OK</span> &middot; <span class="meta">${esc((data.body || "").slice(0, 200) || "(empty body)")}</span>`;
+    } else {
+      const status = data.status ? `HTTP ${data.status}` : "Failed";
+      const detail = data.error || data.body || "no detail";
+      result.innerHTML = `<span style="color:var(--danger);">✗ ${esc(status)}</span> &middot; <span class="meta">${esc(String(detail).slice(0, 300))}</span>`;
+    }
+  } catch (e) {
+    if (result) result.innerHTML = `<span style="color:var(--danger);">Request failed: ${esc(e.message || e)}</span>`;
+  }
 });
 document.getElementById("resetAllHostsWebhook").addEventListener("click", async () => {
   const overrides = state.agents.filter(a => a.config && a.config.webhookUrl);
