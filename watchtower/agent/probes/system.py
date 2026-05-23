@@ -25,6 +25,35 @@ def collect():
         out["manufacturer"] = cs.Manufacturer
         out["model"] = cs.Model
 
+        # ---- Virtualization detection ----
+        # WMI gives us enough to recognize the common hypervisors. Most
+        # write a recognizable Manufacturer + Model pair into SMBIOS;
+        # we match on substrings rather than exact strings since vendors
+        # have shipped slight variations.
+        vm_signatures = [
+            ("VMware",         ("vmware",)),
+            ("Microsoft Hyper-V", ("microsoft corporation", "virtual machine")),
+            ("VirtualBox",     ("virtualbox", "innotek")),
+            ("Xen",            ("xen",)),
+            ("KVM/QEMU",       ("kvm", "qemu", "bochs")),
+            ("Parallels",      ("parallels",)),
+            ("Nutanix AHV",    ("nutanix",)),
+            ("Proxmox",        ("proxmox",)),
+        ]
+        mfr_l = (cs.Manufacturer or "").lower()
+        mdl_l = (cs.Model or "").lower()
+        hypervisor = None
+        for label, needles in vm_signatures:
+            if any(n in mfr_l for n in needles) or any(n in mdl_l for n in needles):
+                hypervisor = label
+                break
+        # cs.HypervisorPresent is True even on Hyper-V *hosts* (where the
+        # hypervisor is loaded for VMs running ON this machine), so we
+        # don't rely on it solo — only as a tie-breaker when the SMBIOS
+        # strings are ambiguous.
+        out["isVirtual"] = hypervisor is not None
+        out["hypervisor"] = hypervisor
+
         # ---- BIOS / serial ----
         bios = c.Win32_BIOS()[0]
         out["serviceTag"] = (bios.SerialNumber or "").strip()
