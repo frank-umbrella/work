@@ -1201,7 +1201,11 @@ async function handleCheckin(request, env, ctx) {
         }).catch((e) => console.error('Resend email failed:', e))
       );
     }
-    if (config.webhookEnabled && effectiveWebhookUrl) {
+    // Default-on when a URL exists: webhookEnabled === false is the only
+    // way to silence webhooks on a host that has an effective URL. null
+    // (never explicitly set) reads as "on" so a new master URL starts
+    // firing across the fleet immediately.
+    if (config.webhookEnabled !== false && effectiveWebhookUrl) {
       ctx.waitUntil(
         postWebhook(effectiveWebhookUrl, {
           event: 'external_ip_changed',
@@ -1247,7 +1251,11 @@ async function handleCheckin(request, env, ctx) {
         }).catch((e) => console.error('OMSA email failed:', e))
       );
     }
-    if (config.webhookEnabled && effectiveWebhookUrl) {
+    // Default-on when a URL exists: webhookEnabled === false is the only
+    // way to silence webhooks on a host that has an effective URL. null
+    // (never explicitly set) reads as "on" so a new master URL starts
+    // firing across the fleet immediately.
+    if (config.webhookEnabled !== false && effectiveWebhookUrl) {
       ctx.waitUntil(
         postWebhook(effectiveWebhookUrl, {
           event: 'omsa_warning',
@@ -1300,7 +1308,11 @@ async function handleCheckin(request, env, ctx) {
         }).catch((e) => console.error('WSB failure email failed:', e))
       );
     }
-    if (config.webhookEnabled && effectiveWebhookUrl) {
+    // Default-on when a URL exists: webhookEnabled === false is the only
+    // way to silence webhooks on a host that has an effective URL. null
+    // (never explicitly set) reads as "on" so a new master URL starts
+    // firing across the fleet immediately.
+    if (config.webhookEnabled !== false && effectiveWebhookUrl) {
       ctx.waitUntil(
         postWebhook(effectiveWebhookUrl, {
           event: 'wsb_backup_failed',
@@ -1319,12 +1331,18 @@ async function handleCheckin(request, env, ctx) {
   }
 
   // ----- 8. Return config + uninstall flag to the agent -----
+  // Resolve webhookEnabled tristate to the effective boolean the agent
+  // would see, so state.json / tray reflect runtime behavior rather
+  // than the stored opt-in state. null → effective from URL presence.
+  const effectiveWebhookEnabled = config.webhookEnabled === false
+    ? false
+    : Boolean(effectiveWebhookUrl);
   return jsonResponse({
     ok: true,
     config: {
       enabled: config.enabled,
       emailEnabled: config.emailEnabled,
-      webhookEnabled: config.webhookEnabled,
+      webhookEnabled: effectiveWebhookEnabled,
       webhookUrl: config.webhookUrl || null,
       autoUpdate: config.autoUpdate,
     },
@@ -1422,10 +1440,17 @@ async function sha256Hex(s) {
 // ─────────────────────────────────────────────────────────────────────
 function readConfig(doc) {
   // Defaults: everything on, no webhook, no uninstall.
+  // webhookEnabled is *tristate* (true / false / null) -- null means
+  // "never explicitly set by the admin." The firing site interprets null
+  // as "on iff an effective webhook URL exists" (master or per-host),
+  // so a brand-new client that gets the master URL added under Settings
+  // starts firing webhooks across every existing host without anyone
+  // having to flip a switch. Explicit `false` is still the way to
+  // silence webhooks on a single host.
   const defaults = {
     enabled: true,
     emailEnabled: true,
-    webhookEnabled: false,
+    webhookEnabled: null,
     webhookUrl: null,
     uninstall: false,
     autoUpdate: false,  // safety default — opt-in per host
@@ -1435,12 +1460,21 @@ function readConfig(doc) {
   return {
     enabled: fieldBool(doc.fields.enabled, defaults.enabled),
     emailEnabled: fieldBool(doc.fields.emailEnabled, defaults.emailEnabled),
-    webhookEnabled: fieldBool(doc.fields.webhookEnabled, defaults.webhookEnabled),
+    webhookEnabled: fieldBoolTristate(doc.fields.webhookEnabled),
     webhookUrl: doc.fields.webhookUrl?.stringValue || null,
     uninstall: fieldBool(doc.fields.uninstall, defaults.uninstall),
     autoUpdate: fieldBool(doc.fields.autoUpdate, defaults.autoUpdate),
     clientIdOverride: doc.fields.clientIdOverride?.stringValue || null,
   };
+}
+
+// Like fieldBool but returns null when the field doesn't exist at all.
+// Used by webhookEnabled so the firing site can distinguish "admin
+// explicitly opted out" (false) from "admin never touched it" (null).
+function fieldBoolTristate(field) {
+  if (!field) return null;
+  if ('booleanValue' in field) return field.booleanValue;
+  return null;
 }
 
 function fieldBool(field, fallback) {

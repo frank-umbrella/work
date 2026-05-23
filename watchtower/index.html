@@ -171,7 +171,12 @@
   #drawer .list .row:last-child { border-bottom: 0; }
   #drawer .list .name { color: var(--ink); }
   #drawer .list .meta { color: var(--ink-faint); font-size: 12px; }
-  #drawer .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; }
+  #drawer .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; gap: 14px; }
+  /* Without flex-shrink:0 the switch gets squashed to a few pixels wide when
+     the label's description is long — happens in the new narrow-padding
+     config panel especially. Pin the toggle's intrinsic size. */
+  #drawer .toggle-row > div:first-child { min-width: 0; }
+  #drawer .toggle-row .switch { flex-shrink: 0; }
   #drawer .toggle-row .label { font-size: 13.5px; }
   #drawer .toggle-row .desc { font-size: 12px; color: var(--ink-faint); }
   #drawer .config-actions { margin-top: 14px; display: flex; gap: 8px; }
@@ -607,7 +612,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.12.5";
+const APP_VERSION = "0.12.6";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -2748,7 +2753,10 @@ function renderDrawer(pcId) {
       const flags = [];
       if (cfg.enabled === false) flags.push(`<span style="color:#b45309;">Agent disabled</span>`);
       if (cfg.emailEnabled === false) flags.push(`Email off`);
-      if (cfg.webhookEnabled === true) flags.push(`Webhook on`);
+      // Webhook is now default-ON whenever a URL exists. Only flag the
+      // deviations: explicit silence (false on a host with a URL) or
+      // a per-host URL override.
+      if (cfg.webhookEnabled === false && (cfg.webhookUrl || state.globalWebhookUrl)) flags.push(`<span style="color:#b45309;">Webhooks silenced</span>`);
       if (cfg.autoUpdate === true) flags.push(`Auto-update on`);
       if (cfg.clientIdOverride) flags.push(`Client overridden`);
       if (cfg.webhookUrl && cfg.webhookUrl !== state.globalWebhookUrl) flags.push(`Per-host webhook URL`);
@@ -2789,13 +2797,24 @@ function renderDrawer(pcId) {
         </div>
         <label class="switch"><input type="checkbox" data-cfg="emailEnabled" ${cfg.emailEnabled !== false ? "checked" : ""}><span class="slider"></span></label>
       </div>
+      ${(() => {
+        // Webhook toggle: tristate-aware. Default ON whenever an effective
+        // URL exists (per-host override or master), default OFF only when
+        // there's no URL anywhere. cfg.webhookEnabled === false is the
+        // only way to explicitly silence a host that has a URL configured
+        // -- which matches the worker's new default-on-when-URL-exists
+        // behavior so the UI and the runtime stay in sync.
+        const hasEffectiveUrl = Boolean(cfg.webhookUrl || state.globalWebhookUrl);
+        const webhookOn = cfg.webhookEnabled === false ? false : hasEffectiveUrl;
+        return `
       <div class="toggle-row">
         <div>
           <div class="label">Webhook on IP change &amp; backup failure</div>
-          <div class="desc">POST a JSON payload when this agent reports an event. The field below is prefilled with the master URL from <a href="#" id="dGoToSettings">Settings</a> — change to override per host, or leave matching to use the master value. Empty = no webhooks regardless of toggle.</div>
+          <div class="desc">POST a JSON payload when this agent reports an event. The field below is prefilled with the master URL from <a href="#" id="dGoToSettings">Settings</a> — change to override per host, or leave matching to use the master value. Toggle defaults <b>ON</b> whenever a URL is filled; flip off to silence webhooks for this host only.</div>
         </div>
-        <label class="switch"><input type="checkbox" data-cfg="webhookEnabled" ${cfg.webhookEnabled === true ? "checked" : ""}><span class="slider"></span></label>
-      </div>
+        <label class="switch"><input type="checkbox" data-cfg="webhookEnabled" ${webhookOn ? "checked" : ""}><span class="slider"></span></label>
+      </div>`;
+      })()}
       <input type="url" id="dWebhookUrl" placeholder="https://your-webhook.example.com/"
              value="${esc(cfg.webhookUrl || state.globalWebhookUrl || "")}"
              style="margin-top:6px;">
