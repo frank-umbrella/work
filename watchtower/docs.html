@@ -206,18 +206,34 @@
 
 <h2 id="install">Install</h2>
 
-<h3 id="install-build">Build the installer (once)</h3>
-<p>You only need to do this when the agent code itself changes &mdash; not per client. Prerequisites on your build box:</p>
+<h3 id="install-build">Build the installer</h3>
+
+<h4>Automatic (recommended)</h4>
+<p>A GitHub Actions workflow (<code>.github/workflows/watchtower-installer.yml</code>) builds and publishes the installer every time <code>watchtower/agent/VERSION</code> changes on <code>main</code>. To cut a new release:</p>
+<ol class="steps">
+  <li>Bump <code>watchtower/agent/VERSION</code> (e.g. <code>0.12.9</code> &rarr; <code>0.13.0</code>) &mdash; same file <code>build.ps1</code> reads locally.</li>
+  <li>Commit and push to <code>main</code>.</li>
+  <li>Watch the run on GitHub <b>Actions</b> tab &mdash; the workflow installs Python + PyInstaller + Inno Setup on a fresh <code>windows-latest</code> runner, runs <code>build.ps1 -Publish</code>, and creates the tag <code>watchtower-v&lt;version&gt;</code> with <code>Watchtower-Setup.exe</code> attached + SHA256 in the body.</li>
+  <li>Within ~5 min the dashboard's <b>Download Installer</b> button and the agent auto-updater (<code>/latest-version</code> worker endpoint) start handing out the new EXE. No manual paste of URL or SHA256 needed.</li>
+</ol>
+<p>You can also re-trigger the workflow manually from the Actions tab via <b>Run workflow</b> (e.g. if a build failed partway, or to rebuild without bumping VERSION). The dispatch form takes an optional version override.</p>
+
+<h4>Local build (when you don't want to push, or are testing changes)</h4>
+<p>Prerequisites on your build box:</p>
 <ul>
   <li>Windows 10/11 with admin rights</li>
   <li>Python 3.11+ &mdash; <code>winget install Python.Python.3.11</code></li>
-  <li>PyInstaller and the agent's Python deps &mdash; <code>pip install pyinstaller pywin32 pystray pillow requests</code></li>
+  <li>PyInstaller and the agent's Python deps &mdash; <code>pip install pyinstaller -r watchtower\agent\requirements.txt</code></li>
   <li>Inno Setup 6 &mdash; <code>winget install JRSoftware.InnoSetup -e</code></li>
+  <li>Optional, for <code>-Publish</code>: <code>gh</code> CLI authenticated (<code>winget install GitHub.cli</code> then <code>gh auth login</code>)</li>
 </ul>
 <p>Then:</p>
 <pre><code>cd work\watchtower\installer
-.\build.ps1</code></pre>
+.\build.ps1                  # local-only build &rarr; installer\dist\Watchtower-Setup.exe
+.\build.ps1 -Publish         # also pushes to GitHub Releases (only do this if Actions is misbehaving)</code></pre>
 <p>Output lands at <code>installer\dist\Watchtower-Setup.exe</code>. Keep that EXE around &mdash; it's the same file you'll deploy to every client.</p>
+
+<div class="callout"><b>If you're using the GitHub Actions workflow, you basically never need the local <code>-Publish</code> path.</b> The local build is for iterating on the <code>.iss</code> or the agent without pushing every WIP commit. Bump VERSION when you're ready to release and let Actions handle the rest.</div>
 
 <h3 id="install-flow">Deploy to a client PC</h3>
 <ol class="steps">

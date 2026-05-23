@@ -1,0 +1,137 @@
+# Builds and publishes Watchtower-Setup.exe to GitHub Releases on every
+# version bump. Fires automatically when watchtower/agent/VERSION changes
+# on the main branch -- the file is the single source of truth that
+# build.ps1 already reads -- and can also be re-run manually from the
+# Actions tab via workflow_dispatch (useful if a build fails partway).
+#
+# What it produces:
+#   - A GitHub Release tagged `watchtower-v<VERSION>` containing
+#     `Watchtower-Setup.exe` (PyInstaller-bundled service + tray, wrapped
+#     by Inno Setup with the branded wizard images + EXE icon).
+#   - SHA256 of the EXE in the release body so the agent's auto-updater
+#     can verify the download before running it.
+#
+# Once this lands, bumping watchtower/agent/VERSION and pushing to main
+# is the whole release process -- the workflow does the rest. The
+# dashboard's `/latest-version` endpoint reads from this same Releases
+# page, so the new EXE shows up in "Download installer" automatically.
+#
+# Runner: windows-latest (has Python 3.x and Chocolatey preinstalled).
+# Inno Setup 6 is installed at job start via chocolatey.
+
+name: watchtower-installer
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'watchtower/agent/VERSION'
+      - 'watchtower/agent/**/*.py'
+      - 'watchtower/installer/**'
+      - '.github/workflows/watchtower-installer.yml'
+  workflow_dispatch:
+    inputs:
+      force_version:
+        description: 'Override agent/VERSION for this build only (leave blank to use the file)'
+        required: false
+        default: ''
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      # Required for `gh release create` / `gh release upload` to push the
+      # built EXE up to this repo's Releases. Nothing else needs writes.
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read agent version
+        id: version
+        shell: pwsh
+        run: |
+          $forced = '${{ github.event.inputs.force_version }}'
+          if ($forced) {
+            $v = $forced.Trim()
+            Write-Host "Using forced version from workflow_dispatch input: $v"
+          } else {
+            $v = (Get-Content watchtower/agent/VERSION -Raw).Trim()
+            Write-Host "Using version from watchtower/agent/VERSION: $v"
+          }
+          # Guard: refuse to build an empty / weird version string.
+          if (-not ($v -match '^\d+\.\d+\.\d+')) {
+            throw "Version '$v' doesn't look like semver (e.g. 0.12.9). Aborting."
+          }
+          # Check if a release tag already exists for this version. If it
+          # does, the workflow still runs (we want to replace the asset),
+          # but we log it so the run history is readable.
+          $tag = "watchtower-v$v"
+          "version=$v"        | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "tag=$tag"          | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python build deps (PyInstaller + agent runtime)
+        # PyInstaller bundles the entire dependency closure into the EXE,
+        # so we need every runtime dep here even though they only run on
+        # the target machine. Pillow is also needed by make_icon.py and
+        # make_wizard_images.py at build time.
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller==6.10.0
+          pip install -r watchtower/agent/requirements.txt
+
+      - name: Install Inno Setup 6
+        # chocolatey is preinstalled on windows-latest runners. innosetup
+        # package installs ISCC.exe to C:\Program Files (x86)\Inno Setup 6\
+        # which build.ps1's candidate list already searches.
+        shell: pwsh
+        run: choco install innosetup -y --no-progress
+
+      - name: Build + publish installer
+        shell: pwsh
+        env:
+          # gh CLI reads GH_TOKEN automatically. GITHUB_TOKEN is the
+          # workflow's auto-provided token scoped to this repo with the
+          # `contents: write` permission declared above.
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        working-directory: watchtower/installer
+        run: |
+          $v = '${{ steps.version.outputs.version }}'
+          .\build.ps1 -AppVersion $v -Publish
+
+      - name: Upload built EXE as workflow artifact
+        # Belt-and-suspenders: even if the release push glitched, the
+        # built EXE is downloadable from the Actions run page for ~90
+        # days. Doesn't bloat anything since GitHub stores it once.
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Watchtower-Setup-${{ steps.version.outputs.version }}
+          path: watchtower/installer/dist/Watchtower-Setup.exe
+          if-no-files-found: warn
+          retention-days: 90
+
+      - name: Summary
+        if: success()
+        shell: pwsh
+        run: |
+          $v = '${{ steps.version.outputs.version }}'
+          $tag = '${{ steps.version.outputs.tag }}'
+          $url = "https://github.com/${{ github.repository }}/releases/download/$tag/Watchtower-Setup.exe"
+          # GITHUB_STEP_SUMMARY shows up at the top of the Actions run page.
+          @"
+          ## Watchtower v$v published
+
+          - **Tag**: ``$tag``
+          - **Download URL**: $url
+          - **Dashboard auto-pickup**: The Download Installer button + ``/latest-version`` worker endpoint will start handing out the new EXE within a couple of minutes (Cloudflare Workers caches /latest-version for 5 min).
+
+          To roll out via auto-update, no further action is needed -- agents with **Auto-install updates** flipped on in their drawer will pick this up on their next daily check-in.
+          "@ | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
