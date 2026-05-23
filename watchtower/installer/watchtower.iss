@@ -1,53 +1,47 @@
 ; ============================================================================
-; Watchtower Agent Installer
+; Umbrella Watchtower Agent Installer
 ; ----------------------------------------------------------------------------
 ; Installs the Watchtower monitoring agent on a client Windows PC:
 ;   - Drops watchtower-svc.exe + watchtower-tray.exe into Program Files
-;   - Writes %ProgramData%\Watchtower\config.json with the per-client
-;     install token, worker URL, client name, and a freshly-generated
-;     pcId (one unique UUID per install)
+;   - Prompts the operator for an install token (or accepts /TOKEN= silently)
+;   - Pings the Watchtower worker to validate the token before writing
+;     anything; refuses to install if the token is rejected
+;   - Writes %ProgramData%\Watchtower\config.json with the token, worker
+;     URL, worker-resolved client name, and a per-install pcId UUID
 ;   - Registers WatchtowerAgent as an auto-start LocalSystem service
 ;   - Adds the tray to HKLM Run so it autostarts for every interactive user
+;   - Updates the Add/Remove Programs DisplayName to include the client
 ;
-; Build via installer\build.ps1 — that script wraps PyInstaller for both
-; EXEs, then invokes ISCC with the right /D defines per client.
+; Single generic installer — there's no per-client compile-time customization
+; anymore. Build once with installer\build.ps1, ship the same EXE to every
+; client. The token (and which client it's bound to) is decided at install
+; time.
 ;
-; Per-client values come from /D flags at compile time:
-;   ISCC.exe watchtower.iss /DClientName=OPFD /DInstallToken=<base64>
+; Silent install:
+;   Watchtower-Setup.exe /VERYSILENT /SUPPRESSMSGBOXES /TOKEN=wt_xxxxx
 ;
-; If not provided, the build falls back to empty defaults — useful for
-; smoke-testing a build but produces an installer that won't check in
-; successfully because the worker will 401 the empty token.
+; Optional silent overrides:
+;   /CLIENT="Acme Corp"    Override the client label (otherwise the worker's
+;                          token-bound clientName is used)
+;   /WORKERURL=https://... Hit a different worker (testing only)
 ; ============================================================================
 
-#ifndef ClientName
-  #define ClientName ""
-#endif
-#ifndef InstallToken
-  #define InstallToken ""
-#endif
 #ifndef WorkerUrl
   #define WorkerUrl "https://watchtower-worker.umbrelladev.workers.dev"
 #endif
 #ifndef AppVersion
-  #define AppVersion "0.1.0"
+  #define AppVersion "0.3.0"
 #endif
 
-; Display name shown in Add/Remove Programs, the install wizard title,
-; the uninstaller window — basically everywhere the user sees the app.
 #define AppName       "Umbrella Watchtower Agent"
 #define AppPublisher  "Umbrella Automation"
 
-; ServiceName is the Windows service identifier used by sc.exe. We
-; deliberately keep this as the original "WatchtowerAgent" string
-; (without the Umbrella prefix) so in-place upgrades over existing
-; installs work — service IDs are not safely renamable mid-flight.
-; The service's DISPLAY name in services.msc is the user-facing label
-; and IS updated below.
+; ServiceName is the Windows service identifier used by sc.exe. Kept as
+; "WatchtowerAgent" so in-place upgrades over existing installs work —
+; sc.exe doesn't safely rename service IDs mid-flight.
 #define ServiceName   "WatchtowerAgent"
 
 [Setup]
-; Stable AppId so reinstalls / upgrades over the same EXE work.
 AppId={{F4D2A1E6-9B3C-4A82-8F7E-1D2C3B4A5E6F}
 AppName={#AppName}
 AppVersion={#AppVersion}
@@ -56,13 +50,13 @@ DefaultDirName={autopf}\Umbrella Watchtower
 DisableProgramGroupPage=yes
 DisableDirPage=yes
 PrivilegesRequired=admin
-OutputBaseFilename=Watchtower-Setup-{#ClientName}
+OutputBaseFilename=Watchtower-Setup
 OutputDir=dist
 Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
 ShowLanguageDialog=no
-UninstallDisplayName={#AppName} ({#ClientName})
+UninstallDisplayName={#AppName}
 
 ; ----------------------------------------------------------------------------
 ; Files — produced by build.ps1 / PyInstaller into installer\build\
@@ -122,11 +116,178 @@ Filename: "{cmd}";        Parameters: "/c taskkill /im watchtower-tray.exe /f"; 
 Type: filesandordirs; Name: "{commonappdata}\Watchtower"
 
 ; ----------------------------------------------------------------------------
-; Pascal Script: generate per-install pcId UUID + write config.json
+; Pascal Script: token prompt, worker validation, pcId generation, config.json
 ; ----------------------------------------------------------------------------
 [Code]
 
-function GenerateUuid(): string;
+var
+  TokenPage: TInputQueryWizardPage;
+  ResolvedClientName: string;
+  ResolvedClientId: string;
+  ValidatedToken: string;  // cached so we don't double-validate
+
+// ──────────────────────────────────────────────────────────────────────
+// Command-line getters — support silent installs via /TOKEN= /CLIENT=
+// /WORKERURL=
+// ──────────────────────────────────────────────────────────────────────
+
+function GetCmdToken: string;
+begin
+  Result := ExpandConstant('{param:TOKEN|}');
+end;
+
+function GetCmdClient: string;
+begin
+  Result := ExpandConstant('{param:CLIENT|}');
+end;
+
+function GetWorkerUrl: string;
+begin
+  Result := ExpandConstant('{param:WORKERURL|{#WorkerUrl}}');
+end;
+
+// ──────────────────────────────────────────────────────────────────────
+// Custom wizard page — single input field for the install token
+// ──────────────────────────────────────────────────────────────────────
+
+procedure InitializeWizard;
+begin
+  TokenPage := CreateInputQueryPage(wpWelcome,
+    'Client Setup',
+    'Enter the install token issued for this PC.',
+    'Generate a token in the Watchtower dashboard (Clients tab, click "+ Token" on the client''s row). The full string begins with "wt_".' +
+    Chr(13) + Chr(10) + Chr(13) + Chr(10) +
+    'The installer will contact Watchtower to verify the token before continuing — the install cannot complete without a valid token.');
+  TokenPage.Add('&Install token:', False);
+end;
+
+function ShouldSkipPage(PageID: Integer): Boolean;
+begin
+  Result := False;
+  // Skip the token prompt when /TOKEN= was passed on the command line.
+  if (PageID = TokenPage.ID) and (GetCmdToken <> '') then
+    Result := True;
+end;
+
+// ──────────────────────────────────────────────────────────────────────
+// Minimal JSON value extractor — handles `"key":"value"` for plain ASCII
+// strings without nested escapes. Good enough for our worker's response
+// shape; not a general-purpose parser.
+// ──────────────────────────────────────────────────────────────────────
+
+function ExtractJsonString(const Json, Key: string): string;
+var
+  Search: string;
+  StartPos, EndPos: Integer;
+begin
+  Result := '';
+  Search := '"' + Key + '":"';
+  StartPos := Pos(Search, Json);
+  if StartPos = 0 then Exit;
+  StartPos := StartPos + Length(Search);
+  EndPos := StartPos;
+  while (EndPos <= Length(Json)) and (Json[EndPos] <> '"') do
+    EndPos := EndPos + 1;
+  Result := Copy(Json, StartPos, EndPos - StartPos);
+end;
+
+procedure ShowError(const Msg: string);
+begin
+  // Honor /SUPPRESSMSGBOXES — silent installs must never pop dialogs.
+  if not WizardSilent then
+    MsgBox(Msg, mbError, MB_OK);
+  // In silent mode the install just fails; the operator gets a non-zero
+  // exit code and can check the install log.
+  Log('Watchtower install error: ' + Msg);
+end;
+
+// ──────────────────────────────────────────────────────────────────────
+// Worker validation — synchronous WinHttp COM call. Caches result so
+// NextButtonClick + CurStepChanged don't double-ping.
+// ──────────────────────────────────────────────────────────────────────
+
+function ValidateTokenWithWorker(const Token: string): Boolean;
+var
+  WinHttp: Variant;
+  Status: Integer;
+  Body: string;
+begin
+  Result := False;
+  ResolvedClientName := '';
+  ResolvedClientId := '';
+
+  if Token = ValidatedToken then
+  begin
+    // Same token as last call — skip the round trip.
+    Result := True;
+    Exit;
+  end;
+
+  try
+    WinHttp := CreateOleObject('WinHttp.WinHttpRequest.5.1');
+    WinHttp.Open('GET', GetWorkerUrl + '/validate', False);
+    WinHttp.SetRequestHeader('Authorization', 'Bearer ' + Token);
+    WinHttp.SetRequestHeader('Accept', 'application/json');
+    // Resolve / Connect / Send / Receive (ms). 30s receive is generous —
+    // /validate normally returns in <1s.
+    WinHttp.SetTimeouts(10000, 10000, 10000, 30000);
+    WinHttp.Send;
+    Status := WinHttp.Status;
+    if Status = 200 then
+    begin
+      Body := WinHttp.ResponseText;
+      ResolvedClientName := ExtractJsonString(Body, 'client');
+      ResolvedClientId := ExtractJsonString(Body, 'clientId');
+      ValidatedToken := Token;
+      Result := True;
+    end
+    else if Status = 401 then
+    begin
+      ShowError('Watchtower rejected this install token.' + Chr(13) + Chr(10) + Chr(13) + Chr(10) +
+                'Check that you copied the FULL token from the dashboard (begins with "wt_") and that it has not been revoked. Then try again.');
+    end
+    else
+    begin
+      ShowError('Unexpected response from Watchtower worker (HTTP ' + IntToStr(Status) + ').' + Chr(13) + Chr(10) + Chr(13) + Chr(10) +
+                'Verify the worker URL is reachable and try again.');
+    end;
+  except
+    ShowError('Could not reach the Watchtower worker at:' + Chr(13) + Chr(10) +
+              GetWorkerUrl + Chr(13) + Chr(10) + Chr(13) + Chr(10) +
+              'Check the PC''s internet connection and try again.');
+  end;
+end;
+
+function NextButtonClick(CurPageID: Integer): Boolean;
+var
+  Token: string;
+begin
+  Result := True;
+  if CurPageID = TokenPage.ID then
+  begin
+    Token := Trim(TokenPage.Values[0]);
+    if Token = '' then
+    begin
+      MsgBox('Please paste the install token from the Watchtower dashboard.', mbError, MB_OK);
+      Result := False;
+      Exit;
+    end;
+    // Disable the Next button so the operator can't double-click during
+    // the round trip and queue up a second navigation.
+    WizardForm.NextButton.Enabled := False;
+    try
+      Result := ValidateTokenWithWorker(Token);
+    finally
+      WizardForm.NextButton.Enabled := True;
+    end;
+  end;
+end;
+
+// ──────────────────────────────────────────────────────────────────────
+// pcId generation + config.json
+// ──────────────────────────────────────────────────────────────────────
+
+function GenerateUuid: string;
 var
   ResultCode: Integer;
   TmpPath, Content: string;
@@ -152,8 +313,22 @@ begin
   // PowerShell is universally available on supported Windows; if we end
   // up here something is genuinely wrong with the host. Abort rather
   // than fabricate a possibly-colliding pcId.
-  MsgBox('Could not generate the per-install identifier. PowerShell may be unavailable or blocked. Install aborted.', mbError, MB_OK);
+  ShowError('Could not generate the per-install identifier. PowerShell may be unavailable or blocked. Install aborted.');
   Abort;
+end;
+
+function ExtractExistingPcId: string;
+var
+  ConfigPath: string;
+  AnsiContent: AnsiString;
+begin
+  // Re-installs over an existing install should preserve pcId so the
+  // dashboard sees the same host. The token / client may change (e.g.
+  // re-issued after revocation) so we overwrite the rest of config.json.
+  Result := '';
+  ConfigPath := ExpandConstant('{commonappdata}\Watchtower\config.json');
+  if FileExists(ConfigPath) and LoadStringFromFile(ConfigPath, AnsiContent) then
+    Result := ExtractJsonString(string(AnsiContent), 'pcId');
 end;
 
 function JsonEscape(const S: string): string;
@@ -161,10 +336,9 @@ var
   i: Integer;
   C: Char;
 begin
-  // Note: we use Chr() instead of Pascal's #10 / #13 / #9 character literals
-  // because the Inno Setup preprocessor treats a `#` at the start of a line
-  // as a preprocessor directive (`#define`, `#if`, etc.) and chokes on the
-  // numeric value. Chr() sidesteps that ambiguity.
+  // Chr() instead of Pascal's #10 / #13 / #9 character literals — Inno
+  // Setup's preprocessor treats a `#` at the start of a line as a
+  // preprocessor directive and chokes on the numeric value.
   Result := '';
   for i := 1 to Length(S) do
   begin
@@ -178,7 +352,7 @@ begin
   end;
 end;
 
-procedure WriteConfigJson(const PcId: string);
+procedure WriteConfigJson(const PcId, Token, ClientName: string);
 var
   ConfigDir, ConfigPath, Body: string;
 begin
@@ -187,32 +361,74 @@ begin
   ConfigPath := ConfigDir + '\config.json';
 
   Body :=
-    '{' + #13#10 +
-    '  "workerUrl": "'   + JsonEscape('{#WorkerUrl}')    + '",' + #13#10 +
-    '  "installToken": "' + JsonEscape('{#InstallToken}') + '",' + #13#10 +
-    '  "client": "'      + JsonEscape('{#ClientName}')   + '",' + #13#10 +
-    '  "pcId": "'        + JsonEscape(PcId)              + '",' + #13#10 +
-    '  "agentVersion": "' + JsonEscape('{#AppVersion}')  + '"' + #13#10 +
-    '}' + #13#10;
+    '{' + Chr(13) + Chr(10) +
+    '  "workerUrl": "'    + JsonEscape(GetWorkerUrl)       + '",' + Chr(13) + Chr(10) +
+    '  "installToken": "' + JsonEscape(Token)              + '",' + Chr(13) + Chr(10) +
+    '  "client": "'       + JsonEscape(ClientName)         + '",' + Chr(13) + Chr(10) +
+    '  "pcId": "'         + JsonEscape(PcId)               + '",' + Chr(13) + Chr(10) +
+    '  "agentVersion": "' + JsonEscape('{#AppVersion}')    + '"' + Chr(13) + Chr(10) +
+    '}' + Chr(13) + Chr(10);
 
   SaveStringToFile(ConfigPath, Body, False);
 end;
 
+procedure UpdateUninstallDisplayName(const ClientName: string);
+var
+  KeyPath: string;
+begin
+  // Tack the client name onto the Add/Remove Programs entry so admins
+  // poking around the target PC know which client this install is for.
+  // Inno Setup's uninstall key is `<AppId>_is1` under the standard
+  // Uninstall path — we just overwrite its DisplayName value after
+  // install completes.
+  if ClientName = '' then Exit;
+  KeyPath := 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{F4D2A1E6-9B3C-4A82-8F7E-1D2C3B4A5E6F}_is1';
+  RegWriteStringValue(HKLM, KeyPath, 'DisplayName', '{#AppName} (' + ClientName + ')');
+end;
+
 procedure CurStepChanged(CurStep: TSetupStep);
 var
-  PcId: string;
+  Token, ClientName, PcId: string;
 begin
   if CurStep = ssInstall then
   begin
-    // Generate pcId BEFORE Files copy so it's ready when the service
-    // first starts. We only generate a new UUID if config.json doesn't
-    // already exist — re-running the installer over an existing install
-    // should preserve the pcId so the dashboard sees the same host.
-    PcId := '';
-    if not FileExists(ExpandConstant('{commonappdata}\Watchtower\config.json')) then
+    // Resolve the token: command-line override wins, else use the wizard
+    // input. NextButtonClick already validated wizard input; silent
+    // installs hit validation here for the first time.
+    Token := GetCmdToken;
+    if Token = '' then Token := Trim(TokenPage.Values[0]);
+
+    if Token = '' then
     begin
-      PcId := GenerateUuid();
-      WriteConfigJson(PcId);
+      ShowError('No install token provided. Pass /TOKEN=wt_xxx for silent installs.');
+      Abort;
     end;
+
+    if not ValidateTokenWithWorker(Token) then
+    begin
+      // ValidateTokenWithWorker already showed (or logged) the error.
+      Abort;
+    end;
+
+    // Resolve the client name: /CLIENT= override > worker resolution >
+    // "Unknown" fallback (shouldn't happen in practice; a valid token
+    // is always bound to a client in /install_tokens).
+    ClientName := GetCmdClient;
+    if ClientName = '' then ClientName := ResolvedClientName;
+    if ClientName = '' then ClientName := 'Unknown';
+
+    // Preserve pcId across re-installs so the dashboard keeps the same row.
+    PcId := ExtractExistingPcId;
+    if PcId = '' then PcId := GenerateUuid;
+
+    WriteConfigJson(PcId, Token, ClientName);
+  end
+  else if CurStep = ssPostInstall then
+  begin
+    // Update Add/Remove Programs DisplayName after the install registers
+    // the uninstall key. Pulls from cmd-line override or worker result.
+    ClientName := GetCmdClient;
+    if ClientName = '' then ClientName := ResolvedClientName;
+    UpdateUninstallDisplayName(ClientName);
   end;
 end;

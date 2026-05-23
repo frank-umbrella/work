@@ -1,7 +1,11 @@
 # Watchtower installer
 
-Builds per-client `Watchtower-Setup-<ClientName>.exe` installers via
-PyInstaller + Inno Setup 6.
+Builds the generic `Watchtower-Setup.exe` via PyInstaller + Inno Setup 6.
+The same EXE deploys to every client &mdash; the install token (and the
+client it's bound to) is entered at install time in the wizard, or
+passed via `/TOKEN=...` for silent installs.
+
+See [docs.html](../docs.html) for the operator-facing guide.
 
 ## One-time setup
 
@@ -16,18 +20,15 @@ python -m pip install -r requirements.txt
 python -m pip install pyinstaller
 ```
 
-## Build for a client
+## Build
 
 ```powershell
 cd ..\installer
-.\build.ps1 -ClientName "OPFD" -InstallToken "<paste the 32-byte base64 token>"
+.\build.ps1
 ```
 
-Output: `installer\dist\Watchtower-Setup-OPFD.exe`.
-
-Hand that file to the technician deploying on the client PC. Running
-it requires admin elevation (the wizard will prompt for UAC) and takes
-maybe 15 seconds end-to-end.
+Output: `installer\dist\Watchtower-Setup.exe`. Ship the same file to
+every client.
 
 ## Iteration tips
 
@@ -36,19 +37,17 @@ maybe 15 seconds end-to-end.
   the `.iss` and don't need to re-bundle Python.
 - `-AppVersion` lets you bump the installer's displayed version
   independent of `watchtower.iss`.
-- The pcId UUID is generated at install time on the client PC — so
-  the same `Watchtower-Setup-OPFD.exe` deployed on three different PCs
-  produces three distinct pcIds. The InstallToken is shared across
-  every PC for that client (and currently across all clients too — the
-  worker accepts whatever token matches `WATCHTOWER_INSTALL_TOKEN`).
+- `-WorkerUrl` overrides the worker URL baked into the installer (the
+  default points at production). Useful when iterating against a
+  staging worker.
 
-## Generating an InstallToken
+## Generating install tokens
 
-```powershell
-$bytes = New-Object byte[] 32
-[Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($bytes)
-[Convert]::ToBase64String($bytes)
-```
+Tokens are now generated per-client in the Watchtower dashboard
+(Clients tab &rarr; `+ Token`). Each token is bound to a client at
+generation time and SHA-256-hashed before storage; the raw token is
+shown once in a copy-to-clipboard modal.
 
-Set this same value as the `WATCHTOWER_INSTALL_TOKEN` secret on the
-Cloudflare Worker (see `..\worker\README.md`).
+The legacy shared-secret pattern (`WATCHTOWER_INSTALL_TOKEN` env var on
+the worker) is still accepted by the worker as a backward-compat /
+emergency-backdoor; see `..\worker\README.md`.

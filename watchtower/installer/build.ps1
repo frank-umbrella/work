@@ -1,15 +1,20 @@
-# build.ps1 — builds per-client Watchtower-Setup-<ClientName>.exe installers.
+# build.ps1 — builds the generic Watchtower-Setup.exe installer.
+#
+# Single installer for every client. The operator running it on the target
+# PC pastes their install token into the wizard (or passes /TOKEN= for a
+# silent install). The token is validated against the worker before the
+# install completes — see installer\watchtower.iss [Code] section.
 #
 # Steps:
 #   1. Verify Python + PyInstaller + Inno Setup are available.
 #   2. PyInstaller --onefile for watchtower_service.py and watchtower_tray.py
 #      → installer\build\watchtower-svc.exe + watchtower-tray.exe.
-#   3. ISCC.exe compiles watchtower.iss with /DClientName + /DInstallToken
-#      + /DWorkerUrl defines passed in here as parameters.
-#   4. Output: installer\dist\Watchtower-Setup-<ClientName>.exe
+#   3. ISCC.exe compiles watchtower.iss with /DWorkerUrl + /DAppVersion
+#      defines (no per-client values — those are runtime now).
+#   4. Output: installer\dist\Watchtower-Setup.exe
 #
 # Usage:
-#   .\build.ps1 -ClientName "OPFD" -InstallToken "<base64>"
+#   .\build.ps1
 #
 # Optional:
 #   -WorkerUrl   defaults to https://watchtower-worker.umbrelladev.workers.dev
@@ -18,10 +23,8 @@
 
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory=$true)]  [string] $ClientName,
-    [Parameter(Mandatory=$true)]  [string] $InstallToken,
     [string] $WorkerUrl   = "https://watchtower-worker.umbrelladev.workers.dev",
-    [string] $AppVersion  = "0.1.0",
+    [string] $AppVersion  = "0.3.0",
     [switch] $SkipPyInstaller
 )
 
@@ -116,14 +119,12 @@ if (-not (Test-Path (Join-Path $buildDir 'watchtower-tray.exe'))) {
 }
 
 # ---------------------------------------------------------------------------
-# Inno Setup — compile installer with per-client defines
+# Inno Setup — compile generic installer (no per-client defines)
 # ---------------------------------------------------------------------------
-Write-Host "==> ISCC: Watchtower-Setup-$ClientName.exe" -ForegroundColor Cyan
+Write-Host "==> ISCC: Watchtower-Setup.exe" -ForegroundColor Cyan
 $iss = Join-Path $here 'watchtower.iss'
 
 & $iscc `
-    "/DClientName=$ClientName" `
-    "/DInstallToken=$InstallToken" `
     "/DWorkerUrl=$WorkerUrl" `
     "/DAppVersion=$AppVersion" `
     $iss
@@ -132,10 +133,11 @@ if ($LASTEXITCODE -ne 0) {
     throw "ISCC failed with exit code $LASTEXITCODE"
 }
 
-$out = Join-Path $distDir "Watchtower-Setup-$ClientName.exe"
+$out = Join-Path $distDir 'Watchtower-Setup.exe'
 if (Test-Path $out) {
     Write-Host ""
     Write-Host "Done: $out" -ForegroundColor Green
+    Write-Host "Ship this same file to every client; the install token is entered at install time." -ForegroundColor DarkGray
 } else {
     throw "Expected output missing: $out"
 }
