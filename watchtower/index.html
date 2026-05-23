@@ -587,7 +587,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.11.3";
+const APP_VERSION = "0.11.4";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -1872,19 +1872,29 @@ function buildReportDom(a, logoSvg) {
   const def = r.defender;
   const idrac = r.idrac;
 
+  // Logo: branding/assets/logo-primary.svg is a wide-format wordmark (1300x280
+  // viewBox, ~4.6:1). We allocate ~280px wide so it doesn't get squashed --
+  // the previous 110px slot clipped most of the wordmark. Strip the SVG's
+  // own width/height and inject our own via inline style so the viewBox does
+  // the scaling math.
+  const logoBlock = logoSvg
+    ? `<div style="width:280px;flex:0 0 280px;">${
+        logoSvg
+          .replace(/<svg([^>]*?)\s+width="[^"]*"/, '<svg$1')
+          .replace(/<svg([^>]*?)\s+height="[^"]*"/, '<svg$1')
+          .replace(/<svg([^>]*)>/, '<svg$1 style="display:block;width:280px;height:auto;">')
+      }</div>`
+    : `<div style="width:280px;flex:0 0 280px;font-weight:900;color:#0c5e9c;font-size:22px;letter-spacing:0.02em;line-height:1.1;">UMBRELLA<br><span style="color:#6e6e6e;">AUTOMATION</span></div>`;
+
   div.innerHTML = `
     <!-- HEADER -->
-    <div style="display:flex;align-items:center;gap:20px;border-bottom:2px solid #0a6b6b;padding-bottom:14px;margin-bottom:18px;">
-      <div style="flex:0 0 110px;height:50px;display:flex;align-items:center;">
-        ${logoSvg ? `<div style="height:50px;display:flex;align-items:center;">${logoSvg.replace(/<svg([^>]*)>/, '<svg$1 style="height:50px;width:auto;">') }</div>` : `<div style="font-weight:700;color:#0a6b6b;font-size:14px;letter-spacing:0.02em;">UMBRELLA<br>AUTOMATION</div>`}
-      </div>
-      <div style="flex:1;text-align:center;">
-        <h1 style="margin:0;font-size:24px;color:#0a6b6b;letter-spacing:-0.01em;">Watchtower</h1>
-        <div style="font-size:11px;color:#8892a4;margin-top:2px;">Per-host monitoring report</div>
-      </div>
-      <div style="flex:0 0 auto;text-align:right;font-size:10px;color:#8892a4;">
-        Generated ${new Date().toLocaleString()}<br>
-        Dashboard v${APP_VERSION}
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:24px;border-bottom:2px solid #0a6b6b;padding-bottom:16px;margin-bottom:18px;">
+      ${logoBlock}
+      <div style="flex:0 0 auto;text-align:right;font-size:10px;color:#8892a4;line-height:1.5;padding-top:6px;">
+        <div style="font-size:13px;color:#0a6b6b;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;margin-bottom:4px;">Watchtower</div>
+        <div>Per-host monitoring report</div>
+        <div>Generated ${new Date().toLocaleString()}</div>
+        <div>Dashboard v${APP_VERSION}</div>
       </div>
     </div>
 
