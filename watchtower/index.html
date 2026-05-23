@@ -654,7 +654,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.13.5";
+const APP_VERSION = "0.13.6";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -3409,7 +3409,23 @@ function renderDrawer(pcId) {
         // Optimistic: snapshot listener will update soon, but show the
         // confirmation now so the operator knows it worked.
         if (status) status.textContent = `Reassigned to ${data.client}.`;
-        toast(`${a.hostname || a.id} reassigned to ${data.client}.`);
+        // If a Client filter is currently set AND it isn't the new
+        // destination, this host would silently disappear from the
+        // Endpoints table the moment the snapshot tick lands. Clear
+        // the filter so the operator can still see the row they just
+        // edited -- the alternative (host vanishes from the table the
+        // instant you save) is way worse than a benign "filter cleared"
+        // notice. Status text takes precedence so the toast is plain.
+        const activeFilter = state.filter.client;
+        if (activeFilter && activeFilter !== data.client) {
+          state.filter.client = "";
+          const sel = document.getElementById("clientFilter");
+          if (sel) sel.value = "";
+          toast(`${a.hostname || a.id} reassigned to ${data.client}. Client filter cleared so the host stays visible.`);
+          renderFleet();
+        } else {
+          toast(`${a.hostname || a.id} reassigned to ${data.client}.`);
+        }
         setTimeout(() => { if (status) status.textContent = ""; }, 3000);
       } catch (err) {
         if (status) status.textContent = `Failed: ${err.message || err}`;
