@@ -229,9 +229,54 @@
   #modal .info { background: var(--info-soft); border: 1px solid #bae6fd; color: #075985; padding: 10px 12px; border-radius: 8px; font-size: 12.5px; margin: 12px 0; }
   #modal .info code { background: rgba(255,255,255,0.5); padding: 1px 5px; border-radius: 4px; }
 
+  /* Product pills shown in the Backup / Remote fleet columns */
+  .pill { display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 11px; font-weight: 600; letter-spacing: 0.02em; font-family: var(--sans); border: 1px solid; }
+  .pill-veeam      { background: #ecfdf5; border-color: #6ee7b7; color: #065f46; }
+  .pill-wsb        { background: #eff6ff; border-color: #93c5fd; color: #1e3a8a; }
+  .pill-carbonite  { background: #fef3c7; border-color: #fcd34d; color: #78350f; }
+  .pill-lmi        { background: #fae8ff; border-color: #d8b4fe; color: #581c87; }
+  .pill-idrac      { background: #e0e7ff; border-color: #a5b4fc; color: #312e81; }
+
   @media (max-width: 760px) {
-    table.fleet .col-client, table.fleet .col-os, table.fleet .col-intip { display: none; }
+    table.fleet .col-client, table.fleet .col-os, table.fleet .col-intip, table.fleet .col-products { display: none; }
     #drawer { width: 100vw; }
+  }
+
+  /* iPhone-portrait: stack fleet rows as cards — each cell becomes a
+     labeled row so info stays readable without horizontal scrolling.
+     Triggered below 600px since iPhone 15/16 portrait is ~390 / 430px. */
+  @media (max-width: 600px) {
+    table.fleet, table.fleet thead, table.fleet tbody, table.fleet tr, table.fleet td, table.fleet th { display: block; }
+    table.fleet thead { display: none; }
+    table.fleet tr { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; margin: 0 12px 10px; }
+    table.fleet tr:hover td { background: transparent; }
+    table.fleet td { padding: 4px 0; border: 0; display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 13.5px; }
+    table.fleet td::before {
+      content: attr(data-label);
+      font-size: 10.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--ink-faint);
+      flex: 0 0 auto;
+    }
+    /* Host row gets prominent treatment as the card "title" */
+    table.fleet td[data-label="Host"] { font-size: 16px; margin-bottom: 4px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+    table.fleet td[data-label="Host"]::before { display: none; }
+    table.fleet td[data-label="Host"] .host { font-weight: 700; }
+    /* Show ALL columns in card mode — col-* hides from the original
+       responsive rule don't apply here, but we re-show them explicitly. */
+    table.fleet .col-client, table.fleet .col-os, table.fleet .col-intip, table.fleet .col-products { display: flex; }
+    /* Hide rows with no useful info ("—") in card mode to keep cards tight */
+    table.fleet td.client[data-label="OS"]:empty,
+    table.fleet td.col-intip:has(.meta:only-child) { display: none; }
+    /* Top bar — shrink chip + buttons for mobile */
+    header.bar .userbar .who { display: none; }
+    header.bar .userbar { gap: 6px; }
+    main { padding: 14px 0 60px; }
+    .tabs { margin: 0 12px 14px; }
+    .filters { padding: 12px; flex-direction: column; align-items: stretch; }
+    .filters input[type="search"] { width: 100%; }
   }
 </style>
 </head>
@@ -272,6 +317,7 @@
         </div>
       </div>
       <div class="userbar">
+        <a class="btn btn-sm" href="#" id="downloadInstallerLink" title="Download Watchtower-Setup.exe (latest published version)">Download installer</a>
         <a class="btn btn-sm" href="docs.html" target="_blank" rel="noopener">Docs</a>
         <div class="who"><span class="e" id="userEmail"></span><span class="r">MSP admin</span></div>
         <img class="avatar" id="userAvatar" alt="">
@@ -316,6 +362,8 @@
                 <th class="col-intip">Internal IP</th>
                 <th>External IP</th>
                 <th class="col-os">OS</th>
+                <th class="col-products">Backup</th>
+                <th class="col-products">Remote</th>
                 <th>Last check</th>
                 <th>Status</th>
               </tr>
@@ -339,13 +387,14 @@
           <h3 style="margin:0 0 4px;font-size:14px;">Master webhook URL</h3>
           <p style="margin:0 0 10px;color:var(--ink-soft);font-size:13px;">All per-agent webhook events (IP changes, backup failures) POST a JSON payload to this URL when their per-PC <code>webhookEnabled</code> toggle is on. Set once for the whole fleet.</p>
           <input type="url" id="masterWebhookUrl" placeholder="https://your-webhook.example.com/" style="width:100%;max-width:560px;padding:7px 10px;border:1px solid var(--line-strong);border-radius:7px;font-size:13.5px;background:var(--surface);">
-          <div style="margin-top:10px;display:flex;gap:8px;align-items:center;">
+          <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
             <button class="btn btn-primary btn-sm" id="saveMasterWebhook">Save</button>
             <button class="btn btn-sm" id="clearMasterWebhook">Clear</button>
+            <button class="btn btn-sm btn-danger" id="resetAllHostsWebhook" title="Clears per-host webhookUrl on every agent — they all fall back to the master URL above.">Reset all hosts to master</button>
             <span class="meta" id="masterWebhookStatus" style="margin-left:6px;"></span>
           </div>
           <div class="callout" style="background:var(--info-soft);border:1px solid #bae6fd;color:#075985;padding:10px 12px;border-radius:8px;margin-top:14px;font-size:12.5px;">
-            Whether each agent fires events to this URL is controlled by the per-PC <b>Webhook on IP change</b> toggle in that host's drawer. Leaving the master URL empty silences all webhook events fleet-wide.
+            Per-host drawer lets you set a different URL just for that PC; the master URL above is the fleet-wide default. <b>Reset all hosts to master</b> wipes every per-host override in one shot — useful after consolidating from a multi-URL setup.
           </div>
 
           <hr style="margin:24px 0;border:0;border-top:1px solid var(--line);">
@@ -426,7 +475,10 @@
         <h2 id="dHost">—</h2>
         <div class="sub" id="dSub"></div>
       </div>
-      <div class="right"><button class="btn btn-sm" id="closeDrawer">Close</button></div>
+      <div class="right" style="display:flex;gap:6px;">
+        <button class="btn btn-sm" id="exportPdfBtn" title="Generate a PDF report for this host">Export PDF</button>
+        <button class="btn btn-sm" id="closeDrawer">Close</button>
+      </div>
     </div>
     <div class="drawer-body" id="dBody"></div>
   </aside>
@@ -453,7 +505,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.9.0";
+const APP_VERSION = "0.9.1";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -498,11 +550,39 @@ function esc(s) {
   return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
-function fmtAge(iso) {
-  if (!iso) return "—";
-  const then = new Date(iso).getTime();
-  if (isNaN(then)) return iso;
-  const mins = Math.floor((Date.now() - then) / 60000);
+// Normalize a Firestore timestamp value to a JS Date. The worker writes
+// ISO strings, but firestoreSetDoc's heuristic upconverts them to
+// Firestore timestampValue on the wire — they round-trip back as the
+// SDK's Timestamp class { seconds, nanoseconds }. Handle both formats
+// (plus already-converted Date objects) so the dashboard renders the
+// same way regardless of what shape the field arrived in.
+function tsToDate(v) {
+  if (!v) return null;
+  if (v instanceof Date) return v;
+  if (typeof v === "string") {
+    const d = new Date(v);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  if (typeof v.toDate === "function") return v.toDate();
+  if (typeof v.seconds === "number") {
+    return new Date(v.seconds * 1000 + Math.floor((v.nanoseconds || 0) / 1e6));
+  }
+  return null;
+}
+
+// Human display of a timestamp value. Returns short local-time format,
+// e.g. "2026-05-23 14:32:11" — readable, sortable.
+function tsToStr(v) {
+  const d = tsToDate(v);
+  if (!d) return "—";
+  const pad = n => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+
+function fmtAge(v) {
+  const d = tsToDate(v);
+  if (!d) return "—";
+  const mins = Math.floor((Date.now() - d.getTime()) / 60000);
   if (mins < 1) return "just now";
   if (mins < 60) return mins + "m ago";
   const hrs = Math.floor(mins / 60);
@@ -700,15 +780,32 @@ function renderFleet() {
     const updBadge = updateAvailableFor(a)
       ? ` <span class="badge muted" title="Latest available: ${esc(state.latestAgent.version)}">Update ${esc(state.latestAgent.version)}</span>`
       : "";
+
+    // Backup product pills — small text badges, only for products actually detected on this host.
+    const r = a.report || {};
+    const backupPills = [];
+    if (r.veeam && r.veeam.installed) backupPills.push(`<span class="pill pill-veeam" title="Veeam">Veeam</span>`);
+    if (r.wsb && r.wsb.installed) backupPills.push(`<span class="pill pill-wsb" title="Windows Server Backup">WSB</span>`);
+    if (r.carbonite && r.carbonite.installed) backupPills.push(`<span class="pill pill-carbonite" title="Carbonite">Carb</span>`);
+    const backupCell = backupPills.length ? backupPills.join(" ") : `<span class="meta">—</span>`;
+
+    // Remote access pill — LogMeIn for now; iDRAC too if iSM is installed.
+    const remotePills = [];
+    if (r.logmein && r.logmein.installed) remotePills.push(`<span class="pill pill-lmi" title="LogMeIn">LMI</span>`);
+    if (r.idrac && r.idrac.installed) remotePills.push(`<span class="pill pill-idrac" title="Dell iDRAC iSM">iDRAC</span>`);
+    const remoteCell = remotePills.length ? remotePills.join(" ") : `<span class="meta">—</span>`;
+
     return `
       <tr data-id="${esc(a.id)}" class="${state.openPcId === a.id ? 'selected' : ''}">
-        <td><div class="host">${esc(a.hostname || a.id)}</div></td>
-        <td class="col-client client">${esc(a.client || "—")}</td>
-        <td class="col-intip ip">${esc(a.internalIp || "—")}</td>
-        <td class="ip">${esc(a.externalIp || "—")}</td>
-        <td class="col-os client">${esc(os)}</td>
-        <td class="age">${fmtAge(a.lastCheckin)}</td>
-        <td>${stBadge}${bhBadge}${ohBadge}${updBadge}</td>
+        <td data-label="Host"><div class="host">${esc(a.hostname || a.id)}</div></td>
+        <td class="col-client client" data-label="Client">${esc(a.client || "—")}</td>
+        <td class="col-intip ip" data-label="Internal IP">${esc(a.internalIp || "—")}</td>
+        <td class="ip" data-label="External IP">${esc(a.externalIp || "—")}</td>
+        <td class="col-os client" data-label="OS">${esc(os)}</td>
+        <td class="col-products" data-label="Backup">${backupCell}</td>
+        <td class="col-products" data-label="Remote">${remoteCell}</td>
+        <td class="age" data-label="Last check">${fmtAge(a.lastCheckin)}</td>
+        <td data-label="Status">${stBadge}${bhBadge}${ohBadge}${updBadge}</td>
       </tr>
     `;
   }).join("");
@@ -740,7 +837,40 @@ document.getElementById("clearMasterWebhook").addEventListener("click", () => {
   document.getElementById("masterWebhookUrl").value = "";
   saveMasterWebhook("");
 });
+document.getElementById("resetAllHostsWebhook").addEventListener("click", async () => {
+  const overrides = state.agents.filter(a => a.config && a.config.webhookUrl);
+  if (overrides.length === 0) {
+    toast("No per-host overrides to reset.");
+    return;
+  }
+  if (!confirm(`Reset webhook overrides on ${overrides.length} host${overrides.length === 1 ? "" : "s"}? They'll all use the master URL after their next config read.`)) return;
+  let failed = 0;
+  for (const a of overrides) {
+    try {
+      await writeConfig(a.id, "webhookUrl", null);
+    } catch { failed++; }
+  }
+  toast(failed === 0
+    ? `Reset ${overrides.length} host${overrides.length === 1 ? "" : "s"} to master URL.`
+    : `Reset ${overrides.length - failed} hosts; ${failed} failed.`, failed > 0);
+});
 document.getElementById("saveLatestAgent").addEventListener("click", saveLatestAgent);
+
+// Top-bar "Download installer" link — uses the latest published downloadUrl
+// from /settings/agentVersion (same source the auto-update flow reads).
+document.getElementById("downloadInstallerLink").addEventListener("click", (e) => {
+  e.preventDefault();
+  const url = state.latestAgent && state.latestAgent.downloadUrl;
+  if (url) {
+    window.open(url, "_blank", "noopener");
+  } else {
+    toast("No installer published yet — set the download URL in Settings.", true);
+    // Help them get there.
+    $$(".tab").forEach(t => t.classList.toggle("active", t.dataset.tab === "settings"));
+    $$(".tab-pane").forEach(p => p.hidden = (p.dataset.tab !== "settings"));
+    setTimeout(() => document.getElementById("latestAgentUrl")?.focus(), 50);
+  }
+});
 
 // ============== /clients live subscription ==============
 function subscribeClients() {
@@ -1095,6 +1225,9 @@ async function generateToken(clientId, opts = {}) {
     `,
     foot: `
       <button class="btn" data-modal-close>Done</button>
+      ${state.latestAgent && state.latestAgent.downloadUrl
+        ? `<a class="btn" href="${esc(state.latestAgent.downloadUrl)}" target="_blank" rel="noopener" id="dlInstallerFromToken">Download installer</a>`
+        : ""}
       <button class="btn btn-primary" id="copyTokenBtn">Copy token</button>
     `
   });
@@ -1180,6 +1313,207 @@ function closeDrawer() {
 }
 $("#closeDrawer").addEventListener("click", closeDrawer);
 $("#scrim").addEventListener("click", closeDrawer);
+$("#exportPdfBtn").addEventListener("click", () => {
+  if (state.openPcId) exportHostPdf(state.openPcId);
+});
+
+// ============== Per-host PDF export ==============
+// Lazy-loads html2pdf.bundle on first click to keep initial page weight small.
+let _html2pdfLoading = null;
+function loadHtml2Pdf() {
+  if (window.html2pdf) return Promise.resolve();
+  if (_html2pdfLoading) return _html2pdfLoading;
+  _html2pdfLoading = new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error("Failed to load html2pdf"));
+    document.head.appendChild(s);
+  });
+  return _html2pdfLoading;
+}
+
+// Cache the branded SVG logo once per session so PDF generation is instant
+// after the first use.
+let _brandLogoSvg = null;
+async function loadBrandLogo() {
+  if (_brandLogoSvg !== null) return _brandLogoSvg;
+  try {
+    const r = await fetch("../branding/assets/logo-primary.svg");
+    _brandLogoSvg = r.ok ? await r.text() : "";
+  } catch {
+    _brandLogoSvg = "";
+  }
+  return _brandLogoSvg;
+}
+
+async function exportHostPdf(pcId) {
+  const agent = state.agents.find(a => a.id === pcId);
+  if (!agent) { toast("Agent not found.", true); return; }
+  toast("Generating PDF…");
+
+  try {
+    await loadHtml2Pdf();
+    const logoSvg = await loadBrandLogo();
+    const reportDiv = buildReportDom(agent, logoSvg);
+    document.body.appendChild(reportDiv);
+
+    const filename = `${(agent.hostname || agent.id || "host").replace(/[^A-Za-z0-9._-]/g, "_")}-watchtower.pdf`;
+    const opts = {
+      margin: [24, 24, 24, 24],
+      filename,
+      image: { type: "jpeg", quality: 0.95 },
+      html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff" },
+      jsPDF: { unit: "pt", format: "letter", orientation: "portrait" },
+      pagebreak: { mode: ["css", "legacy"] },
+    };
+    await window.html2pdf().set(opts).from(reportDiv).save();
+    reportDiv.remove();
+    toast(`Saved ${filename}`);
+  } catch (e) {
+    toast(`PDF export failed: ${e.message || e}`, true);
+  }
+}
+
+function buildReportDom(a, logoSvg) {
+  const r = a.report || {};
+  const sys = r.system || {};
+  const os = sys.os || {};
+  const net = r.network || {};
+  const stor = r.storage || {};
+  const sw = r.software || {};
+  const hf = r.hotfixes || {};
+  const usb = r.usb || {};
+
+  // Helpers for the report — slightly different styling than the drawer
+  // (print-friendly, no badges with hover, etc).
+  const kvP = (rows) => `<table style="width:100%;border-collapse:collapse;margin-bottom:14px;">${
+    rows.filter(r => r).map(([k, v]) => `<tr><td style="color:#666;padding:4px 12px 4px 0;width:160px;vertical-align:top;font-size:12px;">${esc(k)}</td><td style="padding:4px 0;vertical-align:top;font-size:13px;">${v == null || v === "" ? "—" : v}</td></tr>`).join("")
+  }</table>`;
+  const sectionHdr = (title) => `<h3 style="font-size:13px;text-transform:uppercase;color:#0a6b6b;letter-spacing:0.06em;margin:18px 0 6px;border-bottom:1px solid #e3e6ec;padding-bottom:4px;">${esc(title)}</h3>`;
+
+  const div = document.createElement("div");
+  div.style.cssText = "position:fixed;top:-9999px;left:-9999px;width:720px;padding:32px 36px;background:#ffffff;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:#1a1f2b;font-size:13px;line-height:1.5;";
+
+  const omsa = r.omsa;
+  const veeam = r.veeam;
+  const wsb = r.wsb;
+  const carbonite = r.carbonite;
+  const lmi = r.logmein;
+  const s1 = r.sentinelone;
+  const def = r.defender;
+  const idrac = r.idrac;
+
+  div.innerHTML = `
+    <!-- HEADER -->
+    <div style="display:flex;align-items:center;gap:20px;border-bottom:2px solid #0a6b6b;padding-bottom:14px;margin-bottom:18px;">
+      <div style="flex:0 0 110px;height:50px;display:flex;align-items:center;">
+        ${logoSvg ? `<div style="height:50px;display:flex;align-items:center;">${logoSvg.replace(/<svg([^>]*)>/, '<svg$1 style="height:50px;width:auto;">') }</div>` : `<div style="font-weight:700;color:#0a6b6b;font-size:14px;letter-spacing:0.02em;">UMBRELLA<br>AUTOMATION</div>`}
+      </div>
+      <div style="flex:1;text-align:center;">
+        <h1 style="margin:0;font-size:24px;color:#0a6b6b;letter-spacing:-0.01em;">Watchtower</h1>
+        <div style="font-size:11px;color:#8892a4;margin-top:2px;">Per-host monitoring report</div>
+      </div>
+      <div style="flex:0 0 auto;text-align:right;font-size:10px;color:#8892a4;">
+        Generated ${new Date().toLocaleString()}<br>
+        Dashboard v${APP_VERSION}
+      </div>
+    </div>
+
+    <!-- HOST IDENTITY -->
+    <h2 style="margin:0 0 2px;font-size:22px;color:#1a1f2b;">${esc(a.hostname || a.id)}</h2>
+    <div style="font-size:12px;color:#475063;margin-bottom:14px;">
+      Client: <b>${esc(a.client || "unknown")}</b>
+      &middot; pcId <code style="font-size:11px;">${esc(a.id)}</code>
+      &middot; Agent <code style="font-size:11px;">v${esc(a.agentVersion || "?")}</code>
+    </div>
+
+    ${sectionHdr("Status")}
+    ${kvP([
+      ["Internal IP", a.internalIp ? `<code>${esc(a.internalIp)}</code>` : null],
+      ["External IP", a.externalIp ? `<code>${esc(a.externalIp)}</code>` : null],
+      ["Last check-in", tsToStr(a.lastCheckin) + ` <span style="color:#888;">(${fmtAge(a.lastCheckin)})</span>`],
+      ["Installed at", tsToStr(a.installedAt)],
+      ["Collection time", r.collectionMs ? `${r.collectionMs} ms` : null],
+    ])}
+
+    ${sectionHdr("System")}
+    ${kvP([
+      ["Manufacturer", esc(sys.manufacturer)],
+      ["Model", esc(sys.model)],
+      sys.isVirtual ? ["Virtual machine", `Yes &middot; <i>${esc(sys.hypervisor || "")}</i>`] : null,
+      ["Service tag", sys.serviceTag ? `<code>${esc(sys.serviceTag)}</code>` : null],
+      ["OS", esc(os.name) + (os.build ? ` (build ${esc(os.build)})` : "")],
+      ["Architecture", esc(os.architecture)],
+      ["CPU", esc(sys.cpu && sys.cpu.name) + (sys.cpu && sys.cpu.cores ? ` &middot; ${sys.cpu.cores} cores` : "")],
+      ["RAM", sys.memory && sys.memory.totalGB ? `${sys.memory.totalGB} GB` : null],
+      ["TPM", sys.tpm ? (sys.tpm.present ? `present &middot; spec ${esc(sys.tpm.specVersion)}` : "absent") : null],
+      ["BIOS", sys.biosVersion ? `${esc(sys.biosVersion)} (${esc(sys.biosDate || "?")})` : null],
+      ["Domain", sys.partOfDomain ? esc(sys.workgroup) : `workgroup: ${esc(sys.workgroup || "WORKGROUP")}`],
+    ])}
+
+    ${(stor.volumes && stor.volumes.length) ? sectionHdr("Storage") + `
+      <table style="width:100%;border-collapse:collapse;margin-bottom:14px;font-size:12px;">
+        <thead><tr style="background:#fafbfc;color:#666;font-size:10.5px;text-transform:uppercase;">
+          <th style="padding:6px 8px;text-align:left;border-bottom:1px solid #e3e6ec;">Drive</th>
+          <th style="padding:6px 8px;text-align:left;border-bottom:1px solid #e3e6ec;">FS</th>
+          <th style="padding:6px 8px;text-align:right;border-bottom:1px solid #e3e6ec;">Size</th>
+          <th style="padding:6px 8px;text-align:right;border-bottom:1px solid #e3e6ec;">Free</th>
+        </tr></thead>
+        <tbody>
+          ${stor.volumes.map(v => `<tr>
+            <td style="padding:5px 8px;border-bottom:1px solid #f0f1f4;"><b>${esc(v.letter)}</b></td>
+            <td style="padding:5px 8px;border-bottom:1px solid #f0f1f4;">${esc(v.filesystem || "—")}</td>
+            <td style="padding:5px 8px;text-align:right;border-bottom:1px solid #f0f1f4;">${v.sizeGB || 0} GB</td>
+            <td style="padding:5px 8px;text-align:right;border-bottom:1px solid #f0f1f4;">${v.freeGB || 0} GB</td>
+          </tr>`).join("")}
+        </tbody>
+      </table>
+    ` : ""}
+
+    ${(net.nics && net.nics.length) ? sectionHdr("Network interfaces") + `
+      <ul style="margin:0 0 14px;padding-left:20px;font-size:12px;">
+        ${net.nics.filter(n => (n.ipv4 || []).length).map(n => `<li>${esc(n.name || n.description || "?")} &middot; ${esc((n.ipv4 || []).join(", "))}${n.speedMbps ? ` @ ${n.speedMbps} Mbps` : ""}</li>`).join("")}
+      </ul>
+    ` : ""}
+
+    ${omsa && omsa.installed ? sectionHdr("Dell OMSA · storage") + `
+      <div style="font-size:12px;margin-bottom:8px;">OMSA <code>${esc(omsa.version || "?")}</code> &middot; rollup <b>${esc(omsa.healthRollup || "unknown")}</b></div>
+      ${(omsa.virtualDisks || []).length ? `<div style="font-size:11px;color:#666;text-transform:uppercase;margin:6px 0 2px;">Virtual disks</div>
+        <ul style="margin:0 0 10px;padding-left:20px;font-size:12px;">${omsa.virtualDisks.map(v => `<li>${esc(v.name || v.id)} &middot; ${esc(v.layout || "?")} &middot; ${esc(v.size || "?")} &middot; <b>${esc(v.status)}</b>${v.state ? ` / ${esc(v.state)}` : ""}</li>`).join("")}</ul>` : ""}
+      ${(omsa.physicalDisks || []).length ? `<div style="font-size:11px;color:#666;text-transform:uppercase;margin:6px 0 2px;">Physical disks</div>
+        <ul style="margin:0 0 10px;padding-left:20px;font-size:12px;">${omsa.physicalDisks.map(d => `<li><code>${esc(d.id)}</code> &middot; ${esc(d.product || d.vendor || "?")} &middot; ${esc(d.capacity || "?")} &middot; <b>${esc(d.status)}</b>${d.predictiveFailure && d.predictiveFailure.toLowerCase() === "yes" ? " &middot; <b>SMART warn</b>" : ""}</li>`).join("")}</ul>` : ""}
+    ` : ""}
+
+    ${(veeam || wsb || carbonite) ? sectionHdr("Backups") + `
+      ${veeam && veeam.installed ? (veeam.products || []).map(p => `<div style="font-size:12px;margin-bottom:4px;"><b>${p.edition === "br" ? "Veeam Backup &amp; Replication" : "Veeam Agent for Windows"}</b> v${esc(p.version || "?")}${p.lastJob && p.lastJob.result ? ` &middot; last job: <b>${esc(p.lastJob.result)}</b>${p.lastJob.endTime ? ` (${esc(p.lastJob.endTime)})` : ""}` : ""}</div>`).join("") : ""}
+      ${wsb && wsb.installed ? `<div style="font-size:12px;margin-bottom:4px;"><b>Windows Server Backup</b> &middot; last result: <b>${esc(wsb.lastBackupResult || "?")}</b>${wsb.lastSuccessfulBackup ? ` &middot; last success: ${tsToStr(wsb.lastSuccessfulBackup)}` : ""} &middot; ${wsb.numberOfVersions || 0} version(s) retained${(wsb.targets || []).length ? ` &middot; targets: ${wsb.targets.map(t => esc(t.path || t.label || "?")).join(", ")}` : ""}</div>` : ""}
+      ${carbonite && carbonite.installed ? (carbonite.products || []).map(p => `<div style="font-size:12px;margin-bottom:4px;"><b>${esc(p.name)}</b> v${esc(p.version || "?")}</div>`).join("") : ""}
+    ` : ""}
+
+    ${(def || s1) ? sectionHdr("Security") + `
+      ${def ? `<div style="font-size:12px;margin-bottom:4px;"><b>Defender</b> &middot; enabled=${def.enabled ? "yes" : "no"} &middot; realtime=${def.realtimeOn ? "on" : "off"} &middot; definitions ${esc(def.definitionsVersion || "?")} (${esc(def.definitionsUpdated || "?")}) &middot; last full scan: ${esc(def.lastFullScan || "—")}</div>` : ""}
+      ${s1 && s1.installed ? `<div style="font-size:12px;margin-bottom:4px;"><b>SentinelOne</b> v${esc(s1.version || "?")} &middot; service ${esc(s1.serviceState || "?")}</div>` : ""}
+    ` : ""}
+
+    ${(lmi || idrac) ? sectionHdr("Remote access") + `
+      ${lmi && lmi.installed ? `<div style="font-size:12px;margin-bottom:4px;"><b>LogMeIn</b> v${esc(lmi.version || "?")} &middot; service ${esc(lmi.serviceState || "?")}${lmi.description ? ` &middot; "${esc(lmi.description)}"` : ""}</div>` : ""}
+      ${idrac && idrac.installed ? `<div style="font-size:12px;margin-bottom:4px;"><b>iDRAC Service Module</b> v${esc(idrac.version || "?")} &middot; service ${esc(idrac.serviceState || "?")}</div>` : ""}
+    ` : ""}
+
+    ${sectionHdr("Inventory")}
+    <div style="font-size:12px;">
+      ${sw.count ? `<div>${sw.count} installed applications</div>` : ""}
+      ${hf.total ? `<div>${hf.total} hotfixes installed${hf.recent && hf.recent.length ? ` &middot; most recent: ${esc(hf.recent[0].id)} (${esc(hf.recent[0].installedOn)})` : ""}</div>` : ""}
+      ${usb.devices ? `<div>${usb.devices.length} USB device(s) in history</div>` : ""}
+    </div>
+
+    <div style="margin-top:24px;padding-top:10px;border-top:1px solid #e3e6ec;font-size:10px;color:#8892a4;text-align:center;">
+      Watchtower &middot; Umbrella Automation &middot; ${new Date().toISOString()}
+    </div>
+  `;
+  return div;
+}
 
 function kv(rows) {
   return `<div class="kv">${rows.map(([k, v]) => `<div class="k">${esc(k)}</div><div class="v">${v == null ? "—" : v}</div>`).join("")}</div>`;
@@ -1220,8 +1554,8 @@ function renderDrawer(pcId) {
       ${kv([
         ["Internal IP", a.internalIp ? `<code>${esc(a.internalIp)}</code>` : "—"],
         ["External IP", `<code>${esc(a.externalIp)}</code>`],
-        ["Last check-in", esc(a.lastCheckin || "never") + ` <span class="meta">(${fmtAge(a.lastCheckin)})</span>`],
-        ["Installed at", esc(a.installedAt || "—")],
+        ["Last check-in", esc(tsToStr(a.lastCheckin)) + ` <span class="meta">(${fmtAge(a.lastCheckin)})</span>`],
+        ["Installed at", esc(tsToStr(a.installedAt))],
         ["Collection time", r.collectionMs ? `${r.collectionMs} ms` : "—"],
       ])}
     </div>
@@ -1245,14 +1579,16 @@ function renderDrawer(pcId) {
       <div class="toggle-row">
         <div>
           <div class="label">Webhook on IP change &amp; backup failure</div>
-          <div class="desc">POST a JSON payload to the master webhook URL when this agent reports an event. Set the URL once in <a href="#" id="dGoToSettings">Settings</a>.</div>
+          <div class="desc">POST a JSON payload when this agent reports an event. The field below is prefilled with the master URL from <a href="#" id="dGoToSettings">Settings</a> — change to override per host, or leave matching to use the master value. Empty = no webhooks regardless of toggle.</div>
         </div>
         <label class="switch"><input type="checkbox" data-cfg="webhookEnabled" ${cfg.webhookEnabled === true ? "checked" : ""}><span class="slider"></span></label>
       </div>
-      <div class="meta" style="margin-top:4px;">
-        Master URL: ${state.globalWebhookUrl
-          ? `<code>${esc(state.globalWebhookUrl)}</code>`
-          : `<i>not set</i>`}${cfg.webhookUrl ? ` &middot; <span style="color:var(--warn-ink, #854d0e);">overridden on this host: <code>${esc(cfg.webhookUrl)}</code></span>` : ""}
+      <input type="url" id="dWebhookUrl" placeholder="https://your-webhook.example.com/"
+             value="${esc(cfg.webhookUrl || state.globalWebhookUrl || "")}"
+             style="margin-top:6px;">
+      <div class="config-actions">
+        <button class="btn btn-sm" id="dSaveWebhook">Save webhook URL</button>
+        <button class="btn btn-sm" id="dResetWebhook" title="Reset this host to the master URL from Settings">Reset to master</button>
       </div>
       <div class="toggle-row" style="margin-top:10px;">
         <div>
@@ -1261,7 +1597,7 @@ function renderDrawer(pcId) {
         </div>
         <label class="switch"><input type="checkbox" data-cfg="autoUpdate" ${cfg.autoUpdate === true ? "checked" : ""}><span class="slider"></span></label>
       </div>
-      <div class="config-actions">
+      <div class="config-actions" style="margin-top:14px;">
         <button class="btn btn-sm btn-danger" id="dDecommission">Decommission</button>
       </div>
     </div>
@@ -1269,10 +1605,11 @@ function renderDrawer(pcId) {
     <div class="section">
       <h3>System</h3>
       ${kv([
-        ["OS", esc(os.name) + (os.version ? ` (build ${esc(os.build)})` : "")],
-        ["Architecture", esc(os.architecture)],
+        ["OS", esc(sys.os && sys.os.name) + (sys.os && sys.os.version ? ` (build ${esc(sys.os.build)})` : "")],
+        ["Architecture", esc(sys.os && sys.os.architecture)],
         ["Manufacturer", esc(sys.manufacturer)],
         ["Model", esc(sys.model)],
+        ...(sys.isVirtual ? [["Virtual machine", `<span class="badge muted" style="background:#fae8ff;color:#581c87;">Yes</span> <span class="meta">${esc(sys.hypervisor || "")}</span>`]] : []),
         ["Service tag", renderServiceTag(sys.serviceTag, sys.manufacturer)],
         ["CPU", esc(sys.cpu && sys.cpu.name)],
         ["RAM", sys.memory ? `${sys.memory.totalGB} GB` : "—"],
@@ -1381,6 +1718,19 @@ function renderDrawer(pcId) {
   // Wire up the toggles.
   $$("#dBody input[data-cfg]").forEach(input => {
     input.addEventListener("change", () => writeConfig(pcId, input.dataset.cfg, input.checked));
+  });
+  // Save webhook URL button (per-host override).
+  $("#dSaveWebhook").addEventListener("click", () => {
+    const url = $("#dWebhookUrl").value.trim();
+    // Empty string means "no override" — store as null so the worker's
+    // resolution logic falls back to the global URL cleanly.
+    writeConfig(pcId, "webhookUrl", url || null);
+  });
+  $("#dResetWebhook").addEventListener("click", () => {
+    // Reset just blanks the field + clears the per-host override.
+    $("#dWebhookUrl").value = state.globalWebhookUrl || "";
+    writeConfig(pcId, "webhookUrl", null);
+    toast(`Reset to master URL${state.globalWebhookUrl ? "" : " (empty)"}.`);
   });
   // "Settings" link in the webhook description — close the drawer + flip to Settings tab.
   const settingsLink = document.getElementById("dGoToSettings");
