@@ -140,11 +140,11 @@ begin
     end;
   end;
 
-  // Fallback — extremely unlikely path. Hex from {tmp} path + random.
-  Randomize();
-  Result := Format('%.8x-%.4x-%.4x-%.4x-%.12x', [
-    Random($FFFFFFFF), Random($FFFF), Random($FFFF), Random($FFFF), Random($FFFFFFFF)
-  ]);
+  // PowerShell is universally available on supported Windows; if we end
+  // up here something is genuinely wrong with the host. Abort rather
+  // than fabricate a possibly-colliding pcId.
+  MsgBox('Could not generate the per-install identifier. PowerShell may be unavailable or blocked. Install aborted.', mbError, MB_OK);
+  Abort;
 end;
 
 function JsonEscape(const S: string): string;
@@ -152,18 +152,20 @@ var
   i: Integer;
   C: Char;
 begin
+  // Note: we use Chr() instead of Pascal's #10 / #13 / #9 character literals
+  // because the Inno Setup preprocessor treats a `#` at the start of a line
+  // as a preprocessor directive (`#define`, `#if`, etc.) and chokes on the
+  // numeric value. Chr() sidesteps that ambiguity.
   Result := '';
   for i := 1 to Length(S) do
   begin
     C := S[i];
-    case C of
-      '"': Result := Result + '\"';
-      '\': Result := Result + '\\';
-      #10: Result := Result + '\n';
-      #13: Result := Result + '\r';
-      #9:  Result := Result + '\t';
-      else Result := Result + C;
-    end;
+    if C = '"' then       Result := Result + '\"'
+    else if C = '\' then  Result := Result + '\\'
+    else if C = Chr(10) then Result := Result + '\n'
+    else if C = Chr(13) then Result := Result + '\r'
+    else if C = Chr(9)  then Result := Result + '\t'
+    else                    Result := Result + C;
   end;
 end;
 

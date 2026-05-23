@@ -45,10 +45,20 @@ if (-not $SkipPyInstaller) {
     Test-Tool 'pyinstaller.exe' 'pip install pyinstaller'
 }
 
-$iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
-if (-not (Test-Path $iscc)) {
-    throw "ISCC.exe not found at $iscc. Install Inno Setup 6 via winget install JRSoftware.InnoSetup"
+# Inno Setup may land in any of three places depending on how it was
+# installed: system-wide 32-bit (the classic location), system-wide 64-bit
+# (rare but possible), or per-user (what `winget install JRSoftware.InnoSetup`
+# does when run without elevation — drops into %LOCALAPPDATA%\Programs).
+$isccCandidates = @(
+    "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe",
+    "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
+    "$env:ProgramFiles\Inno Setup 6\ISCC.exe"
+)
+$iscc = $isccCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+if (-not $iscc) {
+    throw "ISCC.exe not found in any of:`n  $($isccCandidates -join "`n  ")`nInstall Inno Setup 6 via 'winget install JRSoftware.InnoSetup -e'."
 }
+Write-Host "Using ISCC: $iscc" -ForegroundColor DarkGray
 
 # ---------------------------------------------------------------------------
 # PyInstaller — two --onefile EXEs from the agent source
