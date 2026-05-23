@@ -67,6 +67,33 @@ try {
         $jobs = @()
     }
 
+    # Backup targets — where the backup is being written. From Get-WBPolicy
+    # which returns the current scheduled-backup policy. BackupTargets is
+    # an array of WBBackupTarget objects; each has Label + TargetType +
+    # one of (Path / Volume / UncPath) depending on type. Hosts with no
+    # policy yet have $null here, which we coerce to an empty array.
+    $targets = @()
+    try {
+        $policy = Get-WBPolicy -ErrorAction Stop
+        if ($policy -and $policy.BackupTargets) {
+            $targets = @($policy.BackupTargets | ForEach-Object {
+                # WBBackupTarget has different properties per type. Try
+                # several so we surface whatever's set without crashing.
+                $path = $null
+                try { if ($_.Path)    { $path = "$($_.Path)" } } catch {}
+                try { if (-not $path -and $_.UncPath) { $path = "$($_.UncPath)" } } catch {}
+                try { if (-not $path -and $_.Source)  { $path = "$($_.Source)"  } } catch {}
+                [PSCustomObject]@{
+                    label = "$($_.Label)"
+                    type  = "$($_.TargetType)"
+                    path  = $path
+                }
+            })
+        }
+    } catch {
+        $targets = @()
+    }
+
     $out = [PSCustomObject]@{
         installed              = $true
         lastBackupTime         = _DateOrNull $s.LastBackupTime
@@ -77,6 +104,7 @@ try {
         currentOperationStatus = "$($s.CurrentOperationStatus)"
         detailedMessage        = $s.DetailedMessage
         recentJobs             = $jobs
+        targets                = $targets
     }
     # Depth=4 covers our recentJobs array of objects. ConvertTo-Json defaults
     # to depth=2 which would silently truncate the array into "Length=10".
@@ -175,6 +203,7 @@ def collect():
             "currentOperation": data.get("currentOperationStatus"),
             "detail": data.get("detailedMessage"),
             "recentJobs": recent_jobs,
+            "targets": data.get("targets") or [],
         }
 
     except subprocess.TimeoutExpired:

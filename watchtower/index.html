@@ -427,7 +427,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.8.2";
+const APP_VERSION = "0.8.3";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -1465,6 +1465,14 @@ function renderWsb(w) {
       ${hasSchedule ? `<div class="k">Next backup</div><div class="v">${esc(w.nextBackupTime)} <span class="meta">(${fmtAge(w.nextBackupTime)})</span></div>` : ""}
       <div class="k">Versions retained</div>
       <div class="v">${w.numberOfVersions || 0}</div>
+      ${Array.isArray(w.targets) && w.targets.length ? `
+        <div class="k">Destination${w.targets.length === 1 ? "" : "s"}</div>
+        <div class="v">${w.targets.map(t => {
+          const where = t.path || t.label || "?";
+          const kind = t.type ? ` <span class="meta">(${esc(t.type)})</span>` : "";
+          return `<div><code>${esc(where)}</code>${kind}${t.label && t.path ? ` <span class="meta">${esc(t.label)}</span>` : ""}</div>`;
+        }).join("")}</div>
+      ` : ""}
       ${(() => {
         // WSB's CurrentOperationStatus can be the enum name, the friendly text,
         // or various capitalizations. Treat all the "nothing happening" variants
