@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Watchtower &middot; Umbrella Automation</title>
+<meta name="description" content="Internal fleet monitoring dashboard for Umbrella Automation client PCs.">
+<meta name="robots" content="noindex">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --surface: #ffffff;
+    --surface-2: #fafbfc;
+    --ink: #1a1f2b;
+    --ink-soft: #475063;
+    --ink-faint: #8892a4;
+    --line: #e3e6ec;
+    --line-strong: #c9cfdb;
+    --accent: #0a6b6b;
+    --accent-soft: #e6f4f4;
+    --accent-ink: #074a4a;
+    --danger: #dc2626;
+    --danger-soft: #fee2e2;
+    --warn: #ca8a04;
+    --warn-soft: #fef3c7;
+    --ok: #16a34a;
+    --ok-soft: #dcfce7;
+    --info: #0ea5e9;
+    --info-soft: #e0f2fe;
+    --radius: 10px;
+    --shadow: 0 1px 2px rgba(20, 25, 40, 0.04), 0 4px 14px rgba(20, 25, 40, 0.05);
+    --shadow-lift: 0 4px 8px rgba(20, 25, 40, 0.06), 0 14px 28px rgba(20, 25, 40, 0.08);
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 14.5px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  button { font: inherit; }
+  input, select, textarea { font: inherit; color: inherit; }
+  code { font-family: var(--mono); font-size: 0.92em; }
+
+  /* top bar */
+  header.bar { background: var(--surface); border-bottom: 1px solid var(--line); padding: 10px 20px; position: sticky; top: 0; z-index: 50; }
+  header.bar .wrap { max-width: 1320px; margin: 0 auto; display: flex; align-items: center; gap: 16px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; color: var(--ink); }
+  .brand svg { width: 24px; height: 24px; }
+  .brand .meta { font-size: 11px; color: var(--ink-faint); font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; }
+  .brand h1 { font-size: 16px; margin: 0; line-height: 1.1; }
+  .userbar { margin-left: auto; display: flex; align-items: center; gap: 10px; font-size: 13px; }
+  .userbar img.avatar { width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--line); }
+  .userbar .who { display: flex; flex-direction: column; line-height: 1.2; align-items: flex-end; }
+  .userbar .who .e { color: var(--ink); font-weight: 600; font-size: 13px; }
+  .userbar .who .r { color: var(--ink-faint); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
+
+  /* buttons */
+  .btn { background: var(--surface); border: 1px solid var(--line-strong); color: var(--ink); font-size: 13px; font-weight: 600; padding: 7px 13px; border-radius: 7px; cursor: pointer; transition: background .12s, border-color .12s, color .12s; }
+  .btn:hover { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn-primary:hover { background: var(--accent-ink); border-color: var(--accent-ink); color: #fff; }
+  .btn-danger { background: var(--surface); border-color: var(--line-strong); color: var(--danger); }
+  .btn-danger:hover { background: var(--danger-soft); border-color: var(--danger); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-sm { padding: 4px 9px; font-size: 12px; border-radius: 6px; }
+
+  /* layout */
+  main { max-width: 1320px; margin: 0 auto; padding: 22px 20px 80px; }
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+  .panel + .panel { margin-top: 18px; }
+  .panel-header { display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--line); }
+  .panel-header h2 { font-size: 15px; margin: 0; font-weight: 700; }
+  .panel-header .right { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+  .panel-body { padding: 16px 18px; }
+
+  /* sign-in */
+  #signin { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
+  #signin .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow-lift); padding: 36px 32px; max-width: 420px; text-align: center; }
+  #signin svg.logo { width: 64px; height: 64px; }
+  #signin h1 { font-size: 22px; margin: 14px 0 4px; }
+  #signin p { color: var(--ink-soft); margin: 0 0 22px; font-size: 13.5px; }
+  #signin button { display: inline-flex; align-items: center; gap: 10px; padding: 10px 18px; font-size: 14px; font-weight: 600; background: #fff; border: 1px solid var(--line-strong); border-radius: 9px; cursor: pointer; color: var(--ink); }
+  #signin button:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+  #signin .err { margin-top: 16px; padding: 10px 12px; border-radius: 8px; background: var(--danger-soft); border: 1px solid #fca5a5; color: #7f1d1d; font-size: 13px; text-align: left; }
+  #signin .err[hidden] { display: none; }
+  #signin .domain { margin-top: 22px; font-size: 12px; color: var(--ink-faint); }
+
+  /* filter bar */
+  .filters { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 14px 18px; }
+  .filters input[type="search"], .filters select { padding: 7px 10px; border: 1px solid var(--line-strong); border-radius: 7px; font-size: 13.5px; background: var(--surface); }
+  .filters input[type="search"] { width: 260px; }
+  .filters input:focus, .filters select:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: var(--accent); }
+  .filters label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-faint); font-weight: 600; margin-right: 4px; }
+  .filters .spacer { flex: 1; }
+  .filters .count { font-size: 12px; color: var(--ink-faint); }
+
+  /* fleet table */
+  table.fleet { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  table.fleet th { text-align: left; padding: 10px 14px; font-size: 11px; text-transform: uppercase; color: var(--ink-faint); letter-spacing: 0.06em; font-weight: 700; border-bottom: 1px solid var(--line); background: var(--surface-2); position: sticky; top: 0; }
+  table.fleet td { padding: 11px 14px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  table.fleet tr:hover td { background: var(--surface-2); cursor: pointer; }
+  table.fleet tr.selected td { background: var(--accent-soft); }
+  table.fleet .host { font-weight: 600; color: var(--ink); }
+  table.fleet .ip { font-family: var(--mono); font-size: 12.5px; color: var(--ink-soft); }
+  table.fleet .client { font-size: 12.5px; color: var(--ink-soft); }
+  table.fleet .age { font-size: 12px; color: var(--ink-faint); }
+
+  /* status badge */
+  .badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; font-size: 11.5px; font-weight: 600; }
+  .badge.ok { background: var(--ok-soft); color: #166534; }
+  .badge.warn { background: var(--warn-soft); color: #854d0e; }
+  .badge.bad { background: var(--danger-soft); color: #7f1d1d; }
+  .badge.muted { background: #e5e7eb; color: #4b5563; }
+  .badge-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+  /* detail drawer */
+  #drawer { position: fixed; top: 0; right: 0; bottom: 0; width: 600px; max-width: 100vw; background: var(--surface); border-left: 1px solid var(--line); box-shadow: -10px 0 30px rgba(0,0,0,0.08); transform: translateX(100%); transition: transform .2s ease; overflow-y: auto; z-index: 60; }
+  #drawer.open { transform: translateX(0); }
+  #drawer .drawer-head { padding: 16px 22px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 10px; position: sticky; top: 0; background: var(--surface); z-index: 1; }
+  #drawer .drawer-head h2 { font-size: 17px; margin: 0; }
+  #drawer .drawer-head .sub { font-size: 12px; color: var(--ink-faint); margin-top: 2px; }
+  #drawer .drawer-head .right { margin-left: auto; }
+  #drawer .drawer-body { padding: 18px 22px 60px; }
+  #drawer .section { margin-bottom: 22px; }
+  #drawer .section h3 { font-size: 12px; text-transform: uppercase; color: var(--ink-faint); letter-spacing: 0.06em; margin: 0 0 8px; font-weight: 700; }
+  #drawer .kv { display: grid; grid-template-columns: 160px 1fr; row-gap: 4px; column-gap: 12px; font-size: 13px; }
+  #drawer .kv .k { color: var(--ink-faint); }
+  #drawer .kv .v { color: var(--ink); word-break: break-word; }
+  #drawer .kv .v code { font-size: 12px; color: var(--ink-soft); }
+  #drawer .list { font-size: 13px; color: var(--ink); }
+  #drawer .list .row { padding: 4px 0; border-bottom: 1px dashed var(--line); display: flex; justify-content: space-between; gap: 10px; }
+  #drawer .list .row:last-child { border-bottom: 0; }
+  #drawer .list .name { color: var(--ink); }
+  #drawer .list .meta { color: var(--ink-faint); font-size: 12px; }
+  #drawer .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; }
+  #drawer .toggle-row .label { font-size: 13.5px; }
+  #drawer .toggle-row .desc { font-size: 12px; color: var(--ink-faint); }
+  #drawer .config-actions { margin-top: 14px; display: flex; gap: 8px; }
+  #drawer textarea, #drawer input[type="url"], #drawer input[type="text"] { width: 100%; padding: 7px 10px; border: 1px solid var(--line-strong); border-radius: 7px; font-size: 13.5px; background: var(--surface); }
+
+  /* toggle switch */
+  .switch { position: relative; display: inline-block; width: 38px; height: 22px; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .slider { position: absolute; cursor: pointer; inset: 0; background: #cbd2dc; transition: .2s; border-radius: 22px; }
+  .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px; background: #fff; transition: .2s; border-radius: 50%; box-shadow: 0 1px 2px rgba(0,0,0,0.2); }
+  .switch input:checked + .slider { background: var(--accent); }
+  .switch input:checked + .slider:before { transform: translateX(16px); }
+  .switch input:disabled + .slider { opacity: 0.5; }
+
+  /* scrim behind drawer */
+  #scrim { position: fixed; inset: 0; background: rgba(20,25,40,0.35); opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 55; }
+  #scrim.show { opacity: 1; pointer-events: auto; }
+
+  /* toast */
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 10px 18px; border-radius: 9px; font-size: 13px; box-shadow: var(--shadow-lift); z-index: 100; }
+  .toast.err { background: var(--danger); }
+  .toast[hidden] { display: none; }
+
+  .empty { padding: 60px 20px; text-align: center; color: var(--ink-faint); }
+  .empty h3 { color: var(--ink); margin: 0 0 8px; font-size: 18px; }
+  .empty p { margin: 0 0 16px; font-size: 14px; }
+
+  @media (max-width: 760px) {
+    table.fleet .col-client, table.fleet .col-os { display: none; }
+    #drawer { width: 100vw; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ================= sign-in screen ================= -->
+<div id="signin">
+  <div class="card">
+    <svg class="logo" viewBox="0 0 64 64" fill="none">
+      <circle cx="32" cy="32" r="14" stroke="#0a6b6b" stroke-width="3"/>
+      <circle cx="32" cy="32" r="5" fill="#0a6b6b"/>
+      <path d="M32 8 L32 18 M32 46 L32 56 M8 32 L18 32 M46 32 L56 32" stroke="#0a6b6b" stroke-width="3" stroke-linecap="round"/>
+    </svg>
+    <h1>Watchtower</h1>
+    <p>Sign in with your Umbrella Automation Google account.</p>
+    <button id="signinBtn">
+      <svg width="18" height="18" viewBox="0 0 18 18"><path d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84c-.21 1.12-.84 2.07-1.79 2.71v2.25h2.9c1.7-1.56 2.69-3.86 2.69-6.6z" fill="#4285F4"/><path d="M9 18c2.43 0 4.46-.81 5.95-2.18l-2.9-2.25c-.8.54-1.83.86-3.05.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.32C2.44 15.98 5.48 18 9 18z" fill="#34A853"/><path d="M3.97 10.72A5.41 5.41 0 0 1 3.68 9c0-.6.1-1.18.29-1.72V4.96H.96A9 9 0 0 0 0 9c0 1.45.35 2.83.96 4.04l3.01-2.32z" fill="#FBBC04"/><path d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0 5.48 0 2.44 2.02.96 4.96l3.01 2.32C4.68 5.16 6.66 3.58 9 3.58z" fill="#EA4335"/></svg>
+      Sign in with Google
+    </button>
+    <div id="signinErr" class="err" hidden></div>
+    <div class="domain">Restricted to <code>@umbrellaautomation.com</code> accounts.</div>
+  </div>
+</div>
+
+<!-- ================= app shell ================= -->
+<div id="app" hidden>
+  <header class="bar">
+    <div class="wrap">
+      <div class="brand">
+        <svg viewBox="0 0 64 64" fill="none">
+          <circle cx="32" cy="32" r="14" stroke="#0a6b6b" stroke-width="3"/>
+          <circle cx="32" cy="32" r="5" fill="#0a6b6b"/>
+          <path d="M32 8 L32 18 M32 46 L32 56 M8 32 L18 32 M46 32 L56 32" stroke="#0a6b6b" stroke-width="3" stroke-linecap="round"/>
+        </svg>
+        <div>
+          <div class="meta">Umbrella Automation</div>
+          <h1>Watchtower</h1>
+        </div>
+      </div>
+      <div class="userbar">
+        <div class="who"><span class="e" id="userEmail"></span><span class="r">MSP admin</span></div>
+        <img class="avatar" id="userAvatar" alt="">
+        <button class="btn btn-sm" id="signoutBtn">Sign out</button>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="panel">
+      <div class="filters">
+        <input type="search" id="search" placeholder="Search hostname, IP, client...">
+        <label>Client</label>
+        <select id="clientFilter"><option value="">All</option></select>
+        <label>Status</label>
+        <select id="statusFilter">
+          <option value="">All</option>
+          <option value="ok">Healthy</option>
+          <option value="stale">Stale (&gt;30h)</option>
+          <option value="dead">Dead (&gt;7d)</option>
+          <option value="disabled">Disabled</option>
+        </select>
+        <span class="spacer"></span>
+        <span class="count" id="fleetCount"></span>
+      </div>
+      <div id="fleetWrap">
+        <table class="fleet">
+          <thead>
+            <tr>
+              <th>Host</th>
+              <th class="col-client">Client</th>
+              <th>External IP</th>
+              <th class="col-os">OS</th>
+              <th>Last check</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="fleetBody"></tbody>
+        </table>
+      </div>
+      <div id="fleetEmpty" class="empty" hidden>
+        <h3>No agents reporting yet</h3>
+        <p>Build an installer with <code>installer\build.ps1</code> and deploy it on a client PC.</p>
+      </div>
+    </div>
+  </main>
+
+  <!-- scrim + drawer -->
+  <div id="scrim"></div>
+  <aside id="drawer" aria-hidden="true">
+    <div class="drawer-head">
+      <div>
+        <h2 id="dHost">—</h2>
+        <div class="sub" id="dSub"></div>
+      </div>
+      <div class="right"><button class="btn btn-sm" id="closeDrawer">Close</button></div>
+    </div>
+    <div class="drawer-body" id="dBody"></div>
+  </aside>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-auth.js";
+import { getFirestore, collection, doc, getDoc, setDoc, updateDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
+
+// ------------------------------------------------------------------
+// Firebase config — replace with the umbrella-watchtower project's
+// web config (Console → Project settings → General → Your apps → Web).
+// The apiKey is NOT a secret; it's safe to commit to a public repo.
+// ------------------------------------------------------------------
+const firebaseConfig = {
+  apiKey:            "REPLACE_WITH_WEB_API_KEY",
+  authDomain:        "umbrella-watchtower.firebaseapp.com",
+  projectId:         "umbrella-watchtower",
+  storageBucket:     "umbrella-watchtower.firebasestorage.app",
+  messagingSenderId: "REPLACE_WITH_SENDER_ID",
+  appId:             "REPLACE_WITH_APP_ID"
+};
+
+const APP_VERSION = "0.1.0";
+const ALLOWED_DOMAIN = "umbrellaautomation.com";
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+const state = {
+  user: null,
+  profile: null,
+  agents: [],
+  filter: { search: "", client: "", status: "" },
+  openPcId: null,
+  unsub: { agents: null, config: null }
+};
+
+const $ = sel => document.querySelector(sel);
+const $$ = sel => Array.from(document.querySelectorAll(sel));
+
+function toast(msg, isErr = false) {
+  const t = $("#toast");
+  t.textContent = msg;
+  t.classList.toggle("err", !!isErr);
+  t.hidden = false;
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => { t.hidden = true; }, 4500);
+}
+
+function esc(s) {
+  return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+function fmtAge(iso) {
+  if (!iso) return "—";
+  const then = new Date(iso).getTime();
+  if (isNaN(then)) return iso;
+  const mins = Math.floor((Date.now() - then) / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return mins + "m ago";
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return hrs + "h ago";
+  const days = Math.floor(hrs / 24);
+  return days + "d ago";
+}
+
+function statusOf(agent) {
+  // If config explicitly disabled, show muted. Otherwise compare last
+  // check-in to thresholds (healthy < 30h, stale 30h–7d, dead > 7d).
+  if (agent.config && agent.config.enabled === false) return { kind: "disabled", label: "Disabled" };
+  const last = agent.lastCheckin || agent.installedAt;
+  if (!last) return { kind: "muted", label: "Never" };
+  const hrs = (Date.now() - new Date(last).getTime()) / 3.6e6;
+  if (hrs > 24 * 7) return { kind: "bad", label: "Dead" };
+  if (hrs > 30) return { kind: "warn", label: "Stale" };
+  return { kind: "ok", label: "Healthy" };
+}
+
+// ============== sign-in / out ==============
+$("#signinBtn").addEventListener("click", async () => {
+  $("#signinErr").hidden = true;
+  try {
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ hd: ALLOWED_DOMAIN, prompt: "select_account" });
+    await signInWithPopup(auth, provider);
+  } catch (e) {
+    $("#signinErr").textContent = "Sign-in failed: " + (e.message || e);
+    $("#signinErr").hidden = false;
+  }
+});
+
+$("#signoutBtn").addEventListener("click", () => signOut(auth));
+
+onAuthStateChanged(auth, async (user) => {
+  if (!user) {
+    state.user = null;
+    state.profile = null;
+    $("#signin").style.display = "flex";
+    $("#app").hidden = true;
+    return;
+  }
+
+  // Enforce domain client-side (the hd param can be bypassed if a user
+  // adds multiple accounts to their browser). Rules will reject too,
+  // but client-side check gives a clearer error message.
+  const email = user.email || "";
+  if (!email.toLowerCase().endsWith("@" + ALLOWED_DOMAIN.toLowerCase())) {
+    await signOut(auth);
+    $("#signinErr").textContent = `Sign-in must be a @${ALLOWED_DOMAIN} account.`;
+    $("#signinErr").hidden = false;
+    return;
+  }
+
+  state.user = user;
+
+  // Gate on /msp_admins/{uid} — bootstrap first admin via Firebase console.
+  try {
+    const ref = doc(db, "msp_admins", user.uid);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) {
+      await signOut(auth);
+      $("#signinErr").innerHTML = `<b>${esc(email)}</b> is not a Watchtower admin yet. Add a document at <code>/msp_admins/${esc(user.uid)}</code> in the Firebase console, then sign in again.`;
+      $("#signinErr").hidden = false;
+      return;
+    }
+    state.profile = { uid: user.uid, ...snap.data() };
+  } catch (e) {
+    await signOut(auth);
+    $("#signinErr").textContent = "Could not verify admin membership: " + (e.message || e);
+    $("#signinErr").hidden = false;
+    return;
+  }
+
+  // Mount the app.
+  $("#signin").style.display = "none";
+  $("#app").hidden = false;
+  $("#userEmail").textContent = email;
+  if (user.photoURL) $("#userAvatar").src = user.photoURL; else $("#userAvatar").style.display = "none";
+
+  subscribeAgents();
+});
+
+// ============== /agents live subscription ==============
+function subscribeAgents() {
+  if (state.unsub.agents) state.unsub.agents();
+  const q = query(collection(db, "agents"), orderBy("lastCheckin", "desc"));
+  state.unsub.agents = onSnapshot(q, snap => {
+    state.agents = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    rebuildClientFilter();
+    renderFleet();
+    // If a drawer is open, refresh its content too.
+    if (state.openPcId) renderDrawer(state.openPcId);
+  }, err => {
+    toast("Failed to load fleet: " + (err.message || err), true);
+  });
+}
+
+function rebuildClientFilter() {
+  const clients = Array.from(new Set(state.agents.map(a => a.client).filter(Boolean))).sort();
+  const sel = $("#clientFilter");
+  const current = sel.value;
+  sel.innerHTML = '<option value="">All</option>' + clients.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join("");
+  if (clients.includes(current)) sel.value = current;
+}
+
+function renderFleet() {
+  const q = state.filter.search.toLowerCase().trim();
+  const cf = state.filter.client;
+  const sf = state.filter.status;
+
+  const rows = state.agents.filter(a => {
+    if (cf && a.client !== cf) return false;
+    const st = statusOf(a).kind;
+    if (sf === "ok"       && st !== "ok") return false;
+    if (sf === "stale"    && st !== "warn") return false;
+    if (sf === "dead"     && st !== "bad") return false;
+    if (sf === "disabled" && st !== "disabled") return false;
+    if (q) {
+      const hay = [a.hostname, a.client, a.externalIp, a.id].filter(Boolean).join(" ").toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  $("#fleetCount").textContent = rows.length === state.agents.length
+    ? `${rows.length} host${rows.length === 1 ? "" : "s"}`
+    : `${rows.length} of ${state.agents.length}`;
+
+  const tbody = $("#fleetBody");
+  if (!rows.length) {
+    tbody.innerHTML = "";
+    $("#fleetEmpty").hidden = state.agents.length > 0;  // show only if nothing exists at all
+    return;
+  }
+  $("#fleetEmpty").hidden = true;
+
+  tbody.innerHTML = rows.map(a => {
+    const st = statusOf(a);
+    const os = (a.report && a.report.system && a.report.system.os && a.report.system.os.name) || "—";
+    return `
+      <tr data-id="${esc(a.id)}" class="${state.openPcId === a.id ? 'selected' : ''}">
+        <td><div class="host">${esc(a.hostname || a.id)}</div></td>
+        <td class="col-client client">${esc(a.client || "—")}</td>
+        <td class="ip">${esc(a.externalIp || "—")}</td>
+        <td class="col-os client">${esc(os)}</td>
+        <td class="age">${fmtAge(a.lastCheckin)}</td>
+        <td><span class="badge ${st.kind === "ok" ? "ok" : st.kind === "warn" ? "warn" : st.kind === "bad" ? "bad" : "muted"}"><span class="badge-dot"></span>${esc(st.label)}</span></td>
+      </tr>
+    `;
+  }).join("");
+
+  $$("#fleetBody tr").forEach(tr => {
+    tr.addEventListener("click", () => openDrawer(tr.dataset.id));
+  });
+}
+
+// filter wire-up
+$("#search").addEventListener("input", e => { state.filter.search = e.target.value; renderFleet(); });
+$("#clientFilter").addEventListener("change", e => { state.filter.client = e.target.value; renderFleet(); });
+$("#statusFilter").addEventListener("change", e => { state.filter.status = e.target.value; renderFleet(); });
+
+// ============== detail drawer ==============
+function openDrawer(pcId) {
+  state.openPcId = pcId;
+  $("#drawer").classList.add("open");
+  $("#scrim").classList.add("show");
+  renderDrawer(pcId);
+
+  // Live-listen on the config doc so toggling from a second tab refreshes here.
+  if (state.unsub.config) state.unsub.config();
+  state.unsub.config = onSnapshot(doc(db, "agents", pcId, "config", "current"), snap => {
+    const agent = state.agents.find(a => a.id === pcId);
+    if (agent) {
+      agent.config = snap.exists() ? snap.data() : null;
+      renderDrawer(pcId);
+      renderFleet();  // status badge may flip when enabled toggles
+    }
+  });
+}
+
+function closeDrawer() {
+  state.openPcId = null;
+  $("#drawer").classList.remove("open");
+  $("#scrim").classList.remove("show");
+  if (state.unsub.config) { state.unsub.config(); state.unsub.config = null; }
+}
+$("#closeDrawer").addEventListener("click", closeDrawer);
+$("#scrim").addEventListener("click", closeDrawer);
+
+function kv(rows) {
+  return `<div class="kv">${rows.map(([k, v]) => `<div class="k">${esc(k)}</div><div class="v">${v == null ? "—" : v}</div>`).join("")}</div>`;
+}
+
+function renderDrawer(pcId) {
+  const a = state.agents.find(x => x.id === pcId);
+  if (!a) {
+    $("#dBody").innerHTML = '<div class="empty"><p>Agent not found.</p></div>';
+    return;
+  }
+  $("#dHost").textContent = a.hostname || a.id;
+  $("#dSub").innerHTML = `<code>${esc(a.id)}</code> &middot; ${esc(a.client || "no client")} &middot; agent ${esc(a.agentVersion || "?")}`;
+
+  const r = a.report || {};
+  const sys = r.system || {};
+  const os = sys.os || {};
+  const net = r.network || {};
+  const stor = r.storage || {};
+  const sw = r.software || {};
+  const veeam = r.veeam;
+  const lmi = r.logmein;
+  const s1 = r.sentinelone;
+  const def = r.defender;
+  const hf = r.hotfixes;
+  const usb = r.usb;
+  const errs = r.probeErrors || [];
+
+  const cfg = a.config || { enabled: true, emailEnabled: true, webhookEnabled: false, webhookUrl: "", uninstall: false };
+
+  $("#dBody").innerHTML = `
+    <div class="section">
+      <h3>Status</h3>
+      ${kv([
+        ["External IP", `<code>${esc(a.externalIp)}</code>`],
+        ["Last check-in", esc(a.lastCheckin || "never") + ` <span class="meta">(${fmtAge(a.lastCheckin)})</span>`],
+        ["Installed at", esc(a.installedAt || "—")],
+        ["Collection time", r.collectionMs ? `${r.collectionMs} ms` : "—"],
+      ])}
+    </div>
+
+    <div class="section">
+      <h3>Config &amp; kill-switches</h3>
+      <div class="toggle-row">
+        <div>
+          <div class="label">Agent enabled</div>
+          <div class="desc">Master switch — when off, agent reports in but skips all probes and alerts.</div>
+        </div>
+        <label class="switch"><input type="checkbox" data-cfg="enabled" ${cfg.enabled !== false ? "checked" : ""}><span class="slider"></span></label>
+      </div>
+      <div class="toggle-row">
+        <div>
+          <div class="label">Email on IP change</div>
+          <div class="desc">Send a Resend email when the external IP differs from last check-in.</div>
+        </div>
+        <label class="switch"><input type="checkbox" data-cfg="emailEnabled" ${cfg.emailEnabled !== false ? "checked" : ""}><span class="slider"></span></label>
+      </div>
+      <div class="toggle-row">
+        <div>
+          <div class="label">Webhook on IP change</div>
+          <div class="desc">POST a JSON payload to the URL below.</div>
+        </div>
+        <label class="switch"><input type="checkbox" data-cfg="webhookEnabled" ${cfg.webhookEnabled === true ? "checked" : ""}><span class="slider"></span></label>
+      </div>
+      <input type="url" id="dWebhookUrl" placeholder="https://example.com/webhook" value="${esc(cfg.webhookUrl || "")}" style="margin-top:6px;">
+      <div class="config-actions">
+        <button class="btn btn-sm" id="dSaveWebhook">Save webhook URL</button>
+        <button class="btn btn-sm btn-danger" id="dDecommission">Decommission</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>System</h3>
+      ${kv([
+        ["OS", esc(os.name) + (os.version ? ` (build ${esc(os.build)})` : "")],
+        ["Architecture", esc(os.architecture)],
+        ["Manufacturer", esc(sys.manufacturer)],
+        ["Model", esc(sys.model)],
+        ["Service tag", `<code>${esc(sys.serviceTag)}</code>`],
+        ["CPU", esc(sys.cpu && sys.cpu.name)],
+        ["RAM", sys.memory ? `${sys.memory.totalGB} GB` : "—"],
+        ["TPM", sys.tpm ? (sys.tpm.present ? `present, spec ${esc(sys.tpm.specVersion)}` : "absent") : "—"],
+        ["Workgroup/Domain", esc(sys.workgroup)],
+      ])}
+    </div>
+
+    ${veeam ? `<div class="section"><h3>Veeam</h3>${renderVeeam(veeam)}</div>` : ""}
+
+    ${lmi ? `<div class="section"><h3>LogMeIn</h3>${kv([
+      ["Installed", "yes"],
+      ["Version", esc(lmi.version)],
+      ["Service", esc(lmi.serviceState)],
+      ["Guardian svc", esc(lmi.guardianServiceState)],
+      ["Description", esc(lmi.description) || "—"],
+    ])}</div>` : ""}
+
+    ${s1 ? `<div class="section"><h3>SentinelOne</h3>${kv([
+      ["Installed", "yes"],
+      ["Version", esc(s1.version)],
+      ["Agent service", esc(s1.serviceState)],
+    ])}</div>` : ""}
+
+    ${def ? `<div class="section"><h3>Defender</h3>${kv([
+      ["Enabled", def.enabled ? "yes" : "no"],
+      ["Realtime", def.realtimeOn ? "on" : "off"],
+      ["Definitions", esc(def.definitionsVersion)],
+      ["Definitions updated", esc(def.definitionsUpdated)],
+      ["Last full scan", esc(def.lastFullScan)],
+      ["Engine", esc(def.engineVersion)],
+    ])}</div>` : ""}
+
+    <div class="section">
+      <h3>Network</h3>
+      ${kv([
+        ["External IP", `<code>${esc(a.externalIp)}</code>`],
+      ])}
+      <div class="list" style="margin-top:10px;">
+        ${(net.nics || []).map(n => `
+          <div class="row"><div>
+            <div class="name">${esc(n.name || n.description)}</div>
+            <div class="meta">${esc((n.ipv4 || []).join(", ") || "no IPv4")} &middot; <code>${esc(n.mac)}</code> &middot; ${n.speedMbps ? n.speedMbps + " Mbps" : ""}</div>
+          </div></div>
+        `).join("")}
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>Storage</h3>
+      <div class="list">
+        ${(stor.volumes || []).map(v => `
+          <div class="row">
+            <div class="name">${esc(v.letter)} <span class="meta">(${esc(v.filesystem || "")} ${esc(v.type)})</span></div>
+            <div class="meta">${v.sizeGB || 0} GB &middot; ${v.freeGB || 0} GB free</div>
+          </div>
+        `).join("")}
+      </div>
+    </div>
+
+    ${sw && sw.installed ? `<div class="section">
+      <h3>Software (${sw.count})</h3>
+      <details><summary>Show all ${sw.count} installed apps</summary>
+        <div class="list" style="margin-top:8px;">
+          ${sw.installed.map(p => `<div class="row"><div class="name">${esc(p.name)}</div><div class="meta">${esc(p.version || "")} &middot; ${esc(p.publisher || "")}</div></div>`).join("")}
+        </div>
+      </details>
+    </div>` : ""}
+
+    ${hf && hf.recent ? `<div class="section">
+      <h3>Hotfixes (${hf.total})</h3>
+      <div class="list">
+        ${hf.recent.slice(0, 10).map(h => `<div class="row"><div class="name">${esc(h.id)}</div><div class="meta">${esc(h.installedOn || "")}</div></div>`).join("")}
+      </div>
+    </div>` : ""}
+
+    ${usb && usb.devices && usb.devices.length ? `<div class="section">
+      <h3>USB device history</h3>
+      <div class="list">
+        ${usb.devices.map(d => `<div class="row"><div class="name">${esc(d.friendlyName || d.product)}</div><div class="meta"><code>${esc(d.serial)}</code></div></div>`).join("")}
+      </div>
+    </div>` : ""}
+
+    ${errs.length ? `<div class="section"><h3>Probe errors</h3>
+      <div class="list">${errs.map(e => `<div class="row"><div class="name">${esc(e.probe)}</div><div class="meta">${esc(e.error)}</div></div>`).join("")}</div>
+    </div>` : ""}
+  `;
+
+  // Wire up the toggles.
+  $$("#dBody input[data-cfg]").forEach(input => {
+    input.addEventListener("change", () => writeConfig(pcId, input.dataset.cfg, input.checked));
+  });
+  $("#dSaveWebhook").addEventListener("click", () => {
+    const url = $("#dWebhookUrl").value.trim();
+    writeConfig(pcId, "webhookUrl", url);
+  });
+  $("#dDecommission").addEventListener("click", () => decommission(pcId, a.hostname));
+}
+
+function renderVeeam(veeam) {
+  if (veeam._error) return `<div class="meta">Probe error: ${esc(veeam._error)}</div>`;
+  const parts = (veeam.products || []).map(p => {
+    const lj = p.lastJob;
+    return `
+      <div class="row">
+        <div>
+          <div class="name">${esc(p.edition === 'br' ? 'Backup & Replication' : 'Agent for Microsoft Windows')}</div>
+          <div class="meta">v${esc(p.version)}</div>
+        </div>
+        <div class="meta" style="text-align:right;">
+          ${lj && lj.result ? `<span class="badge ${lj.result === 'Success' ? 'ok' : 'warn'}">${esc(lj.result)}</span><br>` : ""}
+          ${lj && lj.endTime ? `<small>${esc(lj.endTime)}</small>` : ""}
+        </div>
+      </div>
+    `;
+  });
+  return `<div class="list">${parts.join("")}</div>`;
+}
+
+async function writeConfig(pcId, field, value) {
+  const ref = doc(db, "agents", pcId, "config", "current");
+  try {
+    const snap = await getDoc(ref);
+    if (snap.exists()) {
+      await updateDoc(ref, { [field]: value, updatedAt: new Date().toISOString(), updatedBy: state.user.email });
+    } else {
+      await setDoc(ref, { [field]: value, updatedAt: new Date().toISOString(), updatedBy: state.user.email });
+    }
+    toast(`Updated ${field}`);
+  } catch (e) {
+    toast(`Save failed: ${e.message || e}`, true);
+  }
+}
+
+async function decommission(pcId, hostname) {
+  if (!confirm(`Decommission ${hostname || pcId}?\n\nThe agent will uninstall itself on its next check-in (within 24h).\n\nThe agent record stays in the dashboard until you manually delete it.`)) return;
+  await writeConfig(pcId, "uninstall", true);
+  toast(`Decommission scheduled — agent will self-remove on next check-in.`);
+}
+</script>
+
+</body>
+</html>
