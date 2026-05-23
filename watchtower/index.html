@@ -403,7 +403,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.7.0";
+const APP_VERSION = "0.7.1";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -1344,7 +1344,15 @@ function renderWsb(w) {
       ${hasSchedule ? `<div class="k">Next backup</div><div class="v">${esc(w.nextBackupTime)} <span class="meta">(${fmtAge(w.nextBackupTime)})</span></div>` : ""}
       <div class="k">Versions retained</div>
       <div class="v">${w.numberOfVersions || 0}</div>
-      ${w.currentOperation && w.currentOperation !== "idle" ? `<div class="k">Current op</div><div class="v">${esc(w.currentOperation)}</div>` : ""}
+      ${(() => {
+        // WSB's CurrentOperationStatus can be the enum name, the friendly text,
+        // or various capitalizations. Treat all the "nothing happening" variants
+        // as no-op so we don't surface noise like "NoOperationInProgress".
+        const op = (w.currentOperation || "").trim();
+        const idle = ["", "idle", "Idle", "NoOperationInProgress", "NoOperationInPress"];
+        if (idle.includes(op)) return "";
+        return `<div class="k">Current op</div><div class="v">${esc(op)}</div>`;
+      })()}
     </div>
     ${jobsBlock}
   `;
