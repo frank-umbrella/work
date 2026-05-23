@@ -274,6 +274,7 @@
             <option value="stale">Stale (&gt;30h)</option>
             <option value="dead">Dead (&gt;7d)</option>
             <option value="disabled">Disabled</option>
+            <option value="backup-failing">Backup failing</option>
           </select>
           <span class="spacer"></span>
           <span class="count" id="fleetCount"></span>
@@ -377,7 +378,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.5.0";
+const APP_VERSION = "0.6.0";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -436,6 +437,26 @@ function statusOf(agent) {
   if (hrs > 24 * 7) return { kind: "bad", label: "Dead" };
   if (hrs > 30) return { kind: "warn", label: "Stale" };
   return { kind: "ok", label: "Healthy" };
+}
+
+function backupHealthOf(agent) {
+  // Returns null when WSB isn't installed on this host (skip column).
+  // Returns { kind: "ok" | "warn" | "bad", label } otherwise.
+  // Kept separate from statusOf so the agent check-in health and the
+  // backup health show as parallel signals — admins shouldn't have to
+  // mentally untangle "is the agent OK + is the backup OK" from a
+  // single badge.
+  const wsb = agent.report && agent.report.wsb;
+  if (!wsb || !wsb.installed) return null;
+  if (wsb.lastBackupResult === "Success") return { kind: "ok", label: "Backup OK" };
+  // Compute days-since-success to differentiate a one-day blip from
+  // an ongoing problem.
+  if (wsb.lastSuccessfulBackup) {
+    const days = Math.floor((Date.now() - new Date(wsb.lastSuccessfulBackup).getTime()) / 86400000);
+    if (days >= 3) return { kind: "bad", label: `${days}d no backup` };
+    return { kind: "warn", label: "Backup failing" };
+  }
+  return { kind: "bad", label: "No backup on record" };
 }
 
 // ============== sign-in / out ==============
@@ -526,6 +547,10 @@ function renderFleet() {
     if (sf === "stale"    && st !== "warn") return false;
     if (sf === "dead"     && st !== "bad") return false;
     if (sf === "disabled" && st !== "disabled") return false;
+    if (sf === "backup-failing") {
+      const bh = backupHealthOf(a);
+      if (!bh || bh.kind === "ok") return false;
+    }
     if (q) {
       const hay = [a.hostname, a.client, a.externalIp, a.id].filter(Boolean).join(" ").toLowerCase();
       if (!hay.includes(q)) return false;
@@ -547,7 +572,13 @@ function renderFleet() {
 
   tbody.innerHTML = rows.map(a => {
     const st = statusOf(a);
+    const bh = backupHealthOf(a);
     const os = (a.report && a.report.system && a.report.system.os && a.report.system.os.name) || "—";
+    const stBadge = `<span class="badge ${st.kind === "ok" ? "ok" : st.kind === "warn" ? "warn" : st.kind === "bad" ? "bad" : "muted"}"><span class="badge-dot"></span>${esc(st.label)}</span>`;
+    // Only show backup badge when there's something to flag — keeps healthy rows uncluttered.
+    const bhBadge = (bh && bh.kind !== "ok")
+      ? ` <span class="badge ${bh.kind === "warn" ? "warn" : "bad"}" title="Windows Server Backup status">${esc(bh.label)}</span>`
+      : "";
     return `
       <tr data-id="${esc(a.id)}" class="${state.openPcId === a.id ? 'selected' : ''}">
         <td><div class="host">${esc(a.hostname || a.id)}</div></td>
@@ -555,7 +586,7 @@ function renderFleet() {
         <td class="ip">${esc(a.externalIp || "—")}</td>
         <td class="col-os client">${esc(os)}</td>
         <td class="age">${fmtAge(a.lastCheckin)}</td>
-        <td><span class="badge ${st.kind === "ok" ? "ok" : st.kind === "warn" ? "warn" : st.kind === "bad" ? "bad" : "muted"}"><span class="badge-dot"></span>${esc(st.label)}</span></td>
+        <td>${stBadge}${bhBadge}</td>
       </tr>
     `;
   }).join("");
@@ -1156,11 +1187,54 @@ function renderWarranty(data) {
 function renderWsb(w) {
   if (w._error) return `<div class="meta">Probe error: ${esc(w._error)}</div>`;
   const ok = w.lastBackupResult === "Success";
+
+  // Days-since-success banner — show only when latest attempt failed
+  // (or there's no record). Calculated from the data we already have.
+  let banner = "";
+  if (!ok) {
+    if (w.lastSuccessfulBackup) {
+      const days = Math.floor((Date.now() - new Date(w.lastSuccessfulBackup).getTime()) / 86400000);
+      const sev = days >= 3 ? "bad" : "warn";
+      banner = `<div class="callout" style="background:var(--${sev === "bad" ? "danger" : "warn"}-soft);border:1px solid ${sev === "bad" ? "#fca5a5" : "#fde68a"};color:${sev === "bad" ? "#7f1d1d" : "#854d0e"};padding:10px 12px;border-radius:8px;margin-bottom:12px;font-size:13.5px;">
+        <b>${days} day${days === 1 ? "" : "s"} since last successful backup.</b>
+        ${w.detail ? ` <span style="font-size:12.5px;">${esc(w.detail)}</span>` : ""}
+      </div>`;
+    } else {
+      banner = `<div class="callout" style="background:var(--danger-soft);border:1px solid #fca5a5;color:#7f1d1d;padding:10px 12px;border-radius:8px;margin-bottom:12px;font-size:13.5px;">
+        <b>No successful backup on record for this host.</b>
+        ${w.detail ? ` <span style="font-size:12.5px;">${esc(w.detail)}</span>` : ""}
+      </div>`;
+    }
+  }
+
+  // Recent jobs list — collapsed in <details> since it can run long.
+  const jobs = Array.isArray(w.recentJobs) ? w.recentJobs : [];
+  const jobsBlock = jobs.length ? `
+    <details style="margin-top:14px;">
+      <summary>Recent backup attempts (${jobs.length})</summary>
+      <div class="list" style="margin-top:6px;">
+        ${jobs.map(j => {
+          const jOk = j.result === "Success";
+          return `
+            <div class="row">
+              <div>
+                <div class="name">${esc(j.startTime || "—")} <span class="meta">&middot; ${fmtAge(j.startTime)}</span></div>
+                <div class="meta">${esc(j.jobType || "?")} ${j.errorDescription ? "&middot; " + esc(j.errorDescription) : ""}</div>
+              </div>
+              <div class="meta"><span class="badge ${jOk ? "ok" : "bad"}">${esc(j.result || j.jobState || "?")}</span></div>
+            </div>
+          `;
+        }).join("")}
+      </div>
+    </details>
+  ` : "";
+
   return `
+    ${banner}
     <div class="kv">
       <div class="k">Last backup</div>
       <div class="v">${esc(w.lastBackupTime || "—")} <span class="meta">(${fmtAge(w.lastBackupTime)})</span> &middot;
-        <span class="badge ${ok ? "ok" : "warn"}">${esc(w.lastBackupResult || "?")}</span>
+        <span class="badge ${ok ? "ok" : "bad"}">${esc(w.lastBackupResult || "?")}</span>
       </div>
       <div class="k">Last successful</div>
       <div class="v">${esc(w.lastSuccessfulBackup || "—")} <span class="meta">(${fmtAge(w.lastSuccessfulBackup)})</span></div>
@@ -1171,6 +1245,7 @@ function renderWsb(w) {
       <div class="k">Current op</div>
       <div class="v">${esc(w.currentOperation || "idle")}</div>
     </div>
+    ${jobsBlock}
   `;
 }
 
