@@ -69,11 +69,17 @@ export default {
 //
 
 async function handleCheckin(request, env, ctx) {
-  // ----- 1. Validate shared-secret token -----
+  // ----- 1. Validate install token (legacy env var OR per-client Firestore doc) -----
   const authHeader = request.headers.get('Authorization') || '';
   const presented = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
-  if (!presented || presented !== env.WATCHTOWER_INSTALL_TOKEN) {
-    return jsonResponse({ error: 'Invalid install token' }, 401);
+  if (!presented) {
+    return jsonResponse({ error: 'Missing install token' }, 401);
+  }
+
+  const accessToken = await getServiceAccountToken(env);
+  const auth = await validateToken(presented, env, accessToken);
+  if (!auth.ok) {
+    return jsonResponse({ error: 'Invalid install token', reason: auth.reason }, 401);
   }
 
   // ----- 2. Parse + minimally validate payload -----
@@ -94,8 +100,14 @@ async function handleCheckin(request, env, ctx) {
     return jsonResponse({ error: 'report required' }, 400);
   }
 
+  // Trust the token-bound client name over the payload's claim. This way an
+  // agent can't lie about which client it belongs to — the binding is set
+  // at token-generation time in the dashboard. Legacy tokens (env var) fall
+  // back to whatever the agent reports, since they have no binding.
+  const resolvedClient = auth.client || client || 'unknown';
+  const resolvedClientId = auth.clientId || null;
+
   // ----- 3. Fetch existing status doc to detect IP changes -----
-  const accessToken = await getServiceAccountToken(env);
   const existing = await firestoreGetDoc(env, accessToken, `agents/${pcId}`);
   const previousExternalIp = existing?.fields?.externalIp?.stringValue || null;
   const newExternalIp = report?.network?.externalIp || null;
@@ -114,7 +126,9 @@ async function handleCheckin(request, env, ctx) {
   const statusUpdate = {
     pcId,
     hostname,
-    client: client || 'unknown',
+    client: resolvedClient,
+    clientId: resolvedClientId,
+    tokenLegacy: auth.legacy === true,
     agentVersion: agentVersion || 'unknown',
     lastCheckin: nowIso,
     externalIp: newExternalIp,
@@ -180,6 +194,70 @@ async function handleCheckin(request, env, ctx) {
     },
     uninstall: config.uninstall,
   }, 200);
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Install-token validation
+// ─────────────────────────────────────────────────────────────────────
+// Two paths:
+//
+//   1. Legacy: env.WATCHTOWER_INSTALL_TOKEN (one shared secret across all
+//      agents). Kept for backward compat with agents that were built before
+//      per-client tokens existed — and as an emergency backdoor that an
+//      admin can always set if Firestore is unreachable. Should be empty in
+//      steady-state production.
+//
+//   2. Per-client: SHA-256 the presented token, look up the resulting hash
+//      as a doc id in /install_tokens. The doc carries the bound clientId
+//      + clientName + a revoked flag.
+//
+// Returns either { ok: true, client, clientId, legacy } on success
+// or       { ok: false, reason } on failure.
+//
+// We don't differentiate "unknown" vs "revoked" in the response to the
+// agent (security: don't give attackers signal about which tokens exist).
+async function validateToken(presented, env, accessToken) {
+  // Legacy path — short-circuit. Only enabled if the env var is actually set.
+  if (env.WATCHTOWER_INSTALL_TOKEN && presented === env.WATCHTOWER_INSTALL_TOKEN) {
+    return { ok: true, legacy: true, client: null, clientId: null };
+  }
+
+  // Per-client path: hash and look up. Hash uses the raw bytes of the token
+  // so different presented strings (e.g. with stray whitespace) won't match
+  // — the dashboard generates clean base64 tokens and Firestore preserves
+  // them exactly, so as long as the agent's installer also got a clean copy
+  // (the .iss bakes it in at build time), they'll match.
+  let hash;
+  try {
+    hash = await sha256Hex(presented);
+  } catch (e) {
+    return { ok: false, reason: 'token-hash-failed' };
+  }
+
+  const doc = await firestoreGetDoc(env, accessToken, `install_tokens/${hash}`);
+  if (!doc || !doc.fields) {
+    return { ok: false, reason: 'unknown' };
+  }
+  if (doc.fields.revoked?.booleanValue === true) {
+    return { ok: false, reason: 'unknown' }; // intentionally vague
+  }
+  return {
+    ok: true,
+    legacy: false,
+    client: doc.fields.clientName?.stringValue || null,
+    clientId: doc.fields.clientId?.stringValue || null,
+  };
+}
+
+async function sha256Hex(s) {
+  const data = new TextEncoder().encode(s);
+  const buf = await crypto.subtle.digest('SHA-256', data);
+  const bytes = new Uint8Array(buf);
+  let hex = '';
+  for (let i = 0; i < bytes.length; i++) {
+    hex += bytes[i].toString(16).padStart(2, '0');
+  }
+  return hex;
 }
 
 // ─────────────────────────────────────────────────────────────────────

@@ -52,6 +52,32 @@ service cloud.firestore {
       allow create, update, delete: if isMSPAdmin();
     }
 
+    // -------- /clients/{clientId} --------
+    // Client roster (the MSP's customers). Dashboard creates/manages
+    // these from the "+ New install" flow. Admins-only — no agent or
+    // public read.
+    match /clients/{clientId} {
+      allow get, list: if isMSPAdmin();
+      allow create, update, delete: if isMSPAdmin();
+    }
+
+    // -------- /install_tokens/{tokenHash} --------
+    // Per-client install tokens. Doc id is the SHA-256 hex digest of the
+    // raw token; the raw token itself is never stored (shown once at
+    // generation time, baked into the installer at build time).
+    //
+    // Write: admins only (from the dashboard).
+    // Read: admins (to manage). The worker reads via service account
+    //       (bypasses these rules) to validate each check-in.
+    //
+    // Note on listing: the dashboard lists tokens by clientId via a
+    // where() query, which requires per-doc read evaluation. List is
+    // admin-only so attackers can't enumerate token hashes.
+    match /install_tokens/{tokenHash} {
+      allow get, list: if isMSPAdmin();
+      allow create, update, delete: if isMSPAdmin();
+    }
+
     // -------- /agents/{pcId} --------
     // Per-PC status document. pcId is a stable UUID generated at install
     // time by the agent — NOT the hostname (hostnames can change /
