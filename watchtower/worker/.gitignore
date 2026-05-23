@@ -3,3 +3,12 @@ node_modules/
 .dev.vars
 *.log
 dist/
+
+# Defense-in-depth — service-account / credential JSONs should NEVER live in
+# the repo (set them via `wrangler secret put` instead), but if one ever
+# lands in this dir by accident, git won't track it.
+*-firebase-adminsdk-*.json
+*service-account*.json
+*serviceAccount*.json
+*credentials*.json
+gcp-*.json
