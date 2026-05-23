@@ -378,7 +378,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.6.0";
+const APP_VERSION = "0.6.1";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -749,15 +749,28 @@ $("#newClientBtn").addEventListener("click", () => {
     const notes = $("#ncNotes").value.trim();
     if (!name) { toast("Name is required.", true); return; }
     const id = crypto.randomUUID();
+    const createdAt = new Date().toISOString();
     try {
       await setDoc(doc(db, "clients", id), {
         name, notes: notes || null,
-        createdAt: new Date().toISOString(),
+        createdAt,
         createdBy: state.user.email,
       });
-      closeModal();
-      toast(`Created ${name}.`);
+      // Optimistically reflect the new client locally — the onSnapshot
+      // listener will reconcile when it fires, but this guarantees the
+      // table updates immediately even if the listener is sluggish
+      // (e.g. just-deployed rules, network blip).
+      if (!state.clients.some(c => c.id === id)) {
+        state.clients.push({ id, name, notes: notes || null, createdAt, createdBy: state.user.email });
+        state.clients.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+      }
       state.expandedClientId = id;
+      renderClients();
+      closeModal();
+      // Chain straight into token generation — creating a client without
+      // also generating a token is virtually never what you want, and
+      // the auto-flow saves a separate "+ Token" click.
+      generateToken(id, { auto: true });
     } catch (e) {
       toast("Create failed: " + (e.message || e), true);
     }
@@ -765,7 +778,10 @@ $("#newClientBtn").addEventListener("click", () => {
 });
 
 // ============== token generation ==============
-async function generateToken(clientId) {
+// opts.auto = true when called from the New Client flow — skip the
+// label prompt (we use "Initial" automatically; the admin can always
+// generate additional labelled tokens later).
+async function generateToken(clientId, opts = {}) {
   const client = state.clients.find(c => c.id === clientId);
   if (!client) return;
 
@@ -777,18 +793,39 @@ async function generateToken(clientId) {
   const rawToken = `wt_${b64}`;
   const hash = await sha256Hex(rawToken);
 
-  const label = prompt(`Optional label for this token (e.g. "Initial rollout 2026", "Re-issue after laptop refresh"):`, "");
-  if (label === null) return;  // cancelled
+  let label;
+  if (opts.auto) {
+    label = "Initial";
+  } else {
+    label = prompt(`Optional label for this token (e.g. "Initial rollout 2026", "Re-issue after laptop refresh"):`, "");
+    if (label === null) return;  // cancelled
+  }
 
+  const tokenCreatedAt = new Date().toISOString();
   try {
     await setDoc(doc(db, "install_tokens", hash), {
       clientId,
       clientName: client.name,
-      label: label.trim() || null,
-      createdAt: new Date().toISOString(),
+      label: (label || "").trim() || null,
+      createdAt: tokenCreatedAt,
       createdBy: state.user.email,
       revoked: false,
     });
+    // Optimistic update — same reason as the client create: snapshot
+    // listener will reconcile, but the count/list visible in the
+    // Clients tab needs to reflect the new token immediately.
+    if (!state.tokens.some(t => t.hash === hash)) {
+      state.tokens.push({
+        hash,
+        clientId,
+        clientName: client.name,
+        label: (label || "").trim() || null,
+        createdAt: tokenCreatedAt,
+        createdBy: state.user.email,
+        revoked: false,
+      });
+      renderClients();
+    }
   } catch (e) {
     toast("Token create failed: " + (e.message || e), true);
     return;
