@@ -146,6 +146,22 @@
   #drawer .drawer-body { padding: 18px 22px 60px; }
   #drawer .section { margin-bottom: 22px; }
   #drawer .section h3 { font-size: 12px; text-transform: uppercase; color: var(--ink-faint); letter-spacing: 0.06em; margin: 0 0 8px; font-weight: 700; }
+  /* Collapsible config panel — replaces the wall-of-toggles that used to
+     sit between Status and System and pushed actual host data below the
+     fold. Closed by default; one click on the cog-row reveals everything. */
+  #drawer details.section-config { margin-bottom: 22px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); padding: 0; overflow: hidden; }
+  #drawer details.section-config[open] { background: var(--surface); }
+  #drawer details.section-config > summary { list-style: none; cursor: pointer; padding: 10px 14px; display: flex; align-items: center; gap: 10px; user-select: none; }
+  #drawer details.section-config > summary::-webkit-details-marker { display: none; }
+  #drawer details.section-config > summary:hover { background: var(--surface-3, #f1f3f7); }
+  #drawer details.section-config .cog { font-size: 16px; color: var(--ink-faint); }
+  #drawer details.section-config .config-title { font-size: 13px; font-weight: 700; color: var(--ink); text-transform: uppercase; letter-spacing: 0.04em; }
+  #drawer details.section-config .config-summary { flex: 1; font-size: 12px; color: var(--ink-soft); margin-left: 4px; }
+  #drawer details.section-config .config-chevron { font-size: 11px; color: var(--ink-faint); transition: transform 0.15s; }
+  #drawer details.section-config[open] .config-chevron { transform: rotate(90deg); }
+  /* When open, the toggles need their own padding so they don't crowd the summary edge. */
+  #drawer details.section-config > *:not(summary) { padding: 0 14px; }
+  #drawer details.section-config > *:not(summary):last-child { padding-bottom: 14px; }
   #drawer .kv { display: grid; grid-template-columns: 160px 1fr; row-gap: 4px; column-gap: 12px; font-size: 13px; }
   #drawer .kv .k { color: var(--ink-faint); }
   #drawer .kv .v { color: var(--ink); word-break: break-word; }
@@ -591,7 +607,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.12.4";
+const APP_VERSION = "0.12.5";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -2723,10 +2739,33 @@ function renderDrawer(pcId) {
       ])}
     </div>
 
-    <div class="section">
-      <h3>Config &amp; kill-switches</h3>
+    ${(() => {
+      // Build a compact "what's non-default about this host" summary for
+      // the collapsed-state header. Empty array = "everything's default,
+      // nothing to flag" -> we just show "All defaults" in the summary.
+      // Otherwise we surface the deviations so the operator can decide
+      // whether to open the panel without expanding it first.
+      const flags = [];
+      if (cfg.enabled === false) flags.push(`<span style="color:#b45309;">Agent disabled</span>`);
+      if (cfg.emailEnabled === false) flags.push(`Email off`);
+      if (cfg.webhookEnabled === true) flags.push(`Webhook on`);
+      if (cfg.autoUpdate === true) flags.push(`Auto-update on`);
+      if (cfg.clientIdOverride) flags.push(`Client overridden`);
+      if (cfg.webhookUrl && cfg.webhookUrl !== state.globalWebhookUrl) flags.push(`Per-host webhook URL`);
+      const summaryLine = flags.length
+        ? flags.join(" &middot; ")
+        : `<span class="meta">All defaults</span>`;
 
-      <div style="margin-bottom:14px;">
+      return `
+    <details class="section section-config">
+      <summary>
+        <span class="cog" aria-hidden="true">&#9881;</span>
+        <span class="config-title">Config &amp; kill-switches</span>
+        <span class="config-summary">${summaryLine}</span>
+        <span class="config-chevron" aria-hidden="true">&#9656;</span>
+      </summary>
+
+      <div style="margin:14px 0;">
         <div style="font-size:13.5px;font-weight:600;margin-bottom:2px;">Client assignment</div>
         <div class="desc" style="margin-bottom:6px;">Override the token-bound client for this host. Useful when a host was installed with the wrong token. Change takes effect immediately in the Endpoints table and persists across check-ins.</div>
         <select id="dClientReassign" style="width:100%;padding:7px 10px;border:1px solid var(--line-strong);border-radius:7px;font-size:13.5px;background:var(--surface);">
@@ -2776,7 +2815,8 @@ function renderDrawer(pcId) {
           ? `<span class="meta">Already decommissioned. Use <b>Delete row</b> in the banner above to remove this entry entirely.</span>`
           : `<button class="btn btn-sm btn-danger" id="dDecommission" title="Mark this host decommissioned in the dashboard AND schedule the agent to self-uninstall on its next check-in.">Decommission</button>`}
       </div>
-    </div>
+    </details>`;
+    })()}
 
     <div class="section">
       <h3>System</h3>
