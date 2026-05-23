@@ -88,8 +88,12 @@ if (-not $SkipPyInstaller) {
             --hidden-import probes.software `
             --hidden-import probes.defender `
             --hidden-import probes.veeam `
+            --hidden-import probes.wsb `
+            --hidden-import probes.carbonite `
             --hidden-import probes.logmein `
             --hidden-import probes.sentinelone `
+            --hidden-import probes.omsa `
+            --hidden-import probes.idrac `
             --hidden-import probes.hotfixes `
             --hidden-import probes.usb `
             watchtower_service.py

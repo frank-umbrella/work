@@ -21,8 +21,12 @@ PROBES = [
     ("software",     "software"),
     ("defender",     "defender"),
     ("veeam",        "veeam"),
+    ("wsb",          "wsb"),
+    ("carbonite",    "carbonite"),
     ("logmein",      "logmein"),
     ("sentinelone",  "sentinelone"),
+    ("omsa",         "omsa"),
+    ("idrac",        "idrac"),
     ("hotfixes",     "hotfixes"),
     ("usb",          "usb"),
 ]
