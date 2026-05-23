@@ -351,7 +351,7 @@
 
   <main>
     <div class="tabs">
-      <button class="tab active" data-tab="fleet">Hosts</button>
+      <button class="tab active" data-tab="fleet">Endpoints</button>
       <button class="tab" data-tab="activity">Activity</button>
       <button class="tab" data-tab="clients">Clients</button>
       <button class="tab" data-tab="settings">Settings</button>
@@ -561,7 +561,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.10.0";
+const APP_VERSION = "0.10.1";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -836,9 +836,10 @@ function renderFleet() {
     const ohBadge = oh
       ? ` <span class="badge ${oh.kind === "warn" ? "warn" : "bad"}" title="Dell OMSA storage health">${esc(oh.label)}</span>`
       : "";
-    const updBadge = updateAvailableFor(a)
-      ? ` <span class="badge muted" title="Latest available: ${esc(state.latestAgent.version)}">Update ${esc(state.latestAgent.version)}</span>`
-      : "";
+    // Update badge intentionally dropped from the fleet row in v0.10.1 —
+    // agent version + update-available hint live in the drawer's Status
+    // section now. The Status filter "Update available" option still works
+    // for narrowing the table when needed.
 
     // Backup product pills — small text badges, only for products actually detected on this host.
     const r = a.report || {};
@@ -864,7 +865,7 @@ function renderFleet() {
         <td class="col-products" data-label="Backup">${backupCell}</td>
         <td class="col-products" data-label="Remote">${remoteCell}</td>
         <td class="age" data-label="Last check">${fmtAge(a.lastCheckin)}</td>
-        <td data-label="Status">${stBadge}${bhBadge}${ohBadge}${updBadge}</td>
+        <td data-label="Status">${stBadge}${bhBadge}${ohBadge}</td>
       </tr>
     `;
   }).join("");
@@ -1854,6 +1855,13 @@ function renderDrawer(pcId) {
     <div class="section">
       <h3>Status</h3>
       ${kv([
+        ["Agent version", `<code>${esc(a.agentVersion || "?")}</code>${
+          updateAvailableFor(a)
+            ? ` <span class="meta">&middot; latest available: <code>${esc(state.latestAgent.version)}</code> <a href="#" id="dGoToSettingsUpdateInline">(Settings)</a></span>`
+            : (state.latestAgent && state.latestAgent.version && a.agentVersion === state.latestAgent.version
+              ? ` <span class="badge ok" style="margin-left:6px;">up to date</span>`
+              : "")
+        }`],
         ["Internal IP", a.internalIp ? `<code>${esc(a.internalIp)}</code>` : "—"],
         ["External IP", `<code>${esc(a.externalIp)}</code>`],
         ["Last check-in", esc(tsToStr(a.lastCheckin)) + ` <span class="meta">(${fmtAge(a.lastCheckin)})</span>`],
@@ -2060,6 +2068,18 @@ function renderDrawer(pcId) {
   const settingsUpdateLink = document.getElementById("dGoToSettingsUpdate");
   if (settingsUpdateLink) {
     settingsUpdateLink.addEventListener("click", (e) => {
+      e.preventDefault();
+      closeDrawer();
+      $$(".tab").forEach(t => t.classList.toggle("active", t.dataset.tab === "settings"));
+      $$(".tab-pane").forEach(p => p.hidden = (p.dataset.tab !== "settings"));
+      setTimeout(() => document.getElementById("latestAgentVersion")?.focus(), 50);
+    });
+  }
+  // Same again for the inline (Settings) link next to the Agent version
+  // row in the Status section.
+  const settingsUpdateInline = document.getElementById("dGoToSettingsUpdateInline");
+  if (settingsUpdateInline) {
+    settingsUpdateInline.addEventListener("click", (e) => {
       e.preventDefault();
       closeDrawer();
       $$(".tab").forEach(t => t.classList.toggle("active", t.dataset.tab === "settings"));
