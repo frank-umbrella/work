@@ -54,7 +54,7 @@ shows the fleet, lets us drill into any PC, and lets us flip kill-switches
    for the tray, embeds per-install token at build time, handles upgrade
    in place, clean uninstall.
 
-3. **`worker/`** — Cloudflare Worker (`watchtower-worker.sevendwarfs.workers.dev`).
+3. **`worker/`** — Cloudflare Worker (`watchtower-worker.umbrelladev.workers.dev`).
    - `POST /checkin` — validates token, writes status doc, returns config.
    - `GET /healthz` — liveness probe.
    - Writes to Firestore via service-account JWT (jose pattern reused
@@ -63,7 +63,7 @@ shows the fleet, lets us drill into any PC, and lets us flip kill-switches
    - POSTs to per-PC webhook if configured.
 
 4. **`firestore.rules` / `firestore.indexes.json` / `firebase.json`** —
-   new Firebase project `umbrella-watchtower` (Spark plan to start;
+   new Firebase project `watchtower-6fbe1` (Spark plan to start;
    upgrade only if we hit quota).
 
 5. **`index.html`** — dashboard SPA. Single file. Firebase Auth (Google

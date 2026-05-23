@@ -12,7 +12,7 @@
 #   .\build.ps1 -ClientName "OPFD" -InstallToken "<base64>"
 #
 # Optional:
-#   -WorkerUrl   defaults to https://watchtower-worker.sevendwarfs.workers.dev
+#   -WorkerUrl   defaults to https://watchtower-worker.umbrelladev.workers.dev
 #   -AppVersion  defaults to whatever's in watchtower.iss
 #   -SkipPyInstaller  reuse existing build\*.exe (faster iterations on the .iss)
 
@@ -20,7 +20,7 @@
 param(
     [Parameter(Mandatory=$true)]  [string] $ClientName,
     [Parameter(Mandatory=$true)]  [string] $InstallToken,
-    [string] $WorkerUrl   = "https://watchtower-worker.sevendwarfs.workers.dev",
+    [string] $WorkerUrl   = "https://watchtower-worker.umbrelladev.workers.dev",
     [string] $AppVersion  = "0.1.0",
     [switch] $SkipPyInstaller
 )

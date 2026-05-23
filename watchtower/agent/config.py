@@ -45,7 +45,7 @@ def load_config():
 
     Expected shape:
       {
-        "workerUrl": "https://watchtower-worker.sevendwarfs.workers.dev",
+        "workerUrl": "https://watchtower-worker.umbrelladev.workers.dev",
         "installToken": "<base64-32-bytes>",
         "client": "OPFD",
         "pcId": "<uuid>",

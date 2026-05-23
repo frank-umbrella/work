@@ -27,7 +27,7 @@
   #define InstallToken ""
 #endif
 #ifndef WorkerUrl
-  #define WorkerUrl "https://watchtower-worker.sevendwarfs.workers.dev"
+  #define WorkerUrl "https://watchtower-worker.umbrelladev.workers.dev"
 #endif
 #ifndef AppVersion
   #define AppVersion "0.1.0"

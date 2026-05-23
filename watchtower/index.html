@@ -268,22 +268,22 @@
 <div class="toast" id="toast" hidden></div>
 
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-auth.js";
-import { getFirestore, collection, doc, getDoc, setDoc, updateDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js";
+import { getFirestore, collection, doc, getDoc, setDoc, updateDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
 
 // ------------------------------------------------------------------
-// Firebase config — replace with the umbrella-watchtower project's
-// web config (Console → Project settings → General → Your apps → Web).
+// Firebase config — watchtower-6fbe1 project (separate from the
+// onboarding-a563d project used by /onboarding/ and /incidents/).
 // The apiKey is NOT a secret; it's safe to commit to a public repo.
 // ------------------------------------------------------------------
 const firebaseConfig = {
-  apiKey:            "REPLACE_WITH_WEB_API_KEY",
-  authDomain:        "umbrella-watchtower.firebaseapp.com",
-  projectId:         "umbrella-watchtower",
-  storageBucket:     "umbrella-watchtower.firebasestorage.app",
-  messagingSenderId: "REPLACE_WITH_SENDER_ID",
-  appId:             "REPLACE_WITH_APP_ID"
+  apiKey:            "AIzaSyDKWHa-nmIzFvnLqF92rmzIXiSKe2HywQw",
+  authDomain:        "watchtower-6fbe1.firebaseapp.com",
+  projectId:         "watchtower-6fbe1",
+  storageBucket:     "watchtower-6fbe1.firebasestorage.app",
+  messagingSenderId: "637038228926",
+  appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
 const APP_VERSION = "0.1.0";

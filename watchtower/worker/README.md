@@ -38,7 +38,7 @@ wrangler secret put WATCHTOWER_INSTALL_TOKEN        # paste a 32-byte random bas
 wrangler deploy
 ```
 
-Worker URL: `https://watchtower-worker.sevendwarfs.workers.dev`
+Worker URL: `https://watchtower-worker.umbrelladev.workers.dev`
 
 ## Generating the install token
 
