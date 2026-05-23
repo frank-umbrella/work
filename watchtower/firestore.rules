@@ -1,0 +1,102 @@
+rules_version = '2';
+
+// Umbrella Automation — Watchtower (fleet monitoring)
+// Firestore security rules.
+//
+// Two principal types — and they look very different here:
+//
+//   1. MSP admins — Umbrella employees, members of /msp_admins/{uid}.
+//                   Use Firebase Auth (Google provider). Read every
+//                   agent's status + history, write per-agent config
+//                   (kill switches, webhook URLs, notes).
+//
+//   2. Watchtower agents — Windows services on client PCs. They do NOT
+//                   authenticate as Firebase users. They POST check-ins
+//                   to watchtower-worker, which validates a per-install
+//                   shared-secret token and then writes to Firestore via
+//                   a service account (jose JWT, same pattern as
+//                   usage-worker and stocks-worker). Service-account
+//                   writes bypass these rules entirely.
+//
+// Because agents never authenticate to Firestore directly, every
+// `/agents/...` write rule here is `if false`. The only writers are
+// admins (via the dashboard, for config) and the worker (via service
+// account, for status + history).
+//
+// Bootstrap: the very first MSP admin must be added by editing
+// /msp_admins/{uid} directly in the Firebase console after their first
+// sign-in. After that, admins can add more admins through the UI.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // -------- helpers --------
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isMSPAdmin() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/msp_admins/$(request.auth.uid));
+    }
+
+    // -------- /msp_admins/{uid} --------
+    // MSP team roster. Doc id is the user's auth uid. Self-readable;
+    // admins can list and manage. No self-creation — first admin must
+    // be added via the Firebase console; subsequent admins are added
+    // by an existing admin through the dashboard.
+    match /msp_admins/{uid} {
+      allow get: if isSignedIn() && (request.auth.uid == uid || isMSPAdmin());
+      allow list: if isMSPAdmin();
+      allow create, update, delete: if isMSPAdmin();
+    }
+
+    // -------- /agents/{pcId} --------
+    // Per-PC status document. pcId is a stable UUID generated at install
+    // time by the agent — NOT the hostname (hostnames can change /
+    // collide across clients).
+    //
+    // Read: MSP admins only.
+    // Write: never directly — only the watchtower-worker writes here,
+    //        via service account (which bypasses these rules).
+    match /agents/{pcId} {
+      allow get, list: if isMSPAdmin();
+      allow create, update, delete: if false;
+
+      // -------- /agents/{pcId}/config/{configId} --------
+      // Per-agent control plane. The "current" doc carries:
+      //   enabled        (master kill switch)
+      //   emailEnabled   (suppress alert emails but keep monitoring)
+      //   webhookEnabled (suppress webhook POSTs)
+      //   webhookUrl     (where to POST on IP change)
+      //   notes          (MSP-internal note about this host)
+      //   uninstall      (one-shot: agent self-removes on next check-in)
+      //
+      // The agent reads this via the worker on every check-in, so flips
+      // take effect within one check cycle (24h by default).
+      //
+      // Admins write this from the dashboard. Worker reads (service
+      // account, bypasses rules). No one else touches it.
+      //
+      // Immutable fields on update: we don't enforce any here because
+      // every field is intentionally editable.
+      match /config/{configId} {
+        allow get, list: if isMSPAdmin();
+        allow create, update, delete: if isMSPAdmin();
+      }
+
+      // -------- /agents/{pcId}/history/{checkinId} --------
+      // Rolling check-in history. Worker writes one doc per check-in
+      // capturing the external IP, whether anything changed, and a
+      // small delta. Retain ~90 days (cleanup runs in a separate
+      // scheduled worker — not built yet).
+      //
+      // Read: MSP admins only. Write: service-account-only (false here).
+      match /history/{checkinId} {
+        allow get, list: if isMSPAdmin();
+        allow create, update, delete: if false;
+      }
+    }
+  }
+}
