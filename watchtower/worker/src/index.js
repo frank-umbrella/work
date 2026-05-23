@@ -428,13 +428,32 @@ async function handleCheckin(request, env, ctx) {
   const resolvedClient = auth.client || client || 'unknown';
   const resolvedClientId = auth.clientId || null;
 
-  // ----- 3. Fetch existing status doc to detect IP changes -----
+  // ----- 3. Fetch existing status doc to detect IP changes + backup-failure transitions -----
   const existing = await firestoreGetDoc(env, accessToken, `agents/${pcId}`);
   const previousExternalIp = existing?.fields?.externalIp?.stringValue || null;
   const newExternalIp = report?.network?.externalIp || null;
   const ipChanged = previousExternalIp !== null && newExternalIp !== null && previousExternalIp !== newExternalIp;
   const firstSeen = existing === null;
   const nowIso = new Date().toISOString();
+
+  // ----- 3b. Detect new WSB backup failure -----
+  // Dedupe on lastBackupTime: a host with a failing daily backup will
+  // produce one alert per failed attempt (since each attempt advances
+  // lastBackupTime), not one per check-in. Persistent same-state
+  // failures across multiple check-ins of the same attempt = silent.
+  const wsbCurrent = report?.wsb;
+  const wsbPrev = existing?.fields?.report?.mapValue?.fields?.wsb?.mapValue?.fields;
+  const wsbInstalled = wsbCurrent?.installed === true;
+  const wsbCurrentResult = wsbCurrent?.lastBackupResult;
+  const wsbCurrentTime = wsbCurrent?.lastBackupTime;
+  const wsbPrevTime = wsbPrev?.lastBackupTime?.stringValue || null;
+  const wsbNewFailure = (
+    wsbInstalled
+    && wsbCurrentResult
+    && wsbCurrentResult !== 'Success'
+    && wsbCurrentTime
+    && wsbCurrentTime !== wsbPrevTime  // new attempt since last check-in (or never seen)
+  );
 
   // ----- 4. Read per-PC config (kill switches) — but treat absence as defaults -----
   const configDoc = await firestoreGetDoc(env, accessToken, `agents/${pcId}/config/current`);
@@ -498,6 +517,46 @@ async function handleCheckin(request, env, ctx) {
           client: client || 'unknown',
           previousIp: previousExternalIp,
           newIp: newExternalIp,
+          when: nowIso,
+        }).catch((e) => console.error('Webhook POST failed:', e))
+      );
+    }
+  }
+
+  // ----- 7b. Notify on new WSB backup failure -----
+  if (wsbNewFailure && config.enabled) {
+    const lastSuccess = wsbCurrent?.lastSuccessfulBackup || null;
+    const daysSinceSuccess = lastSuccess
+      ? Math.floor((Date.now() - new Date(lastSuccess).getTime()) / 86400000)
+      : null;
+
+    if (config.emailEnabled && env.RESEND_API_KEY) {
+      ctx.waitUntil(
+        sendBackupFailureEmail(env, {
+          pcId,
+          hostname,
+          client: resolvedClient,
+          result: wsbCurrentResult,
+          detail: wsbCurrent?.detail || null,
+          attemptedAt: wsbCurrentTime,
+          lastSuccess,
+          daysSinceSuccess,
+          when: nowIso,
+        }).catch((e) => console.error('WSB failure email failed:', e))
+      );
+    }
+    if (config.webhookEnabled && config.webhookUrl) {
+      ctx.waitUntil(
+        postWebhook(config.webhookUrl, {
+          event: 'wsb_backup_failed',
+          pcId,
+          hostname,
+          client: resolvedClient,
+          result: wsbCurrentResult,
+          detail: wsbCurrent?.detail || null,
+          attemptedAt: wsbCurrentTime,
+          lastSuccess,
+          daysSinceSuccess,
           when: nowIso,
         }).catch((e) => console.error('Webhook POST failed:', e))
       );
@@ -630,6 +689,54 @@ async function sendIpChangeEmail(env, { pcId, hostname, client, previousIp, newI
         Sent by watchtower-worker. To silence these emails, flip
         <code>emailEnabled</code> off in the agent's per-PC config from the
         Watchtower dashboard.
+      </p>
+    </div>
+  `;
+  const resp = await fetch(`${RESEND_BASE}/emails`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${env.RESEND_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: env.SENDER_FROM || 'Watchtower <onboarding@resend.dev>',
+      to: [env.ALERT_TO],
+      subject,
+      html,
+    }),
+  });
+  if (!resp.ok) {
+    const txt = await resp.text();
+    throw new Error(`Resend ${resp.status}: ${txt}`);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Resend email — Windows Server Backup failure alert
+// ─────────────────────────────────────────────────────────────────────
+async function sendBackupFailureEmail(env, { pcId, hostname, client, result, detail, attemptedAt, lastSuccess, daysSinceSuccess, when }) {
+  const subject = `Watchtower: backup FAILED — ${hostname} (${client})`;
+  const daysLine = daysSinceSuccess != null
+    ? `<tr><td style="color:#666;">Days since success</td><td><b style="color:#b00;">${daysSinceSuccess}</b></td></tr>`
+    : `<tr><td style="color:#666;">Last success</td><td><i>No successful backup on record</i></td></tr>`;
+  const html = `
+    <div style="font-family: system-ui, -apple-system, Segoe UI, sans-serif; color:#222; max-width:600px;">
+      <h2 style="color:#b00; margin:0 0 12px;">Windows Server Backup failed</h2>
+      <table cellpadding="6" style="border-collapse:collapse; font-size:14px;">
+        <tr><td style="color:#666;">Host</td><td><b>${escapeHtml(hostname)}</b></td></tr>
+        <tr><td style="color:#666;">Client</td><td>${escapeHtml(client)}</td></tr>
+        <tr><td style="color:#666;">Result</td><td><code style="color:#b00;"><b>${escapeHtml(result)}</b></code></td></tr>
+        <tr><td style="color:#666;">Attempted at</td><td>${escapeHtml(attemptedAt)}</td></tr>
+        ${lastSuccess ? `<tr><td style="color:#666;">Last successful</td><td>${escapeHtml(lastSuccess)}</td></tr>` : ''}
+        ${daysLine}
+        <tr><td style="color:#666;">Detected</td><td>${escapeHtml(when)}</td></tr>
+        <tr><td style="color:#666;">pcId</td><td><code>${escapeHtml(pcId)}</code></td></tr>
+      </table>
+      ${detail ? `<p style="color:#444; font-size:13px; margin-top:16px; padding:10px; background:#fafafa; border-left:3px solid #b00;"><b>WSB detail:</b><br>${escapeHtml(detail)}</p>` : ''}
+      <p style="color:#888; font-size:12px; margin-top:24px;">
+        Sent once per new failed attempt (deduped by lastBackupTime). To silence
+        these emails for this host, flip <code>emailEnabled</code> off in the
+        agent's per-PC config from the Watchtower dashboard.
       </p>
     </div>
   `;
