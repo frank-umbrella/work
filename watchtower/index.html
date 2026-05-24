@@ -851,7 +851,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.17";
+const APP_VERSION = "0.14.19";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -1499,20 +1499,63 @@ document.getElementById("resetAllHostsWebhook").addEventListener("click", async 
 document.getElementById("saveLatestAgent").addEventListener("click", saveLatestAgent);
 document.getElementById("clearLatestAgent").addEventListener("click", clearLatestAgent);
 
-// Top-bar "Download installer" link — uses the latest published downloadUrl
-// from /settings/agentVersion (same source the auto-update flow reads).
+// Top-bar "Download installer" link -- shows a chooser modal when the
+// worker reports two variants (slim + LogMeIn-bundled), otherwise
+// downloads the only variant directly. Worker /latest-version (v0.14.19+)
+// returns both downloadUrl (slim) and downloadUrlWithLogmein (bundled);
+// the bundled URL is null when bundles/LogMeIn.msi wasn't committed
+// for that release.
 document.getElementById("downloadInstallerLink").addEventListener("click", (e) => {
   e.preventDefault();
-  const url = state.latestAgent && state.latestAgent.downloadUrl;
-  if (url) {
-    window.open(url, "_blank", "noopener");
-  } else {
-    toast("No installer published yet — set the download URL in Settings.", true);
-    // Help them get there.
+  const latest = state.latestAgent || {};
+  const slimUrl = latest.downloadUrl;
+  const lmiUrl = latest.downloadUrlWithLogmein;
+
+  if (!slimUrl && !lmiUrl) {
+    toast("No installer published yet -- set the download URL in Settings.", true);
     $$(".tab").forEach(t => t.classList.toggle("active", t.dataset.tab === "settings"));
     $$(".tab-pane").forEach(p => p.hidden = (p.dataset.tab !== "settings"));
     setTimeout(() => document.getElementById("latestAgentUrl")?.focus(), 50);
+    return;
   }
+
+  // Only one variant available -- download it without asking.
+  if (slimUrl && !lmiUrl) {
+    window.open(slimUrl, "_blank", "noopener");
+    return;
+  }
+  if (lmiUrl && !slimUrl) {
+    window.open(lmiUrl, "_blank", "noopener");
+    return;
+  }
+
+  // Both variants -- show chooser modal so operator can pick.
+  // Auto-update path will always pick the slim variant regardless,
+  // so this only affects manual downloads from the dashboard.
+  openModal({
+    title: "Download installer",
+    sub: `Watchtower v${latest.version || "?"} -- pick a variant`,
+    body: `
+      <div style="display:flex;flex-direction:column;gap:10px;margin-top:8px;">
+        <a href="${esc(slimUrl)}" target="_blank" rel="noopener" data-modal-close
+           style="display:block;padding:14px 16px;border:1px solid var(--line-strong);border-radius:9px;text-decoration:none;color:var(--ink);background:var(--surface);"
+           onmouseover="this.style.borderColor='var(--accent)';this.style.background='var(--accent-soft)';"
+           onmouseout="this.style.borderColor='var(--line-strong)';this.style.background='var(--surface)';">
+          <div style="font-weight:600;margin-bottom:2px;">Without LogMeIn <span class="meta" style="font-weight:400;margin-left:6px;">~30 MB</span></div>
+          <div style="font-size:12.5px;color:var(--ink-soft);">Slim variant. Just the Watchtower agent + tray + diagnostic scripts. Use when LogMeIn is already deployed on the host (or it shouldn't be).</div>
+        </a>
+        <a href="${esc(lmiUrl)}" target="_blank" rel="noopener" data-modal-close
+           style="display:block;padding:14px 16px;border:1px solid var(--line-strong);border-radius:9px;text-decoration:none;color:var(--ink);background:var(--surface);"
+           onmouseover="this.style.borderColor='var(--accent)';this.style.background='var(--accent-soft)';"
+           onmouseout="this.style.borderColor='var(--line-strong)';this.style.background='var(--surface)';">
+          <div style="font-weight:600;margin-bottom:2px;">With LogMeIn <span class="meta" style="font-weight:400;margin-left:6px;">~80 MB</span></div>
+          <div style="font-size:12.5px;color:var(--ink-soft);">Bundled variant. Installer wizard offers an "Install LogMeIn" task (checked by default). Use on new hosts that don't have LogMeIn yet.</div>
+        </a>
+      </div>
+      <p class="meta" style="margin-top:14px;font-size:12px;">Agent auto-updates always use the slim variant regardless of which you pick here, so updates never surprise-install LogMeIn on a host that opted out originally.</p>
+    `,
+    foot: `<button class="btn" data-modal-close>Cancel</button>`,
+  });
 });
 
 // ============== /clients live subscription ==============

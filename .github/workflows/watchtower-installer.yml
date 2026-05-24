@@ -101,27 +101,46 @@ jobs:
         shell: pwsh
         run: choco install innosetup -y --no-progress
 
-      - name: Build + publish installer
+      - name: Build SLIM installer (Watchtower-Setup.exe -- no LogMeIn)
+        # SkipLogmein bypasses the bundles/LogMeIn.msi auto-detect so this
+        # variant is just the agent + tray + diagnostic scripts (~30 MB).
+        # Always built first so it's the "default" if anything later fails.
         shell: pwsh
         env:
-          # gh CLI reads GH_TOKEN automatically. GITHUB_TOKEN is the
-          # workflow's auto-provided token scoped to this repo with the
-          # `contents: write` permission declared above.
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         working-directory: watchtower/installer
         run: |
           $v = '${{ steps.version.outputs.version }}'
-          .\build.ps1 -AppVersion $v -Publish
+          .\build.ps1 -AppVersion $v -SkipLogmein -OutputName 'Watchtower-Setup.exe' -Publish
 
-      - name: Upload built EXE as workflow artifact
-        # Belt-and-suspenders: even if the release push glitched, the
-        # built EXE is downloadable from the Actions run page for ~90
-        # days. Doesn't bloat anything since GitHub stores it once.
+      - name: Build BUNDLED installer (Watchtower-Setup-LogMeIn.exe)
+        # Auto-picks up bundles/LogMeIn.msi (committed when MSP refreshes
+        # their LogMeIn Central package). Skipped silently when the MSI
+        # isn't committed -- the slim variant above is still uploaded so
+        # the dashboard's download chooser still has at least one option.
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        working-directory: watchtower/installer
+        run: |
+          $v = '${{ steps.version.outputs.version }}'
+          if (Test-Path 'bundles\LogMeIn.msi') {
+            .\build.ps1 -AppVersion $v -OutputName 'Watchtower-Setup-LogMeIn.exe' -Publish
+          } else {
+            Write-Host "No bundles\LogMeIn.msi present; skipping bundled variant." -ForegroundColor Yellow
+          }
+
+      - name: Upload built EXEs as workflow artifacts
+        # Belt-and-suspenders: even if the release push glitched, both
+        # built EXEs are downloadable from the Actions run page for ~90
+        # days. Doesn't bloat anything since GitHub stores them once.
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: Watchtower-Setup-${{ steps.version.outputs.version }}
-          path: watchtower/installer/dist/Watchtower-Setup.exe
+          path: |
+            watchtower/installer/dist/Watchtower-Setup.exe
+            watchtower/installer/dist/Watchtower-Setup-LogMeIn.exe
           if-no-files-found: warn
           retention-days: 90
 
@@ -131,14 +150,15 @@ jobs:
         run: |
           $v = '${{ steps.version.outputs.version }}'
           $tag = '${{ steps.version.outputs.tag }}'
-          $url = "https://github.com/${{ github.repository }}/releases/download/$tag/Watchtower-Setup.exe"
+          $base = "https://github.com/${{ github.repository }}/releases/download/$tag"
           # GITHUB_STEP_SUMMARY shows up at the top of the Actions run page.
           @"
           ## Watchtower v$v published
 
           - **Tag**: ``$tag``
-          - **Download URL**: $url
-          - **Dashboard auto-pickup**: The Download Installer button + ``/latest-version`` worker endpoint will start handing out the new EXE within a couple of minutes (Cloudflare Workers caches /latest-version for 5 min).
+          - **Slim (no LogMeIn)**: $base/Watchtower-Setup.exe
+          - **Bundled (with LogMeIn)**: $base/Watchtower-Setup-LogMeIn.exe (when bundles/LogMeIn.msi is committed)
+          - **Dashboard auto-pickup**: Both URLs appear in the Download chooser modal within a couple of minutes (Cloudflare Workers caches /latest-version for 5 min).
 
-          To roll out via auto-update, no further action is needed -- agents with **Auto-install updates** flipped on in their drawer will pick this up on their next daily check-in.
+          Agent auto-update path passes ``/TASKS=""`` to the installer regardless of which variant it pulls, so an auto-update will never surprise-install LogMeIn on a host that opted out originally.
           "@ | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8

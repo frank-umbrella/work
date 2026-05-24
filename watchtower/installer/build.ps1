@@ -42,6 +42,19 @@ param(
     #   -LogmeinMsiArgs "DEPLOYID=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx INSTALLMETHOD=5 FQDNDESC=1"
     [string] $LogmeinMsiArgs = "",
 
+    # When set, explicitly skip the bundles/ auto-detect even if a
+    # LogMeIn.msi is committed there. Used by CI to produce a SLIM
+    # variant of the installer alongside the bundled one, so the
+    # dashboard can offer "Download with LogMeIn" vs "Download (slim)"
+    # to the operator.
+    [switch] $SkipLogmein,
+
+    # Optional custom output filename (just the basename, no path).
+    # Defaults to Watchtower-Setup.exe. Used by CI to produce both
+    # Watchtower-Setup.exe (slim) and Watchtower-Setup-LogMeIn.exe
+    # (bundled) without overwriting each other.
+    [string] $OutputName = "Watchtower-Setup.exe",
+
     # When set, after a successful build the resulting EXE is uploaded
     # to a GitHub Release tagged "v$AppVersion" on frank-umbrella/work.
     # Requires `gh` CLI authenticated as a user with push access; the
@@ -232,18 +245,21 @@ $isccArgs = @(
     "/DAppVersion=$AppVersion"
 )
 
-# Convention path: if -LogmeinMsi wasn't passed explicitly, check the
-# bundles/ folder for a checked-in LogMeIn.msi. Lets CI builds pick up
-# the bundled MSI automatically without needing the workflow to know
-# where it lives -- the MSP just commits the MSI from LogMeIn Central
-# into the repo at watchtower/installer/bundles/LogMeIn.msi and every
-# subsequent CI build includes it.
-if (-not $LogmeinMsi) {
+# Convention path: if -LogmeinMsi wasn't passed explicitly AND the
+# operator didn't pass -SkipLogmein, check the bundles/ folder for a
+# checked-in LogMeIn.msi. Lets CI builds pick up the bundled MSI
+# automatically without needing the workflow to know where it lives.
+# The MSP commits the MSI from LogMeIn Central into the repo at
+# watchtower/installer/bundles/LogMeIn.msi and every subsequent CI
+# build includes it.
+if ((-not $LogmeinMsi) -and (-not $SkipLogmein)) {
     $bundleCandidate = Join-Path $here 'bundles\LogMeIn.msi'
     if (Test-Path $bundleCandidate) {
         $LogmeinMsi = $bundleCandidate
         Write-Host "==> Found bundled LogMeIn MSI at $bundleCandidate" -ForegroundColor DarkGray
     }
+} elseif ($SkipLogmein) {
+    Write-Host "==> -SkipLogmein set; building slim installer (no LogMeIn even if bundles/LogMeIn.msi exists)" -ForegroundColor DarkGray
 }
 
 if ($LogmeinMsi) {
@@ -267,16 +283,24 @@ if ($LASTEXITCODE -ne 0) {
     throw "ISCC failed with exit code $LASTEXITCODE"
 }
 
-$out = Join-Path $distDir 'Watchtower-Setup.exe'
-if (Test-Path $out) {
-    Write-Host ""
-    Write-Host "Done: $out" -ForegroundColor Green
-    Write-Host "Ship this same file to every client; the install token is entered at install time." -ForegroundColor DarkGray
-    if ($LogmeinMsi) {
-        Write-Host "LogMeIn MSI is bundled - wizard will show an 'Also install LogMeIn' checkbox (checked by default)." -ForegroundColor DarkGray
-    }
-} else {
-    throw "Expected output missing: $out"
+$builtPath = Join-Path $distDir 'Watchtower-Setup.exe'
+if (-not (Test-Path $builtPath)) {
+    throw "Expected output missing: $builtPath"
+}
+# Rename to the operator-supplied $OutputName (defaults to the same
+# Watchtower-Setup.exe). Lets CI run this twice with different
+# OutputName values to produce both slim + bundled variants without
+# overwriting each other.
+$out = Join-Path $distDir $OutputName
+if ($OutputName -ne 'Watchtower-Setup.exe') {
+    if (Test-Path $out) { Remove-Item $out -Force }
+    Move-Item $builtPath $out
+}
+Write-Host ""
+Write-Host "Done: $out" -ForegroundColor Green
+Write-Host "Ship this same file to every client; the install token is entered at install time." -ForegroundColor DarkGray
+if ($LogmeinMsi) {
+    Write-Host "LogMeIn MSI is bundled - wizard will show an 'Also install LogMeIn' checkbox (checked by default)." -ForegroundColor DarkGray
 }
 
 # ---------------------------------------------------------------------------
@@ -296,7 +320,7 @@ if ($Publish) {
     Write-Host "SHA256: $hash" -ForegroundColor DarkGray
 
     $tag = "watchtower-v$AppVersion"
-    $assetName = 'Watchtower-Setup.exe'
+    $assetName = $OutputName
     $repo = 'frank-umbrella/work'
 
     # Check if release exists. PS 5.1 wraps native stderr as

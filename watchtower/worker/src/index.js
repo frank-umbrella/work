@@ -853,18 +853,39 @@ async function fetchLatestFromGitHub() {
   });
   const latest = candidates[0];
 
-  const asset = (latest.assets || []).find(a => /watchtower-setup\.exe$/i.test(a.name || ''));
-  // build.ps1 -Publish writes "Watchtower agent X.Y.Z. SHA256: <hex>" into
-  // the release body. Parse out the hex; if missing, return null and let
-  // the dashboard / agent decide how to handle (manual download = fine
-  // without SHA, auto-update path refuses without SHA — see updater.py).
-  const shaMatch = (latest.body || '').match(/SHA256:\s*([a-f0-9]{64})/i);
+  // Slim variant = Watchtower-Setup.exe (no LogMeIn, smaller download).
+  // Bundled variant = Watchtower-Setup-LogMeIn.exe (includes LMI MSI).
+  // The build workflow publishes both when bundles/LogMeIn.msi is
+  // committed; only the slim variant when it isn't.
+  const slimAsset = (latest.assets || []).find(a => /^watchtower-setup\.exe$/i.test(a.name || ''));
+  const lmiAsset  = (latest.assets || []).find(a => /^watchtower-setup-logmein\.exe$/i.test(a.name || ''));
+
+  // build.ps1 -Publish writes "Watchtower agent X.Y.Z. SHA256: <hex>"
+  // into the release body for EACH asset. Body now has TWO SHA lines
+  // (one per variant) so we parse them by filename context. If only
+  // one variant exists the body has just one SHA line.
+  const body = latest.body || '';
+  const slimShaMatch = body.match(/Watchtower-Setup\.exe[^]*?SHA256:\s*([a-f0-9]{64})/i)
+                    || body.match(/SHA256:\s*([a-f0-9]{64})/i);  // single-line legacy fallback
+  const lmiShaMatch  = body.match(/Watchtower-Setup-LogMeIn\.exe[^]*?SHA256:\s*([a-f0-9]{64})/i);
+
   return {
     ok: true,
     version: (latest.tag_name || '').replace(/^watchtower-v/i, ''),
-    downloadUrl: asset.browser_download_url,
-    sha256: shaMatch ? shaMatch[1].toLowerCase() : null,
-    notes: latest.body || latest.name || null,
+    // Primary download = slim. Dashboard's chooser modal uses this
+    // when the operator picks "Without LogMeIn". Agent auto-updater
+    // also uses this URL (auto-update never wants LogMeIn -- it
+    // would surprise-install something the host might have opted
+    // out of originally).
+    downloadUrl: slimAsset ? slimAsset.browser_download_url : null,
+    sha256: slimShaMatch ? slimShaMatch[1].toLowerCase() : null,
+    // Bundled variant fields. Null when the release didn't include
+    // a LogMeIn-bundled asset (bundles/LogMeIn.msi not committed
+    // when this version was built). Dashboard chooser hides the
+    // "With LogMeIn" option in that case.
+    downloadUrlWithLogmein: lmiAsset ? lmiAsset.browser_download_url : null,
+    sha256WithLogmein: lmiShaMatch ? lmiShaMatch[1].toLowerCase() : null,
+    notes: body || latest.name || null,
     updatedAt: latest.published_at || latest.created_at || null,
     source: 'github',
   };
