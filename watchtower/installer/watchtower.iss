@@ -768,74 +768,193 @@ end;
 
 // ──────────────────────────────────────────────────────────────────────
 // EnsureServiceRunning -- queries the service state after install and
-// retries `sc start` up to 3 times with a 2s gap if it's not RUNNING.
-// Two-host failure on v0.14.15 auto-update showed the service stayed
-// STOPPED after install -- usually because of a transient "file in use"
-// race between extraction releasing the handle and sc.exe start kicking
-// in. Retrying always wins within a couple seconds.
+// patiently waits for it to enter RUNNING. Tolerant of START_PENDING
+// (means it's starting, just hasn't reported in yet -- don't try to
+// re-start it, that's a no-op). Total wait: ~60 seconds, plenty for
+// slow Server 2012 R2 VMs whose pywin32 service bootstrap can take
+// 30+ seconds.
 //
-// Tolerant: a final failure here is logged but doesn't abort the install
-// (the operator can manually start the service from services.msc or via
-// the new Start Menu "Watchtower Tray" shortcut -> Restart Service in
-// the tray's Troubleshoot submenu).
+// Bug history: v0.14.16's version retried sc start 3 times with 2s
+// gaps (6s total) and treated anything-not-RUNNING as "try again."
+// On slow VMs that meant we re-issued sc start while the service was
+// still in START_PENDING -- which doesn't kill anything but also
+// doesn't help. By 6s the install finished, leaving the service in
+// permanently-START_PENDING or eventually-STOPPED state.
+//
+// Tolerant final fail: the operator can manually start via the tray's
+// Troubleshoot -> Restart Watchtower service menu, or the Start Menu
+// "Watchtower Tray" shortcut.
 // ──────────────────────────────────────────────────────────────────────
 procedure EnsureServiceRunning();
 var
   ResultCode, Attempt: Integer;
-  Cmd: string;
+  State: string;
+  TmpFile: string;
+  Lines: TArrayOfString;
+  I: Integer;
 begin
-  // Quick state check via PowerShell -- exits 0 if RUNNING, 1 otherwise.
-  Cmd := 'powershell.exe -NoProfile -Command "if ((Get-Service WatchtowerAgent -EA SilentlyContinue).Status -eq ''Running'') { exit 0 } else { exit 1 }"';
+  TmpFile := ExpandConstant('{tmp}\wt-svc-state.txt');
 
-  for Attempt := 1 to 3 do
+  for Attempt := 1 to 20 do  // 20 * 3s wait = up to 60s
   begin
-    Exec(ExpandConstant('{cmd}'), '/c ' + Cmd, '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-    if ResultCode = 0 then
-      Exit;  // already running, done
-
-    // Not running -- try to start it
-    Exec(ExpandConstant('{sys}\sc.exe'), 'start {#ServiceName}',
+    // Read service state via sc.exe query. Avoid PowerShell entirely
+    // (slow to spin up, and not always on PATH for SYSTEM context on
+    // really stripped 2012 R2 installs).
+    Exec(ExpandConstant('{cmd}'),
+         '/c sc query {#ServiceName} > "' + TmpFile + '" 2>&1',
          '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-    Sleep(2000);
+
+    State := '';
+    if LoadStringsFromFile(TmpFile, Lines) then
+    begin
+      for I := 0 to GetArrayLength(Lines) - 1 do
+      begin
+        if Pos('STATE', Uppercase(Lines[I])) > 0 then
+        begin
+          if Pos('RUNNING', Uppercase(Lines[I])) > 0 then State := 'RUNNING'
+          else if Pos('START_PENDING', Uppercase(Lines[I])) > 0 then State := 'START_PENDING'
+          else if Pos('STOPPED', Uppercase(Lines[I])) > 0 then State := 'STOPPED'
+          else if Pos('STOP_PENDING', Uppercase(Lines[I])) > 0 then State := 'STOP_PENDING';
+          Break;
+        end;
+      end;
+    end;
+
+    if State = 'RUNNING' then
+    begin
+      DeleteFile(TmpFile);
+      Exit;
+    end;
+
+    if State = 'STOPPED' then
+    begin
+      // Issue sc start. Service might still be releasing handles from
+      // the previous run; that's OK, sc handles the queue.
+      Exec(ExpandConstant('{sys}\sc.exe'), 'start {#ServiceName}',
+           '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+    end;
+    // If START_PENDING or STOP_PENDING, just wait -- don't poke it.
+    Sleep(3000);
   end;
-  // Final check after the last attempt -- but don't abort the install.
+
+  DeleteFile(TmpFile);
+  // Fell through 60s without reaching RUNNING. Don't abort the
+  // install; let the post-install summary stand. Operator has the
+  // tray Troubleshoot -> Restart escape hatch.
 end;
 
 // ──────────────────────────────────────────────────────────────────────
 // LaunchTrayAsActiveUser -- spawns watchtower-tray.exe in the active
-// console user's session via schtasks. Used on the auto-update path
-// where the installer was spawned by LocalSystem and runasoriginaluser
-// has no user to drop into.
+// console user's session. Used on the auto-update path where the
+// installer was spawned by LocalSystem and runasoriginaluser has no
+// user to drop into.
 //
-// How it works:
-//   1. Create a one-shot scheduled task that runs as INTERACTIVE
-//      (which schtasks accepts via the empty /RU + /IT flag combo,
-//      meaning "run as the currently-logged-on user, interactively").
-//   2. Immediately /Run it so the tray launches now.
-//   3. /Delete the task so we don't litter the Task Scheduler.
+// v0.14.16's first attempt used `schtasks /Create /IT` without /RU,
+// which defaults to whoever invoked schtasks -- ME, the SYSTEM-spawned
+// installer. So the scheduled task ran the tray as SYSTEM, which can
+// allocate the tray icon but it lives in session 0 (services session),
+// invisible to the interactive user.
 //
-// If no interactive user is logged in (server running headless with
-// no RDP session), the run is silently a no-op -- the HKLM\Run entry
-// will catch the tray launch on the next user logon.
+// Fix: use `query user` to find the actual logged-on console user
+// (a domain or local account name), then schedule the task with
+// /RU "<that user>" /IT /RL LIMITED. The task runs as the right
+// user + appears in their tray. If nobody's logged in (headless),
+// silently no-op; the HKLM\Run autostart will catch it on next logon.
 // ──────────────────────────────────────────────────────────────────────
+function GetActiveConsoleUser(): string;
+var
+  ResultCode, I: Integer;
+  TmpFile: string;
+  Lines: TArrayOfString;
+  Line: string;
+begin
+  Result := '';
+  TmpFile := ExpandConstant('{tmp}\wt-active-user.txt');
+
+  // `query user` output format:
+  //  USERNAME    SESSIONNAME    ID  STATE   IDLE TIME  LOGON TIME
+  // >administrator console     1   Active  none      5/23/2026 ...
+  // The leading ">" marks the current session. We grep for that line,
+  // grab the first token (username), and return it.
+  Exec(ExpandConstant('{cmd}'),
+       '/c query user > "' + TmpFile + '" 2>&1',
+       '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+
+  if not LoadStringsFromFile(TmpFile, Lines) then Exit;
+
+  for I := 0 to GetArrayLength(Lines) - 1 do
+  begin
+    Line := Trim(Lines[I]);
+    // The current session row starts with ">" in `query user` output.
+    if (Length(Line) > 0) and (Line[1] = '>') then
+    begin
+      // Strip the leading ">" then take everything up to the first
+      // whitespace -- that's the username.
+      Line := Trim(Copy(Line, 2, Length(Line)));
+      if Pos(' ', Line) > 0 then
+        Result := Copy(Line, 1, Pos(' ', Line) - 1)
+      else
+        Result := Line;
+      Break;
+    end;
+  end;
+
+  // Fall back: if no ">" found (sometimes the case when there's only
+  // ONE session and `query user` doesn't mark it), take the first
+  // non-header line.
+  if Result = '' then
+  begin
+    for I := 1 to GetArrayLength(Lines) - 1 do  // skip index 0 (header)
+    begin
+      Line := Trim(Lines[I]);
+      if Length(Line) = 0 then Continue;
+      // Strip leading ">" if present
+      if Line[1] = '>' then Line := Trim(Copy(Line, 2, Length(Line)));
+      if Pos(' ', Line) > 0 then
+        Result := Copy(Line, 1, Pos(' ', Line) - 1)
+      else
+        Result := Line;
+      if Result <> '' then Break;
+    end;
+  end;
+
+  DeleteFile(TmpFile);
+end;
+
+
 procedure LaunchTrayAsActiveUser();
 var
   ResultCode: Integer;
-  TaskName: string;
+  ActiveUser, TaskName, TrayPath: string;
   CreateCmd, RunCmd, DeleteCmd: string;
 begin
+  ActiveUser := GetActiveConsoleUser();
+  if ActiveUser = '' then
+  begin
+    // Headless / nobody logged in. HKLM\Run autostart will catch the
+    // tray on next logon. Don't try to schedule against SYSTEM (which
+    // is what the v0.14.16 attempt did, and the tray ended up
+    // invisible in session 0).
+    Exit;
+  end;
+
   TaskName := 'WatchtowerTrayLaunch';
+  TrayPath := ExpandConstant('{app}') + '\watchtower-tray.exe';
+
+  // Build the schtasks command. /RU "<user>" explicitly targets the
+  // logged-on user; /IT means "only run interactively (not when locked
+  // out)"; /RL LIMITED keeps it unelevated. /F overwrites any leftover
+  // task from a previous attempt.
   CreateCmd := '/Create /F /TN ' + TaskName +
-               ' /TR "\"' + ExpandConstant('{app}') + '\watchtower-tray.exe\"" ' +
-               ' /SC ONCE /ST 23:59 /IT /RL LIMITED';
+               ' /TR "\"' + TrayPath + '\"" ' +
+               ' /SC ONCE /ST 23:59 /IT /RL LIMITED' +
+               ' /RU "' + ActiveUser + '"';
   RunCmd := '/Run /TN ' + TaskName;
   DeleteCmd := '/Delete /F /TN ' + TaskName;
 
   Exec(ExpandConstant('{sys}\schtasks.exe'), CreateCmd, '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   Exec(ExpandConstant('{sys}\schtasks.exe'), RunCmd, '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
-  // Brief wait so schtasks has time to spawn the tray before we delete
-  // the task definition.
-  Sleep(1000);
+  Sleep(1500);  // give the spawned tray a moment to show before we delete the task
   Exec(ExpandConstant('{sys}\schtasks.exe'), DeleteCmd, '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
 end;
 
