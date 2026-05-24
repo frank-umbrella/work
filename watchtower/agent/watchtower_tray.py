@@ -36,29 +36,68 @@ RUN_NOW_MARKER = cfg_mod.DATA_DIR / ".run-now"
 DASHBOARD_URL = "https://frank-umbrella.github.io/work/watchtower/"
 
 
-def _make_icon(color_hex):
-    """Draw the Watchtower reticle (matches favicon.svg) in the requested
-    color. Re-rendered when the status color needs to change so the same
-    shape stays consistent across green/amber/red/grey states.
+def _make_icon(beacon_hex):
+    """Draw the Watchtower crenellated tower icon (matches favicon.svg
+    structure) on a 64x64 RGBA canvas. The ONLY thing that varies by
+    health status is the beacon-and-halo color -- the rest of the icon
+    (teal disc, white tower silhouette, arrow slits, door) stays
+    constant so the brand reads the same in tray, browser tab, and
+    installer wizard. Hover the tray icon for human-readable status.
 
-    Geometry mirrors favicon.svg exactly so the tray icon and the dashboard
-    favicon are visually unified:
-      - Outer circle: cx=32 cy=32 r=14 (bounds 18,18 → 46,46), stroke=4
-      - Center dot:   cx=32 cy=32 r=5  (bounds 27,27 → 37,37), filled
-      - Four cardinal tick marks: from edge to circle, stroke=4
+    Status palette via beacon color:
+      cyan   #5af4e3  -- healthy (default favicon color)
+      amber  #d99c2a  -- stale (>30h since last check-in)
+      red    #d04646  -- agent error / unreachable worker
+      grey   #8a8a8a  -- unknown / never checked in
+
+    Geometry mirrors favicon.svg's viewBox 0 0 64 64. Hand-drawn in PIL
+    rather than rasterized via cairosvg to keep the tray EXE small
+    (cairosvg would pull in libcairo and inflate the PyInstaller bundle).
     """
+    TEAL = "#0a6b6b"
+    WHITE = (255, 255, 255, 255)
+
     img = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-    # Outer circle outline
-    d.ellipse((18, 18, 46, 46), outline=color_hex, width=4)
-    # Center dot (filled)
-    d.ellipse((27, 27, 37, 37), fill=color_hex)
-    # Cardinal tick marks (top, bottom, left, right)
-    d.line((32, 6, 32, 18), fill=color_hex, width=4)
-    d.line((32, 46, 32, 58), fill=color_hex, width=4)
-    d.line((6, 32, 18, 32), fill=color_hex, width=4)
-    d.line((46, 32, 58, 32), fill=color_hex, width=4)
+
+    # Disc background (matches favicon.svg circle cx=32 cy=32 r=30)
+    d.ellipse((2, 2, 62, 62), fill=TEAL)
+
+    # Beacon halo behind the body (subtle status-colored glow). PIL
+    # doesn't draw soft alpha gradients cheaply, so we use a single
+    # 50%-opacity disc -- close enough at tray size.
+    halo_rgba = _hex_to_rgba(beacon_hex, 90)
+    d.ellipse((22, 22, 42, 42), fill=halo_rgba)
+
+    # Crenellations across the top (4 small white rects)
+    for x in (18, 26, 34, 42):
+        d.rectangle((x, 14, x + 4, 20), fill=WHITE)
+    # Battlement platform under the crenellations
+    d.rectangle((16, 20, 48, 24), fill=WHITE)
+    # Tower body
+    d.rectangle((20, 24, 44, 54), fill=WHITE)
+
+    # Glowing beacon at center of body -- the status indicator
+    d.ellipse((28, 28, 36, 36), fill=beacon_hex)
+
+    # Arrow-slit windows flanking the beacon (cut-out style: teal-on-white)
+    d.rectangle((24, 38, 27, 46), fill=TEAL)
+    d.rectangle((37, 38, 40, 46), fill=TEAL)
+
+    # Arched door at the base of the tower. PIL doesn't have a quadratic
+    # bezier primitive at this version level, so approximate the arch with
+    # a pieslice clipped against a rectangle: draws the top half of a
+    # circle, with the flat bottom forming the door's base.
+    d.pieslice((28, 46, 36, 54), 180, 360, fill=TEAL)
+    d.rectangle((28, 50, 36, 54), fill=TEAL)
+
     return img
+
+
+def _hex_to_rgba(hex_str, alpha):
+    """`#rrggbb` -> (r, g, b, alpha) tuple for PIL."""
+    h = hex_str.lstrip('#')
+    return (int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16), alpha)
 
 
 GREEN = "#1bb978"

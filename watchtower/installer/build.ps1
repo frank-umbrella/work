@@ -172,21 +172,25 @@ if (-not (Test-Path (Join-Path $buildDir 'watchtower-tray.exe'))) {
 }
 
 # ---------------------------------------------------------------------------
-# Installer EXE icon - generate watchtower.ico from the branding house
-# logo if it doesn't already exist. Cached on disk after the first build.
+# Installer EXE icon - generate watchtower.ico from the dashboard's
+# favicon.svg (crenellated tower on teal disc). This is the SAME design
+# used for the tray icon and the wizard small image, so the product
+# reads the same in Explorer, taskbar, system tray, browser tab, and
+# installer wizard.
+# Cached on disk after the first build.
 # ---------------------------------------------------------------------------
 $icoPath = Join-Path $here 'watchtower.ico'
 if (-not (Test-Path $icoPath)) {
-    $brandingPng = Join-Path (Split-Path (Split-Path $here -Parent) -Parent) 'branding\source\Logo-House-Icon.png'
-    if (Test-Path $brandingPng) {
-        Write-Host "==> Generating installer icon from branding/source/Logo-House-Icon.png" -ForegroundColor Cyan
+    $faviconSvg = Join-Path (Split-Path $here -Parent) 'favicon.svg'
+    if (Test-Path $faviconSvg) {
+        Write-Host "==> Generating installer icon from watchtower/favicon.svg" -ForegroundColor Cyan
         $makeIconScript = Join-Path $here 'make_icon.py'
-        & python $makeIconScript $brandingPng $icoPath
+        & python $makeIconScript
         if ($LASTEXITCODE -ne 0 -or -not (Test-Path $icoPath)) {
             Write-Warning "make_icon.py failed; installer will compile without a custom icon."
         }
     } else {
-        Write-Warning "branding asset not found at $brandingPng; installer will compile without a custom icon."
+        Write-Warning "favicon not found at $faviconSvg; installer will compile without a custom icon."
     }
 }
 

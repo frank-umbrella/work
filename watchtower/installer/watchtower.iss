@@ -30,7 +30,7 @@
   #define WorkerUrl "https://watchtower-worker.umbrelladev.workers.dev"
 #endif
 #ifndef AppVersion
-  #define AppVersion "0.13.13"
+  #define AppVersion "0.13.14"
 #endif
 
 #define AppName       "Umbrella Watchtower Agent"
