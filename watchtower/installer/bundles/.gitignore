@@ -1,0 +1,12 @@
+# bundles/ -- drop-in directory for MSIs the installer should bundle.
+# Currently only LogMeIn.msi is recognized; future per-vendor bundles
+# will land here too (Carbonite installer, Veeam Agent, etc.) once we
+# settle the licensing question for redistributing those.
+#
+# This folder is COMMITTED so CI can pick up the MSI on every build,
+# but we ignore everything else by default so half-renamed downloads
+# or wrong files don't end up in the repo.
+*
+!.gitignore
+!README.md
+!LogMeIn.msi

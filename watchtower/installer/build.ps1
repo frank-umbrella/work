@@ -232,6 +232,20 @@ $isccArgs = @(
     "/DAppVersion=$AppVersion"
 )
 
+# Convention path: if -LogmeinMsi wasn't passed explicitly, check the
+# bundles/ folder for a checked-in LogMeIn.msi. Lets CI builds pick up
+# the bundled MSI automatically without needing the workflow to know
+# where it lives -- the MSP just commits the MSI from LogMeIn Central
+# into the repo at watchtower/installer/bundles/LogMeIn.msi and every
+# subsequent CI build includes it.
+if (-not $LogmeinMsi) {
+    $bundleCandidate = Join-Path $here 'bundles\LogMeIn.msi'
+    if (Test-Path $bundleCandidate) {
+        $LogmeinMsi = $bundleCandidate
+        Write-Host "==> Found bundled LogMeIn MSI at $bundleCandidate" -ForegroundColor DarkGray
+    }
+}
+
 if ($LogmeinMsi) {
     if (-not (Test-Path $LogmeinMsi)) {
         throw "LogmeinMsi path does not exist: $LogmeinMsi"
