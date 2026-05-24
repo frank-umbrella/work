@@ -292,7 +292,13 @@
   table.fleet .age { font-size: 12px; color: var(--ink-faint); }
 
   /* status badge */
-  .badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; font-size: 11.5px; font-weight: 600; }
+  /* white-space: nowrap keeps multi-word labels ("OMSA warn new",
+     "reboot pending", "62d no backup") as a single line inside the pill
+     -- without it, on narrow mobile cards the text wraps INSIDE the pill
+     background and the badge becomes an ugly two-line capsule. Better to
+     overflow the cell horizontally and let flex-wrap on the parent push
+     the badge to a new line. */
+  .badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; font-size: 11.5px; font-weight: 600; white-space: nowrap; }
   .badge.ok { background: var(--ok-soft); color: #166534; }
   .badge.warn { background: var(--warn-soft); color: #854d0e; }
   .badge.bad { background: var(--danger-soft); color: #7f1d1d; }
@@ -549,6 +555,24 @@
     table.fleet td[data-label="Host"] { font-size: 16px; margin-bottom: 4px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
     table.fleet td[data-label="Host"]::before { display: none; }
     table.fleet td[data-label="Host"] .host { font-weight: 700; }
+    /* Status / Backup / Remote cells can hold multiple badges or pills.
+     * Let them wrap to a second line on the value side when there isn't
+     * room for all of them on one row -- with .badge { white-space:
+     * nowrap } each individual badge keeps its text intact. */
+    table.fleet td[data-label="Status"],
+    table.fleet td[data-label="Backup"],
+    table.fleet td[data-label="Remote"] {
+      flex-wrap: wrap;
+      justify-content: flex-start;
+      align-items: flex-start;
+      row-gap: 4px;
+    }
+    table.fleet td[data-label="Status"]::before,
+    table.fleet td[data-label="Backup"]::before,
+    table.fleet td[data-label="Remote"]::before {
+      align-self: center;
+      margin-right: auto;   /* push label left, badges flow to the right */
+    }
     /* Show ALL columns in card mode — col-* hides from the original
        responsive rule don't apply here, but we re-show them explicitly. */
     table.fleet .col-client, table.fleet .col-os, table.fleet .col-intip, table.fleet .col-products { display: flex; }
@@ -664,6 +688,15 @@
 
     /* ------- Settings tab: collapse 120px+1fr grids to single column ------- */
     #app .panel-body div[style*="grid-template-columns: 120px"] { grid-template-columns: 1fr !important; }
+
+    /* ------- Clients table: horizontal scroll so the Name/Agents/Tokens/
+     * Created/Actions columns don't crush each other on narrow screens.
+     * The table has expandable rows with nested host lists, so a full card
+     * treatment would be fragile; scrolling is the safe approach here. ------- */
+    #clientsWrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    table.clients { min-width: 480px; }
+    /* Shrink the actions column buttons slightly so the table fits in ~480px */
+    table.clients .actions .btn { padding: 4px 8px; font-size: 12px; }
   }
 </style>
 </head>
@@ -987,7 +1020,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.27";
+const APP_VERSION = "0.14.28";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 

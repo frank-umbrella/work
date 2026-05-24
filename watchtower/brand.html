@@ -83,6 +83,18 @@
   /* Usage do/don't */
   .rules { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
   @media (max-width: 720px) { .rules { grid-template-columns: 1fr; } }
+
+  @media (max-width: 600px) {
+    main { padding: 18px 14px 60px; }
+    /* Hero: image + copy side-by-side doesn't fit on portrait phones.
+     * Stack them: mark on top, copy below. */
+    .hero { grid-template-columns: 1fr; }
+    .hero .mark { max-width: 140px; margin: 0 auto; }
+    /* Palette swatches: smaller on phones so 2 fit per row */
+    .palette { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
+    /* Size grid: allow slightly smaller cards */
+    .size-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
+  }
   .rule { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
   .rule.do { border-top: 3px solid #16a34a; }
   .rule.dont { border-top: 3px solid #dc2626; }
