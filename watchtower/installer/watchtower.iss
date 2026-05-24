@@ -30,7 +30,7 @@
   #define WorkerUrl "https://watchtower-worker.umbrelladev.workers.dev"
 #endif
 #ifndef AppVersion
-  #define AppVersion "0.12.10"
+  #define AppVersion "0.13.8"
 #endif
 
 #define AppName       "Umbrella Watchtower Agent"
@@ -452,10 +452,16 @@ begin
   if not FileExists(ConfigPath) then Exit;
   if not LoadStringFromFile(ConfigPath, AnsiContent) then Exit;
   Token := Trim(ExtractJsonString(string(AnsiContent), 'installToken'));
-  // Sanity check on shape: our tokens are 'wt_' + ~43 chars base64url.
-  // If config.json was corrupted or hand-edited and the field is empty
-  // or garbage, fall back to prompting.
-  if (Length(Token) >= 8) and (Copy(Token, 1, 3) = 'wt_') then
+  // Accept any non-trivial value. Previously we required the 'wt_'
+  // prefix to defend against a corrupted config.json -- but that broke
+  // re-installs over LEGACY installs (v0.3.x era) where the token was
+  // the WATCHTOWER_INSTALL_TOKEN shared secret and didn't have the
+  // wt_ prefix. The worker /validate endpoint will reject anything
+  // bogus regardless, so it's safe to be lenient here: as long as the
+  // string isn't empty and has at least 8 chars of body, hand it over
+  // and let the worker decide. Cuts the prompt entirely on upgrades
+  // from any past install.
+  if Length(Token) >= 8 then
     Result := Token;
 end;
 
