@@ -1,5 +1,5 @@
 <!--
-  Watchtower installer wizard banner -- portrait composition of the same
+  Watchtower installer wizard banner. Portrait composition of the same
   sci-fi tower scene used in watchtower/og-image.svg, scaled to fit Inno
   Setup's 410x797 modern wizard image slot. Rasterized to .bmp by
   installer/make_wizard_images.py via cairosvg.
@@ -8,9 +8,9 @@
     * Deep navy gradient background
     * Starfield (upper third)
     * Watchtower silhouette, centered horizontally, dominant in the
-      middle third -- glowing cyan beacon at the top, tower body with
-      cyan window slits + support struts, signal pulses
-    * Cyan-glow horizon line + perspective grid emanating from the base
+      middle third. Glowing cyan beacon at the top, tower body with
+      cyan window slits and support struts, signal pulses
+    * Cyan-glow horizon line and perspective grid emanating from the base
     * Mountain silhouette beneath
     * WATCHTOWER wordmark with cyan glow filter
     * "UMBRELLA AUTOMATION" subtitle

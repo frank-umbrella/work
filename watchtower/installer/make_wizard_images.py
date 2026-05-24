@@ -74,9 +74,16 @@ def _svg_to_bmp(cairosvg, Image, svg_path, out_path, width, height, bg=None):
     Pillow. cairosvg honors viewBox + width/height so output dimensions
     match the wizard slot exactly. Optional `bg` flattens transparency
     against a solid color (used for the small icon so the favicon's
-    teal disc sits on the wizard's navy background, not white)."""
+    teal disc sits on the wizard's navy background, not white).
+
+    Note: we pass `bytestring=` instead of `url=` because cairosvg's
+    URL fetcher trips on UNC paths (e.g. when the repo lives on a
+    network share). Same workaround as scripts/make_og.py.
+    """
+    with open(svg_path, "rb") as f:
+        svg_bytes = f.read()
     png_bytes = cairosvg.svg2png(
-        url=svg_path,
+        bytestring=svg_bytes,
         output_width=width,
         output_height=height,
     )

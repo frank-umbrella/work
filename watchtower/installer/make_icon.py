@@ -77,7 +77,12 @@ def main():
     # rasterizing the SVG separately at each size) keeps the strokes
     # consistent across all variants.
     if src.lower().endswith(".svg"):
-        png_bytes = cairosvg.svg2png(url=src, output_width=256, output_height=256)
+        # bytestring= side-steps cairosvg's URL fetcher which trips on
+        # UNC paths (repo on a network share). Same workaround as
+        # scripts/make_og.py + make_wizard_images.py.
+        with open(src, "rb") as f:
+            svg_bytes = f.read()
+        png_bytes = cairosvg.svg2png(bytestring=svg_bytes, output_width=256, output_height=256)
         img = Image.open(io.BytesIO(png_bytes)).convert("RGBA")
     else:
         # Legacy: PNG source (Logo-House-Icon.png path). Pad to square
