@@ -122,7 +122,7 @@
       </svg>
       <div>
         <div class="meta">Umbrella Automation</div>
-        <h1>Watchtower &middot; Docs <span class="version-chip">v0.14.5</span></h1>
+        <h1>Watchtower &middot; Docs <span class="version-chip">v0.14.23</span></h1>
       </div>
     </a>
     <a class="btn brand-link" href="index.html">&larr; Back to dashboard</a>
@@ -154,6 +154,8 @@
   <a href="#filtering-decom">Finding decom'd hosts</a>
   <a href="#tokens" class="section">Install tokens</a>
   <a href="#tokens-revoke">Revoking a token</a>
+  <a href="#endpoints-table" class="section">Endpoints table</a>
+  <a href="#endpoints-columns">Picking columns</a>
   <a href="#clients-mgmt" class="section">Managing clients</a>
   <a href="#clients-rename">Rename a client</a>
   <a href="#settings" class="section">Settings</a>
@@ -630,6 +632,19 @@ Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" 
   </tbody>
 </table>
 <p>The Test webhook button's result panel includes a <code>sent</code> field showing exactly what was POSTed, so you can confirm the adapted shape if a custom receiver rejects it.</p>
+
+<h2 id="endpoints-table">Endpoints table</h2>
+<p>The Endpoints tab is the primary fleet view. The default column set covers what's needed for routine triage &mdash; client, host, IPs, OS, installed backup + remote products, last check-in, and status badges. If you want more depth without opening every drawer, use the column chooser.</p>
+
+<h3 id="endpoints-columns">Picking columns</h3>
+<p>Click <b>Columns</b> in the Endpoints toolbar (next to Refresh / CSV / Excel) to open a chooser modal. Tick or untick any of the available columns:</p>
+<ul>
+  <li><b>Defaults (on):</b> Client, Host, Internal IP, External IP, OS, Backup, Remote, Last check, Status.</li>
+  <li><b>Optional (off):</b> Agent version, Service tag, Model (manufacturer + model), CPU, RAM, C: free, Uptime, VM host.</li>
+</ul>
+<p>Your selection is saved to <code>localStorage</code> on this browser, so each operator can run a different layout without affecting anyone else. The order in the table is fixed (canonical) so toggling a column off and back on doesn't move it around.</p>
+<p>Click <b>Reset to defaults</b> in the modal to restore the original set. The Host column can't be hidden &mdash; the table would be useless without it.</p>
+<p>Sortable optional columns: Agent version, Service tag, Model, RAM, C: free, Uptime. Click the header to toggle the sort direction.</p>
 
 <h2 id="clients-mgmt">Managing clients</h2>
 <p>The <b>Clients</b> tab lists every customer the MSP monitors, with the number of endpoints + active install tokens per client. Click any row to expand and see the endpoint list and token inventory.</p>

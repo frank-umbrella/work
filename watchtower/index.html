@@ -639,24 +639,13 @@
           <span class="spacer"></span>
           <span class="count" id="fleetCount"></span>
           <button class="btn btn-sm" id="fleetRefresh" title="Re-paint the table. Live Firestore subscription keeps host data current automatically, so this is just an escape hatch -- click it if a row looks stale or the 'Last check' relative timestamps haven't updated.">&#x21bb; Refresh</button>
+          <button class="btn btn-sm" id="fleetColumns" title="Pick which columns are visible in this table. Your selection is remembered in this browser.">Columns</button>
           <button class="btn btn-sm" id="fleetExportCsv" title="Download the visible endpoint rows as CSV">CSV</button>
           <button class="btn btn-sm" id="fleetExportXlsx" title="Download the visible endpoint rows as an Excel workbook">Excel</button>
         </div>
         <div id="fleetWrap">
           <table class="fleet sortable" data-sort-table="fleet">
-            <thead>
-              <tr>
-                <th class="col-client" data-sort="client">Client</th>
-                <th data-sort="hostname">Host</th>
-                <th class="col-intip" data-sort="internalIp">Internal IP</th>
-                <th data-sort="externalIp">External IP</th>
-                <th class="col-os" data-sort="os">OS</th>
-                <th class="col-products">Backup</th>
-                <th class="col-products">Remote</th>
-                <th data-sort="lastCheckin">Last check</th>
-                <th data-sort="status">Status</th>
-              </tr>
-            </thead>
+            <thead id="fleetHead"></thead>
             <tbody id="fleetBody"></tbody>
           </table>
         </div>
@@ -851,7 +840,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.22";
+const APP_VERSION = "0.14.23";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -998,6 +987,39 @@ function tsToDate(v) {
 
 // Human display of a timestamp value. Returns short local-time format,
 // e.g. "2026-05-23 14:32:11" — readable, sortable.
+// Normalize a date-like value (string / Date / Firestore Timestamp /
+// {seconds, nanoseconds}) into an ISO-8601 string we can slice/format.
+// Firestore reads any timestampValue field back as a Date object via
+// the Web SDK, NOT as the ISO string the agent wrote. Render code that
+// did `.slice(0, 10)` on those fields throwing "slice is not a
+// function" on first checkins of new hosts whose backupsByTarget had
+// real Date oldestBackup/newestBackup values.
+function dateToIso(v) {
+  if (v === null || v === undefined) return "";
+  if (typeof v === "string") return v;
+  if (v instanceof Date) {
+    return isNaN(v.getTime()) ? "" : v.toISOString();
+  }
+  if (typeof v.toDate === "function") {
+    // Firestore Timestamp object (v8 SDK shape; v9+ might return Date
+    // directly above). Convert via its accessor.
+    try { return v.toDate().toISOString(); } catch { return ""; }
+  }
+  if (typeof v === "number") {
+    // Epoch seconds OR millis -- guess by magnitude (anything < 1e12
+    // is seconds, since that's pre-2001 in millis = unlikely).
+    const ms = v < 1e12 ? v * 1000 : v;
+    const d = new Date(ms);
+    return isNaN(d.getTime()) ? "" : d.toISOString();
+  }
+  if (v.seconds !== undefined) {
+    // Firestore Timestamp serialized over the wire
+    const ms = v.seconds * 1000 + Math.floor((v.nanoseconds || 0) / 1e6);
+    return new Date(ms).toISOString();
+  }
+  return "";
+}
+
 function tsToStr(v) {
   const d = tsToDate(v);
   if (!d) return "—";
@@ -1207,7 +1229,173 @@ function rebuildClientFilter() {
   }
 }
 
+// ============== Endpoints table column chooser ==============
+// Columns are defined once here and the header + body are painted from
+// the same source-of-truth so they can't drift. Each column has:
+//   key      -- stable id used in localStorage; never rename in place
+//   label    -- header text
+//   default  -- whether the column is visible out of the box
+//   sortKey  -- which sort field to wire when the header is clicked (optional)
+//   thClass  -- CSS class on the <th>
+//   tdClass  -- CSS class on the <td>
+//   render(a, ctx) -- HTML for the cell. ctx carries pre-computed status /
+//                     backup-health / OMSA / badge HTML so each row doesn't
+//                     redo that work for every optional column.
+const FLEET_COLUMNS = [
+  { key: "client",     label: "Client",       default: true,  sortKey: "client",     thClass: "col-client", tdClass: "col-client client",
+    render: (a) => esc(a.client || "—") },
+  { key: "hostname",   label: "Host",         default: true,  sortKey: "hostname",   thClass: "",           tdClass: "",
+    render: (a, ctx) => `<div class="host">${esc(a.hostname || a.id)}${ctx.vmBadge}</div>` },
+  { key: "internalIp", label: "Internal IP",  default: true,  sortKey: "internalIp", thClass: "col-intip",  tdClass: "col-intip ip",
+    render: (a) => esc(a.internalIp || "—") },
+  { key: "externalIp", label: "External IP",  default: true,  sortKey: "externalIp", thClass: "",           tdClass: "ip",
+    render: (a) => esc(a.externalIp || "—") },
+  { key: "os",         label: "OS",           default: true,  sortKey: "os",         thClass: "col-os",     tdClass: "col-os client",
+    render: (a, ctx) => esc(ctx.os) },
+  { key: "backup",     label: "Backup",       default: true,  sortKey: null,         thClass: "col-products", tdClass: "col-products",
+    render: (a, ctx) => ctx.backupCell },
+  { key: "remote",     label: "Remote",       default: true,  sortKey: null,         thClass: "col-products", tdClass: "col-products",
+    render: (a, ctx) => ctx.remoteCell },
+  { key: "lastCheckin",label: "Last check",   default: true,  sortKey: "lastCheckin",thClass: "",           tdClass: "age",
+    render: (a) => fmtAge(a.lastCheckin) },
+  { key: "status",     label: "Status",       default: true,  sortKey: "status",     thClass: "",           tdClass: "",
+    render: (a, ctx) => `${ctx.stBadge}${ctx.bhBadge}${ctx.ohBadge}${ctx.wuBadge}${ctx.diskBadge}` },
+  // ---- optional columns (off by default) ----
+  { key: "agentVersion", label: "Agent",      default: false, sortKey: "agentVersion", thClass: "", tdClass: "meta",
+    render: (a) => esc(a.agentVersion || "—") },
+  { key: "serviceTag",   label: "Service tag", default: false, sortKey: "serviceTag", thClass: "", tdClass: "meta",
+    render: (a) => {
+      const s = a.report && a.report.system;
+      const tag = s && s.serviceTag;
+      return tag ? `<code>${esc(tag)}</code>` : `<span class="meta">—</span>`;
+    } },
+  { key: "model",        label: "Model",       default: false, sortKey: "model",      thClass: "", tdClass: "meta",
+    render: (a) => {
+      const s = a.report && a.report.system;
+      if (!s) return `<span class="meta">—</span>`;
+      const m = [s.manufacturer, s.model].filter(Boolean).join(" ").trim();
+      return m ? esc(m) : `<span class="meta">—</span>`;
+    } },
+  { key: "cpu",          label: "CPU",         default: false, sortKey: null,         thClass: "", tdClass: "meta",
+    render: (a) => {
+      const c = a.report && a.report.system && a.report.system.cpu;
+      if (!c) return `<span class="meta">—</span>`;
+      const name = (c.name || "").trim();
+      return name ? esc(name) : `<span class="meta">—</span>`;
+    } },
+  { key: "memory",       label: "RAM",         default: false, sortKey: "ramGB",      thClass: "", tdClass: "meta",
+    render: (a) => {
+      const m = a.report && a.report.system && a.report.system.memoryGB;
+      return (m != null) ? `${m} GB` : `<span class="meta">—</span>`;
+    } },
+  { key: "diskFree",     label: "C: free",     default: false, sortKey: "cDriveFreePct", thClass: "", tdClass: "meta",
+    render: (a) => {
+      if (a.cDriveFreePct == null && a.cDriveFreeGB == null) return `<span class="meta">—</span>`;
+      const pct = a.cDriveFreePct != null ? `${a.cDriveFreePct}%` : "";
+      const gb  = a.cDriveFreeGB  != null ? `${a.cDriveFreeGB} GB` : "";
+      return [gb, pct].filter(Boolean).join(" / ");
+    } },
+  { key: "uptime",       label: "Uptime",      default: false, sortKey: "lastBoot",   thClass: "", tdClass: "meta",
+    render: (a) => {
+      const lb = a.report && a.report.system && a.report.system.lastBoot;
+      return lb ? fmtAge(lb).replace(" ago", "") : `<span class="meta">—</span>`;
+    } },
+  { key: "vmHost",       label: "VM host",     default: false, sortKey: null,         thClass: "", tdClass: "meta",
+    render: (a) => {
+      const s = a.report && a.report.system;
+      if (!s || !s.isVirtual) return `<span class="meta">—</span>`;
+      const h = s.physicalHost && s.physicalHost.name;
+      return h ? esc(h) : esc(s.hypervisor || "Virtual");
+    } },
+];
+
+function getSelectedFleetColumns() {
+  try {
+    const raw = localStorage.getItem("wt.endpointColumns");
+    if (!raw) return FLEET_COLUMNS.filter(c => c.default).map(c => c.key);
+    const arr = JSON.parse(raw);
+    if (!Array.isArray(arr)) throw new Error();
+    // Keep only known keys (drop stale ones from past versions) and
+    // preserve the user's ordering preference if any.
+    const valid = arr.filter(k => FLEET_COLUMNS.some(c => c.key === k));
+    return valid.length ? valid : FLEET_COLUMNS.filter(c => c.default).map(c => c.key);
+  } catch {
+    return FLEET_COLUMNS.filter(c => c.default).map(c => c.key);
+  }
+}
+
+function setSelectedFleetColumns(keys) {
+  try { localStorage.setItem("wt.endpointColumns", JSON.stringify(keys)); } catch {}
+}
+
+function activeFleetColumns() {
+  const selected = new Set(getSelectedFleetColumns());
+  // Preserve canonical column order from FLEET_COLUMNS rather than the
+  // selection order in localStorage -- the operator's expectation is
+  // that toggling a checkbox restores its native position.
+  return FLEET_COLUMNS.filter(c => selected.has(c.key));
+}
+
+function renderFleetHead() {
+  const cols = activeFleetColumns();
+  const head = $("#fleetHead");
+  if (!head) return;
+  head.innerHTML = `<tr>${cols.map(c => {
+    const cls = c.thClass ? ` class="${c.thClass}"` : "";
+    const sort = c.sortKey ? ` data-sort="${c.sortKey}"` : "";
+    return `<th${cls}${sort}>${esc(c.label)}</th>`;
+  }).join("")}</tr>`;
+  // Re-wire sort handlers since thead was rebuilt.
+  wireSortableHeaders("table.fleet", "fleet", renderFleet);
+  // Repaint chevron for currently active sort.
+  paintSortHeaders("table.fleet", state.sort.fleet);
+}
+
+function openColumnChooser() {
+  const selected = new Set(getSelectedFleetColumns());
+  const body = `
+    <div class="meta" style="margin-bottom:10px;">Pick which columns are visible in the Endpoints table. Your selection is saved in this browser.</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 18px;">
+      ${FLEET_COLUMNS.map(c => `
+        <label style="display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer;">
+          <input type="checkbox" data-col-key="${esc(c.key)}" ${selected.has(c.key) ? "checked" : ""}>
+          <span>${esc(c.label)}${c.default ? "" : ' <span class="meta" style="font-size:11px;">(optional)</span>'}</span>
+        </label>
+      `).join("")}
+    </div>
+  `;
+  const foot = `
+    <button class="btn" id="colChooserReset" title="Restore the original column set">Reset to defaults</button>
+    <span style="flex:1;"></span>
+    <button class="btn" data-modal-close>Cancel</button>
+    <button class="btn btn-primary" id="colChooserApply">Apply</button>
+  `;
+  openModal({ title: "Columns", sub: "Endpoints table", body, foot });
+  $("#colChooserReset").addEventListener("click", () => {
+    $$("#modalBody input[data-col-key]").forEach(cb => {
+      const def = FLEET_COLUMNS.find(c => c.key === cb.dataset.colKey);
+      cb.checked = !!(def && def.default);
+    });
+  });
+  $("#colChooserApply").addEventListener("click", () => {
+    const picked = $$("#modalBody input[data-col-key]")
+      .filter(cb => cb.checked)
+      .map(cb => cb.dataset.colKey);
+    // Always require at least the Host column so the table isn't useless.
+    if (!picked.includes("hostname")) picked.unshift("hostname");
+    setSelectedFleetColumns(picked);
+    renderFleetHead();
+    renderFleet();
+    closeModal();
+  });
+}
+
 function renderFleet() {
+  // Make sure the thead matches the saved column set on every paint -- the
+  // first render after sign-in needs this since renderFleetHead isn't
+  // called from anywhere else on initial load.
+  if (!$("#fleetHead").children.length) renderFleetHead();
+
   const q = state.filter.search.toLowerCase().trim();
   const cf = state.filter.client;
   const sf = state.filter.status;
@@ -1273,13 +1461,22 @@ function renderFleet() {
   // order from the Firestore query when no header is active.
   const sortedRows = applySort(rows, state.sort.fleet, (a, key) => {
     switch (key) {
-      case "hostname":   return a.hostname;
-      case "client":     return a.client;
-      case "internalIp": return a.internalIp;
-      case "externalIp": return a.externalIp;
-      case "os":         return a.report && a.report.system && a.report.system.os && a.report.system.os.name;
-      case "lastCheckin":return a.lastCheckin;
-      case "status":     {
+      case "hostname":     return a.hostname;
+      case "client":       return a.client;
+      case "internalIp":   return a.internalIp;
+      case "externalIp":   return a.externalIp;
+      case "os":           return a.report && a.report.system && a.report.system.os && a.report.system.os.name;
+      case "lastCheckin":  return a.lastCheckin;
+      case "agentVersion": return a.agentVersion;
+      case "serviceTag":   return a.report && a.report.system && a.report.system.serviceTag;
+      case "model":        {
+        const s = a.report && a.report.system;
+        return s ? [s.manufacturer, s.model].filter(Boolean).join(" ") : null;
+      }
+      case "ramGB":        return a.report && a.report.system && a.report.system.memoryGB;
+      case "cDriveFreePct":return a.cDriveFreePct;
+      case "lastBoot":     return a.report && a.report.system && a.report.system.lastBoot;
+      case "status":       {
         // Order by severity: bad → warn → muted → disabled → ok so an
         // ascending sort surfaces the broken hosts first.
         const order = { bad: 0, warn: 1, muted: 2, disabled: 3, ok: 4 };
@@ -1302,7 +1499,11 @@ function renderFleet() {
   }
   $("#fleetEmpty").hidden = true;
 
+  const cols = activeFleetColumns();
   tbody.innerHTML = sortedRows.map(a => {
+    // Pre-compute everything any column might need so the per-column
+    // renderers stay tiny. Most of this used to live inline in the row
+    // template before the column chooser landed.
     const st = statusOf(a);
     const bh = backupHealthOf(a);
     const oh = omsaHealthOf(a);
@@ -1311,17 +1512,12 @@ function renderFleet() {
     const stBadge = isDecom
       ? `<span class="badge muted" title="${esc(a.decommissionedBy === 'agent-uninstall' ? 'Uninstalled at the host' : 'Marked decommissioned by admin')} on ${esc(tsToStr(a.decommissionedAt))}"><span class="badge-dot"></span>Decommissioned</span>`
       : `<span class="badge ${st.kind === "ok" ? "ok" : st.kind === "warn" ? "warn" : st.kind === "bad" ? "bad" : "muted"}"><span class="badge-dot"></span>${esc(st.label)}</span>`;
-    // Only show secondary badges when there's something to flag — keeps healthy rows uncluttered.
     const bhBadge = (bh && bh.kind !== "ok")
       ? ` <span class="badge ${bh.kind === "warn" ? "warn" : "bad"}" title="Windows Server Backup status">${esc(bh.label)}</span>`
       : "";
     const ohBadge = oh
       ? ` <span class="badge ${oh.kind === "bad" ? "bad" : oh.kind === "warn" ? "warn" : "muted"}" title="${oh.kind === "info" ? "OMSA is installed but reports no controllers / RAID / disks on this host — open the drawer for likely causes" : "Dell OMSA storage health"}">${esc(oh.label)}</span>`
       : "";
-    // Windows Updates pending badge -- only flagged when there's at least
-    // one critical OR a reboot is pending. Sub-critical pending counts
-    // (Important / Moderate / Low) are surfaced in the drawer but stay
-    // out of the row to keep the table calm during Patch Tuesday weeks.
     const wuRow = a.report && a.report.windowsUpdates;
     let wuBadge = "";
     if (wuRow) {
@@ -1333,11 +1529,6 @@ function renderFleet() {
         wuBadge = ` <span class="badge warn" title="Reboot pending to finish a prior update.">reboot pending</span>`;
       }
     }
-    // C: drive low-capacity badge -- worker promotes free% + free GB to
-    // top-level fields, so renderFleet doesn't have to descend into
-    // report.storage.volumes for every row. Critical (<5% or <5 GB) =
-    // red, warning (<10% or <10 GB) = amber. No badge when measurement
-    // is missing OR healthy.
     let diskBadge = "";
     if (typeof a.cDriveFreePct === "number" || typeof a.cDriveFreeGB === "number") {
       const pct = a.cDriveFreePct;
@@ -1350,49 +1541,39 @@ function renderFleet() {
         diskBadge = ` <span class="badge warn" title="C: drive low capacity. ${gb} GB / ${pct}% free of ${a.cDriveSizeGB} GB.">C: ${pct}% free</span>`;
       }
     }
-    // Update badge intentionally dropped from the fleet row in v0.10.1 —
-    // agent version + update-available hint live in the drawer's Status
-    // section now. The Status filter "Update available" option still works
-    // for narrowing the table when needed.
-
-    // Backup product pills — small text badges, only for products actually detected on this host.
     const r = a.report || {};
     const backupPills = [];
     if (r.veeam && r.veeam.installed) backupPills.push(`<span class="pill pill-veeam" title="Veeam">Veeam</span>`);
     if (r.wsb && r.wsb.installed) backupPills.push(`<span class="pill pill-wsb" title="Windows Server Backup">WSB</span>`);
     if (r.carbonite && r.carbonite.installed) backupPills.push(`<span class="pill pill-carbonite" title="Carbonite">Carb</span>`);
     const backupCell = backupPills.length ? backupPills.join(" ") : `<span class="meta">—</span>`;
-
-    // Remote access pill — LogMeIn for now; iDRAC too if iSM is installed.
     const remotePills = [];
     if (r.logmein && r.logmein.installed) remotePills.push(`<span class="pill pill-lmi" title="LogMeIn">LMI</span>`);
     if (r.idrac && r.idrac.installed) remotePills.push(`<span class="pill pill-idrac" title="Dell iDRAC iSM">iDRAC</span>`);
     const remoteCell = remotePills.length ? remotePills.join(" ") : `<span class="meta">—</span>`;
+    const sysRow = r.system || {};
+    const vmBadge = sysRow.isVirtual
+      ? `<span class="vm-chip" title="Virtual machine${sysRow.hypervisor ? ` &middot; ${sysRow.hypervisor}` : ""}${sysRow.physicalHost ? ` &middot; hosted on ${sysRow.physicalHost.name}` : ""}">VM</span>`
+      : "";
+    const ctx = { st, bh, oh, os, isDecom, stBadge, bhBadge, ohBadge, wuBadge, diskBadge, backupCell, remoteCell, vmBadge };
 
     const rowClasses = [
       state.openPcId === a.id ? 'selected' : '',
       isDecom ? 'decom' : '',
     ].filter(Boolean).join(' ');
-    // VM badge -- small purple chip next to the hostname so the operator
-    // can spot virtualized hosts at a glance without opening the drawer.
-    // Tooltip names the hypervisor flavor (Hyper-V / VMware / KVM / ...).
-    const sysRow = r.system || {};
-    const vmBadge = sysRow.isVirtual
-      ? `<span class="vm-chip" title="Virtual machine${sysRow.hypervisor ? ` &middot; ${sysRow.hypervisor}` : ""}${sysRow.physicalHost ? ` &middot; hosted on ${sysRow.physicalHost.name}` : ""}">VM</span>`
-      : "";
-    return `
-      <tr data-id="${esc(a.id)}" class="${rowClasses}">
-        <td class="col-client client" data-label="Client">${esc(a.client || "—")}</td>
-        <td data-label="Host"><div class="host">${esc(a.hostname || a.id)}${vmBadge}</div></td>
-        <td class="col-intip ip" data-label="Internal IP">${esc(a.internalIp || "—")}</td>
-        <td class="ip" data-label="External IP">${esc(a.externalIp || "—")}</td>
-        <td class="col-os client" data-label="OS">${esc(os)}</td>
-        <td class="col-products" data-label="Backup">${backupCell}</td>
-        <td class="col-products" data-label="Remote">${remoteCell}</td>
-        <td class="age" data-label="Last check">${fmtAge(a.lastCheckin)}</td>
-        <td data-label="Status">${stBadge}${bhBadge}${ohBadge}${wuBadge}${diskBadge}</td>
-      </tr>
-    `;
+
+    const cells = cols.map(c => {
+      const cls = c.tdClass ? ` class="${c.tdClass}"` : "";
+      const label = ` data-label="${esc(c.label)}"`;
+      let html;
+      try { html = c.render(a, ctx); } catch (err) {
+        console.error("[renderFleet] column", c.key, "failed for", a.id, err);
+        html = `<span class="meta" title="${esc(String(err && err.message ? err.message : err))}">—</span>`;
+      }
+      return `<td${cls}${label}>${html}</td>`;
+    }).join("");
+
+    return `<tr data-id="${esc(a.id)}" class="${rowClasses}">${cells}</tr>`;
   }).join("");
 
   $$("#fleetBody tr").forEach(tr => {
@@ -1404,6 +1585,9 @@ function renderFleet() {
 $("#search").addEventListener("input", e => { state.filter.search = e.target.value; renderFleet(); });
 $("#clientFilter").addEventListener("change", e => { state.filter.client = e.target.value; renderFleet(); });
 $("#statusFilter").addEventListener("change", e => { state.filter.status = e.target.value; renderFleet(); });
+// Column chooser -- opens a modal with checkboxes for every column defined
+// in FLEET_COLUMNS. Selection persists in localStorage per browser.
+$("#fleetColumns").addEventListener("click", openColumnChooser);
 
 // ============== tabs ==============
 function activateTab(target) {
@@ -3018,8 +3202,8 @@ function buildReportDom(a, logoPngDataUrl) {
               ${wsb.backupsByTarget.map(t => `<tr>
                 <td style="padding:4px 8px;border-bottom:1px solid #f0f1f4;"><code style="font-size:11px;">${esc(t.target || "—")}</code></td>
                 <td style="padding:4px 8px;text-align:right;border-bottom:1px solid #f0f1f4;"><b>${t.count}</b></td>
-                <td style="padding:4px 8px;border-bottom:1px solid #f0f1f4;color:#666;">${esc((t.oldestBackup || "—").slice(0, 10))}</td>
-                <td style="padding:4px 8px;border-bottom:1px solid #f0f1f4;color:#666;">${esc((t.newestBackup || "—").slice(0, 10))}</td>
+                <td style="padding:4px 8px;border-bottom:1px solid #f0f1f4;color:#666;">${esc((dateToIso(t.oldestBackup) || "—").slice(0, 10))}</td>
+                <td style="padding:4px 8px;border-bottom:1px solid #f0f1f4;color:#666;">${esc((dateToIso(t.newestBackup) || "—").slice(0, 10))}</td>
               </tr>`).join("")}
             </tbody>
           </table>
@@ -3038,7 +3222,7 @@ function buildReportDom(a, logoPngDataUrl) {
             </tr></thead>
             <tbody>
               ${perVss.map(b => `<tr>
-                <td style="padding:3px 8px;border-bottom:1px solid #f0f1f4;color:#666;">${esc((b.backupTime || "—").slice(0, 16).replace("T", " "))}</td>
+                <td style="padding:3px 8px;border-bottom:1px solid #f0f1f4;color:#666;">${esc((dateToIso(b.backupTime) || "—").slice(0, 16).replace("T", " "))}</td>
                 <td style="padding:3px 8px;border-bottom:1px solid #f0f1f4;"><code style="font-size:10.5px;">${esc(b.target || "—")}</code></td>
                 <td style="padding:3px 8px;border-bottom:1px solid #f0f1f4;"><code style="font-size:10.5px;">${esc(b.vssOption || "—")}</code></td>
               </tr>`).join("")}
@@ -4313,8 +4497,8 @@ function renderWsb(w) {
   // State B: schedule exists but no run has happened yet (and no failed attempts either).
   if (!hasVersions && !hasAttempt && hasSchedule) {
     return `<div class="empty-state">
-      <b>First scheduled backup at ${esc(w.nextBackupTime)}</b>
-      <span class="meta">(${fmtAge(w.nextBackupTime)})</span>
+      <b>First scheduled backup at ${esc(dateToIso(w.nextBackupTime))}</b>
+      <span class="meta">(${fmtAge(dateToIso(w.nextBackupTime))})</span>
       <div style="margin-top:4px;">No backup runs yet.</div>
     </div>`;
   }
@@ -4325,7 +4509,8 @@ function renderWsb(w) {
   let banner = "";
   if (!ok) {
     if (w.lastSuccessfulBackup) {
-      const days = Math.floor((Date.now() - new Date(w.lastSuccessfulBackup).getTime()) / 86400000);
+      const lsIso = dateToIso(w.lastSuccessfulBackup);
+      const days = Math.floor((Date.now() - (lsIso ? new Date(lsIso).getTime() : Date.now())) / 86400000);
       const sev = days >= 3 ? "bad" : "warn";
       banner = `<div class="callout" style="background:var(--${sev === "bad" ? "danger" : "warn"}-soft);border:1px solid ${sev === "bad" ? "#fca5a5" : "#fde68a"};color:${sev === "bad" ? "#7f1d1d" : "#854d0e"};padding:10px 12px;border-radius:8px;margin-bottom:12px;font-size:13.5px;">
         <b>${days} day${days === 1 ? "" : "s"} since last successful backup.</b>
@@ -4350,7 +4535,7 @@ function renderWsb(w) {
           return `
             <div class="row">
               <div>
-                <div class="name">${esc(j.startTime || "—")} <span class="meta">&middot; ${fmtAge(j.startTime)}</span></div>
+                <div class="name">${esc(dateToIso(j.startTime) || "—")} <span class="meta">&middot; ${fmtAge(dateToIso(j.startTime))}</span></div>
                 <div class="meta">${esc(j.jobType || "?")} ${j.errorDescription ? "&middot; " + esc(j.errorDescription) : ""}</div>
               </div>
               <div class="meta"><span class="badge ${jOk ? "ok" : "bad"}">${esc(j.result || j.jobState || "?")}</span></div>
@@ -4365,12 +4550,12 @@ function renderWsb(w) {
     ${banner}
     <div class="kv">
       <div class="k">Last backup</div>
-      <div class="v">${esc(w.lastBackupTime || "—")} <span class="meta">(${fmtAge(w.lastBackupTime)})</span> &middot;
+      <div class="v">${esc(dateToIso(w.lastBackupTime) || "—")} <span class="meta">(${fmtAge(dateToIso(w.lastBackupTime))})</span> &middot;
         <span class="badge ${ok ? "ok" : "bad"}">${esc(w.lastBackupResult || "?")}</span>
       </div>
       <div class="k">Last successful</div>
-      <div class="v">${esc(w.lastSuccessfulBackup || "—")} <span class="meta">(${fmtAge(w.lastSuccessfulBackup)})</span></div>
-      ${hasSchedule ? `<div class="k">Next backup</div><div class="v">${esc(w.nextBackupTime)} <span class="meta">(${fmtAge(w.nextBackupTime)})</span></div>` : ""}
+      <div class="v">${esc(dateToIso(w.lastSuccessfulBackup) || "—")} <span class="meta">(${fmtAge(dateToIso(w.lastSuccessfulBackup))})</span></div>
+      ${hasSchedule ? `<div class="k">Next backup</div><div class="v">${esc(dateToIso(w.nextBackupTime))} <span class="meta">(${fmtAge(dateToIso(w.nextBackupTime))})</span></div>` : ""}
       <div class="k">Versions retained</div>
       <div class="v">${w.numberOfVersions || 0}${(w.totalBackups != null && w.totalBackups !== w.numberOfVersions) ? ` <span class="meta">&middot; ${w.totalBackups} total backups across all targets</span>` : ""}</div>
       ${(w.totalBackups != null && w.totalBackups > 0) ? `
@@ -4383,7 +4568,11 @@ function renderWsb(w) {
           <div style="margin-bottom:4px;">
             <code>${esc(t.target || "—")}</code>
             <span class="badge muted" style="margin-left:6px;">${t.count} backup${t.count === 1 ? "" : "s"}</span>
-            ${t.oldestBackup && t.newestBackup ? `<div class="meta" style="margin-left:4px;font-size:11px;">oldest ${esc(t.oldestBackup.slice(0, 10))} &middot; newest ${esc(t.newestBackup.slice(0, 10))}</div>` : ""}
+            ${(t.oldestBackup && t.newestBackup) ? (() => {
+              const o = dateToIso(t.oldestBackup);
+              const n = dateToIso(t.newestBackup);
+              return o && n ? `<div class="meta" style="margin-left:4px;font-size:11px;">oldest ${esc(o.slice(0, 10))} &middot; newest ${esc(n.slice(0, 10))}</div>` : "";
+            })() : ""}
           </div>`).join("")}</div>
       ` : ""}
       ${w.frequency ? `
@@ -4447,7 +4636,7 @@ function renderWsb(w) {
           ${w.perBackupVss.map(b => `
             <div class="row">
               <div>
-                <div class="name">${esc(b.backupTime || "—")} <span class="meta">&middot; ${fmtAge(b.backupTime)}</span></div>
+                <div class="name">${esc(dateToIso(b.backupTime) || "—")} <span class="meta">&middot; ${fmtAge(dateToIso(b.backupTime))}</span></div>
                 ${b.target ? `<div class="meta"><code>${esc(b.target)}</code></div>` : ""}
               </div>
               <div class="meta">${b.vssOption ? `<code>${esc(b.vssOption)}</code>` : "<span style='color:#aaa;'>—</span>"}</div>
