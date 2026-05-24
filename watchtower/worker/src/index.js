@@ -1285,6 +1285,47 @@ async function handleCheckin(request, env, ctx) {
     omsaFirstWarnAt = omsaPrevWarnAt;  // still warning → preserve start
   }
 
+  // ----- 3e. Track low C: drive capacity -----
+  // Walks report.storage.volumes looking for the system drive (C:) and
+  // emits cDriveFreeGB / cDriveFreePct as top-level fields so the
+  // dashboard can render them without descending into the report tree.
+  // Warning thresholds: <10% free OR <10 GB free (whichever fires
+  // first). Critical thresholds: <5% free OR <5 GB free. Same first-
+  // warn-timestamp pattern as OMSA so we don't email/webhook the
+  // operator every 24h while the warning persists -- one notification
+  // per OK->low transition, no notifications for continued-low.
+  let cDriveFreeGB = null;
+  let cDriveFreePct = null;
+  let cDriveSizeGB = null;
+  const volumes = report?.storage?.volumes;
+  if (Array.isArray(volumes)) {
+    const cVol = volumes.find(v => (v?.letter || '').toUpperCase() === 'C:');
+    if (cVol && typeof cVol.sizeGB === 'number' && typeof cVol.freeGB === 'number' && cVol.sizeGB > 0) {
+      cDriveSizeGB = cVol.sizeGB;
+      cDriveFreeGB = cVol.freeGB;
+      cDriveFreePct = Math.round((cVol.freeGB / cVol.sizeGB) * 1000) / 10;
+    }
+  }
+  const cDriveIsLow = (
+    (cDriveFreePct !== null && cDriveFreePct < 10) ||
+    (cDriveFreeGB !== null && cDriveFreeGB < 10)
+  );
+  const cDriveIsCritical = (
+    (cDriveFreePct !== null && cDriveFreePct < 5) ||
+    (cDriveFreeGB !== null && cDriveFreeGB < 5)
+  );
+  const cDrivePrevWarnAt = existing?.fields?.cDriveLowFirstWarnAt?.stringValue || null;
+  let cDriveLowFirstWarnAt;
+  if (cDriveIsLow && !cDrivePrevWarnAt) {
+    cDriveLowFirstWarnAt = nowIso;   // OK -> low transition this checkin
+  } else if (!cDriveIsLow) {
+    cDriveLowFirstWarnAt = null;     // recovered (or no measurement)
+  } else {
+    cDriveLowFirstWarnAt = cDrivePrevWarnAt;  // still low, preserve start
+  }
+  // "New warning" = the same OK->low transition we use for emails.
+  const cDriveNewWarning = cDriveIsLow && !cDrivePrevWarnAt;
+
   // ----- 3b. Detect new WSB backup failure -----
   // Dedupe on lastBackupTime: a host with a failing daily backup will
   // produce one alert per failed attempt (since each attempt advances
@@ -1356,6 +1397,14 @@ async function handleCheckin(request, env, ctx) {
     internalIp: newInternalIp,
     physicalHost: newPhysicalHost,
     omsaFirstWarnAt,
+    // C: drive free space promoted to top-level so the Endpoints table
+    // can render a "Disk low" badge without inflating renderFleet by
+    // descending into report.storage.volumes for every row. Null when
+    // the storage probe didn't return a usable C: volume.
+    cDriveSizeGB,
+    cDriveFreeGB,
+    cDriveFreePct,
+    cDriveLowFirstWarnAt,
     // Clear decommissioned flags on any successful check-in — a live
     // agent reporting in is the definition of "not decommissioned." If
     // the host was flagged, we log a reactivation activity entry below.
@@ -1549,6 +1598,60 @@ async function handleCheckin(request, env, ctx) {
           rollup: omsaRollup,
           omsaVersion: omsaCurrent?.version || null,
           issues,
+          when: nowIso,
+        }).catch((e) => console.error('Webhook POST failed:', e))
+      );
+    }
+  }
+
+  // ----- 7a2. Notify on new C: drive low capacity -----
+  // Same OK->low transition pattern as OMSA: fires once when free%
+  // drops below 10 (or free GB below 10), stays silent while still
+  // low, can re-fire after a recovery + new drop. Critical (under 5%
+  // or 5 GB) gets a different subject line + severity but uses the
+  // same transition trigger -- we don't want to double-fire if a
+  // host drops from 8% -> 4% in a single check-in.
+  if (cDriveNewWarning && config.enabled) {
+    ctx.waitUntil(logActivity(env, accessToken, {
+      type: 'disk_low',
+      actor: { type: 'agent', id: pcId },
+      target: { type: 'host', id: pcId, label: hostname },
+      client: resolvedClient,
+      details: {
+        drive: 'C:',
+        freeGB: cDriveFreeGB,
+        freePct: cDriveFreePct,
+        sizeGB: cDriveSizeGB,
+        severity: cDriveIsCritical ? 'critical' : 'warning',
+      },
+    }));
+    if (config.emailEnabled && env.RESEND_API_KEY) {
+      ctx.waitUntil(
+        sendDiskLowEmail(env, {
+          pcId,
+          hostname,
+          client: resolvedClient,
+          drive: 'C:',
+          freeGB: cDriveFreeGB,
+          freePct: cDriveFreePct,
+          sizeGB: cDriveSizeGB,
+          severity: cDriveIsCritical ? 'critical' : 'warning',
+          when: nowIso,
+        }).catch((e) => console.error('Disk-low email failed:', e))
+      );
+    }
+    if (config.webhookEnabled !== false && effectiveWebhookUrl) {
+      ctx.waitUntil(
+        postWebhook(effectiveWebhookUrl, {
+          event: 'disk_low',
+          pcId,
+          hostname,
+          client: resolvedClient,
+          drive: 'C:',
+          freeGB: cDriveFreeGB,
+          freePct: cDriveFreePct,
+          sizeGB: cDriveSizeGB,
+          severity: cDriveIsCritical ? 'critical' : 'warning',
           when: nowIso,
         }).catch((e) => console.error('Webhook POST failed:', e))
       );
@@ -2130,6 +2233,65 @@ async function sendOmsaWarningEmail(env, { pcId, hostname, client, rollup, versi
 }
 
 // ─────────────────────────────────────────────────────────────────────
+// Resend email — C: drive low capacity alert
+// ─────────────────────────────────────────────────────────────────────
+async function sendDiskLowEmail(env, { pcId, hostname, client, drive, freeGB, freePct, sizeGB, severity, when }) {
+  const sevLabel = severity === 'critical' ? 'CRITICAL' : 'WARNING';
+  const sevColor = severity === 'critical' ? '#b00' : '#b4632b';
+  const sevBg    = severity === 'critical' ? '#fee2e2' : '#fef3c7';
+  const sevBorder = severity === 'critical' ? '#fca5a5' : '#fde68a';
+  const sevText  = severity === 'critical' ? '#7f1d1d' : '#78350f';
+  const subject = `Watchtower: ${drive} drive ${sevLabel} (${freePct}% / ${freeGB} GB free) — ${hostname} (${client})`;
+  const html = `
+    <div style="font-family: system-ui, -apple-system, Segoe UI, sans-serif; color:#222; max-width:640px;">
+      <h2 style="color:${sevColor}; margin:0 0 12px;">${drive} drive low capacity: ${sevLabel}</h2>
+      <p style="color:#475063; margin:0 0 16px; font-size:14px;">
+        ${escapeHtml(hostname)} (${escapeHtml(client)}) is reporting <b style="color:${sevColor};">${freePct}%</b> free space on <b>${escapeHtml(drive)}</b> &mdash; only <b>${freeGB} GB</b> of <b>${sizeGB} GB</b> remaining.
+      </p>
+      <table cellpadding="6" style="border-collapse:collapse; font-size:14px; margin-bottom:16px;">
+        <tr><td style="color:#666; width:120px;">Host</td><td><b>${escapeHtml(hostname)}</b></td></tr>
+        <tr><td style="color:#666;">Client</td><td>${escapeHtml(client)}</td></tr>
+        <tr><td style="color:#666;">Drive</td><td>${escapeHtml(drive)}</td></tr>
+        <tr><td style="color:#666;">Free</td><td><b style="color:${sevColor};">${freeGB} GB (${freePct}%)</b></td></tr>
+        <tr><td style="color:#666;">Total</td><td>${sizeGB} GB</td></tr>
+        <tr><td style="color:#666;">Detected at</td><td>${escapeHtml(when)}</td></tr>
+        <tr><td style="color:#666;">pcId</td><td><code style="font-size:12px;">${escapeHtml(pcId)}</code></td></tr>
+      </table>
+      <div style="background:${sevBg}; border:1px solid ${sevBorder}; color:${sevText}; padding:10px 14px; border-radius:8px; font-size:13.5px;">
+        <b>What needs attention:</b>
+        <ul style="margin:6px 0 0 16px; padding:0;">
+          <li>Run Disk Cleanup / Storage Sense to clear temp files + Windows Update cache.</li>
+          <li>Check <code>C:\\Windows\\SoftwareDistribution\\Download</code> + <code>C:\\Windows\\Logs\\CBS</code> for old patch debris.</li>
+          <li>Inspect Veeam / WSB destination &mdash; backups landing on C: are a common culprit on Hyper-V hosts.</li>
+          <li>Page file growth on heavily-loaded servers can swallow tens of GB &mdash; relocate to a data drive if possible.</li>
+        </ul>
+      </div>
+      <p style="color:#888; font-size:12px; margin-top:24px;">
+        Sent once per low-capacity episode (dedupe by cDriveLowFirstWarnAt). You won't get a second email for the same incident; if free space recovers above 10% / 10 GB and drops again, the cycle restarts.
+        Silence per-host: flip <code>emailEnabled</code> off in the host's drawer.
+      </p>
+    </div>
+  `;
+  const resp = await fetch(`${RESEND_BASE}/emails`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${env.RESEND_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: env.SENDER_FROM || 'Watchtower <onboarding@resend.dev>',
+      to: [env.ALERT_TO],
+      subject,
+      html,
+    }),
+  });
+  if (!resp.ok) {
+    const txt = await resp.text();
+    throw new Error(`Resend ${resp.status}: ${txt}`);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────
 // Resend email — Windows Server Backup failure alert
 // ─────────────────────────────────────────────────────────────────────
 async function sendBackupFailureEmail(env, { pcId, hostname, client, result, detail, attemptedAt, lastSuccess, daysSinceSuccess, when }) {
@@ -2392,6 +2554,12 @@ function buildGoogleChatCard(p, summary) {
         });
       }
       break;
+    case 'disk_low':
+      widgets.push(_gchatFact('Drive', p.drive || 'C:', 'DESCRIPTION'));
+      widgets.push(_gchatFact('Severity', String(p.severity || 'warning').toUpperCase(), 'STAR'));
+      widgets.push(_gchatFact('Free', `${p.freeGB} GB (${p.freePct}%)`, 'STAR'));
+      if (p.sizeGB) widgets.push(_gchatFact('Total', `${p.sizeGB} GB`, 'BOOKMARK'));
+      break;
     case 'wsb_backup_failed':
       widgets.push(_gchatFact('Result', p.result || '?', 'STAR'));
       if (p.daysSinceSuccess != null) {
@@ -2458,6 +2626,7 @@ function _gchatEventLabel(event) {
     case 'external_ip_changed': return 'External IP changed';
     case 'omsa_warning': return 'OMSA storage warning';
     case 'wsb_backup_failed': return 'Backup failed';
+    case 'disk_low': return 'C: drive low capacity';
     case 'agent_uninstalled': return 'Agent uninstalled';
     case 'agent_decommissioned': return 'Endpoint decommissioned';
     default: return event ? `Event: ${event}` : 'Event';
@@ -2492,6 +2661,8 @@ function humanSummary(p) {
       return `Watchtower: OMSA ${p.rollup || 'warn'} on ${host} (${client})${(p.issues && p.issues.length) ? ` — ${p.issues.slice(0, 3).join('; ')}` : ''}`;
     case 'wsb_backup_failed':
       return `Watchtower: backup failed on ${host} (${client}). Result: ${p.result || '?'}${p.daysSinceSuccess != null ? `, ${p.daysSinceSuccess}d since last success` : ''}`;
+    case 'disk_low':
+      return `Watchtower: ${p.drive || 'C:'} drive ${(p.severity || 'warning').toUpperCase()} on ${host} (${client}) — ${p.freePct}% / ${p.freeGB} GB free of ${p.sizeGB} GB`;
     case 'agent_uninstalled':
       return `Watchtower: agent uninstalled on ${host} (${client})${p.reason ? ` — ${p.reason}` : ''}`;
     case 'agent_decommissioned':

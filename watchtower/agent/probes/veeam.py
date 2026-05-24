@@ -247,7 +247,73 @@ def _detect_agent():
         except (subprocess.TimeoutExpired, OSError) as e:
             last_job = {"_error": f"veeamconfig failed: {e}"}
 
-    return {"edition": "agent", "version": ver, "lastJob": last_job}
+    # Backup policy type(s) -- `veeamconfig job list` enumerates every
+    # configured job with its backup type (Volume / File / EntireComputer /
+    # SystemState) and destination kind (Local disk / Network share /
+    # Cloud Connect / Veeam B&R repository). MSPs want this surfaced so
+    # they can see at a glance whether a host has the right level of
+    # protection (full image-level vs. file-level vs. orphan with no job).
+    jobs = []
+    if veeamconfig:
+        jobs = _list_veeam_jobs(veeamconfig)
+
+    return {
+        "edition": "agent",
+        "version": ver,
+        "lastJob": last_job,
+        "jobs": jobs,
+    }
+
+
+def _list_veeam_jobs(veeamconfig_path):
+    """Parse `veeamconfig job list` into a list of policy entries.
+
+    Output shape (Veeam Agent 5.x/6.x):
+
+      Name                  Type          Repository
+      --------------------- ------------- ----------------
+      Daily Backup          EntireComputer LocalDisk
+      Weekly File Sync      File           NetworkShare
+
+    Some versions use slightly different column names (BackupType /
+    Destination), so we just take the first 3 whitespace-separated
+    chunks after the header separator. Tolerant of extra columns.
+    """
+    try:
+        r = subprocess.run(
+            [veeamconfig_path, "job", "list"],
+            capture_output=True,
+            text=True,
+            timeout=15,
+            creationflags=0x08000000,
+        )
+        if r.returncode != 0 or not r.stdout:
+            return []
+    except (subprocess.TimeoutExpired, OSError):
+        return []
+
+    lines = [ln.rstrip() for ln in r.stdout.splitlines() if ln.strip()]
+    if len(lines) < 3:
+        return []
+    # Skip header + separator
+    data_rows = lines[2:]
+    parsed = []
+    for row in data_rows[:20]:  # cap at 20 jobs to keep payload small
+        # Split on 2+ spaces (column names often have one space, so
+        # 2+ reliably separates columns).
+        parts = [p.strip() for p in row.split("  ") if p.strip()]
+        if not parts:
+            continue
+        entry = {"name": parts[0]}
+        if len(parts) >= 2:
+            entry["policyType"] = parts[1]   # EntireComputer / Volume / File / SystemState
+        if len(parts) >= 3:
+            entry["destination"] = parts[2]  # LocalDisk / NetworkShare / Repository / CloudConnect
+        if len(parts) >= 4:
+            # Some versions add a Schedule column; preserve it raw.
+            entry["schedule"] = " ".join(parts[3:])
+        parsed.append(entry)
+    return parsed
 
 
 def _parse_session_list(stdout):

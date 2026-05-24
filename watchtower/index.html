@@ -581,6 +581,7 @@
             <option value="update-available">Update available</option>
             <option value="critical-updates">Critical Windows Updates pending</option>
             <option value="reboot-pending">Reboot pending</option>
+            <option value="disk-low">C: drive low capacity</option>
             <option value="decommissioned">Decommissioned only</option>
             <option value="all-with-decom">All + decommissioned</option>
           </select>
@@ -1183,6 +1184,12 @@ function renderFleet() {
       const wuA = a.report && a.report.windowsUpdates;
       if (!wuA || wuA.rebootRequired !== true) return false;
     }
+    if (sf === "disk-low") {
+      const pct = a.cDriveFreePct;
+      const gb = a.cDriveFreeGB;
+      const isLow = (pct != null && pct < 10) || (gb != null && gb < 10);
+      if (!isLow) return false;
+    }
     if (q) {
       const hay = [a.hostname, a.client, a.externalIp, a.id].filter(Boolean).join(" ").toLowerCase();
       if (!hay.includes(q)) return false;
@@ -1254,6 +1261,23 @@ function renderFleet() {
         wuBadge = ` <span class="badge warn" title="Reboot pending to finish a prior update.">reboot pending</span>`;
       }
     }
+    // C: drive low-capacity badge -- worker promotes free% + free GB to
+    // top-level fields, so renderFleet doesn't have to descend into
+    // report.storage.volumes for every row. Critical (<5% or <5 GB) =
+    // red, warning (<10% or <10 GB) = amber. No badge when measurement
+    // is missing OR healthy.
+    let diskBadge = "";
+    if (typeof a.cDriveFreePct === "number" || typeof a.cDriveFreeGB === "number") {
+      const pct = a.cDriveFreePct;
+      const gb = a.cDriveFreeGB;
+      const isCritical = (pct != null && pct < 5) || (gb != null && gb < 5);
+      const isWarn = (pct != null && pct < 10) || (gb != null && gb < 10);
+      if (isCritical) {
+        diskBadge = ` <span class="badge bad" title="C: drive critically low. ${gb} GB / ${pct}% free of ${a.cDriveSizeGB} GB. Click the row for details.">C: ${pct}% free</span>`;
+      } else if (isWarn) {
+        diskBadge = ` <span class="badge warn" title="C: drive low capacity. ${gb} GB / ${pct}% free of ${a.cDriveSizeGB} GB.">C: ${pct}% free</span>`;
+      }
+    }
     // Update badge intentionally dropped from the fleet row in v0.10.1 —
     // agent version + update-available hint live in the drawer's Status
     // section now. The Status filter "Update available" option still works
@@ -1294,7 +1318,7 @@ function renderFleet() {
         <td class="col-products" data-label="Backup">${backupCell}</td>
         <td class="col-products" data-label="Remote">${remoteCell}</td>
         <td class="age" data-label="Last check">${fmtAge(a.lastCheckin)}</td>
-        <td data-label="Status">${stBadge}${bhBadge}${ohBadge}${wuBadge}</td>
+        <td data-label="Status">${stBadge}${bhBadge}${ohBadge}${wuBadge}${diskBadge}</td>
       </tr>
     `;
   }).join("");
@@ -4414,6 +4438,13 @@ function renderWindowsUpdates(wu) {
 
 function renderVeeam(veeam) {
   if (veeam._error) return `<div class="meta">Probe error: ${esc(veeam._error)}</div>`;
+  // Per-product detection: edition (B&R / Agent), version, last session
+  // result. Below the product list we surface the policy table -- one
+  // row per configured Veeam Agent job with its policy type
+  // (EntireComputer / Volume / File / SystemState) and destination
+  // (LocalDisk / NetworkShare / Repository / CloudConnect). MSPs want
+  // this so a host running just a "File" job stands out vs. one with
+  // full EntireComputer image-level backups.
   const parts = (veeam.products || []).map(p => {
     const lj = p.lastJob;
     return `
@@ -4429,7 +4460,44 @@ function renderVeeam(veeam) {
       </div>
     `;
   });
-  return `<div class="list">${parts.join("")}</div>`;
+
+  // Aggregate jobs across every detected product (typically just the
+  // Agent has them; B&R server-side jobs aren't exposed via
+  // veeamconfig). Each job: name, policyType, destination, optional
+  // raw schedule string.
+  const allJobs = [];
+  for (const p of (veeam.products || [])) {
+    for (const j of (p.jobs || [])) {
+      allJobs.push(j);
+    }
+  }
+  const jobsBlock = allJobs.length ? `
+    <div style="margin-top:12px;font-size:12px;font-weight:600;color:var(--ink-soft);">Backup jobs (${allJobs.length})</div>
+    <div class="list" style="margin-top:4px;">
+      ${allJobs.map(j => {
+        // Color the policyType badge: EntireComputer = best (green),
+        // Volume = good (teal/info), File = caution (amber, partial
+        // coverage), SystemState = muted, unknown = muted.
+        const pt = (j.policyType || "").toLowerCase();
+        const tone = pt === "entirecomputer" ? "ok"
+          : pt === "volume" ? "info"
+          : pt === "file" ? "warn"
+          : "muted";
+        return `<div class="row">
+          <div>
+            <div class="name">${esc(j.name || "(unnamed job)")}</div>
+            ${j.schedule ? `<div class="meta">${esc(j.schedule)}</div>` : ""}
+          </div>
+          <div class="meta" style="text-align:right;">
+            ${j.policyType ? `<span class="badge ${tone}">${esc(j.policyType)}</span>` : ""}
+            ${j.destination ? `<div style="font-size:11px;margin-top:2px;"><code>${esc(j.destination)}</code></div>` : ""}
+          </div>
+        </div>`;
+      }).join("")}
+    </div>
+  ` : "";
+
+  return `<div class="list">${parts.join("")}</div>${jobsBlock}`;
 }
 
 async function writeConfig(pcId, field, value) {
