@@ -110,7 +110,24 @@
   .panel-body { padding: 16px 18px; }
 
   /* sign-in */
-  #signin { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; }
+  #signin { min-height: 100vh; display: flex; align-items: stretch; justify-content: center; padding: 24px; gap: 32px; }
+  /* Banner rail on the left -- same sci-fi tower scene used in the
+     installer wizard. Renders as a tall portrait card that anchors
+     the layout visually. Hidden on narrow screens (< 760px) so the
+     login card centers naturally on mobile. */
+  #signin .banner {
+    flex: 0 0 360px;
+    max-width: 360px;
+    align-self: center;
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: var(--shadow-lift);
+    background: #050816;
+    display: flex;
+    align-items: stretch;
+  }
+  #signin .banner img { width: 100%; height: auto; display: block; }
+  #signin .login-col { display: flex; align-items: center; }
   #signin .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow-lift); padding: 36px 32px; max-width: 420px; text-align: center; }
   #signin svg.logo { width: 64px; height: 64px; }
   #signin h1 { font-size: 22px; margin: 14px 0 4px; }
@@ -120,6 +137,10 @@
   #signin .err { margin-top: 16px; padding: 10px 12px; border-radius: 8px; background: var(--danger-soft); border: 1px solid #fca5a5; color: #7f1d1d; font-size: 13px; text-align: left; }
   #signin .err[hidden] { display: none; }
   #signin .domain { margin-top: 22px; font-size: 12px; color: var(--ink-faint); }
+  @media (max-width: 760px) {
+    #signin { gap: 0; }
+    #signin .banner { display: none; }
+  }
 
   /* filter bar */
   .filters { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 14px 18px; }
@@ -404,6 +425,13 @@
 
 <!-- ================= sign-in screen ================= -->
 <div id="signin">
+  <div class="banner" aria-hidden="true">
+    <!-- Same sci-fi tower scene used in the installer wizard banner.
+         Pulled from the SVG so it scales crisply at any DPI and the
+         dashboard repo doesn't need a separate rasterized asset. -->
+    <img src="installer/wizard-banner.svg" alt="">
+  </div>
+  <div class="login-col">
   <div class="card">
     <svg class="logo" viewBox="0 0 64 64" fill="none">
       <circle cx="32" cy="32" r="14" stroke="#0a6b6b" stroke-width="3"/>
@@ -418,6 +446,7 @@
     </button>
     <div id="signinErr" class="err" hidden></div>
     <div class="domain">Restricted to <code>@umbrellaautomation.com</code> accounts.</div>
+  </div>
   </div>
 </div>
 
@@ -676,7 +705,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.0";
+const APP_VERSION = "0.14.1";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -1757,6 +1786,7 @@ function renderClients() {
         <td class="num">${fmtAge(c.createdAt)}</td>
         <td class="actions">
           <button class="btn btn-sm btn-primary" data-act="gen" data-id="${esc(c.id)}">+ Token</button>
+          <button class="btn btn-sm" data-act="rename" data-id="${esc(c.id)}" title="Rename this client. Cascades through every endpoint and install token bound to this client so the dashboard stays consistent.">Rename</button>
           <button class="btn btn-sm btn-danger" data-act="del" data-id="${esc(c.id)}">Delete</button>
         </td>
       </tr>
@@ -1831,13 +1861,14 @@ function renderClients() {
       renderClients();
     });
   });
-  $$("#clientsBody [data-act='gen'], #clientsBody [data-act='del'], #clientsBody [data-act='revoke']").forEach(btn => {
+  $$("#clientsBody [data-act='gen'], #clientsBody [data-act='del'], #clientsBody [data-act='revoke'], #clientsBody [data-act='rename']").forEach(btn => {
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
       const act = btn.dataset.act;
       const id = btn.dataset.id;
       if (act === "gen") generateToken(id);
       else if (act === "del") deleteClient(id);
+      else if (act === "rename") renameClient(id);
       else if (act === "revoke") revokeToken(btn.dataset.hash);
     });
   });
@@ -2048,6 +2079,55 @@ async function revokeToken(hash) {
     });
   } catch (e) {
     toast("Revoke failed: " + (e.message || e), true);
+  }
+}
+
+// Rename a client + cascade through every endpoint and install token
+// bound to it. Goes through the worker (POST /rename-client) rather
+// than writing directly because firestore.rules forbids dashboard
+// writes to /agents/{pcId} -- only service-account writes (worker)
+// can mutate agent docs. The cascade lives there for the same reason.
+async function renameClient(clientId) {
+  const client = state.clients.find(c => c.id === clientId);
+  if (!client) return;
+  const agentCount = state.agents.filter(a => a.clientId === clientId).length;
+  const tokenCount = state.tokens.filter(t => t.clientId === clientId).length;
+  const newName = prompt(
+    `Rename client.\n\nCurrent name: ${client.name}\n${agentCount} endpoint(s) and ${tokenCount} install token(s) will be updated to match.\n\nNew name:`,
+    client.name,
+  );
+  if (newName === null) return;  // cancel
+  const trimmed = newName.trim();
+  if (!trimmed) {
+    toast("Name can't be blank.", true);
+    return;
+  }
+  if (trimmed === client.name) return;  // no-op
+  if (trimmed.length > 80) {
+    toast("Name too long (max 80 chars).", true);
+    return;
+  }
+  try {
+    const idToken = await auth.currentUser.getIdToken();
+    const r = await fetch(`${WORKER_URL}/rename-client`, {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${idToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ clientId, newName: trimmed }),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok || !data.ok) {
+      throw new Error(data.error || `HTTP ${r.status}`);
+    }
+    if (data.noop) {
+      toast("Name unchanged (already matches).");
+      return;
+    }
+    toast(`Renamed to "${data.newName}" — ${data.cascadedAgents} endpoint(s) + ${data.cascadedTokens} token(s) updated.`);
+    // Activity log is written server-side by the worker; the local
+    // logActivity call would duplicate. The Firestore subscription on
+    // /clients will tick + re-render the table on its own.
+  } catch (e) {
+    toast("Rename failed: " + (e.message || e), true);
   }
 }
 
@@ -2412,7 +2492,9 @@ function buildReportDom(a, logoPngDataUrl) {
       ["Manufacturer", esc(sys.manufacturer)],
       ["Model", esc(sys.model)],
       sys.isVirtual ? ["Virtual machine", `Yes &middot; <i>${esc(sys.hypervisor || "")}</i>`] : null,
-      ["Service tag", sys.serviceTag ? `<code>${esc(sys.serviceTag)}</code>` : null],
+      // Suppress service tag for VMs -- hypervisor-assigned BIOS serial
+      // isn't a real hardware tag (no warranty / no Dell lookup).
+      sys.isVirtual ? null : ["Service tag", sys.serviceTag ? `<code>${esc(sys.serviceTag)}</code>` : null],
       ["OS", esc(os.name) + (os.build ? ` (build ${esc(os.build)})` : "")],
       ["Architecture", esc(os.architecture)],
       ["CPU", esc(sys.cpu && sys.cpu.name) + (sys.cpu && sys.cpu.cores ? ` &middot; ${sys.cpu.cores} cores` : "")],
@@ -2722,7 +2804,9 @@ function buildHostSections(a) {
       ["Decommissioned at", a.decommissionedAt || ""],
       ["Manufacturer", sys.manufacturer || ""],
       ["Model", sys.model || ""],
-      ["Service tag", sys.serviceTag || ""],
+      // VMs report a hypervisor-assigned BIOS serial that isn't a real
+      // hardware tag; leave the column blank rather than misleading.
+      ["Service tag", (sys.isVirtual ? "" : (sys.serviceTag || ""))],
       ["Virtual machine", sys.isVirtual ? `yes (${sys.hypervisor || "?"})` : "no"],
       ["CPU", (sys.cpu && sys.cpu.name) || ""],
       ["CPU cores", (sys.cpu && sys.cpu.cores) || ""],
@@ -3043,7 +3127,8 @@ function buildFleetRows() {
       a.hostname || a.id, a.client || "",
       a.internalIp || "", a.externalIp || "",
       os.name || "", sys.manufacturer || "", sys.model || "",
-      sys.serviceTag || "",
+      // Blank for VMs -- hypervisor-assigned BIOS serial isn't a real tag.
+      sys.isVirtual ? "" : (sys.serviceTag || ""),
       (sys.memory && sys.memory.totalGB) || "",
       (sys.cpu && sys.cpu.name) || "",
       a.agentVersion || "",
@@ -3304,7 +3389,12 @@ function renderDrawer(pcId) {
         ["Model", esc(sys.model)],
         ...(sys.isVirtual ? [["Virtual machine", `<span class="badge muted" style="background:#fae8ff;color:#581c87;">Yes</span> <span class="meta">${esc(sys.hypervisor || "")}</span>`]] : []),
         ...(sys.physicalHost ? [["Hosted on", renderPhysicalHostLink(sys.physicalHost)]] : []),
-        ["Service tag", renderServiceTag(sys.serviceTag, sys.manufacturer)],
+        // Service tag is hidden entirely on VMs -- hypervisor-assigned
+        // BIOS serials (Hyper-V UUID, VMware "VMware-XX XX..." string,
+        // VirtualBox 0s) aren't real hardware tags and can't be looked
+        // up for warranty or escalation. Showing them just confuses
+        // the operator. Physical hosts keep the row.
+        ...(sys.isVirtual ? [] : [["Service tag", renderServiceTag(sys.serviceTag, sys.manufacturer)]]),
         ["CPU", esc(sys.cpu && sys.cpu.name)],
         ["RAM", sys.memory ? `${sys.memory.totalGB} GB` : "—"],
         ["TPM", sys.tpm ? (sys.tpm.present ? `present, spec ${esc(sys.tpm.specVersion)}` : "absent") : "—"],

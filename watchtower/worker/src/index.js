@@ -83,6 +83,10 @@ export default {
       return withCors(await handleReassignClient(request, env, ctx), env, request);
     }
 
+    if (url.pathname === '/rename-client' && request.method === 'POST') {
+      return withCors(await handleRenameClient(request, env, ctx), env, request);
+    }
+
     // POST /uninstall — agent phones home from Inno Setup's uninstall step.
     // Auth is the install token (same as /checkin), NOT a Firebase ID token.
     // No CORS — called from native WinHttp, not the browser.
@@ -231,6 +235,133 @@ async function handleReassignClient(request, env, ctx) {
     client: newClient,
     clientId: newClientId,
     cleared: !clientId,
+  }, 200);
+}
+
+// ═════════════════════════════════════════════════════════════════════
+// POST /rename-client — rename a client + cascade through agents / tokens
+// ═════════════════════════════════════════════════════════════════════
+//
+// Admin-only. Auth via Firebase ID token with verified
+// @umbrellaautomation.com email (same gate as /reassign-client).
+//
+// Why a worker endpoint rather than dashboard-direct writes:
+//   * /agents/{pcId} is service-account-only per firestore.rules
+//     (allow create/update/delete: if false). Admins read it directly
+//     but can't mutate, so the cascade has to happen here.
+//   * Atomicity matters -- if we rename /clients/{id}.name but leave
+//     /agents/* and /install_tokens/* showing the stale name, the UI
+//     looks inconsistent until each agent's next check-in eventually
+//     overwrites it. Doing all writes in one server-side call closes
+//     that window.
+//
+// Request body:  { clientId, newName }
+// Response:      { ok, clientId, oldName, newName, cascadedAgents, cascadedTokens }
+async function handleRenameClient(request, env, ctx) {
+  const authHeader = request.headers.get('Authorization') || '';
+  const idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+  if (!idToken) return jsonResponse({ error: 'Missing sign-in token' }, 401);
+  let claims;
+  try {
+    claims = await verifyFirebaseIdToken(idToken);
+  } catch (e) {
+    return jsonResponse({ error: 'Invalid or expired sign-in token' }, 401);
+  }
+  const email = (claims.email || '').toLowerCase();
+  if (!claims.email_verified || !email.endsWith('@umbrellaautomation.com')) {
+    return jsonResponse({ error: 'Not authorized — domain mismatch' }, 403);
+  }
+
+  let body;
+  try {
+    body = await request.json();
+  } catch (e) {
+    return jsonResponse({ error: 'Body must be JSON' }, 400);
+  }
+  const { clientId, newName } = body || {};
+  if (!clientId || typeof clientId !== 'string') {
+    return jsonResponse({ error: 'clientId required' }, 400);
+  }
+  const trimmed = (newName || '').trim();
+  if (!trimmed) {
+    return jsonResponse({ error: 'newName required (non-empty)' }, 400);
+  }
+  if (trimmed.length > 80) {
+    return jsonResponse({ error: 'newName too long (max 80 chars)' }, 400);
+  }
+
+  const accessToken = await getServiceAccountToken(env);
+
+  // Confirm the client doc exists + capture the old name for the activity log.
+  const clientDoc = await firestoreGetDoc(env, accessToken, `clients/${clientId}`);
+  if (!clientDoc || !clientDoc.fields) {
+    return jsonResponse({ error: 'Client not found' }, 404);
+  }
+  const oldName = clientDoc.fields.name?.stringValue || '(unnamed)';
+  if (oldName === trimmed) {
+    // No-op -- short-circuit so we don't pollute the activity log with
+    // identity renames (fat-fingered Save after the modal opens).
+    return jsonResponse({ ok: true, clientId, oldName, newName: trimmed, cascadedAgents: 0, cascadedTokens: 0, noop: true }, 200);
+  }
+
+  // Write 1: the canonical client name. PARTIAL so we don't wipe
+  // createdAt / notes / etc.
+  await firestoreSetDoc(env, accessToken, `clients/${clientId}`, {
+    name: trimmed,
+    renamedAt: new Date().toISOString(),
+    renamedBy: email,
+  }, /* partial */ true);
+
+  // Write 2: cascade to every /agents doc carrying the old denorm name.
+  // Match on clientId (the stable identifier), not the name, in case
+  // some agent doc has a stale name we want to fix at the same time.
+  const agentPcIds = await firestoreQueryDocIds(env, accessToken, 'agents', 'clientId', clientId);
+  for (const pcId of agentPcIds) {
+    try {
+      await firestoreSetDoc(env, accessToken, `agents/${pcId}`, {
+        client: trimmed,
+      }, /* partial */ true);
+    } catch (e) {
+      // Don't abort the whole rename if one agent doc is wedged --
+      // log and continue; the next check-in from that host will fix
+      // its own client field from the resolved token-bound value.
+      console.error(`Rename cascade: agent ${pcId} update failed (non-fatal):`, e);
+    }
+  }
+
+  // Write 3: cascade to every /install_tokens doc bound to this client.
+  // Same denorm: tokens carry a `client` string for UI display.
+  const tokenHashes = await firestoreQueryDocIds(env, accessToken, 'install_tokens', 'clientId', clientId);
+  for (const hash of tokenHashes) {
+    try {
+      await firestoreSetDoc(env, accessToken, `install_tokens/${hash}`, {
+        client: trimmed,
+      }, /* partial */ true);
+    } catch (e) {
+      console.error(`Rename cascade: token ${hash.slice(0, 8)} update failed (non-fatal):`, e);
+    }
+  }
+
+  ctx.waitUntil(logActivity(env, accessToken, {
+    type: 'client_renamed',
+    actor: { type: 'admin', id: email },
+    target: { type: 'client', id: clientId, label: trimmed },
+    client: trimmed,
+    details: {
+      oldName,
+      newName: trimmed,
+      cascadedAgents: agentPcIds.length,
+      cascadedTokens: tokenHashes.length,
+    },
+  }));
+
+  return jsonResponse({
+    ok: true,
+    clientId,
+    oldName,
+    newName: trimmed,
+    cascadedAgents: agentPcIds.length,
+    cascadedTokens: tokenHashes.length,
   }, 200);
 }
 
@@ -2251,6 +2382,50 @@ async function firestoreGetDoc(env, accessToken, path) {
     throw new Error(`Firestore GET ${path} failed: ${resp.status} ${await resp.text()}`);
   }
   return resp.json();
+}
+
+// Structured query helper: returns the document IDs (last path segment)
+// of every doc in `collection` where `field == value`. Used by the
+// rename-client cascade -- "give me every agent whose clientId is X".
+// Reads in pages of 300 (well under the 10MB response cap). Caller
+// can do per-id PATCHes from the result.
+async function firestoreQueryDocIds(env, accessToken, collection, field, value) {
+  const url = `${FIRESTORE_BASE}/projects/${env.FIREBASE_PROJECT_ID}/databases/(default)/documents:runQuery`;
+  const body = {
+    structuredQuery: {
+      from: [{ collectionId: collection }],
+      where: {
+        fieldFilter: {
+          field: { fieldPath: field },
+          op: 'EQUAL',
+          value: { stringValue: value },
+        },
+      },
+      // Return only the doc name (path) -- we don't need any field data
+      // here, just IDs to issue PATCHes against.
+      select: { fields: [{ fieldPath: '__name__' }] },
+      limit: 300,
+    },
+  };
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!resp.ok) {
+    throw new Error(`Firestore runQuery ${collection} failed: ${resp.status} ${await resp.text()}`);
+  }
+  const arr = await resp.json();
+  // runQuery returns an array of { document?: {name: 'projects/.../documents/agents/PCID'} }
+  // entries, plus possibly a leading entry with just readTime when zero matches.
+  const ids = [];
+  for (const row of arr) {
+    if (!row || !row.document || !row.document.name) continue;
+    const name = row.document.name;
+    const lastSlash = name.lastIndexOf('/');
+    if (lastSlash > -1) ids.push(name.slice(lastSlash + 1));
+  }
+  return ids;
 }
 
 // Firestore PATCH. CRITICAL: Firestore's REST API PATCH with no

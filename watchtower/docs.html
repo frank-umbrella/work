@@ -113,7 +113,7 @@
       </svg>
       <div>
         <div class="meta">Umbrella Automation</div>
-        <h1>Watchtower &middot; Docs <span class="version-chip">v0.14.0</span></h1>
+        <h1>Watchtower &middot; Docs <span class="version-chip">v0.14.1</span></h1>
       </div>
     </a>
     <a class="btn brand-link" href="index.html">&larr; Back to dashboard</a>
@@ -144,6 +144,8 @@
   <a href="#filtering-decom">Finding decom'd hosts</a>
   <a href="#tokens" class="section">Install tokens</a>
   <a href="#tokens-revoke">Revoking a token</a>
+  <a href="#clients-mgmt" class="section">Managing clients</a>
+  <a href="#clients-rename">Rename a client</a>
   <a href="#settings" class="section">Settings</a>
   <a href="#settings-webhook">Master webhook URL</a>
   <a href="#updates" class="section">Agent auto-update</a>
@@ -171,6 +173,7 @@
   <a href="#backup-alerts">Email alerts</a>
   <a href="#exports" class="section">Exports (PDF / CSV / Excel)</a>
   <a href="#troubleshooting" class="section">Troubleshooting</a>
+  <a href="#recovery">Stuck install recovery</a>
   <a href="#layout" class="section">What gets installed</a>
 </nav>
 
@@ -605,6 +608,20 @@ Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" 
 </table>
 <p>The Test webhook button's result panel includes a <code>sent</code> field showing exactly what was POSTed, so you can confirm the adapted shape if a custom receiver rejects it.</p>
 
+<h2 id="clients-mgmt">Managing clients</h2>
+<p>The <b>Clients</b> tab lists every customer the MSP monitors, with the number of endpoints + active install tokens per client. Click any row to expand and see the endpoint list and token inventory.</p>
+
+<h3 id="clients-rename">Rename a client</h3>
+<p>Click <b>Rename</b> on a client row. Type the new name. Behind the scenes the worker:</p>
+<ol>
+  <li>Updates <code>/clients/{id}.name</code> to the new value.</li>
+  <li>Cascades to every <code>/agents/{pcId}</code> doc bound to this client (so the Endpoints table stops showing the old name immediately, not after each host's next check-in).</li>
+  <li>Cascades to every <code>/install_tokens/{hash}</code> doc so the token list also reflects the new name.</li>
+  <li>Logs a <code>client_renamed</code> activity event with the old + new names and counts.</li>
+</ol>
+<p>Identity renames (typing the same name back) are short-circuited &mdash; no activity entry, no Firestore writes. Fat-finger fix: just retype.</p>
+<p>Renames don't touch <code>clientId</code> (the stable internal identifier), so install tokens keep working without re-issue and endpoints stay bound correctly.</p>
+
 <h2 id="intake-email">Intake email on first check-in</h2>
 <p>The first time a brand-new host's agent reports in (no existing record in the dashboard), the worker fires a one-time intake email summarizing what the probes found on that machine. Think of it as a "new endpoint onboarded, here's what's on this box" report you can archive for your records.</p>
 
@@ -775,6 +792,32 @@ Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" 
   <li>Event Viewer &rarr; Windows Logs &rarr; System &rarr; filter on Source = Service Control Manager. Most failures are a missing dependency in the PyInstaller bundle &mdash; rebuild without <code>-SkipPyInstaller</code>.</li>
   <li>Run the EXE directly to see the error: <code>"C:\Program Files\Umbrella Watchtower\watchtower-svc.exe"</code> from an elevated prompt.</li>
 </ul>
+
+<h3 id="recovery">Stuck install &mdash; service won't stop, installer won't run</h3>
+<p>Symptom: the host never appears in the dashboard, the tray icon is missing, and re-running the installer fails with <code>DeleteFile failed code 5</code> or "the service is running". This can happen if the agent service is wedged in startup (looping on a probe that throws, can't release file handles to <code>watchtower-svc.exe</code>).</p>
+<p>v0.14.1+ installers force-kill the service process during <code>PrepareToInstall</code> so the extraction can proceed. If you're on an older installer, run this elevated PowerShell to wipe the install cleanly, then download a fresh installer and run it:</p>
+<pre><code># Stop + delete the service, kill any orphaned processes
+Stop-Service WatchtowerAgent -Force -ErrorAction SilentlyContinue
+sc.exe delete WatchtowerAgent | Out-Null
+Get-Process watchtower-svc, watchtower-tray -ErrorAction SilentlyContinue | Stop-Process -Force
+
+# Remove the install dir
+Remove-Item "C:\Program Files\Umbrella Watchtower" -Recurse -Force -ErrorAction SilentlyContinue
+
+# Remove the per-machine config (preserves nothing -- next install gets a fresh pcId)
+Remove-Item "C:\ProgramData\Watchtower" -Recurse -Force -ErrorAction SilentlyContinue
+
+# Remove the Add/Remove Programs entry (so re-install starts clean)
+Get-ChildItem "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall" `
+  | Where-Object { (Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue).DisplayName -like 'Umbrella Watchtower*' } `
+  | Remove-Item -Recurse -Force
+
+# Remove the tray autostart entry
+Remove-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run' -Name WatchtowerTray -ErrorAction SilentlyContinue
+
+Write-Host "Cleaned. Download a fresh installer and run it." -ForegroundColor Green
+</code></pre>
+<p>Note that wiping <code>C:\ProgramData\Watchtower</code> means the host gets a new pcId on next install &mdash; it'll show up as a new row in the dashboard. The old row will go stale and you can decommission it.</p>
 
 <h3>Tray icon missing on RDP'd servers</h3>
 <p>The tray is registered in <code>HKLM\…\Run</code>, which fires once per interactive logon. RDP into a server creates a new interactive session &mdash; the tray should launch on the second login. If it doesn't, check Task Manager for <code>watchtower-tray.exe</code>; if it's missing, run it manually from the install dir.</p>

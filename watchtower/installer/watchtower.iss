@@ -659,18 +659,26 @@ var
 begin
   // Stop the service. We use sc.exe stop (not 'sc stop') and tolerate
   // failure -- the service might not exist yet on a clean first install.
-  // 5-second timeout for the service to release its file handles.
   Exec(ExpandConstant('{sys}\sc.exe'), 'stop {#ServiceName}',
        '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
 
-  // Kill the tray process so its EXE handle releases too. Same
-  // tolerate-failure approach -- tray may not be running.
-  Exec(ExpandConstant('{cmd}'), '/c taskkill /im watchtower-tray.exe /f',
+  // sc.exe stop only QUEUES the stop request -- the process is given
+  // time to gracefully shut down. If the service is wedged (looping
+  // in startup, hung in a probe), sc.exe returns success but the
+  // process is still holding the EXE handle and the extraction in
+  // [Files] fails with "DeleteFile failed code 5". So we follow up
+  // with a force-kill of the process by image name. Idempotent: if
+  // there's nothing to kill, taskkill returns exit 128 and we move on.
+  Exec(ExpandConstant('{cmd}'), '/c taskkill /im watchtower-svc.exe /f /t',
        '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
 
-  // Brief sleep so Windows actually releases the file handles. sc stop
-  // returns as soon as it's queued the request, but the underlying
-  // ImagePath handle releases asynchronously a beat later.
+  // Kill the tray process for the same reason.
+  Exec(ExpandConstant('{cmd}'), '/c taskkill /im watchtower-tray.exe /f /t',
+       '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+
+  // Brief sleep so Windows actually releases the file handles after
+  // the kills land. Service Control Manager + taskkill both return
+  // before the handles fully drain in the kernel.
   Sleep(2000);
 
   Result := '';
