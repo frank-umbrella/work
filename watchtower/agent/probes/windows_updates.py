@@ -120,21 +120,68 @@ def _detect_reboot_pending():
     return False
 
 
+def _wuapi_search_with_timeout(timeout_sec):
+    """Run the WUApi COM search on a daemon thread with a wall-clock cap.
+
+    Microsoft.Update.Session.Search() blocks indefinitely when WSUS is
+    misconfigured/unreachable (no internal timeout knob on the COM API).
+    On hosts where the collector's 60s per-probe cap was firing, the
+    visible result was a 'probe windows_updates exceeded 60s wall-clock
+    cap' error in the dashboard. Cutting this thread loose at 35s lets
+    the probe fail cleanly INSIDE the probe (so we still emit a usable
+    object with rebootRequired etc) instead of getting murdered by
+    collector.py.
+    """
+    import threading
+    import pythoncom
+    import win32com.client
+    result_box = {"results": None, "exc": None}
+
+    def _target():
+        try:
+            pythoncom.CoInitialize()
+            try:
+                session = win32com.client.Dispatch("Microsoft.Update.Session")
+                searcher = session.CreateUpdateSearcher()
+                result_box["results"] = searcher.Search(
+                    "IsInstalled=0 and IsHidden=0 and Type='Software'"
+                )
+            finally:
+                pythoncom.CoUninitialize()
+        except Exception as e:
+            result_box["exc"] = e
+
+    t = threading.Thread(target=_target, name="wuapi-search", daemon=True)
+    t.start()
+    t.join(timeout_sec)
+    if t.is_alive():
+        # Thread is still blocked in WUApi. We can't kill it safely; it
+        # stays alive until the process restarts. Mark the search as
+        # failed so the caller falls back to reboot-pending-only output.
+        raise TimeoutError(
+            f"WUApi Search() did not return within {timeout_sec}s -- "
+            "WSUS likely unreachable or misconfigured"
+        )
+    if result_box["exc"] is not None:
+        raise result_box["exc"]
+    return result_box["results"]
+
+
 def collect():
     try:
         # pywin32 import deferred so non-Windows test imports don't crash.
         import pythoncom
         import win32com.client
 
-        pythoncom.CoInitialize()
         try:
-            session = win32com.client.Dispatch("Microsoft.Update.Session")
-            searcher = session.CreateUpdateSearcher()
-            # Empty server selector + default source = whatever the host
-            # is configured to talk to (WSUS / WUfB / Microsoft Update).
-            results = searcher.Search("IsInstalled=0 and IsHidden=0 and Type='Software'")
-        finally:
-            pythoncom.CoUninitialize()
+            results = _wuapi_search_with_timeout(35)
+        except TimeoutError as e:
+            # Fall back to reboot-pending only -- registry-only, doesn't
+            # need WSUS. Better than nothing.
+            return {
+                "_error": str(e),
+                "rebootRequired": _detect_reboot_pending(),
+            }
 
         updates_collection = results.Updates
         pending_count = updates_collection.Count

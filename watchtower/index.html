@@ -132,7 +132,14 @@
   .site-footer .spacer { flex: 1; }
   .site-footer a { color: var(--ink-soft); text-decoration: none; }
   .site-footer a:hover { color: var(--accent); text-decoration: underline; }
-  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
+  /* All tab panels render at the same width -- box-sizing + width:100%
+     so Clients / Activity / Settings match the Endpoints panel even
+     when their inner table has fewer columns than the wide Endpoints
+     table. Previously Clients/Activity looked narrower because the
+     table.clients auto-sized to its (shorter) content; width:100% on
+     the panel makes the chrome consistent across every tab. */
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); width: 100%; box-sizing: border-box; }
+  .tab-pane { width: 100%; }
   .panel + .panel { margin-top: 18px; }
   .panel-header { display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--line); }
   .panel-header h2 { font-size: 15px; margin: 0; font-weight: 700; }
@@ -140,32 +147,42 @@
   .panel-body { padding: 16px 18px; }
 
   /* sign-in */
-  #signin { min-height: 100vh; display: flex; align-items: stretch; justify-content: center; padding: 24px; gap: 32px; }
-  /* Banner rail on the left -- same sci-fi tower scene used in the
-     installer wizard. Renders as a tall portrait card that anchors
-     the layout visually. Hidden on narrow screens (< 760px) so the
-     login card centers naturally on mobile. */
-  #signin .banner {
-    /* Width follows from the SVG's portrait aspect (~0.51) at our chosen
-       height. We constrain by HEIGHT (matching the login card's natural
-       size) rather than by width so the banner sits next to the card as
-       a peer instead of dominating the viewport. */
-    flex: 0 0 auto;
-    align-self: center;
-    height: clamp(380px, 60vh, 460px);
-    border-radius: 14px;
-    overflow: hidden;
-    box-shadow: var(--shadow-lift);
-    background: #050816;
+  /* align-items: stretch makes BOTH children grow to the same height --
+     since the login card's content drives the natural height (~370px),
+     the banner stretches to match. min-height: 100vh just ensures the
+     two-column block vertically centers on the viewport. */
+  #signin { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px; gap: 0; }
+  #signin .pair {
     display: flex;
-    align-items: stretch;
+    align-items: stretch;   /* both children take the same height */
+    box-shadow: var(--shadow-lift);
+    border-radius: 14px;
+    overflow: hidden;       /* clip both children to the same rounded edge */
   }
-  /* object-fit:contain keeps the WATCHTOWER wordmark + tagline visible
-     instead of cropping them off. Width auto means the image scales to
-     match container height while preserving the SVG's aspect. */
-  #signin .banner img { height: 100%; width: auto; display: block; object-fit: contain; }
-  #signin .login-col { display: flex; align-items: center; }
-  #signin .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow-lift); padding: 36px 32px; max-width: 420px; text-align: center; }
+  /* Banner sits flush against the login card on its left -- visually
+     one composite panel split into a dark-image half + a white form
+     half. Width is fixed (240px) so the banner's height is purely
+     driven by the card's natural height via stretch; the SVG inside
+     uses object-fit: cover to fill that box without distortion,
+     cropping the bottom wordmark band on shorter cards. */
+  #signin .banner {
+    flex: 0 0 240px;
+    background: #050816;
+    display: block;
+    overflow: hidden;
+  }
+  #signin .banner img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+    object-position: center top;  /* keep the tower beacon visible */
+  }
+  /* Card is flush against the banner -- no separate rounded corners
+     or shadow on the card itself (the parent .pair owns the shadow +
+     radius). Width is fixed at 420px so the banner has a stable
+     reference to stretch against. */
+  #signin .card { background: var(--surface); padding: 40px 36px; width: 420px; text-align: center; }
   #signin svg.logo { width: 64px; height: 64px; }
   #signin h1 { font-size: 22px; margin: 14px 0 4px; }
   #signin p { color: var(--ink-soft); margin: 0 0 22px; font-size: 13.5px; }
@@ -482,13 +499,18 @@
 
 <!-- ================= sign-in screen ================= -->
 <div id="signin">
+  <!-- .pair wraps the banner + card so they share one rounded box +
+       drop shadow, presenting as a single composite panel rather
+       than two floating elements. align-items: stretch on the parent
+       makes the banner height equal to the card's natural height. -->
+  <div class="pair">
   <div class="banner" aria-hidden="true">
     <!-- Same sci-fi tower scene used in the installer wizard banner.
          Pulled from the SVG so it scales crisply at any DPI and the
-         dashboard repo doesn't need a separate rasterized asset. -->
+         dashboard repo doesn't need a separate rasterized asset.
+         object-fit: cover crops the wordmark band on shorter cards. -->
     <img src="installer/wizard-banner.svg" alt="">
   </div>
-  <div class="login-col">
   <div class="card">
     <!-- Crenellated watchtower mark -- mirrors favicon.svg so the
          browser tab, login card, header, installer wizard, tray, and
@@ -516,6 +538,7 @@
     </button>
     <div id="signinErr" class="err" hidden></div>
     <div class="domain">Restricted to <code>@umbrellaautomation.com</code> accounts.</div>
+  </div>
   </div>
   </div>
 </div>
