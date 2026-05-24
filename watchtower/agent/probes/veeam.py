@@ -136,18 +136,29 @@ def _service_running(name):
 
 
 def _detect_agent():
-    ver = _reg_read(
-        winreg.HKEY_LOCAL_MACHINE,
-        r"SOFTWARE\Veeam\Veeam Endpoint Backup",
-        "DisplayVersion",
-    )
-    if not ver:
-        # Some versions register under "Veeam Agent for Microsoft Windows"
-        ver = _reg_read(
-            winreg.HKEY_LOCAL_MACHINE,
-            r"SOFTWARE\Veeam\Veeam Agent for Microsoft Windows",
-            "DisplayVersion",
-        )
+    # The Veeam Agent installer has shipped the version string under at
+    # least three different value names across versions:
+    #   * SOFTWARE\Veeam\Veeam Endpoint Backup        -> DisplayVersion (legacy)
+    #   * SOFTWARE\Veeam\Veeam Agent for Microsoft Windows -> Version (6.x)
+    #   * SOFTWARE\Veeam\Veeam Agent for Microsoft Windows -> DisplayVersion (some 5.x)
+    # We try every (path, value-name) combination so installs from any
+    # era show up. Server3 (Veeam Agent 6.3.1.1074) lives under the
+    # second pattern -- its key path matches my older probe, but the
+    # value name is `Version`, not `DisplayVersion`. v0.14.2 only
+    # looked for DisplayVersion -> silently returned None.
+    paths_to_try = [
+        (r"SOFTWARE\Veeam\Veeam Agent for Microsoft Windows", "Version"),
+        (r"SOFTWARE\Veeam\Veeam Agent for Microsoft Windows", "DisplayVersion"),
+        (r"SOFTWARE\Veeam\Veeam Endpoint Backup",             "DisplayVersion"),
+        (r"SOFTWARE\Veeam\Veeam Endpoint Backup",             "Version"),
+        (r"SOFTWARE\Veeam\Veeam Agent",                       "Version"),
+        (r"SOFTWARE\Veeam\Veeam Agent",                       "DisplayVersion"),
+    ]
+    ver = None
+    for path, value_name in paths_to_try:
+        ver = _reg_read(winreg.HKEY_LOCAL_MACHINE, path, value_name)
+        if ver:
+            break
     if not ver:
         # Newer (5.x / 6.x) installs may not populate the SOFTWARE\Veeam
         # tree the way older versions did. Fall back to the Uninstall
