@@ -2241,7 +2241,7 @@ async function postWebhook(url, payload) {
 // chat receivers render the human-readable summary.
 //
 // Adds:
-//   Google Chat (chat.googleapis.com)       → { text }
+//   Google Chat (chat.googleapis.com)       → Cards v2 with header + sections
 //   Discord (discord.com|discordapp.com)    → { content }
 //   Teams classic (outlook.office.com,
 //                  webhook.office.com)      → MessageCard
@@ -2251,9 +2251,13 @@ function buildWebhookBody(url, payload) {
   const summary = humanSummary(payload);
   const u = (url || '').toLowerCase();
 
-  // Google Chat — strict schema, drops the connection if extra fields exist
+  // Google Chat — rich card with the Watchtower logo, color-coded
+  // subtitle, per-event facts, and a button linking to the dashboard.
+  // `text` is included alongside `cardsV2` as the notification preview
+  // (the line Chat shows in the room list / phone notification) and as
+  // a fallback if a client doesn't render cards.
   if (u.includes('chat.googleapis.com')) {
-    return { text: summary };
+    return buildGoogleChatCard(payload, summary);
   }
   // Discord — uses `content` not `text`
   if (u.includes('discord.com/api/webhooks') || u.includes('discordapp.com/api/webhooks')) {
@@ -2299,6 +2303,154 @@ function buildWebhookBody(url, payload) {
   // up, plus all the original structured fields for receivers that want
   // structured data.
   return { text: summary, ...payload };
+}
+
+// Google Chat Cards v2 builder. Returns the {text, cardsV2:[...]} envelope.
+//
+// Design notes:
+//   * `text` is the notification preview (room list + mobile push). Cards
+//     don't generate notifications on their own -- text does.
+//   * Card header has an `imageUrl` -- Google Chat needs a public HTTPS
+//     image. Pointing at the dashboard's icon-192.png (rasterized from
+//     favicon.svg, served by GitHub Pages).
+//   * Subtitle is the event type, color-coded indirectly via icon choice
+//     (Chat headers can't be tinted -- only the icon and decorated-text
+//     widgets show color).
+//   * Sections use decoratedText widgets so each fact pair (Host: x,
+//     Client: y) gets a label + value rather than running text.
+//   * Footer button opens the dashboard to the relevant host.
+function buildGoogleChatCard(p, summary) {
+  const host = p.hostname || '?';
+  const client = p.client || 'unknown';
+  const eventLabel = _gchatEventLabel(p.event);
+  const headerIcon = 'https://frank-umbrella.github.io/work/watchtower/icon-192.png';
+  const dashboardUrl = p.pcId
+    ? `https://frank-umbrella.github.io/work/watchtower/?pc=${encodeURIComponent(p.pcId)}`
+    : 'https://frank-umbrella.github.io/work/watchtower/';
+
+  const widgets = [];
+
+  // Identity facts -- always present. knownIcon enum is small (no COMPUTER
+  // / SERVER variants); DESCRIPTION is the most generic neutral icon.
+  widgets.push(_gchatFact('Host', host, 'DESCRIPTION'));
+  widgets.push(_gchatFact('Client', client, 'PERSON'));
+
+  // Event-specific facts.
+  switch (p.event) {
+    case 'test':
+      widgets.push(_gchatFact('Triggered by', p.triggeredBy || 'dashboard', 'PERSON'));
+      break;
+    case 'host_onboarded':
+      if (p.manufacturer || p.model) {
+        widgets.push(_gchatFact('Hardware', [p.manufacturer, p.model].filter(Boolean).join(' '), 'TICKET'));
+      }
+      if (p.os) widgets.push(_gchatFact('OS', p.os, 'STAR'));
+      if (p.serviceTag) widgets.push(_gchatFact('Service tag', p.serviceTag, 'BOOKMARK'));
+      if (p.externalIp) widgets.push(_gchatFact('External IP', p.externalIp, 'MAP_PIN'));
+      break;
+    case 'external_ip_changed':
+      widgets.push(_gchatFact('Previous IP', p.previousIp || '?', 'MAP_PIN'));
+      widgets.push(_gchatFact('New IP', p.newIp || '?', 'MAP_PIN'));
+      break;
+    case 'omsa_warning':
+      widgets.push(_gchatFact('Rollup', String(p.rollup || 'warn').toUpperCase(), 'STAR'));
+      if (p.omsaVersion) widgets.push(_gchatFact('OMSA version', p.omsaVersion, 'BOOKMARK'));
+      if (p.issues && p.issues.length) {
+        // Issues can be multi-line; render as a single decoratedText with
+        // wrapText so long lists don't get truncated.
+        widgets.push({
+          decoratedText: {
+            topLabel: `Issues (${p.issues.length})`,
+            text: p.issues.slice(0, 5).join('\n'),
+            wrapText: true,
+            startIcon: { knownIcon: 'DESCRIPTION' },
+          },
+        });
+      }
+      break;
+    case 'wsb_backup_failed':
+      widgets.push(_gchatFact('Result', p.result || '?', 'STAR'));
+      if (p.daysSinceSuccess != null) {
+        widgets.push(_gchatFact('Days since last success', String(p.daysSinceSuccess), 'CLOCK'));
+      }
+      if (p.lastSuccess) widgets.push(_gchatFact('Last success', p.lastSuccess, 'CLOCK'));
+      if (p.detail) {
+        widgets.push({
+          decoratedText: {
+            topLabel: 'Detail',
+            text: String(p.detail),
+            wrapText: true,
+            startIcon: { knownIcon: 'DESCRIPTION' },
+          },
+        });
+      }
+      break;
+    case 'agent_uninstalled':
+    case 'agent_decommissioned':
+      if (p.reason) widgets.push(_gchatFact('Reason', p.reason, 'DESCRIPTION'));
+      if (p.by) widgets.push(_gchatFact('By', p.by, 'PERSON'));
+      break;
+  }
+
+  if (p.when) widgets.push(_gchatFact('When', p.when, 'CLOCK'));
+
+  // Footer: link button to the dashboard. Doesn't render on mobile push
+  // notifications but works in the in-room card. Per-host deep-link via
+  // ?pc=<pcId> opens the host's drawer directly.
+  widgets.push({
+    buttonList: {
+      buttons: [
+        {
+          text: p.pcId ? 'Open host in dashboard' : 'Open Watchtower',
+          onClick: { openLink: { url: dashboardUrl } },
+        },
+      ],
+    },
+  });
+
+  return {
+    text: summary,
+    cardsV2: [
+      {
+        cardId: `watchtower-${p.event || 'event'}-${Date.now()}`,
+        card: {
+          header: {
+            title: 'Watchtower',
+            subtitle: eventLabel,
+            imageUrl: headerIcon,
+            imageType: 'SQUARE',
+          },
+          sections: [{ widgets }],
+        },
+      },
+    ],
+  };
+}
+
+function _gchatEventLabel(event) {
+  switch (event) {
+    case 'test': return 'Test event';
+    case 'host_onboarded': return 'New endpoint joined';
+    case 'external_ip_changed': return 'External IP changed';
+    case 'omsa_warning': return 'OMSA storage warning';
+    case 'wsb_backup_failed': return 'Backup failed';
+    case 'agent_uninstalled': return 'Agent uninstalled';
+    case 'agent_decommissioned': return 'Endpoint decommissioned';
+    default: return event ? `Event: ${event}` : 'Event';
+  }
+}
+
+// Helper: emit a decoratedText fact widget for the Google Chat card.
+// knownIcon is one of Google Chat's built-in icons -- the COMPUTER /
+// PERSON / MAP_PIN / CLOCK set is small but covers the relevant cases.
+function _gchatFact(label, value, iconName) {
+  return {
+    decoratedText: {
+      topLabel: label,
+      text: String(value),
+      startIcon: { knownIcon: iconName || 'DESCRIPTION' },
+    },
+  };
 }
 
 function humanSummary(p) {

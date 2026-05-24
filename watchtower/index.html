@@ -460,10 +460,23 @@
   </div>
   <div class="login-col">
   <div class="card">
-    <svg class="logo" viewBox="0 0 64 64" fill="none">
-      <circle cx="32" cy="32" r="14" stroke="#0a6b6b" stroke-width="3"/>
-      <circle cx="32" cy="32" r="5" fill="#0a6b6b"/>
-      <path d="M32 8 L32 18 M32 46 L32 56 M8 32 L18 32 M46 32 L56 32" stroke="#0a6b6b" stroke-width="3" stroke-linecap="round"/>
+    <!-- Crenellated watchtower mark -- mirrors favicon.svg so the
+         browser tab, login card, header, installer wizard, tray, and
+         EXE icon all match. Kept inline (vs. <img src="favicon.svg">)
+         so the login card renders even if the favicon fails to load. -->
+    <svg class="logo" viewBox="0 0 64 64">
+      <circle cx="32" cy="32" r="30" fill="#0a6b6b"/>
+      <circle cx="32" cy="32" r="10" fill="#5af4e3" opacity="0.3"/>
+      <rect x="18" y="14" width="4" height="6" fill="#ffffff"/>
+      <rect x="26" y="14" width="4" height="6" fill="#ffffff"/>
+      <rect x="34" y="14" width="4" height="6" fill="#ffffff"/>
+      <rect x="42" y="14" width="4" height="6" fill="#ffffff"/>
+      <rect x="16" y="20" width="32" height="4" fill="#ffffff"/>
+      <rect x="20" y="24" width="24" height="30" fill="#ffffff"/>
+      <circle cx="32" cy="32" r="4" fill="#5af4e3"/>
+      <rect x="24" y="38" width="3" height="8" fill="#0a6b6b"/>
+      <rect x="37" y="38" width="3" height="8" fill="#0a6b6b"/>
+      <path d="M28 54 L28 50 Q32 46 36 50 L36 54 Z" fill="#0a6b6b"/>
     </svg>
     <h1>Watchtower</h1>
     <p>Sign in with your Umbrella Automation Google account.</p>
@@ -482,10 +495,19 @@
   <header class="bar">
     <div class="wrap">
       <a href="#" class="brand" id="brandHome" title="Back to the dashboard">
-        <svg viewBox="0 0 64 64" fill="none">
-          <circle cx="32" cy="32" r="14" stroke="#0a6b6b" stroke-width="3"/>
-          <circle cx="32" cy="32" r="5" fill="#0a6b6b"/>
-          <path d="M32 8 L32 18 M32 46 L32 56 M8 32 L18 32 M46 32 L56 32" stroke="#0a6b6b" stroke-width="3" stroke-linecap="round"/>
+        <svg viewBox="0 0 64 64">
+          <circle cx="32" cy="32" r="30" fill="#0a6b6b"/>
+          <circle cx="32" cy="32" r="10" fill="#5af4e3" opacity="0.3"/>
+          <rect x="18" y="14" width="4" height="6" fill="#ffffff"/>
+          <rect x="26" y="14" width="4" height="6" fill="#ffffff"/>
+          <rect x="34" y="14" width="4" height="6" fill="#ffffff"/>
+          <rect x="42" y="14" width="4" height="6" fill="#ffffff"/>
+          <rect x="16" y="20" width="32" height="4" fill="#ffffff"/>
+          <rect x="20" y="24" width="24" height="30" fill="#ffffff"/>
+          <circle cx="32" cy="32" r="4" fill="#5af4e3"/>
+          <rect x="24" y="38" width="3" height="8" fill="#0a6b6b"/>
+          <rect x="37" y="38" width="3" height="8" fill="#0a6b6b"/>
+          <path d="M28 54 L28 50 Q32 46 36 50 L36 54 Z" fill="#0a6b6b"/>
         </svg>
         <div>
           <div class="meta">Umbrella Automation</div>
@@ -495,6 +517,7 @@
       <div class="userbar">
         <a class="btn btn-sm" href="#" id="downloadInstallerLink" title="Download Watchtower-Setup.exe (latest published version)">Download installer <span class="installer-ver" id="installerVerChip"></span></a>
         <a class="btn btn-sm" href="docs.html" target="_blank" rel="noopener">Docs</a>
+        <a class="btn btn-sm" href="brand.html" target="_blank" rel="noopener" title="Logo, palette, downloadable PNG/SVG assets">Brand</a>
         <div class="who"><span class="e" id="userEmail"></span><span class="r">MSP admin</span></div>
         <img class="avatar" id="userAvatar" alt="">
         <button class="btn btn-sm" id="signoutBtn">Sign out</button>
@@ -732,7 +755,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.4";
+const APP_VERSION = "0.14.5";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 

@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Watchtower &middot; Branding &middot; Umbrella Automation</title>
+<meta name="description" content="Watchtower logo, icon, palette, and asset downloads.">
+<meta name="robots" content="noindex">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --surface: #ffffff;
+    --ink: #1a1f2b;
+    --ink-soft: #475063;
+    --ink-faint: #8892a4;
+    --line: #e3e6ec;
+    --line-strong: #c9cfdb;
+    --accent: #0a6b6b;
+    --accent-soft: #e6f4f4;
+    --accent-bright: #5af4e3;
+    --shadow: 0 1px 2px rgba(20, 25, 40, 0.04), 0 4px 14px rgba(20, 25, 40, 0.05);
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { background: var(--bg); color: var(--ink); font-family: var(--sans); margin: 0; }
+  main { max-width: 980px; margin: 0 auto; padding: 32px 24px 80px; }
+  header.top { display: flex; align-items: center; gap: 14px; margin-bottom: 28px; }
+  header.top a.brand { display: flex; align-items: center; gap: 14px; text-decoration: none; color: inherit; }
+  header.top svg { width: 44px; height: 44px; }
+  header.top .meta { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-faint); }
+  header.top h1 { font-size: 24px; margin: 2px 0 0; }
+  .lede { color: var(--ink-soft); font-size: 14.5px; max-width: 640px; line-height: 1.55; margin: 0 0 28px; }
+
+  h2 { font-size: 18px; margin: 36px 0 14px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+  p { font-size: 14px; line-height: 1.6; color: var(--ink-soft); margin: 0 0 14px; }
+
+  .hero {
+    display: grid;
+    grid-template-columns: minmax(180px, 240px) 1fr;
+    gap: 22px;
+    align-items: center;
+    padding: 28px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+  }
+  .hero .mark { background: #050816; border-radius: 12px; padding: 24px; display: grid; place-items: center; }
+  .hero .mark svg { width: 100%; height: auto; max-width: 180px; }
+  .hero .copy h3 { font-size: 16px; margin: 0 0 6px; }
+  .hero .copy p { margin: 0 0 4px; font-size: 13.5px; }
+
+  /* Size grid */
+  .size-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; }
+  .size-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 14px;
+    text-align: center;
+  }
+  .size-card .preview { background: var(--bg); border-radius: 8px; padding: 14px 8px; min-height: 100px; display: grid; place-items: center; margin-bottom: 10px; }
+  .size-card .preview img { display: block; image-rendering: -webkit-optimize-contrast; }
+  .size-card .label { font-size: 12px; font-weight: 600; color: var(--ink); margin-bottom: 6px; }
+  .size-card .meta { font-size: 11px; color: var(--ink-faint); margin-bottom: 10px; }
+  .size-card a { display: inline-block; font-size: 12px; padding: 5px 10px; border: 1px solid var(--line-strong); border-radius: 6px; text-decoration: none; color: var(--ink); }
+  .size-card a:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+
+  /* Palette */
+  .palette { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+  .swatch { border-radius: 10px; padding: 18px 14px; color: #fff; font-family: var(--mono); font-size: 12px; cursor: pointer; user-select: none; box-shadow: var(--shadow); position: relative; }
+  .swatch .name { font-weight: 700; font-size: 13px; margin-bottom: 4px; }
+  .swatch .hex { opacity: 0.85; }
+  .swatch.dark { background: #050816; }
+  .swatch.deep { background: #0a6b6b; }
+  .swatch.bright { background: #5af4e3; color: #074a4a; }
+  .swatch.white { background: #ffffff; color: #1a1f2b; border: 1px solid var(--line); }
+  .swatch .copied { position: absolute; top: 6px; right: 8px; font-size: 10px; opacity: 0; transition: opacity 0.2s; }
+  .swatch.flash .copied { opacity: 1; }
+
+  /* Usage do/don't */
+  .rules { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 720px) { .rules { grid-template-columns: 1fr; } }
+  .rule { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; }
+  .rule.do { border-top: 3px solid #16a34a; }
+  .rule.dont { border-top: 3px solid #dc2626; }
+  .rule h4 { margin: 0 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .rule.do h4 { color: #16a34a; }
+  .rule.dont h4 { color: #dc2626; }
+  .rule ul { margin: 6px 0 0; padding-left: 18px; font-size: 13px; color: var(--ink-soft); }
+  .rule li { margin: 4px 0; line-height: 1.5; }
+
+  /* Inline SVG showcase */
+  .svg-block {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 16px;
+  }
+  .svg-block textarea { width: 100%; min-height: 180px; font-family: var(--mono); font-size: 11.5px; border: 1px solid var(--line); border-radius: 6px; padding: 10px; background: var(--bg); resize: vertical; }
+  .svg-block .actions { margin-top: 10px; display: flex; gap: 10px; }
+  button.btn { padding: 7px 14px; font-size: 13px; font-weight: 600; background: var(--surface); border: 1px solid var(--line-strong); border-radius: 7px; cursor: pointer; color: var(--ink); }
+  button.btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+
+  .toast { position: fixed; top: 24px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 10px 18px; border-radius: 9px; font-size: 13px; box-shadow: var(--shadow); z-index: 100; }
+  .toast[hidden] { display: none; }
+</style>
+</head>
+<body>
+<main>
+
+<header class="top">
+  <a href="index.html" class="brand" title="Back to the dashboard">
+    <svg viewBox="0 0 64 64">
+      <circle cx="32" cy="32" r="30" fill="#0a6b6b"/>
+      <circle cx="32" cy="32" r="10" fill="#5af4e3" opacity="0.3"/>
+      <rect x="18" y="14" width="4" height="6" fill="#ffffff"/>
+      <rect x="26" y="14" width="4" height="6" fill="#ffffff"/>
+      <rect x="34" y="14" width="4" height="6" fill="#ffffff"/>
+      <rect x="42" y="14" width="4" height="6" fill="#ffffff"/>
+      <rect x="16" y="20" width="32" height="4" fill="#ffffff"/>
+      <rect x="20" y="24" width="24" height="30" fill="#ffffff"/>
+      <circle cx="32" cy="32" r="4" fill="#5af4e3"/>
+      <rect x="24" y="38" width="3" height="8" fill="#0a6b6b"/>
+      <rect x="37" y="38" width="3" height="8" fill="#0a6b6b"/>
+      <path d="M28 54 L28 50 Q32 46 36 50 L36 54 Z" fill="#0a6b6b"/>
+    </svg>
+    <div>
+      <div class="meta">Umbrella Automation</div>
+      <h1>Watchtower &middot; Branding</h1>
+    </div>
+  </a>
+</header>
+
+<p class="lede">Watchtower's visual identity: a crenellated tower with a glowing beacon, rendered in Umbrella Automation's deep teal with cyan accents. One mark across the dashboard, browser tab, installer wizard, EXE icon, system tray, intake email, and chat-room notifications. This page is the source of truth for every place that icon shows up.</p>
+
+<!-- ============ Hero ============ -->
+
+<div class="hero">
+  <div class="mark">
+    <svg viewBox="0 0 64 64" aria-label="Watchtower mark">
+      <circle cx="32" cy="32" r="30" fill="#0a6b6b"/>
+      <circle cx="32" cy="32" r="10" fill="#5af4e3" opacity="0.3"/>
+      <rect x="18" y="14" width="4" height="6" fill="#ffffff"/>
+      <rect x="26" y="14" width="4" height="6" fill="#ffffff"/>
+      <rect x="34" y="14" width="4" height="6" fill="#ffffff"/>
+      <rect x="42" y="14" width="4" height="6" fill="#ffffff"/>
+      <rect x="16" y="20" width="32" height="4" fill="#ffffff"/>
+      <rect x="20" y="24" width="24" height="30" fill="#ffffff"/>
+      <circle cx="32" cy="32" r="4" fill="#5af4e3"/>
+      <rect x="24" y="38" width="3" height="8" fill="#0a6b6b"/>
+      <rect x="37" y="38" width="3" height="8" fill="#0a6b6b"/>
+      <path d="M28 54 L28 50 Q32 46 36 50 L36 54 Z" fill="#0a6b6b"/>
+    </svg>
+  </div>
+  <div class="copy">
+    <h3>The mark</h3>
+    <p>Crenellated tower with battlements at the top, white tower body, two arrow-slit windows flanking a glowing cyan beacon, arched door at the base, all enclosed by a deep-teal disc with a soft cyan halo around the beacon.</p>
+    <p>Designed to read clearly at favicon size (16&times;16) and scale up to large display use. SVG primary, PNG sizes generated below.</p>
+  </div>
+</div>
+
+<!-- ============ PNG sizes ============ -->
+
+<h2>PNG sizes</h2>
+<p>Rasterized from <code>favicon.svg</code> via <code>scripts/make_icons.py</code> (cairosvg). Re-run that script after any SVG edit and the files below are regenerated in-place.</p>
+
+<div class="size-grid">
+  <div class="size-card">
+    <div class="preview"><img src="icon-16.png" width="16" height="16" alt="16px"></div>
+    <div class="label">16 &times; 16</div>
+    <div class="meta">Browser favicon (small)</div>
+    <a href="icon-16.png" download>Download PNG</a>
+  </div>
+  <div class="size-card">
+    <div class="preview"><img src="icon-32.png" width="32" height="32" alt="32px"></div>
+    <div class="label">32 &times; 32</div>
+    <div class="meta">Browser favicon (HiDPI)</div>
+    <a href="icon-32.png" download>Download PNG</a>
+  </div>
+  <div class="size-card">
+    <div class="preview"><img src="icon-64.png" width="64" height="64" alt="64px"></div>
+    <div class="label">64 &times; 64</div>
+    <div class="meta">Tray + login card</div>
+    <a href="icon-64.png" download>Download PNG</a>
+  </div>
+  <div class="size-card">
+    <div class="preview"><img src="icon-128.png" width="96" height="96" alt="128px scaled"></div>
+    <div class="label">128 &times; 128</div>
+    <div class="meta">Email signature</div>
+    <a href="icon-128.png" download>Download PNG</a>
+  </div>
+  <div class="size-card">
+    <div class="preview"><img src="icon-192.png" width="96" height="96" alt="192px scaled"></div>
+    <div class="label">192 &times; 192</div>
+    <div class="meta">Google Chat card header</div>
+    <a href="icon-192.png" download>Download PNG</a>
+  </div>
+  <div class="size-card">
+    <div class="preview"><img src="icon-256.png" width="96" height="96" alt="256px scaled"></div>
+    <div class="label">256 &times; 256</div>
+    <div class="meta">Slide decks, docs</div>
+    <a href="icon-256.png" download>Download PNG</a>
+  </div>
+  <div class="size-card">
+    <div class="preview"><img src="icon-512.png" width="128" height="128" alt="512px scaled"></div>
+    <div class="label">512 &times; 512</div>
+    <div class="meta">Print, large display</div>
+    <a href="icon-512.png" download>Download PNG</a>
+  </div>
+  <div class="size-card">
+    <div class="preview"><img src="favicon.svg" width="96" height="96" alt="SVG"></div>
+    <div class="label">SVG</div>
+    <div class="meta">Vector (scales to any size)</div>
+    <a href="favicon.svg" download>Download SVG</a>
+  </div>
+</div>
+
+<!-- ============ Open Graph (social card) ============ -->
+
+<h2>Open Graph card</h2>
+<p>1200&times;630 social-share image used for link previews on Slack, Discord, Teams, iMessage, X, LinkedIn. Rasterized from <code>og-image.svg</code> via <code>scripts/make_og.py</code>.</p>
+<div style="background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px;">
+  <img src="og-image.png" alt="Watchtower social card" style="display:block; max-width: 100%; height: auto; border-radius: 6px;">
+  <div style="margin-top: 12px; display: flex; gap: 10px;">
+    <a class="btn" style="text-decoration:none;" href="og-image.png" download>Download PNG (1200x630)</a>
+    <a class="btn" style="text-decoration:none;" href="og-image.svg" download>Download SVG</a>
+  </div>
+</div>
+
+<!-- ============ Palette ============ -->
+
+<h2>Color palette</h2>
+<p>Click any swatch to copy the hex value.</p>
+<div class="palette">
+  <div class="swatch dark" data-hex="#050816">
+    <div class="name">Night sky</div>
+    <div class="hex">#050816</div>
+    <div class="copied">copied!</div>
+  </div>
+  <div class="swatch deep" data-hex="#0a6b6b">
+    <div class="name">Watchtower deep</div>
+    <div class="hex">#0a6b6b</div>
+    <div class="copied">copied!</div>
+  </div>
+  <div class="swatch bright" data-hex="#5af4e3">
+    <div class="name">Beacon cyan</div>
+    <div class="hex">#5af4e3</div>
+    <div class="copied">copied!</div>
+  </div>
+  <div class="swatch white" data-hex="#ffffff">
+    <div class="name">Tower white</div>
+    <div class="hex">#ffffff</div>
+    <div class="copied">copied!</div>
+  </div>
+</div>
+<p style="margin-top:14px;">Deep teal <code>#0a6b6b</code> is the primary brand color &mdash; tower body silhouette, dashboard accent, button hover. Beacon cyan <code>#5af4e3</code> is the glow color &mdash; ONLY used on the beacon dot + halo + accents. Night sky <code>#050816</code> is the background for installer wizard art + social cards. White is the tower fill against the deep teal disc.</p>
+
+<!-- ============ Inline SVG ============ -->
+
+<h2>Inline SVG source</h2>
+<p>Copy this directly into HTML to render the mark without an HTTP request. Used in <code>index.html</code> (login card + header) and <code>docs.html</code> (header). 64&times;64 viewBox; scales to any container.</p>
+<div class="svg-block">
+  <textarea id="svgSource" readonly>&lt;svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"&gt;
+  &lt;circle cx="32" cy="32" r="30" fill="#0a6b6b"/&gt;
+  &lt;circle cx="32" cy="32" r="10" fill="#5af4e3" opacity="0.3"/&gt;
+  &lt;rect x="18" y="14" width="4" height="6" fill="#ffffff"/&gt;
+  &lt;rect x="26" y="14" width="4" height="6" fill="#ffffff"/&gt;
+  &lt;rect x="34" y="14" width="4" height="6" fill="#ffffff"/&gt;
+  &lt;rect x="42" y="14" width="4" height="6" fill="#ffffff"/&gt;
+  &lt;rect x="16" y="20" width="32" height="4" fill="#ffffff"/&gt;
+  &lt;rect x="20" y="24" width="24" height="30" fill="#ffffff"/&gt;
+  &lt;circle cx="32" cy="32" r="4" fill="#5af4e3"/&gt;
+  &lt;rect x="24" y="38" width="3" height="8" fill="#0a6b6b"/&gt;
+  &lt;rect x="37" y="38" width="3" height="8" fill="#0a6b6b"/&gt;
+  &lt;path d="M28 54 L28 50 Q32 46 36 50 L36 54 Z" fill="#0a6b6b"/&gt;
+&lt;/svg&gt;</textarea>
+  <div class="actions">
+    <button class="btn" id="copySvg">Copy SVG markup</button>
+  </div>
+</div>
+
+<!-- ============ Usage rules ============ -->
+
+<h2>Usage</h2>
+<div class="rules">
+  <div class="rule do">
+    <h4>Do</h4>
+    <ul>
+      <li>Use the SVG version whenever the rendering environment supports it (browser, modern email clients).</li>
+      <li>Use a PNG at the exact size the surface needs &mdash; e.g. 192px for Google Chat, 64px for tray icons.</li>
+      <li>Place on dark backgrounds (#050816 or deep navy) for maximum beacon-glow contrast.</li>
+      <li>Keep at least 12% of the mark's diameter as clear-space padding around it.</li>
+      <li>Pair with the "Umbrella Automation" meta label above "Watchtower" wherever there's room.</li>
+    </ul>
+  </div>
+  <div class="rule dont">
+    <h4>Don't</h4>
+    <ul>
+      <li>Re-tint the mark &mdash; the deep teal / cyan combo IS the brand. No purple beacons.</li>
+      <li>Crop the disc into a square / outside the 64&times;64 viewBox. The circular silhouette is part of the recognition.</li>
+      <li>Add drop shadows, bevels, or glow effects on top &mdash; the inner cyan halo already provides the glow cue.</li>
+      <li>Reuse the previous crosshair-style mark anywhere. v0.10.3 retired it.</li>
+      <li>Use the og-image as an icon. It's 1200&times;630 with text baked in &mdash; only for social-card previews.</li>
+    </ul>
+  </div>
+</div>
+
+</main>
+
+<div id="toast" class="toast" hidden>copied</div>
+
+<script>
+  function toast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.hidden = false;
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => { t.hidden = true; }, 1500);
+  }
+
+  // Click any swatch to copy its hex value to the clipboard.
+  // Flashes the "copied!" indicator + a toast so the user gets two
+  // signals that the copy went through.
+  document.querySelectorAll('.swatch').forEach(sw => {
+    sw.addEventListener('click', () => {
+      const hex = sw.dataset.hex;
+      navigator.clipboard.writeText(hex).then(() => {
+        sw.classList.add('flash');
+        setTimeout(() => sw.classList.remove('flash'), 800);
+        toast(`Copied ${hex}`);
+      });
+    });
+  });
+
+  // Copy inline SVG markup. Decode the HTML entities back to raw <svg>
+  // so what lands on the clipboard is paste-ready into an editor.
+  document.getElementById('copySvg').addEventListener('click', () => {
+    const ta = document.getElementById('svgSource');
+    const tmp = document.createElement('textarea');
+    tmp.innerHTML = ta.value;
+    navigator.clipboard.writeText(tmp.value).then(() => toast('SVG markup copied'));
+  });
+</script>
+</body>
+</html>
