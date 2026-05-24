@@ -1847,7 +1847,14 @@ async function validateToken(presented, env, accessToken) {
 
 function pickPrimaryInternalIp(nics) {
   if (!Array.isArray(nics)) return null;
+  // "usable" = a routable IP we'd trust to show as the host's internal
+  // address. Skips 0.0.0.0 (uninitialized), 127.0.0.1 (loopback), and
+  // 169.254.* (link-local; DHCP failed). The last-resort 5th pass
+  // below DROPS the link-local exclusion so we surface something
+  // rather than showing "-" -- a 169.254 address is at least a sign
+  // the NIC is up + has DHCP enabled, useful for triage.
   const usable = (ip) => ip && ip !== '0.0.0.0' && ip !== '127.0.0.1' && !ip.startsWith('169.254.');
+  const anyIp = (ip) => ip && ip !== '0.0.0.0' && ip !== '127.0.0.1';
   // Hyper-V Default Switch + Internal Switches sit in 172.16.0.0/12.
   // They have IPs + DHCP but no useful default gateway, and the operator
   // doesn't RDP to them. De-prioritize so we don't surface 172.x.x.x
@@ -1879,11 +1886,20 @@ function pickPrimaryInternalIp(nics) {
     const ip = nic.ipv4.find(addr => usable(addr) && !isHyperVInternal(addr));
     if (ip) return ip;
   }
-  // Pass 4: last-resort -- ANY usable IPv4 anywhere. Better to show
-  // a 172.x.x.x management IP than a dash.
+  // Pass 4: any usable IPv4 anywhere. Better to show a 172.x.x.x
+  // management IP than a dash.
   for (const nic of nics) {
     if (!Array.isArray(nic.ipv4)) continue;
     const ip = nic.ipv4.find(usable);
+    if (ip) return ip;
+  }
+  // Pass 5: last resort -- accept link-local (169.254.*) too.
+  // A host whose DHCP failed still has an internal "address" we can
+  // surface for triage, and operators looking at the table can
+  // immediately tell what's wrong.
+  for (const nic of nics) {
+    if (!Array.isArray(nic.ipv4)) continue;
+    const ip = nic.ipv4.find(anyIp);
     if (ip) return ip;
   }
   return null;

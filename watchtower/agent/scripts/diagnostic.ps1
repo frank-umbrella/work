@@ -286,7 +286,38 @@ foreach ($root in @('HKLM:\SOFTWARE\Carbonite', 'HKLM:\SOFTWARE\WOW6432Node\Carb
 }
 
 # ============================================================
-H "11. System summary"
+H "11. Network adapter inventory (what the agent's probe sees)"
+# ============================================================
+# Mirrors the agent's probes/network.py logic exactly:
+# Win32_NetworkAdapterConfiguration.IPEnabled == True joined to
+# Win32_NetworkAdapter via InterfaceIndex. Surfaces any host where
+# the agent reports no internal IP -- the cfg dump tells us whether
+# WMI is returning the data and where the dashboard is dropping it.
+try {
+    W "--- Win32_NetworkAdapterConfiguration where IPEnabled=True ---"
+    $cfgs = Get-CimInstance Win32_NetworkAdapterConfiguration -Filter "IPEnabled=true" -EA SilentlyContinue
+    if (-not $cfgs) {
+        W "  (none -- this is the bug; the agent has nothing to report as internal IP)"
+    } else {
+        foreach ($c in $cfgs) {
+            W "  Index $($c.InterfaceIndex) ($($c.Description)):"
+            W "    IPv4 : $($c.IPAddress -join ', ')"
+            W "    GW   : $($c.DefaultIPGateway -join ', ')"
+            W "    DHCP : enabled=$($c.DHCPEnabled), server=$($c.DHCPServer)"
+            W "    MAC  : $($c.MACAddress)"
+        }
+    }
+    W ""
+    W "--- Win32_NetworkAdapter (friendly names + link state) ---"
+    Get-CimInstance Win32_NetworkAdapter -Filter "NetEnabled=true" -EA SilentlyContinue |
+        Select-Object InterfaceIndex, NetConnectionID, Name, MACAddress, Speed |
+        Format-Table -AutoSize | Out-String | ForEach-Object { W $_ }
+} catch {
+    W "Couldn't enumerate NICs: $_"
+}
+
+# ============================================================
+H "12. System summary"
 # ============================================================
 try {
     $cs = Get-CimInstance Win32_ComputerSystem
