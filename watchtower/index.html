@@ -4539,36 +4539,62 @@ async function writeConfig(pcId, field, value) {
 }
 
 async function decommission(pcId, hostname) {
-  const msg = `Decommission ${hostname || pcId}?\n\n` +
-    `• Host is hidden from the active Endpoints view immediately (still visible under "Decommissioned only" filter)\n` +
-    `• If the agent is alive, it'll self-uninstall on its next check-in (within 24h)\n` +
-    `• If the host then phones home from the uninstaller, the source flips to "agent-uninstall"\n` +
-    `• The row stays so you have audit history — use "Delete row" in the banner to remove it entirely\n\n` +
-    `Optional reason (visible in the banner and activity log):`;
-  const reason = window.prompt(msg, "");
-  // Cancel = null. Empty string is allowed (no reason supplied).
-  if (reason === null) return;
+  // Center-screen confirmation modal instead of a browser confirm() --
+  // decommission is a destructive multi-step action (hides host, queues
+  // uninstall, fires activity log). A modal forces the operator to look
+  // at the explanation + an explicit Decommission button instead of
+  // mindlessly hitting Enter on an OS alert. Also gives us a proper
+  // reason textarea instead of a single-line prompt() input.
+  const label = hostname || pcId;
+  openModal({
+    title: `Decommission ${label}?`,
+    sub: "This is a destructive action. Confirm below to proceed.",
+    body: `
+      <ul style="margin:0 0 14px 18px; padding:0; font-size:13.5px; line-height:1.6; color:var(--ink-soft);">
+        <li>Host is <b>hidden from the active Endpoints view</b> immediately (still visible under the "Decommissioned only" filter).</li>
+        <li>If the agent is alive, it'll <b>self-uninstall on its next check-in</b> (within 24h).</li>
+        <li>If the host then phones home from the uninstaller, the source flips to "agent-uninstall".</li>
+        <li>The row stays so you have audit history &mdash; use <b>Delete row</b> in the banner to remove it entirely later.</li>
+      </ul>
+      <label style="display:block; font-size:12.5px; font-weight:600; color:var(--ink); margin-bottom:4px;">Reason (optional, visible in the banner + activity log)</label>
+      <textarea id="decomReason" rows="2" style="width:100%; padding:8px 10px; border:1px solid var(--line-strong); border-radius:7px; font-size:13.5px; font-family:var(--sans); resize:vertical; box-sizing:border-box;" placeholder="e.g. Replaced by new server, retired, hardware failure"></textarea>
+    `,
+    foot: `
+      <button class="btn" data-modal-close>Cancel</button>
+      <button class="btn btn-danger" id="decomConfirmBtn">Decommission ${esc(label)}</button>
+    `,
+  });
 
-  try {
-    const idToken = await state.user.getIdToken();
-    const resp = await fetch(`${WORKER_URL}/decommission`, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${idToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ pcId, reason: reason || null }),
-    });
-    if (!resp.ok) {
-      const err = await resp.json().catch(() => ({ error: `HTTP ${resp.status}` }));
-      throw new Error(err.error || `HTTP ${resp.status}`);
+  const confirmBtn = document.getElementById("decomConfirmBtn");
+  if (!confirmBtn) return;
+  confirmBtn.addEventListener("click", async () => {
+    confirmBtn.disabled = true;
+    confirmBtn.textContent = "Decommissioning...";
+    const reason = (document.getElementById("decomReason")?.value || "").trim();
+    try {
+      const idToken = await state.user.getIdToken();
+      const resp = await fetch(`${WORKER_URL}/decommission`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${idToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ pcId, reason: reason || null }),
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({ error: `HTTP ${resp.status}` }));
+        throw new Error(err.error || `HTTP ${resp.status}`);
+      }
+      closeModal();
+      toast(`Decommissioned ${label}. The agent will self-remove on next check-in.`);
+      // Activity log entry is written by the worker -- no client-side
+      // logActivity call here, otherwise we'd get a duplicate event.
+    } catch (e) {
+      confirmBtn.disabled = false;
+      confirmBtn.textContent = `Decommission ${label}`;
+      toast(`Decommission failed: ${e.message || e}`, true);
     }
-    toast(`Decommissioned. The agent will self-remove on next check-in.`);
-    // Activity log entry is written by the worker — no client-side logActivity
-    // call here, otherwise we'd get a duplicate event.
-  } catch (e) {
-    toast(`Decommission failed: ${e.message || e}`, true);
-  }
+  });
 }
 
 async function forceUpdate(pcId, hostname) {

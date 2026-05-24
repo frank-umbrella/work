@@ -15,6 +15,8 @@ from services.msc. (A proper named-pipe IPC is a v0.2.0 improvement.)
 """
 
 import os
+import socket
+import subprocess
 import sys
 import time
 import threading
@@ -234,6 +236,39 @@ def _on_save_diagnostic(icon, item):
         pass
 
 
+def _on_restart_service(icon, item):
+    """Stop + start the WatchtowerAgent service via sc.exe. Self-elevates
+    through PowerShell Start-Process -Verb RunAs so the operator gets a
+    single UAC prompt instead of having to open an admin shell first.
+    Use when the agent looks stuck (tray says 'never checked in' but the
+    service is in the running state, or vice versa)."""
+    ps_cmd = (
+        "Start-Process -FilePath powershell.exe -Verb RunAs -ArgumentList "
+        "'-NoProfile','-Command',"
+        "'Stop-Service WatchtowerAgent -Force -EA SilentlyContinue; "
+        "Start-Sleep 2; Start-Service WatchtowerAgent; "
+        "Write-Host \"Watchtower service restarted.\" -ForegroundColor Green; "
+        "Start-Sleep 3'"
+    )
+    try:
+        subprocess.Popen(
+            ["powershell.exe", "-NoProfile", "-Command", ps_cmd],
+            creationflags=0x08000000,  # CREATE_NO_WINDOW for the parent
+        )
+        try:
+            icon.notify(
+                "Restarting Watchtower service... UAC prompt incoming.",
+                "Watchtower"
+            )
+        except Exception:
+            pass
+    except OSError as e:
+        try:
+            icon.notify(f"Restart failed: {e}", "Watchtower")
+        except Exception:
+            pass
+
+
 def _on_quit(icon, item):
     icon.stop()
 
@@ -252,12 +287,32 @@ def _poll_loop(icon):
 
 def main():
     initial_state = cfg_mod.load_state()
+    # Hostname header (disabled MenuItem -- pystray uses `enabled=False`
+    # callbacks to render a non-clickable label). Operator opens the
+    # tray and immediately knows which box they're on (matters on RDP
+    # sessions to dozens of customer servers where the taskbar is
+    # all anonymous icons).
+    hostname = socket.gethostname()
     menu = pystray.Menu(
+        pystray.MenuItem(
+            f"Watchtower on {hostname}",
+            lambda i, it: None,
+            enabled=False,
+            default=False,
+        ),
+        pystray.Menu.SEPARATOR,
         pystray.MenuItem("Check now", _on_check_now),
         pystray.MenuItem("Check for updates", _on_check_for_updates),
         pystray.MenuItem("Open Watchtower dashboard", _on_open_dashboard),
-        pystray.MenuItem("Show data folder", _on_show_status_file),
-        pystray.MenuItem("Save diagnostic report...", _on_save_diagnostic),
+        pystray.Menu.SEPARATOR,
+        pystray.MenuItem(
+            "Troubleshoot",
+            pystray.Menu(
+                pystray.MenuItem("Restart Watchtower service", _on_restart_service),
+                pystray.MenuItem("Save diagnostic report...", _on_save_diagnostic),
+                pystray.MenuItem("Show data folder", _on_show_status_file),
+            ),
+        ),
         pystray.Menu.SEPARATOR,
         pystray.MenuItem("Quit", _on_quit),
     )

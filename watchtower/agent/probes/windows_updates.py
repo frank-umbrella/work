@@ -1,101 +1,110 @@
 """
 probes/windows_updates.py — pending Windows Updates.
 
-Asks the Windows Update Agent (via COM, the same mechanism PSWindowsUpdate
-uses) for updates that are applicable to this host but NOT yet installed.
+v0.14.14 rewrite: previously called the Windows Update Agent COM API
+(Microsoft.Update.Session) directly via pywin32. That works -- until the
+COM Search() call hangs on an unreachable WSUS, the collector's per-probe
+timeout kills the daemon thread holding the CoInitialize state, and the
+NEXT probe iteration hits a pythoncom311.dll access violation that
+takes down the entire watchtower-svc.exe process. We've seen this in
+the field: agent crashes 3+ times in a row at startup, never reaches
+the POST step, never appears in the dashboard.
 
-Search criteria: `IsInstalled=0 and IsHidden=0`
-  - IsInstalled=0 — only stuff not already on the box
-  - IsHidden=0 — operator-hidden updates stay out of the list (treat
-    "operator hid this" as "operator chose not to install it")
+The fix is to shell the WUApi call out to a PowerShell subprocess. COM
+state lives in the subprocess, with its own lifetime. If the subprocess
+hangs we kill it without touching the agent process. If the COM call
+crashes (it has, repeatedly), only the subprocess dies and the agent
+keeps running.
 
-The COM search talks to whatever WSUS / WUfB / public WU endpoint the
-host is configured to use, so the answer reflects the host's actual
-update policy, not the public catalog.
-
-Output shape:
-  {
-    "pendingCount": 7,
-    "rebootRequired": true,
-    "severityBreakdown": {"Critical": 2, "Important": 4, "Moderate": 1, "Unspecified": 0},
-    "categoryBreakdown": {"Security Updates": 5, "Updates": 1, "Drivers": 1},
-    "lastSearchSucceeded": "2026-05-23T14:30:00Z",
-    "updates": [
-      {
-        "title": "2026-05 Cumulative Update for Windows Server 2022 (KB5040437)",
-        "kb": "KB5040437",
-        "severity": "Critical",
-        "category": "Security Updates",
-        "sizeMB": 624.3,
-        "isBeta": false,
-      },
-      ...
-    ]
-  }
-
-Caps `updates` at 30 to keep the check-in payload small even on hosts
-that have gone a year without updates -- `pendingCount` carries the full
-total separately.
-
-Reboot-pending detection is independent of the search: we check the
-registry locations Windows sets when a reboot is needed (CBS Servicing,
-Windows Update reboot-required key, PendingFileRenameOperations).
-
-Why this isn't free: the COM search can take 30-90s on a host that
-hasn't checked recently. We have a generous timeout but tolerate it
-failing (returns `_error` rather than crashing the whole check-in).
+What we emit is structurally identical to the previous version so the
+worker / dashboard don't need to change. The reboot-pending check still
+runs in-process (pure registry reads, no COM, no risk).
 """
 
 import datetime
-import re
+import json
+import subprocess
 import winreg
 
 
-# Regex to pull KBxxxxxxx out of a typical update title. KBs are 6-7
-# digits today; tolerant of more to future-proof.
-_KB_RE = re.compile(r"\bKB(\d{6,8})\b", re.IGNORECASE)
+PROBE_TIMEOUT_SEC = 35  # WUApi can be slow even on healthy hosts
 
 
-def _kb_from_title(title):
-    if not title:
-        return None
-    m = _KB_RE.search(title)
-    return f"KB{m.group(1)}" if m else None
+PS_SCRIPT = r"""
+$ErrorActionPreference = 'Stop'
+try {
+    $session = New-Object -ComObject Microsoft.Update.Session
+    $searcher = $session.CreateUpdateSearcher()
+    $results  = $searcher.Search("IsInstalled=0 and IsHidden=0 and Type='Software'")
+    $updates  = @($results.Updates)
+    $count    = $updates.Count
 
+    function Sev($u) {
+        $s = "$($u.MsrcSeverity)".Trim()
+        if ([string]::IsNullOrEmpty($s)) { 'Unspecified' } else { $s }
+    }
 
-def _msrc_severity_label(sev):
-    """
-    The MsrcSeverity property is a free-form string set by the update
-    publisher. For Microsoft's own security updates it's one of
-    'Critical' / 'Important' / 'Moderate' / 'Low' / 'Unspecified'.
-    Non-security updates often report '' or None; we bucket those into
-    'Unspecified' so the breakdown is exhaustive.
-    """
-    if not sev:
-        return "Unspecified"
-    s = str(sev).strip()
-    return s if s else "Unspecified"
+    # Per-severity + per-category counts across the FULL pending set.
+    $sevBreak = @{}
+    $catBreak = @{}
+    foreach ($u in $updates) {
+        $s = Sev $u
+        if (-not $sevBreak.ContainsKey($s)) { $sevBreak[$s] = 0 }
+        $sevBreak[$s] = $sevBreak[$s] + 1
+        $cat = ''
+        try {
+            if ($u.Categories.Count -gt 0) { $cat = "$($u.Categories.Item(0).Name)" }
+        } catch {}
+        if ($cat -ne '') {
+            if (-not $catBreak.ContainsKey($cat)) { $catBreak[$cat] = 0 }
+            $catBreak[$cat] = $catBreak[$cat] + 1
+        }
+    }
+
+    # First 30 update titles with key fields. Caps payload on hosts that
+    # have a year of pending updates.
+    $top = @($updates | Select-Object -First 30 | ForEach-Object {
+        $u = $_
+        $cat = ''
+        try {
+            if ($u.Categories.Count -gt 0) { $cat = "$($u.Categories.Item(0).Name)" }
+        } catch {}
+        $sz = $null
+        try {
+            $b = [int64]$u.MaxDownloadSize
+            if ($b -gt 0) { $sz = [math]::Round($b / 1MB, 1) }
+        } catch {}
+        [PSCustomObject]@{
+            title    = "$($u.Title)"
+            severity = Sev $u
+            category = $cat
+            sizeMB   = $sz
+            isBeta   = [bool]$u.IsBeta
+        }
+    })
+
+    [PSCustomObject]@{
+        pendingCount      = $count
+        severityBreakdown = $sevBreak
+        categoryBreakdown = $catBreak
+        updates           = $top
+    } | ConvertTo-Json -Compress -Depth 4
+} catch {
+    @{ _error = $_.Exception.Message } | ConvertTo-Json -Compress
+}
+"""
 
 
 def _detect_reboot_pending():
-    """
-    Heuristic combining the three places Windows signals a pending reboot.
-    Any of them being set is enough -- they all mean an interactive user
-    would be told 'restart required to finish updates' at next sign-in.
-    """
+    """In-process registry probe -- no COM, no risk of pywin32 crash.
+    Any of the three documented locations being set = pending reboot."""
     checks = [
-        # Component-Based Servicing -- set when DISM/Setup needs a reboot
         (winreg.HKEY_LOCAL_MACHINE,
          r"SOFTWARE\Microsoft\Windows\CurrentVersion\Component Based Servicing\RebootPending",
          "subkey"),
-        # Windows Update reboot-required (legacy but still used by some
-        # update flavors)
         (winreg.HKEY_LOCAL_MACHINE,
          r"SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate\Auto Update\RebootRequired",
          "subkey"),
-        # PendingFileRenameOperations -- session-manager queue of file
-        # ops deferred until reboot, often populated by patches that
-        # need to replace in-use files
         (winreg.HKEY_LOCAL_MACHINE,
          r"SYSTEM\CurrentControlSet\Control\Session Manager",
          "value:PendingFileRenameOperations"),
@@ -110,7 +119,6 @@ def _detect_reboot_pending():
                 with winreg.OpenKey(hive, path, 0, winreg.KEY_READ | winreg.KEY_WOW64_64KEY) as k:
                     try:
                         val, _ = winreg.QueryValueEx(k, value_name)
-                        # REG_MULTI_SZ — non-empty list = pending ops queued
                         if val and any(v for v in val):
                             return True
                     except FileNotFoundError:
@@ -120,142 +128,62 @@ def _detect_reboot_pending():
     return False
 
 
-def _wuapi_search_with_timeout(timeout_sec):
-    """Run the WUApi COM search on a daemon thread with a wall-clock cap.
-
-    Microsoft.Update.Session.Search() blocks indefinitely when WSUS is
-    misconfigured/unreachable (no internal timeout knob on the COM API).
-    On hosts where the collector's 60s per-probe cap was firing, the
-    visible result was a 'probe windows_updates exceeded 60s wall-clock
-    cap' error in the dashboard. Cutting this thread loose at 35s lets
-    the probe fail cleanly INSIDE the probe (so we still emit a usable
-    object with rebootRequired etc) instead of getting murdered by
-    collector.py.
-    """
-    import threading
-    import pythoncom
-    import win32com.client
-    result_box = {"results": None, "exc": None}
-
-    def _target():
-        try:
-            pythoncom.CoInitialize()
-            try:
-                session = win32com.client.Dispatch("Microsoft.Update.Session")
-                searcher = session.CreateUpdateSearcher()
-                result_box["results"] = searcher.Search(
-                    "IsInstalled=0 and IsHidden=0 and Type='Software'"
-                )
-            finally:
-                pythoncom.CoUninitialize()
-        except Exception as e:
-            result_box["exc"] = e
-
-    t = threading.Thread(target=_target, name="wuapi-search", daemon=True)
-    t.start()
-    t.join(timeout_sec)
-    if t.is_alive():
-        # Thread is still blocked in WUApi. We can't kill it safely; it
-        # stays alive until the process restarts. Mark the search as
-        # failed so the caller falls back to reboot-pending-only output.
-        raise TimeoutError(
-            f"WUApi Search() did not return within {timeout_sec}s -- "
-            "WSUS likely unreachable or misconfigured"
+def _run_powershell_wuapi():
+    """Spawn powershell.exe to do the WUApi search. Returns the parsed
+    JSON dict or raises on timeout/non-zero exit. Subprocess isolation
+    means a crashing pythoncom DLL kills the powershell process only --
+    the agent never touches COM directly."""
+    proc = subprocess.run(
+        [
+            "powershell.exe",
+            "-NoProfile",
+            "-NonInteractive",
+            "-ExecutionPolicy", "Bypass",
+            "-Command", PS_SCRIPT,
+        ],
+        capture_output=True,
+        text=True,
+        timeout=PROBE_TIMEOUT_SEC,
+        creationflags=0x08000000,  # CREATE_NO_WINDOW
+    )
+    if proc.returncode != 0:
+        raise RuntimeError(
+            f"WUApi PowerShell exited {proc.returncode}: {proc.stderr[:200]}"
         )
-    if result_box["exc"] is not None:
-        raise result_box["exc"]
-    return result_box["results"]
+    stdout = (proc.stdout or "").strip()
+    if not stdout:
+        raise RuntimeError("WUApi PowerShell returned empty output")
+    return json.loads(stdout)
 
 
 def collect():
+    out = {
+        "rebootRequired": _detect_reboot_pending(),
+        "lastSearchSucceeded": None,
+    }
+
     try:
-        # pywin32 import deferred so non-Windows test imports don't crash.
-        import pythoncom
-        import win32com.client
-
-        try:
-            results = _wuapi_search_with_timeout(35)
-        except TimeoutError as e:
-            # Fall back to reboot-pending only -- registry-only, doesn't
-            # need WSUS. Better than nothing.
-            return {
-                "_error": str(e),
-                "rebootRequired": _detect_reboot_pending(),
-            }
-
-        updates_collection = results.Updates
-        pending_count = updates_collection.Count
-
-        severity_breakdown = {}
-        category_breakdown = {}
-        updates_out = []
-
-        # Iterate by index — the COM collection is 0-indexed.
-        for i in range(min(pending_count, 30)):
-            u = updates_collection.Item(i)
-            title = str(u.Title or "")
-            sev = _msrc_severity_label(getattr(u, "MsrcSeverity", None))
-
-            # Categories collection — typically one main category like
-            # "Security Updates" / "Updates" / "Drivers"; take the first.
-            category = ""
-            try:
-                cats = u.Categories
-                if cats and cats.Count > 0:
-                    category = str(cats.Item(0).Name or "")
-            except Exception:
-                pass
-
-            size_mb = None
-            try:
-                # MaxDownloadSize is bytes; some updates report 0 (delivery
-                # is server-decided), in which case we leave it None.
-                sz = int(getattr(u, "MaxDownloadSize", 0))
-                if sz > 0:
-                    size_mb = round(sz / (1024 * 1024), 1)
-            except Exception:
-                pass
-
-            updates_out.append({
-                "title": title,
-                "kb": _kb_from_title(title),
-                "severity": sev,
-                "category": category,
-                "sizeMB": size_mb,
-                "isBeta": bool(getattr(u, "IsBeta", False)),
-            })
-
-        # Count ALL pending updates by severity/category, not just the
-        # first 30 we listed -- so the breakdown reflects reality on a
-        # host that's wildly out of date.
-        for i in range(pending_count):
-            u = updates_collection.Item(i)
-            sev = _msrc_severity_label(getattr(u, "MsrcSeverity", None))
-            severity_breakdown[sev] = severity_breakdown.get(sev, 0) + 1
-            try:
-                cats = u.Categories
-                if cats and cats.Count > 0:
-                    cn = str(cats.Item(0).Name or "")
-                    if cn:
-                        category_breakdown[cn] = category_breakdown.get(cn, 0) + 1
-            except Exception:
-                pass
-
-        return {
-            "pendingCount": pending_count,
-            "rebootRequired": _detect_reboot_pending(),
-            "severityBreakdown": severity_breakdown,
-            "categoryBreakdown": category_breakdown,
-            "lastSearchSucceeded": datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
-            "updates": updates_out,
-        }
-
-    except Exception as e:
-        # Still report reboot-pending state even if the WU search failed
-        # — it's read from registry only and doesn't need WUApi.
-        out = {"_error": f"windows_updates probe failed: {e}"}
-        try:
-            out["rebootRequired"] = _detect_reboot_pending()
-        except Exception:
-            pass
+        data = _run_powershell_wuapi()
+    except subprocess.TimeoutExpired:
+        # COM search hung in the subprocess (WSUS unreachable, broken
+        # update source). Subprocess is killed; agent unaffected. Emit
+        # what we have (reboot state) with an error marker.
+        out["_error"] = (
+            f"WUApi search did not return within {PROBE_TIMEOUT_SEC}s "
+            "(WSUS unreachable or misconfigured)"
+        )
         return out
+    except (RuntimeError, json.JSONDecodeError, OSError) as e:
+        out["_error"] = f"windows_updates probe failed: {e}"
+        return out
+
+    if isinstance(data, dict) and data.get("_error"):
+        out["_error"] = data["_error"]
+        return out
+
+    out["pendingCount"] = data.get("pendingCount", 0)
+    out["severityBreakdown"] = data.get("severityBreakdown") or {}
+    out["categoryBreakdown"] = data.get("categoryBreakdown") or {}
+    out["updates"] = data.get("updates") or []
+    out["lastSearchSucceeded"] = datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+    return out
