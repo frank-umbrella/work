@@ -28,15 +28,33 @@ import os
 import subprocess
 import winreg
 
+try:
+    import logger as _logger
+except ImportError:
+    # Fallback for development / standalone testing -- logger ships in
+    # the agent bundle, but if it's not importable just stub it out so
+    # the probe doesn't crash.
+    class _Stub:
+        def log(self, *a, **kw): pass
+    _logger = _Stub()
+
 
 def _reg_read(hive, path, name):
+    """Read a single registry value, returning the value or None on miss.
+    Logs every attempt to watchtower.log with the outcome so the operator
+    can see exactly which path/value combinations succeeded and which
+    failed -- critical for diagnosing 'Veeam is installed but the probe
+    misses it' reports without needing to attach a debugger."""
     try:
         with winreg.OpenKey(hive, path, 0, winreg.KEY_READ | winreg.KEY_WOW64_64KEY) as k:
-            v, _ = winreg.QueryValueEx(k, name)
+            v, t = winreg.QueryValueEx(k, name)
+            _logger.log(f"  veeam._reg_read OK   path={path!r} name={name!r} type={t} value={v!r}")
             return v
-    except FileNotFoundError:
+    except FileNotFoundError as e:
+        _logger.log(f"  veeam._reg_read MISS path={path!r} name={name!r} ({e.__class__.__name__})")
         return None
-    except OSError:
+    except OSError as e:
+        _logger.log(f"  veeam._reg_read ERR  path={path!r} name={name!r} {e.__class__.__name__}: {e}")
         return None
 
 
@@ -135,7 +153,35 @@ def _service_running(name):
         return False
 
 
+def _enumerate_veeam_subkeys():
+    """Dump the actual subkey names under HKLM\\SOFTWARE\\Veeam (and the
+    WOW6432Node variant) into the log so we can see what the agent's
+    view of the registry actually contains. Useful when the operator
+    SEES Veeam in regedit / PowerShell but the probe still misses it
+    -- usually means the key name has different whitespace, casing,
+    or the install lives in a different hive/view."""
+    for hive, root in [
+        (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Veeam"),
+        (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\WOW6432Node\Veeam"),
+    ]:
+        try:
+            with winreg.OpenKey(hive, root, 0, winreg.KEY_READ | winreg.KEY_WOW64_64KEY) as k:
+                names = []
+                i = 0
+                while True:
+                    try:
+                        names.append(winreg.EnumKey(k, i))
+                    except OSError:
+                        break
+                    i += 1
+                _logger.log(f"  veeam._enumerate {root!r}: {len(names)} subkeys = {names!r}")
+        except (FileNotFoundError, OSError) as e:
+            _logger.log(f"  veeam._enumerate {root!r} not present ({e.__class__.__name__})")
+
+
 def _detect_agent():
+    _logger.log("veeam._detect_agent: starting")
+    _enumerate_veeam_subkeys()
     # The Veeam Agent installer has shipped the version string under at
     # least three different value names across versions:
     #   * SOFTWARE\Veeam\Veeam Endpoint Backup        -> DisplayVersion (legacy)
