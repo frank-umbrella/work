@@ -1,212 +1,119 @@
 """
-make_wizard_images.py - generate Inno Setup wizard images from the
-Umbrella Automation branding source.
+make_wizard_images.py - generate Inno Setup wizard images for the
+Watchtower installer by rasterizing the brand-aligned SVGs:
 
-Produces two BMP files used by watchtower.iss:
+  watchtower-wizard.bmp        410x797 -- the sci-fi watchtower scene
+                                from installer/wizard-banner.svg.
+                                Portrait composition of the same visual
+                                language as the OG image (dark navy
+                                gradient, starfield, glowing-beacon
+                                tower, WATCHTOWER wordmark with cyan
+                                glow). Shown on Welcome + Finish pages.
 
-  watchtower-wizard.bmp        410x797 px - large left-side banner on
-                                Welcome + Finish wizard pages. Dark
-                                navy background with the house logo,
-                                UMBRELLA AUTOMATION wordmark, and
-                                WATCHTOWER product title stacked
-                                vertically. The 410x797 'modern' size
-                                is auto-detected by Inno Setup (the
-                                older 164x314 'classic' size would
-                                also work but looks blocky on HiDPI).
+  watchtower-wizard-small.bmp  138x140 -- the dashboard favicon
+                                (watchtower/favicon.svg), the
+                                crenellated tower silhouette on a
+                                teal disc. Shown on intermediate
+                                wizard pages.
 
-  watchtower-wizard-small.bmp  138x140 px - small icon on the top
-                                right of intermediate wizard pages
-                                (token entry, install progress).
-                                Just the house icon on the same
-                                navy background as the large banner
-                                so they read as one branded set.
+Uses cairosvg (already in the project for scripts/make_og.py). PIL is
+used only to convert cairosvg's PNG output to the BMP format Inno
+requires for WizardImageFile / WizardSmallImageFile.
 
-Inno Setup requires .bmp specifically; it won't accept PNG/JPG for
-WizardImageFile / WizardSmallImageFile. Pillow handles BMP fine.
+  pip install cairosvg Pillow
 
-Called from installer/build.ps1 when the bmps don't already exist.
-Re-run manually if you change branding/source/Logo-House-Icon.png:
-
-  python make_wizard_images.py
-
-Output goes alongside the script in installer/.
+Called from installer/build.ps1 when the BMPs don't exist. Re-run
+manually after editing wizard-banner.svg or favicon.svg.
 """
 
+import io
 import os
 import sys
 
-from PIL import Image, ImageDraw, ImageFont
 
-
-# Brand palette - matches the dashboard CSS variables and the
-# OG image / Watchtower header so the installer feels like part of
-# the same product.
-BG_NAVY = (6, 18, 39)          # #061227 - deep navy from OG image bg gradient
-ACCENT_TEAL = (10, 107, 107)   # #0a6b6b - Watchtower brand teal
-ACCENT_CYAN = (90, 244, 227)   # #5af4e3 - beacon cyan
-WORDMARK_BLUE = (38, 166, 230) # #26a6e6 - mid-stop of UMBRELLA gradient
-WORDMARK_GRAY = (200, 200, 200) # #c8c8c8 - top of AUTOMATION gradient
-WHITE = (255, 255, 255)
-INK_FAINT = (127, 179, 179)    # #7fb3b3 - subtle subtitle color
-
-
-# Output dimensions (Inno Setup 'modern' size set)
+# Output dimensions match Inno's 'modern' wizard image slot.
 LARGE_W, LARGE_H = 410, 797
 SMALL_W, SMALL_H = 138, 140
 
-
-def _find_font(candidates, size):
-    """Try a list of system font filenames; return the first that loads.
-
-    Inno Setup wizard images don't have to use the brand's Eurostile
-    font (which isn't installed on most build boxes anyway). System
-    fonts in the Eurostile-adjacent family read just fine at the small
-    rendered size used in wizard pages.
-    """
-    for name in candidates:
-        try:
-            return ImageFont.truetype(name, size)
-        except (OSError, IOError):
-            continue
-    # Last-ditch fallback: Pillow's default bitmap font. Ugly but
-    # the wizard image still gets produced.
-    return ImageFont.load_default()
+# Match the navy from wizard-banner.svg / og-image.svg so the small
+# icon's teal-disc favicon sits on the same background. Subtle thing
+# but the two BMPs read as one branded set instead of a tower in space
+# next to a teal puck on white.
+BG_NAVY = (6, 18, 39)
 
 
-def _text_width(draw, text, font):
-    """Pillow >=10 uses textbbox; older versions used textsize.
-    Wrap so we work on whatever the build box has installed.
-    """
+def _ensure_deps():
+    """Returns (cairosvg, PIL.Image) or raises a clean message."""
     try:
-        bbox = draw.textbbox((0, 0), text, font=font)
-        return bbox[2] - bbox[0]
-    except AttributeError:
-        return draw.textsize(text, font=font)[0]
+        import cairosvg  # noqa: F401
+    except ImportError:
+        print(
+            "cairosvg is not installed.\n"
+            "  pip install cairosvg Pillow\n"
+            "Then re-run: python make_wizard_images.py",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+    try:
+        from PIL import Image  # noqa: F401
+    except ImportError:
+        print(
+            "Pillow is not installed.\n"
+            "  pip install Pillow\n"
+            "Then re-run.",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+    import cairosvg
+    from PIL import Image
+    return cairosvg, Image
 
 
-def _load_logo(branding_root):
-    """Load the house icon PNG. Returns None if missing - caller falls
-    back to a text-only image so the build doesn't hard-fail.
-    """
-    path = os.path.join(branding_root, "source", "Logo-House-Icon.png")
-    if not os.path.exists(path):
-        return None
-    return Image.open(path).convert("RGBA")
-
-
-def make_large(out_path, logo):
-    """Build the 410x797 left-banner BMP.
-
-    Layout (top to bottom):
-      ~120px padding
-      house icon, 200x200, centered horizontally
-      ~30px gap
-      "UMBRELLA" wordmark in brand blue
-      "AUTOMATION" wordmark in brand gray
-      ~50px gap
-      thin horizontal teal divider line
-      ~20px gap
-      "WATCHTOWER" in cyan, centered
-      "Endpoint Monitoring Agent" subtitle in faint teal
-      remaining space - blank navy
-    """
-    img = Image.new("RGB", (LARGE_W, LARGE_H), BG_NAVY)
-    draw = ImageDraw.Draw(img)
-
-    # Subtle vignette - paint a slightly lighter band at the top so it
-    # doesn't read as flat. 4 rows of slowly lightening color near the
-    # top is enough to give depth without distracting.
-    for y in range(120):
-        # Interpolate from a slightly-lighter navy down to the base
-        ratio = y / 120
-        r = int(20 + (BG_NAVY[0] - 20) * ratio)
-        g = int(35 + (BG_NAVY[1] - 35) * ratio)
-        b = int(60 + (BG_NAVY[2] - 60) * ratio)
-        draw.line([(0, y), (LARGE_W, y)], fill=(r, g, b))
-
-    y = 110
-
-    # Logo
-    if logo:
-        icon_size = 200
-        scaled = logo.copy()
-        scaled.thumbnail((icon_size, icon_size), Image.LANCZOS)
-        # Centered horizontally
-        ix = (LARGE_W - scaled.width) // 2
-        # Paste with alpha - the logo PNG has transparency
-        img.paste(scaled, (ix, y), scaled)
-        y += scaled.height + 28
-
-    # UMBRELLA / AUTOMATION wordmark (faux brand font via system fallback)
-    eurostile_fallbacks = [
-        "Eurostile.ttf", "EUROSTI.ttf",   # if the user has it installed
-        "Microgramma.ttf",
-        "BebasNeue.ttf",
-        "Impact.ttf",                      # Windows ships this everywhere
-        "arialbd.ttf",                     # Arial Bold - universal fallback
-    ]
-    wordmark_font = _find_font(eurostile_fallbacks, 38)
-
-    for line, color in (("UMBRELLA", WORDMARK_BLUE), ("AUTOMATION", WORDMARK_GRAY)):
-        w = _text_width(draw, line, wordmark_font)
-        draw.text(((LARGE_W - w) // 2, y), line, font=wordmark_font, fill=color)
-        y += 44
-
-    y += 30
-
-    # Teal divider line (matches the dashboard's section borders)
-    div_pad = 60
-    draw.line([(div_pad, y), (LARGE_W - div_pad, y)], fill=ACCENT_TEAL, width=2)
-    y += 24
-
-    # WATCHTOWER product title
-    title_font = _find_font(eurostile_fallbacks + ["seguibl.ttf", "segoeuib.ttf"], 32)
-    title = "WATCHTOWER"
-    w = _text_width(draw, title, title_font)
-    draw.text(((LARGE_W - w) // 2, y), title, font=title_font, fill=ACCENT_CYAN)
-    y += 40
-
-    # Subtitle
-    subtitle_font = _find_font(["segoeui.ttf", "arial.ttf"], 14)
-    subtitle = "Endpoint Monitoring Agent"
-    w = _text_width(draw, subtitle, subtitle_font)
-    draw.text(((LARGE_W - w) // 2, y), subtitle, font=subtitle_font, fill=INK_FAINT)
-
-    img.save(out_path, format="BMP")
-    print(f"Wrote {out_path} ({LARGE_W}x{LARGE_H})")
-
-
-def make_small(out_path, logo):
-    """Build the 138x140 small-icon BMP. Just the house logo on navy."""
-    img = Image.new("RGB", (SMALL_W, SMALL_H), BG_NAVY)
-
-    if logo:
-        # Leave a 12px border so the icon doesn't crowd the edges.
-        icon_size = min(SMALL_W, SMALL_H) - 24
-        scaled = logo.copy()
-        scaled.thumbnail((icon_size, icon_size), Image.LANCZOS)
-        ix = (SMALL_W - scaled.width) // 2
-        iy = (SMALL_H - scaled.height) // 2
-        img.paste(scaled, (ix, iy), scaled)
-
-    img.save(out_path, format="BMP")
-    print(f"Wrote {out_path} ({SMALL_W}x{SMALL_H})")
+def _svg_to_bmp(cairosvg, Image, svg_path, out_path, width, height, bg=None):
+    """Rasterize SVG -> PNG bytes via cairosvg, then convert to BMP via
+    Pillow. cairosvg honors viewBox + width/height so output dimensions
+    match the wizard slot exactly. Optional `bg` flattens transparency
+    against a solid color (used for the small icon so the favicon's
+    teal disc sits on the wizard's navy background, not white)."""
+    png_bytes = cairosvg.svg2png(
+        url=svg_path,
+        output_width=width,
+        output_height=height,
+    )
+    img = Image.open(io.BytesIO(png_bytes)).convert("RGBA")
+    if bg is not None:
+        # Composite over the requested bg color.
+        bg_layer = Image.new("RGBA", img.size, bg + (255,))
+        img = Image.alpha_composite(bg_layer, img)
+    # BMP doesn't carry alpha cleanly across all renderers; flatten to RGB.
+    img.convert("RGB").save(out_path, format="BMP")
+    print(f"Wrote {out_path} ({width}x{height}) from {os.path.basename(svg_path)}")
 
 
 def main():
+    cairosvg, Image = _ensure_deps()
+
     here = os.path.dirname(os.path.abspath(__file__))
-    branding_root = os.path.normpath(os.path.join(here, "..", "..", "branding"))
 
-    logo = _load_logo(branding_root)
-    if logo is None:
-        print(f"warning: branding asset missing at {branding_root}/source/Logo-House-Icon.png", file=sys.stderr)
-        print("         wizard images will still generate but without the house icon.", file=sys.stderr)
-
+    # Large banner: rasterize the dedicated wizard SVG that's portrait-
+    # composed for this slot. Sits next to og-image.svg in spirit.
+    large_svg = os.path.join(here, "wizard-banner.svg")
     large_out = os.path.join(here, "watchtower-wizard.bmp")
-    small_out = os.path.join(here, "watchtower-wizard-small.bmp")
+    if not os.path.exists(large_svg):
+        print(f"ERROR: {large_svg} not found", file=sys.stderr)
+        sys.exit(1)
+    _svg_to_bmp(cairosvg, Image, large_svg, large_out, LARGE_W, LARGE_H)
 
-    make_large(large_out, logo)
-    make_small(small_out, logo)
+    # Small icon: reuse the dashboard's favicon (crenellated tower on
+    # teal disc) so the browser tab + installer wizard share an icon.
+    # Composited over navy so the disc sits on the same background as
+    # the big banner, reading as one set.
+    favicon_svg = os.path.normpath(os.path.join(here, "..", "favicon.svg"))
+    small_out = os.path.join(here, "watchtower-wizard-small.bmp")
+    if not os.path.exists(favicon_svg):
+        print(f"ERROR: {favicon_svg} not found", file=sys.stderr)
+        sys.exit(1)
+    _svg_to_bmp(cairosvg, Image, favicon_svg, small_out, SMALL_W, SMALL_H, bg=BG_NAVY)
 
 
 if __name__ == "__main__":

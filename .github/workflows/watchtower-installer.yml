@@ -86,6 +86,13 @@ jobs:
           python -m pip install --upgrade pip
           pip install pyinstaller==6.10.0
           pip install -r watchtower/agent/requirements.txt
+          # cairosvg is used by installer/make_wizard_images.py to
+          # rasterize wizard-banner.svg and favicon.svg into the BMPs
+          # Inno Setup needs for WizardImageFile / WizardSmallImageFile.
+          # It pulls in CairoCFFI which on Windows needs the bundled
+          # libcairo binaries from the cairocffi wheel -- so no MSYS2
+          # / GTK install needed, the pip wheel is self-contained.
+          pip install cairosvg
 
       - name: Install Inno Setup 6
         # chocolatey is preinstalled on windows-latest runners. innosetup
