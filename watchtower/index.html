@@ -116,8 +116,15 @@
      When content is short (a 3-row table on a tall monitor), the
      footer would otherwise float halfway up the screen. flex:1 on
      main fills the gap; min-height:100vh on the flex parent gives
-     the layout room to push the footer all the way down. */
-  #app:not([hidden]) { display: flex; flex-direction: column; min-height: 100vh; align-items: center; }
+     the layout room to push the footer all the way down.
+     align-items: stretch is the default -- explicit to prevent
+     drift from any future tweaks; it makes header, main, and footer
+     ALL fill the full viewport width while their internal .wrap /
+     content-centering rules handle horizontal centering inside.
+     (Bug history: setting align-items: center to center main
+     horizontally collapsed the header + footer to shrink-to-content
+     because they no longer stretched to viewport width.) */
+  #app:not([hidden]) { display: flex; flex-direction: column; min-height: 100vh; align-items: stretch; }
   #app > main { flex: 1 0 auto; width: 100%; }
 
   /* Footer: peripheral links only -- the main userbar at the top
@@ -844,7 +851,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.16";
+const APP_VERSION = "0.14.17";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
