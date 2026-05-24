@@ -137,12 +137,25 @@ Source: "{#LogMeInMsi}"; DestDir: "{tmp}"; DestName: "LogMeIn.msi"; \
 Name: "{commonappdata}\Watchtower"; Permissions: users-modify
 
 ; ----------------------------------------------------------------------------
-; Start Menu shortcut so non-technical operators can run the diagnostic
-; without having to browse into Program Files. Single entry under
-; "Umbrella Watchtower" -> "Save Diagnostic Report". The .cmd handles
-; self-elevation so the operator just clicks once.
+; Start Menu shortcuts under "Umbrella Watchtower". Two entries:
+;
+;   1. "Watchtower Tray" -- launches watchtower-tray.exe directly. Fallback
+;      for when the autostart on logon failed (the icon was killed via
+;      Task Manager, the HKLM\Run entry didn't fire because the user
+;      session started before SCM finished, the tray crashed and was
+;      never relaunched, etc). Click once and the tray icon reappears.
+;      No elevation required -- tray runs in the user session.
+;
+;   2. "Save Diagnostic Report" -- generates the troubleshooting .txt
+;      (config + state + log tail + event log + manual checkin + reg
+;      dumps). Self-elevates via the .cmd wrapper.
 ; ----------------------------------------------------------------------------
 [Icons]
+Name: "{commonprograms}\Umbrella Watchtower\Watchtower Tray"; \
+    Filename: "{app}\watchtower-tray.exe"; \
+    IconFilename: "{app}\watchtower-tray.exe"; \
+    Comment: "Re-launches the Watchtower tray icon if it failed to start with Windows (autostart missed, killed via Task Manager, etc)."
+
 Name: "{commonprograms}\Umbrella Watchtower\Save Diagnostic Report"; \
     Filename: "{app}\scripts\Save Diagnostic Report.cmd"; \
     IconFilename: "{app}\watchtower-tray.exe"; \
