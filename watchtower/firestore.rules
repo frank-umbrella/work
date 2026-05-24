@@ -46,6 +46,18 @@ service cloud.firestore {
         && request.auth.token.email.matches('.*@umbrellaautomation[.]com');
     }
 
+    // -------- /users/{uid} --------
+    // Per-user preferences stored by the dashboard (e.g. saved Endpoints
+    // column layout). Each MSP admin reads and writes ONLY their own doc;
+    // nobody can touch another user's preferences even though all admins
+    // have full fleet access.
+    //
+    // Doc shape: { endpointColumns: ["client","hostname",...] }
+    // Written by setSelectedFleetColumns(), read by loadUserColumnPrefs().
+    match /users/{uid} {
+      allow get, create, update, delete: if isMSPAdmin() && request.auth.uid == uid;
+    }
+
     // -------- /activity/{eventId} --------
     // Append-only audit log of fleet events: agent first-seen, IP changes,
     // OMSA warnings, backup failures, admin actions (client added/deleted,

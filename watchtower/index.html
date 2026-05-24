@@ -1020,7 +1020,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.28";
+const APP_VERSION = "0.14.29";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -1371,6 +1371,10 @@ onAuthStateChanged(auth, async (user) => {
   subscribeSettings();
   subscribeLatestAgent();
   subscribeActivity();
+  // Load column preferences from Firestore so the layout syncs across
+  // devices. Runs async after subscriptions start; the table renders
+  // immediately from localStorage and re-renders when Firestore returns.
+  loadUserColumnPrefs(user.uid);
 });
 
 // ============== /agents live subscription ==============
@@ -1422,65 +1426,71 @@ function rebuildClientFilter() {
 //                     backup-health / OMSA / badge HTML so each row doesn't
 //                     redo that work for every optional column.
 const FLEET_COLUMNS = [
-  { key: "client",     label: "Client",       default: true,  sortKey: "client",     thClass: "col-client", tdClass: "col-client client",
+  // ---- always-visible core columns ----
+  { key: "client",     label: "Client",       default: true,  sortKey: "client",        thClass: "col-client",   tdClass: "col-client client",
     render: (a) => esc(a.client || "—") },
-  { key: "hostname",   label: "Host",         default: true,  sortKey: "hostname",   thClass: "",           tdClass: "",
+  { key: "hostname",   label: "Host",         default: true,  sortKey: "hostname",      thClass: "",             tdClass: "",
     render: (a, ctx) => `<div class="host-row">${ctx.hostTag}<span class="host">${esc(a.hostname || a.id)}</span></div>` },
-  { key: "internalIp", label: "Internal IP",  default: true,  sortKey: "internalIp", thClass: "col-intip",  tdClass: "col-intip ip",
+  { key: "internalIp", label: "Internal IP",  default: true,  sortKey: "internalIp",    thClass: "col-intip",    tdClass: "col-intip ip",
     render: (a) => esc(a.internalIp || "—") },
-  { key: "externalIp", label: "External IP",  default: true,  sortKey: "externalIp", thClass: "",           tdClass: "ip",
+  { key: "externalIp", label: "External IP",  default: true,  sortKey: "externalIp",    thClass: "",             tdClass: "ip",
     render: (a) => esc(a.externalIp || "—") },
-  { key: "os",         label: "OS",           default: true,  sortKey: "os",         thClass: "col-os",     tdClass: "col-os client",
+  { key: "os",         label: "OS",           default: true,  sortKey: "os",            thClass: "col-os",       tdClass: "col-os client",
     render: (a, ctx) => esc(ctx.os) },
-  { key: "backup",     label: "Backup",       default: true,  sortKey: null,         thClass: "col-products", tdClass: "col-products",
+  { key: "backup",     label: "Backup",       default: true,  sortKey: null,            thClass: "col-products", tdClass: "col-products",
     render: (a, ctx) => ctx.backupCell },
-  { key: "remote",     label: "Remote",       default: true,  sortKey: null,         thClass: "col-products", tdClass: "col-products",
+  { key: "remote",     label: "Remote",       default: true,  sortKey: null,            thClass: "col-products", tdClass: "col-products",
     render: (a, ctx) => ctx.remoteCell },
-  { key: "lastCheckin",label: "Last check",   default: true,  sortKey: "lastCheckin",thClass: "",           tdClass: "age",
-    render: (a) => fmtAge(a.lastCheckin) },
-  { key: "status",     label: "Status",       default: true,  sortKey: "status",     thClass: "",           tdClass: "",
-    render: (a, ctx) => `${ctx.stBadge}${ctx.bhBadge}${ctx.ohBadge}${ctx.wuBadge}${ctx.diskBadge}` },
-  // ---- optional columns (off by default) ----
-  { key: "agentVersion", label: "Agent",      default: false, sortKey: "agentVersion", thClass: "", tdClass: "meta",
+  // ---- hardware/agent columns (default on; suppressed for VMs where irrelevant) ----
+  { key: "agentVersion", label: "Agent",      default: true,  sortKey: "agentVersion",  thClass: "",             tdClass: "meta",
     render: (a) => esc(a.agentVersion || "—") },
-  { key: "serviceTag",   label: "Service tag", default: false, sortKey: "serviceTag", thClass: "", tdClass: "meta",
-    render: (a) => {
-      const s = a.report && a.report.system;
-      const tag = s && s.serviceTag;
-      return tag ? `<code>${esc(tag)}</code>` : `<span class="meta">—</span>`;
-    } },
-  { key: "model",        label: "Model",       default: false, sortKey: "model",      thClass: "", tdClass: "meta",
-    render: (a) => {
-      const s = a.report && a.report.system;
-      if (!s) return `<span class="meta">—</span>`;
-      const m = [s.manufacturer, s.model].filter(Boolean).join(" ").trim();
-      return m ? esc(m) : `<span class="meta">—</span>`;
-    } },
-  { key: "cpu",          label: "CPU",         default: false, sortKey: null,         thClass: "", tdClass: "meta",
-    render: (a) => {
-      const c = a.report && a.report.system && a.report.system.cpu;
-      if (!c) return `<span class="meta">—</span>`;
-      const name = (c.name || "").trim();
-      return name ? esc(name) : `<span class="meta">—</span>`;
-    } },
-  { key: "memory",       label: "RAM",         default: false, sortKey: "ramGB",      thClass: "", tdClass: "meta",
-    render: (a) => {
-      const m = a.report && a.report.system && a.report.system.memoryGB;
-      return (m != null) ? `${m} GB` : `<span class="meta">—</span>`;
-    } },
-  { key: "diskFree",     label: "C: free",     default: false, sortKey: "cDriveFreePct", thClass: "", tdClass: "meta",
+  { key: "diskFree",   label: "C: free",      default: true,  sortKey: "cDriveFreePct", thClass: "",             tdClass: "meta",
     render: (a) => {
       if (a.cDriveFreePct == null && a.cDriveFreeGB == null) return `<span class="meta">—</span>`;
       const pct = a.cDriveFreePct != null ? `${a.cDriveFreePct}%` : "";
       const gb  = a.cDriveFreeGB  != null ? `${a.cDriveFreeGB} GB` : "";
       return [gb, pct].filter(Boolean).join(" / ");
     } },
-  { key: "uptime",       label: "Uptime",      default: false, sortKey: "lastBoot",   thClass: "", tdClass: "meta",
+  { key: "serviceTag", label: "Service tag",  default: true,  sortKey: "serviceTag",    thClass: "",             tdClass: "meta",
+    render: (a) => {
+      const s = a.report && a.report.system;
+      // VMs don't have service tags -- physical-only field.
+      if (!s || s.isVirtual) return `<span class="meta">—</span>`;
+      return s.serviceTag ? `<code>${esc(s.serviceTag)}</code>` : `<span class="meta">—</span>`;
+    } },
+  { key: "model",      label: "Model",        default: true,  sortKey: "model",         thClass: "",             tdClass: "meta",
+    render: (a) => {
+      const s = a.report && a.report.system;
+      // VMs are not physical hardware -- suppress model for them.
+      // Show the model name only (not the manufacturer/brand -- that's
+      // already implied by the Service Tag and is visually noisy).
+      if (!s || s.isVirtual) return `<span class="meta">—</span>`;
+      return s.model ? esc(s.model) : `<span class="meta">—</span>`;
+    } },
+  // ---- status columns stay at the far right so the eye lands on them last ----
+  { key: "status",     label: "Status",       default: true,  sortKey: "status",        thClass: "",             tdClass: "",
+    render: (a, ctx) => `${ctx.stBadge}${ctx.bhBadge}${ctx.ohBadge}${ctx.wuBadge}${ctx.diskBadge}` },
+  { key: "lastCheckin",label: "Last check",   default: true,  sortKey: "lastCheckin",   thClass: "",             tdClass: "age",
+    render: (a) => fmtAge(a.lastCheckin) },
+  // ---- optional columns (off by default) ----
+  { key: "cpu",        label: "CPU",          default: false, sortKey: null,            thClass: "",             tdClass: "meta",
+    render: (a) => {
+      const c = a.report && a.report.system && a.report.system.cpu;
+      if (!c) return `<span class="meta">—</span>`;
+      const name = (c.name || "").trim();
+      return name ? esc(name) : `<span class="meta">—</span>`;
+    } },
+  { key: "memory",     label: "RAM",          default: false, sortKey: "ramGB",         thClass: "",             tdClass: "meta",
+    render: (a) => {
+      const m = a.report && a.report.system && a.report.system.memoryGB;
+      return (m != null) ? `${m} GB` : `<span class="meta">—</span>`;
+    } },
+  { key: "uptime",     label: "Uptime",       default: false, sortKey: "lastBoot",      thClass: "",             tdClass: "meta",
     render: (a) => {
       const lb = a.report && a.report.system && a.report.system.lastBoot;
       return lb ? fmtAge(lb).replace(" ago", "") : `<span class="meta">—</span>`;
     } },
-  { key: "vmHost",       label: "VM host",     default: false, sortKey: null,         thClass: "", tdClass: "meta",
+  { key: "vmHost",     label: "VM host",      default: false, sortKey: null,            thClass: "",             tdClass: "meta",
     render: (a) => {
       const s = a.report && a.report.system;
       if (!s || !s.isVirtual) return `<span class="meta">—</span>`;
@@ -1495,10 +1505,20 @@ function getSelectedFleetColumns() {
     if (!raw) return FLEET_COLUMNS.filter(c => c.default).map(c => c.key);
     const arr = JSON.parse(raw);
     if (!Array.isArray(arr)) throw new Error();
-    // Keep only known keys (drop stale ones from past versions) and
-    // preserve the user's ordering preference if any.
+    // Keep only known keys (drop stale ones from past versions).
     const valid = arr.filter(k => FLEET_COLUMNS.some(c => c.key === k));
-    return valid.length ? valid : FLEET_COLUMNS.filter(c => c.default).map(c => c.key);
+    if (!valid.length) return FLEET_COLUMNS.filter(c => c.default).map(c => c.key);
+    // Migration: agentVersion / diskFree / serviceTag / model were promoted
+    // to default:true in v0.14.29. Any saved pref from before this version
+    // won't include them because they were previously off by default. Inject
+    // them so they appear in the right canonical position without forcing
+    // every user to click "Reset to defaults". If the user later explicitly
+    // unchecks one, the next save removes it and it stays gone.
+    const promoted = ["agentVersion", "diskFree", "serviceTag", "model"];
+    for (const key of promoted) {
+      if (!valid.includes(key)) valid.push(key);
+    }
+    return valid;
   } catch {
     return FLEET_COLUMNS.filter(c => c.default).map(c => c.key);
   }
@@ -1506,6 +1526,37 @@ function getSelectedFleetColumns() {
 
 function setSelectedFleetColumns(keys) {
   try { localStorage.setItem("wt.endpointColumns", JSON.stringify(keys)); } catch {}
+  // Persist to Firestore so preferences sync across devices and browsers.
+  // Fire-and-forget: if the user isn't signed in yet (shouldn't happen in
+  // practice -- you can't reach the Endpoints table before auth resolves)
+  // or if the write fails, the localStorage copy still keeps things working.
+  const uid = state.profile && state.profile.uid;
+  if (uid) {
+    setDoc(doc(db, "users", uid), { endpointColumns: keys }, { merge: true }).catch(() => {});
+  }
+}
+
+// Reads the user's saved column preferences from Firestore and applies them.
+// Called once after sign-in completes. localStorage is used as the fast-path
+// cache for synchronous reads; Firestore is the authoritative cross-device
+// store. If the Firestore doc exists and has a valid endpointColumns array,
+// localStorage gets refreshed and the table re-renders.
+async function loadUserColumnPrefs(uid) {
+  try {
+    const snap = await getDoc(doc(db, "users", uid));
+    if (!snap.exists()) return;
+    const prefs = snap.data();
+    if (!Array.isArray(prefs.endpointColumns) || !prefs.endpointColumns.length) return;
+    // Validate: keep only known keys so a stale Firestore doc can't break
+    // the table (e.g. a column key that was renamed or removed).
+    const valid = prefs.endpointColumns.filter(k => FLEET_COLUMNS.some(c => c.key === k));
+    if (!valid.length) return;
+    try { localStorage.setItem("wt.endpointColumns", JSON.stringify(valid)); } catch {}
+    renderFleetHead();
+    renderFleet();
+  } catch {
+    // Network or permission error -- silently fall back to localStorage.
+  }
 }
 
 function activeFleetColumns() {
@@ -1534,7 +1585,7 @@ function renderFleetHead() {
 function openColumnChooser() {
   const selected = new Set(getSelectedFleetColumns());
   const body = `
-    <div class="meta" style="margin-bottom:10px;">Pick which columns are visible in the Endpoints table. Your selection is saved in this browser.</div>
+    <div class="meta" style="margin-bottom:10px;">Pick which columns are visible in the Endpoints table. Your selection is saved to your account and syncs across devices.</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 18px;">
       ${FLEET_COLUMNS.map(c => `
         <label style="display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer;">
