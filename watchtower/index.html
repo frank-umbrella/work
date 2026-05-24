@@ -101,7 +101,30 @@
   }
 
   /* layout */
-  main { max-width: 1320px; margin: 0 auto; padding: 22px 20px 80px; }
+  main { max-width: 1320px; margin: 0 auto; padding: 22px 20px 40px; }
+
+  /* Footer: peripheral links only -- the main userbar at the top
+     should stay focused on active operator tools. Stays out of view
+     until the user is signed in (parent #app is hidden until auth
+     resolves), so the login screen is unaffected. */
+  .site-footer {
+    margin-top: 24px;
+    padding: 18px 20px 26px;
+    border-top: 1px solid var(--line);
+    background: var(--surface);
+  }
+  .site-footer .wrap {
+    max-width: 1320px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    font-size: 12.5px;
+    color: var(--ink-faint);
+  }
+  .site-footer .spacer { flex: 1; }
+  .site-footer a { color: var(--ink-soft); text-decoration: none; }
+  .site-footer a:hover { color: var(--accent); text-decoration: underline; }
   .panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
   .panel + .panel { margin-top: 18px; }
   .panel-header { display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--line); }
@@ -517,7 +540,6 @@
       <div class="userbar">
         <a class="btn btn-sm" href="#" id="downloadInstallerLink" title="Download Watchtower-Setup.exe (latest published version)">Download installer <span class="installer-ver" id="installerVerChip"></span></a>
         <a class="btn btn-sm" href="docs.html" target="_blank" rel="noopener">Docs</a>
-        <a class="btn btn-sm" href="brand.html" target="_blank" rel="noopener" title="Logo, palette, downloadable PNG/SVG assets">Brand</a>
         <div class="who"><span class="e" id="userEmail"></span><span class="r">MSP admin</span></div>
         <img class="avatar" id="userAvatar" alt="">
         <button class="btn btn-sm" id="signoutBtn">Sign out</button>
@@ -702,6 +724,21 @@
       </div>
     </div>
   </main>
+
+  <!-- Site footer: hidden until signed in (parent #app is hidden=true
+       until auth resolves), so unauthenticated visitors only see the
+       login card. Footer links to peripheral docs surfaces that don't
+       need to live in the main userbar -- branding/docs/source --
+       keeping the header tight for active operator tools. -->
+  <footer class="site-footer">
+    <div class="wrap">
+      <span class="meta">Watchtower &middot; Umbrella Automation</span>
+      <span class="spacer"></span>
+      <a href="docs.html" target="_blank" rel="noopener">Docs</a>
+      <a href="brand.html" target="_blank" rel="noopener">Brand</a>
+      <a href="https://github.com/frank-umbrella/work/tree/main/watchtower" target="_blank" rel="noopener">Source</a>
+    </div>
+  </footer>
 
   <!-- modal -->
   <div id="modal" role="dialog" aria-modal="true">
