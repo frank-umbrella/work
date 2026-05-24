@@ -133,13 +133,25 @@
   .site-footer a { color: var(--ink-soft); text-decoration: none; }
   .site-footer a:hover { color: var(--accent); text-decoration: underline; }
   /* All tab panels render at the same width -- box-sizing + width:100%
-     so Clients / Activity / Settings match the Endpoints panel even
-     when their inner table has fewer columns than the wide Endpoints
-     table. Previously Clients/Activity looked narrower because the
-     table.clients auto-sized to its (shorter) content; width:100% on
-     the panel makes the chrome consistent across every tab. */
-  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); width: 100%; box-sizing: border-box; }
-  .tab-pane { width: 100%; }
+     + min-width:100% (defensive belt-and-suspenders) so Clients /
+     Activity / Settings match the Endpoints panel even when their inner
+     table has fewer columns than the wide Endpoints table. Previously
+     Clients/Activity looked narrower because the table.clients
+     auto-sized to its (shorter) content; width on the panel makes the
+     chrome consistent across every tab. block display kills any
+     inline-block shrink-to-fit behavior from inherited styles. */
+  .panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); width: 100%; min-width: 100%; box-sizing: border-box; display: block; }
+  .tab-pane { width: 100%; min-width: 100%; display: block; }
+  .tab-pane[hidden] { display: none; }
+  /* Force the inner tables to fill the panel even when their content
+     would naturally fit in less space. */
+  .tab-pane table { width: 100%; }
+  /* Toggle this on (Ctrl+Shift+I -> Console: document.body.classList.add('wt-debug-widths'))
+     to see panel/table boundaries highlighted -- helps diagnose any
+     width drift between tabs without guessing. */
+  body.wt-debug-widths .tab-pane { outline: 2px dashed magenta; outline-offset: -2px; }
+  body.wt-debug-widths .panel { outline: 2px dashed lime; outline-offset: -2px; }
+  body.wt-debug-widths table { outline: 1px dashed deepskyblue; outline-offset: -1px; }
   .panel + .panel { margin-top: 18px; }
   .panel-header { display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--line); }
   .panel-header h2 { font-size: 15px; margin: 0; font-weight: 700; }
