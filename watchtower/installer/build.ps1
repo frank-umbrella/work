@@ -144,6 +144,7 @@ if (-not $SkipPyInstaller) {
             --hidden-import probes.usb `
             --hidden-import updater `
             --hidden-import logger `
+            --hidden-import win32timezone `
             watchtower_service.py
         if ($LASTEXITCODE -ne 0) { throw "PyInstaller failed for watchtower-svc" }
 
@@ -160,6 +161,7 @@ if (-not $SkipPyInstaller) {
             --hidden-import updater `
             --hidden-import checkin `
             --hidden-import logger `
+            --hidden-import win32timezone `
             watchtower_tray.py
         if ($LASTEXITCODE -ne 0) { throw "PyInstaller failed for watchtower-tray" }
     } finally {
