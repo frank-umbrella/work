@@ -823,7 +823,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.5";
+const APP_VERSION = "0.14.15";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -2640,6 +2640,34 @@ function buildReportDom(a, logoPngDataUrl) {
       ["External IP", a.externalIp ? `<code>${esc(a.externalIp)}</code>` : null],
       ["Last check-in", tsToStr(a.lastCheckin) + ` <span style="color:#888;">(${fmtAge(a.lastCheckin)})</span>`],
       ["Installed at", tsToStr(a.installedAt)],
+      // Last reboot pulled from os.lastBoot (Win32_OperatingSystem.LastBootUpTime).
+      // Friendly age + local-time absolute, plus "long uptime" pill at >60 days.
+      (sys.os && sys.os.lastBoot) ? ["Last reboot", (() => {
+        const dt = parseCimDate(sys.os.lastBoot);
+        if (!dt) return `<code>${esc(sys.os.lastBoot)}</code>`;
+        const ageMs = Date.now() - dt.getTime();
+        const days = Math.floor(ageMs / 86400000);
+        const hours = Math.floor((ageMs % 86400000) / 3600000);
+        const rel = days > 0 ? `${days}d ${hours}h ago` : `${hours}h ago`;
+        const tone = days >= 60 ? ` <span style="background:#fef3c7;color:#78350f;padding:1px 6px;border-radius:3px;font-size:10.5px;font-weight:700;">LONG UPTIME</span>` : "";
+        return `${esc(rel)} <span style="color:#888;">&middot; ${esc(dt.toLocaleString())}</span>${tone}`;
+      })()] : null,
+      // C: drive free -- with red/amber warning highlight when low so
+      // the PDF surfaces capacity problems even when buried in a long
+      // report. Worker computes cDriveFreeGB/Pct on every checkin.
+      (typeof a.cDriveFreePct === "number" || typeof a.cDriveFreeGB === "number") ? ["C: drive free", (() => {
+        const pct = a.cDriveFreePct;
+        const gb = a.cDriveFreeGB;
+        const size = a.cDriveSizeGB;
+        const isCritical = (pct != null && pct < 5) || (gb != null && gb < 5);
+        const isWarn = (pct != null && pct < 10) || (gb != null && gb < 10);
+        const sevPill = isCritical
+          ? ` <span style="background:#fee2e2;color:#7f1d1d;padding:1px 6px;border-radius:3px;font-size:10.5px;font-weight:700;">CRITICAL</span>`
+          : isWarn
+            ? ` <span style="background:#fef3c7;color:#78350f;padding:1px 6px;border-radius:3px;font-size:10.5px;font-weight:700;">LOW</span>`
+            : "";
+        return `<b>${gb} GB</b> (${pct}%) free of ${size} GB${sevPill}`;
+      })()] : null,
       ["Collection time", r.collectionMs ? `${r.collectionMs} ms` : null],
     ])}
 
@@ -2648,6 +2676,10 @@ function buildReportDom(a, logoPngDataUrl) {
       ["Manufacturer", esc(sys.manufacturer)],
       ["Model", esc(sys.model)],
       sys.isVirtual ? ["Virtual machine", `Yes &middot; <i>${esc(sys.hypervisor || "")}</i>`] : null,
+      // Hyper-V parent host (only on guests where Integration Services
+      // exposed the parent name). Doesn't link in the PDF (static doc)
+      // but the name is enough to tie this VM back to its physical box.
+      (sys.physicalHost && sys.physicalHost.name) ? ["Hosted on", `<b>${esc(sys.physicalHost.name)}</b>${sys.physicalHost.fqdn ? ` <span style="color:#888;">&middot; ${esc(sys.physicalHost.fqdn)}</span>` : ""}`] : null,
       // Suppress service tag for VMs -- hypervisor-assigned BIOS serial
       // isn't a real hardware tag (no warranty / no Dell lookup).
       sys.isVirtual ? null : ["Service tag", sys.serviceTag ? `<code>${esc(sys.serviceTag)}</code>` : null],
@@ -2660,6 +2692,33 @@ function buildReportDom(a, logoPngDataUrl) {
       ["Domain", sys.partOfDomain ? esc(sys.workgroup) : `workgroup: ${esc(sys.workgroup || "WORKGROUP")}`],
     ])}
 
+    ${(() => {
+      // Guest VMs section -- only for Hyper-V hosts where another Watchtower
+      // endpoint reported this host as its parent. Matches dashboard's
+      // findGuestVms() logic. Skipped if zero matches.
+      const guests = findGuestVms(a);
+      if (!guests.length) return "";
+      return sectionHdr(`Guest VMs (${guests.length})`) + `
+        <div style="font-size:11.5px;margin-bottom:14px;color:#475063;">VMs reporting this host as their Hyper-V parent via Integration Services KVP.</div>
+        <table style="width:100%;border-collapse:collapse;margin-bottom:14px;font-size:12px;">
+          <thead><tr style="background:#fafbfc;color:#666;font-size:10.5px;text-transform:uppercase;">
+            <th style="padding:6px 8px;text-align:left;border-bottom:1px solid #e3e6ec;">Guest hostname</th>
+            <th style="padding:6px 8px;text-align:left;border-bottom:1px solid #e3e6ec;">Client</th>
+            <th style="padding:6px 8px;text-align:left;border-bottom:1px solid #e3e6ec;">Last check</th>
+            <th style="padding:6px 8px;text-align:right;border-bottom:1px solid #e3e6ec;">Status</th>
+          </tr></thead>
+          <tbody>
+            ${guests.map(g => `<tr>
+              <td style="padding:5px 8px;border-bottom:1px solid #f0f1f4;"><b>${esc(g.hostname || g.id)}</b></td>
+              <td style="padding:5px 8px;border-bottom:1px solid #f0f1f4;">${esc(g.client || "—")}</td>
+              <td style="padding:5px 8px;border-bottom:1px solid #f0f1f4;color:#666;">${fmtAge(g.lastCheckin)}</td>
+              <td style="padding:5px 8px;text-align:right;border-bottom:1px solid #f0f1f4;"><b>${esc(statusOf(g).label)}</b></td>
+            </tr>`).join("")}
+          </tbody>
+        </table>
+      `;
+    })()}
+
     ${(stor.volumes && stor.volumes.length) ? sectionHdr("Storage") + `
       <table style="width:100%;border-collapse:collapse;margin-bottom:14px;font-size:12px;">
         <thead><tr style="background:#fafbfc;color:#666;font-size:10.5px;text-transform:uppercase;">
@@ -2669,12 +2728,26 @@ function buildReportDom(a, logoPngDataUrl) {
           <th style="padding:6px 8px;text-align:right;border-bottom:1px solid #e3e6ec;">Free</th>
         </tr></thead>
         <tbody>
-          ${stor.volumes.map(v => `<tr>
-            <td style="padding:5px 8px;border-bottom:1px solid #f0f1f4;"><b>${esc(v.letter)}</b></td>
-            <td style="padding:5px 8px;border-bottom:1px solid #f0f1f4;">${esc(v.filesystem || "—")}</td>
-            <td style="padding:5px 8px;text-align:right;border-bottom:1px solid #f0f1f4;">${v.sizeGB || 0} GB</td>
-            <td style="padding:5px 8px;text-align:right;border-bottom:1px solid #f0f1f4;">${v.freeGB || 0} GB</td>
-          </tr>`).join("")}
+          ${stor.volumes.map(v => {
+            // Highlight any LOCAL volume that's running low. Worker only
+            // tracks/alerts on C:, but the PDF surfaces the same color
+            // logic on every fixed-disk volume so a low D:\Backups also
+            // jumps out visually.
+            let bg = "";
+            const isLocal = v.type === "Local" || !v.type;
+            if (isLocal && v.sizeGB && v.freeGB != null) {
+              const pct = (v.freeGB / v.sizeGB) * 100;
+              if (pct < 5 || v.freeGB < 5)      bg = "background:#fee2e2;border-left:4px solid #d04646;";
+              else if (pct < 10 || v.freeGB < 10) bg = "background:#fef3c7;border-left:4px solid #d97706;";
+            }
+            const pctStr = (v.sizeGB && v.freeGB != null) ? ` <span style="color:#888;">(${(v.freeGB / v.sizeGB * 100).toFixed(0)}%)</span>` : "";
+            return `<tr style="${bg}">
+              <td style="padding:5px 8px;border-bottom:1px solid #f0f1f4;"><b>${esc(v.letter)}</b></td>
+              <td style="padding:5px 8px;border-bottom:1px solid #f0f1f4;">${esc(v.filesystem || "—")}</td>
+              <td style="padding:5px 8px;text-align:right;border-bottom:1px solid #f0f1f4;">${v.sizeGB || 0} GB</td>
+              <td style="padding:5px 8px;text-align:right;border-bottom:1px solid #f0f1f4;">${v.freeGB || 0} GB${pctStr}</td>
+            </tr>`;
+          }).join("")}
         </tbody>
       </table>
     ` : ""}
@@ -2793,7 +2866,36 @@ function buildReportDom(a, logoPngDataUrl) {
     })() : ""}
 
     ${(veeam || wsb || carbonite) ? sectionHdr("Backups") + `
-      ${veeam && veeam.installed ? (veeam.products || []).map(p => `<div style="font-size:12px;margin-bottom:4px;"><b>${p.edition === "br" ? "Veeam Backup &amp; Replication" : "Veeam Agent for Windows"}</b> v${esc(p.version || "?")}${p.lastJob && p.lastJob.result ? ` &middot; last job: <b>${esc(p.lastJob.result)}</b>${p.lastJob.endTime ? ` (${esc(p.lastJob.endTime)})` : ""}` : ""}</div>`).join("") : ""}
+      ${veeam && veeam.installed ? (veeam.products || []).map(p => {
+        const productLine = `<div style="font-size:12px;margin-bottom:4px;"><b>${p.edition === "br" ? "Veeam Backup &amp; Replication" : "Veeam Agent for Windows"}</b> v${esc(p.version || "?")}${p.lastJob && p.lastJob.result ? ` &middot; last job: <b>${esc(p.lastJob.result)}</b>${p.lastJob.endTime ? ` (${esc(p.lastJob.endTime)})` : ""}` : ""}</div>`;
+        // Per-job policy table (v0.14.11+). Color-coded policyType cell
+        // so the PDF surfaces partial-coverage hosts (File-only) at a
+        // glance even alongside hosts with full EntireComputer image
+        // backups.
+        const jobs = p.jobs || [];
+        const jobsTable = jobs.length ? `
+          <table style="width:100%;border-collapse:collapse;margin:2px 0 10px;font-size:11.5px;">
+            <thead><tr style="background:#fafbfc;color:#666;font-size:10px;text-transform:uppercase;">
+              <th style="padding:5px 8px;text-align:left;border-bottom:1px solid #e3e6ec;">Job</th>
+              <th style="padding:5px 8px;text-align:left;border-bottom:1px solid #e3e6ec;">Policy type</th>
+              <th style="padding:5px 8px;text-align:left;border-bottom:1px solid #e3e6ec;">Destination</th>
+            </tr></thead>
+            <tbody>
+              ${jobs.map(j => {
+                const pt = (j.policyType || "").toLowerCase();
+                const ptBg = pt === "entirecomputer" ? "#dcfce7" : pt === "volume" ? "#dbeafe" : pt === "file" ? "#fef3c7" : "#e5e7eb";
+                const ptFg = pt === "entirecomputer" ? "#14532d" : pt === "volume" ? "#1e40af" : pt === "file" ? "#78350f" : "#374151";
+                return `<tr>
+                  <td style="padding:4px 8px;border-bottom:1px solid #f0f1f4;"><b>${esc(j.name || "(unnamed)")}</b></td>
+                  <td style="padding:4px 8px;border-bottom:1px solid #f0f1f4;">${j.policyType ? `<span style="background:${ptBg};color:${ptFg};padding:1px 6px;border-radius:3px;font-size:10.5px;font-weight:700;">${esc(j.policyType)}</span>` : "—"}</td>
+                  <td style="padding:4px 8px;border-bottom:1px solid #f0f1f4;">${j.destination ? `<code style="font-size:11px;">${esc(j.destination)}</code>` : "—"}</td>
+                </tr>`;
+              }).join("")}
+            </tbody>
+          </table>
+        ` : "";
+        return productLine + jobsTable;
+      }).join("") : ""}
       ${wsb && wsb.installed ? (() => {
         const tgts = (wsb.targets || []).map(t => `${esc(t.path || t.label || "?")}${t.type ? ` <span style="color:#888;">(${esc(t.type)})</span>` : ""}`).join(", ");
         const srcs = (wsb.sources || []).map(s => {
@@ -2808,20 +2910,83 @@ function buildReportDom(a, logoPngDataUrl) {
           : wsb.vssMode === "VssCopyBackup"
             ? `<span style="color:#666;"> &mdash; copy backup (default)</span>`
             : "";
+        // v0.14.10+ Backups per disk: one row per destination with the
+        // count + date range. Surfaces uneven retention (one target has
+        // 90 days, another has 12) which is a common WSB misconfig.
+        const byTarget = (wsb.backupsByTarget || []).length ? `
+          <div style="margin-top:6px;">&nbsp;&nbsp;&nbsp;&nbsp;<b>Backups per disk:</b></div>
+          <table style="width:100%;border-collapse:collapse;margin:2px 0 6px;font-size:11.5px;">
+            <thead><tr style="background:#fafbfc;color:#666;font-size:10px;text-transform:uppercase;">
+              <th style="padding:5px 8px;text-align:left;border-bottom:1px solid #e3e6ec;">Target</th>
+              <th style="padding:5px 8px;text-align:right;border-bottom:1px solid #e3e6ec;">Count</th>
+              <th style="padding:5px 8px;text-align:left;border-bottom:1px solid #e3e6ec;">Oldest</th>
+              <th style="padding:5px 8px;text-align:left;border-bottom:1px solid #e3e6ec;">Newest</th>
+            </tr></thead>
+            <tbody>
+              ${wsb.backupsByTarget.map(t => `<tr>
+                <td style="padding:4px 8px;border-bottom:1px solid #f0f1f4;"><code style="font-size:11px;">${esc(t.target || "—")}</code></td>
+                <td style="padding:4px 8px;text-align:right;border-bottom:1px solid #f0f1f4;"><b>${t.count}</b></td>
+                <td style="padding:4px 8px;border-bottom:1px solid #f0f1f4;color:#666;">${esc((t.oldestBackup || "—").slice(0, 10))}</td>
+                <td style="padding:4px 8px;border-bottom:1px solid #f0f1f4;color:#666;">${esc((t.newestBackup || "—").slice(0, 10))}</td>
+              </tr>`).join("")}
+            </tbody>
+          </table>
+        ` : "";
+        // Per-backup VSS list (v0.14.10+): collapsed by default in the
+        // dashboard, but in a static PDF we just print the top 10 inline
+        // since the operator can't expand a <details> on paper.
+        const perVss = (wsb.perBackupVss || []).slice(0, 10);
+        const perVssBlock = perVss.length ? `
+          <div style="margin-top:6px;">&nbsp;&nbsp;&nbsp;&nbsp;<b>Per-backup VSS (last ${perVss.length}):</b></div>
+          <table style="width:100%;border-collapse:collapse;margin:2px 0 6px;font-size:11px;">
+            <thead><tr style="background:#fafbfc;color:#666;font-size:10px;text-transform:uppercase;">
+              <th style="padding:4px 8px;text-align:left;border-bottom:1px solid #e3e6ec;">When</th>
+              <th style="padding:4px 8px;text-align:left;border-bottom:1px solid #e3e6ec;">Target</th>
+              <th style="padding:4px 8px;text-align:left;border-bottom:1px solid #e3e6ec;">VSS option</th>
+            </tr></thead>
+            <tbody>
+              ${perVss.map(b => `<tr>
+                <td style="padding:3px 8px;border-bottom:1px solid #f0f1f4;color:#666;">${esc((b.backupTime || "—").slice(0, 16).replace("T", " "))}</td>
+                <td style="padding:3px 8px;border-bottom:1px solid #f0f1f4;"><code style="font-size:10.5px;">${esc(b.target || "—")}</code></td>
+                <td style="padding:3px 8px;border-bottom:1px solid #f0f1f4;"><code style="font-size:10.5px;">${esc(b.vssOption || "—")}</code></td>
+              </tr>`).join("")}
+            </tbody>
+          </table>
+        ` : "";
         return `
           <div style="font-size:12px;margin-bottom:8px;line-height:1.55;">
-            <div><b>Windows Server Backup</b> &middot; last result: <b>${esc(wsb.lastBackupResult || "?")}</b>${wsb.lastSuccessfulBackup ? ` &middot; last success: ${tsToStr(wsb.lastSuccessfulBackup)}` : ""} &middot; ${wsb.numberOfVersions || 0} version(s) retained</div>
+            <div><b>Windows Server Backup</b> &middot; last result: <b>${esc(wsb.lastBackupResult || "?")}</b>${wsb.lastSuccessfulBackup ? ` &middot; last success: ${tsToStr(wsb.lastSuccessfulBackup)}` : ""} &middot; ${wsb.numberOfVersions || 0} version(s) retained${(wsb.totalBackups != null && wsb.totalBackups !== wsb.numberOfVersions) ? ` &middot; <b>${wsb.totalBackups}</b> total backups across all targets` : ""}</div>
+            ${wsb.frequency ? `<div style="margin-top:3px;">&nbsp;&nbsp;&nbsp;&nbsp;<b>Frequency:</b> ${esc(wsb.frequency)}</div>` : ""}
             ${tgts ? `<div style="margin-top:3px;">&nbsp;&nbsp;&nbsp;&nbsp;<b>Destinations:</b> ${tgts}</div>` : ""}
             ${srcs ? `<div style="margin-top:3px;">&nbsp;&nbsp;&nbsp;&nbsp;<b>Sources:</b><br>&nbsp;&nbsp;&nbsp;&nbsp;${srcs}</div>` : ""}
             ${sched ? `<div style="margin-top:3px;">&nbsp;&nbsp;&nbsp;&nbsp;<b>Schedule:</b> ${sched} <span style="color:#888;">daily</span></div>` : ""}
-            ${wsb.vssMode ? `<div style="margin-top:3px;">&nbsp;&nbsp;&nbsp;&nbsp;<b>VSS mode:</b> <code>${esc(wsb.vssMode)}</code>${vssNote}</div>` : ""}
+            ${wsb.vssMode ? `<div style="margin-top:3px;">&nbsp;&nbsp;&nbsp;&nbsp;<b>VSS mode (current policy):</b> <code>${esc(wsb.vssMode)}</code>${vssNote}</div>` : ""}
             ${(wsb.allowDeleteOldBackups !== null && wsb.allowDeleteOldBackups !== undefined)
               ? `<div style="margin-top:3px;color:#666;">&nbsp;&nbsp;&nbsp;&nbsp;${wsb.allowDeleteOldBackups ? "Auto-prunes oldest versions when target fills" : "Will stop backing up when target fills"}</div>`
               : ""}
+            ${byTarget}
+            ${perVssBlock}
           </div>
         `;
       })() : ""}
-      ${carbonite && carbonite.installed ? (carbonite.products || []).map(p => `<div style="font-size:12px;margin-bottom:4px;"><b>${esc(p.name)}</b> v${esc(p.version || "?")}</div>`).join("") : ""}
+      ${carbonite && carbonite.installed ? (() => {
+        // v0.14.10+: per-product list + "Protected?" / "Files protected"
+        // operational summary from registry probe. PDF surfaces the
+        // protected state with the same colored badge as the dashboard.
+        const productList = (carbonite.products || []).map(p => `<div style="font-size:12px;margin-bottom:4px;"><b>${esc(p.name)}</b> v${esc(p.version || "?")}</div>`).join("");
+        const protBadge = carbonite.protected === true
+          ? `<span style="background:#dcfce7;color:#14532d;padding:1px 6px;border-radius:3px;font-size:10.5px;font-weight:700;">YES</span>`
+          : carbonite.protected === false
+            ? `<span style="background:#fee2e2;color:#7f1d1d;padding:1px 6px;border-radius:3px;font-size:10.5px;font-weight:700;">NO</span>`
+            : `<span style="background:#f3f4f6;color:#374151;padding:1px 6px;border-radius:3px;font-size:10.5px;font-weight:700;">UNKNOWN</span>`;
+        const filesCell = (typeof carbonite.filesProtected === "number")
+          ? `<b>${carbonite.filesProtected.toLocaleString()}</b> files`
+          : `<span style="color:#888;">unknown</span>`;
+        return productList + `<div style="font-size:12px;margin-top:2px;margin-bottom:8px;">
+          &nbsp;&nbsp;&nbsp;&nbsp;Protected per Carbonite: ${protBadge}
+          &middot; Files protected: ${filesCell}
+        </div>`;
+      })() : ""}
     ` : ""}
 
     ${(def || s1) ? sectionHdr("Security") + `
@@ -2850,10 +3015,74 @@ function buildReportDom(a, logoPngDataUrl) {
       ${idrac && idrac.installed ? `<div style="font-size:12px;margin-bottom:4px;"><b>iDRAC Service Module</b> v${esc(idrac.version || "?")} &middot; service ${esc(idrac.serviceState || "?")}</div>` : ""}
     ` : ""}
 
+    ${(() => {
+      // Windows Updates section -- pending count + severity breakdown
+      // + reboot-pending flag. Subprocess-isolated probe (v0.14.14+)
+      // returns {pendingCount, severityBreakdown, categoryBreakdown,
+      // updates[], rebootRequired, _error?}. We surface the headline +
+      // first 8 update titles in the PDF.
+      const wu = r.windowsUpdates;
+      if (!wu) return "";
+      if (wu._error) {
+        return sectionHdr("Windows Updates") + `
+          <div style="font-size:12px;margin-bottom:8px;color:#78350f;background:#fef3c7;border:1px solid #fde68a;padding:8px 12px;border-radius:6px;">
+            Probe error: ${esc(wu._error)}
+            ${wu.rebootRequired === true ? `<div style="margin-top:4px;"><b>Reboot pending</b> (registry signals a prior update needs a restart)</div>` : ""}
+          </div>
+        `;
+      }
+      const sev = wu.severityBreakdown || {};
+      const crit = sev.Critical || 0;
+      const imp = sev.Important || 0;
+      const mod = sev.Moderate || 0;
+      const low = sev.Low || 0;
+      const unsp = sev.Unspecified || 0;
+      const sevPills = [];
+      if (crit) sevPills.push(`<span style="background:#fee2e2;color:#7f1d1d;padding:1px 6px;border-radius:3px;font-size:10.5px;font-weight:700;">${crit} CRITICAL</span>`);
+      if (imp)  sevPills.push(`<span style="background:#fef3c7;color:#78350f;padding:1px 6px;border-radius:3px;font-size:10.5px;font-weight:700;">${imp} IMPORTANT</span>`);
+      if (mod)  sevPills.push(`<span style="background:#e0e7ff;color:#3730a3;padding:1px 6px;border-radius:3px;font-size:10.5px;font-weight:700;">${mod} MODERATE</span>`);
+      if (low)  sevPills.push(`<span style="background:#f3f4f6;color:#374151;padding:1px 6px;border-radius:3px;font-size:10.5px;font-weight:700;">${low} LOW</span>`);
+      if (unsp) sevPills.push(`<span style="background:#f3f4f6;color:#374151;padding:1px 6px;border-radius:3px;font-size:10.5px;font-weight:700;">${unsp} UNSPEC</span>`);
+      const summaryLine = wu.pendingCount === 0
+        ? `<span style="background:#dcfce7;color:#14532d;padding:1px 6px;border-radius:3px;font-size:10.5px;font-weight:700;">FULLY PATCHED</span> <span style="color:#888;">no pending updates</span>`
+        : `<b>${wu.pendingCount}</b> update${wu.pendingCount === 1 ? "" : "s"} pending &middot; ${sevPills.join(" ")}`;
+      const rebootLine = wu.rebootRequired === true
+        ? `<div style="margin-top:4px;"><span style="background:#fef3c7;color:#78350f;padding:1px 6px;border-radius:3px;font-size:10.5px;font-weight:700;">REBOOT PENDING</span> <span style="color:#888;">a prior update needs a restart to finish</span></div>`
+        : "";
+      const top = (wu.updates || []).slice(0, 8);
+      const topTable = top.length ? `
+        <table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:11.5px;">
+          <thead><tr style="background:#fafbfc;color:#666;font-size:10px;text-transform:uppercase;">
+            <th style="padding:5px 8px;text-align:left;border-bottom:1px solid #e3e6ec;">Title</th>
+            <th style="padding:5px 8px;text-align:left;border-bottom:1px solid #e3e6ec;">Severity</th>
+            <th style="padding:5px 8px;text-align:right;border-bottom:1px solid #e3e6ec;">Size</th>
+          </tr></thead>
+          <tbody>
+            ${top.map(u => {
+              const s = (u.severity || "").toLowerCase();
+              const sBg = s === "critical" ? "#fee2e2" : s === "important" ? "#fef3c7" : "#f3f4f6";
+              const sFg = s === "critical" ? "#7f1d1d" : s === "important" ? "#78350f" : "#374151";
+              return `<tr>
+                <td style="padding:4px 8px;border-bottom:1px solid #f0f1f4;">${esc(u.title)}</td>
+                <td style="padding:4px 8px;border-bottom:1px solid #f0f1f4;"><span style="background:${sBg};color:${sFg};padding:1px 6px;border-radius:3px;font-size:10px;font-weight:700;">${esc(u.severity)}</span></td>
+                <td style="padding:4px 8px;text-align:right;border-bottom:1px solid #f0f1f4;color:#666;">${u.sizeMB != null ? `${u.sizeMB} MB` : "—"}</td>
+              </tr>`;
+            }).join("")}
+          </tbody>
+        </table>
+      ` : "";
+      return sectionHdr("Windows Updates") + `
+        <div style="font-size:12px;margin-bottom:4px;">${summaryLine}</div>
+        ${rebootLine}
+        ${topTable}
+      `;
+    })()}
+
     ${sectionHdr("Inventory")}
     <div style="font-size:12px;">
       ${sw.count ? `<div>${sw.count} installed applications</div>` : ""}
       ${hf.total ? `<div>${hf.total} hotfixes installed${hf.recent && hf.recent.length ? ` &middot; most recent: ${esc(hf.recent[0].id)} (${esc(hf.recent[0].installedOn)})` : ""}</div>` : ""}
+      ${r.windowsUpdates && typeof r.windowsUpdates.pendingCount === "number" ? `<div>${r.windowsUpdates.pendingCount} Windows Update${r.windowsUpdates.pendingCount === 1 ? "" : "s"} pending</div>` : ""}
       ${usb.devices ? `<div>${usb.devices.length} USB device(s) in history</div>` : ""}
     </div>
 
