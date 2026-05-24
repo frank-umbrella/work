@@ -172,36 +172,63 @@ Root: HKLM; Subkey: "SOFTWARE\Microsoft\Windows\CurrentVersion\Run"; \
     Flags: uninsdeletevalue
 
 ; ----------------------------------------------------------------------------
-; Service registration. sc.exe is more explicit than letting pywin32's
-; HandleCommandLine do it — and it works the same on every Windows version
-; we care about.
+; Service registration. Built around an upgrade-safe sequence: always
+; runs `sc config` (idempotent) before `sc create` (which expectedly
+; fails on upgrade), then `sc start`. The post-install [Code] hook
+; verifies the service actually entered RUNNING state and retries up
+; to 3 times -- catches transient "file in use" / "service not yet
+; registered" races that bit the v0.14.15 auto-update on two hosts.
+;
+; sc.exe is more explicit than letting pywin32's HandleCommandLine do
+; it -- and it works the same on every Windows version we care about.
 ; ----------------------------------------------------------------------------
 [Run]
+; create: fails on upgrade (service already exists) but that's fine --
+; the subsequent `sc config` will normalize the binPath. Inno Setup's
+; runhidden suppresses the console flash either way.
 Filename: "{sys}\sc.exe"; \
     Parameters: "create {#ServiceName} binPath= ""\""{app}\watchtower-svc.exe\"""" start= auto obj= LocalSystem DisplayName= ""Umbrella Watchtower Agent"""; \
     Flags: runhidden; \
     StatusMsg: "Registering Umbrella Watchtower service..."
+; config: ensures binPath + start type + obj are correct EVEN ON UPGRADE
+; where create no-op'd. Idempotent -- safe to run on every install.
+; This is the key fix for auto-updates: without it, if the install dir
+; ever changes between versions (unlikely but possible) the registered
+; service would point at the old EXE path, and `sc start` would launch
+; a stale binary or fail outright.
+Filename: "{sys}\sc.exe"; \
+    Parameters: "config {#ServiceName} binPath= ""\""{app}\watchtower-svc.exe\"""" start= auto obj= LocalSystem DisplayName= ""Umbrella Watchtower Agent"""; \
+    Flags: runhidden
 Filename: "{sys}\sc.exe"; \
     Parameters: "description {#ServiceName} ""Daily check-in to Umbrella Automation's Watchtower. Reports external IP, Veeam backup status, LogMeIn state, and asset inventory."""; \
     Flags: runhidden
 Filename: "{sys}\sc.exe"; \
     Parameters: "failure {#ServiceName} reset= 86400 actions= restart/60000/restart/60000/restart/60000"; \
     Flags: runhidden
+; Start the service. Post-install [Code] hook below verifies + retries.
 Filename: "{sys}\sc.exe"; \
     Parameters: "start {#ServiceName}"; \
     Flags: runhidden; \
     StatusMsg: "Starting Umbrella Watchtower service..."
 
-; Launch the tray for the currently-logged-in user. The HKLM Run entry
-; above handles every FUTURE login, but on the install run itself the
-; user is already signed in -- they'd otherwise have to log out and
-; back in before seeing the tray icon. runasoriginaluser drops back
-; from the elevated installer context to the actual user's session
-; (where the tray belongs); nowait lets the installer return without
-; blocking on the long-running tray process; runhidden suppresses any
-; console window flash.
+; Launch the tray for the currently-logged-in user. Skipped on
+; auto-update runs (where the installer is spawned by the LocalSystem
+; service and runasoriginaluser has no user session to drop into) --
+; the post-install [Code] hook handles that path via a scheduled task.
+;
+; runasoriginaluser drops back from the elevated installer context to
+; the actual user's session (where the tray belongs); nowait lets the
+; installer return without blocking on the long-running tray process;
+; runhidden suppresses any console window flash.
+;
+; Check: NOT IsSystemContext() -- guarantees this entry only fires
+; when a real interactive user triggered the install (manual install,
+; first run from a fresh download). For auto-updates the [Code] hook
+; uses schtasks /Create + /Run to launch the tray as the active
+; console user, which IS reachable from a SYSTEM-spawned installer.
 Filename: "{app}\watchtower-tray.exe"; \
     Flags: nowait runhidden runasoriginaluser; \
+    Check: not IsSystemContext; \
     StatusMsg: "Starting Watchtower tray..."
 
 #ifdef LogMeInMsi
@@ -720,6 +747,98 @@ begin
   Result := '';
 end;
 
+// ──────────────────────────────────────────────────────────────────────
+// IsSystemContext -- detects whether the installer is being run by the
+// LocalSystem service account (auto-update path) rather than by an
+// interactive admin user. We can't use IsAdminInstallMode for this
+// because LocalSystem IS an admin. Distinguishing them lets us route
+// the tray launch through schtasks for the auto-update case.
+//
+// USERNAME=SYSTEM is set on every process running as the LocalSystem
+// SID. Belt-and-suspenders: also check USERDOMAIN=NT AUTHORITY.
+// ──────────────────────────────────────────────────────────────────────
+function IsSystemContext(): Boolean;
+var
+  UserName, UserDomain: string;
+begin
+  UserName := Uppercase(GetEnv('USERNAME'));
+  UserDomain := Uppercase(GetEnv('USERDOMAIN'));
+  Result := (UserName = 'SYSTEM') or (UserDomain = 'NT AUTHORITY');
+end;
+
+// ──────────────────────────────────────────────────────────────────────
+// EnsureServiceRunning -- queries the service state after install and
+// retries `sc start` up to 3 times with a 2s gap if it's not RUNNING.
+// Two-host failure on v0.14.15 auto-update showed the service stayed
+// STOPPED after install -- usually because of a transient "file in use"
+// race between extraction releasing the handle and sc.exe start kicking
+// in. Retrying always wins within a couple seconds.
+//
+// Tolerant: a final failure here is logged but doesn't abort the install
+// (the operator can manually start the service from services.msc or via
+// the new Start Menu "Watchtower Tray" shortcut -> Restart Service in
+// the tray's Troubleshoot submenu).
+// ──────────────────────────────────────────────────────────────────────
+procedure EnsureServiceRunning();
+var
+  ResultCode, Attempt: Integer;
+  Cmd: string;
+begin
+  // Quick state check via PowerShell -- exits 0 if RUNNING, 1 otherwise.
+  Cmd := 'powershell.exe -NoProfile -Command "if ((Get-Service WatchtowerAgent -EA SilentlyContinue).Status -eq ''Running'') { exit 0 } else { exit 1 }"';
+
+  for Attempt := 1 to 3 do
+  begin
+    Exec(ExpandConstant('{cmd}'), '/c ' + Cmd, '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+    if ResultCode = 0 then
+      Exit;  // already running, done
+
+    // Not running -- try to start it
+    Exec(ExpandConstant('{sys}\sc.exe'), 'start {#ServiceName}',
+         '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+    Sleep(2000);
+  end;
+  // Final check after the last attempt -- but don't abort the install.
+end;
+
+// ──────────────────────────────────────────────────────────────────────
+// LaunchTrayAsActiveUser -- spawns watchtower-tray.exe in the active
+// console user's session via schtasks. Used on the auto-update path
+// where the installer was spawned by LocalSystem and runasoriginaluser
+// has no user to drop into.
+//
+// How it works:
+//   1. Create a one-shot scheduled task that runs as INTERACTIVE
+//      (which schtasks accepts via the empty /RU + /IT flag combo,
+//      meaning "run as the currently-logged-on user, interactively").
+//   2. Immediately /Run it so the tray launches now.
+//   3. /Delete the task so we don't litter the Task Scheduler.
+//
+// If no interactive user is logged in (server running headless with
+// no RDP session), the run is silently a no-op -- the HKLM\Run entry
+// will catch the tray launch on the next user logon.
+// ──────────────────────────────────────────────────────────────────────
+procedure LaunchTrayAsActiveUser();
+var
+  ResultCode: Integer;
+  TaskName: string;
+  CreateCmd, RunCmd, DeleteCmd: string;
+begin
+  TaskName := 'WatchtowerTrayLaunch';
+  CreateCmd := '/Create /F /TN ' + TaskName +
+               ' /TR "\"' + ExpandConstant('{app}') + '\watchtower-tray.exe\"" ' +
+               ' /SC ONCE /ST 23:59 /IT /RL LIMITED';
+  RunCmd := '/Run /TN ' + TaskName;
+  DeleteCmd := '/Delete /F /TN ' + TaskName;
+
+  Exec(ExpandConstant('{sys}\schtasks.exe'), CreateCmd, '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec(ExpandConstant('{sys}\schtasks.exe'), RunCmd, '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  // Brief wait so schtasks has time to spawn the tray before we delete
+  // the task definition.
+  Sleep(1000);
+  Exec(ExpandConstant('{sys}\schtasks.exe'), DeleteCmd, '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+end;
+
 procedure CurStepChanged(CurStep: TSetupStep);
 var
   Token, ClientName, PcId: string;
@@ -773,5 +892,18 @@ begin
     ClientName := GetCmdClient;
     if ClientName = '' then ClientName := ResolvedClientName;
     UpdateUninstallDisplayName(ClientName);
+
+    // Verify the service actually entered RUNNING state after the [Run]
+    // sc.exe start. The two-host failure on v0.14.15 auto-update showed
+    // service stayed STOPPED after install -- likely a race between
+    // file extraction releasing the EXE handle and sc.exe start trying
+    // to launch it. Retry up to 3 times with a 2s gap if not running.
+    EnsureServiceRunning();
+
+    // Auto-update path (installer spawned by LocalSystem agent service)
+    // can't use runasoriginaluser to launch the tray. Use schtasks to
+    // schedule a one-shot task that runs as the active console user.
+    if IsSystemContext() then
+      LaunchTrayAsActiveUser();
   end;
 end;
