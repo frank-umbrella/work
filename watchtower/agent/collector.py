@@ -28,6 +28,7 @@ PROBES = [
     ("omsa",         "omsa"),
     ("idrac",        "idrac"),
     ("hotfixes",     "hotfixes"),
+    ("windows_updates", "windowsUpdates"),
     ("usb",          "usb"),
 ]
 

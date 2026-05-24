@@ -9,6 +9,45 @@ Sources:
 
 import socket
 import platform
+import winreg
+
+
+def _hyperv_parent_host():
+    """
+    Inside a Hyper-V guest, Integration Services populates a few values
+    under HKLM\\SOFTWARE\\Microsoft\\Virtual Machine\\Guest\\Parameters
+    that describe the parent host. We read whichever is available:
+
+      HostName                       NetBIOS name (HYPERV-KIPLING)
+      PhysicalHostName               NetBIOS name (same in practice)
+      PhysicalHostNameFullyQualified FQDN (hyperv-kipling.example.local)
+
+    Available without elevation. Returns None if the registry key isn't
+    present, which happens when:
+      - Host is not a Hyper-V VM
+      - Integration Services aren't running (older guest OS, ICs disabled)
+      - KVP exchange is disabled in the VM's settings on the host side
+    """
+    path = r"SOFTWARE\Microsoft\Virtual Machine\Guest\Parameters"
+    try:
+        with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, path, 0, winreg.KEY_READ | winreg.KEY_WOW64_64KEY) as k:
+            def _read(name):
+                try:
+                    v, _ = winreg.QueryValueEx(k, name)
+                    s = (v or "").strip()
+                    return s or None
+                except FileNotFoundError:
+                    return None
+            netbios = _read("PhysicalHostName") or _read("HostName")
+            fqdn = _read("PhysicalHostNameFullyQualified")
+            # Prefer the bare name for matching against other Watchtower
+            # endpoints (which report cs.Name = NetBIOS), keep FQDN as
+            # a tooltip detail. Empty NetBIOS = nothing to surface.
+            if not netbios:
+                return None
+            return {"name": netbios, "fqdn": fqdn}
+    except (FileNotFoundError, OSError):
+        return None
 
 
 def collect():
@@ -53,6 +92,17 @@ def collect():
         # strings are ambiguous.
         out["isVirtual"] = hypervisor is not None
         out["hypervisor"] = hypervisor
+
+        # ---- Hyper-V parent host correlation ----
+        # Only meaningful when we're a Hyper-V guest. Other hypervisors
+        # don't expose the parent's identity to the guest (VMware does
+        # via vmtools, but that's a later add). When present, the
+        # worker promotes this to a top-level `physicalHost` field so the
+        # dashboard can link this VM back to its parent endpoint.
+        if hypervisor == "Microsoft Hyper-V":
+            ph = _hyperv_parent_host()
+            if ph:
+                out["physicalHost"] = ph
 
         # ---- BIOS / serial ----
         bios = c.Win32_BIOS()[0]

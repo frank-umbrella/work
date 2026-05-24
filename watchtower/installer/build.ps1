@@ -140,6 +140,7 @@ if (-not $SkipPyInstaller) {
             --hidden-import probes.omsa `
             --hidden-import probes.idrac `
             --hidden-import probes.hotfixes `
+            --hidden-import probes.windows_updates `
             --hidden-import probes.usb `
             --hidden-import updater `
             watchtower_service.py

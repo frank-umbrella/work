@@ -113,7 +113,7 @@
       </svg>
       <div>
         <div class="meta">Umbrella Automation</div>
-        <h1>Watchtower &middot; Docs <span class="version-chip">v0.13.18</span></h1>
+        <h1>Watchtower &middot; Docs <span class="version-chip">v0.14.0</span></h1>
       </div>
     </a>
     <a class="btn brand-link" href="index.html">&larr; Back to dashboard</a>
@@ -163,6 +163,11 @@
   <a href="#storage-monitoring" class="section">Storage health (OMSA)</a>
   <a href="#storage-fleet">Endpoint visibility</a>
   <a href="#storage-how">How duration tracks</a>
+  <a href="#windows-updates" class="section">Pending Windows Updates</a>
+  <a href="#windows-updates-fleet">Endpoint visibility</a>
+  <a href="#windows-updates-drawer">Per-host drawer</a>
+  <a href="#windows-updates-cost">Cost note</a>
+  <a href="#hyperv" class="section">Hyper-V parent &harr; guest</a>
   <a href="#backup-alerts">Email alerts</a>
   <a href="#exports" class="section">Exports (PDF / CSV / Excel)</a>
   <a href="#troubleshooting" class="section">Troubleshooting</a>
@@ -178,7 +183,7 @@
 <p>A small Windows agent that calls home once a day with the host's external IP, asset inventory, backup status, RAID/disk health, and the state of the management/security software you typically rely on. The dashboard shows every endpoint and lets you toggle per-PC kill switches.</p>
 <p>Per-host probes:</p>
 <ul>
-  <li><b>System &middot; network &middot; storage &middot; users &middot; software &middot; hotfixes &middot; USB history</b> &mdash; Belarc-lite asset inventory pulled from WMI + registry.</li>
+  <li><b>System &middot; network &middot; storage &middot; users &middot; software &middot; hotfixes &middot; pending Windows Updates &middot; USB history</b> &mdash; Belarc-lite asset inventory pulled from WMI + registry + WUApi COM. System probe also detects whether the host is a VM, and on Hyper-V guests captures the parent host's name so the dashboard can link VM &harr; physical host.</li>
   <li><b>Defender</b> &mdash; enabled, realtime status, definitions version + age, last scan times.</li>
   <li><b>Veeam</b> &mdash; detects Backup &amp; Replication and/or Agent for Windows side-by-side (both can be installed on the same host), with last-session result.</li>
   <li><b>Windows Server Backup</b> &mdash; <code>Get-WBSummary</code> on Server SKUs. Last backup time, last successful backup, retained versions, next scheduled backup, current operation.</li>
@@ -442,6 +447,7 @@ Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" 
   <tr><td><code>omsa</code></td><td>Dell OpenManage: per-controller info (model, firmware, driver, status), virtual disks (RAID arrays with layout + size + state), physical disks (vendor, product, capacity, status, SMART predictive-failure flag). Worst-case rollup so a single bad disk shows red.</td></tr>
   <tr><td><code>idrac</code></td><td>Dell iDRAC Service Module: version, service state.</td></tr>
   <tr><td><code>hotfixes</code></td><td>Total count + the most recent ~10 (ID + install date).</td></tr>
+  <tr><td><code>windowsUpdates</code></td><td>Pending Windows Updates from the Windows Update Agent COM API (<code>IsInstalled=0 and IsHidden=0</code>). Total count, breakdown by MSRC severity (Critical / Important / Moderate / Low / Unspecified) and category, plus the first 30 update titles with KB number + size. Also includes <code>rebootRequired</code> derived from the CBS Servicing, WindowsUpdate, and PendingFileRenameOperations registry keys — true means a prior round of updates installed but the box hasn't rebooted to finish them.</td></tr>
   <tr><td><code>usb</code></td><td>USB device history from the registry: friendly name, product, serial. (Last-used timestamps are a roadmap item.)</td></tr>
   <tr><td><code>probeErrors</code></td><td>Any probes that threw during collection — recorded but don't block the rest of the report.</td></tr>
 </table>
@@ -699,6 +705,31 @@ Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" 
 <h3 id="storage-how">How duration tracking works</h3>
 <p>The worker stamps <code>omsaFirstWarnAt</code> on the agent doc the first check-in that reports a non-OK rollup. The timestamp persists across subsequent check-ins for as long as the rollup stays non-OK, and clears when it returns to OK. The dashboard's duration is "<i>now</i> minus <code>omsaFirstWarnAt</code>" — so it's "how long since the worker first saw the warning", not necessarily how long the underlying RAID has actually been bad. Close enough for triage, and we get it for free from the existing check-in cadence.</p>
 <p>If OMSA's probe transiently fails (the agent's probe couldn't read state, returns <code>"unknown"</code>), no warning is flagged — we wait for a clear signal to avoid flapping.</p>
+
+<h2 id="windows-updates">Pending Windows Updates</h2>
+<p>The <code>windows_updates</code> probe queries the Windows Update Agent (the same COM interface PSWindowsUpdate uses) for updates that are applicable to the host but not yet installed. It honors whatever update source the host is configured to talk to &mdash; WSUS, Windows Update for Business, or the public Microsoft Update endpoint &mdash; so the answer reflects each customer's actual patch policy.</p>
+
+<h3 id="windows-updates-fleet">Endpoint-level visibility</h3>
+<p>When a host has at least one Critical-severity pending update, an extra badge appears next to its Status:</p>
+<ul>
+  <li><span style="background:var(--danger-soft);color:#7f1d1d;padding:2px 8px;border-radius:999px;font-size:11.5px;font-weight:600;">3 critical upd</span> &mdash; that many Critical-rated pending updates. Click the row to see titles + KB numbers.</li>
+  <li><span style="background:var(--warn-soft);color:#854d0e;padding:2px 8px;border-radius:999px;font-size:11.5px;font-weight:600;">reboot pending</span> &mdash; CBS Servicing, WindowsUpdate, or Session Manager registry signals say a prior update needs a restart to finish. Shown even when there are 0 currently pending updates.</li>
+</ul>
+<p>Important / Moderate / Low pending counts are surfaced in the drawer's Windows Updates section but stay out of the table to keep things calm during Patch Tuesday weeks. The Status filter dropdown has <b>Critical Windows Updates pending</b> and <b>Reboot pending</b> options if you want to narrow.</p>
+
+<h3 id="windows-updates-drawer">Per-host drawer</h3>
+<p>The drawer shows a summary line (<code>N pending</code> with severity breakdown pills), the reboot-pending state when applicable, and a collapsible list of the first 10 update titles with severity + category + size. The agent caps the embedded list at 30 entries to keep check-in payload sizes small even on hosts that haven't been patched in months &mdash; the headline count is always the full total.</p>
+
+<h3 id="windows-updates-cost">Cost note</h3>
+<p>The COM search can take 30&ndash;90 seconds on a host that hasn't checked in with its update source recently. If the search fails (WSUS unreachable, COM glitch), the probe still reports <code>rebootRequired</code> from the registry on its own &mdash; the registry check needs no network and no COM at all, so reboot-pending is the most reliable signal in the bundle.</p>
+
+<h2 id="hyperv">Hyper-V parent &harr; guest correlation</h2>
+<p>When Watchtower is installed inside a Hyper-V VM, the agent reads the parent host's name out of the registry path <code>HKLM\SOFTWARE\Microsoft\Virtual Machine\Guest\Parameters</code> &mdash; populated by Hyper-V Integration Services (KVP exchange) on every supported Windows guest. No credentials, no network round-trip, no access to the parent host required.</p>
+<ul>
+  <li><b>In a VM's drawer</b>, the System section shows a <b>Hosted on:</b> row with the parent's NetBIOS name. If that name matches another Watchtower endpoint, it renders as a clickable link with a <span style="background:var(--ok-soft);color:#14532d;padding:2px 8px;border-radius:999px;font-size:11.5px;font-weight:600;">monitored</span> badge &mdash; click to jump straight to the host's drawer.</li>
+  <li><b>In the Hyper-V host's drawer</b>, a <b>Guest VMs (N)</b> section appears listing every endpoint that reported this host as its parent. Each row shows the guest's client + last check-in age + status, with a click-to-jump link back to the guest.</li>
+</ul>
+<p>Hosts that don't run Watchtower can't be correlated &mdash; you'll see "<b>HYPERV-NAME</b> <span style="background:var(--surface-2);color:#475063;padding:2px 8px;border-radius:999px;font-size:11.5px;font-weight:600;">not monitored</span>" in the VM drawer until you install the agent on the host too. VMware and other hypervisors don't expose the parent identity to the guest in the same way (VMware via vmtools is on the roadmap); VirtualBox doesn't expose it at all.</p>
 
 <h2 id="backup-monitoring">Backup monitoring (continued)</h2>
 

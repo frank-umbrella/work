@@ -1203,6 +1203,14 @@ async function handleCheckin(request, env, ctx) {
   // We pass the entire report as nested fields. Firestore can take maps up
   // to 1 MB per doc — Belarc-lite reports are well under that even with
   // 200 installed apps and 90 days of hotfixes.
+  // Promote the Hyper-V parent host name (if any) to a top-level field
+  // so the dashboard can do a cheap match against state.agents[].hostname
+  // without descending into report.system.physicalHost on every row.
+  // Always null on physical hosts and on non-Hyper-V guests; set to the
+  // bare NetBIOS name for matching when the guest's Integration Services
+  // exposed it (see system.py _hyperv_parent_host).
+  const newPhysicalHost = report?.system?.physicalHost?.name || null;
+
   const statusUpdate = {
     pcId,
     hostname,
@@ -1215,6 +1223,7 @@ async function handleCheckin(request, env, ctx) {
     ...(firstSeen ? { installedAt: nowIso } : {}),
     ...(ipChanged || firstSeen ? { externalIpChangedAt: nowIso } : {}),
     internalIp: newInternalIp,
+    physicalHost: newPhysicalHost,
     omsaFirstWarnAt,
     // Clear decommissioned flags on any successful check-in — a live
     // agent reporting in is the definition of "not decommissioned." If

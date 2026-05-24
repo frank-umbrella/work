@@ -471,6 +471,8 @@
             <option value="omsa-warning">OMSA warning</option>
             <option value="omsa-blind">OMSA installed, no controller</option>
             <option value="update-available">Update available</option>
+            <option value="critical-updates">Critical Windows Updates pending</option>
+            <option value="reboot-pending">Reboot pending</option>
             <option value="decommissioned">Decommissioned only</option>
             <option value="all-with-decom">All + decommissioned</option>
           </select>
@@ -674,7 +676,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.13.18";
+const APP_VERSION = "0.14.0";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -1045,6 +1047,15 @@ function renderFleet() {
       if (!oh || oh.kind !== "info") return false;
     }
     if (sf === "update-available" && !updateAvailableFor(a)) return false;
+    if (sf === "critical-updates") {
+      const wuA = a.report && a.report.windowsUpdates;
+      const crit = (wuA && wuA.severityBreakdown && wuA.severityBreakdown.Critical) || 0;
+      if (crit <= 0) return false;
+    }
+    if (sf === "reboot-pending") {
+      const wuA = a.report && a.report.windowsUpdates;
+      if (!wuA || wuA.rebootRequired !== true) return false;
+    }
     if (q) {
       const hay = [a.hostname, a.client, a.externalIp, a.id].filter(Boolean).join(" ").toLowerCase();
       if (!hay.includes(q)) return false;
@@ -1101,6 +1112,21 @@ function renderFleet() {
     const ohBadge = oh
       ? ` <span class="badge ${oh.kind === "bad" ? "bad" : oh.kind === "warn" ? "warn" : "muted"}" title="${oh.kind === "info" ? "OMSA is installed but reports no controllers / RAID / disks on this host — open the drawer for likely causes" : "Dell OMSA storage health"}">${esc(oh.label)}</span>`
       : "";
+    // Windows Updates pending badge -- only flagged when there's at least
+    // one critical OR a reboot is pending. Sub-critical pending counts
+    // (Important / Moderate / Low) are surfaced in the drawer but stay
+    // out of the row to keep the table calm during Patch Tuesday weeks.
+    const wuRow = a.report && a.report.windowsUpdates;
+    let wuBadge = "";
+    if (wuRow) {
+      const crit = (wuRow.severityBreakdown && wuRow.severityBreakdown.Critical) || 0;
+      const reboot = wuRow.rebootRequired === true;
+      if (crit > 0) {
+        wuBadge = ` <span class="badge bad" title="${crit} critical Windows Update(s) pending. Click the row to see the list.">${crit} critical upd</span>`;
+      } else if (reboot) {
+        wuBadge = ` <span class="badge warn" title="Reboot pending to finish a prior update.">reboot pending</span>`;
+      }
+    }
     // Update badge intentionally dropped from the fleet row in v0.10.1 —
     // agent version + update-available hint live in the drawer's Status
     // section now. The Status filter "Update available" option still works
@@ -1134,7 +1160,7 @@ function renderFleet() {
         <td class="col-products" data-label="Backup">${backupCell}</td>
         <td class="col-products" data-label="Remote">${remoteCell}</td>
         <td class="age" data-label="Last check">${fmtAge(a.lastCheckin)}</td>
-        <td data-label="Status">${stBadge}${bhBadge}${ohBadge}</td>
+        <td data-label="Status">${stBadge}${bhBadge}${ohBadge}${wuBadge}</td>
       </tr>
     `;
   }).join("");
@@ -3117,6 +3143,7 @@ function renderDrawer(pcId) {
   const idrac = r.idrac;
   const def = r.defender;
   const hf = r.hotfixes;
+  const wu = r.windowsUpdates;
   const usb = r.usb;
   const errs = r.probeErrors || [];
 
@@ -3276,6 +3303,7 @@ function renderDrawer(pcId) {
         ["Manufacturer", esc(sys.manufacturer)],
         ["Model", esc(sys.model)],
         ...(sys.isVirtual ? [["Virtual machine", `<span class="badge muted" style="background:#fae8ff;color:#581c87;">Yes</span> <span class="meta">${esc(sys.hypervisor || "")}</span>`]] : []),
+        ...(sys.physicalHost ? [["Hosted on", renderPhysicalHostLink(sys.physicalHost)]] : []),
         ["Service tag", renderServiceTag(sys.serviceTag, sys.manufacturer)],
         ["CPU", esc(sys.cpu && sys.cpu.name)],
         ["RAM", sys.memory ? `${sys.memory.totalGB} GB` : "—"],
@@ -3283,6 +3311,29 @@ function renderDrawer(pcId) {
         ["Workgroup/Domain", esc(sys.workgroup)],
       ])}
     </div>
+
+    ${(() => {
+      // Guest VMs section -- only shown on hosts where at least one
+      // other endpoint reports this host as its Hyper-V parent. Lets
+      // the operator jump from a Hyper-V host into any of its guests
+      // without having to remember which VMs live where.
+      const guests = findGuestVms(a);
+      if (!guests.length) return "";
+      return `<div class="section">
+        <h3>Guest VMs (${guests.length})</h3>
+        <div class="meta" style="margin-bottom:8px;">VMs reporting this host as their Hyper-V parent via Integration Services KVP.</div>
+        <div class="list">
+          ${guests.map(g => {
+            const st = statusOf(g);
+            const sevBadge = `<span class="badge ${st.kind === "ok" ? "ok" : st.kind === "warn" ? "warn" : st.kind === "bad" ? "bad" : "muted"}">${esc(st.label)}</span>`;
+            return `<div class="row"><div>
+              <div class="name"><a href="#" data-jump-pc="${esc(g.id)}"><b>${esc(g.hostname || g.id)}</b></a></div>
+              <div class="meta">${esc(g.client || "no client")} &middot; last check ${fmtAge(g.lastCheckin)} &middot; ${sevBadge}</div>
+            </div></div>`;
+          }).join("")}
+        </div>
+      </div>`;
+    })()}
 
     ${isDellHost(sys.manufacturer) && sys.serviceTag ? `<div class="section" id="warrantySection">
       <h3>Dell warranty</h3>
@@ -3370,6 +3421,11 @@ function renderDrawer(pcId) {
           ${sw.installed.map(p => `<div class="row"><div class="name">${esc(p.name)}</div><div class="meta">${esc(p.version || "")} &middot; ${esc(p.publisher || "")}</div></div>`).join("")}
         </div>
       </details>
+    </div>` : ""}
+
+    ${wu ? `<div class="section">
+      <h3>Windows Updates &middot; pending</h3>
+      ${renderWindowsUpdates(wu)}
     </div>` : ""}
 
     ${hf && hf.recent ? `<div class="section">
@@ -3502,6 +3558,18 @@ function renderDrawer(pcId) {
       }
     });
   }
+
+  // Hyper-V cross-jump links: clicking the parent host's name (in the
+  // System section) or a guest VM's name (in the Guest VMs section)
+  // closes the current drawer and opens the linked endpoint's drawer.
+  // Delegated through $("#dBody") so it works for both helpers at once.
+  $$("#dBody [data-jump-pc]").forEach(link => {
+    link.addEventListener("click", (e) => {
+      e.preventDefault();
+      const targetId = link.dataset.jumpPc;
+      if (targetId) openDrawer(targetId);
+    });
+  });
 
   // Async warranty fetch for Dell hosts.
   if (isDellHost(sys.manufacturer) && sys.serviceTag) {
@@ -3931,6 +3999,89 @@ function statusBadge(s) {
   if (low.includes("non-critical") || low === "warning") return "warn";
   if (low === "critical" || low.includes("non-recoverable")) return "bad";
   return "muted";
+}
+
+// Hyper-V parent linkage: if another Watchtower endpoint matches the
+// parent host's NetBIOS name (case-insensitive), render a clickable link
+// that opens that host's drawer. Otherwise show the name as plain text
+// so the operator can at least see which physical server this VM is on.
+function renderPhysicalHostLink(ph) {
+  if (!ph || !ph.name) return "—";
+  const nameLower = ph.name.toLowerCase();
+  const match = state.agents.find(x => (x.hostname || "").toLowerCase() === nameLower);
+  const fqdnHint = ph.fqdn && ph.fqdn.toLowerCase() !== nameLower
+    ? ` <span class="meta">&middot; ${esc(ph.fqdn)}</span>`
+    : "";
+  if (match) {
+    return `<a href="#" data-jump-pc="${esc(match.id)}"><b>${esc(ph.name)}</b></a> <span class="badge ok" style="margin-left:4px;">monitored</span>${fqdnHint}`;
+  }
+  return `<b>${esc(ph.name)}</b> <span class="badge muted" style="margin-left:4px;" title="No Watchtower agent installed on this Hyper-V host (or it reports a different hostname). Install Watchtower on the host to see live correlation.">not monitored</span>${fqdnHint}`;
+}
+
+// Find every endpoint in state.agents that reports `physicalHost.name`
+// matching this host's hostname -- i.e. the VMs Hyper-V is hosting.
+// Case-insensitive; excludes the host itself; only returns VMs whose
+// guest Integration Services successfully exposed the parent name.
+function findGuestVms(host) {
+  if (!host || !host.hostname) return [];
+  const hn = host.hostname.toLowerCase();
+  return state.agents.filter(x => {
+    if (x.id === host.id) return false;
+    const ph = x.physicalHost || (x.report && x.report.system && x.report.system.physicalHost && x.report.system.physicalHost.name);
+    return ph && String(ph).toLowerCase() === hn;
+  });
+}
+
+// Pending Windows Updates panel. Color-coded by worst severity present.
+// Always shows reboot-pending state because that's actionable even when
+// pendingCount == 0 (a prior round of updates was installed but the box
+// hasn't been rebooted to finish them).
+function renderWindowsUpdates(wu) {
+  if (wu._error) {
+    // Reboot state can still be available even when WUApi search failed
+    // (e.g. WSUS unreachable but registry is still readable).
+    const rebootLine = (wu.rebootRequired === true)
+      ? `<div class="row"><div class="name">Reboot pending</div><div class="meta"><span class="badge warn">yes</span></div></div>`
+      : "";
+    return `<div class="meta" style="color:#b45309;">Probe error: ${esc(wu._error)}</div>${rebootLine}`;
+  }
+  const sev = wu.severityBreakdown || {};
+  const crit = sev.Critical || 0;
+  const imp = sev.Important || 0;
+  const mod = sev.Moderate || 0;
+  const low = sev.Low || 0;
+  const unsp = sev.Unspecified || 0;
+  const reboot = wu.rebootRequired === true;
+
+  const sevPills = [];
+  if (crit) sevPills.push(`<span class="badge bad">${crit} critical</span>`);
+  if (imp)  sevPills.push(`<span class="badge warn">${imp} important</span>`);
+  if (mod)  sevPills.push(`<span class="badge muted">${mod} moderate</span>`);
+  if (low)  sevPills.push(`<span class="badge muted">${low} low</span>`);
+  if (unsp) sevPills.push(`<span class="badge muted">${unsp} unspec</span>`);
+  const sevLine = sevPills.length ? sevPills.join(" ") : `<span class="meta">none broken out by severity</span>`;
+
+  const summary = wu.pendingCount === 0
+    ? `<span class="badge ok">Fully patched</span> <span class="meta">no pending updates</span>`
+    : `<b>${wu.pendingCount}</b> update${wu.pendingCount === 1 ? "" : "s"} pending &middot; ${sevLine}`;
+
+  const rebootRow = reboot
+    ? `<div class="row"><div class="name">Reboot pending</div><div class="meta"><span class="badge warn">yes</span> <span class="meta">restart required for a prior update to finish</span></div></div>`
+    : "";
+
+  const top = (wu.updates || []).slice(0, 10);
+  const list = top.length ? `
+    <details style="margin-top:10px;">
+      <summary class="meta" style="cursor:pointer;">Show first ${top.length}${wu.pendingCount > top.length ? ` of ${wu.pendingCount}` : ""}</summary>
+      <div class="list" style="margin-top:8px;">
+        ${top.map(u => {
+          const sevClass = u.severity === "Critical" ? "bad" : u.severity === "Important" ? "warn" : "muted";
+          return `<div class="row"><div class="name">${esc(u.title)}</div><div class="meta"><span class="badge ${sevClass}">${esc(u.severity)}</span> &middot; ${esc(u.category || "—")}${u.sizeMB ? ` &middot; ${u.sizeMB} MB` : ""}</div></div>`;
+        }).join("")}
+      </div>
+    </details>` : "";
+
+  return `<div style="margin-bottom:6px;">${summary}</div>${rebootRow}${list}`;
 }
 
 function renderVeeam(veeam) {
