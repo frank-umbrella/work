@@ -30,7 +30,7 @@
   #define WorkerUrl "https://watchtower-worker.umbrelladev.workers.dev"
 #endif
 #ifndef AppVersion
-  #define AppVersion "0.13.11"
+  #define AppVersion "0.13.12"
 #endif
 
 #define AppName       "Umbrella Watchtower Agent"
@@ -75,9 +75,14 @@ WizardImageFile=watchtower-wizard.bmp
 #if FileExists(SourcePath + "watchtower-wizard-small.bmp")
 WizardSmallImageFile=watchtower-wizard-small.bmp
 #endif
-; Stretch mode 'no' keeps our pre-rendered BMPs from being letterboxed
-; or distorted on HiDPI scaling — they're already at modern-set size.
-WizardImageStretch=no
+; Stretch=yes -- Inno picks one of several sizes for the wizard image
+; depending on DPI and theme variant. Without stretch the BMP gets
+; center-cropped, which on the user's machine showed only the top-left
+; quarter of our 410x797 design (giant house icon + partial UMBR... text).
+; With stretch=yes Inno scales-to-fit the actual rendered slot, so the
+; full composed banner (logo, wordmark, divider, Watchtower title) is
+; visible at any wizard size.
+WizardImageStretch=yes
 WizardImageAlphaFormat=premultiplied
 
 ; ----------------------------------------------------------------------------
@@ -150,6 +155,18 @@ Filename: "{sys}\sc.exe"; \
     Parameters: "start {#ServiceName}"; \
     Flags: runhidden; \
     StatusMsg: "Starting Umbrella Watchtower service..."
+
+; Launch the tray for the currently-logged-in user. The HKLM Run entry
+; above handles every FUTURE login, but on the install run itself the
+; user is already signed in -- they'd otherwise have to log out and
+; back in before seeing the tray icon. runasoriginaluser drops back
+; from the elevated installer context to the actual user's session
+; (where the tray belongs); nowait lets the installer return without
+; blocking on the long-running tray process; runhidden suppresses any
+; console window flash.
+Filename: "{app}\watchtower-tray.exe"; \
+    Flags: nowait runhidden runasoriginaluser; \
+    StatusMsg: "Starting Watchtower tray..."
 
 #ifdef LogMeInMsi
 ; LogMeIn install -- only when the operator left the Tasks checkbox on.
