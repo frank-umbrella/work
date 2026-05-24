@@ -101,15 +101,24 @@
   }
 
   /* layout */
-  main { max-width: 1320px; margin: 0 auto; padding: 22px 20px 40px; }
+  /* width:100% is critical because main is a flex item in the #app
+     column layout below. Without explicit width, the flex parent's
+     `align-items: stretch` doesn't override max-width:1320px the way
+     it does for items that have no max-width set -- main would
+     shrink-to-fit its largest child instead of filling the available
+     1320px. That bug caused Endpoints (wide 9-col table) to look
+     wide while Clients (5-col short content) looked narrow on the
+     same viewport. width:100% + max-width:1320px = main is always
+     min(viewport, 1320px) regardless of content. */
+  main { width: 100%; max-width: 1320px; margin: 0 auto; padding: 22px 20px 40px; box-sizing: border-box; }
 
   /* Footer pinned to bottom of viewport via flex layout on #app.
      When content is short (a 3-row table on a tall monitor), the
      footer would otherwise float halfway up the screen. flex:1 on
      main fills the gap; min-height:100vh on the flex parent gives
      the layout room to push the footer all the way down. */
-  #app:not([hidden]) { display: flex; flex-direction: column; min-height: 100vh; }
-  #app > main { flex: 1; }
+  #app:not([hidden]) { display: flex; flex-direction: column; min-height: 100vh; align-items: center; }
+  #app > main { flex: 1 0 auto; width: 100%; }
 
   /* Footer: peripheral links only -- the main userbar at the top
      should stay focused on active operator tools. Stays out of view
@@ -835,7 +844,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.15";
+const APP_VERSION = "0.14.16";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -999,6 +1008,27 @@ function fmtAge(v) {
   if (hrs < 24) return hrs + "h ago";
   const days = Math.floor(hrs / 24);
   return days + "d ago";
+}
+
+// Human-readable duration from milliseconds. Used by the drawer's
+// "Collection time" field (was rendered as raw `79563 ms` which the
+// operator had to mentally convert to "about a minute and a half").
+// Format: under 1s = "Xms", under 1m = "X.Xs", under 1h = "Xm Ys",
+// over 1h = "Xh Ym". Always includes the raw ms in parentheses for
+// the engineer who wants the precise number.
+function fmtMs(ms) {
+  if (ms === null || ms === undefined) return "—";
+  const n = Number(ms);
+  if (!isFinite(n) || n < 0) return String(ms);
+  if (n < 1000) return `${Math.round(n)} ms`;
+  const totalSec = n / 1000;
+  if (totalSec < 60) return `${totalSec.toFixed(1)}s <span class="meta">(${Math.round(n).toLocaleString()} ms)</span>`;
+  const totalMin = Math.floor(totalSec / 60);
+  const remSec = Math.round(totalSec - totalMin * 60);
+  if (totalMin < 60) return `${totalMin}m ${remSec}s <span class="meta">(${Math.round(n).toLocaleString()} ms)</span>`;
+  const hrs = Math.floor(totalMin / 60);
+  const mins = totalMin - hrs * 60;
+  return `${hrs}h ${mins}m <span class="meta">(${Math.round(n).toLocaleString()} ms)</span>`;
 }
 
 function statusOf(agent) {
@@ -2680,7 +2710,7 @@ function buildReportDom(a, logoPngDataUrl) {
             : "";
         return `<b>${gb} GB</b> (${pct}%) free of ${size} GB${sevPill}`;
       })()] : null,
-      ["Collection time", r.collectionMs ? `${r.collectionMs} ms` : null],
+      ["Collection time", r.collectionMs ? fmtMs(r.collectionMs) : null],
     ])}
 
     ${sectionHdr("System")}
@@ -3681,7 +3711,7 @@ function renderDrawer(pcId) {
         ["External IP", `<code>${esc(a.externalIp)}</code>`],
         ["Last check-in", esc(tsToStr(a.lastCheckin)) + ` <span class="meta">(${fmtAge(a.lastCheckin)})</span>`],
         ["Installed at", esc(tsToStr(a.installedAt))],
-        ["Collection time", r.collectionMs ? `${r.collectionMs} ms` : "—", "Total milliseconds the agent spent running all probes during the last check-in (system inventory, network, storage, OMSA disk health, Veeam / WSB backup status, Defender / SentinelOne / LogMeIn detection, etc). Low = fast machine. Spikes typically mean slow disks, WMI bottlenecks, OMSA timing out on a degraded controller, or Get-WBJob waiting on a hung backup."],
+        ["Collection time", r.collectionMs ? fmtMs(r.collectionMs) : "—", "Total time the agent spent running all probes during the last check-in (system inventory, network, storage, OMSA disk health, Veeam / WSB backup status, Defender / SentinelOne / LogMeIn detection, etc). Low = fast machine. Spikes typically mean slow disks, WMI bottlenecks, OMSA timing out on a degraded controller, or Get-WBJob waiting on a hung backup."],
       ])}
     </div>
 
