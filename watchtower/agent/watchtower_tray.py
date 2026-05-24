@@ -29,6 +29,23 @@ import pystray
 import config as cfg_mod
 
 
+def _read_version():
+    """Reads agent/VERSION at runtime so the tray's tooltip + right-click
+    menu show the exact running version. Mirrors checkin.py's resolver
+    without importing checkin (which would drag in requests / collector /
+    every probe at tray startup). Bundled into the EXE via PyInstaller's
+    --add-data VERSION;. flag in build.ps1."""
+    base = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
+    try:
+        with open(os.path.join(base, "VERSION"), "r", encoding="utf-8") as f:
+            return f.read().strip()
+    except OSError:
+        return "unknown"
+
+
+AGENT_VERSION = _read_version()
+
+
 POLL_INTERVAL_SEC = 30
 RUN_NOW_MARKER = cfg_mod.DATA_DIR / ".run-now"
 
@@ -128,13 +145,17 @@ def _status_color(state):
 
 
 def _tooltip(state):
+    # Version + state in one line. Windows tray tooltips are capped at
+    # 128 chars on Win7 and 256+ on later versions; we comfortably fit
+    # below both with the short timestamps we emit.
+    ver = f"v{AGENT_VERSION}"
     if not state:
-        return "Umbrella Watchtower — never checked in"
+        return f"Umbrella Watchtower {ver} -- never checked in"
     if not state.get("ok", True):
-        return f"Umbrella Watchtower — error: {state.get('error', 'unknown')}"
+        return f"Umbrella Watchtower {ver} -- error: {state.get('error', 'unknown')}"
     last = state.get("lastCheckinAt") or "never"
     ip = (state.get("lastReport") or {}).get("externalIp") or "?"
-    return f"Umbrella Watchtower — last check-in {last} (IP {ip})"
+    return f"Umbrella Watchtower {ver} -- last check-in {last} (IP {ip})"
 
 
 def _on_check_now(icon, item):
@@ -287,15 +308,23 @@ def _poll_loop(icon):
 
 def main():
     initial_state = cfg_mod.load_state()
-    # Hostname header (disabled MenuItem -- pystray uses `enabled=False`
-    # callbacks to render a non-clickable label). Operator opens the
-    # tray and immediately knows which box they're on (matters on RDP
-    # sessions to dozens of customer servers where the taskbar is
-    # all anonymous icons).
+    # Hostname header + version line (both disabled MenuItems -- pystray
+    # uses `enabled=False` callbacks to render a non-clickable label).
+    # Operator opens the tray and immediately knows which box they're on
+    # (matters on RDP sessions to dozens of customer servers where the
+    # taskbar is all anonymous icons) AND which agent version is
+    # actually running (matters when "did the auto-update apply?" is
+    # the support question).
     hostname = socket.gethostname()
     menu = pystray.Menu(
         pystray.MenuItem(
             f"Watchtower on {hostname}",
+            lambda i, it: None,
+            enabled=False,
+            default=False,
+        ),
+        pystray.MenuItem(
+            f"Agent v{AGENT_VERSION}",
             lambda i, it: None,
             enabled=False,
             default=False,
