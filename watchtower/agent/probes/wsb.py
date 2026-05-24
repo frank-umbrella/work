@@ -35,19 +35,37 @@ WSB_RESULT_MAP = {
 # without the recentJobs section.
 PS_SNIPPET = r"""
 $ErrorActionPreference = 'Stop'
+# Suppress all non-output streams so warnings / verbose / progress
+# from cmdlets in this snippet don't get captured by Python's stdout.
+# v0.14.18 fix: previously a "Reading PSGetModuleVersionHashtable from
+# remote MEC..." progress write would pollute stdout BEFORE ConvertTo-Json
+# ran, breaking the agent's json.loads() with the famous
+# "Expecting value: line 1 column 1 (char 0)" error.
+$WarningPreference = 'SilentlyContinue'
+$VerbosePreference = 'SilentlyContinue'
+$InformationPreference = 'SilentlyContinue'
+$ProgressPreference = 'SilentlyContinue'
+
+# Helper -- always available, even if Import-Module below fails. Some
+# scripts had _DateOrNull defined INSIDE the try block, so when the
+# outer catch ran with an Import-Module failure, _DateOrNull was not
+# in scope and the catch block itself blew up with a "function not
+# found" error -- emitting a stderr line to stdout instead of the
+# expected fallback JSON. Define it up front so it's always reachable.
+$minDate = [datetime]::MinValue
+function _DateOrNull($d) {
+    if ($d -and $d -ne $minDate) { return $d.ToString('o') } else { return $null }
+}
+
 try {
     Import-Module WindowsServerBackup -ErrorAction Stop
     $s = Get-WBSummary
 
     # Get-WBSummary returns [datetime]::MinValue (0001-01-01T00:00:00) for
-    # date fields on hosts with no backup history yet — not $null. We have
-    # to filter those out client-side so the dashboard's no-policy
-    # empty-state branch fires correctly (it gates on the field being
-    # null/falsy).
-    $minDate = [datetime]::MinValue
-    function _DateOrNull($d) {
-        if ($d -and $d -ne $minDate) { return $d.ToString('o') } else { return $null }
-    }
+    # date fields on hosts with no backup history yet -- not $null. The
+    # _DateOrNull function (defined ABOVE the try block in v0.14.18+)
+    # filters those out so the dashboard's no-policy empty-state branch
+    # fires correctly (it gates on the field being null/falsy).
 
     $jobs = @()
     try {
@@ -259,9 +277,19 @@ try {
     # to depth=2 which would silently truncate the array into "Length=10".
     $out | ConvertTo-Json -Compress -Depth 4
 } catch {
-    # Module not installed, or no backup policy set — return a tiny
-    # marker the Python side can route to None.
-    @{ installed = $false; reason = $_.Exception.Message } | ConvertTo-Json -Compress
+    # Module not installed, or no backup policy set, or any other
+    # outer-try failure. Emit a tiny marker the Python side routes
+    # to None. Wrapped in its own try so a catch-block failure
+    # (very rare, but seen when $_.Exception.Message itself throws)
+    # still produces stdout that parses as JSON, instead of an
+    # empty stdout that breaks json.loads with "Expecting value:
+    # line 1 column 1 (char 0)".
+    try {
+        $errMsg = "$($_.Exception.Message)"
+    } catch {
+        $errMsg = 'unknown error'
+    }
+    Write-Output (@{ installed = $false; reason = $errMsg } | ConvertTo-Json -Compress)
 }
 """
 

@@ -33,6 +33,13 @@ import os
 import subprocess
 import winreg
 
+try:
+    import logger as _logger
+except ImportError:
+    class _Stub:
+        def log(self, *a, **kw): pass
+    _logger = _Stub()
+
 
 # Service candidates across Carbonite products.
 SERVICE_CANDIDATES = [
@@ -172,8 +179,13 @@ def _detect_protected():
                 continue
             coerced = _coerce_bool(raw)
             if coerced is not None:
+                _logger.log(f"  carbonite._detect_protected MATCH {path}\\{name} = {raw!r} -> {coerced}")
                 return coerced, f"{path}\\{name}"
-    return None, None
+    # Fallback: recursive walk of HKLM\SOFTWARE\Carbonite looking for
+    # ANY value whose name matches a protected-ish pattern. Useful
+    # for Carbonite Endpoint v11+ where the value lives in a subkey
+    # we haven't enumerated above. Substring match keeps it tolerant.
+    return _walk_carbonite_for_protected()
 
 
 def _detect_files_protected():
@@ -182,7 +194,102 @@ def _detect_files_protected():
             raw = _read_reg_value(hive, path, name)
             coerced = _coerce_int(raw)
             if coerced is not None and coerced >= 0:
+                _logger.log(f"  carbonite._detect_files_protected MATCH {path}\\{name} = {raw!r}")
                 return coerced, f"{path}\\{name}"
+    return _walk_carbonite_for_file_count()
+
+
+def _walk_subtree(hive, root, callback, depth=0, max_depth=4):
+    """Recursive enumerator. Calls callback(full_path, value_name, value)
+    for every value under root. Bounded depth so we don't iterate the
+    entire registry on a misconfigured key."""
+    if depth > max_depth:
+        return
+    try:
+        with winreg.OpenKey(hive, root, 0, winreg.KEY_READ | winreg.KEY_WOW64_64KEY) as k:
+            # Values at this level
+            i = 0
+            while True:
+                try:
+                    name, value, _t = winreg.EnumValue(k, i)
+                except OSError:
+                    break
+                callback(root, name, value)
+                i += 1
+            # Recurse into subkeys
+            i = 0
+            while True:
+                try:
+                    sub = winreg.EnumKey(k, i)
+                except OSError:
+                    break
+                _walk_subtree(hive, f"{root}\\{sub}", callback, depth + 1, max_depth)
+                i += 1
+    except (FileNotFoundError, OSError):
+        return
+
+
+# Substring patterns for value names we'd consider "protected status"
+# and "files protected count" -- broad on purpose so newer Carbonite
+# product variants with different naming still match.
+PROTECTED_NAME_PATTERNS = (
+    "isprotected", "protected", "backupstatus", "backupstate",
+    "protectionstate", "state", "active",
+)
+FILE_COUNT_NAME_PATTERNS = (
+    "filesprotected", "filecount", "protectedfilecount", "numfiles",
+    "totalfiles", "backedupfilecount", "filesbackedup", "fileswithbackup",
+)
+
+
+def _walk_carbonite_for_protected():
+    """Last-resort: walk every subkey of HKLM\\SOFTWARE\\Carbonite (both
+    hives) for a value whose name matches a protected-ish pattern AND
+    coerces cleanly to bool."""
+    hits = []
+
+    def visit(path, name, value):
+        n_lower = name.lower()
+        if any(p in n_lower for p in PROTECTED_NAME_PATTERNS):
+            coerced = _coerce_bool(value)
+            if coerced is not None:
+                hits.append((path, name, value, coerced))
+
+    for root in (r"SOFTWARE\Carbonite", r"SOFTWARE\WOW6432Node\Carbonite"):
+        _walk_subtree(winreg.HKEY_LOCAL_MACHINE, root, visit)
+
+    if hits:
+        # Prefer hits whose name is exactly 'isprotected' / 'protected'
+        # before generic 'state' matches.
+        hits.sort(key=lambda h: 0 if h[1].lower() in ("isprotected", "protected") else 1)
+        path, name, value, coerced = hits[0]
+        _logger.log(f"  carbonite._walk MATCH (fallback) {path}\\{name} = {value!r} -> {coerced}")
+        return coerced, f"{path}\\{name}"
+    _logger.log("  carbonite._walk_for_protected: no match in any subkey")
+    return None, None
+
+
+def _walk_carbonite_for_file_count():
+    hits = []
+
+    def visit(path, name, value):
+        n_lower = name.lower()
+        if any(p in n_lower for p in FILE_COUNT_NAME_PATTERNS):
+            coerced = _coerce_int(value)
+            if coerced is not None and coerced >= 0:
+                hits.append((path, name, value, coerced))
+
+    for root in (r"SOFTWARE\Carbonite", r"SOFTWARE\WOW6432Node\Carbonite"):
+        _walk_subtree(winreg.HKEY_LOCAL_MACHINE, root, visit)
+
+    if hits:
+        # Prefer the largest count (most likely "total files protected"
+        # vs. some smaller subset count).
+        hits.sort(key=lambda h: -h[3])
+        path, name, value, coerced = hits[0]
+        _logger.log(f"  carbonite._walk MATCH (fallback) {path}\\{name} = {value!r} -> {coerced}")
+        return coerced, f"{path}\\{name}"
+    _logger.log("  carbonite._walk_for_file_count: no match in any subkey")
     return None, None
 
 
