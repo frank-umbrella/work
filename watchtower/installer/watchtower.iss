@@ -108,6 +108,17 @@ Name: "logmein"; Description: "Also install LogMeIn remote access"; GroupDescrip
 [Files]
 Source: "build\watchtower-svc.exe";  DestDir: "{app}"; Flags: ignoreversion
 Source: "build\watchtower-tray.exe"; DestDir: "{app}"; Flags: ignoreversion
+; Diagnostic helper -- a single double-clickable script that gathers all
+; the data Umbrella Automation typically asks for when a host fails to
+; check in (service state, config.json, state.json, last 200 lines of
+; watchtower.log, /validate + /healthz network test, a manual
+; --checkin-once run, event log entries, Veeam + Carbonite registry
+; dumps, system summary) and writes it to a single .txt under
+; %ProgramData%\Watchtower\diagnostic-*.txt. Self-elevates via the .cmd
+; wrapper, opens Notepad on the resulting file when done. Avoids the
+; copy-paste loop entirely -- operator just attaches the .txt to email.
+Source: "..\agent\scripts\diagnostic.ps1"; DestDir: "{app}\scripts"; Flags: ignoreversion
+Source: "..\agent\scripts\Save Diagnostic Report.cmd"; DestDir: "{app}\scripts"; Flags: ignoreversion
 #ifdef LogMeInMsi
 ; LogMeIn MSI extracted to {tmp} during install, renamed to a stable filename
 ; so the [Run] entry can hardcode the path. deleteafterinstall cleans it up
@@ -124,6 +135,18 @@ Source: "{#LogMeInMsi}"; DestDir: "{tmp}"; DestName: "LogMeIn.msi"; \
 ; ----------------------------------------------------------------------------
 [Dirs]
 Name: "{commonappdata}\Watchtower"; Permissions: users-modify
+
+; ----------------------------------------------------------------------------
+; Start Menu shortcut so non-technical operators can run the diagnostic
+; without having to browse into Program Files. Single entry under
+; "Umbrella Watchtower" -> "Save Diagnostic Report". The .cmd handles
+; self-elevation so the operator just clicks once.
+; ----------------------------------------------------------------------------
+[Icons]
+Name: "{commonprograms}\Umbrella Watchtower\Save Diagnostic Report"; \
+    Filename: "{app}\scripts\Save Diagnostic Report.cmd"; \
+    IconFilename: "{app}\watchtower-tray.exe"; \
+    Comment: "Generates a Watchtower diagnostic report and opens it in Notepad. Attach the resulting .txt to your support email."
 
 ; ----------------------------------------------------------------------------
 ; HKLM Run — system-wide tray autostart so the tray launches for every

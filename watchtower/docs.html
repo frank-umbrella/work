@@ -810,6 +810,28 @@ Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" 
   <li>Worker URL mismatch: open <code>%ProgramData%\Watchtower\config.json</code> on the target PC and confirm <code>workerUrl</code> matches what's deployed.</li>
 </ul>
 
+<h3 id="diagnostic-report">One-click diagnostic report</h3>
+<p>v0.14.13+ ships a diagnostic launcher that gathers every signal we typically ask for when a host fails to check in and writes them to a single timestamped <code>.txt</code> under <code>C:\ProgramData\Watchtower\</code>. Three ways to run it:</p>
+<ul>
+  <li><b>Start menu:</b> <i>Umbrella Watchtower</i> &rarr; <b>Save Diagnostic Report</b></li>
+  <li><b>System tray:</b> right-click the Watchtower icon &rarr; <b>Save diagnostic report&hellip;</b></li>
+  <li><b>Direct path:</b> double-click <code>C:\Program Files (x86)\Umbrella Watchtower\scripts\Save Diagnostic Report.cmd</code></li>
+</ul>
+<p>The launcher self-elevates to admin (UAC prompt), runs the script, writes the report, and opens it in Notepad. <b>Attach the resulting <code>diagnostic-YYYY-MM-DD_HH-MM-SS.txt</code> to your support email</b> &mdash; no copy/paste of multiple commands required.</p>
+<p>What's in the report:</p>
+<ul>
+  <li>Agent version + install paths + <code>config.json</code> (install token redacted to first 6 chars)</li>
+  <li>Service state (<code>sc query</code>) + process state (PID, CPU, working set)</li>
+  <li><code>state.json</code> (last successful check-in record)</li>
+  <li>Last 200 lines of <code>watchtower.log</code></li>
+  <li><code>/validate</code> result against the configured worker + <code>/healthz</code> reachability test</li>
+  <li>Inline <code>--checkin-once</code> run (full stdout, capped at 120s)</li>
+  <li>Service Control Manager events for Watchtower (last 6 hours)</li>
+  <li>Application event log entries for <code>watchtower-svc</code> (last 6 hours) &mdash; surfaces PyInstaller bootloader errors immediately</li>
+  <li>Veeam + Carbonite registry dumps (the two probes that have historically missed installs)</li>
+  <li>System summary (hostname, OS, manufacturer, virtualization, C: drive free space)</li>
+</ul>
+
 <h3 id="agent-log">Agent log + manual check-in</h3>
 <p>v0.14.4+ writes a timestamped log to <code>C:\ProgramData\Watchtower\watchtower.log</code> on every check-in &mdash; lists each probe with timing and surfaces timeouts. First place to look when a host stops phoning home.</p>
 <pre><code>Get-Content C:\ProgramData\Watchtower\watchtower.log -Tail 50</code></pre>

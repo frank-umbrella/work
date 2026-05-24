@@ -189,6 +189,51 @@ def _on_show_status_file(icon, item):
     os.startfile(folder)  # noqa: S606  (deliberate; folder is fixed)
 
 
+def _on_save_diagnostic(icon, item):
+    """Launches the bundled diagnostic launcher (.cmd self-elevates,
+    runs diagnostic.ps1, writes timestamped .txt under %ProgramData%
+    \\Watchtower, opens it in Notepad). No copy/paste needed -- the
+    operator attaches the resulting .txt to support email."""
+    # The installer drops the launcher at {app}\scripts\Save Diagnostic Report.cmd.
+    # Locate the EXE's parent dir first, then probe both 'scripts'
+    # subfolder + the EXE dir itself (legacy locations).
+    candidates = []
+    try:
+        exe_dir = os.path.dirname(sys.executable)
+        candidates.append(os.path.join(exe_dir, "scripts", "Save Diagnostic Report.cmd"))
+        candidates.append(os.path.join(exe_dir, "Save Diagnostic Report.cmd"))
+    except Exception:
+        pass
+    # Fall back to the standard install dirs in case sys.executable is
+    # something unexpected (running from source, etc).
+    for base in (
+        r"C:\Program Files (x86)\Umbrella Watchtower",
+        r"C:\Program Files\Umbrella Watchtower",
+    ):
+        candidates.append(os.path.join(base, "scripts", "Save Diagnostic Report.cmd"))
+
+    for path in candidates:
+        if os.path.exists(path):
+            try:
+                os.startfile(path)  # noqa: S606
+            except OSError as e:
+                # Surface to the user via a balloon notification rather
+                # than crashing the tray.
+                try:
+                    icon.notify(f"Diagnostic launcher failed: {e}", "Watchtower")
+                except Exception:
+                    pass
+            return
+
+    try:
+        icon.notify(
+            "Diagnostic launcher not found. Update the agent to v0.14.13 or newer.",
+            "Watchtower"
+        )
+    except Exception:
+        pass
+
+
 def _on_quit(icon, item):
     icon.stop()
 
@@ -212,6 +257,7 @@ def main():
         pystray.MenuItem("Check for updates", _on_check_for_updates),
         pystray.MenuItem("Open Watchtower dashboard", _on_open_dashboard),
         pystray.MenuItem("Show data folder", _on_show_status_file),
+        pystray.MenuItem("Save diagnostic report...", _on_save_diagnostic),
         pystray.Menu.SEPARATOR,
         pystray.MenuItem("Quit", _on_quit),
     )
