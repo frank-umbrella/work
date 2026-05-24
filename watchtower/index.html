@@ -476,7 +476,7 @@
           </select>
           <span class="spacer"></span>
           <span class="count" id="fleetCount"></span>
-          <button class="btn btn-sm" id="fleetRefresh" title="Re-paint the table with current data + refresh the 'Last check' relative timestamps. Live Firestore subscription keeps host data current automatically -- this button just nudges the UI in case the relative-time labels look stale after the dashboard has been open for a while.">&#x21bb; Refresh</button>
+          <button class="btn btn-sm" id="fleetRefresh" title="Re-paint the table. Live Firestore subscription keeps host data current automatically, so this is just an escape hatch -- click it if a row looks stale or the 'Last check' relative timestamps haven't updated.">&#x21bb; Refresh</button>
           <button class="btn btn-sm" id="fleetExportCsv" title="Download the visible endpoint rows as CSV">CSV</button>
           <button class="btn btn-sm" id="fleetExportXlsx" title="Download the visible endpoint rows as an Excel workbook">Excel</button>
         </div>
@@ -2089,18 +2089,14 @@ $("#exportXlsxBtn").addEventListener("click", () => {
 $("#fleetExportCsv").addEventListener("click", () => exportFleetCsv());
 $("#fleetExportXlsx").addEventListener("click", () => exportFleetXlsx());
 
-// Manual refresh + 60s auto-refresh of the Endpoints table.
+// Manual refresh of the Endpoints table.
 //
 // Firestore's onSnapshot keeps state.agents live in real time, so the
-// underlying data is always current. What CAN go stale is the rendered
-// relative-time labels -- "Last check: 6h ago" stays frozen until the
-// table re-paints, so after the dashboard's been open for a while the
-// labels drift behind reality. Re-running renderFleet() recomputes
-// fmtAge against `now` and refreshes them.
-//
-// Manual button gives the operator the "I just want to confirm" feel.
-// 60s auto-refresh stops the labels from ever being more than a minute
-// stale during a long session without the operator clicking anything.
+// underlying data is always current -- this button does NOT poll the
+// server. What it DOES do is re-run renderFleet() so the rendered
+// relative-time labels ("Last check: 6h ago") recompute against `now`
+// in case a host row didn't paint as expected. Operator escape hatch,
+// nothing more.
 $("#fleetRefresh").addEventListener("click", () => {
   // Brief animation on the button so the click feels acknowledged --
   // otherwise nothing visibly changes for a healthy table and the
@@ -2112,14 +2108,6 @@ $("#fleetRefresh").addEventListener("click", () => {
   if (state.openPcId) renderDrawer(state.openPcId);
   toast("Refreshed.");
 });
-
-// 60s tick: re-paint just the Endpoints table so relative timestamps
-// stay accurate. No-op if the table isn't currently visible (saves
-// some DOM work on the Clients / Settings / Activity tabs).
-setInterval(() => {
-  const tabActive = document.querySelector('.tab-pane[data-tab="fleet"]:not([hidden])');
-  if (tabActive) renderFleet();
-}, 60_000);
 
 // ============== Per-host PDF export ==============
 // Lazy-loads html2pdf.bundle on first click to keep initial page weight small.
