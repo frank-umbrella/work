@@ -158,6 +158,81 @@ try {
         try { $overwriteOld   = [bool]$policy.OverwriteOldFormatVhd } catch {}
     }
 
+    # Human-readable frequency description from the schedule array.
+    # WSB's standard schedule is daily-at-time(s); compute a label.
+    $frequency = $null
+    if ($schedule.Count -gt 0) {
+        $sortedTimes = @($schedule | Sort-Object)
+        if ($sortedTimes.Count -eq 1) {
+            $frequency = "Daily at $($sortedTimes[0])"
+        } else {
+            $frequency = "Daily, $($sortedTimes.Count) times ($($sortedTimes -join ', '))"
+        }
+    } elseif ($policy) {
+        $frequency = "Policy exists, no times scheduled"
+    }
+
+    # ALL backup versions, not just LastBackup/LastSuccess. Get-WBBackupSet
+    # returns one entry per completed backup with VersionId + BackupTime +
+    # BackupTarget. We summarize the full set (totalBackups), then group
+    # by target to show "N backups on Drive E:" / "N backups on \\server\share".
+    # Each backup set also carries its own VssBackupOption so admins can
+    # see if a specific run was VssCopy vs VssFull (handy when policy
+    # changed mid-history).
+    $totalBackups = 0
+    $backupsByTarget = @()
+    $perBackupVss = @()
+    try {
+        $sets = @(Get-WBBackupSet -ErrorAction Stop)
+        $totalBackups = $sets.Count
+        if ($sets.Count -gt 0) {
+            # Group by BackupTarget label so the dashboard shows
+            # backups-per-disk for multi-target WSB policies.
+            $grouped = $sets | Group-Object -Property @{
+                Expression = {
+                    $t = $_.BackupTarget
+                    if ($t -and $t.Label) { "$($t.Label)" }
+                    elseif ($t -and $t.Path) { "$($t.Path)" }
+                    elseif ($t -and $t.UncPath) { "$($t.UncPath)" }
+                    else { "(unknown target)" }
+                }
+            }
+            $backupsByTarget = @($grouped | ForEach-Object {
+                $first = $_.Group | Sort-Object BackupTime | Select-Object -First 1
+                $last  = $_.Group | Sort-Object BackupTime -Descending | Select-Object -First 1
+                [PSCustomObject]@{
+                    target          = "$($_.Name)"
+                    count           = $_.Count
+                    oldestBackup    = _DateOrNull $first.BackupTime
+                    newestBackup    = _DateOrNull $last.BackupTime
+                }
+            })
+            # Per-backup VSS settings -- capped at the 20 most recent
+            # so the payload stays small even on hosts with 90+ days
+            # of daily backups retained.
+            $perBackupVss = @($sets | Sort-Object BackupTime -Descending |
+                Select-Object -First 20 | ForEach-Object {
+                    $tgt = $_.BackupTarget
+                    $tgtLabel = $null
+                    if ($tgt) {
+                        if ($tgt.Label)   { $tgtLabel = "$($tgt.Label)" }
+                        elseif ($tgt.Path) { $tgtLabel = "$($tgt.Path)" }
+                        elseif ($tgt.UncPath) { $tgtLabel = "$($tgt.UncPath)" }
+                    }
+                    $vss = $null
+                    try { $vss = "$($_.VssBackupOption)" } catch {}
+                    [PSCustomObject]@{
+                        backupTime = _DateOrNull $_.BackupTime
+                        target     = $tgtLabel
+                        vssOption  = $vss
+                    }
+                })
+        }
+    } catch {
+        # Get-WBBackupSet can throw if no backups have ever completed.
+        # That's not an error; leave counts at 0 and skip the arrays.
+    }
+
     $out = [PSCustomObject]@{
         installed              = $true
         lastBackupTime         = _DateOrNull $s.LastBackupTime
@@ -171,10 +246,14 @@ try {
         targets                = $targets
         sources                = $sources
         schedule               = $schedule
+        frequency              = $frequency
         vssMode                = $vssMode
         allowDeleteOldBackups  = $allowDeleteOld
         overwriteOldFormatVhd  = $overwriteOld
         hasPolicy              = ($policy -ne $null)
+        totalBackups           = $totalBackups
+        backupsByTarget        = $backupsByTarget
+        perBackupVss           = $perBackupVss
     }
     # Depth=4 covers our recentJobs array of objects. ConvertTo-Json defaults
     # to depth=2 which would silently truncate the array into "Length=10".
@@ -217,7 +296,11 @@ def collect():
             ],
             capture_output=True,
             text=True,
-            timeout=30,
+            # 45s -- Get-WBBackupSet on hosts with 90+ days of daily
+            # retention can take ~15s alone, plus Get-WBSummary +
+            # Get-WBJob + Get-WBPolicy. Still well under the 60s
+            # per-probe wall-clock cap in collector.py.
+            timeout=45,
             creationflags=0x08000000,
         )
         if result.returncode != 0:
@@ -278,10 +361,21 @@ def collect():
             # but no scheduled backup policy has been configured yet.
             "sources": data.get("sources") or [],
             "schedule": data.get("schedule") or [],
+            "frequency": data.get("frequency"),
             "vssMode": data.get("vssMode"),
             "allowDeleteOldBackups": data.get("allowDeleteOldBackups"),
             "overwriteOldFormatVhd": data.get("overwriteOldFormatVhd"),
             "hasPolicy": data.get("hasPolicy", False),
+            # Full backup-set inventory (v0.14.10+). Get-WBBackupSet
+            # returns every retained backup version with its target and
+            # VssBackupOption. totalBackups is the headline count for
+            # the dashboard; backupsByTarget groups counts per
+            # destination disk/share; perBackupVss surfaces per-run
+            # VSS mode (capped at the 20 most recent to keep payload
+            # small on hosts with deep retention).
+            "totalBackups": data.get("totalBackups", 0),
+            "backupsByTarget": data.get("backupsByTarget") or [],
+            "perBackupVss": data.get("perBackupVss") or [],
         }
 
     except subprocess.TimeoutExpired:

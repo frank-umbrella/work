@@ -3975,7 +3975,24 @@ function renderWsb(w) {
       <div class="v">${esc(w.lastSuccessfulBackup || "—")} <span class="meta">(${fmtAge(w.lastSuccessfulBackup)})</span></div>
       ${hasSchedule ? `<div class="k">Next backup</div><div class="v">${esc(w.nextBackupTime)} <span class="meta">(${fmtAge(w.nextBackupTime)})</span></div>` : ""}
       <div class="k">Versions retained</div>
-      <div class="v">${w.numberOfVersions || 0}</div>
+      <div class="v">${w.numberOfVersions || 0}${(w.totalBackups != null && w.totalBackups !== w.numberOfVersions) ? ` <span class="meta">&middot; ${w.totalBackups} total backups across all targets</span>` : ""}</div>
+      ${(w.totalBackups != null && w.totalBackups > 0) ? `
+        <div class="k">Total backups</div>
+        <div class="v"><b>${w.totalBackups}</b> backup set${w.totalBackups === 1 ? "" : "s"} retained <span class="meta">(across every destination, all VSS modes)</span></div>
+      ` : ""}
+      ${Array.isArray(w.backupsByTarget) && w.backupsByTarget.length ? `
+        <div class="k">Backups per disk</div>
+        <div class="v">${w.backupsByTarget.map(t => `
+          <div style="margin-bottom:4px;">
+            <code>${esc(t.target || "—")}</code>
+            <span class="badge muted" style="margin-left:6px;">${t.count} backup${t.count === 1 ? "" : "s"}</span>
+            ${t.oldestBackup && t.newestBackup ? `<div class="meta" style="margin-left:4px;font-size:11px;">oldest ${esc(t.oldestBackup.slice(0, 10))} &middot; newest ${esc(t.newestBackup.slice(0, 10))}</div>` : ""}
+          </div>`).join("")}</div>
+      ` : ""}
+      ${w.frequency ? `
+        <div class="k">Frequency</div>
+        <div class="v">${esc(w.frequency)}</div>
+      ` : ""}
       ${Array.isArray(w.targets) && w.targets.length ? `
         <div class="k">Destination${w.targets.length === 1 ? "" : "s"}</div>
         <div class="v">${w.targets.map(t => {
@@ -4026,6 +4043,22 @@ function renderWsb(w) {
       })()}
     </div>
     ${jobsBlock}
+    ${Array.isArray(w.perBackupVss) && w.perBackupVss.length ? `
+      <details style="margin-top:14px;">
+        <summary>Per-backup VSS settings (${w.perBackupVss.length} most recent)</summary>
+        <div class="list" style="margin-top:6px;">
+          ${w.perBackupVss.map(b => `
+            <div class="row">
+              <div>
+                <div class="name">${esc(b.backupTime || "—")} <span class="meta">&middot; ${fmtAge(b.backupTime)}</span></div>
+                ${b.target ? `<div class="meta"><code>${esc(b.target)}</code></div>` : ""}
+              </div>
+              <div class="meta">${b.vssOption ? `<code>${esc(b.vssOption)}</code>` : "<span style='color:#aaa;'>—</span>"}</div>
+            </div>
+          `).join("")}
+        </div>
+      </details>
+    ` : ""}
   `;
 }
 
@@ -4043,9 +4076,32 @@ function renderCarbonite(c) {
       <div class="meta"><span class="badge ${s.state === "running" ? "ok" : "warn"}">${esc(s.state)}</span></div>
     </div>
   `).join("");
+
+  // Operational status -- best-effort signals pulled from Carbonite's
+  // own registry surface. null means we couldn't find the value in
+  // any known location; render as "unknown" so we don't lie about
+  // protection state. Where Carbonite reports a clear yes/no, surface
+  // a colored badge so the operator can spot at a glance.
+  const protBadge = c.protected === true
+    ? `<span class="badge ok">Yes</span>`
+    : c.protected === false
+      ? `<span class="badge bad">No</span>`
+      : `<span class="badge muted" title="Carbonite didn't write a recognizable status value to any of the registry locations we check. Open the Carbonite UI on the host to see live status.">unknown</span>`;
+  const filesCell = (typeof c.filesProtected === "number")
+    ? `<b>${c.filesProtected.toLocaleString()}</b> file${c.filesProtected === 1 ? "" : "s"}`
+    : `<span class="badge muted" title="Carbonite didn't write a file-count value to any of the registry locations we check. The Carbonite UI on the host should show this number live.">unknown</span>`;
+
+  const statusKv = `<div class="kv" style="margin-top:10px;">
+    <div class="k" title="Per Carbonite's own status reporting -- not just 'service is running'. Pulled from the registry value Carbonite writes when it confirms a successful protection state.">Protected?</div>
+    <div class="v">${protBadge}${c.protectedSource ? ` <span class="meta" style="font-size:11px;">&middot; <code>${esc(c.protectedSource)}</code></span>` : ""}</div>
+    <div class="k" title="Number of files Carbonite has enrolled in the backup set. Flatlining or shrinking growth is usually a sign something stopped getting picked up.">Files protected</div>
+    <div class="v">${filesCell}${c.filesProtectedSource ? ` <span class="meta" style="font-size:11px;">&middot; <code>${esc(c.filesProtectedSource)}</code></span>` : ""}</div>
+  </div>`;
+
   return `
     ${products ? `<div class="list">${products}</div>` : ""}
     ${services ? `<div class="list" style="margin-top:8px;">${services}</div>` : ""}
+    ${statusKv}
     ${!products && !services ? `<div class="meta">Detected — no product or service details available.</div>` : ""}
   `;
 }

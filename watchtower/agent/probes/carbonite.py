@@ -1,5 +1,5 @@
 """
-probes/carbonite.py — Carbonite backup product detection.
+probes/carbonite.py — Carbonite backup product detection + status.
 
 Carbonite ships under several SKU names depending on the era and
 target audience:
@@ -12,12 +12,24 @@ Their installers all land under the standard Uninstall registry tree
 with publisher "Carbonite" (or "Carbonite, Inc."). Service names vary
 by product; we probe a candidate list.
 
-v1 reports presence + version + product flavor + service state.
-Last-backup status is product-specific (the Server product writes
-session logs to disk, the Endpoint product is opaque) and is deferred
-to a follow-up if/when MSP admins ask for it.
+v0.14.10+: in addition to presence/version/service-state, we now try
+to capture two operational signals MSPs actually want to see on the
+dashboard:
+
+  * `protected` (bool | null) -- per Carbonite's own reporting, is
+    the device currently in a protected state. Yes/no instead of
+    "service is running" which is a weaker signal.
+  * `filesProtected` (int | null) -- count of files Carbonite has
+    enrolled in the backup set. Surfaces when growth flatlines (=
+    something's not getting picked up).
+
+Both are pulled best-effort from a handful of registry locations
+Carbonite has used across products + versions. If none of them
+contain a usable value the fields stay null and the dashboard
+shows them as "unknown" -- never lie about a backup product.
 """
 
+import os
 import subprocess
 import winreg
 
@@ -28,6 +40,48 @@ SERVICE_CANDIDATES = [
     "Carbonite Server Backup",   # Server Backup (legacy)
     "CarboniteSafeBackup",       # Safe / consumer
     "EVault InfoStage Agent",    # very old SKU
+]
+
+
+# Registry locations where Carbonite has historically stored agent
+# status. We try each with both the canonical value name AND a few
+# variants because the property names have drifted across versions.
+# Each entry is (hive, path, [value_names_to_try], parser).
+# Parser is one of:
+#   "bool_yn"  -- expect a REG_DWORD or REG_SZ that maps to bool (1/0,
+#                 yes/no, true/false, Protected/NotProtected)
+#   "int"      -- expect a numeric count
+PROTECTED_VALUE_CANDIDATES = [
+    # Endpoint Backup writes status under HKLM\SOFTWARE\Carbonite\BUEngine
+    (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Carbonite\BUEngine",
+        ["IsProtected", "Protected", "BackupStatus", "Status"]),
+    (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\WOW6432Node\Carbonite\BUEngine",
+        ["IsProtected", "Protected", "BackupStatus", "Status"]),
+    # Some Server Backup versions stash status under \Status subkey
+    (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Carbonite\Status",
+        ["IsProtected", "Protected", "State"]),
+    (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\WOW6432Node\Carbonite\Status",
+        ["IsProtected", "Protected", "State"]),
+    # Safe / consumer
+    (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Carbonite\Carbonite Safe Backup",
+        ["IsProtected", "Protected", "BackupState"]),
+    (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\WOW6432Node\Carbonite\Carbonite Safe Backup",
+        ["IsProtected", "Protected", "BackupState"]),
+]
+
+FILES_PROTECTED_VALUE_CANDIDATES = [
+    (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Carbonite\BUEngine",
+        ["FilesProtected", "FileCount", "ProtectedFileCount", "NumFiles"]),
+    (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\WOW6432Node\Carbonite\BUEngine",
+        ["FilesProtected", "FileCount", "ProtectedFileCount", "NumFiles"]),
+    (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Carbonite\Status",
+        ["FilesProtected", "FileCount", "TotalFiles"]),
+    (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\WOW6432Node\Carbonite\Status",
+        ["FilesProtected", "FileCount", "TotalFiles"]),
+    (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Carbonite\Carbonite Safe Backup",
+        ["FilesProtected", "FileCount", "BackedUpFileCount"]),
+    (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\WOW6432Node\Carbonite\Carbonite Safe Backup",
+        ["FilesProtected", "FileCount", "BackedUpFileCount"]),
 ]
 
 
@@ -56,6 +110,80 @@ def _detect_services():
         if state is not None:
             found.append({"name": svc, "state": state})
     return found
+
+
+def _read_reg_value(hive, path, name):
+    """Returns the value (any type) or None if missing/inaccessible."""
+    try:
+        with winreg.OpenKey(hive, path, 0,
+                            winreg.KEY_READ | winreg.KEY_WOW64_64KEY) as k:
+            v, _t = winreg.QueryValueEx(k, name)
+            return v
+    except (FileNotFoundError, OSError):
+        return None
+
+
+def _coerce_bool(raw):
+    """Carbonite's status field has been REG_DWORD, REG_SZ, and BOOL across
+    versions. Map all the common forms to a clean Python bool, return None
+    for anything we can't confidently classify."""
+    if raw is None:
+        return None
+    if isinstance(raw, bool):
+        return raw
+    if isinstance(raw, int):
+        if raw == 1:
+            return True
+        if raw == 0:
+            return False
+        return None
+    if isinstance(raw, str):
+        s = raw.strip().lower()
+        if s in ("1", "true", "yes", "y", "protected", "ok", "active", "on"):
+            return True
+        if s in ("0", "false", "no", "n", "notprotected", "not protected",
+                 "off", "disabled", "inactive"):
+            return False
+    return None
+
+
+def _coerce_int(raw):
+    """Tolerates REG_DWORD (already int), REG_SZ digits, REG_QWORD."""
+    if raw is None:
+        return None
+    if isinstance(raw, bool):
+        return None  # don't treat True/False as 1/0 here
+    if isinstance(raw, int):
+        return raw
+    if isinstance(raw, str):
+        s = raw.strip().replace(",", "")
+        if s.isdigit():
+            return int(s)
+    return None
+
+
+def _detect_protected():
+    """Walk every candidate (path, value-name) until we find a usable
+    value. Returns (protected_bool_or_none, source_string_or_none)."""
+    for hive, path, names in PROTECTED_VALUE_CANDIDATES:
+        for name in names:
+            raw = _read_reg_value(hive, path, name)
+            if raw is None:
+                continue
+            coerced = _coerce_bool(raw)
+            if coerced is not None:
+                return coerced, f"{path}\\{name}"
+    return None, None
+
+
+def _detect_files_protected():
+    for hive, path, names in FILES_PROTECTED_VALUE_CANDIDATES:
+        for name in names:
+            raw = _read_reg_value(hive, path, name)
+            coerced = _coerce_int(raw)
+            if coerced is not None and coerced >= 0:
+                return coerced, f"{path}\\{name}"
+    return None, None
 
 
 def _detect_installed_products():
@@ -111,10 +239,20 @@ def collect():
         if not products and not services:
             return None
 
+        # Status signals -- both best-effort. None means "we couldn't
+        # find a value in any of the known registry locations" which
+        # the dashboard will render as "unknown" rather than guessing.
+        protected, protected_source = _detect_protected()
+        files_protected, files_source = _detect_files_protected()
+
         return {
             "installed": True,
             "products": products,
             "services": services,
+            "protected": protected,
+            "protectedSource": protected_source,
+            "filesProtected": files_protected,
+            "filesProtectedSource": files_source,
         }
     except Exception as e:
         return {"_error": f"carbonite probe failed: {e}"}
