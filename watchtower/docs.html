@@ -50,7 +50,8 @@
 
   header.bar { background: var(--surface); border-bottom: 1px solid var(--line); padding: 10px 20px; position: sticky; top: 0; z-index: 50; }
   header.bar .wrap { max-width: 980px; margin: 0 auto; display: flex; align-items: center; gap: 16px; }
-  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; color: var(--ink); text-decoration: none; cursor: pointer; border-radius: 8px; padding: 4px 6px; margin: -4px -6px; transition: background 0.12s; }
+  .brand:hover { background: #f1f3f7; }
   .brand svg { width: 24px; height: 24px; }
   .brand .meta { font-size: 11px; color: var(--ink-faint); font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; }
   .brand h1 { font-size: 16px; margin: 0; line-height: 1.1; display: inline-flex; align-items: baseline; gap: 6px; }
@@ -100,7 +101,11 @@
 
 <header class="bar">
   <div class="wrap">
-    <div class="brand">
+    <!-- Whole brand block is now a link back to the dashboard, matching
+         the home-link UX on the dashboard's own header. The Back to
+         dashboard button stays for explicit-affordance-loving operators
+         who'd rather hit a labeled button than an icon. -->
+    <a href="index.html" class="brand" title="Back to the dashboard">
       <svg viewBox="0 0 64 64" fill="none">
         <circle cx="32" cy="32" r="14" stroke="#0a6b6b" stroke-width="3"/>
         <circle cx="32" cy="32" r="5" fill="#0a6b6b"/>
@@ -108,9 +113,9 @@
       </svg>
       <div>
         <div class="meta">Umbrella Automation</div>
-        <h1>Watchtower &middot; Docs <span class="version-chip">v0.13.8</span></h1>
+        <h1>Watchtower &middot; Docs <span class="version-chip">v0.13.9</span></h1>
       </div>
-    </div>
+    </a>
     <a class="btn brand-link" href="index.html">&larr; Back to dashboard</a>
   </div>
 </header>
