@@ -317,14 +317,20 @@
     <a href="index.html">Dashboard</a>
     <a href="docs.html">Docs</a>
     <a href="privacy.html">Privacy</a>
-    <a href="https://github.com/frank-umbrella/work/tree/main/watchtower" target="_blank" rel="noopener">Source</a>
   </div>
 </footer>
 
 <style>
+  /* Pin footer to viewport bottom even when the brand page content
+     is shorter than the viewport height (rare but happens on tall
+     monitors). Body becomes a flex column, main flex-grows, footer
+     stays at the bottom edge. */
+  html, body { min-height: 100vh; }
+  body { display: flex; flex-direction: column; margin: 0; }
+  body > main { flex: 1; }
   /* Matches the dashboard's site-footer chrome so all three Watchtower
      surfaces (index / docs / brand) share the same bottom-of-page links. */
-  .site-footer { margin-top: 32px; padding: 18px 20px 26px; border-top: 1px solid var(--line); background: var(--surface); }
+  .site-footer { padding: 18px 20px 26px; border-top: 1px solid var(--line); background: var(--surface); }
   .site-footer .wrap { max-width: 980px; margin: 0 auto; display: flex; align-items: center; gap: 18px; font-size: 12.5px; color: var(--ink-faint); }
   .site-footer .spacer { flex: 1; }
   .site-footer a { color: var(--ink-soft); text-decoration: none; }

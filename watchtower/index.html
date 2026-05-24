@@ -103,12 +103,19 @@
   /* layout */
   main { max-width: 1320px; margin: 0 auto; padding: 22px 20px 40px; }
 
+  /* Footer pinned to bottom of viewport via flex layout on #app.
+     When content is short (a 3-row table on a tall monitor), the
+     footer would otherwise float halfway up the screen. flex:1 on
+     main fills the gap; min-height:100vh on the flex parent gives
+     the layout room to push the footer all the way down. */
+  #app:not([hidden]) { display: flex; flex-direction: column; min-height: 100vh; }
+  #app > main { flex: 1; }
+
   /* Footer: peripheral links only -- the main userbar at the top
      should stay focused on active operator tools. Stays out of view
      until the user is signed in (parent #app is hidden until auth
      resolves), so the login screen is unaffected. */
   .site-footer {
-    margin-top: 24px;
     padding: 18px 20px 26px;
     border-top: 1px solid var(--line);
     background: var(--surface);
@@ -737,7 +744,6 @@
       <a href="docs.html" target="_blank" rel="noopener">Docs</a>
       <a href="brand.html" target="_blank" rel="noopener">Brand</a>
       <a href="privacy.html" target="_blank" rel="noopener">Privacy</a>
-      <a href="https://github.com/frank-umbrella/work/tree/main/watchtower" target="_blank" rel="noopener">Source</a>
     </div>
   </footer>
 
