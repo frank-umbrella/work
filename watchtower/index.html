@@ -87,6 +87,18 @@
   .btn-danger:hover { background: var(--danger-soft); border-color: var(--danger); }
   .btn:disabled { opacity: 0.5; cursor: not-allowed; }
   .btn-sm { padding: 4px 9px; font-size: 12px; border-radius: 6px; }
+  /* Refresh button click feedback: dim + soft accent pulse so the click
+     registers even when nothing visibly changes in the table (live
+     subscription means a healthy table looks identical before and after).
+     Disable pointer events for the animation window to swallow double-clicks. */
+  #fleetRefresh.refreshing {
+    pointer-events: none;
+    animation: wt-refresh-pulse 600ms ease-out;
+  }
+  @keyframes wt-refresh-pulse {
+    0%   { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-ink); }
+    100% { background: var(--surface); border-color: var(--line-strong); color: var(--ink); }
+  }
 
   /* layout */
   main { max-width: 1320px; margin: 0 auto; padding: 22px 20px 80px; }
@@ -464,6 +476,7 @@
           </select>
           <span class="spacer"></span>
           <span class="count" id="fleetCount"></span>
+          <button class="btn btn-sm" id="fleetRefresh" title="Re-paint the table with current data + refresh the 'Last check' relative timestamps. Live Firestore subscription keeps host data current automatically -- this button just nudges the UI in case the relative-time labels look stale after the dashboard has been open for a while.">&#x21bb; Refresh</button>
           <button class="btn btn-sm" id="fleetExportCsv" title="Download the visible endpoint rows as CSV">CSV</button>
           <button class="btn btn-sm" id="fleetExportXlsx" title="Download the visible endpoint rows as an Excel workbook">Excel</button>
         </div>
@@ -661,7 +674,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.13.17";
+const APP_VERSION = "0.13.18";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -2075,6 +2088,38 @@ $("#exportXlsxBtn").addEventListener("click", () => {
 });
 $("#fleetExportCsv").addEventListener("click", () => exportFleetCsv());
 $("#fleetExportXlsx").addEventListener("click", () => exportFleetXlsx());
+
+// Manual refresh + 60s auto-refresh of the Endpoints table.
+//
+// Firestore's onSnapshot keeps state.agents live in real time, so the
+// underlying data is always current. What CAN go stale is the rendered
+// relative-time labels -- "Last check: 6h ago" stays frozen until the
+// table re-paints, so after the dashboard's been open for a while the
+// labels drift behind reality. Re-running renderFleet() recomputes
+// fmtAge against `now` and refreshes them.
+//
+// Manual button gives the operator the "I just want to confirm" feel.
+// 60s auto-refresh stops the labels from ever being more than a minute
+// stale during a long session without the operator clicking anything.
+$("#fleetRefresh").addEventListener("click", () => {
+  // Brief animation on the button so the click feels acknowledged --
+  // otherwise nothing visibly changes for a healthy table and the
+  // operator can't tell if the click registered.
+  const btn = $("#fleetRefresh");
+  btn.classList.add("refreshing");
+  setTimeout(() => btn.classList.remove("refreshing"), 600);
+  renderFleet();
+  if (state.openPcId) renderDrawer(state.openPcId);
+  toast("Refreshed.");
+});
+
+// 60s tick: re-paint just the Endpoints table so relative timestamps
+// stay accurate. No-op if the table isn't currently visible (saves
+// some DOM work on the Clients / Settings / Activity tabs).
+setInterval(() => {
+  const tabActive = document.querySelector('.tab-pane[data-tab="fleet"]:not([hidden])');
+  if (tabActive) renderFleet();
+}, 60_000);
 
 // ============== Per-host PDF export ==============
 // Lazy-loads html2pdf.bundle on first click to keep initial page weight small.
