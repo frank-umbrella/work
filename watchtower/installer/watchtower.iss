@@ -30,7 +30,7 @@
   #define WorkerUrl "https://watchtower-worker.umbrelladev.workers.dev"
 #endif
 #ifndef AppVersion
-  #define AppVersion "0.13.9"
+  #define AppVersion "0.13.10"
 #endif
 
 #define AppName       "Umbrella Watchtower Agent"
@@ -278,15 +278,44 @@ end;
 function ExtractJsonString(const Json, Key: string): string;
 var
   Search: string;
-  StartPos, EndPos: Integer;
+  P, StartPos, EndPos, Len: Integer;
 begin
+  // Permissive enough to handle BOTH minified and pretty-printed JSON:
+  //   {"key":"value"}      <- minified, no whitespace
+  //   { "key" : "value" }  <- pretty, spaces / tabs around : and "
+  //
+  // Original implementation searched for the literal `"key":"` which
+  // only matched the minified case -- and config.json is always pretty-
+  // printed by WriteConfigJson with `"key": "value"` (space after :).
+  // So this function returned empty for every lookup, which is why
+  // ExtractExistingToken / ExtractExistingPcId / the uninstall phone-
+  // home all silently failed on every host.
   Result := '';
-  Search := '"' + Key + '":"';
-  StartPos := Pos(Search, Json);
-  if StartPos = 0 then Exit;
-  StartPos := StartPos + Length(Search);
+  Len := Length(Json);
+  Search := '"' + Key + '"';
+  P := Pos(Search, Json);
+  if P = 0 then Exit;
+  StartPos := P + Length(Search);
+
+  // Skip whitespace, then expect a colon
+  while (StartPos <= Len) and ((Json[StartPos] = ' ') or (Json[StartPos] = Chr(9))
+        or (Json[StartPos] = Chr(13)) or (Json[StartPos] = Chr(10))) do
+    StartPos := StartPos + 1;
+  if (StartPos > Len) or (Json[StartPos] <> ':') then Exit;
+  StartPos := StartPos + 1;
+
+  // Skip whitespace, then expect an opening double-quote
+  while (StartPos <= Len) and ((Json[StartPos] = ' ') or (Json[StartPos] = Chr(9))
+        or (Json[StartPos] = Chr(13)) or (Json[StartPos] = Chr(10))) do
+    StartPos := StartPos + 1;
+  if (StartPos > Len) or (Json[StartPos] <> '"') then Exit;
+  StartPos := StartPos + 1;
+
+  // Walk forward until the closing double-quote. No escape handling --
+  // our config.json values are install tokens / GUIDs / URLs that don't
+  // contain backslash-escapes, so a plain scan is correct.
   EndPos := StartPos;
-  while (EndPos <= Length(Json)) and (Json[EndPos] <> '"') do
+  while (EndPos <= Len) and (Json[EndPos] <> '"') do
     EndPos := EndPos + 1;
   Result := Copy(Json, StartPos, EndPos - StartPos);
 end;
@@ -452,15 +481,12 @@ begin
   if not FileExists(ConfigPath) then Exit;
   if not LoadStringFromFile(ConfigPath, AnsiContent) then Exit;
   Token := Trim(ExtractJsonString(string(AnsiContent), 'installToken'));
-  // Accept any non-trivial value. Previously we required the 'wt_'
-  // prefix to defend against a corrupted config.json -- but that broke
-  // re-installs over LEGACY installs (v0.3.x era) where the token was
-  // the WATCHTOWER_INSTALL_TOKEN shared secret and didn't have the
-  // wt_ prefix. The worker /validate endpoint will reject anything
-  // bogus regardless, so it's safe to be lenient here: as long as the
-  // string isn't empty and has at least 8 chars of body, hand it over
-  // and let the worker decide. Cuts the prompt entirely on upgrades
-  // from any past install.
+  // Lenient: any non-trivial value (>= 8 chars) is handed to the
+  // worker /validate endpoint. Per-client tokens (wt_<43-char base64>)
+  // pass naturally; legacy WATCHTOWER_INSTALL_TOKEN shared secrets
+  // (no wt_ prefix, used by hosts installed before per-client tokens
+  // existed) also pass and get validated by the worker's legacy fallback
+  // path. The worker is the source of truth for token validity, not us.
   if Length(Token) >= 8 then
     Result := Token;
 end;
@@ -535,19 +561,13 @@ end;
 // the phone-home never lands.
 
 function ReadJsonField(const Content, Key: string): string;
-var
-  Search: string;
-  StartPos, EndPos: Integer;
 begin
-  Result := '';
-  Search := '"' + Key + '":"';
-  StartPos := Pos(Search, Content);
-  if StartPos = 0 then Exit;
-  StartPos := StartPos + Length(Search);
-  EndPos := StartPos;
-  while (EndPos <= Length(Content)) and (Content[EndPos] <> '"') do
-    EndPos := EndPos + 1;
-  Result := Copy(Content, StartPos, EndPos - StartPos);
+  // Same bug as ExtractJsonString had pre-v0.13.10 -- the original
+  // pattern `"key":"` only matched minified JSON, but config.json is
+  // pretty-printed with `"key": "value"` (space). Just delegate to
+  // ExtractJsonString which is now whitespace-tolerant; keeps the two
+  // parsers in sync so this can't regress in only one of them.
+  Result := ExtractJsonString(Content, Key);
 end;
 
 procedure PhoneHomeUninstall;
