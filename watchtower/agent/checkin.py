@@ -74,11 +74,15 @@ def run_checkin():
         state["ok"] = True
         cfg_mod.save_state(state)
 
-        # Honor per-PC autoUpdate flag — if set, ping the worker's
-        # /latest-version and apply the update before returning. Failure
-        # here is logged but doesn't fail the check-in (we already wrote
-        # state.json with ok:true).
-        if (resp.get("config") or {}).get("autoUpdate"):
+        # Honor per-PC autoUpdate flag OR the one-shot forceUpdate flag
+        # — if EITHER is set, ping the worker's /latest-version and apply
+        # the update before returning. Failure here is logged but doesn't
+        # fail the check-in (we already wrote state.json with ok:true).
+        # forceUpdate is the "I want this host updated NOW" push the admin
+        # can trigger from the dashboard; the worker self-clears it once
+        # the agent reports the matching version on a subsequent check-in.
+        cfg_resp = resp.get("config") or {}
+        if cfg_resp.get("autoUpdate") or cfg_resp.get("forceUpdate"):
             try:
                 import updater
                 result = updater.apply_update_if_needed(

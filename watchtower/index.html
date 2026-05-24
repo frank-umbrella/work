@@ -324,6 +324,8 @@
   .activity-icon.t-agent_uninstalled    { background: #475063; }
   .activity-icon.t-agent_reactivated    { background: #1bb978; }
   .activity-icon.t-update_applied   { background: #ca8a04; }
+  .activity-icon.t-force_update_requested { background: #2563eb; }
+  .activity-icon.t-force_update_applied   { background: #16a34a; }
   .activity-body { flex: 1; min-width: 0; }
   .activity-summary { color: var(--ink); }
   .activity-summary code { font-size: 0.92em; }
@@ -654,7 +656,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.13.14";
+const APP_VERSION = "0.13.15";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -1550,6 +1552,8 @@ function renderActivityRow(e) {
     agent_uninstalled: "✕",
     agent_reactivated: "↻",
     update_applied: "↑",
+    force_update_requested: "⤴",
+    force_update_applied: "↑",
   })[e.type] || "·";
 
   const ago = fmtAge(e.ts);
@@ -1603,6 +1607,12 @@ function renderActivityRow(e) {
       break;
     case "update_applied":
       summary = `Agent updated on ${hostLink}${clientLabel}: v${esc(e.details?.from || "?")} &rarr; v${esc(e.details?.to || "?")}`;
+      break;
+    case "force_update_requested":
+      summary = `Force update queued for ${hostLink}${clientLabel}${e.details?.currentVersion ? ` (currently v${esc(e.details.currentVersion)})` : ""}`;
+      break;
+    case "force_update_applied":
+      summary = `Force update completed on ${hostLink}${clientLabel}: v${esc(e.details?.version || "?")}`;
       break;
     default:
       summary = `${esc(e.type)} &middot; ${hostLink}${clientLabel}`;
@@ -3196,6 +3206,12 @@ function renderDrawer(pcId) {
         </div>
         <label class="switch"><input type="checkbox" data-cfg="autoUpdate" ${cfg.autoUpdate === true ? "checked" : ""}><span class="slider"></span></label>
       </div>
+      <div class="config-actions" style="margin-top:8px;align-items:center;">
+        <button class="btn btn-sm" id="dForceUpdate" title="Push the latest agent version to this host on its next check-in (within 24h, or immediate if you right-click the tray icon -> Check for updates on the host). One-shot -- doesn't change the Auto-install updates toggle.">Force update now</button>
+        ${cfg.forceUpdate === true
+          ? `<span class="meta" style="color:#b45309;">Update queued &middot; will apply on next check-in</span>`
+          : `<span class="meta">${updateAvailableFor(a) ? `v${esc(state.latestAgent.version)} available` : "Host is on latest version"}</span>`}
+      </div>
       <div class="config-actions" style="margin-top:14px;">
         ${isDecom
           ? `<span class="meta">Already decommissioned. Use <b>Delete row</b> in the banner above to remove this entry entirely.</span>`
@@ -3385,6 +3401,8 @@ function renderDrawer(pcId) {
   if (decomBtn) decomBtn.addEventListener("click", () => decommission(pcId, a.hostname));
   const delBtn = document.getElementById("dDeleteRow");
   if (delBtn) delBtn.addEventListener("click", () => deleteAgentRow(pcId, a.hostname));
+  const forceBtn = document.getElementById("dForceUpdate");
+  if (forceBtn) forceBtn.addEventListener("click", () => forceUpdate(pcId, a.hostname));
 
   // Client reassignment dropdown — calls the worker, which atomically
   // updates /agents/{pcId} (so the table refreshes now) AND the config
@@ -3932,6 +3950,43 @@ async function decommission(pcId, hostname) {
     // call here, otherwise we'd get a duplicate event.
   } catch (e) {
     toast(`Decommission failed: ${e.message || e}`, true);
+  }
+}
+
+async function forceUpdate(pcId, hostname) {
+  // One-shot push: ask the worker to set forceUpdate=true in this
+  // host's config doc. Next time the agent checks in, it'll apply the
+  // latest version regardless of whether autoUpdate is enabled on this
+  // host. The worker self-clears the flag once the agent reports the
+  // matching latest version on a subsequent check-in.
+  const latest = state.latestAgent && state.latestAgent.version;
+  if (!confirm(
+    `Push the latest agent version (v${latest || "?"}) to ${hostname || pcId}?\n\n` +
+    `• Applies on the host's next daily check-in (within 24h)\n` +
+    `• For immediate, right-click the Watchtower tray icon on the host → Check for updates\n` +
+    `• One-shot — the Auto-install updates toggle stays as-is\n` +
+    `• If this host is already at the latest version, the flag clears silently on next check-in`
+  )) return;
+
+  try {
+    const idToken = await state.user.getIdToken();
+    const resp = await fetch(`${WORKER_URL}/force-update`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${idToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ pcId }),
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ error: `HTTP ${resp.status}` }));
+      throw new Error(err.error || `HTTP ${resp.status}`);
+    }
+    toast(`Update queued for ${hostname || pcId}. Applies on next check-in.`);
+    // Activity entry is written by the worker -- no client-side
+    // logActivity call here, otherwise we'd get a duplicate event.
+  } catch (e) {
+    toast(`Force update failed: ${e.message || e}`, true);
   }
 }
 

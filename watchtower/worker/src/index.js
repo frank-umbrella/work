@@ -98,6 +98,15 @@ export default {
       return withCors(await handleAdminDecommission(request, env, ctx), env, request);
     }
 
+    // POST /force-update — admin pushes "install latest version on next
+    // check-in" to a single host without flipping the per-host autoUpdate
+    // toggle on permanently. Writes a one-shot flag to the agent's config
+    // doc; agent applies it next time it checks in (within 24h max) and
+    // the flag self-clears once the new version is reported.
+    if (url.pathname === '/force-update' && request.method === 'POST') {
+      return withCors(await handleForceUpdate(request, env, ctx), env, request);
+    }
+
     return jsonResponse({ error: 'Not found', path: url.pathname }, 404);
   },
 };
@@ -402,6 +411,84 @@ async function handleAdminDecommission(request, env, ctx) {
   }));
 
   return jsonResponse({ ok: true }, 200);
+}
+
+// ═════════════════════════════════════════════════════════════════════
+// POST /force-update — admin pushes "install latest now" for one host
+// ═════════════════════════════════════════════════════════════════════
+//
+// One-shot opt-in: writes `forceUpdate: true` to /agents/{pcId}/config
+// /current. The agent's checkin.py reads the config returned by
+// /checkin and runs the updater whenever EITHER forceUpdate OR
+// autoUpdate is true -- so flipping forceUpdate on without touching the
+// permanent autoUpdate toggle works as a one-time push.
+//
+// Self-clearing: handleCheckin clears the flag once the agent's
+// reported agentVersion matches the worker's latest available version
+// (i.e. the update landed). If the operator clicks Force Update on a
+// host already at latest, the flag clears on the next check-in without
+// the agent doing anything -- safe no-op.
+//
+// Latency: the agent's check-in cadence is 24h by default. The toast
+// in the dashboard tells the operator this so they don't expect
+// instant. For instant, the operator can right-click the tray icon
+// on the host itself and pick "Check for updates."
+//
+// Auth: Bearer Firebase ID token, verified + @umbrellaautomation.com.
+// Body: { pcId }
+async function handleForceUpdate(request, env, ctx) {
+  const authHeader = request.headers.get('Authorization') || '';
+  const idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+  if (!idToken) return jsonResponse({ error: 'Missing sign-in token' }, 401);
+  let claims;
+  try {
+    claims = await verifyFirebaseIdToken(idToken);
+  } catch (e) {
+    return jsonResponse({ error: 'Invalid or expired sign-in token' }, 401);
+  }
+  const email = (claims.email || '').toLowerCase();
+  if (!claims.email_verified || !email.endsWith('@umbrellaautomation.com')) {
+    return jsonResponse({ error: 'Not authorized — domain mismatch' }, 403);
+  }
+
+  let body;
+  try {
+    body = await request.json();
+  } catch (e) {
+    return jsonResponse({ error: 'Body must be JSON' }, 400);
+  }
+  const { pcId } = body || {};
+  if (!pcId || typeof pcId !== 'string') {
+    return jsonResponse({ error: 'pcId required' }, 400);
+  }
+
+  const accessToken = await getServiceAccountToken(env);
+  const agentDoc = await firestoreGetDoc(env, accessToken, `agents/${pcId}`);
+  if (!agentDoc || !agentDoc.fields) {
+    return jsonResponse({ error: 'Agent not found' }, 404);
+  }
+  const resolvedHost = agentDoc.fields.hostname?.stringValue || pcId;
+  const resolvedClient = agentDoc.fields.client?.stringValue || 'unknown';
+  const currentVersion = agentDoc.fields.agentVersion?.stringValue || 'unknown';
+
+  const nowIso = new Date().toISOString();
+  await firestoreSetDoc(env, accessToken, `agents/${pcId}/config/current`, {
+    forceUpdate: true,
+    forceUpdateRequestedAt: nowIso,
+    forceUpdateRequestedBy: email,
+    updatedAt: nowIso,
+    updatedBy: email,
+  }, /* partial */ true);
+
+  ctx.waitUntil(logActivity(env, accessToken, {
+    type: 'force_update_requested',
+    actor: { type: 'admin', id: email },
+    target: { type: 'host', id: pcId, label: resolvedHost },
+    client: resolvedClient,
+    details: { currentVersion, when: nowIso },
+  }));
+
+  return jsonResponse({ ok: true, pcId, currentVersion }, 200);
 }
 
 // ═════════════════════════════════════════════════════════════════════
@@ -1382,7 +1469,38 @@ async function handleCheckin(request, env, ctx) {
     }
   }
 
-  // ----- 8. Return config + uninstall flag to the agent -----
+  // ----- 8. Self-clear forceUpdate once the agent has caught up -----
+  // The /force-update admin endpoint writes config.forceUpdate=true.
+  // Agent's checkin.py then runs the updater regardless of autoUpdate.
+  // Once the agent's reported agentVersion matches the latest available
+  // (i.e. the update landed), the flag is no longer needed -- clear it
+  // so a subsequent toggle of autoUpdate doesn't accidentally re-trigger
+  // on every check-in. Best-effort: failure here doesn't break the
+  // check-in path.
+  if (config.forceUpdate) {
+    try {
+      // Fetch latest-version quickly to compare. If we can't determine
+      // latest, leave the flag (will retry next time).
+      const latest = await fetchLatestFromGitHub().catch(() => null);
+      if (latest && latest.version && (agentVersion || '').trim() === latest.version) {
+        await firestoreSetDoc(env, accessToken, `agents/${pcId}/config/current`, {
+          forceUpdate: false,
+          forceUpdateClearedAt: nowIso,
+        }, /* partial */ true);
+        ctx.waitUntil(logActivity(env, accessToken, {
+          type: 'force_update_applied',
+          actor: { type: 'agent', id: pcId },
+          target: { type: 'host', id: pcId, label: hostname },
+          client: resolvedClient,
+          details: { version: latest.version },
+        }));
+      }
+    } catch (e) {
+      console.error('forceUpdate self-clear failed (non-fatal):', e);
+    }
+  }
+
+  // ----- 9. Return config + uninstall flag to the agent -----
   // Resolve webhookEnabled tristate to the effective boolean the agent
   // would see, so state.json / tray reflect runtime behavior rather
   // than the stored opt-in state. null → effective from URL presence.
@@ -1397,6 +1515,9 @@ async function handleCheckin(request, env, ctx) {
       webhookEnabled: effectiveWebhookEnabled,
       webhookUrl: config.webhookUrl || null,
       autoUpdate: config.autoUpdate,
+      // Forwarded to the agent. checkin.py treats this as "run the
+      // updater right now even if autoUpdate is off" -- one-shot push.
+      forceUpdate: config.forceUpdate,
     },
     uninstall: config.uninstall,
   }, 200);
@@ -1506,6 +1627,7 @@ function readConfig(doc) {
     webhookUrl: null,
     uninstall: false,
     autoUpdate: false,  // safety default — opt-in per host
+    forceUpdate: false, // one-shot push, self-clears after success
     clientIdOverride: null,
   };
   if (!doc || !doc.fields) return defaults;
@@ -1516,6 +1638,7 @@ function readConfig(doc) {
     webhookUrl: doc.fields.webhookUrl?.stringValue || null,
     uninstall: fieldBool(doc.fields.uninstall, defaults.uninstall),
     autoUpdate: fieldBool(doc.fields.autoUpdate, defaults.autoUpdate),
+    forceUpdate: fieldBool(doc.fields.forceUpdate, defaults.forceUpdate),
     clientIdOverride: doc.fields.clientIdOverride?.stringValue || null,
   };
 }
