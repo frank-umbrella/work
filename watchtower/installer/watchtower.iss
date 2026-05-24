@@ -30,7 +30,7 @@
   #define WorkerUrl "https://watchtower-worker.umbrelladev.workers.dev"
 #endif
 #ifndef AppVersion
-  #define AppVersion "0.13.10"
+  #define AppVersion "0.13.11"
 #endif
 
 #define AppName       "Umbrella Watchtower Agent"
@@ -623,6 +623,40 @@ begin
   // committed. usPostUninstall would be too late (config.json wiped).
   if CurUninstallStep = usUninstall then
     PhoneHomeUninstall;
+end;
+
+// ──────────────────────────────────────────────────────────────────────
+// Pre-install: stop the running service + kill the tray so Inno can
+// overwrite the EXEs. Without this, re-installing over an existing
+// install hits "DeleteFile failed; code 5. Access is denied." because
+// watchtower-svc.exe is held open by the running service.
+//
+// PrepareToInstall runs after the wizard is done and BEFORE the
+// [Files] section starts extracting. Perfect window. Returning '' lets
+// the install continue; returning a non-empty string aborts with that
+// message shown to the operator.
+// ──────────────────────────────────────────────────────────────────────
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  ResultCode: Integer;
+begin
+  // Stop the service. We use sc.exe stop (not 'sc stop') and tolerate
+  // failure -- the service might not exist yet on a clean first install.
+  // 5-second timeout for the service to release its file handles.
+  Exec(ExpandConstant('{sys}\sc.exe'), 'stop {#ServiceName}',
+       '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+
+  // Kill the tray process so its EXE handle releases too. Same
+  // tolerate-failure approach -- tray may not be running.
+  Exec(ExpandConstant('{cmd}'), '/c taskkill /im watchtower-tray.exe /f',
+       '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+
+  // Brief sleep so Windows actually releases the file handles. sc stop
+  // returns as soon as it's queued the request, but the underlying
+  // ImagePath handle releases asynchronously a beat later.
+  Sleep(2000);
+
+  Result := '';
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
