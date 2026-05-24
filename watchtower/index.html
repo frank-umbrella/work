@@ -183,6 +183,11 @@
   #drawer details.section-config > *:not(summary):last-child { margin-bottom: 14px; }
   #drawer .kv { display: grid; grid-template-columns: 160px 1fr; row-gap: 4px; column-gap: 12px; font-size: 13px; }
   #drawer .kv .k { color: var(--ink-faint); }
+  /* Subtle "?" cue next to labels that have a tooltip — the operator can
+     hover for an explanation. Pill shape so it visually reads as
+     interactive rather than as part of the label text. */
+  #drawer .kv .k .kv-help { display: inline-block; min-width: 14px; height: 14px; line-height: 14px; text-align: center; font-size: 10px; font-weight: 700; color: var(--ink-faint); background: var(--surface-2); border: 1px solid var(--line); border-radius: 50%; margin-left: 4px; cursor: help; }
+  #drawer .kv .k[title] { cursor: help; }
   #drawer .kv .v { color: var(--ink); word-break: break-word; }
   #drawer .kv .v code { font-size: 12px; color: var(--ink-soft); }
   #drawer .list { font-size: 13px; color: var(--ink); }
@@ -656,7 +661,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.13.16";
+const APP_VERSION = "0.13.17";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -3042,7 +3047,17 @@ async function exportFleetXlsx() {
 }
 
 function kv(rows) {
-  return `<div class="kv">${rows.map(([k, v]) => `<div class="k">${esc(k)}</div><div class="v">${v == null ? "—" : v}</div>`).join("")}</div>`;
+  // Each row is [label, value] OR [label, value, tooltipText].
+  // When a tooltip is provided, append a small "?" cue after the label
+  // and set the title attribute on the key cell so the operator gets
+  // a hover-explanation. Existing 2-element callers are unaffected
+  // (destructuring just leaves `title` as undefined).
+  return `<div class="kv">${rows.map(r => {
+    const [k, v, title] = r;
+    const titleAttr = title ? ` title="${esc(title)}"` : "";
+    const helpCue = title ? ` <span class="kv-help" aria-hidden="true">?</span>` : "";
+    return `<div class="k"${titleAttr}>${esc(k)}${helpCue}</div><div class="v">${v == null ? "—" : v}</div>`;
+  }).join("")}</div>`;
 }
 
 function renderDrawer(pcId) {
@@ -3117,7 +3132,7 @@ function renderDrawer(pcId) {
         ["External IP", `<code>${esc(a.externalIp)}</code>`],
         ["Last check-in", esc(tsToStr(a.lastCheckin)) + ` <span class="meta">(${fmtAge(a.lastCheckin)})</span>`],
         ["Installed at", esc(tsToStr(a.installedAt))],
-        ["Collection time", r.collectionMs ? `${r.collectionMs} ms` : "—"],
+        ["Collection time", r.collectionMs ? `${r.collectionMs} ms` : "—", "Total milliseconds the agent spent running all probes during the last check-in (system inventory, network, storage, OMSA disk health, Veeam / WSB backup status, Defender / SentinelOne / LogMeIn detection, etc). Low = fast machine. Spikes typically mean slow disks, WMI bottlenecks, OMSA timing out on a degraded controller, or Get-WBJob waiting on a hung backup."],
       ])}
     </div>
 

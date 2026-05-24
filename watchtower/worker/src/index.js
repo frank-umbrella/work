@@ -759,7 +759,12 @@ function handleOptions(request, env) {
     status: 204,
     headers: {
       'Access-Control-Allow-Origin': origin,
-      'Access-Control-Allow-Methods': 'GET, OPTIONS',
+      // Was `GET, OPTIONS` -- which silently blocked the dashboard's
+      // POST calls to /reassign-client, /decommission, /force-update,
+      // /test-webhook. The browser's preflight check requires the
+      // method to be in this list; POST not present -> browser aborts
+      // with "Failed to fetch" before the request leaves the page.
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Authorization, Content-Type',
       'Access-Control-Max-Age': '86400',
       'Vary': 'Origin',
