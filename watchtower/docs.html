@@ -113,7 +113,7 @@
       </svg>
       <div>
         <div class="meta">Umbrella Automation</div>
-        <h1>Watchtower &middot; Docs <span class="version-chip">v0.14.2</span></h1>
+        <h1>Watchtower &middot; Docs <span class="version-chip">v0.14.3</span></h1>
       </div>
     </a>
     <a class="btn brand-link" href="index.html">&larr; Back to dashboard</a>
@@ -128,6 +128,7 @@
   <a href="#quick">Quick start</a>
   <a href="#install" class="section">Install</a>
   <a href="#install-build">Build the installer (once)</a>
+  <a href="#install-worker">Auto-deploy the worker</a>
   <a href="#install-flow">Deploy to a client PC</a>
   <a href="#install-verify">Verify check-in</a>
   <a href="#install-reinstall">Re-installing</a>
@@ -247,6 +248,19 @@
 <p>Output lands at <code>installer\dist\Watchtower-Setup.exe</code>. Keep that EXE around &mdash; it's the same file you'll deploy to every client.</p>
 
 <div class="callout"><b>If you're using the GitHub Actions workflow, you basically never need the local <code>-Publish</code> path.</b> The local build is for iterating on the <code>.iss</code> or the agent without pushing every WIP commit. Bump VERSION when you're ready to release and let Actions handle the rest.</div>
+
+<h3 id="install-worker">Auto-deploying the Cloudflare Worker</h3>
+<p>A second GitHub Actions workflow (<code>.github/workflows/watchtower-worker-deploy.yml</code>) automatically runs <code>wrangler deploy</code> on every push to <code>main</code> that touches <code>watchtower/worker/**</code>. You no longer need to <code>cd watchtower/worker &amp;&amp; npx wrangler deploy</code> by hand after editing the worker.</p>
+<p><b>One-time setup</b> &mdash; the workflow needs a Cloudflare API token to authenticate:</p>
+<ol class="steps">
+  <li>Go to <a href="https://dash.cloudflare.com/profile/api-tokens" target="_blank" rel="noopener">dash.cloudflare.com/profile/api-tokens</a> &rarr; <b>Create Token</b>.</li>
+  <li>Pick the <b>Edit Cloudflare Workers</b> template (it grants exactly what wrangler needs &mdash; Account.Workers Scripts: Edit, Account.Account Settings: Read, User.Memberships: Read).</li>
+  <li>Limit Account Resources to the Umbrella account that owns <code>watchtower-worker</code> and click Continue, then Create.</li>
+  <li>Copy the generated token (Cloudflare only shows it once).</li>
+  <li>In GitHub: repo <b>Settings &rarr; Secrets and variables &rarr; Actions &rarr; New repository secret</b>. Name: <code>CLOUDFLARE_API_TOKEN</code>. Paste the token. Save.</li>
+</ol>
+<p>Worker secrets themselves (<code>FIREBASE_SERVICE_ACCOUNT_JSON</code>, <code>RESEND_API_KEY</code>, <code>DELL_CLIENT_ID</code>, etc.) are NOT touched by the deploy &mdash; they live in Cloudflare's encrypted secret store and survive across deploys. You only need to set them once via <code>wrangler secret put NAME</code> locally.</p>
+<p>If the deploy fails because of a missing secret or a bindings mismatch, the workflow log will show the wrangler error verbatim &mdash; usually fixable by setting the missing secret with <code>wrangler secret put</code>.</p>
 
 <h3 id="install-flow">Deploy to a client PC</h3>
 <ol class="steps">

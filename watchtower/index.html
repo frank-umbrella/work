@@ -116,9 +116,13 @@
      the layout visually. Hidden on narrow screens (< 760px) so the
      login card centers naturally on mobile. */
   #signin .banner {
-    flex: 0 0 360px;
-    max-width: 360px;
+    /* Width follows from the SVG's portrait aspect (~0.51) at our chosen
+       height. We constrain by HEIGHT (matching the login card's natural
+       size) rather than by width so the banner sits next to the card as
+       a peer instead of dominating the viewport. */
+    flex: 0 0 auto;
     align-self: center;
+    height: clamp(380px, 60vh, 460px);
     border-radius: 14px;
     overflow: hidden;
     box-shadow: var(--shadow-lift);
@@ -126,7 +130,10 @@
     display: flex;
     align-items: stretch;
   }
-  #signin .banner img { width: 100%; height: auto; display: block; }
+  /* object-fit:contain keeps the WATCHTOWER wordmark + tagline visible
+     instead of cropping them off. Width auto means the image scales to
+     match container height while preserving the SVG's aspect. */
+  #signin .banner img { height: 100%; width: auto; display: block; object-fit: contain; }
   #signin .login-col { display: flex; align-items: center; }
   #signin .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow-lift); padding: 36px 32px; max-width: 420px; text-align: center; }
   #signin svg.logo { width: 64px; height: 64px; }
@@ -530,8 +537,8 @@
           <table class="fleet sortable" data-sort-table="fleet">
             <thead>
               <tr>
-                <th data-sort="hostname">Host</th>
                 <th class="col-client" data-sort="client">Client</th>
+                <th data-sort="hostname">Host</th>
                 <th class="col-intip" data-sort="internalIp">Internal IP</th>
                 <th data-sort="externalIp">External IP</th>
                 <th class="col-os" data-sort="os">OS</th>
@@ -720,7 +727,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.2";
+const APP_VERSION = "0.14.3";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -1207,8 +1214,8 @@ function renderFleet() {
       : "";
     return `
       <tr data-id="${esc(a.id)}" class="${rowClasses}">
-        <td data-label="Host"><div class="host">${esc(a.hostname || a.id)}${vmBadge}</div></td>
         <td class="col-client client" data-label="Client">${esc(a.client || "—")}</td>
+        <td data-label="Host"><div class="host">${esc(a.hostname || a.id)}${vmBadge}</div></td>
         <td class="col-intip ip" data-label="Internal IP">${esc(a.internalIp || "—")}</td>
         <td class="ip" data-label="External IP">${esc(a.externalIp || "—")}</td>
         <td class="col-os client" data-label="OS">${esc(os)}</td>

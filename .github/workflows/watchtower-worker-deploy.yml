@@ -1,0 +1,79 @@
+# Auto-deploys the watchtower-worker to Cloudflare on every push to main
+# that touches worker files. Saves the operator from running
+# `npx wrangler deploy` by hand after every server-side change.
+#
+# What it does:
+#   1. Checks out the repo
+#   2. Installs Node + the worker's npm deps (jose + wrangler from
+#      worker/package.json devDependencies)
+#   3. Runs `wrangler deploy` against the worker's wrangler.toml
+#
+# Authentication: needs CLOUDFLARE_API_TOKEN as a repo secret. Create one
+# at https://dash.cloudflare.com/profile/api-tokens with the
+# "Edit Cloudflare Workers" template (or a custom token with
+# Account.Workers Scripts: Edit). Same token would work for both the
+# UmbrellaDev + production workers if you ever split them. Optionally
+# also set CLOUDFLARE_ACCOUNT_ID if your token covers multiple accounts.
+#
+# What it does NOT do:
+#   - Set worker secrets (FIREBASE_SERVICE_ACCOUNT_JSON, RESEND_API_KEY,
+#     etc.). Those stay set in the Cloudflare dashboard / via local
+#     `wrangler secret put` and survive deploys.
+#   - Touch wrangler.toml's account_id / route bindings.
+
+name: watchtower-worker-deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'watchtower/worker/**'
+      - '.github/workflows/watchtower-worker-deploy.yml'
+  # Manual trigger for redeploying after a CF rollback / debugging.
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: watchtower/worker/package-lock.json
+
+      - name: Install worker deps
+        working-directory: watchtower/worker
+        # Use npm ci when a lockfile exists (reproducible builds),
+        # falling back to npm install on a fresh clone where the
+        # lockfile hasn't been committed yet.
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
+
+      - name: Deploy to Cloudflare Workers
+        working-directory: watchtower/worker
+        env:
+          # API token from the repo secrets. wrangler reads this env var
+          # automatically -- no extra `wrangler login` step needed.
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          # Optional account scoping. Only needed when the token can see
+          # more than one account; harmless to leave unset otherwise.
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler deploy
+
+      - name: Summary
+        if: success()
+        run: |
+          echo "## watchtower-worker deployed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Cloudflare Worker is live at <https://watchtower-worker.umbrelladev.workers.dev>." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Dashboard + agent will pick up the new endpoints / behavior on their next request." >> $GITHUB_STEP_SUMMARY
