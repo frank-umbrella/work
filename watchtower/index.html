@@ -253,21 +253,36 @@
   table.fleet tr.decom td { opacity: 0.55; }
   table.fleet tr.decom td .badge.muted { opacity: 1; }
   table.fleet .host { font-weight: 600; color: var(--ink); }
-  /* VM chip -- inline marker next to hostname for virtualized endpoints.
-     Purple to match the "Virtual machine" badge in the drawer. */
-  .vm-chip {
-    display: inline-block;
-    margin-left: 8px;
-    padding: 1px 6px;
+  /* Host cell row: fixed-width badge slot on the LEFT so every hostname
+     in the column starts at the same x-coordinate regardless of whether
+     a VM / HYP / (none) marker is present. Without the reserved slot the
+     names would step in and out as you scrolled the list. */
+  table.fleet .host-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  table.fleet .host-tag {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    width: 34px;
+    flex: 0 0 34px;
+    height: 16px;
     font-size: 10px;
     font-weight: 700;
     letter-spacing: 0.04em;
-    background: #fae8ff;
-    color: #581c87;
     border-radius: 4px;
-    vertical-align: middle;
     font-family: var(--mono);
   }
+  /* VM chip -- purple, matches the "Virtual machine" badge in the drawer. */
+  .host-tag.vm-chip { background: #fae8ff; color: #581c87; }
+  /* HYP chip -- teal, mirrors the brand color so hypervisor parents read
+     as "control plane" at a glance versus their purple guests. */
+  .host-tag.hyp-chip { background: #ccfbf1; color: #115e59; }
+  /* Empty slot for plain physical hosts -- invisible but takes up the
+     same width so name columns align. */
+  .host-tag.none { background: transparent; color: transparent; }
   table.fleet .ip { font-family: var(--mono); font-size: 12.5px; color: var(--ink-soft); }
   table.fleet .client { font-size: 12.5px; color: var(--ink-soft); }
   table.fleet .age { font-size: 12px; color: var(--ink-faint); }
@@ -432,9 +447,31 @@
   #modal { position: fixed; inset: 0; background: rgba(20,25,40,0.45); display: none; align-items: center; justify-content: center; z-index: 200; padding: 20px; }
   #modal.show { display: flex; }
   #modal .modal-card { background: var(--surface); border-radius: 12px; box-shadow: var(--shadow-lift); max-width: 520px; width: 100%; max-height: 90vh; overflow-y: auto; }
-  #modal .modal-head { padding: 18px 22px; border-bottom: 1px solid var(--line); }
+  #modal .modal-head { padding: 18px 22px; border-bottom: 1px solid var(--line); position: relative; padding-right: 50px; }
   #modal .modal-head h3 { margin: 0; font-size: 17px; }
   #modal .modal-head .sub { font-size: 12.5px; color: var(--ink-faint); margin-top: 2px; }
+  /* Close X -- absolute-positioned in the modal head, always visible.
+     Important for the install-token modal where the operator MUST get the
+     raw token before the modal closes, and accidental scrim-click can't
+     be allowed to discard it. */
+  #modal .modal-close-x {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: transparent;
+    color: var(--ink-faint);
+    font-size: 22px;
+    line-height: 1;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  #modal .modal-close-x:hover { background: var(--surface-2); color: var(--ink); }
   #modal .modal-body { padding: 18px 22px; }
   #modal .modal-body label { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-faint); font-weight: 600; margin: 0 0 6px; }
   #modal .modal-body input[type="text"], #modal .modal-body textarea { width: 100%; padding: 8px 11px; border: 1px solid var(--line-strong); border-radius: 7px; font-size: 14px; background: var(--surface); margin-bottom: 14px; }
@@ -792,6 +829,7 @@
   <div id="modal" role="dialog" aria-modal="true">
     <div class="modal-card">
       <div class="modal-head">
+        <button type="button" class="modal-close-x" id="modalCloseX" aria-label="Close" title="Close">&times;</button>
         <h3 id="modalTitle">—</h3>
         <div class="sub" id="modalSub"></div>
       </div>
@@ -840,7 +878,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.23";
+const APP_VERSION = "0.14.24";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -1245,7 +1283,7 @@ const FLEET_COLUMNS = [
   { key: "client",     label: "Client",       default: true,  sortKey: "client",     thClass: "col-client", tdClass: "col-client client",
     render: (a) => esc(a.client || "—") },
   { key: "hostname",   label: "Host",         default: true,  sortKey: "hostname",   thClass: "",           tdClass: "",
-    render: (a, ctx) => `<div class="host">${esc(a.hostname || a.id)}${ctx.vmBadge}</div>` },
+    render: (a, ctx) => `<div class="host-row">${ctx.hostTag}<span class="host">${esc(a.hostname || a.id)}</span></div>` },
   { key: "internalIp", label: "Internal IP",  default: true,  sortKey: "internalIp", thClass: "col-intip",  tdClass: "col-intip ip",
     render: (a) => esc(a.internalIp || "—") },
   { key: "externalIp", label: "External IP",  default: true,  sortKey: "externalIp", thClass: "",           tdClass: "ip",
@@ -1552,10 +1590,24 @@ function renderFleet() {
     if (r.idrac && r.idrac.installed) remotePills.push(`<span class="pill pill-idrac" title="Dell iDRAC iSM">iDRAC</span>`);
     const remoteCell = remotePills.length ? remotePills.join(" ") : `<span class="meta">—</span>`;
     const sysRow = r.system || {};
-    const vmBadge = sysRow.isVirtual
-      ? `<span class="vm-chip" title="Virtual machine${sysRow.hypervisor ? ` &middot; ${sysRow.hypervisor}` : ""}${sysRow.physicalHost ? ` &middot; hosted on ${sysRow.physicalHost.name}` : ""}">VM</span>`
-      : "";
-    const ctx = { st, bh, oh, os, isDecom, stBadge, bhBadge, ohBadge, wuBadge, diskBadge, backupCell, remoteCell, vmBadge };
+    // Host tag -- one slot per row, fixed width, painted in front of the
+    // hostname. VM (purple) wins over HYP (teal) because a host CAN be
+    // both (a Hyper-V guest that's itself hosting nested VMs), and in
+    // that case the operator cares more that this box is virtualized.
+    // Hypervisor detection: any other agent reports this hostname as
+    // its physicalHost -- so the only hosts that get the HYP chip are
+    // ones where guests are actively checking in to Watchtower too.
+    let hostTag;
+    if (sysRow.isVirtual) {
+      const tip = `Virtual machine${sysRow.hypervisor ? ` &middot; ${sysRow.hypervisor}` : ""}${sysRow.physicalHost ? ` &middot; hosted on ${sysRow.physicalHost.name}` : ""}`;
+      hostTag = `<span class="host-tag vm-chip" title="${tip}">VM</span>`;
+    } else if (findGuestVms(a).length > 0) {
+      const guests = findGuestVms(a);
+      hostTag = `<span class="host-tag hyp-chip" title="Hypervisor &middot; hosting ${guests.length} guest${guests.length === 1 ? "" : "s"} reporting to Watchtower">HYP</span>`;
+    } else {
+      hostTag = `<span class="host-tag none" aria-hidden="true"></span>`;
+    }
+    const ctx = { st, bh, oh, os, isDecom, stBadge, bhBadge, ohBadge, wuBadge, diskBadge, backupCell, remoteCell, hostTag };
 
     const rowClasses = [
       state.openPcId === a.id ? 'selected' : '',
@@ -2313,16 +2365,34 @@ function renderClients() {
 }
 
 // ============== modal helper ==============
-function openModal({ title, sub, body, foot }) {
+// `persistent: true` opts out of scrim-click dismissal -- use this for any
+// modal whose contents can't be recovered if closed accidentally (the raw
+// install-token display being the canonical example -- only shown once
+// per generation). The X button + foot button are still wired regardless.
+function openModal({ title, sub, body, foot, persistent }) {
   $("#modalTitle").textContent = title || "";
   $("#modalSub").textContent = sub || "";
   $("#modalBody").innerHTML = body || "";
   $("#modalFoot").innerHTML = foot || `<button class="btn" data-modal-close>Close</button>`;
   $("#modal").classList.add("show");
+  $("#modal").dataset.persistent = persistent ? "1" : "";
   $$("#modal [data-modal-close]").forEach(b => b.addEventListener("click", closeModal));
 }
-function closeModal() { $("#modal").classList.remove("show"); }
-$("#modal").addEventListener("click", e => { if (e.target.id === "modal") closeModal(); });
+function closeModal() { $("#modal").classList.remove("show"); $("#modal").dataset.persistent = ""; }
+$("#modal").addEventListener("click", e => {
+  // Scrim click only closes non-persistent modals; persistent ones must
+  // be dismissed via the X (top-right) or a foot button.
+  if (e.target.id !== "modal") return;
+  if ($("#modal").dataset.persistent === "1") return;
+  closeModal();
+});
+// X button -- the always-on escape hatch. Wired once at startup so we don't
+// re-attach on every openModal() call.
+$("#modalCloseX").addEventListener("click", closeModal);
+// ESC closes any modal (persistent or not) -- keyboard escape hatch.
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && $("#modal").classList.contains("show")) closeModal();
+});
 
 // ============== new-client flow ==============
 $("#newClientBtn").addEventListener("click", () => {
@@ -2449,6 +2519,9 @@ async function generateToken(clientId, opts = {}) {
   openModal({
     title: "Install token generated",
     sub: `Bound to ${client.name}. This is the only time you'll see the raw token.`,
+    // Persistent -- scrim click can't dismiss this. Tokens are shown once
+    // only and a fat-finger close would force a revoke + regenerate.
+    persistent: true,
     body: `
       <div class="warn"><b>Copy this now.</b> Watchtower only stores the SHA-256 hash, so you can't retrieve the raw token later. If you lose it, revoke and generate a new one.</div>
       <div class="token-display" id="modalToken">${esc(rawToken)}</div>
@@ -2457,12 +2530,12 @@ async function generateToken(clientId, opts = {}) {
       </div>
       <div class="info">
         Silent / RMM install:
-        <pre style="margin:6px 0 0;font-size:12.5px;"><code>Watchtower-Setup.exe /VERYSILENT /SUPPRESSMSGBOXES /TOKEN=${esc(rawToken)}</code></pre>
+        <pre style="margin:6px 0 0;font-size:12.5px;white-space:pre-wrap;word-break:break-all;overflow-wrap:anywhere;"><code>Watchtower-Setup.exe /VERYSILENT /SUPPRESSMSGBOXES /TOKEN=${esc(rawToken)}</code></pre>
         See <a href="docs.html" target="_blank">docs</a> for the full install flow.
       </div>
     `,
     foot: `
-      <button class="btn" data-modal-close>Done</button>
+      <button class="btn" data-modal-close>Close</button>
       ${state.latestAgent && state.latestAgent.downloadUrl
         ? `<a class="btn" href="${esc(state.latestAgent.downloadUrl)}" target="_blank" rel="noopener" id="dlInstallerFromToken">Download installer</a>`
         : ""}

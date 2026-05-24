@@ -122,7 +122,7 @@
       </svg>
       <div>
         <div class="meta">Umbrella Automation</div>
-        <h1>Watchtower &middot; Docs <span class="version-chip">v0.14.23</span></h1>
+        <h1>Watchtower &middot; Docs <span class="version-chip">v0.14.24</span></h1>
       </div>
     </a>
     <a class="btn brand-link" href="index.html">&larr; Back to dashboard</a>
@@ -438,6 +438,7 @@ Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" 
 
 <h2 id="tokens">Install tokens</h2>
 <p>Each client gets its own install token. The dashboard generates 32 cryptographically-random bytes (256 bits of entropy), base64url-encodes them, and prefixes <code>wt_</code> for easy spotting in logs. Only the SHA-256 hash is stored in Firestore &mdash; you see the raw token exactly once, in the modal that pops up right after generation.</p>
+<p>The generation modal is sticky on purpose &mdash; clicking outside it won't dismiss it. Use the <b>X</b> in the top-right or the <b>Close</b> button at the bottom only after you've copied the token (or downloaded an installer that bakes it in). Losing the raw token means revoking and regenerating; the SHA-256 hash isn't reversible.</p>
 <p>Paste the token into the wizard at install time (or pass <code>/TOKEN=...</code> for silent installs). The installer validates it against the worker before completing and writes the verified token to <code>%ProgramData%\Watchtower\config.json</code> on the target PC. Don't share tokens across clients &mdash; the worker enforces the binding on every check-in, and using a token outside its assigned client makes alert routing wrong.</p>
 
 <h3 id="tokens-revoke">Revoking a token</h3>
@@ -781,6 +782,7 @@ Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" 
 <h2 id="hyperv">Hyper-V parent &harr; guest correlation</h2>
 <p>When Watchtower is installed inside a Hyper-V VM, the agent reads the parent host's name out of the registry path <code>HKLM\SOFTWARE\Microsoft\Virtual Machine\Guest\Parameters</code> &mdash; populated by Hyper-V Integration Services (KVP exchange) on every supported Windows guest. No credentials, no network round-trip, no access to the parent host required.</p>
 <ul>
+  <li><b>Endpoints table</b> tags each row with a fixed-width chip to the LEFT of the hostname: <span style="background:#fae8ff;color:#581c87;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;font-family:var(--mono);">VM</span> for virtual machines, <span style="background:#ccfbf1;color:#115e59;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;font-family:var(--mono);">HYP</span> for hosts that have at least one Watchtower-monitored guest reporting in. Physical hosts get an invisible spacer of the same width so every hostname starts at the same x-coordinate &mdash; the column never jitters as you scroll.</li>
   <li><b>In a VM's drawer</b>, the System section shows a <b>Hosted on:</b> row with the parent's NetBIOS name. If that name matches another Watchtower endpoint, it renders as a clickable link with a <span style="background:var(--ok-soft);color:#14532d;padding:2px 8px;border-radius:999px;font-size:11.5px;font-weight:600;">monitored</span> badge &mdash; click to jump straight to the host's drawer.</li>
   <li><b>In the Hyper-V host's drawer</b>, a <b>Guest VMs (N)</b> section appears listing every endpoint that reported this host as its parent. Each row shows the guest's client + last check-in age + status, with a click-to-jump link back to the guest.</li>
 </ul>
