@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Watchtower &middot; Privacy Policy &middot; Umbrella Automation</title>
+<meta name="description" content="What Watchtower collects from monitored endpoints, where it's stored, and who has access.">
+<meta name="robots" content="noindex">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --surface: #ffffff;
+    --ink: #1a1f2b;
+    --ink-soft: #475063;
+    --ink-faint: #8892a4;
+    --line: #e3e6ec;
+    --line-strong: #c9cfdb;
+    --accent: #0a6b6b;
+    --accent-soft: #e6f4f4;
+    --shadow: 0 1px 2px rgba(20, 25, 40, 0.04), 0 4px 14px rgba(20, 25, 40, 0.05);
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { background: var(--bg); color: var(--ink); font-family: var(--sans); margin: 0; line-height: 1.6; }
+  main { max-width: 820px; margin: 0 auto; padding: 32px 24px 60px; }
+
+  header.top { display: flex; align-items: center; gap: 14px; margin-bottom: 28px; }
+  header.top a.brand { display: flex; align-items: center; gap: 14px; text-decoration: none; color: inherit; }
+  header.top svg { width: 44px; height: 44px; }
+  header.top .meta { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-faint); }
+  header.top h1 { font-size: 24px; margin: 2px 0 0; }
+  .lede { color: var(--ink-soft); font-size: 14.5px; line-height: 1.55; margin: 0 0 8px; }
+  .updated { font-size: 12px; color: var(--ink-faint); margin-bottom: 28px; }
+
+  h2 { font-size: 18px; margin: 32px 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+  h3 { font-size: 15px; margin: 22px 0 8px; color: var(--ink); }
+  p { font-size: 14px; margin: 0 0 12px; color: var(--ink-soft); }
+  ul, ol { font-size: 14px; color: var(--ink-soft); margin: 0 0 14px; padding-left: 22px; }
+  li { margin: 4px 0; }
+  code { font-family: var(--mono); font-size: 12.5px; background: var(--surface); padding: 1px 5px; border-radius: 4px; border: 1px solid var(--line); }
+
+  .callout {
+    background: var(--accent-soft);
+    border-left: 3px solid var(--accent);
+    padding: 12px 14px;
+    border-radius: 6px;
+    margin: 16px 0;
+    font-size: 13.5px;
+    color: var(--ink);
+  }
+
+  table.collect { width: 100%; border-collapse: collapse; font-size: 13.5px; margin: 8px 0 16px; }
+  table.collect th, table.collect td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  table.collect th { background: var(--surface); font-weight: 600; color: var(--ink); font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
+  table.collect tr:nth-child(even) td { background: var(--surface); }
+
+  .site-footer { margin-top: 40px; padding: 18px 20px 26px; border-top: 1px solid var(--line); background: var(--surface); }
+  .site-footer .wrap { max-width: 820px; margin: 0 auto; display: flex; align-items: center; gap: 18px; font-size: 12.5px; color: var(--ink-faint); }
+  .site-footer .spacer { flex: 1; }
+  .site-footer a { color: var(--ink-soft); text-decoration: none; }
+  .site-footer a:hover { color: var(--accent); text-decoration: underline; }
+</style>
+</head>
+<body>
+<main>
+
+<header class="top">
+  <a href="index.html" class="brand" title="Back to the dashboard">
+    <svg viewBox="0 0 64 64">
+      <circle cx="32" cy="32" r="30" fill="#0a6b6b"/>
+      <circle cx="32" cy="32" r="10" fill="#5af4e3" opacity="0.3"/>
+      <rect x="18" y="14" width="4" height="6" fill="#ffffff"/>
+      <rect x="26" y="14" width="4" height="6" fill="#ffffff"/>
+      <rect x="34" y="14" width="4" height="6" fill="#ffffff"/>
+      <rect x="42" y="14" width="4" height="6" fill="#ffffff"/>
+      <rect x="16" y="20" width="32" height="4" fill="#ffffff"/>
+      <rect x="20" y="24" width="24" height="30" fill="#ffffff"/>
+      <circle cx="32" cy="32" r="4" fill="#5af4e3"/>
+      <rect x="24" y="38" width="3" height="8" fill="#0a6b6b"/>
+      <rect x="37" y="38" width="3" height="8" fill="#0a6b6b"/>
+      <path d="M28 54 L28 50 Q32 46 36 50 L36 54 Z" fill="#0a6b6b"/>
+    </svg>
+    <div>
+      <div class="meta">Umbrella Automation</div>
+      <h1>Watchtower &middot; Privacy Policy</h1>
+    </div>
+  </a>
+</header>
+
+<p class="lede">Watchtower is an internal monitoring tool Umbrella Automation runs on the Windows endpoints we manage for our clients. This page describes what the agent reports back, where that data is stored, who can read it, and how long we keep it.</p>
+<p class="updated">Last updated: 2026-05-24</p>
+
+<div class="callout">
+  <b>Watchtower is operational telemetry for an existing managed-services relationship.</b> It is not a consumer product. We only install it on endpoints owned by our MSP clients under a signed service agreement, and the data it collects only goes to Umbrella Automation staff &mdash; not sold, not shared with third parties for marketing, not used for any purpose outside of supporting and securing your IT environment.
+</div>
+
+<h2 id="what">1. What we collect</h2>
+
+<p>The agent runs once per day on each monitored endpoint and reports a single check-in payload to our Cloudflare Worker, which writes it to our Firestore database. The categories below are the complete list of fields the agent can populate &mdash; nothing else is collected, recorded, or transmitted.</p>
+
+<h3>Identity &amp; system</h3>
+<table class="collect">
+  <thead><tr><th>Category</th><th>What it contains</th></tr></thead>
+  <tbody>
+    <tr><td>Host identity</td><td>Computer name, workgroup or AD domain, anonymous per-install UUID (<code>pcId</code>), the client name bound to the install token, IP addresses (external + per-NIC internal).</td></tr>
+    <tr><td>Hardware</td><td>Manufacturer, model, BIOS version + date, service tag/serial, CPU model + core count, total RAM + per-DIMM details, TPM presence + spec version, virtualization platform (Hyper-V / VMware / KVM / etc.) and on Hyper-V guests the parent host's name.</td></tr>
+    <tr><td>Operating system</td><td>Windows edition, version, build, install date, last boot time, architecture (x64/ARM).</td></tr>
+    <tr><td>Storage</td><td>Volume letters, filesystem type, size + free space, fixed/removable status.</td></tr>
+    <tr><td>Network</td><td>NIC names, MACs, IPv4 addresses, link speed, default-gateway flag.</td></tr>
+    <tr><td>User accounts</td><td>Local user account names, enabled/disabled state, last logon timestamp, password-expiry settings. <b>No passwords or password hashes</b>.</td></tr>
+  </tbody>
+</table>
+
+<h3>Software inventory</h3>
+<table class="collect">
+  <thead><tr><th>Category</th><th>What it contains</th></tr></thead>
+  <tbody>
+    <tr><td>Installed applications</td><td>Names, versions, publishers from the Windows Uninstall registry. Used to see what's on each machine for support and license-tracking purposes.</td></tr>
+    <tr><td>Windows hotfixes</td><td>KB numbers + install dates for installed Windows patches.</td></tr>
+    <tr><td>Pending Windows Updates</td><td>Counts + titles of updates pending install (queried from the Windows Update Agent), plus reboot-pending state.</td></tr>
+    <tr><td>USB device history</td><td>Friendly name + serial number of USB devices that have been connected to the machine (from the registry's persistent device-arrival log).</td></tr>
+  </tbody>
+</table>
+
+<h3>Backup &amp; security state</h3>
+<table class="collect">
+  <thead><tr><th>Category</th><th>What it contains</th></tr></thead>
+  <tbody>
+    <tr><td>Backup products</td><td>Veeam (Backup &amp; Replication + Agent), Windows Server Backup, Carbonite: install state, version, last backup result, last successful backup date, recent job history, target destinations, retention policy.</td></tr>
+    <tr><td>Microsoft Defender</td><td>Enabled state, real-time protection state, definition version + age, last scan timestamps.</td></tr>
+    <tr><td>SentinelOne</td><td>Install state + agent version + service state. <b>No telemetry from the SentinelOne agent itself</b> &mdash; just whether it's installed and running.</td></tr>
+    <tr><td>Dell OMSA / iDRAC</td><td>On Dell hardware: RAID controller info, virtual disk (array) health, physical disk health with vendor + serial + SMART predictive-failure flag.</td></tr>
+    <tr><td>LogMeIn</td><td>Install state, version, service state, Central computer description (the friendly host label set by the technician).</td></tr>
+  </tbody>
+</table>
+
+<h3>What we explicitly do NOT collect</h3>
+<ul>
+  <li>File contents of any kind. We see <i>which</i> applications are installed but not the documents or data those applications hold.</li>
+  <li>Browser history, bookmarks, saved passwords, cookies, autofill.</li>
+  <li>Email content, instant messages, or any communication payloads.</li>
+  <li>Keystrokes, screen recordings, webcam input, or microphone audio.</li>
+  <li>Personal files in user profiles (Documents, Pictures, Downloads, etc.).</li>
+  <li>The contents of any database or LOB application running on the host.</li>
+  <li>Passwords, password hashes, encryption keys, or authentication tokens for any service.</li>
+  <li>Active Directory directory data beyond the local computer's domain membership.</li>
+</ul>
+
+<h2 id="why">2. Why we collect it</h2>
+
+<p>Solely to operate, support, and secure the IT environments we manage. Specific use cases:</p>
+<ul>
+  <li><b>Health monitoring.</b> Spot a failing RAID disk, a backup that hasn't run in 3 days, a server with 90+ days uptime that needs reboot, or a host whose external IP just changed unexpectedly.</li>
+  <li><b>Patch awareness.</b> Know which endpoints have critical Windows Updates pending so we can schedule maintenance windows.</li>
+  <li><b>Asset inventory.</b> Maintain an accurate per-client list of hardware models, OS versions, installed software, and license counts for support + renewal planning.</li>
+  <li><b>Incident response.</b> When something breaks, we need to know what version of which product is on which machine without dialing in.</li>
+  <li><b>Change detection.</b> Alert on new endpoints joining the fleet, hosts going dark, or USB devices being plugged in.</li>
+</ul>
+<p>We do not use the data for advertising, profiling, sale, model training, or any purpose other than the ones above.</p>
+
+<h2 id="where">3. Where it's stored</h2>
+
+<p>Watchtower uses a small set of vendor services. Each is covered by their own privacy + security commitments:</p>
+<table class="collect">
+  <thead><tr><th>Vendor</th><th>What they hold</th><th>Region</th></tr></thead>
+  <tbody>
+    <tr><td>Google Cloud (Firebase Firestore + Authentication)</td><td>The endpoint check-in records, client list, install token hashes, activity log. Admin sign-in (Google OAuth) for the dashboard.</td><td>us-central1 (US)</td></tr>
+    <tr><td>Cloudflare Workers</td><td>The HTTP API that receives agent check-ins and serves the dashboard's admin actions. Stateless &mdash; no agent data persisted at Cloudflare; the worker writes through to Firestore.</td><td>Global edge (request routes to nearest)</td></tr>
+    <tr><td>Resend</td><td>Outbound email for new-endpoint intake reports, backup failure alerts, OMSA storage warnings. Recipient is Umbrella Automation staff only.</td><td>US</td></tr>
+    <tr><td>GitHub</td><td>Source code + the installer EXE releases. Does NOT receive agent telemetry &mdash; only used to deliver the installer + the dashboard static site.</td><td>US</td></tr>
+    <tr><td>Dell TechDirect API</td><td>For Dell hosts only: the worker sends the service tag to Dell to look up warranty status. No other host data is shared. Cached for 24h server-side.</td><td>US</td></tr>
+  </tbody>
+</table>
+
+<h2 id="who">4. Who can read it</h2>
+<ul>
+  <li><b>Umbrella Automation staff with verified <code>@umbrellaautomation.com</code> Google accounts.</b> The dashboard enforces this gate via Firebase Authentication + email-domain check on every read. There are no other admin roles.</li>
+  <li>Cloudflare and Google infrastructure staff to the extent their own service obligations require (e.g. infrastructure maintenance). Both vendors are GDPR + SOC 2 audited.</li>
+  <li><b>We do not share Watchtower data with any other Umbrella Automation customer.</b> Per-client tokens enforce that data from your endpoints stays scoped to your client record.</li>
+</ul>
+
+<h2 id="retention">5. Retention</h2>
+<ul>
+  <li>Current per-host status: kept indefinitely while the endpoint is active. Replaced on each daily check-in.</li>
+  <li>Per-host history (timeline of check-ins, IP changes, events): kept for the lifetime of the endpoint in our fleet.</li>
+  <li>Decommissioned endpoints: the record is preserved (marked decommissioned) until the client requests its deletion or we close the account.</li>
+  <li>Activity log: append-only; preserved for audit purposes.</li>
+  <li>Email notifications: held by Resend for 90 days then aged out.</li>
+</ul>
+<p>If your service agreement with us ends, we delete all your Watchtower records within 90 days of account closure. You may request deletion sooner; contact info below.</p>
+
+<h2 id="security">6. Security</h2>
+<ul>
+  <li>Every agent-to-worker request authenticates with a per-client install token (43 bytes of base64url entropy; SHA-256 hashed server-side &mdash; the raw token is shown to the operator <i>once</i> at generation, never stored).</li>
+  <li>All transport is TLS 1.2+ to <code>*.workers.dev</code>, <code>*.googleapis.com</code>, and <code>api.resend.com</code>.</li>
+  <li>Firestore writes are scoped to a service account; raw firewall is closed via <a href="https://github.com/frank-umbrella/work/blob/main/watchtower/firestore.rules" target="_blank" rel="noopener">declarative rules</a> that only the worker (via service account) and verified MSP-admin browsers can read.</li>
+  <li>Dashboard sign-in requires Google's verified <code>@umbrellaautomation.com</code> account &mdash; no shared passwords, no API keys in the browser.</li>
+  <li>The agent runs as <code>LocalSystem</code> on the endpoint. It does not open inbound network ports; all communication is agent-initiated, outbound HTTPS only.</li>
+</ul>
+
+<h2 id="control">7. Your control</h2>
+<p>If you're an Umbrella Automation client whose endpoints are monitored:</p>
+<ul>
+  <li><b>Uninstall the agent at any time.</b> Add/Remove Programs &rarr; "Umbrella Watchtower" &rarr; Uninstall. The agent phones home one last time to mark the endpoint decommissioned in our dashboard, then removes itself.</li>
+  <li><b>Request a copy of what we have on a specific endpoint.</b> Email us (address below) with the hostname and we'll export the full record.</li>
+  <li><b>Request deletion.</b> Same path: email with the hostname or client name. Records are removed within 30 days of confirmation.</li>
+  <li><b>Audit what we've changed recently.</b> The Activity log inside the dashboard records every admin action (host reassign, client rename, decommission, force-update, token generate / revoke). We can share an excerpt scoped to your endpoints on request.</li>
+</ul>
+
+<h2 id="contact">8. Contact</h2>
+<p>Questions, deletion requests, audit excerpts, or anything else privacy-related:</p>
+<p><a href="mailto:frank@umbrellaautomation.com">frank@umbrellaautomation.com</a></p>
+
+<h2 id="changes">9. Changes to this policy</h2>
+<p>If we change what Watchtower collects, where it's stored, or who can read it, this page will be updated and the "Last updated" date at the top will change. Material changes (new categories of collected data, new vendors, new sharing) will also be communicated directly to active clients.</p>
+
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <span>Watchtower &middot; Umbrella Automation</span>
+    <span class="spacer"></span>
+    <a href="index.html">Dashboard</a>
+    <a href="docs.html">Docs</a>
+    <a href="brand.html">Brand</a>
+    <a href="https://github.com/frank-umbrella/work/tree/main/watchtower" target="_blank" rel="noopener">Source</a>
+  </div>
+</footer>
+
+</body>
+</html>
