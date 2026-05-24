@@ -171,6 +171,21 @@
   table.fleet tr.decom td { opacity: 0.55; }
   table.fleet tr.decom td .badge.muted { opacity: 1; }
   table.fleet .host { font-weight: 600; color: var(--ink); }
+  /* VM chip -- inline marker next to hostname for virtualized endpoints.
+     Purple to match the "Virtual machine" badge in the drawer. */
+  .vm-chip {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 1px 6px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    background: #fae8ff;
+    color: #581c87;
+    border-radius: 4px;
+    vertical-align: middle;
+    font-family: var(--mono);
+  }
   table.fleet .ip { font-family: var(--mono); font-size: 12.5px; color: var(--ink-soft); }
   table.fleet .client { font-size: 12.5px; color: var(--ink-soft); }
   table.fleet .age { font-size: 12px; color: var(--ink-faint); }
@@ -705,7 +720,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.1";
+const APP_VERSION = "0.14.2";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -741,6 +756,10 @@ const state = {
   },
   activityFilter: { type: "" },
   openPcId: null,
+  // Whether the drawer's Config & kill-switches <details> is expanded.
+  // Tracked so onSnapshot ticks from writeConfig() don't collapse the
+  // panel right after the operator toggles something inside it.
+  configPanelOpen: false,
   unsub: { agents: null, clients: null, tokens: null, settings: null, latestAgent: null, activity: null, config: null }
 };
 
@@ -1179,9 +1198,16 @@ function renderFleet() {
       state.openPcId === a.id ? 'selected' : '',
       isDecom ? 'decom' : '',
     ].filter(Boolean).join(' ');
+    // VM badge -- small purple chip next to the hostname so the operator
+    // can spot virtualized hosts at a glance without opening the drawer.
+    // Tooltip names the hypervisor flavor (Hyper-V / VMware / KVM / ...).
+    const sysRow = r.system || {};
+    const vmBadge = sysRow.isVirtual
+      ? `<span class="vm-chip" title="Virtual machine${sysRow.hypervisor ? ` &middot; ${sysRow.hypervisor}` : ""}${sysRow.physicalHost ? ` &middot; hosted on ${sysRow.physicalHost.name}` : ""}">VM</span>`
+      : "";
     return `
       <tr data-id="${esc(a.id)}" class="${rowClasses}">
-        <td data-label="Host"><div class="host">${esc(a.hostname || a.id)}</div></td>
+        <td data-label="Host"><div class="host">${esc(a.hostname || a.id)}${vmBadge}</div></td>
         <td class="col-client client" data-label="Client">${esc(a.client || "—")}</td>
         <td class="col-intip ip" data-label="Internal IP">${esc(a.internalIp || "—")}</td>
         <td class="ip" data-label="External IP">${esc(a.externalIp || "—")}</td>
@@ -2177,6 +2203,10 @@ function openDrawer(pcId) {
 
 function closeDrawer() {
   state.openPcId = null;
+  // Collapse the config panel on close so the NEXT host you open
+  // doesn't auto-expand it just because you happened to leave it open
+  // on the previous one.
+  state.configPanelOpen = false;
   $("#drawer").classList.remove("open");
   $("#scrim").classList.remove("show");
   if (state.unsub.config) { state.unsub.config(); state.unsub.config = null; }
@@ -3302,7 +3332,7 @@ function renderDrawer(pcId) {
         : `<span class="meta">All defaults</span>`;
 
       return `
-    <details class="section section-config">
+    <details class="section section-config"${state.configPanelOpen ? " open" : ""}>
       <summary>
         <span class="cog" aria-hidden="true">&#9881;</span>
         <span class="config-title">Config &amp; kill-switches</span>
@@ -3385,6 +3415,14 @@ function renderDrawer(pcId) {
       ${kv([
         ["OS", esc(sys.os && sys.os.name) + (sys.os && sys.os.version ? ` (build ${esc(sys.os.build)})` : "")],
         ["Architecture", esc(sys.os && sys.os.architecture)],
+        // Uptime / Last reboot pulled from Win32_OperatingSystem.LastBootUpTime
+        // (system probe captures it as CIM datestring "YYYYMMDDHHMMSS.ffffff+zzz").
+        // Parsed client-side into a friendly "5d 3h ago (May 18 09:14)" string
+        // so the operator immediately knows if a host was rebooted recently
+        // -- useful for "did patching land?" + "is this server overdue for
+        // a maintenance window?" judgement calls.
+        ...(sys.os && sys.os.lastBoot ? [["Last reboot", renderLastBoot(sys.os.lastBoot), "Pulled from Win32_OperatingSystem.LastBootUpTime on every check-in. Resets only when Windows actually boots from a cold start -- Fast Startup hibernation does NOT update this value, so a Win10/11 client that only ever shuts down with Fast Startup may show a deceptively old date."]] : []),
+        ...(sys.os && sys.os.installDate ? [["OS install date", renderCimDate(sys.os.installDate)]] : []),
         ["Manufacturer", esc(sys.manufacturer)],
         ["Model", esc(sys.model)],
         ...(sys.isVirtual ? [["Virtual machine", `<span class="badge muted" style="background:#fae8ff;color:#581c87;">Yes</span> <span class="meta">${esc(sys.hypervisor || "")}</span>`]] : []),
@@ -3536,6 +3574,21 @@ function renderDrawer(pcId) {
       <div class="list">${errs.map(e => `<div class="row"><div class="name">${esc(e.probe)}</div><div class="meta">${esc(e.error)}</div></div>`).join("")}</div>
     </div>` : ""}
   `;
+
+  // Track the Config & kill-switches <details> open state so the
+  // panel doesn't slam shut on the operator after every toggle. Each
+  // writeConfig() triggers a Firestore PATCH, the onSnapshot listener
+  // fires, renderDrawer() re-runs, and without this the panel collapses
+  // because the new HTML doesn't have `open`. We push the current state
+  // through the re-render via state.configPanelOpen (set at the top of
+  // the render template), and update that state here whenever the
+  // operator clicks the summary.
+  const configPanel = document.querySelector("#dBody details.section-config");
+  if (configPanel) {
+    configPanel.addEventListener("toggle", () => {
+      state.configPanelOpen = configPanel.open;
+    });
+  }
 
   // Wire up the toggles.
   $$("#dBody input[data-cfg]").forEach(input => {
@@ -4080,6 +4133,49 @@ function renderServiceTag(tag, manufacturer) {
   const express = expressServiceCode(tag);
   return `<a href="${url}" target="_blank" rel="noopener"><code>${safe}</code></a>` +
          (express ? ` <span class="meta" title="Express Service Code (base-10 of the tag) — useful for Dell support phone trees">· Express ${esc(express)}</span>` : "");
+}
+
+// CIM datetime parser. WMI returns timestamps as
+//   "YYYYMMDDHHMMSS.ffffff+zzz"  (the +zzz is UTC offset in minutes)
+// or as a 14-char prefix when the agent already truncated it. Returns
+// a JS Date or null when we can't parse.
+function parseCimDate(s) {
+  if (!s || typeof s !== "string") return null;
+  // Accept either the full WMI form or the 14-char prefix we sometimes
+  // emit from the agent.
+  const m = s.match(/^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/);
+  if (!m) return null;
+  const [, y, mo, d, h, mi, se] = m;
+  // Treat as UTC. The +zzz offset suffix would let us do it properly
+  // but for "X ago" relative display the difference is irrelevant.
+  const dt = new Date(Date.UTC(+y, +mo - 1, +d, +h, +mi, +se));
+  return isNaN(dt.getTime()) ? null : dt;
+}
+
+// Friendly "Last reboot" cell: shows "5d 3h ago" + the absolute date
+// in the operator's local timezone, plus an amber warn pill when uptime
+// is suspiciously long (> 60 days) -- Windows servers benefit from a
+// periodic reboot for memory hygiene + patch finalization.
+function renderLastBoot(cimStr) {
+  const dt = parseCimDate(cimStr);
+  if (!dt) return `<code>${esc(cimStr)}</code>`;
+  const ageMs = Date.now() - dt.getTime();
+  const days = Math.floor(ageMs / 86400000);
+  const hours = Math.floor((ageMs % 86400000) / 3600000);
+  const rel = days > 0 ? `${days}d ${hours}h ago` : `${hours}h ago`;
+  const abs = dt.toLocaleString();
+  const stale = days >= 60
+    ? ` <span class="badge warn" style="margin-left:6px;" title="Uptime over 60 days -- consider a maintenance window. Pending updates can't finish, leak detectors miss memory hygiene, and patches sit half-applied.">long uptime</span>`
+    : "";
+  return `${esc(rel)} <span class="meta">&middot; ${esc(abs)}</span>${stale}`;
+}
+
+// Generic CIM-date renderer for dates where uptime/warn pills don't
+// make sense (OS install date, BIOS date). Just shows the local date.
+function renderCimDate(cimStr) {
+  const dt = parseCimDate(cimStr);
+  if (!dt) return `<code>${esc(cimStr)}</code>`;
+  return esc(dt.toLocaleDateString());
 }
 
 function statusBadge(s) {

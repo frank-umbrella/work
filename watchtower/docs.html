@@ -113,7 +113,7 @@
       </svg>
       <div>
         <div class="meta">Umbrella Automation</div>
-        <h1>Watchtower &middot; Docs <span class="version-chip">v0.14.1</span></h1>
+        <h1>Watchtower &middot; Docs <span class="version-chip">v0.14.2</span></h1>
       </div>
     </a>
     <a class="btn brand-link" href="index.html">&larr; Back to dashboard</a>
@@ -794,30 +794,36 @@ Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" 
 </ul>
 
 <h3 id="recovery">Stuck install &mdash; service won't stop, installer won't run</h3>
-<p>Symptom: the host never appears in the dashboard, the tray icon is missing, and re-running the installer fails with <code>DeleteFile failed code 5</code> or "the service is running". This can happen if the agent service is wedged in startup (looping on a probe that throws, can't release file handles to <code>watchtower-svc.exe</code>).</p>
-<p>v0.14.1+ installers force-kill the service process during <code>PrepareToInstall</code> so the extraction can proceed. If you're on an older installer, run this elevated PowerShell to wipe the install cleanly, then download a fresh installer and run it:</p>
-<pre><code># Stop + delete the service, kill any orphaned processes
+<p>Symptom: the host never appears in the dashboard, the tray icon is missing, and re-running the installer fails with <code>DeleteFile failed code 5</code> or "the service is running". Service Control Manager may also show the service stuck in <b>Stopping</b> state forever &mdash; <code>sc stop</code> queued a graceful shutdown but the process is wedged (looping on a probe, hung in COM, can't release file handles).</p>
+<p>v0.14.1+ installers handle this automatically: <code>PrepareToInstall</code> now follows the graceful <code>sc stop</code> with a <code>taskkill /im watchtower-svc.exe /f /t</code> so the EXE handle releases even when SCM can't gracefully shut the service down. If you're on an older installer (or just want to be safe) run this elevated PowerShell to wipe the install cleanly, then download a fresh installer and run it:</p>
+<pre><code># 1. Try a graceful stop first (won't hang -- ErrorAction silences a refusal)
 Stop-Service WatchtowerAgent -Force -ErrorAction SilentlyContinue
-sc.exe delete WatchtowerAgent | Out-Null
+
+# 2. THIS IS THE CRITICAL STEP for "stuck in Stopping" state.
+#    Force-kills the process by name regardless of SCM state.
 Get-Process watchtower-svc, watchtower-tray -ErrorAction SilentlyContinue | Stop-Process -Force
 
-# Remove the install dir
+# 3. Now SCM lets us delete the service entry (it sees no running process)
+sc.exe delete WatchtowerAgent | Out-Null
+
+# 4. Remove the install dir
 Remove-Item "C:\Program Files\Umbrella Watchtower" -Recurse -Force -ErrorAction SilentlyContinue
 
-# Remove the per-machine config (preserves nothing -- next install gets a fresh pcId)
+# 5. Remove the per-machine config (next install gets a fresh pcId)
 Remove-Item "C:\ProgramData\Watchtower" -Recurse -Force -ErrorAction SilentlyContinue
 
-# Remove the Add/Remove Programs entry (so re-install starts clean)
+# 6. Remove the Add/Remove Programs entry (so re-install starts clean)
 Get-ChildItem "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall" `
   | Where-Object { (Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue).DisplayName -like 'Umbrella Watchtower*' } `
   | Remove-Item -Recurse -Force
 
-# Remove the tray autostart entry
+# 7. Remove the tray autostart entry
 Remove-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run' -Name WatchtowerTray -ErrorAction SilentlyContinue
 
 Write-Host "Cleaned. Download a fresh installer and run it." -ForegroundColor Green
 </code></pre>
 <p>Note that wiping <code>C:\ProgramData\Watchtower</code> means the host gets a new pcId on next install &mdash; it'll show up as a new row in the dashboard. The old row will go stale and you can decommission it.</p>
+<p><b>Why graceful stop alone fails:</b> SCM's <code>sc stop</code> only sends a <code>SERVICE_CONTROL_STOP</code> signal. If the service's stop handler is waiting on a probe that's stuck (WMI hang, COM timeout, blocked I/O), the service sits in <b>Stopping</b> indefinitely and the process keeps the EXE locked. Killing the underlying process by name bypasses SCM and tears down the handle immediately.</p>
 
 <h3>Tray icon missing on RDP'd servers</h3>
 <p>The tray is registered in <code>HKLM\…\Run</code>, which fires once per interactive logon. RDP into a server creates a new interactive session &mdash; the tray should launch on the second login. If it doesn't, check Task Manager for <code>watchtower-tray.exe</code>; if it's missing, run it manually from the install dir.</p>

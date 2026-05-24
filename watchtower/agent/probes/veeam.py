@@ -52,6 +52,79 @@ def _detect_br():
     return None
 
 
+def _scan_uninstall_for_veeam_agent():
+    """
+    Fallback path -- newer Veeam Agent (5.x / 6.x) doesn't always populate
+    the SOFTWARE\\Veeam tree the way older versions did, but it always
+    registers an Uninstall entry. We walk both 64-bit and WOW6432Node
+    Uninstall hives looking for a DisplayName that starts with
+    "Veeam Agent for Microsoft Windows" (the canonical product name).
+
+    Returns the DisplayVersion string when found, None otherwise.
+    """
+    candidates = [
+        (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall"),
+        (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall"),
+    ]
+    for hive, root in candidates:
+        try:
+            with winreg.OpenKey(hive, root, 0, winreg.KEY_READ | winreg.KEY_WOW64_64KEY) as k:
+                i = 0
+                while True:
+                    try:
+                        sub_name = winreg.EnumKey(k, i)
+                    except OSError:
+                        break
+                    i += 1
+                    try:
+                        with winreg.OpenKey(k, sub_name, 0, winreg.KEY_READ | winreg.KEY_WOW64_64KEY) as sub:
+                            try:
+                                dn, _ = winreg.QueryValueEx(sub, "DisplayName")
+                            except FileNotFoundError:
+                                continue
+                            if not dn:
+                                continue
+                            # Match the canonical product name + the rename
+                            # variants Veeam has shipped over the years.
+                            dn_l = dn.lower()
+                            if (dn_l.startswith("veeam agent for microsoft windows")
+                                    or dn_l == "veeam endpoint backup"
+                                    or dn_l.startswith("veeam backup for windows")):
+                                try:
+                                    dv, _ = winreg.QueryValueEx(sub, "DisplayVersion")
+                                    if dv:
+                                        return dv
+                                except FileNotFoundError:
+                                    return "(unknown version)"
+                    except (FileNotFoundError, OSError):
+                        continue
+        except (FileNotFoundError, OSError):
+            continue
+    return None
+
+
+def _service_running(name):
+    """
+    Lightweight check: returns True if `sc query <name>` reports the
+    service exists and is in RUNNING state. Used as a tie-breaker --
+    even when the registry probe misses Veeam, a running
+    VeeamEndpointBackupSvc means the agent IS installed.
+    """
+    try:
+        r = subprocess.run(
+            ["sc", "query", name],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            creationflags=0x08000000,
+        )
+        if r.returncode != 0:
+            return False
+        return "RUNNING" in (r.stdout or "")
+    except Exception:
+        return False
+
+
 def _detect_agent():
     ver = _reg_read(
         winreg.HKEY_LOCAL_MACHINE,
@@ -65,6 +138,19 @@ def _detect_agent():
             r"SOFTWARE\Veeam\Veeam Agent for Microsoft Windows",
             "DisplayVersion",
         )
+    if not ver:
+        # Newer (5.x / 6.x) installs may not populate the SOFTWARE\Veeam
+        # tree the way older versions did. Fall back to the Uninstall
+        # registry, which IS reliably populated by every Windows installer.
+        ver = _scan_uninstall_for_veeam_agent()
+    if not ver:
+        # Last-resort tie-breaker: if a Veeam Agent service is running on
+        # this box, the agent is installed. Without a version we report
+        # "(unknown)" but at least the dashboard sees something.
+        for svc_name in ("VeeamEndpointBackupSvc", "VeeamAgentService", "VeeamAgent"):
+            if _service_running(svc_name):
+                ver = "(unknown -- detected via service)"
+                break
     if not ver:
         return None
 
