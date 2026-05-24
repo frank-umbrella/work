@@ -3297,7 +3297,14 @@ function renderDrawer(pcId) {
   const usb = r.usb;
   const errs = r.probeErrors || [];
 
-  const cfg = a.config || { enabled: true, emailEnabled: true, webhookEnabled: false, webhookUrl: "", uninstall: false, autoUpdate: false, clientIdOverride: null };
+  // BUGFIX: webhookEnabled was hardcoded to `false` here, which caused
+  // a fresh host (no config doc yet in Firestore) to show the webhook
+  // toggle as OFF -- even though the worker correctly treats `null` as
+  // "default ON whenever a master URL exists." Now matches the worker's
+  // tristate convention: null = never explicitly set by admin, the
+  // drawer's display logic (cfg.webhookEnabled === false ? false :
+  // hasEffectiveUrl) flips the toggle ON automatically.
+  const cfg = a.config || { enabled: true, emailEnabled: true, webhookEnabled: null, webhookUrl: "", uninstall: false, autoUpdate: false, clientIdOverride: null };
 
   // Decommissioned banner — shown above the Status block when the host
   // has been marked decommissioned, either by the agent's uninstall

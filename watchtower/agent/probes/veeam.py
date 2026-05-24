@@ -54,18 +54,32 @@ def _detect_br():
 
 def _scan_uninstall_for_veeam_agent():
     """
-    Fallback path -- newer Veeam Agent (5.x / 6.x) doesn't always populate
-    the SOFTWARE\\Veeam tree the way older versions did, but it always
-    registers an Uninstall entry. We walk both 64-bit and WOW6432Node
-    Uninstall hives looking for a DisplayName that starts with
-    "Veeam Agent for Microsoft Windows" (the canonical product name).
+    Fallback path -- newer Veeam Agent (5.x / 6.x / 12.x) doesn't always
+    populate the SOFTWARE\\Veeam tree the way older versions did, but
+    every Windows installer DOES register an Uninstall entry. We walk
+    both 64-bit and WOW6432Node Uninstall hives looking for ANY display
+    name containing "veeam agent" / "veeam endpoint" / "veeam backup
+    for microsoft windows". Substring match rather than startswith --
+    Veeam's installers have prepended numeric version prefixes ("12.1.2
+    Veeam Agent for Microsoft Windows") in some shipped builds.
 
     Returns the DisplayVersion string when found, None otherwise.
+    Also stores the matched DisplayName for diagnostic surfacing back
+    to the dashboard so we can tell which path matched.
     """
     candidates = [
         (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall"),
         (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall"),
     ]
+    # Substring patterns we recognize as a Veeam Agent / Endpoint install
+    # (case-insensitive). Order doesn't matter -- first match wins.
+    patterns = (
+        "veeam agent for microsoft windows",
+        "veeam endpoint backup",
+        "veeam backup for microsoft windows",
+        "veeam backup for windows",  # legacy
+        "veeam agent",               # very permissive fallback
+    )
     for hive, root in candidates:
         try:
             with winreg.OpenKey(hive, root, 0, winreg.KEY_READ | winreg.KEY_WOW64_64KEY) as k:
@@ -84,12 +98,8 @@ def _scan_uninstall_for_veeam_agent():
                                 continue
                             if not dn:
                                 continue
-                            # Match the canonical product name + the rename
-                            # variants Veeam has shipped over the years.
                             dn_l = dn.lower()
-                            if (dn_l.startswith("veeam agent for microsoft windows")
-                                    or dn_l == "veeam endpoint backup"
-                                    or dn_l.startswith("veeam backup for windows")):
+                            if any(p in dn_l for p in patterns):
                                 try:
                                     dv, _ = winreg.QueryValueEx(sub, "DisplayVersion")
                                     if dv:
