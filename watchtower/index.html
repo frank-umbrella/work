@@ -851,7 +851,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.19";
+const APP_VERSION = "0.14.22";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -3745,7 +3745,17 @@ function renderDrawer(pcId) {
     </div>
   ` : "";
 
-  $("#dBody").innerHTML = `
+  // Defensive: wrap the (large) template-literal body assignment in
+  // try/catch so a probe with unexpected shape throws into a visible
+  // error message instead of silently leaving #dBody empty (the user
+  // sees a blank drawer with just the header buttons; very confusing).
+  // SERVER2 (Server 2012 R2) on first checkin produced a renderDrawer
+  // exception that blanked the whole body; this wrapper turns that
+  // into "Render error: <message>" + a stack trace in the console
+  // so we can diagnose without reproducing.
+  let _drawerHtml;
+  try {
+    _drawerHtml = `
     ${decomBanner}
     <div class="section">
       <h3>Status</h3>
@@ -4028,6 +4038,25 @@ function renderDrawer(pcId) {
       <div class="list">${errs.map(e => `<div class="row"><div class="name">${esc(e.probe)}</div><div class="meta">${esc(e.error)}</div></div>`).join("")}</div>
     </div>` : ""}
   `;
+  } catch (err) {
+    // Surface the actual render error in the drawer + the browser
+    // console so it's debuggable rather than a silent blank panel.
+    console.error("[renderDrawer] failed for pcId=" + pcId, err);
+    _drawerHtml = `
+      <div class="section">
+        <div style="background:var(--danger-soft);border:1px solid #fca5a5;color:#7f1d1d;padding:14px 16px;border-radius:8px;font-size:13.5px;">
+          <b>Render error.</b>
+          <div style="margin-top:6px;">The dashboard couldn't render this host's details. Open the browser console (F12 -> Console) for the stack trace and send the line to Umbrella Automation support.</div>
+          <div style="margin-top:8px;font-family:var(--mono);font-size:12px;color:#7f1d1d;">${esc(String(err && err.message ? err.message : err))}</div>
+        </div>
+      </div>
+      <div class="section">
+        <div class="meta">Raw host record (in case the structured render gives up):</div>
+        <pre style="background:var(--surface-2);border:1px solid var(--line);padding:10px;border-radius:6px;font-size:11.5px;overflow:auto;max-height:400px;">${esc(JSON.stringify(a, null, 2))}</pre>
+      </div>
+    `;
+  }
+  $("#dBody").innerHTML = _drawerHtml;
 
   // Track the Config & kill-switches <details> open state so the
   // panel doesn't slam shut on the operator after every toggle. Each
