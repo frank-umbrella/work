@@ -65,10 +65,35 @@ def _run_probe_with_timeout(module_name, timeout_sec):
     Subsequent check-ins spawn fresh threads -- they'll accumulate if
     the underlying issue isn't fixed, but the service stays responsive
     and state.json keeps getting written, which is what matters.
+
+    v0.14.26: we now call pythoncom.CoInitialize() at the start of
+    every probe thread. The wmi library (which six probes depend on)
+    requires per-thread COM initialization or it returns the
+    enigmatic "WMI returned a syntax error: you're probably running
+    inside a thread without first calling pythoncom.CoInitialize[Ex]"
+    error -- which is what CCD-HYPERV hit and why its internal IP came
+    back blank. Before this fix the probe threads were getting lucky on
+    most hosts (some platform-level COM init was already in place from
+    pywin32's service host), but not all. CoInitialize is idempotent
+    when COM is already up in this thread (returns S_FALSE rather than
+    raising), so it's safe to call unconditionally.
     """
     result_box = {"value": None, "exc": None}
 
     def _target():
+        # Per-thread COM init. Try/except because pythoncom isn't
+        # importable on non-Windows test beds AND because some unusual
+        # apartment states (e.g. STA already set by a host process)
+        # surface as pywintypes.com_error -- which is fine to ignore;
+        # the WMI call further down will succeed if COM is up at all.
+        try:
+            import pythoncom
+            try:
+                pythoncom.CoInitialize()
+            except Exception:
+                pass
+        except ImportError:
+            pass
         try:
             mod = importlib.import_module(f"probes.{module_name}")
             result_box["value"] = mod.collect()
