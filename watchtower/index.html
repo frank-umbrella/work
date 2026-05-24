@@ -232,6 +232,10 @@
   .filters label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-faint); font-weight: 600; margin-right: 4px; }
   .filters .spacer { flex: 1; }
   .filters .count { font-size: 12px; color: var(--ink-faint); }
+  /* Grouped action buttons (Refresh / Columns / CSV / Excel). Wrapped in
+     a div so the mobile rule below can flow them into a two-column grid
+     on phone widths without having to target each button individually. */
+  .filters .filter-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 
   /* fleet table */
   table.fleet { width: 100%; border-collapse: collapse; font-size: 13.5px; }
@@ -526,6 +530,7 @@
      labeled row so info stays readable without horizontal scrolling.
      Triggered below 600px since iPhone 15/16 portrait is ~390 / 430px. */
   @media (max-width: 600px) {
+    /* ------- Fleet table as cards ------- */
     table.fleet, table.fleet thead, table.fleet tbody, table.fleet tr, table.fleet td, table.fleet th { display: block; }
     table.fleet thead { display: none; }
     table.fleet tr { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; margin: 0 12px 10px; }
@@ -550,13 +555,115 @@
     /* Hide rows with no useful info ("—") in card mode to keep cards tight */
     table.fleet td.client[data-label="OS"]:empty,
     table.fleet td.col-intip:has(.meta:only-child) { display: none; }
-    /* Top bar — shrink chip + buttons for mobile */
+
+    /* ------- Top header / brand row ------- */
+    /* "Umbrella Automation" eyebrow is dead weight in 390px; the brand
+       title alone identifies the product. Likewise the email pill in
+       userbar -- the avatar is enough. */
+    header.bar { padding: 8px 12px; }
+    header.bar .wrap { gap: 8px; }
+    .brand .meta { display: none; }
+    .brand h1 { font-size: 15px; gap: 4px; }
+    .brand h1 .version-chip { font-size: 10px; padding: 0 4px; }
     header.bar .userbar .who { display: none; }
-    header.bar .userbar { gap: 6px; }
+    header.bar .userbar { gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+    /* "Download installer" full label eats 130px on a 390px viewport. The
+     * operator on a phone is unlikely to install on the device they're
+     * holding -- shrink to a down-arrow icon + the installer version
+     * chip so the affordance stays but doesn't dominate the bar.
+     * The title attribute on the link still names the action for a11y. */
+    header.bar .userbar #downloadInstallerLink { font-size: 0; padding: 4px 7px; line-height: 1; }
+    header.bar .userbar #downloadInstallerLink::before {
+      content: "\2193";   /* downward arrow -- universally rendered */
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1;
+    }
+    header.bar .userbar #downloadInstallerLink .installer-ver { font-size: 10px; margin-left: 4px; line-height: 1; }
+
+    /* ------- Footer wraps + centers ------- */
+    .site-footer { padding: 14px 12px 22px; }
+    .site-footer .wrap { flex-wrap: wrap; gap: 10px 14px; justify-content: center; }
+    .site-footer .spacer { flex-basis: 100%; height: 0; }   /* force break onto second line */
+
+    /* ------- Tabs horizontally scroll instead of overflowing ------- */
+    .tabs { margin: 0 12px 14px; overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+    .tabs::-webkit-scrollbar { display: none; }
+    .tab { padding: 10px 12px; flex: 0 0 auto; }
+
+    /* ------- Filter bar: search + selects + button cluster ------- */
     main { padding: 14px 0 60px; }
-    .tabs { margin: 0 12px 14px; }
-    .filters { padding: 12px; flex-direction: column; align-items: stretch; }
-    .filters input[type="search"] { width: 100%; }
+    .filters { padding: 12px; flex-direction: column; align-items: stretch; gap: 8px; }
+    /* iOS auto-zooms any text input under 16px on focus -- bump up to
+     * disable that, while leaving the desktop styles intact. */
+    .filters input[type="search"] { width: 100%; font-size: 16px; }
+    .filters select { font-size: 16px; }
+    .filters label { margin-bottom: 0; }
+    /* Action-button cluster (Refresh / Columns / CSV / Excel) -- spans
+     * full-width so two rows of 2 buttons each fit cleanly on 390px. */
+    .filters .filter-actions { width: 100%; gap: 6px; }
+    .filters .filter-actions .btn { flex: 1 1 calc(50% - 3px); min-width: 0; }
+    .filters .spacer { display: none; }
+    .filters .count { align-self: flex-end; font-size: 11.5px; }
+
+    /* ------- Panel header sub-cluster wraps ------- */
+    .panel-header { flex-wrap: wrap; }
+    .panel-header .right { flex-wrap: wrap; }
+
+    /* ------- Drawer head: stack hostname row above action buttons ------- */
+    #drawer .drawer-head {
+      padding: 12px 14px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    #drawer .drawer-head > div:first-child { flex: 1 1 100%; min-width: 0; }
+    #drawer .drawer-head h2 { font-size: 16px; word-break: break-word; }
+    #drawer .drawer-head .sub { font-size: 11.5px; }
+    #drawer .drawer-head .right {
+      margin-left: 0 !important;
+      width: 100%;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px !important;
+    }
+    #drawer .drawer-head .right .btn { flex: 1 1 calc(25% - 5px); min-width: 0; padding: 6px 8px; font-size: 12px; }
+
+    /* ------- Drawer body: tighten padding + collapse kv to one column ------- */
+    #drawer .drawer-body { padding: 14px 14px 60px; }
+    #drawer .section { margin-bottom: 18px; }
+    /* Single-column kv: label stacks above value with a small gap. Two-
+     * column 160px+1fr on a 360px drawer left value cells around 170px
+     * which forced ugly wraps on every IP, MAC, and date string. */
+    #drawer .kv { grid-template-columns: 1fr; row-gap: 10px; }
+    #drawer .kv .k { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600; }
+    /* Config panel: tighter inner gutter on phones */
+    #drawer details.section-config > *:not(summary) { margin-left: 10px; margin-right: 10px; }
+    #drawer details.section-config > summary { padding: 10px 12px; }
+
+    /* ------- Modal: full-bleed on phone with safer touch target on X ------- */
+    #modal { padding: 12px; align-items: flex-start; padding-top: max(12px, env(safe-area-inset-top, 0)); }
+    #modal .modal-card { max-height: 92vh; }
+    #modal .modal-head { padding: 14px 16px; padding-right: 50px; }
+    #modal .modal-body { padding: 14px 16px; }
+    #modal .modal-foot { padding: 12px 16px; flex-wrap: wrap; }
+    #modal .modal-foot .btn { flex: 1 1 auto; }
+
+    /* ------- iOS zoom-on-focus prevention ------- */
+    /* Any text input under 16px triggers Safari's auto-zoom on focus.
+     * Bump everything app-wide to 16px on phone so the viewport stays put.
+     * !important because several inputs (Settings tab, drawer config
+     * webhook field, modal forms) use inline style="font-size:13.5px". */
+    input[type="text"],
+    input[type="search"],
+    input[type="url"],
+    input[type="email"],
+    input[type="password"],
+    input[type="number"],
+    textarea,
+    select { font-size: 16px !important; }
+
+    /* ------- Settings tab: collapse 120px+1fr grids to single column ------- */
+    #app .panel-body div[style*="grid-template-columns: 120px"] { grid-template-columns: 1fr !important; }
   }
 </style>
 </head>
@@ -675,10 +782,12 @@
           </select>
           <span class="spacer"></span>
           <span class="count" id="fleetCount"></span>
-          <button class="btn btn-sm" id="fleetRefresh" title="Re-paint the table. Live Firestore subscription keeps host data current automatically, so this is just an escape hatch -- click it if a row looks stale or the 'Last check' relative timestamps haven't updated.">&#x21bb; Refresh</button>
-          <button class="btn btn-sm" id="fleetColumns" title="Pick which columns are visible in this table. Your selection is remembered in this browser.">Columns</button>
-          <button class="btn btn-sm" id="fleetExportCsv" title="Download the visible endpoint rows as CSV">CSV</button>
-          <button class="btn btn-sm" id="fleetExportXlsx" title="Download the visible endpoint rows as an Excel workbook">Excel</button>
+          <div class="filter-actions">
+            <button class="btn btn-sm" id="fleetRefresh" title="Re-paint the table. Live Firestore subscription keeps host data current automatically, so this is just an escape hatch -- click it if a row looks stale or the 'Last check' relative timestamps haven't updated.">&#x21bb; Refresh</button>
+            <button class="btn btn-sm" id="fleetColumns" title="Pick which columns are visible in this table. Your selection is remembered in this browser.">Columns</button>
+            <button class="btn btn-sm" id="fleetExportCsv" title="Download the visible endpoint rows as CSV">CSV</button>
+            <button class="btn btn-sm" id="fleetExportXlsx" title="Download the visible endpoint rows as an Excel workbook">Excel</button>
+          </div>
         </div>
         <div id="fleetWrap">
           <table class="fleet sortable" data-sort-table="fleet">
@@ -878,7 +987,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.26";
+const APP_VERSION = "0.14.27";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
