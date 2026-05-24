@@ -113,7 +113,7 @@
       </svg>
       <div>
         <div class="meta">Umbrella Automation</div>
-        <h1>Watchtower &middot; Docs <span class="version-chip">v0.14.3</span></h1>
+        <h1>Watchtower &middot; Docs <span class="version-chip">v0.14.4</span></h1>
       </div>
     </a>
     <a class="btn brand-link" href="index.html">&larr; Back to dashboard</a>
@@ -800,6 +800,14 @@ Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" 
   <li>Check the worker logs in the Cloudflare dashboard for the most recent check-in. 401s mean a bad token (typo at install time, or revoked since). 5xx means worker or Firestore is having a bad day. Note: with the v0.3.0 wizard, 401s on first check-in should be rare &mdash; the installer pre-validates against the worker.</li>
   <li>Worker URL mismatch: open <code>%ProgramData%\Watchtower\config.json</code> on the target PC and confirm <code>workerUrl</code> matches what's deployed.</li>
 </ul>
+
+<h3 id="agent-log">Agent log + manual check-in</h3>
+<p>v0.14.4+ writes a timestamped log to <code>C:\ProgramData\Watchtower\watchtower.log</code> on every check-in &mdash; lists each probe with timing and surfaces timeouts. First place to look when a host stops phoning home.</p>
+<pre><code>Get-Content C:\ProgramData\Watchtower\watchtower.log -Tail 50</code></pre>
+<p>To run an out-of-band check-in inline (bypassing the service's 24h timer) and see the result in your console:</p>
+<pre><code>&amp; "C:\Program Files (x86)\Umbrella Watchtower\watchtower-svc.exe" --checkin-once</code></pre>
+<p>That prints the worker response as JSON. Safe to run while the service is alive &mdash; the file lock in <code>checkin.run_checkin()</code> prevents overlap.</p>
+<p>Per-probe wall-clock cap is <b>60 seconds</b>. A probe that hangs past that gets recorded in <code>probeErrors</code> with <code>timeout: true</code> and the check-in continues. Pre-0.14.4 agents had no such cap &mdash; a single hung probe (windows_updates blocked on unreachable WSUS, WMI hung, OMSA frozen, Get-WBSummary stuck) would halt the entire check-in forever, with no <code>state.json</code> ever written. If you have hosts running v0.14.0&ndash;v0.14.3 that appear installed but never show up in the dashboard, this is almost certainly why &mdash; force-update them.</p>
 
 <h3>Service won't start</h3>
 <ul>

@@ -114,10 +114,21 @@ def _spawn_uninstaller():
 
 
 if __name__ == "__main__":
-    # Three modes:
-    #   watchtower_service.py install   — registers the service
-    #   watchtower_service.py start     — starts it
-    #   watchtower_service.py debug     — runs in foreground for development
+    # Four modes:
+    #   watchtower-svc.exe install         — registers the service
+    #   watchtower-svc.exe start           — starts it
+    #   watchtower-svc.exe debug           — runs in foreground for development
+    #   watchtower-svc.exe --checkin-once  — runs ONE check-in inline and exits.
+    #     Bypasses the SCM entirely. Useful for diagnosing "service is
+    #     running but state.json never appears" -- you see the traceback
+    #     in the console + the run is appended to watchtower.log. Safe
+    #     to run while the service is alive; the file lock in
+    #     checkin.run_checkin() prevents overlap.
+    if len(sys.argv) == 2 and sys.argv[1] == "--checkin-once":
+        result = checkin.run_checkin()
+        import json as _json
+        print(_json.dumps(result, indent=2, default=str))
+        sys.exit(0 if result.get("ok") else 1)
     if len(sys.argv) == 1:
         servicemanager.Initialize()
         servicemanager.PrepareToHostSingle(WatchtowerService)

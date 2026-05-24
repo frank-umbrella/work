@@ -18,6 +18,7 @@ import traceback
 import config as cfg_mod
 import collector
 import client
+import logger as _logger
 
 
 def _read_version():
@@ -43,11 +44,13 @@ def run_checkin():
     on success, or a dict with {ok:false, error:str} on failure. Always
     writes the result into state.json so the tray reflects it."""
     state = {"checkinStartedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
+    _logger.log(f"run_checkin: starting (agent v{AGENT_VERSION})")
     try:
         config = cfg_mod.load_config()
         state["pcId"] = config["pcId"]
         state["client"] = config.get("client")
         state["agentVersion"] = AGENT_VERSION
+        _logger.log(f"run_checkin: loaded config (pcId={config['pcId'][:8]}..., client={config.get('client')!r}, worker={config['workerUrl']})")
 
         report = collector.collect_all()
         state["lastReport"] = {
@@ -64,6 +67,7 @@ def run_checkin():
             "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             "report": report,
         }
+        _logger.log(f"run_checkin: collected {len(report)} keys, posting to worker")
         resp = client.post_checkin(
             worker_url=config["workerUrl"],
             install_token=config["installToken"],
@@ -73,6 +77,7 @@ def run_checkin():
         state["lastResponse"] = resp
         state["ok"] = True
         cfg_mod.save_state(state)
+        _logger.log(f"run_checkin: SUCCESS (worker ok={resp.get('ok')}, uninstall={resp.get('uninstall', False)})")
 
         # Honor per-PC autoUpdate flag OR the one-shot forceUpdate flag
         # — if EITHER is set, ping the worker's /latest-version and apply
@@ -111,4 +116,6 @@ def run_checkin():
         state["trace"] = traceback.format_exc()
         state["lastCheckinAt"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
         cfg_mod.save_state(state)
+        _logger.log(f"run_checkin: FAILED -- {e}")
+        _logger.log(f"run_checkin: traceback:\n{traceback.format_exc()}")
         return {"ok": False, "error": str(e)}
