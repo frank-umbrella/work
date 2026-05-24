@@ -1724,19 +1724,43 @@ async function validateToken(presented, env, accessToken) {
 function pickPrimaryInternalIp(nics) {
   if (!Array.isArray(nics)) return null;
   const usable = (ip) => ip && ip !== '0.0.0.0' && ip !== '127.0.0.1' && !ip.startsWith('169.254.');
-  // First pass: NICs with a default gateway (= internet-facing or LAN-routed)
+  // Hyper-V Default Switch + Internal Switches sit in 172.16.0.0/12.
+  // They have IPs + DHCP but no useful default gateway, and the operator
+  // doesn't RDP to them. De-prioritize so we don't surface 172.x.x.x
+  // when a real LAN IP exists on another NIC.
+  const isHyperVInternal = (ip) => /^172\.(1[6-9]|2\d|3[01])\./.test(ip);
+  // Hyper-V vEthernet interface descriptions Windows assigns by default.
+  const isVEthernetName = (n) => /vEthernet|Hyper-V Virtual/i.test(n || '');
+
+  // Pass 1: NIC with a default gateway AND a non-Hyper-V-Internal IP.
+  // This is the strongest signal -- the LAN-routed interface.
   for (const nic of nics) {
-    if (Array.isArray(nic.gateways) && nic.gateways.length && Array.isArray(nic.ipv4)) {
-      const ip = nic.ipv4.find(usable);
-      if (ip) return ip;
-    }
+    if (!Array.isArray(nic.gateways) || !nic.gateways.length) continue;
+    if (!Array.isArray(nic.ipv4)) continue;
+    const ip = nic.ipv4.find(addr => usable(addr) && !isHyperVInternal(addr));
+    if (ip) return ip;
   }
-  // Fallback: any usable IPv4 anywhere
+  // Pass 2: any NIC with a default gateway (even if 172.x.x.x).
+  // A real LAN configured in the 172.16/12 range is rare but possible.
   for (const nic of nics) {
-    if (Array.isArray(nic.ipv4)) {
-      const ip = nic.ipv4.find(usable);
-      if (ip) return ip;
-    }
+    if (!Array.isArray(nic.gateways) || !nic.gateways.length) continue;
+    if (!Array.isArray(nic.ipv4)) continue;
+    const ip = nic.ipv4.find(usable);
+    if (ip) return ip;
+  }
+  // Pass 3: any non-Hyper-V-internal, non-vEthernet IPv4 on any NIC.
+  for (const nic of nics) {
+    if (isVEthernetName(nic.name) || isVEthernetName(nic.description)) continue;
+    if (!Array.isArray(nic.ipv4)) continue;
+    const ip = nic.ipv4.find(addr => usable(addr) && !isHyperVInternal(addr));
+    if (ip) return ip;
+  }
+  // Pass 4: last-resort -- ANY usable IPv4 anywhere. Better to show
+  // a 172.x.x.x management IP than a dash.
+  for (const nic of nics) {
+    if (!Array.isArray(nic.ipv4)) continue;
+    const ip = nic.ipv4.find(usable);
+    if (ip) return ip;
   }
   return null;
 }
