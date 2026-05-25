@@ -166,7 +166,52 @@
   .calendar .cell.off  { background: var(--gray-off); color: rgba(0,0,0,0.4); }
   .calendar .cell.empty { background: var(--gray-faint); color: var(--ink-faint); }
 
-  /* ==================  OPTION D — dual-strip 30 days  ================== */
+  /* ==================  D-REFINED — thin segmented bars, 30 days  ================== */
+  .thin-dual {
+    display: grid;
+    grid-template-columns: 70px 1fr;
+    align-items: center;
+    gap: 6px 10px;
+    margin: 8px 0 4px;
+  }
+  .thin-dual .lane-label {
+    font-size: 10.5px;
+    color: var(--ink-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .thin-dual .lane {
+    display: grid;
+    grid-template-columns: repeat(30, 1fr);
+    gap: 2px;
+    height: 14px;
+  }
+  .thin-dual .lane .cell {
+    background: var(--accent);
+    border-radius: 2px;
+    transition: transform 0.08s;
+  }
+  .thin-dual .lane .cell:hover { transform: scaleY(1.4); }
+  .thin-dual .lane.pwr .cell { background: var(--accent-deep); }
+  .thin-dual .lane .cell.warn { background: var(--amber); }
+  .thin-dual .lane .cell.crit { background: var(--red); }
+  .thin-dual .lane .cell.off { background: var(--gray-off); }
+  .thin-dual .lane .cell.pwr-off { background: var(--gray-faint); }
+  .thin-dual-axis {
+    grid-column: 2;
+    display: flex; justify-content: space-between;
+    font-size: 10px; color: var(--ink-faint); margin-top: 4px;
+  }
+
+  /* Compact widths for drawer-fit preview */
+  .narrow-mock { max-width: 480px; margin: 14px 0 0; }
+  .narrowest-mock { max-width: 340px; margin: 14px 0 0; }
+  .narrow-mock-label, .narrowest-mock-label {
+    font-size: 10.5px; color: var(--ink-faint); text-transform: uppercase;
+    letter-spacing: 0.05em; margin-bottom: 4px;
+  }
+
+  /* ==================  OPTION D — dual-strip 30 days (original)  ================== */
   .dual-strip { margin: 8px 0 4px; }
   .dual-strip .lane-pair {
     display: grid;
@@ -210,6 +255,77 @@
 </header>
 
 <main>
+
+  <!-- ════════════════════════════════════════════════════════════════
+       PICKED DESIGN — refined Option D
+       ════════════════════════════════════════════════════════════════ -->
+  <div class="drawer-mock" style="border:2px solid var(--accent); background:var(--accent-soft);">
+    <h2 style="color:var(--accent-deep);">✓ Picked — Refined Option D (thin segmented bars, 30 days, dual lane)</h2>
+    <p class="lede">Option D's stacked-lane structure with Option B's thin-cell visual style. 30 daily cells per lane, two lanes (powered + online), all in a compact ~60px footprint that drops cleanly into the host drawer.</p>
+
+    <div class="section-label">Connectivity · last 30 days</div>
+
+    <div class="stat-row">
+      <div class="stat"><span class="val">99.4%</span><span class="lbl">Online</span></div>
+      <div class="stat"><span class="val">93.3%</span><span class="lbl">Powered</span></div>
+      <div class="stat"><span class="val">4</span><span class="lbl">Outages</span></div>
+      <div class="stat"><span class="val">6h 32m</span><span class="lbl">Total offline</span></div>
+    </div>
+
+    <div class="thin-dual">
+      <div class="lane-label">Powered</div>
+      <div class="lane pwr" id="thinPwr"></div>
+      <div class="lane-label">Online</div>
+      <div class="lane" id="thinOnline"></div>
+      <div></div>
+      <div class="thin-dual-axis">
+        <span>30d ago</span>
+        <span>15d ago</span>
+        <span>Today</span>
+      </div>
+    </div>
+
+    <div class="legend">
+      <span><span class="swatch" style="background:var(--accent-deep);"></span>Host powered</span>
+      <span><span class="swatch" style="background:var(--accent);"></span>Internet online</span>
+      <span><span class="swatch" style="background:var(--amber);"></span>Brief outage (&lt;30m)</span>
+      <span><span class="swatch" style="background:var(--red);"></span>Major outage (&gt;30m)</span>
+      <span><span class="swatch" style="background:var(--gray-off);"></span>Powered off</span>
+    </div>
+
+    <!-- Drawer-fit sanity check -->
+    <div class="narrow-mock">
+      <div class="narrow-mock-label">↓ Same chart at 480px wide (typical desktop drawer width)</div>
+      <div class="thin-dual" style="grid-template-columns: 60px 1fr;">
+        <div class="lane-label">Powered</div>
+        <div class="lane pwr" id="thinPwr480"></div>
+        <div class="lane-label">Online</div>
+        <div class="lane" id="thinOnline480"></div>
+      </div>
+    </div>
+
+    <div class="narrowest-mock">
+      <div class="narrowest-mock-label">↓ At 340px wide (mobile drawer)</div>
+      <div class="thin-dual" style="grid-template-columns: 56px 1fr;">
+        <div class="lane-label" style="font-size:10px;">Powered</div>
+        <div class="lane pwr" id="thinPwr340" style="height:12px;gap:1px;"></div>
+        <div class="lane-label" style="font-size:10px;">Online</div>
+        <div class="lane" id="thinOnline340" style="height:12px;gap:1px;"></div>
+      </div>
+    </div>
+
+    <div class="tradeoffs">
+      <b>Why this works for the drawer</b>
+      <ul>
+        <li><b>Compact</b>: ~60px tall total. Slots in beside the existing host info cards without taking over the panel.</li>
+        <li><b>Causation at a glance</b>: gaps in the BOTTOM lane only = network blip. Gaps in BOTH lanes = user shut down the machine. Same answer Option D gave, just with the prettier cell-grid aesthetic.</li>
+        <li><b>Scales down cleanly</b>: still readable at 340px (mobile), still informative at 1100px (desktop).</li>
+        <li><b>Daily resolution is enough for v1</b>: shipping uses the existing daily check-in data. Phase 2 can swap to 4-hour buckets (180 cells per lane) or hourly buckets (720 cells) once the 15-min sampler lands.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3 style="font-size:14px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:0.06em;margin:36px 0 8px;">Original 4 options (kept for reference)</h3>
 
   <!-- ==================  OPTION A  ================== -->
   <div class="drawer-mock">
@@ -427,6 +543,29 @@
     }
     return { onlineCells, poweredCells };
   }
+
+  // ─────────────────────────────────────────────────────────────────
+  // Render Refined Option D (thin segmented bars, 30 days, 2 lanes)
+  // Renders into multiple target lanes so we can show 3 widths.
+  // ─────────────────────────────────────────────────────────────────
+  function renderThinDual(pwrId, onlineId) {
+    const pwr = document.getElementById(pwrId);
+    const online = document.getElementById(onlineId);
+    if (!pwr || !online) return;
+    days30.forEach(s => {
+      // Powered lane: only "off" days are gray; everything else is teal.
+      const pwrCell = document.createElement('div');
+      pwrCell.className = 'cell' + (s === 'off' ? ' off' : '');
+      pwr.appendChild(pwrCell);
+      // Online lane: ok=teal, warn=amber, crit=red, off=light gray.
+      const onlineCell = document.createElement('div');
+      onlineCell.className = 'cell' + (s === 'warn' ? ' warn' : s === 'crit' ? ' crit' : s === 'off' ? ' pwr-off' : '');
+      online.appendChild(onlineCell);
+    });
+  }
+  renderThinDual('thinPwr',    'thinOnline');
+  renderThinDual('thinPwr480', 'thinOnline480');
+  renderThinDual('thinPwr340', 'thinOnline340');
 
   // ─────────────────────────────────────────────────────────────────
   // Render Option A
