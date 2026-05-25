@@ -6,6 +6,7 @@
 <title>Work Hub</title>
 <meta name="description" content="Internal dashboard linking to work-related tools and resources.">
 <meta name="robots" content="noindex">
+<meta name="version" content="0.5.0">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -270,6 +271,17 @@
     color: var(--ink-soft);
     font-size: 12.5px;
   }
+  footer.page .version {
+    display: inline-block;
+    padding: 1px 7px;
+    border: 1px solid var(--line-strong);
+    border-radius: 999px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--ink-soft);
+    background: var(--surface);
+    margin: 0 2px;
+  }
 </style>
 </head>
 <body>
@@ -441,7 +453,7 @@
 </main>
 
 <footer class="page">
-  <p>Work hub &middot; static site &middot; add tiles by dropping new folders alongside this page.</p>
+  <p>Work hub <span class="version">v0.5.0</span> &middot; static site &middot; add tiles by dropping new folders alongside this page.</p>
 </footer>
 
 <script>
