@@ -1359,7 +1359,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.71";
+const APP_VERSION = "0.14.72";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -2799,19 +2799,30 @@ function renderAlertChip() {
 }
 
 // Click handler -- opens the full alert list in the badge popover.
-// Registered once at module load so chip re-renders don't lose it.
-// (The chip element itself stays the same node; we just replace its
-// innerHTML on every render.)
+// Registered once at module load so chip re-renders don't lose it
+// (the chip element stays the same node; we just replace its
+// innerHTML on every render).
+//
+// CRITICAL: the handler MUST call e.stopPropagation(). Without it,
+// the same click that opens the popover bubbles up to the document-
+// level "click outside the popover closes it" listener, which fires
+// immediately after open and closes the popover within the same
+// event tick. Verified via browser preview test in v0.14.72.
+function _onAlertChipClick(e) {
+  e.stopPropagation();
+  _openAlertChipPopover();
+}
 document.addEventListener('DOMContentLoaded', () => {
   const chip = document.getElementById('alertChip');
-  if (chip) chip.addEventListener('click', _openAlertChipPopover);
+  if (chip) chip.addEventListener('click', _onAlertChipClick);
 });
 // Belt-and-suspenders: also wire it from inline JS since DOMContentLoaded
-// may have fired by the time the script is evaluated.
+// may have fired by the time the script is evaluated. __alertClickWired
+// prevents a double-add when both paths run.
 setTimeout(() => {
   const chip = document.getElementById('alertChip');
   if (chip && !chip.__alertClickWired) {
-    chip.addEventListener('click', _openAlertChipPopover);
+    chip.addEventListener('click', _onAlertChipClick);
     chip.__alertClickWired = true;
   }
 }, 0);
