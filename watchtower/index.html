@@ -551,6 +551,27 @@
       color: var(--ink-faint);
       flex: 0 0 auto;
     }
+    /* Client row: turns into a full-width header band at the top of
+     * each card. Hides the redundant "CLIENT" pseudo-label (the value
+     * IS the label), uses negative margins to bleed to the card edges,
+     * and tints with the brand accent-soft so the eye lands on WHICH
+     * client this host belongs to before scanning the row's data. The
+     * Host row sits immediately below as the bigger identifier. */
+    table.fleet td[data-label="Client"] {
+      display: block;
+      background: var(--accent-soft);
+      color: var(--accent-ink);
+      margin: -10px -12px 8px;
+      padding: 9px 14px;
+      border-radius: 9px 9px 0 0;            /* match card's --radius:10px, minus 1px border */
+      border-bottom: 1px solid var(--line);
+      font-size: 12.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    table.fleet td[data-label="Client"]::before { display: none; }
+
     /* Host row gets prominent treatment as the card "title" */
     table.fleet td[data-label="Host"] { font-size: 16px; margin-bottom: 4px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
     table.fleet td[data-label="Host"]::before { display: none; }
@@ -1020,7 +1041,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.30";
+const APP_VERSION = "0.14.31";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
