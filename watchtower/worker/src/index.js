@@ -753,15 +753,25 @@ async function handleTestWebhook(request, env, ctx) {
 //
 // Cached at the edge for 60s so a busy fleet doesn't hammer Firestore.
 async function handleLatestVersion(request, env, ctx) {
-  // Cache key carries a version suffix so we can force-invalidate on
-  // deploy when the underlying source-of-truth (Firestore doc or
-  // GitHub release notes) was corrected and we don't want to wait
-  // 5 min for natural expiry. Bump the suffix when you need to bust.
-  const cacheKey = new Request('https://internal-cache/latest-version?v=2', { method: 'GET' });
+  // Two caches at different TTLs:
+  //   - SHORT (5 min): success-only fast path so we don't hit GitHub on
+  //     every dashboard poll / tray click.
+  //   - LONG (24 h):  "last known good" payload, refreshed only on
+  //     success. When GitHub throws a 403 (rate limit) or 5xx, we serve
+  //     the LONG-cache payload instead of returning ok:false. This is
+  //     the safety net that broke before -- one 403 used to poison the
+  //     5-min cache and every agent saw "no version published yet"
+  //     until natural expiry. Now an error never reaches the agent as
+  //     long as we've seen at least one good response in the last 24 h.
+  // Bump the ?v= suffix on either key when a deploy needs to force a
+  // cache invalidation.
   const cache = caches.default;
-  const cached = await cache.match(cacheKey);
-  if (cached) {
-    return new Response(cached.body, { status: cached.status, headers: cached.headers });
+  const shortKey = new Request('https://internal-cache/latest-version?v=3', { method: 'GET' });
+  const longKey  = new Request('https://internal-cache/latest-version-lastgood?v=3', { method: 'GET' });
+
+  const cachedShort = await cache.match(shortKey);
+  if (cachedShort) {
+    return new Response(cachedShort.body, { status: cachedShort.status, headers: cachedShort.headers });
   }
 
   let payload = null;
@@ -794,25 +804,59 @@ async function handleLatestVersion(request, env, ctx) {
   // When /settings/agentVersion isn't set, query the public Releases API
   // for the latest watchtower-v* tag. build.ps1 -Publish puts the EXE
   // there + writes "SHA256: <hex>" into the release notes which we parse.
-  // This is the "zero-paste-required" path — after a Publish the Download
-  // Installer button + auto-update awareness both work without the operator
-  // touching Settings.
+  // Track failure separately from payload so we can distinguish
+  // "no result yet" from "tried and got a real error" -- the latter
+  // triggers the long-cache fallback below.
+  let githubFailed = false;
+  let githubError = null;
   if (!payload) {
     try {
       payload = await fetchLatestFromGitHub();
     } catch (e) {
-      payload = { ok: false, error: 'no version published yet', detail: String(e).slice(0, 200) };
+      githubFailed = true;
+      githubError = String(e).slice(0, 200);
+      payload = null;
     }
   }
 
-  const resp = jsonResponse(payload, 200);
-  // Cache 5 min — agents check daily, dashboard polls on Settings page,
-  // tray "Check for updates" is the only interactive caller. GitHub API
-  // has a 60/hr unauthenticated rate limit so caching keeps us well clear.
-  const cacheCopy = jsonResponse(payload, 200);
-  cacheCopy.headers.set('Cache-Control', 'public, max-age=300');
-  ctx.waitUntil(cache.put(cacheKey, cacheCopy));
-  return resp;
+  // ----- 3. Got a good payload -- write to BOTH caches + return -----
+  // Long cache is the safety net for future rate-limit hits; short
+  // cache spares Firestore + GitHub from every dashboard poll.
+  if (payload && payload.ok) {
+    const shortCopy = jsonResponse(payload, 200);
+    shortCopy.headers.set('Cache-Control', 'public, max-age=300');     // 5 min
+    ctx.waitUntil(cache.put(shortKey, shortCopy));
+    const longCopy = jsonResponse(payload, 200);
+    longCopy.headers.set('Cache-Control', 'public, max-age=86400');    // 24 h
+    ctx.waitUntil(cache.put(longKey, longCopy));
+    return jsonResponse(payload, 200);
+  }
+
+  // ----- 4. Source-of-truth failed -- fall back to the long cache -----
+  // GitHub 403 / 5xx OR Firestore unavailable AND no settings override.
+  // Serve the last-known-good payload (up to 24 h old) with a
+  // staleFallback flag so the caller knows it's not fresh. Better than
+  // returning ok:false and breaking every agent's update check for
+  // the GitHub rate-limit window.
+  const cachedLong = await cache.match(longKey);
+  if (cachedLong) {
+    const body = await cachedLong.json();
+    body.staleFallback = true;
+    body.staleReason = githubFailed
+      ? `GitHub API unavailable (${githubError || 'unknown'}); serving last-known-good payload`
+      : 'source-of-truth lookup failed; serving last-known-good payload';
+    return jsonResponse(body, 200);
+  }
+
+  // ----- 5. Nothing cached and source failed -- honest error -----
+  // First-ever request after a deploy (or 24h+ since any success) AND
+  // GitHub is down. Best we can do is return the error so the operator
+  // sees it and knows to populate /settings/agentVersion manually.
+  // Important: do NOT write this error to either cache.
+  return jsonResponse(
+    { ok: false, error: 'no version published yet', detail: githubError || 'no source-of-truth available' },
+    200
+  );
 }
 
 async function fetchLatestFromGitHub() {

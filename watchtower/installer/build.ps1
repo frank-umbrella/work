@@ -118,6 +118,30 @@ Write-Host "Using ISCC: $iscc" -ForegroundColor DarkGray
 # ---------------------------------------------------------------------------
 New-Item -ItemType Directory -Force -Path $buildDir | Out-Null
 
+# Watchtower icon (generate FIRST so PyInstaller can embed it into the
+# tray + service EXEs). Cached on disk after the first build; the same
+# .ico is reused by Inno Setup further down for the installer EXE icon.
+$global:icoPath = Join-Path $here 'watchtower.ico'
+if (-not (Test-Path $global:icoPath)) {
+    $faviconSvg = Join-Path (Split-Path $here -Parent) 'favicon.svg'
+    if (Test-Path $faviconSvg) {
+        Write-Host "==> Generating watchtower.ico from watchtower/favicon.svg" -ForegroundColor Cyan
+        $makeIconScript = Join-Path $here 'make_icon.py'
+        & python $makeIconScript
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path $global:icoPath)) {
+            Write-Warning "make_icon.py failed; EXEs + installer will compile without a custom icon."
+            $global:icoPath = $null
+        }
+    } else {
+        Write-Warning "favicon not found at $faviconSvg; EXEs + installer will compile without a custom icon."
+        $global:icoPath = $null
+    }
+}
+# Conditional --icon flag for PyInstaller commands below. Empty when
+# icon generation failed so PyInstaller doesn't error on a missing
+# --icon arg value.
+$pyiconArgs = if ($global:icoPath) { @('--icon', $global:icoPath) } else { @() }
+
 if (-not $SkipPyInstaller) {
     Write-Host "==> PyInstaller: watchtower-svc.exe" -ForegroundColor Cyan
     Push-Location $agentDir
@@ -131,7 +155,7 @@ if (-not $SkipPyInstaller) {
         }
         # --hidden-import covers the dynamically-imported probes/* modules
         # since PyInstaller's static analysis won't see importlib.import_module.
-        pyinstaller `
+        pyinstaller @pyiconArgs `
             --onefile `
             --name watchtower-svc `
             --distpath $buildDir `
@@ -164,7 +188,7 @@ if (-not $SkipPyInstaller) {
         if ($LASTEXITCODE -ne 0) { throw "PyInstaller failed for watchtower-svc" }
 
         Write-Host "==> PyInstaller: watchtower-tray.exe" -ForegroundColor Cyan
-        pyinstaller `
+        pyinstaller @pyiconArgs `
             --onefile `
             --name watchtower-tray `
             --distpath $buildDir `
@@ -191,28 +215,9 @@ if (-not (Test-Path (Join-Path $buildDir 'watchtower-tray.exe'))) {
     throw "watchtower-tray.exe missing from $buildDir"
 }
 
-# ---------------------------------------------------------------------------
-# Installer EXE icon - generate watchtower.ico from the dashboard's
-# favicon.svg (crenellated tower on teal disc). This is the SAME design
-# used for the tray icon and the wizard small image, so the product
-# reads the same in Explorer, taskbar, system tray, browser tab, and
-# installer wizard.
-# Cached on disk after the first build.
-# ---------------------------------------------------------------------------
-$icoPath = Join-Path $here 'watchtower.ico'
-if (-not (Test-Path $icoPath)) {
-    $faviconSvg = Join-Path (Split-Path $here -Parent) 'favicon.svg'
-    if (Test-Path $faviconSvg) {
-        Write-Host "==> Generating installer icon from watchtower/favicon.svg" -ForegroundColor Cyan
-        $makeIconScript = Join-Path $here 'make_icon.py'
-        & python $makeIconScript
-        if ($LASTEXITCODE -ne 0 -or -not (Test-Path $icoPath)) {
-            Write-Warning "make_icon.py failed; installer will compile without a custom icon."
-        }
-    } else {
-        Write-Warning "favicon not found at $faviconSvg; installer will compile without a custom icon."
-    }
-}
+# (Icon generation moved up to BEFORE PyInstaller so the .ico can be
+# embedded into the EXEs. The Inno Setup SetupIconFile= line in the
+# .iss already points at watchtower.ico, so nothing else changes here.)
 
 # ---------------------------------------------------------------------------
 # Wizard branding BMPs - large left-banner + small top-right icon for the
