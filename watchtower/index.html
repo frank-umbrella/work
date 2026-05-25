@@ -59,7 +59,7 @@
 
   /* top bar */
   header.bar { background: var(--surface); border-bottom: 1px solid var(--line); padding: 10px 20px; position: sticky; top: 0; z-index: 50; }
-  header.bar .wrap { max-width: 1320px; margin: 0 auto; display: flex; align-items: center; gap: 16px; }
+  header.bar .wrap { max-width: 1760px; margin: 0 auto; display: flex; align-items: center; gap: 16px; }
   .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; color: var(--ink); text-decoration: none; cursor: pointer; border-radius: 8px; padding: 4px 6px; margin: -4px -6px; transition: background 0.12s; }
   .brand:hover { background: var(--surface-2); }
   .brand svg { width: 24px; height: 24px; }
@@ -110,7 +110,15 @@
      wide while Clients (5-col short content) looked narrow on the
      same viewport. width:100% + max-width:1320px = main is always
      min(viewport, 1320px) regardless of content. */
-  main { width: 100%; max-width: 1320px; margin: 0 auto; padding: 22px 20px 40px; box-sizing: border-box; }
+  /* Bumped max-width from 1320 -> 1760 so wide-monitor dashboards
+     (anything above ~1400 px viewport) can let the Endpoints table
+     spread out and avoid the horizontal scrollbar the smaller cap
+     forced when all default columns + min-widths added up past
+     1280 px of inner content. 1760 leaves a comfortable margin on
+     1920+ viewports while still constraining the layout on huge
+     ultra-wides where stretching to viewport edges would hurt
+     readability of the dense status column on the right. */
+  main { width: 100%; max-width: 1760px; margin: 0 auto; padding: 22px 20px 40px; box-sizing: border-box; }
 
   /* Footer pinned to bottom of viewport via flex layout on #app.
      When content is short (a 3-row table on a tall monitor), the
@@ -225,6 +233,23 @@
   }
 
   /* filter bar */
+  /* Filter bar (search + client dropdown + status dropdown + column /
+     export buttons) sticks to the top of the viewport so the operator
+     can search / filter without scrolling back up to find the inputs
+     when looking at a long fleet. Sits BELOW the page header (which
+     is also sticky, top: 0, ~60 px tall) -- the 56 px top value is
+     header.bar's resolved height (10 px padding top + bottom, ~36 px
+     content). Background opaque + z-index 40 (below header.bar's 50)
+     so rows scrolling under stay hidden.
+     Endpoints panel only -- Clients / Activity / Settings filters
+     don't get this treatment (short panels, no need). */
+  .tab-pane[data-tab="fleet"] .panel > .filters {
+    position: sticky;
+    top: 56px;
+    z-index: 40;
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+  }
   .filters { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 14px 18px; }
   .filters input[type="search"], .filters select { padding: 7px 10px; border: 1px solid var(--line-strong); border-radius: 7px; font-size: 13.5px; background: var(--surface); }
   .filters input[type="search"] { width: 260px; }
@@ -248,7 +273,12 @@
      overflow-x: auto only shows the scrollbar when actually needed;
      wide screens still see everything without a scrollbar. */
   #fleetWrap { width: 100%; overflow-x: auto; }
-  table.fleet th { text-align: left; padding: 10px 14px; font-size: 11px; text-transform: uppercase; color: var(--ink-faint); letter-spacing: 0.06em; font-weight: 700; border-bottom: 1px solid var(--line); background: var(--surface-2); position: sticky; top: 0; }
+  /* thead sticks BELOW the page header (~56 px) + the sticky filter
+     bar (~56 px) so column labels stay visible while scrolling a long
+     fleet. z-index 30 keeps it above row content (default 0) but below
+     the filter bar (40) and page header (50). Bumped from "top: 0"
+     which slid under the page header and was effectively hidden. */
+  table.fleet th { text-align: left; padding: 10px 14px; font-size: 11px; text-transform: uppercase; color: var(--ink-faint); letter-spacing: 0.06em; font-weight: 700; border-bottom: 1px solid var(--line); background: var(--surface-2); position: sticky; top: 112px; z-index: 30; }
   /* Sortable-header polish: clickable cursor + hover state + chevron
      marker on the active column. The chevron uses simple CSS unicode
      so we don't need an icon font or SVG sprite. */
@@ -1120,7 +1150,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.61";
+const APP_VERSION = "0.14.62";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
