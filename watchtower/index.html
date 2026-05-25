@@ -289,6 +289,13 @@
   .host-tag.none { background: transparent; color: transparent; }
   table.fleet .ip { font-family: var(--mono); font-size: 12.5px; color: var(--ink-soft); }
   table.fleet .client { font-size: 12.5px; color: var(--ink-soft); }
+  /* Client + OS columns get a min-width so longer names ("Frank's
+     Construction LLC", "Celtic Properties Management Group") stop
+     wrapping awkwardly when other columns soak up the table's
+     auto-layout space. Doesn't apply on mobile -- the cards stack
+     vertically so width constraints don't make sense there. */
+  table.fleet th.col-client, table.fleet td.col-client { min-width: 150px; }
+  table.fleet th.col-os, table.fleet td.col-os { min-width: 130px; }
   table.fleet .age { font-size: 12px; color: var(--ink-faint); }
 
   /* status badge */
@@ -1104,7 +1111,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.54";
+const APP_VERSION = "0.14.55";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -1942,7 +1949,14 @@ function renderFleet() {
     const st = statusOf(a);
     const bh = backupHealthOf(a);
     const oh = omsaHealthOf(a);
-    const os = (a.report && a.report.system && a.report.system.os && a.report.system.os.name) || "—";
+    // Strip the "Microsoft " brand prefix off Win32_OperatingSystem.Caption
+    // so the OS column reads "Windows 11 Pro" / "Windows Server 2022
+    // Standard" instead of "Microsoft Windows 11 Pro" / etc. Every host in
+    // the table is Windows-based -- the brand prefix is dead weight that
+    // pushes the more useful edition/version info off-screen on narrow
+    // table widths. Drawer + PDF still show the full Caption.
+    const _osRaw = (a.report && a.report.system && a.report.system.os && a.report.system.os.name) || "";
+    const os = _osRaw ? _osRaw.replace(/^Microsoft\s+/i, "") : "—";
     const isDecom = a.decommissioned === true;
     const stBadge = isDecom
       ? `<span class="badge muted" title="${esc(a.decommissionedBy === 'agent-uninstall' ? 'Uninstalled at the host' : 'Marked decommissioned by admin')} on ${esc(tsToStr(a.decommissionedAt))}"><span class="badge-dot"></span>Decommissioned</span>`
