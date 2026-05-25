@@ -977,16 +977,16 @@
           <p style="margin:0 0 10px;color:var(--ink-soft);font-size:13px;">After <code>build.ps1 -Publish</code> uploads to GitHub Releases, the worker automatically picks up the latest <code>watchtower-v*</code> tag — Download Installer + Update-available badges + auto-update all "just work" with no paste-in step. Set the fields below only when you want to <b>pin or stage</b> a specific version (e.g. hold back a hotfix while testing). Empty fields = use whatever GitHub Releases has as latest.</p>
           <div style="display:grid;grid-template-columns:120px 1fr;gap:10px 12px;max-width:720px;align-items:center;">
             <label for="latestAgentVersion" style="font-size:12px;text-transform:uppercase;color:var(--ink-faint);font-weight:600;">Version</label>
-            <input type="text" id="latestAgentVersion" placeholder="0.9.0" style="padding:7px 10px;border:1px solid var(--line-strong);border-radius:7px;font-size:13.5px;font-family:var(--mono);">
+            <input type="text" id="latestAgentVersion" placeholder="e.g. x.x.x" style="padding:7px 10px;border:1px solid var(--line-strong);border-radius:7px;font-size:13.5px;font-family:var(--mono);">
 
             <label for="latestAgentUrl" style="font-size:12px;text-transform:uppercase;color:var(--ink-faint);font-weight:600;">Download URL</label>
-            <input type="url" id="latestAgentUrl" placeholder="https://github.com/frank-umbrella/work/releases/download/watchtower-v0.9.0/Watchtower-Setup.exe" style="padding:7px 10px;border:1px solid var(--line-strong);border-radius:7px;font-size:12.5px;font-family:var(--mono);">
+            <input type="url" id="latestAgentUrl" placeholder="e.g. https://github.com/.../watchtower-vX.X.X/Watchtower-Setup.exe" style="padding:7px 10px;border:1px solid var(--line-strong);border-radius:7px;font-size:12.5px;font-family:var(--mono);">
 
             <label for="latestAgentSha" style="font-size:12px;text-transform:uppercase;color:var(--ink-faint);font-weight:600;">SHA256</label>
-            <input type="text" id="latestAgentSha" placeholder="64-char hex" style="padding:7px 10px;border:1px solid var(--line-strong);border-radius:7px;font-size:12px;font-family:var(--mono);">
+            <input type="text" id="latestAgentSha" placeholder="e.g. 64-char hex (a1b2c3d4...)" style="padding:7px 10px;border:1px solid var(--line-strong);border-radius:7px;font-size:12px;font-family:var(--mono);">
 
             <label for="latestAgentNotes" style="font-size:12px;text-transform:uppercase;color:var(--ink-faint);font-weight:600;align-self:start;padding-top:7px;">Notes</label>
-            <textarea id="latestAgentNotes" rows="2" placeholder="What changed in this release" style="padding:7px 10px;border:1px solid var(--line-strong);border-radius:7px;font-size:13.5px;font-family:var(--sans);resize:vertical;"></textarea>
+            <textarea id="latestAgentNotes" rows="2" placeholder="e.g. What changed in this release" style="padding:7px 10px;border:1px solid var(--line-strong);border-radius:7px;font-size:13.5px;font-family:var(--sans);resize:vertical;"></textarea>
           </div>
           <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
             <button class="btn btn-primary btn-sm" id="saveLatestAgent">Save pin</button>
@@ -1103,7 +1103,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.43";
+const APP_VERSION = "0.14.44";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
