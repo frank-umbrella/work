@@ -38,6 +38,7 @@ PROBES = [
     ("network",      "network"),
     ("storage",      "storage"),
     ("users",        "users"),
+    ("admins",       "localAdmins"),
     ("software",     "software"),
     ("defender",     "defender"),
     ("veeam",        "veeam"),

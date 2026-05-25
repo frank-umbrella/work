@@ -1087,7 +1087,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.36";
+const APP_VERSION = "0.14.37";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -1502,14 +1502,15 @@ function computeFleetWorstState() {
     const st = statusOf(a);
     const bh = backupHealthOf(a);
     const oh = omsaHealthOf(a);
+    const ah = adminHealthOf(a);
     const pct = a.cDriveFreePct;
     const gb = a.cDriveFreeGB;
     const diskCrit = (pct != null && pct < 5) || (gb != null && gb < 5);
     const diskWarn = (pct != null && pct < 10) || (gb != null && gb < 10);
-    if (st.kind === 'bad' || (bh && bh.kind === 'bad') || (oh && oh.kind === 'bad') || diskCrit) {
+    if (st.kind === 'bad' || (bh && bh.kind === 'bad') || (oh && oh.kind === 'bad') || ah === 'bad' || diskCrit) {
       return 'crit';                                   // short-circuit
     }
-    if (st.kind === 'warn' || (bh && bh.kind === 'warn') || (oh && oh.kind === 'warn') || diskWarn) {
+    if (st.kind === 'warn' || (bh && bh.kind === 'warn') || (oh && oh.kind === 'warn') || ah === 'warn' || diskWarn) {
       worst = 'warn';
     }
   }
@@ -2284,6 +2285,7 @@ function computeFleetAlerts() {
     const st = statusOf(a);
     const bh = backupHealthOf(a);
     const oh = omsaHealthOf(a);
+    const ah = adminHealthOf(a);
     const pct = a.cDriveFreePct;
     const gb = a.cDriveFreeGB;
     const diskCrit = (pct != null && pct < 5) || (gb != null && gb < 5);
@@ -2294,16 +2296,18 @@ function computeFleetAlerts() {
     if (st.kind === 'bad') reason = st.label || 'stale';
     else if (bh && bh.kind === 'bad') reason = bh.label || 'backup failing';
     else if (oh && oh.kind === 'bad') reason = 'OMSA bad';
+    else if (ah === 'bad') reason = 'admin-group risk';
     else if (diskCrit) reason = `C: ${pct}% free`;
     else if (st.kind === 'warn') reason = st.label || 'warning';
     else if (bh && bh.kind === 'warn') reason = bh.label || 'backup degraded';
     else if (oh && oh.kind === 'warn') reason = 'OMSA warn';
+    else if (ah === 'warn') reason = 'too many admins';
     else if (diskWarn) reason = `C: ${pct}% free`;
 
-    if (st.kind === 'bad' || (bh && bh.kind === 'bad') || (oh && oh.kind === 'bad') || diskCrit) {
+    if (st.kind === 'bad' || (bh && bh.kind === 'bad') || (oh && oh.kind === 'bad') || ah === 'bad' || diskCrit) {
       crit++;
       critHosts.push({ name: a.hostname || a.id, reason });
-    } else if (st.kind === 'warn' || (bh && bh.kind === 'warn') || (oh && oh.kind === 'warn') || diskWarn) {
+    } else if (st.kind === 'warn' || (bh && bh.kind === 'warn') || (oh && oh.kind === 'warn') || ah === 'warn' || diskWarn) {
       warn++;
       warnHosts.push({ name: a.hostname || a.id, reason });
     }
@@ -4707,6 +4711,183 @@ function renderConnectivityChart(a) {
   `;
 }
 
+// ─────────────────────────────────────────────────────────────────────
+// Local administrators — vulnerability heuristics + drawer section
+// ─────────────────────────────────────────────────────────────────────
+//
+// Reads a.report.localAdmins from the agent's admins probe and:
+//   1. Lists every member of the local Administrators group with type +
+//      principal source chips (Local / ActiveDirectory / AzureAD / etc).
+//   2. Flags classic hygiene problems via computeAdminVulnerabilities():
+//      - too many local admins (warn >5, crit >10)
+//      - built-in Administrator account enabled (warn)
+//      - well-known principals like Everyone / Authenticated Users /
+//        Domain Users in admins (CRIT -- effectively no auth)
+//      - service-account naming patterns (info only -- common but
+//        worth surfacing so the operator can audit)
+//
+// Renders nothing for hosts on agent v<0.14.28 (the probe doesn't ship
+// in v0.14.27). Detects via absence of the localAdmins field; older
+// hosts just don't get the section.
+
+const ADMIN_WARN_COUNT = 5;
+const ADMIN_CRIT_COUNT = 10;
+
+// Well-known dangerous principals that should NEVER be in Administrators.
+// Matched case-insensitively against the bare account name (after stripping
+// any domain prefix). Adding "Domain Users" here -- it's by far the most
+// common one to find by accident and is essentially identical to having
+// no authentication at all.
+const ADMIN_RED_FLAG_PRINCIPALS = [
+  "everyone",
+  "authenticated users",
+  "domain users",
+  "users",
+  "guests",
+  "interactive",
+];
+
+// Naming patterns that suggest a service / automation account. Just
+// flagged as info -- service accounts can legitimately need admin, but
+// the operator should be able to see at a glance which admins are
+// service-driven vs human.
+const SERVICE_ACCOUNT_PATTERNS = [
+  /^svc[_\-]/i,
+  /[_\-]svc$/i,
+  /^service[_\-]/i,
+  /^backup[_\-]?(svc|service)?$/i,
+];
+
+function _stripDomain(name) {
+  if (!name) return "";
+  const idx = name.lastIndexOf("\\");
+  return idx >= 0 ? name.slice(idx + 1) : name;
+}
+
+function computeAdminVulnerabilities(admins) {
+  if (!admins || !Array.isArray(admins.members)) return [];
+  const findings = [];
+  const members = admins.members;
+
+  // Count
+  if (members.length >= ADMIN_CRIT_COUNT) {
+    findings.push({ kind: "crit", text: `${members.length} local admins (>${ADMIN_CRIT_COUNT} threshold) -- audit required` });
+  } else if (members.length >= ADMIN_WARN_COUNT) {
+    findings.push({ kind: "warn", text: `${members.length} local admins (>${ADMIN_WARN_COUNT} threshold) -- review for privilege creep` });
+  }
+
+  // Built-in Administrator enabled
+  if (admins.builtinAdministratorEnabled === true) {
+    findings.push({ kind: "warn", text: "Built-in Administrator account is enabled (most-targeted default account in Windows)" });
+  }
+
+  // Red-flag principals
+  for (const m of members) {
+    const bare = _stripDomain(m.name || "").toLowerCase();
+    if (ADMIN_RED_FLAG_PRINCIPALS.includes(bare)) {
+      findings.push({ kind: "crit", text: `'${m.name}' is in Administrators -- catastrophic, every authenticated user effectively has admin` });
+    }
+  }
+
+  return findings;
+}
+
+// Returns 'crit' | 'warn' | null for the worst per-host admin vulnerability,
+// matching the kind values used by statusOf() etc. Used by the alert chip
+// to count admin-vulnerability hosts alongside backup/OMSA/disk issues.
+function adminHealthOf(agent) {
+  const admins = agent.report && agent.report.localAdmins;
+  if (!admins || admins._error) return null;
+  const findings = computeAdminVulnerabilities(admins);
+  if (findings.some(f => f.kind === "crit")) return "bad";
+  if (findings.some(f => f.kind === "warn")) return "warn";
+  return null;
+}
+
+function renderLocalAdmins(a) {
+  const admins = a.report && a.report.localAdmins;
+  // Probe didn't ship yet for this agent version. Don't render anything --
+  // the connectivity section already nags the operator about upgrading, no
+  // need to nag twice for the same reason.
+  if (admins === undefined) return "";
+  // Probe ran but errored (older OS without Get-LocalGroupMember, etc).
+  if (admins && admins._error) {
+    return `
+      <div class="section">
+        <h3>Local Administrators</h3>
+        <div class="meta">Probe couldn't read group membership: <code>${esc(admins._error)}</code></div>
+      </div>
+    `;
+  }
+  const members = (admins && Array.isArray(admins.members)) ? admins.members : [];
+  const findings = computeAdminVulnerabilities(admins);
+  const critFindings = findings.filter(f => f.kind === "crit");
+  const warnFindings = findings.filter(f => f.kind === "warn");
+
+  // Header badge: red if any crit, amber if any warn, muted if clean.
+  const headerBadge = critFindings.length
+    ? `<span class="badge bad" style="margin-left:8px;">${critFindings.length} critical</span>`
+    : warnFindings.length
+      ? `<span class="badge warn" style="margin-left:8px;">${warnFindings.length} warning${warnFindings.length === 1 ? '' : 's'}</span>`
+      : `<span class="badge muted" style="margin-left:8px;">no findings</span>`;
+  const countMeta = `<span class="meta" style="font-weight:400;font-size:13px;">${members.length} member${members.length === 1 ? '' : 's'}</span>`;
+
+  // Findings callout (if any)
+  const findingsHtml = findings.length
+    ? `<div style="background:${critFindings.length ? '#fef2f2' : '#fef3c7'};border:1px solid ${critFindings.length ? '#fca5a5' : '#fde68a'};border-radius:8px;padding:10px 14px;margin:8px 0 14px;">
+         <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:${critFindings.length ? '#7f1d1d' : '#78350f'};margin-bottom:6px;">Vulnerabilities flagged</div>
+         <ul style="margin:0;padding-left:18px;font-size:13px;color:${critFindings.length ? '#7f1d1d' : '#78350f'};line-height:1.6;">
+           ${findings.map(f => `<li>${esc(f.text)}</li>`).join('')}
+         </ul>
+       </div>`
+    : '';
+
+  // Member list as a compact table
+  const memberRows = members.length
+    ? members.map(m => {
+        const bare = _stripDomain(m.name || "");
+        const lowerBare = bare.toLowerCase();
+        const isRedFlag = ADMIN_RED_FLAG_PRINCIPALS.includes(lowerBare);
+        const isService = SERVICE_ACCOUNT_PATTERNS.some(re => re.test(bare));
+        const isBuiltinAdmin = lowerBare === "administrator" && (m.principalSource || "").toLowerCase() === "local";
+        const typeChip = m.type === "group"
+          ? `<span class="badge muted" style="font-size:10.5px;padding:1px 7px;">group</span>`
+          : `<span class="badge muted" style="font-size:10.5px;padding:1px 7px;">user</span>`;
+        const srcChip = m.principalSource
+          ? `<span class="meta" style="font-size:11px;">${esc(m.principalSource)}</span>`
+          : `<span class="meta" style="font-size:11px;">?</span>`;
+        const flagChips = [];
+        if (isRedFlag) flagChips.push(`<span class="badge bad" style="font-size:10.5px;padding:1px 7px;" title="Catastrophic -- effectively no authentication on this host">red flag</span>`);
+        if (isBuiltinAdmin && admins.builtinAdministratorEnabled === true) flagChips.push(`<span class="badge warn" style="font-size:10.5px;padding:1px 7px;" title="Built-in Administrator account is the most-targeted default account in Windows">default account</span>`);
+        if (isService) flagChips.push(`<span class="badge muted" style="font-size:10.5px;padding:1px 7px;background:#e0f2fe;color:#075985;" title="Naming pattern suggests a service / automation account">service</span>`);
+        return `<tr>
+          <td style="padding:6px 10px;border-bottom:1px solid var(--line);font-size:13px;${isRedFlag ? 'color:#b91c1c;font-weight:600;' : ''}">${esc(m.name)}</td>
+          <td style="padding:6px 10px;border-bottom:1px solid var(--line);">${typeChip}</td>
+          <td style="padding:6px 10px;border-bottom:1px solid var(--line);">${srcChip}</td>
+          <td style="padding:6px 10px;border-bottom:1px solid var(--line);">${flagChips.join(' ')}</td>
+        </tr>`;
+      }).join('')
+    : `<tr><td colspan="4" style="padding:10px;text-align:center;color:var(--ink-faint);font-style:italic;">No members enumerated.</td></tr>`;
+
+  return `
+    <div class="section">
+      <h3>Local Administrators ${countMeta} ${headerBadge}</h3>
+      ${findingsHtml}
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead>
+          <tr>
+            <th style="text-align:left;padding:8px 10px;font-size:11px;text-transform:uppercase;color:var(--ink-faint);letter-spacing:0.05em;background:var(--surface-2);border-bottom:1px solid var(--line);">Name</th>
+            <th style="text-align:left;padding:8px 10px;font-size:11px;text-transform:uppercase;color:var(--ink-faint);letter-spacing:0.05em;background:var(--surface-2);border-bottom:1px solid var(--line);">Type</th>
+            <th style="text-align:left;padding:8px 10px;font-size:11px;text-transform:uppercase;color:var(--ink-faint);letter-spacing:0.05em;background:var(--surface-2);border-bottom:1px solid var(--line);">Source</th>
+            <th style="text-align:left;padding:8px 10px;font-size:11px;text-transform:uppercase;color:var(--ink-faint);letter-spacing:0.05em;background:var(--surface-2);border-bottom:1px solid var(--line);">Flags</th>
+          </tr>
+        </thead>
+        <tbody>${memberRows}</tbody>
+      </table>
+    </div>
+  `;
+}
+
 function renderDrawer(pcId) {
   const a = state.agents.find(x => x.id === pcId);
   if (!a) {
@@ -4802,6 +4983,8 @@ function renderDrawer(pcId) {
     </div>
 
     ${renderConnectivityChart(a)}
+
+    ${renderLocalAdmins(a)}
 
     ${(() => {
       // Build a compact "what's non-default about this host" summary for
