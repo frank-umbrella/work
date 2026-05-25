@@ -1376,7 +1376,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.84";
+const APP_VERSION = "0.14.85";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -2768,7 +2768,11 @@ function computeFleetAlerts() {
     else if (st.kind === 'warn') reason = st.label || 'warning';
     else if (bh && bh.kind === 'warn') reason = bh.label || 'backup degraded';
     else if (oh && oh.kind === 'warn') reason = 'OMSA warn';
-    else if (ah === 'warn') reason = 'too many admins';
+    // "too many admins" used to fire here but the count-based findings
+    // are now chipSilent (see computeAdminVulnerabilities) -- adminHealthOf
+    // strips them. So 'warn' from ah now means built-in Administrator
+    // enabled (the only remaining warn-kind admin finding).
+    else if (ah === 'warn') reason = 'built-in admin enabled';
     else if (bda === 'warn') {
       const f = backupDiskAgeFinding(a);
       reason = f ? `backup disk aged ${_fmtAgeDays(f.ageDays)}` : 'backup disk aged';
@@ -6224,11 +6228,17 @@ function computeAdminVulnerabilities(admins) {
   const findings = [];
   const members = admins.members;
 
-  // Count
+  // Count -- tagged chipSilent:true so it shows in the per-host
+  // drawer panel (operator should still see the count) but does NOT
+  // contribute to the fleet alert chip / favicon. Privilege creep is
+  // worth surfacing on the host detail page but it's a low-priority
+  // hygiene finding, not an active-incident signal -- a fleet with
+  // 5+ admins on every host would otherwise drown out actual incidents
+  // (failing backups, OMSA non-OK, disk almost full, etc).
   if (members.length >= ADMIN_CRIT_COUNT) {
-    findings.push({ kind: "crit", text: `${members.length} local admins (>${ADMIN_CRIT_COUNT} threshold) -- audit required` });
+    findings.push({ kind: "crit", chipSilent: true, text: `${members.length} local admins (>${ADMIN_CRIT_COUNT} threshold) -- audit required` });
   } else if (members.length >= ADMIN_WARN_COUNT) {
-    findings.push({ kind: "warn", text: `${members.length} local admins (>${ADMIN_WARN_COUNT} threshold) -- review for privilege creep` });
+    findings.push({ kind: "warn", chipSilent: true, text: `${members.length} local admins (>${ADMIN_WARN_COUNT} threshold) -- review for privilege creep` });
   }
 
   // Built-in Administrator enabled
@@ -6250,10 +6260,12 @@ function computeAdminVulnerabilities(admins) {
 // Returns 'crit' | 'warn' | null for the worst per-host admin vulnerability,
 // matching the kind values used by statusOf() etc. Used by the alert chip
 // to count admin-vulnerability hosts alongside backup/OMSA/disk issues.
+// Findings tagged chipSilent are excluded -- they still render in the
+// drawer's Vulnerabilities Flagged box, just don't count toward the chip.
 function adminHealthOf(agent) {
   const admins = agent.report && agent.report.localAdmins;
   if (!admins || admins._error) return null;
-  const findings = computeAdminVulnerabilities(admins);
+  const findings = computeAdminVulnerabilities(admins).filter(f => !f.chipSilent);
   if (findings.some(f => f.kind === "crit")) return "bad";
   if (findings.some(f => f.kind === "warn")) return "warn";
   return null;
