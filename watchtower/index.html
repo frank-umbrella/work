@@ -1368,7 +1368,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.77";
+const APP_VERSION = "0.14.78";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -3740,7 +3740,11 @@ function renderStats() {
   const appByLabel = new Map();          // appName -> [agent, ...]
   const skipPatterns = /^(Microsoft|Windows|VC\+\+|Visual C\+\+|.NET|Watchtower|Update for|Security Update|KB\d)/i;
   for (const a of active) {
-    const apps = a.report && a.report.software && a.report.software.applications;
+    // The software probe returns { count, installed: [...] }. Earlier
+    // builds of this card read `software.applications`, which never
+    // existed -- so every host fell through and the card showed the
+    // empty-state message. Read `installed` (the actual probe key).
+    const apps = a.report && a.report.software && a.report.software.installed;
     if (!Array.isArray(apps)) continue;
     const seen = new Set();
     for (const app of apps) {
