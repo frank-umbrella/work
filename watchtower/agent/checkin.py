@@ -30,6 +30,7 @@ import config as cfg_mod
 import collector
 import client
 import logger as _logger
+import health as _health
 
 
 # Local cap on how much offline history we keep in state.json. Worker
@@ -158,6 +159,17 @@ def run_checkin():
             "collectionMs": report.get("collectionMs"),
             "probeErrors": [e["probe"] for e in report.get("probeErrors", [])],
         }
+
+        # Compute this host's worst-state for the tray icon. The full
+        # report is too big to drop into state.json (Belarc-lite-style
+        # inventory can hit 200KB+), but the tray needs a single-word
+        # summary to pick which icon variant to display. health.py's
+        # contract: pass the report via a transient state['_report']
+        # field, read state['hostHealthState'] back, drop the _report
+        # field before save_state writes to disk.
+        state["_report"] = report
+        state["hostHealthState"] = _health.compute_host_health_state(state)
+        state.pop("_report", None)
 
         # Include offline-period history in the payload so the worker can
         # forward it into Firestore for the dashboard's connectivity chart.

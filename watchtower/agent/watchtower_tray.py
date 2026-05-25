@@ -47,6 +47,7 @@ AGENT_VERSION = _read_version()
 
 
 POLL_INTERVAL_SEC = 30
+BLINK_INTERVAL_SEC = 1.0       # critical-state icon flip interval
 RUN_NOW_MARKER = cfg_mod.DATA_DIR / ".run-now"
 
 # Dashboard URL — surfaced as a tray menu item so users can jump
@@ -55,93 +56,188 @@ RUN_NOW_MARKER = cfg_mod.DATA_DIR / ".run-now"
 DASHBOARD_URL = "https://frank-umbrella.github.io/work/watchtower/"
 
 
-def _make_icon(beacon_hex):
-    """Draw the Watchtower crenellated tower icon (matches favicon.svg
-    structure) on a 64x64 RGBA canvas. The ONLY thing that varies by
-    health status is the beacon-and-halo color -- the rest of the icon
-    (teal disc, white tower silhouette, arrow slits, door) stays
-    constant so the brand reads the same in tray, browser tab, and
-    installer wizard. Hover the tray icon for human-readable status.
-
-    Status palette via beacon color:
-      cyan   #5af4e3  -- healthy (default favicon color)
-      amber  #d99c2a  -- stale (>30h since last check-in)
-      red    #d04646  -- agent error / unreachable worker
-      grey   #8a8a8a  -- unknown / never checked in
-
-    Geometry mirrors favicon.svg's viewBox 0 0 64 64. Hand-drawn in PIL
-    rather than rasterized via cairosvg to keep the tray EXE small
-    (cairosvg would pull in libcairo and inflate the PyInstaller bundle).
-    """
-    TEAL = "#0a6b6b"
-    WHITE = (255, 255, 255, 255)
-
-    img = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
-    d = ImageDraw.Draw(img)
-
-    # Disc background (matches favicon.svg circle cx=32 cy=32 r=30)
-    d.ellipse((2, 2, 62, 62), fill=TEAL)
-
-    # Beacon halo behind the body (subtle status-colored glow). PIL
-    # doesn't draw soft alpha gradients cheaply, so we use a single
-    # 50%-opacity disc -- close enough at tray size.
-    halo_rgba = _hex_to_rgba(beacon_hex, 90)
-    d.ellipse((22, 22, 42, 42), fill=halo_rgba)
-
-    # Crenellations across the top (4 small white rects)
-    for x in (18, 26, 34, 42):
-        d.rectangle((x, 14, x + 4, 20), fill=WHITE)
-    # Battlement platform under the crenellations
-    d.rectangle((16, 20, 48, 24), fill=WHITE)
-    # Tower body
-    d.rectangle((20, 24, 44, 54), fill=WHITE)
-
-    # Glowing beacon at center of body -- the status indicator
-    d.ellipse((28, 28, 36, 36), fill=beacon_hex)
-
-    # Arrow-slit windows flanking the beacon (cut-out style: teal-on-white)
-    d.rectangle((24, 38, 27, 46), fill=TEAL)
-    d.rectangle((37, 38, 40, 46), fill=TEAL)
-
-    # Arched door at the base of the tower. PIL doesn't have a quadratic
-    # bezier primitive at this version level, so approximate the arch with
-    # a pieslice clipped against a rectangle: draws the top half of a
-    # circle, with the flat bottom forming the door's base.
-    d.pieslice((28, 46, 36, 54), 180, 360, fill=TEAL)
-    d.rectangle((28, 50, 36, 54), fill=TEAL)
-
-    return img
-
-
-def _hex_to_rgba(hex_str, alpha):
+def _hex_to_rgba(hex_str, alpha=255):
     """`#rrggbb` -> (r, g, b, alpha) tuple for PIL."""
     h = hex_str.lstrip('#')
     return (int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16), alpha)
 
 
-GREEN = "#1bb978"
-AMBER = "#d99c2a"
-RED = "#d04646"
-GREY = "#8a8a8a"
+# Brand palette + alert palette. Same colors the dashboard uses for
+# the favicon variants (see Watchtower brand.html "Alert states").
+TEAL = "#0a6b6b"
+WHITE = (255, 255, 255, 255)
+CYAN  = "#5af4e3"   # OK beacon
+AMBER = "#f59e0b"   # Warn disc (Warn B sawtooth)
+AMBER_CRACK = "#b45309"
+RED   = "#b91c1c"   # Crit disc (Crit G crumbling)
+DARK_BEACON = "#450a0a"  # critical "beacon failed" dim red-brown
+RED_CRACK = "#7f1d1d"
 
 
-def _status_color(state):
+def _make_icon_ok():
+    """OK state: the existing Watchtower mark (teal disc, intact tower,
+    glowing cyan beacon). Drawn pixel-for-pixel from favicon.svg geometry.
+    """
+    img = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+
+    # Disc + soft cyan halo behind the body (matches favicon.svg)
+    d.ellipse((2, 2, 62, 62), fill=TEAL)
+    d.ellipse((22, 22, 42, 42), fill=_hex_to_rgba(CYAN, 90))
+
+    # Crenellations (4) + platform + body
+    for x in (18, 26, 34, 42):
+        d.rectangle((x, 14, x + 4, 20), fill=WHITE)
+    d.rectangle((16, 20, 48, 24), fill=WHITE)
+    d.rectangle((20, 24, 44, 54), fill=WHITE)
+
+    # Beacon (cyan = healthy)
+    d.ellipse((28, 28, 36, 36), fill=CYAN)
+
+    # Arrow slits + arched door (cut-outs in teal)
+    d.rectangle((24, 38, 27, 46), fill=TEAL)
+    d.rectangle((37, 38, 40, 46), fill=TEAL)
+    d.pieslice((28, 46, 36, 54), 180, 360, fill=TEAL)
+    d.rectangle((28, 50, 36, 54), fill=TEAL)
+    return img
+
+
+def _make_icon_warn():
+    """Warn state: 'Warn B' design from the alert-icon previews.
+    Amber disc, crenellations chipped at sawtooth heights, cyan beacon
+    still glowing (host is wounded but still phoning home). Hairline
+    cracks scattered on the wall. Static (no blink) per the design --
+    blinking amber reads as panicky for a 'eyes-eventually' state.
+    """
+    img = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+
+    # Amber disc
+    d.ellipse((2, 2, 62, 62), fill=AMBER)
+
+    # Sawtooth crenellations (#1 chipped to h=4, #2 to h=2, #3 full,
+    # #4 to h=3). Matches Warn B SVG geometry from the previews file.
+    d.rectangle((18, 16, 22, 20), fill=WHITE)   # h=4
+    d.rectangle((26, 18, 30, 20), fill=WHITE)   # h=2
+    d.rectangle((34, 15, 38, 20), fill=WHITE)   # h=5
+    d.rectangle((42, 17, 46, 20), fill=WHITE)   # h=3
+
+    # Top bar + full wall (warn keeps the wall intact)
+    d.rectangle((16, 20, 48, 24), fill=WHITE)
+    d.rectangle((20, 24, 44, 54), fill=WHITE)
+
+    # Beacon still glowing cyan -- amber disc + cyan beacon is the
+    # high-contrast complementary pair the favicon uses.
+    d.ellipse((28, 28, 36, 36), fill=CYAN)
+
+    # Hairline cracks (dark amber, thin zigzags)
+    d.line([(24, 30), (23, 33), (24, 36)], fill=AMBER_CRACK, width=1)
+    d.line([(40, 34), (38, 37), (40, 41)], fill=AMBER_CRACK, width=1)
+
+    # Arrow slits + arched door (amber cut-outs since the disc is amber)
+    d.rectangle((24, 38, 27, 46), fill=AMBER)
+    d.rectangle((37, 38, 40, 46), fill=AMBER)
+    d.pieslice((28, 46, 36, 54), 180, 360, fill=AMBER)
+    d.rectangle((28, 50, 36, 54), fill=AMBER)
+    return img
+
+
+def _make_icon_crit():
+    """Critical state: 'Crit G' design from the previews. Red disc,
+    top-right corner crumbling in a 3-step staircase, round hole
+    punched through the wall, DARK beacon (the failed signal that
+    differentiates crit from warn), single vertical crack down the
+    side. Alternates with the OK icon every BLINK_INTERVAL_SEC to
+    grab attention.
+    """
+    img = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+
+    # Red disc
+    d.ellipse((2, 2, 62, 62), fill=RED)
+
+    # Crenellations: #1, #2 intact; #3 chipped to h=3; #4 GONE
+    d.rectangle((18, 14, 22, 20), fill=WHITE)
+    d.rectangle((26, 14, 30, 20), fill=WHITE)
+    d.rectangle((34, 17, 38, 20), fill=WHITE)
+    # #4 omitted
+
+    # Top bar with a small jagged right edge (Crit G geometry).
+    # Draw the main bar then a small zigzag tip.
+    d.polygon([(16, 20), (40, 20), (41, 22), (39, 24), (16, 24)], fill=WHITE)
+
+    # Wall with 3-step crumbling staircase at the top-right corner.
+    # Path mirrors the picked Crit G SVG (36->39->42->44).
+    d.polygon([
+        (20, 24), (36, 24), (36, 28), (39, 28), (39, 31),
+        (42, 31), (42, 34), (44, 34), (44, 54), (20, 54),
+    ], fill=WHITE)
+
+    # Dark beacon (the "signal failed" cue). Sits slightly left because
+    # the wall's missing chunk on the right pulls the beacon's visual
+    # center inward.
+    d.ellipse((26, 31, 32, 37), fill=DARK_BEACON)
+
+    # Round hole punched through the wall (cannon-shot look) -- shows
+    # the red disc through the white wall.
+    d.ellipse((34, 38, 38, 42), fill=RED)
+
+    # Vertical crack running down from below the hole
+    d.line([(30, 38), (28, 42), (30, 46), (28, 50)], fill=RED_CRACK, width=1)
+
+    # Single arrow slit (the right one is absorbed into the hole/chunk)
+    d.rectangle((24, 42, 27, 48), fill=RED)
+
+    # Arched door (still red since the disc is red)
+    d.pieslice((28, 46, 36, 54), 180, 360, fill=RED)
+    d.rectangle((28, 50, 36, 54), fill=RED)
+    return img
+
+
+# Cache the three variants -- they're identical between renders so
+# there's no reason to redraw the PIL canvas on every poll tick.
+_ICON_CACHE = {}
+
+
+def _icon_for(state_kind):
+    """Returns the cached PIL Image for one of 'ok' / 'warn' / 'crit'."""
+    if state_kind not in _ICON_CACHE:
+        if state_kind == "warn":
+            _ICON_CACHE[state_kind] = _make_icon_warn()
+        elif state_kind == "crit":
+            _ICON_CACHE[state_kind] = _make_icon_crit()
+        else:
+            _ICON_CACHE[state_kind] = _make_icon_ok()
+    return _ICON_CACHE[state_kind]
+
+
+def _host_health_state(state):
+    """Returns 'ok' / 'warn' / 'crit' for the current local host. Reads
+    the precomputed state['hostHealthState'] field that checkin.py
+    writes after each check-in. Falls back to a coarse derivation from
+    state.json's other fields when the field is absent (older agent
+    state.json's from before the field was added).
+    """
     if not state:
-        return GREY
+        return "ok"
+    # Pre-computed by checkin.py (v0.14.28+)
+    precomputed = state.get("hostHealthState")
+    if precomputed in ("ok", "warn", "crit"):
+        return precomputed
+    # Fallback for older state.json shapes -- mirror the previous
+    # tray logic so the icon doesn't go blank during upgrade.
     if not state.get("ok", False):
-        return RED
+        return "crit"
     last = state.get("lastCheckinAt")
-    if not last:
-        return GREY
-    # Anything older than 30h = amber (we expect a check-in every 24h).
-    try:
-        last_ts = time.strptime(last, "%Y-%m-%dT%H:%M:%SZ")
-        delta_h = (time.time() - time.mktime(last_ts)) / 3600.0
-        if delta_h > 30:
-            return AMBER
-    except ValueError:
-        pass
-    return GREEN
+    if last:
+        try:
+            last_ts = time.strptime(last, "%Y-%m-%dT%H:%M:%SZ")
+            delta_h = (time.time() - time.mktime(last_ts)) / 3600.0
+            if delta_h > 30:
+                return "warn"
+        except ValueError:
+            pass
+    return "ok"
 
 
 def _tooltip(state):
@@ -295,15 +391,43 @@ def _on_quit(icon, item):
 
 
 def _poll_loop(icon):
-    """Background thread: re-renders the icon + tooltip every POLL_INTERVAL_SEC."""
+    """Background thread: re-renders the icon + tooltip on a 30s cadence
+    AND handles the 1-second blink flip when this host is in a critical
+    state. Single thread keeps the implementation simple -- the blink
+    case just uses a faster inner loop with the same outer 30s check.
+
+    Behavior per health state:
+      ok    static OK icon (teal disc, glowing cyan beacon)
+      warn  static Warn B icon (amber sawtooth, beacon still cyan)
+      crit  Crit G icon ALTERNATING with the OK icon every BLINK_INTERVAL_SEC
+            so the tray catches the operator's eye even at-a-glance
+    """
+    blink_phase = 0  # 0 = alert variant, 1 = OK variant (the flip frame)
     while getattr(icon, "_keep_polling", True):
         state = cfg_mod.load_state()
-        icon.icon = _make_icon(_status_color(state))
+        kind = _host_health_state(state)
         icon.title = _tooltip(state)
-        for _ in range(POLL_INTERVAL_SEC):
-            if not getattr(icon, "_keep_polling", True):
-                return
-            time.sleep(1)
+
+        if kind == "crit":
+            # Blink loop. Flips between the crit icon and the OK icon
+            # at BLINK_INTERVAL_SEC. The 30-second outer poll re-reads
+            # state.json after blink_ticks * BLINK_INTERVAL_SEC seconds.
+            blink_ticks = int(POLL_INTERVAL_SEC / BLINK_INTERVAL_SEC)
+            for _ in range(blink_ticks):
+                if not getattr(icon, "_keep_polling", True):
+                    return
+                icon.icon = _icon_for("crit" if blink_phase == 0 else "ok")
+                blink_phase = 1 - blink_phase
+                time.sleep(BLINK_INTERVAL_SEC)
+        else:
+            # Static icon for ok / warn. Reset blink phase so the next
+            # crit transition starts on the alert frame.
+            icon.icon = _icon_for(kind)
+            blink_phase = 0
+            for _ in range(POLL_INTERVAL_SEC):
+                if not getattr(icon, "_keep_polling", True):
+                    return
+                time.sleep(1)
 
 
 def main():
@@ -347,7 +471,7 @@ def main():
     )
     icon = pystray.Icon(
         "watchtower",
-        icon=_make_icon(_status_color(initial_state)),
+        icon=_icon_for(_host_health_state(initial_state)),
         title=_tooltip(initial_state),
         menu=menu,
     )
