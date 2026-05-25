@@ -792,10 +792,15 @@ async function handleLatestVersion(request, env, ctx) {
   // overwritten by a later re-upload. switched the SHA source to
   // asset.digest (server-computed, can't drift) but v5 cache still
   // serves the wrong body-derived hash. Purge.
+  //
+  // v7 (2026-05-25): bumping again -- the worker was serving v0.14.45
+  // as latest hours after v0.14.46 had been published, because the
+  // KV cache had captured 0.14.45 right at its release time and the
+  // 24h TTL hadn't elapsed yet. Forced refresh.
   const cache = caches.default;
-  const shortKey = new Request('https://internal-cache/latest-version?v=6', { method: 'GET' });
-  const longKey  = new Request('https://internal-cache/latest-version-lastgood?v=6', { method: 'GET' });
-  const KV_KEY   = 'latest-version:v6';
+  const shortKey = new Request('https://internal-cache/latest-version?v=7', { method: 'GET' });
+  const longKey  = new Request('https://internal-cache/latest-version-lastgood?v=7', { method: 'GET' });
+  const KV_KEY   = 'latest-version:v7';
 
   // TIER 1 -- POP-local short cache fast path.
   const cachedShort = await cache.match(shortKey);
