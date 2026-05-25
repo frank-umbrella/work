@@ -1087,7 +1087,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.38";
+const APP_VERSION = "0.14.39";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -2306,10 +2306,10 @@ function computeFleetAlerts() {
 
     if (st.kind === 'bad' || (bh && bh.kind === 'bad') || (oh && oh.kind === 'bad') || ah === 'bad' || diskCrit) {
       crit++;
-      critHosts.push({ name: a.hostname || a.id, reason });
+      critHosts.push({ id: a.id, name: a.hostname || a.id, reason });
     } else if (st.kind === 'warn' || (bh && bh.kind === 'warn') || (oh && oh.kind === 'warn') || ah === 'warn' || diskWarn) {
       warn++;
-      warnHosts.push({ name: a.hostname || a.id, reason });
+      warnHosts.push({ id: a.id, name: a.hostname || a.id, reason });
     }
   }
   return { crit, warn, critHosts, warnHosts };
@@ -2363,19 +2363,25 @@ function renderAlertChip() {
 
   // Alerting form. Surface the WORST host's name + reason so the operator
   // sees "what's wrong" inline with the snooze button instead of having
-  // to scroll the fleet table.
+  // to scroll the fleet table. The hostname is rendered as a clickable
+  // anchor that opens the host's drawer -- one-click triage from the
+  // alert banner straight into the details panel.
   const sevColor = alerts.crit > 0 ? '#7f1d1d' : '#78350f';
   const sevBg    = alerts.crit > 0 ? '#fee2e2' : '#fef3c7';
   const sevBorder = alerts.crit > 0 ? '#fca5a5' : '#fde68a';
   const icon = alerts.crit > 0 ? '🚨' : '⚠️';
   const topHost = alerts.crit > 0 ? alerts.critHosts[0] : alerts.warnHosts[0];
+  // Inherit the chip's severity color so the link reads as part of the
+  // alert (not as a stock blue web link). Underlined so it's clearly
+  // clickable rather than just emphasized text.
+  const hostLink = `<a href="#" id="chipHostLink" data-pcid="${esc(topHost.id)}" style="color:inherit;font-weight:700;text-decoration:underline;cursor:pointer;" title="Open the host's drawer">${esc(topHost.name)}</a>`;
   let summary;
   if (alerts.crit > 0 && alerts.warn > 0) {
-    summary = `<b>${alerts.crit} critical</b>, ${alerts.warn} warning${alerts.warn === 1 ? '' : 's'} &middot; ${esc(topHost.name)}${topHost.reason ? ` — ${esc(topHost.reason)}` : ''}${alerts.crit + alerts.warn > 1 ? ` <span class="meta">+${alerts.crit + alerts.warn - 1} more</span>` : ''}`;
+    summary = `<b>${alerts.crit} critical</b>, ${alerts.warn} warning${alerts.warn === 1 ? '' : 's'} &middot; ${hostLink}${topHost.reason ? ` — ${esc(topHost.reason)}` : ''}${alerts.crit + alerts.warn > 1 ? ` <span class="meta">+${alerts.crit + alerts.warn - 1} more</span>` : ''}`;
   } else if (alerts.crit > 0) {
-    summary = `<b>${alerts.crit} critical</b> &middot; ${esc(topHost.name)}${topHost.reason ? ` — ${esc(topHost.reason)}` : ''}${alerts.crit > 1 ? ` <span class="meta">+${alerts.crit - 1} more</span>` : ''}`;
+    summary = `<b>${alerts.crit} critical</b> &middot; ${hostLink}${topHost.reason ? ` — ${esc(topHost.reason)}` : ''}${alerts.crit > 1 ? ` <span class="meta">+${alerts.crit - 1} more</span>` : ''}`;
   } else {
-    summary = `<b>${alerts.warn} warning${alerts.warn === 1 ? '' : 's'}</b> &middot; ${esc(topHost.name)}${topHost.reason ? ` — ${esc(topHost.reason)}` : ''}${alerts.warn > 1 ? ` <span class="meta">+${alerts.warn - 1} more</span>` : ''}`;
+    summary = `<b>${alerts.warn} warning${alerts.warn === 1 ? '' : 's'}</b> &middot; ${hostLink}${topHost.reason ? ` — ${esc(topHost.reason)}` : ''}${alerts.warn > 1 ? ` <span class="meta">+${alerts.warn - 1} more</span>` : ''}`;
   }
 
   chip.style.background = sevBg;
@@ -2388,6 +2394,14 @@ function renderAlertChip() {
   `;
   const btn = $("#chipSnoozeBtn");
   if (btn) btn.addEventListener('click', () => _chipSnoozeFor(60));
+  const hostA = $("#chipHostLink");
+  if (hostA) {
+    hostA.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      const pcId = hostA.getAttribute('data-pcid');
+      if (pcId) openDrawer(pcId);
+    });
+  }
 }
 
 // Quick-snooze helper bound to the chip's button. Other duration buttons
