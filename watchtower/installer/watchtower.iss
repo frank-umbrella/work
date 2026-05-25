@@ -86,24 +86,34 @@ WizardImageStretch=yes
 WizardImageAlphaFormat=premultiplied
 
 ; ----------------------------------------------------------------------------
-; Restart Manager integration. When extracting [Files], Inno will register
-; with the Windows Restart Manager (RM) to detect any process currently
-; holding a file we're about to overwrite, and ask those processes to
-; close gracefully. If they don't close, RM falls back to queueing the
-; replacement for next reboot rather than failing the install outright.
+; Restart Manager integration is DISABLED.
 ;
-; CloseApplications=yes  -- enable RM detection + close requests
-; RestartApplications=yes -- relaunch what we closed (e.g. tray) after
-;                          the install finishes
+; v0.14.89 added `CloseApplications=yes` as belt-and-suspenders behind
+; our existing PrepareToInstall taskkill. In practice on Server 2012 R2,
+; RM detected the Program Compatibility Assistant Service (PcaSvc)
+; holding a soft handle on the install directory. PCA is a system-
+; critical service Windows refuses to stop -- but RM still flagged it,
+; bringing up the "Preparing to Install" wizard page asking the user
+; what to do. In silent mode (/VERYSILENT) that page is suppressed and
+; the entire install aborts at that point with no log entry, leaving
+; the host stuck on the old version. Manifested as "auto-update keeps
+; spawning installers that die silently after temp-dir creation."
 ;
-; Belt-and-suspenders with our explicit PrepareToInstall taskkill: if
-; taskkill misses a locker (rare -- another process holding the EXE,
-; user opened Properties dialog on it, AV scanner), RM catches it. The
-; previous failure mode (install aborts halfway through and leaves the
-; service stopped + tray dead) is what these flags exist to prevent.
+; Our PrepareToInstall already handles every realistic file-lock case
+; explicitly: it stops the WatchtowerAgent service, taskkills any
+; running watchtower-svc.exe and watchtower-tray.exe processes (/t to
+; catch the PyInstaller child too), then sleeps 2 seconds so Windows
+; can release the handles. By the time [Files] runs there are no
+; locks to coordinate. Asking RM to second-guess that just trips on
+; benign holders like PCA.
+;
+; If a stubborn third-party lock ever does block [Files] (anti-virus
+; scanning the EXE during replacement is the realistic case), Inno
+; falls back to its default "DeleteFile failed" error which the
+; install.log will surface clearly -- we can write a fix targeting
+; the specific locker rather than fighting RM heuristics.
 ; ----------------------------------------------------------------------------
-CloseApplications=yes
-RestartApplications=yes
+CloseApplications=no
 
 ; ----------------------------------------------------------------------------
 ; Optional task: bundle a LogMeIn MSI to install alongside the agent.
