@@ -499,7 +499,16 @@ def _detect_agent():
     _logger.log(f"  veeam.veeamconfig path resolved to: {veeamconfig!r}")
 
     if not veeamconfig:
-        last_job_reason = "veeamconfig.exe not located -- checked registry InstallDir + hardcoded paths"
+        # The locator searches 5 tiers (see _locate_veeamconfig); when
+        # all miss, the watchtower.log has the full per-tier breakdown
+        # (grep for 'veeam._locate_veeamconfig'). Surfaced reason names
+        # every tier so the operator knows what was tried without
+        # having to read the log.
+        last_job_reason = (
+            "veeamconfig.exe not located -- checked PATH, Uninstall InstallLocation, "
+            "Veeam reg keys, hardcoded Program Files paths, and walked the Veeam "
+            "directory tree (depth <=3). See watchtower.log for per-tier outcomes."
+        )
     else:
         try:
             r = subprocess.run(
