@@ -339,6 +339,26 @@ begin
   Result := ExpandConstant('{param:WORKERURL|{#WorkerUrl}}');
 end;
 
+function GetSkipValidate: Boolean;
+var
+  s: string;
+begin
+  // /SKIPVALIDATE=1 -- bypass the in-installer token re-validation.
+  // The auto-updater passes this because the running agent service
+  // ALREADY validated the token (it had to, to receive the autoUpdate
+  // signal that triggered this installer). Re-validating from inside
+  // the installer is redundant and turns out to be fragile on hosts
+  // where the installer's HTTP stack is restricted (RedirectionGuard,
+  // WDAC, app-specific firewall). Skipping it removes a fragile step
+  // from the auto-update path without weakening security -- a revoked
+  // token would already be rejected at the agent's NEXT check-in.
+  //
+  // We only honor /SKIPVALIDATE=1 -- any other value (including empty)
+  // means re-validate. So a typo doesn't accidentally disable security.
+  s := ExpandConstant('{param:SKIPVALIDATE|}');
+  Result := (s = '1');
+end;
+
 // ──────────────────────────────────────────────────────────────────────
 // Custom wizard page — single input field for the install token
 // ──────────────────────────────────────────────────────────────────────
@@ -456,60 +476,196 @@ begin
 end;
 
 // ──────────────────────────────────────────────────────────────────────
-// Worker validation — synchronous WinHttp COM call. Caches result so
+// Worker validation -- two-path. Primary: WinHttp.WinHttpRequest.5.1
+// COM. Fallback: PowerShell Invoke-WebRequest. Caches result so
 // NextButtonClick + CurStepChanged don't double-ping.
+//
+// Why two paths: on some hosts (observed on Server 2025 with
+// RedirectionGuard in enforcing mode) the installer's WinHTTP COM
+// call fails at the connection level -- the exact same COM call from
+// a regular PowerShell prompt succeeds. So the failure is specific to
+// the installer's process context, not the network. PowerShell's
+// Invoke-WebRequest uses .NET's HttpClient -- a different stack the
+// agent service already proves works on these hosts. Falling back
+// when WinHTTP throws lets the installer succeed where it would
+// otherwise abort.
 // ──────────────────────────────────────────────────────────────────────
+
+// Forward decl so ValidateTokenWithWorker can call the fallback.
+function ValidateTokenWithPowerShell(const Token: string; var OutBody: string; var OutStatus: Integer): Boolean; forward;
 
 function ValidateTokenWithWorker(const Token: string): Boolean;
 var
   WinHttp: Variant;
   Status: Integer;
   Body: string;
+  WinHttpThrew: Boolean;
+  PsWorked: Boolean;
 begin
   Result := False;
   ResolvedClientName := '';
   ResolvedClientId := '';
+  WinHttpThrew := False;
+  Status := 0;
+  Body := '';
 
   if Token = ValidatedToken then
   begin
-    // Same token as last call — skip the round trip.
+    // Same token as last call -- skip the round trip.
     Result := True;
     Exit;
   end;
 
+  // -- Path 1: WinHTTP COM (fast, no PS spawn) -----------------
   try
     WinHttp := CreateOleObject('WinHttp.WinHttpRequest.5.1');
     WinHttp.Open('GET', GetWorkerUrl + '/validate', False);
     WinHttp.SetRequestHeader('Authorization', 'Bearer ' + Token);
     WinHttp.SetRequestHeader('Accept', 'application/json');
-    // Resolve / Connect / Send / Receive (ms). 30s receive is generous —
-    // /validate normally returns in <1s.
     WinHttp.SetTimeouts(10000, 10000, 10000, 30000);
     WinHttp.Send;
     Status := WinHttp.Status;
-    if Status = 200 then
-    begin
-      Body := WinHttp.ResponseText;
-      ResolvedClientName := ExtractJsonString(Body, 'client');
-      ResolvedClientId := ExtractJsonString(Body, 'clientId');
-      ValidatedToken := Token;
-      Result := True;
-    end
-    else if Status = 401 then
-    begin
-      ShowError('Watchtower rejected this install token.' + Chr(13) + Chr(10) + Chr(13) + Chr(10) +
-                'Check that you copied the FULL token from the dashboard (begins with "wt_") and that it has not been revoked. Then try again.');
-    end
-    else
-    begin
-      ShowError('Unexpected response from Watchtower worker (HTTP ' + IntToStr(Status) + ').' + Chr(13) + Chr(10) + Chr(13) + Chr(10) +
-                'Verify the worker URL is reachable and try again.');
-    end;
+    Body := WinHttp.ResponseText;
   except
-    ShowError('Could not reach the Watchtower worker at:' + Chr(13) + Chr(10) +
-              GetWorkerUrl + Chr(13) + Chr(10) + Chr(13) + Chr(10) +
-              'Check the PC''s internet connection and try again.');
+    WinHttpThrew := True;
+    Log('Watchtower install: WinHTTP COM threw, will try PowerShell fallback');
   end;
+
+  // -- Path 2: PowerShell fallback if WinHTTP threw OR returned 0 -----
+  // Status=0 here means we never got an HTTP response (no Send raised
+  // but no status was set -- shouldn't happen, but defensive).
+  if WinHttpThrew or (Status = 0) then
+  begin
+    PsWorked := ValidateTokenWithPowerShell(Token, Body, Status);
+    if not PsWorked then
+    begin
+      // Both paths failed. Tell the operator what we tried.
+      ShowError('Could not reach the Watchtower worker at:' + Chr(13) + Chr(10) +
+                GetWorkerUrl + Chr(13) + Chr(10) + Chr(13) + Chr(10) +
+                'Tried both WinHTTP and PowerShell paths. Check the PC''s ' +
+                'internet connection, DNS resolution for *.workers.dev, and ' +
+                'any local firewall / endpoint protection that may be ' +
+                'blocking this installer''s network access.');
+      Exit;
+    end;
+    Log('Watchtower install: PowerShell fallback path succeeded (HTTP ' + IntToStr(Status) + ')');
+  end;
+
+  // -- Common response handling ----------------------------------
+  if Status = 200 then
+  begin
+    ResolvedClientName := ExtractJsonString(Body, 'client');
+    ResolvedClientId := ExtractJsonString(Body, 'clientId');
+    ValidatedToken := Token;
+    Result := True;
+  end
+  else if Status = 401 then
+  begin
+    ShowError('Watchtower rejected this install token.' + Chr(13) + Chr(10) + Chr(13) + Chr(10) +
+              'Check that you copied the FULL token from the dashboard (begins with "wt_") and that it has not been revoked. Then try again.');
+  end
+  else
+  begin
+    ShowError('Unexpected response from Watchtower worker (HTTP ' + IntToStr(Status) + ').' + Chr(13) + Chr(10) + Chr(13) + Chr(10) +
+              'Verify the worker URL is reachable and try again.');
+  end;
+end;
+
+
+// PowerShell fallback. Uses Invoke-WebRequest which goes through
+// .NET HttpClient -- the same network stack the agent service uses
+// successfully on hosts where the installer's WinHTTP COM fails.
+//
+// Output capture: PowerShell writes "<status>|<body>" to a tmp file
+// on success, "ERROR|<message>" on failure. Pascal reads + parses.
+// Status and body get returned via the OutBody / OutStatus vars.
+function ValidateTokenWithPowerShell(const Token: string; var OutBody: string; var OutStatus: Integer): Boolean;
+var
+  ResultCode: Integer;
+  TmpPath, PsScript, Line: string;
+  AnsiContent: AnsiString;
+  Lines: TArrayOfString;
+  SepPos: Integer;
+begin
+  Result := False;
+  OutStatus := 0;
+  OutBody := '';
+  TmpPath := ExpandConstant('{tmp}\wt-validate-resp.txt');
+
+  // The PS one-liner:
+  //   - Tries Invoke-WebRequest with TLS1.2 enforcement
+  //   - Writes "<status>|<body>" on any HTTP response (including 4xx/5xx)
+  //   - Writes "ERROR|<message>" if the request itself threw
+  // Newlines inside the body get stripped (they shouldn't be there
+  // for our JSON response, but defensive).
+  PsScript :=
+    '[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; ' +
+    'try { ' +
+      '$r = Invoke-WebRequest -Uri ''' + GetWorkerUrl + '/validate'' ' +
+      '-Headers @{Authorization=''Bearer ' + Token + ''';Accept=''application/json''} ' +
+      '-UseBasicParsing -TimeoutSec 30 -ErrorAction Stop; ' +
+      '$body = ($r.Content -replace ''\r?\n'', '''') ; ' +
+      '[IO.File]::WriteAllText(''' + TmpPath + ''', ''200|'' + $body) ' +
+    '} catch [Net.WebException] { ' +
+      // WebException has the response (with non-2xx status) attached
+      'if ($_.Exception.Response) { ' +
+        '$resp = $_.Exception.Response; ' +
+        '$sr = New-Object IO.StreamReader($resp.GetResponseStream()); ' +
+        '$body = $sr.ReadToEnd() -replace ''\r?\n'', ''''; ' +
+        '$sr.Close(); ' +
+        '[IO.File]::WriteAllText(''' + TmpPath + ''', [int]$resp.StatusCode.ToString() + ''|'' + $body) ' +
+      '} else { ' +
+        '[IO.File]::WriteAllText(''' + TmpPath + ''', ''ERROR|'' + $_.Exception.Message) ' +
+      '} ' +
+    '} catch { ' +
+      '[IO.File]::WriteAllText(''' + TmpPath + ''', ''ERROR|'' + $_.Exception.Message) ' +
+    '}';
+
+  if not Exec('powershell.exe',
+              '-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "' + PsScript + '"',
+              '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then
+  begin
+    Log('Watchtower install: PowerShell launch failed (Exec returned False)');
+    Exit;
+  end;
+
+  if not FileExists(TmpPath) then
+  begin
+    Log('Watchtower install: PowerShell did not produce response file');
+    Exit;
+  end;
+  if not LoadStringFromFile(TmpPath, AnsiContent) then
+  begin
+    Log('Watchtower install: could not read PowerShell response file');
+    Exit;
+  end;
+
+  Line := Trim(string(AnsiContent));
+  DeleteFile(TmpPath);
+
+  if Line = '' then
+  begin
+    Log('Watchtower install: PowerShell response file was empty');
+    Exit;
+  end;
+
+  // Parse "<status>|<body>" or "ERROR|<message>"
+  SepPos := Pos('|', Line);
+  if SepPos = 0 then
+  begin
+    Log('Watchtower install: PowerShell response missing separator: ' + Copy(Line, 1, 200));
+    Exit;
+  end;
+
+  if Copy(Line, 1, SepPos - 1) = 'ERROR' then
+  begin
+    Log('Watchtower install: PowerShell fallback errored: ' + Copy(Line, SepPos + 1, Length(Line)));
+    Exit;
+  end;
+
+  OutStatus := StrToIntDef(Copy(Line, 1, SepPos - 1), 0);
+  OutBody := Copy(Line, SepPos + 1, Length(Line));
+  Result := True;
 end;
 
 function NextButtonClick(CurPageID: Integer): Boolean;
@@ -588,6 +744,19 @@ begin
   ConfigPath := ExpandConstant('{commonappdata}\Watchtower\config.json');
   if FileExists(ConfigPath) and LoadStringFromFile(ConfigPath, AnsiContent) then
     Result := ExtractJsonString(string(AnsiContent), 'pcId');
+end;
+
+function LoadConfigJsonContent: string;
+var
+  ConfigPath: string;
+  AnsiContent: AnsiString;
+begin
+  // Read the entire config.json content. Used by the /SKIPVALIDATE=1
+  // path to grab the client name without re-hitting the worker.
+  Result := '';
+  ConfigPath := ExpandConstant('{commonappdata}\Watchtower\config.json');
+  if FileExists(ConfigPath) and LoadStringFromFile(ConfigPath, AnsiContent) then
+    Result := string(AnsiContent);
 end;
 
 function ExtractExistingToken(): string;
@@ -1030,10 +1199,31 @@ begin
       Abort;
     end;
 
-    if not ValidateTokenWithWorker(Token) then
+    // Token re-validation is the LAST point at which we'd catch a
+    // revoked token before writing config.json. Auto-update spawns
+    // skip this via /SKIPVALIDATE=1 because the agent service that
+    // spawned this installer ALREADY validated the token (it had to,
+    // to receive the autoUpdate config flag that triggered this run).
+    // The agent will re-validate again at the next check-in regardless,
+    // so a revoked token still gets caught -- just on the agent side,
+    // not the installer side.
+    if not GetSkipValidate then
     begin
-      // ValidateTokenWithWorker already showed (or logged) the error.
-      Abort;
+      if not ValidateTokenWithWorker(Token) then
+      begin
+        // ValidateTokenWithWorker already showed (or logged) the error.
+        Abort;
+      end;
+    end
+    else
+    begin
+      Log('Watchtower install: /SKIPVALIDATE=1 -- skipping token re-validation');
+      // Without revalidating we don't get the worker-resolved client
+      // name. The /CLIENT= override (if passed) wins below; otherwise
+      // we fall back to whatever was in the existing config.json,
+      // which we read at the same time the token was preserved.
+      if ResolvedClientName = '' then
+        ResolvedClientName := ExtractJsonString(LoadConfigJsonContent(), 'client');
     end;
 
     // Resolve the client name: /CLIENT= override > worker resolution >

@@ -264,12 +264,23 @@ def apply_update_if_needed(worker_url, current_version, install_token, force=Fal
     # appears in Inno's command-line log. The installer's [Code] reads
     # the file when /TOKENFILE= is present (falling back to /TOKEN= if
     # someone runs an older installer build manually).
+    #
+    # /SKIPVALIDATE=1 -- bypass the installer's in-process token
+    # revalidation. THIS agent service just successfully validated the
+    # token by check-in (the worker returned the config payload that
+    # triggered this update). Re-validating from inside the spawned
+    # installer is redundant AND fragile: observed on Server 2025
+    # where the installer's WinHTTP COM throws connection errors even
+    # though the same call from Python (this very process) succeeds.
+    # The agent revalidates on every check-in, so a revoked token gets
+    # caught on the agent side regardless.
     args = [
         dest,
         "/VERYSILENT",
         "/SUPPRESSMSGBOXES",
         "/NORESTART",
         f"/TOKENFILE={token_stash}",
+        "/SKIPVALIDATE=1",
         '/TASKS=""',  # opt out of any newly-added optional tasks; updates should be conservative
         f"/LOG={install_log_path}",
     ]
