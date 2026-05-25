@@ -1,0 +1,1347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Watchtower notification design previews</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<style>
+  /* Page chrome -- this is the inspector view, not the actual email styling. */
+  :root {
+    --page-bg: #eef0f4;
+    --page-ink: #1a1f2b;
+    --page-soft: #475063;
+    --page-faint: #8892a4;
+    --teal: #0a6b6b;
+    --teal-deep: #074a4a;
+    --teal-soft: #e6f4f4;
+    --cyan: #5af4e3;
+    --navy: #050816;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--page-bg); color: var(--page-ink); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  header.inspector {
+    background: #fff; border-bottom: 1px solid #d8dce4; padding: 18px 24px;
+    position: sticky; top: 0; z-index: 50;
+  }
+  header.inspector .wrap { max-width: 1320px; margin: 0 auto; }
+  header.inspector h1 { margin: 0; font-size: 18px; }
+  header.inspector p { margin: 4px 0 14px; color: var(--page-soft); font-size: 13.5px; }
+  .variant-tabs { display: flex; gap: 8px; }
+  .variant-tab {
+    padding: 9px 16px; background: #f3f5f8; border: 1px solid #d8dce4;
+    border-radius: 9px; cursor: pointer; font-size: 13.5px; font-weight: 600;
+    color: var(--page-soft);
+  }
+  .variant-tab.active { background: var(--teal); color: #fff; border-color: var(--teal); }
+  .variant-tab .pick-hint { font-size: 11px; font-weight: 500; opacity: 0.75; display: block; margin-top: 2px; }
+
+  main { max-width: 1320px; margin: 0 auto; padding: 28px 24px 80px; }
+
+  .variant-pane { display: none; }
+  .variant-pane.active { display: block; }
+
+  .pane-intro {
+    background: #fff; border: 1px solid #d8dce4; border-radius: 12px;
+    padding: 18px 22px; margin-bottom: 24px;
+  }
+  .pane-intro h2 { margin: 0 0 6px; font-size: 17px; }
+  .pane-intro p { margin: 0; color: var(--page-soft); font-size: 14px; line-height: 1.55; }
+
+  .section-label {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--page-faint); font-weight: 700; margin: 30px 0 12px;
+  }
+
+  /* Each email is shown inside a fake email-client wrapper so it feels real. */
+  .email-mock {
+    background: #fff; border: 1px solid #d8dce4; border-radius: 14px;
+    box-shadow: 0 1px 2px rgba(20,25,40,0.04), 0 8px 24px rgba(20,25,40,0.05);
+    margin-bottom: 24px; overflow: hidden;
+  }
+  .email-mock .meta-bar {
+    background: #f8f9fb; border-bottom: 1px solid #e3e6ec;
+    padding: 12px 18px; font-size: 12.5px; color: var(--page-soft);
+    display: grid; grid-template-columns: 70px 1fr; row-gap: 4px; column-gap: 14px;
+  }
+  .email-mock .meta-bar .meta-label { color: var(--page-faint); font-weight: 600; text-transform: uppercase; font-size: 10.5px; letter-spacing: 0.06em; padding-top: 2px; }
+  .email-mock .meta-bar .meta-val { color: var(--page-ink); }
+  .email-mock .meta-bar .meta-val.subject { font-weight: 600; }
+  .email-mock .email-body { padding: 22px; background: #f4f6f9; }
+
+  /* Webhook section reuses similar mock chrome. */
+  .webhook-grid { display: grid; grid-template-columns: 1fr; gap: 22px; }
+  .webhook-mock {
+    background: #fff; border: 1px solid #d8dce4; border-radius: 14px;
+    box-shadow: 0 1px 2px rgba(20,25,40,0.04), 0 8px 24px rgba(20,25,40,0.05);
+    overflow: hidden;
+  }
+  .webhook-mock .platform-bar {
+    padding: 10px 16px; font-size: 12px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.06em;
+    color: #fff;
+  }
+  .webhook-mock.gchat .platform-bar { background: #1f8e3d; }
+  .webhook-mock.slack .platform-bar { background: #4a154b; }
+  .webhook-mock.teams .platform-bar { background: #4b53bc; }
+  .webhook-mock.discord .platform-bar { background: #5865f2; }
+  .webhook-mock .platform-body { padding: 18px; background: #f4f6f9; }
+
+  /* The actual rendered email markup is intentionally inline-styled and
+     table-heavy so what you see here will translate to Outlook/Gmail with
+     minimal regressions. */
+  .picker-cta {
+    margin-top: 22px; padding: 18px 22px; background: #fff;
+    border: 2px dashed var(--teal); border-radius: 12px; text-align: center;
+    color: var(--page-soft); font-size: 14px;
+  }
+  .picker-cta strong { color: var(--teal); }
+</style>
+</head>
+<body>
+
+<header class="inspector">
+  <div class="wrap">
+    <h1>Watchtower notification design previews</h1>
+    <p>Three different polish levels for the alert emails and webhook payloads. Pick the one you like and I'll wire it into the worker. Each variant shows all six email types stacked, then a mock of the four chat-app webhook formats below.</p>
+    <div class="variant-tabs">
+      <button class="variant-tab active" data-variant="a">A · Minimal Polish<span class="pick-hint">subtle header strip, structured fact tables</span></button>
+      <button class="variant-tab" data-variant="b">B · Hero Card<span class="pick-hint">full teal header, fact grid, big CTA button</span></button>
+      <button class="variant-tab" data-variant="c">C · Dark Brand<span class="pick-hint">dark navy hero, severity pill, brand-forward</span></button>
+    </div>
+  </div>
+</header>
+
+<main>
+
+<!-- =========================================================== -->
+<!--   VARIANT A · Minimal Polish                                  -->
+<!-- =========================================================== -->
+<div class="variant-pane active" data-variant="a">
+
+  <div class="pane-intro">
+    <h2>A — Minimal Polish</h2>
+    <p>Closest to what's there today. Thin teal accent strip at the top, branded wordmark instead of a bare H2, structured key/value tables with proper labels, severity color on the headline only, muted dashboard CTA. Conservative — looks at home next to GitHub / Stripe / Linear notifications. Lowest risk in Outlook because the layout is still all tables.</p>
+  </div>
+
+  <div class="section-label">Emails (6)</div>
+
+  <!-- A1 · IP Change -->
+  <div class="email-mock">
+    <div class="meta-bar">
+      <div class="meta-label">From</div><div class="meta-val">Watchtower &lt;alerts@umbrellaautomation.com&gt;</div>
+      <div class="meta-label">To</div><div class="meta-val">frank@umbrellaautomation.com</div>
+      <div class="meta-label">Subject</div><div class="meta-val subject">[Watchtower] CCD-HYPERV · external IP changed</div>
+    </div>
+    <div class="email-body">
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:640px;margin:0 auto;background:#fff;border:1px solid #e3e6ec;border-radius:10px;overflow:hidden;">
+        <div style="background:#0a6b6b;padding:14px 22px;color:#fff;">
+          <table cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
+            <td width="34" style="vertical-align:middle;">
+              <svg width="28" height="28" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="32" cy="32" r="30" fill="#0a6b6b" stroke="#5af4e3" stroke-width="1.5" opacity="0.95"/>
+                <rect x="18" y="14" width="4" height="6" fill="#fff"/><rect x="26" y="14" width="4" height="6" fill="#fff"/><rect x="34" y="14" width="4" height="6" fill="#fff"/><rect x="42" y="14" width="4" height="6" fill="#fff"/>
+                <rect x="16" y="20" width="32" height="4" fill="#fff"/><rect x="20" y="24" width="24" height="30" fill="#fff"/>
+                <circle cx="32" cy="32" r="4" fill="#5af4e3"/>
+              </svg>
+            </td>
+            <td style="vertical-align:middle;padding-left:10px;">
+              <div style="font-size:10px;color:#5af4e3;text-transform:uppercase;letter-spacing:0.08em;font-weight:600;">Umbrella Automation</div>
+              <div style="font-size:15px;color:#fff;font-weight:700;line-height:1.1;">Watchtower</div>
+            </td>
+            <td align="right" style="vertical-align:middle;color:rgba(255,255,255,0.7);font-size:11px;">Endpoint event</td>
+          </tr></table>
+        </div>
+        <div style="height:3px;background:#0a6b6b;"></div>
+        <div style="padding:24px 26px;">
+          <div style="font-size:10.5px;color:#8892a4;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:6px;">Network</div>
+          <h1 style="font-size:20px;color:#0a6b6b;margin:0 0 12px;line-height:1.2;">External IP changed</h1>
+          <p style="font-size:14px;color:#475063;line-height:1.55;margin:0 0 18px;">
+            <b>CCD-HYPERV</b> is now reaching the internet from a new public address. If this isn't expected, check WAN / ISP equipment.
+          </p>
+          <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#fafbfc;border:1px solid #e3e6ec;border-radius:8px;">
+            <tr><td style="padding:11px 16px;border-bottom:1px solid #e3e6ec;font-size:11px;color:#8892a4;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;width:140px;">Host</td><td style="padding:11px 16px;border-bottom:1px solid #e3e6ec;font-size:14px;font-weight:600;">CCD-HYPERV</td></tr>
+            <tr><td style="padding:11px 16px;border-bottom:1px solid #e3e6ec;font-size:11px;color:#8892a4;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;">Client</td><td style="padding:11px 16px;border-bottom:1px solid #e3e6ec;font-size:14px;">Celtic Construction</td></tr>
+            <tr><td style="padding:11px 16px;border-bottom:1px solid #e3e6ec;font-size:11px;color:#8892a4;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;">Previous IP</td><td style="padding:11px 16px;border-bottom:1px solid #e3e6ec;font-family:ui-monospace,Menlo,monospace;font-size:14px;color:#475063;">192.0.2.45</td></tr>
+            <tr><td style="padding:11px 16px;border-bottom:1px solid #e3e6ec;font-size:11px;color:#8892a4;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;">New IP</td><td style="padding:11px 16px;border-bottom:1px solid #e3e6ec;font-family:ui-monospace,Menlo,monospace;font-size:14px;color:#0a6b6b;font-weight:700;">198.51.100.7</td></tr>
+            <tr><td style="padding:11px 16px;font-size:11px;color:#8892a4;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;">When</td><td style="padding:11px 16px;font-size:14px;color:#475063;">May 24, 2026 · 09:14 UTC</td></tr>
+          </table>
+          <div style="margin-top:20px;">
+            <a href="#" style="display:inline-block;background:#0a6b6b;color:#fff;text-decoration:none;padding:10px 20px;border-radius:8px;font-weight:600;font-size:13.5px;">Open host in dashboard →</a>
+          </div>
+        </div>
+        <div style="background:#fafbfc;padding:14px 26px;border-top:1px solid #e3e6ec;font-size:11.5px;color:#8892a4;">
+          Watchtower · Umbrella Automation · <a href="#" style="color:#8892a4;">Silence this host</a> · <a href="#" style="color:#8892a4;">Operator's guide</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- A2 · Backup Failed -->
+  <div class="email-mock">
+    <div class="meta-bar">
+      <div class="meta-label">From</div><div class="meta-val">Watchtower &lt;alerts@umbrellaautomation.com&gt;</div>
+      <div class="meta-label">To</div><div class="meta-val">frank@umbrellaautomation.com</div>
+      <div class="meta-label">Subject</div><div class="meta-val subject">[Watchtower] CCD-HYPERV · backup FAILED (5 days since success)</div>
+    </div>
+    <div class="email-body">
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:640px;margin:0 auto;background:#fff;border:1px solid #e3e6ec;border-radius:10px;overflow:hidden;">
+        <div style="background:#0a6b6b;padding:14px 22px;color:#fff;">
+          <table cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
+            <td width="34" style="vertical-align:middle;"><svg width="28" height="28" viewBox="0 0 64 64"><circle cx="32" cy="32" r="30" fill="#0a6b6b" stroke="#5af4e3" stroke-width="1.5" opacity="0.95"/><rect x="18" y="14" width="4" height="6" fill="#fff"/><rect x="26" y="14" width="4" height="6" fill="#fff"/><rect x="34" y="14" width="4" height="6" fill="#fff"/><rect x="42" y="14" width="4" height="6" fill="#fff"/><rect x="16" y="20" width="32" height="4" fill="#fff"/><rect x="20" y="24" width="24" height="30" fill="#fff"/><circle cx="32" cy="32" r="4" fill="#5af4e3"/></svg></td>
+            <td style="vertical-align:middle;padding-left:10px;"><div style="font-size:10px;color:#5af4e3;text-transform:uppercase;letter-spacing:0.08em;font-weight:600;">Umbrella Automation</div><div style="font-size:15px;color:#fff;font-weight:700;line-height:1.1;">Watchtower</div></td>
+            <td align="right" style="vertical-align:middle;color:rgba(255,255,255,0.7);font-size:11px;">Backup event</td>
+          </tr></table>
+        </div>
+        <div style="height:3px;background:#b91c1c;"></div>
+        <div style="padding:24px 26px;">
+          <div style="font-size:10.5px;color:#b91c1c;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:6px;">Critical · Windows Server Backup</div>
+          <h1 style="font-size:20px;color:#b91c1c;margin:0 0 12px;line-height:1.2;">Backup failed</h1>
+          <p style="font-size:14px;color:#475063;line-height:1.55;margin:0 0 18px;">
+            The last scheduled WSB attempt on <b>CCD-HYPERV</b> did not complete. It has now been <b style="color:#b91c1c;">5 days</b> since the last successful backup.
+          </p>
+          <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#fafbfc;border:1px solid #e3e6ec;border-radius:8px;">
+            <tr><td style="padding:11px 16px;border-bottom:1px solid #e3e6ec;font-size:11px;color:#8892a4;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;width:160px;">Host · Client</td><td style="padding:11px 16px;border-bottom:1px solid #e3e6ec;font-size:14px;"><b>CCD-HYPERV</b> · Celtic Construction</td></tr>
+            <tr><td style="padding:11px 16px;border-bottom:1px solid #e3e6ec;font-size:11px;color:#8892a4;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;">Result</td><td style="padding:11px 16px;border-bottom:1px solid #e3e6ec;font-family:ui-monospace,Menlo,monospace;font-size:14px;color:#b91c1c;font-weight:700;">VSS_E_PROVIDER_VETO</td></tr>
+            <tr><td style="padding:11px 16px;border-bottom:1px solid #e3e6ec;font-size:11px;color:#8892a4;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;">Attempted</td><td style="padding:11px 16px;border-bottom:1px solid #e3e6ec;font-size:14px;color:#475063;">May 24, 2026 · 02:00 UTC</td></tr>
+            <tr><td style="padding:11px 16px;border-bottom:1px solid #e3e6ec;font-size:11px;color:#8892a4;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;">Last success</td><td style="padding:11px 16px;border-bottom:1px solid #e3e6ec;font-size:14px;color:#475063;">May 19, 2026 · 02:00 UTC</td></tr>
+            <tr><td style="padding:11px 16px;font-size:11px;color:#8892a4;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;">Days since success</td><td style="padding:11px 16px;font-size:14px;color:#b91c1c;font-weight:700;">5</td></tr>
+          </table>
+          <div style="margin-top:14px;padding:12px 16px;background:#fef2f2;border-left:3px solid #b91c1c;border-radius:4px;font-size:13px;color:#7f1d1d;line-height:1.55;">
+            <b>WSB detail:</b><br>The VSS provider failed to take a shadow copy of one of the volumes selected for backup.
+          </div>
+          <div style="margin-top:18px;">
+            <a href="#" style="display:inline-block;background:#0a6b6b;color:#fff;text-decoration:none;padding:10px 20px;border-radius:8px;font-weight:600;font-size:13.5px;">Open host in dashboard →</a>
+          </div>
+        </div>
+        <div style="background:#fafbfc;padding:14px 26px;border-top:1px solid #e3e6ec;font-size:11.5px;color:#8892a4;">
+          Sent once per new failed attempt (deduped). Watchtower · Umbrella Automation · <a href="#" style="color:#8892a4;">Silence this host</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- A3 · OMSA -->
+  <div class="email-mock">
+    <div class="meta-bar">
+      <div class="meta-label">From</div><div class="meta-val">Watchtower &lt;alerts@umbrellaautomation.com&gt;</div>
+      <div class="meta-label">Subject</div><div class="meta-val subject">[Watchtower] CCD-HYPERV · OMSA CRITICAL — 2 issues</div>
+    </div>
+    <div class="email-body">
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:640px;margin:0 auto;background:#fff;border:1px solid #e3e6ec;border-radius:10px;overflow:hidden;">
+        <div style="background:#0a6b6b;padding:14px 22px;color:#fff;">
+          <table cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
+            <td width="34"><svg width="28" height="28" viewBox="0 0 64 64"><circle cx="32" cy="32" r="30" fill="#0a6b6b" stroke="#5af4e3" stroke-width="1.5"/><rect x="18" y="14" width="4" height="6" fill="#fff"/><rect x="26" y="14" width="4" height="6" fill="#fff"/><rect x="34" y="14" width="4" height="6" fill="#fff"/><rect x="42" y="14" width="4" height="6" fill="#fff"/><rect x="16" y="20" width="32" height="4" fill="#fff"/><rect x="20" y="24" width="24" height="30" fill="#fff"/><circle cx="32" cy="32" r="4" fill="#5af4e3"/></svg></td>
+            <td style="padding-left:10px;"><div style="font-size:10px;color:#5af4e3;text-transform:uppercase;letter-spacing:0.08em;font-weight:600;">Umbrella Automation</div><div style="font-size:15px;color:#fff;font-weight:700;">Watchtower</div></td>
+            <td align="right" style="color:rgba(255,255,255,0.7);font-size:11px;">Storage event</td>
+          </tr></table>
+        </div>
+        <div style="height:3px;background:#b91c1c;"></div>
+        <div style="padding:24px 26px;">
+          <div style="font-size:10.5px;color:#b91c1c;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:6px;">Critical · Dell OMSA</div>
+          <h1 style="font-size:20px;color:#b91c1c;margin:0 0 12px;line-height:1.2;">Storage health: CRITICAL</h1>
+          <p style="font-size:14px;color:#475063;line-height:1.55;margin:0 0 18px;">
+            <b>CCD-HYPERV</b> is reporting OMSA rollup <b style="color:#b91c1c;">bad</b> with 2 issue(s) flagged across the RAID and physical disks.
+          </p>
+          <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#fafbfc;border:1px solid #e3e6ec;border-radius:8px;">
+            <tr><td style="padding:11px 16px;border-bottom:1px solid #e3e6ec;font-size:11px;color:#8892a4;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;width:140px;">Host · Client</td><td style="padding:11px 16px;border-bottom:1px solid #e3e6ec;font-size:14px;"><b>CCD-HYPERV</b> · Celtic Construction</td></tr>
+            <tr><td style="padding:11px 16px;border-bottom:1px solid #e3e6ec;font-size:11px;color:#8892a4;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;">OMSA version</td><td style="padding:11px 16px;border-bottom:1px solid #e3e6ec;font-size:14px;color:#475063;">10.4.0.0</td></tr>
+            <tr><td style="padding:11px 16px;font-size:11px;color:#8892a4;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;">Detected</td><td style="padding:11px 16px;font-size:14px;color:#475063;">May 24, 2026 · 09:14 UTC</td></tr>
+          </table>
+          <div style="margin-top:14px;padding:14px 16px;background:#fef2f2;border-left:3px solid #b91c1c;border-radius:4px;">
+            <div style="font-size:11px;color:#b91c1c;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">What needs attention</div>
+            <ul style="margin:0;padding-left:18px;font-size:13.5px;color:#7f1d1d;line-height:1.65;">
+              <li>Physical disk 0:1:3 on controller 0: Failed (ST4000NM0023)</li>
+              <li>Virtual disk 0: Degraded / Resyncing (RAID-5)</li>
+            </ul>
+          </div>
+          <div style="margin-top:18px;">
+            <a href="#" style="display:inline-block;background:#0a6b6b;color:#fff;text-decoration:none;padding:10px 20px;border-radius:8px;font-weight:600;font-size:13.5px;">Open host in dashboard →</a>
+          </div>
+        </div>
+        <div style="background:#fafbfc;padding:14px 26px;border-top:1px solid #e3e6ec;font-size:11.5px;color:#8892a4;">
+          Sent once per OMSA warning episode (dedupe by omsaFirstWarnAt). Watchtower · Umbrella Automation
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- A4 · Disk Low -->
+  <div class="email-mock">
+    <div class="meta-bar">
+      <div class="meta-label">From</div><div class="meta-val">Watchtower &lt;alerts@umbrellaautomation.com&gt;</div>
+      <div class="meta-label">Subject</div><div class="meta-val subject">[Watchtower] CCD-HYPERV · C: CRITICAL (4% / 8 GB free)</div>
+    </div>
+    <div class="email-body">
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:640px;margin:0 auto;background:#fff;border:1px solid #e3e6ec;border-radius:10px;overflow:hidden;">
+        <div style="background:#0a6b6b;padding:14px 22px;color:#fff;">
+          <table cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
+            <td width="34"><svg width="28" height="28" viewBox="0 0 64 64"><circle cx="32" cy="32" r="30" fill="#0a6b6b" stroke="#5af4e3" stroke-width="1.5"/><rect x="18" y="14" width="4" height="6" fill="#fff"/><rect x="26" y="14" width="4" height="6" fill="#fff"/><rect x="34" y="14" width="4" height="6" fill="#fff"/><rect x="42" y="14" width="4" height="6" fill="#fff"/><rect x="16" y="20" width="32" height="4" fill="#fff"/><rect x="20" y="24" width="24" height="30" fill="#fff"/><circle cx="32" cy="32" r="4" fill="#5af4e3"/></svg></td>
+            <td style="padding-left:10px;"><div style="font-size:10px;color:#5af4e3;text-transform:uppercase;letter-spacing:0.08em;font-weight:600;">Umbrella Automation</div><div style="font-size:15px;color:#fff;font-weight:700;">Watchtower</div></td>
+            <td align="right" style="color:rgba(255,255,255,0.7);font-size:11px;">Capacity event</td>
+          </tr></table>
+        </div>
+        <div style="height:3px;background:#b91c1c;"></div>
+        <div style="padding:24px 26px;">
+          <div style="font-size:10.5px;color:#b91c1c;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:6px;">Critical · Disk capacity</div>
+          <h1 style="font-size:20px;color:#b91c1c;margin:0 0 12px;line-height:1.2;">C: drive critically low</h1>
+          <p style="font-size:14px;color:#475063;line-height:1.55;margin:0 0 18px;">
+            <b>CCD-HYPERV</b> is reporting <b style="color:#b91c1c;">4%</b> free space on the system volume — only <b>8 GB</b> of <b>200 GB</b> remaining.
+          </p>
+          <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#fafbfc;border:1px solid #e3e6ec;border-radius:8px;">
+            <tr><td style="padding:11px 16px;border-bottom:1px solid #e3e6ec;font-size:11px;color:#8892a4;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;width:120px;">Drive</td><td style="padding:11px 16px;border-bottom:1px solid #e3e6ec;font-size:14px;"><b>C:</b></td></tr>
+            <tr><td style="padding:11px 16px;border-bottom:1px solid #e3e6ec;font-size:11px;color:#8892a4;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;">Free</td><td style="padding:11px 16px;border-bottom:1px solid #e3e6ec;font-size:14px;color:#b91c1c;font-weight:700;">8 GB (4%)</td></tr>
+            <tr><td style="padding:11px 16px;font-size:11px;color:#8892a4;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;">Total</td><td style="padding:11px 16px;font-size:14px;color:#475063;">200 GB</td></tr>
+          </table>
+          <div style="margin-top:14px;padding:14px 16px;background:#fef2f2;border-left:3px solid #b91c1c;border-radius:4px;">
+            <div style="font-size:11px;color:#b91c1c;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">Common culprits</div>
+            <ul style="margin:0;padding-left:18px;font-size:13.5px;color:#7f1d1d;line-height:1.65;">
+              <li>Disk Cleanup / Storage Sense to clear temp + Windows Update cache</li>
+              <li>Check <span style="font-family:ui-monospace,Menlo,monospace;background:#fff5f5;padding:1px 4px;border-radius:3px;">SoftwareDistribution\Download</span> + CBS logs</li>
+              <li>Veeam / WSB destination landing on C: (common on Hyper-V)</li>
+              <li>Page file growth on heavy-load servers</li>
+            </ul>
+          </div>
+          <div style="margin-top:18px;">
+            <a href="#" style="display:inline-block;background:#0a6b6b;color:#fff;text-decoration:none;padding:10px 20px;border-radius:8px;font-weight:600;font-size:13.5px;">Open host in dashboard →</a>
+          </div>
+        </div>
+        <div style="background:#fafbfc;padding:14px 26px;border-top:1px solid #e3e6ec;font-size:11.5px;color:#8892a4;">
+          Sent once per low-capacity episode. Watchtower · Umbrella Automation
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- A5 · Intake -->
+  <div class="email-mock">
+    <div class="meta-bar">
+      <div class="meta-label">From</div><div class="meta-val">Watchtower &lt;alerts@umbrellaautomation.com&gt;</div>
+      <div class="meta-label">Subject</div><div class="meta-val subject">[Watchtower] New host onboarded — CCD-HYPERV (Celtic Construction)</div>
+    </div>
+    <div class="email-body">
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:680px;margin:0 auto;background:#fff;border:1px solid #e3e6ec;border-radius:10px;overflow:hidden;">
+        <div style="background:#0a6b6b;padding:14px 22px;color:#fff;">
+          <table cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
+            <td width="34"><svg width="28" height="28" viewBox="0 0 64 64"><circle cx="32" cy="32" r="30" fill="#0a6b6b" stroke="#5af4e3" stroke-width="1.5"/><rect x="18" y="14" width="4" height="6" fill="#fff"/><rect x="26" y="14" width="4" height="6" fill="#fff"/><rect x="34" y="14" width="4" height="6" fill="#fff"/><rect x="42" y="14" width="4" height="6" fill="#fff"/><rect x="16" y="20" width="32" height="4" fill="#fff"/><rect x="20" y="24" width="24" height="30" fill="#fff"/><circle cx="32" cy="32" r="4" fill="#5af4e3"/></svg></td>
+            <td style="padding-left:10px;"><div style="font-size:10px;color:#5af4e3;text-transform:uppercase;letter-spacing:0.08em;font-weight:600;">Umbrella Automation</div><div style="font-size:15px;color:#fff;font-weight:700;">Watchtower</div></td>
+            <td align="right" style="color:rgba(255,255,255,0.7);font-size:11px;">Onboarded</td>
+          </tr></table>
+        </div>
+        <div style="height:3px;background:#0a6b6b;"></div>
+        <div style="padding:24px 26px;">
+          <div style="font-size:10.5px;color:#0a6b6b;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:6px;">First check-in</div>
+          <h1 style="font-size:20px;color:#0a6b6b;margin:0 0 12px;line-height:1.2;">New host onboarded</h1>
+          <p style="font-size:14px;color:#475063;line-height:1.55;margin:0 0 20px;">
+            <b>CCD-HYPERV</b> joined Watchtower on May 24, 2026. Below is the one-time intake report from its first check-in — future check-ins won't send this email.
+          </p>
+
+          <div style="font-size:10.5px;color:#0a6b6b;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin:18px 0 8px;border-bottom:2px solid #e6f4f4;padding-bottom:4px;">Identity</div>
+          <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#fafbfc;border:1px solid #e3e6ec;border-radius:6px;">
+            <tr><td style="padding:9px 14px;border-bottom:1px solid #e3e6ec;font-size:11px;color:#8892a4;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;width:140px;">Host · Client</td><td style="padding:9px 14px;border-bottom:1px solid #e3e6ec;font-size:13.5px;"><b>CCD-HYPERV</b> · Celtic Construction</td></tr>
+            <tr><td style="padding:9px 14px;border-bottom:1px solid #e3e6ec;font-size:11px;color:#8892a4;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;">External IP</td><td style="padding:9px 14px;border-bottom:1px solid #e3e6ec;font-family:ui-monospace,Menlo,monospace;font-size:13.5px;">198.51.100.7</td></tr>
+            <tr><td style="padding:9px 14px;font-size:11px;color:#8892a4;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;">Agent version</td><td style="padding:9px 14px;font-size:13.5px;color:#475063;">0.14.26</td></tr>
+          </table>
+
+          <div style="font-size:10.5px;color:#0a6b6b;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin:18px 0 8px;border-bottom:2px solid #e6f4f4;padding-bottom:4px;">Hardware</div>
+          <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#fafbfc;border:1px solid #e3e6ec;border-radius:6px;">
+            <tr><td style="padding:9px 14px;border-bottom:1px solid #e3e6ec;font-size:11px;color:#8892a4;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;width:140px;">Manufacturer</td><td style="padding:9px 14px;border-bottom:1px solid #e3e6ec;font-size:13.5px;">Dell Inc.</td></tr>
+            <tr><td style="padding:9px 14px;border-bottom:1px solid #e3e6ec;font-size:11px;color:#8892a4;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;">Model</td><td style="padding:9px 14px;border-bottom:1px solid #e3e6ec;font-size:13.5px;">PowerEdge R740</td></tr>
+            <tr><td style="padding:9px 14px;border-bottom:1px solid #e3e6ec;font-size:11px;color:#8892a4;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;">Service tag</td><td style="padding:9px 14px;border-bottom:1px solid #e3e6ec;font-family:ui-monospace,Menlo,monospace;font-size:13.5px;"><a href="#" style="color:#0a6b6b;">3JK7M82</a></td></tr>
+            <tr><td style="padding:9px 14px;border-bottom:1px solid #e3e6ec;font-size:11px;color:#8892a4;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;">CPU</td><td style="padding:9px 14px;border-bottom:1px solid #e3e6ec;font-size:13.5px;">Intel Xeon Silver 4214R (24 cores)</td></tr>
+            <tr><td style="padding:9px 14px;font-size:11px;color:#8892a4;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;">RAM</td><td style="padding:9px 14px;font-size:13.5px;">128 GB</td></tr>
+          </table>
+
+          <div style="font-size:10.5px;color:#0a6b6b;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin:18px 0 8px;border-bottom:2px solid #e6f4f4;padding-bottom:4px;">Detected products</div>
+          <div style="font-size:13.5px;color:#475063;line-height:1.7;background:#fafbfc;border:1px solid #e3e6ec;border-radius:6px;padding:12px 14px;">
+            <div>· Veeam Backup &amp; Replication <b>12.1.2.172</b> — last job: <b>Success</b></div>
+            <div>· Windows Server Backup <b>Success</b> · last success 2026-05-19 · 7 versions retained</div>
+            <div>· Dell OMSA <b>10.4.0.0</b> · rollup: <b>ok</b> · 8 disks, 2 RAID arrays</div>
+            <div>· iDRAC Service Module <b>4.3.0.0</b> · service Running</div>
+            <div>· Defender: realtime <b>on</b>, definitions 1.413.234.0 (2026-05-23)</div>
+          </div>
+
+          <div style="margin-top:20px;">
+            <a href="#" style="display:inline-block;background:#0a6b6b;color:#fff;text-decoration:none;padding:10px 20px;border-radius:8px;font-weight:600;font-size:13.5px;">Open host in dashboard →</a>
+          </div>
+        </div>
+        <div style="background:#fafbfc;padding:14px 26px;border-top:1px solid #e3e6ec;font-size:11.5px;color:#8892a4;">
+          One-time onboarding email. Watchtower · Umbrella Automation
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- A6 · Uninstall -->
+  <div class="email-mock">
+    <div class="meta-bar">
+      <div class="meta-label">From</div><div class="meta-val">Watchtower &lt;alerts@umbrellaautomation.com&gt;</div>
+      <div class="meta-label">Subject</div><div class="meta-val subject">[Watchtower] CCD-HYPERV · agent decommissioned</div>
+    </div>
+    <div class="email-body">
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:640px;margin:0 auto;background:#fff;border:1px solid #e3e6ec;border-radius:10px;overflow:hidden;">
+        <div style="background:#0a6b6b;padding:14px 22px;color:#fff;">
+          <table cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
+            <td width="34"><svg width="28" height="28" viewBox="0 0 64 64"><circle cx="32" cy="32" r="30" fill="#0a6b6b" stroke="#5af4e3" stroke-width="1.5"/><rect x="18" y="14" width="4" height="6" fill="#fff"/><rect x="26" y="14" width="4" height="6" fill="#fff"/><rect x="34" y="14" width="4" height="6" fill="#fff"/><rect x="42" y="14" width="4" height="6" fill="#fff"/><rect x="16" y="20" width="32" height="4" fill="#fff"/><rect x="20" y="24" width="24" height="30" fill="#fff"/><circle cx="32" cy="32" r="4" fill="#5af4e3"/></svg></td>
+            <td style="padding-left:10px;"><div style="font-size:10px;color:#5af4e3;text-transform:uppercase;letter-spacing:0.08em;font-weight:600;">Umbrella Automation</div><div style="font-size:15px;color:#fff;font-weight:700;">Watchtower</div></td>
+            <td align="right" style="color:rgba(255,255,255,0.7);font-size:11px;">Lifecycle event</td>
+          </tr></table>
+        </div>
+        <div style="height:3px;background:#6b7280;"></div>
+        <div style="padding:24px 26px;">
+          <div style="font-size:10.5px;color:#6b7280;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:6px;">Agent lifecycle</div>
+          <h1 style="font-size:20px;color:#475063;margin:0 0 12px;line-height:1.2;">Agent decommissioned</h1>
+          <p style="font-size:14px;color:#475063;line-height:1.55;margin:0 0 18px;">
+            <b>CCD-HYPERV</b> has been removed from Watchtower. The uninstaller ran on the host (Control Panel or operator-initiated). The host row stays in the dashboard with a Decommissioned badge until you delete it.
+          </p>
+          <table cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#fafbfc;border:1px solid #e3e6ec;border-radius:8px;">
+            <tr><td style="padding:11px 16px;border-bottom:1px solid #e3e6ec;font-size:11px;color:#8892a4;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;width:140px;">Host · Client</td><td style="padding:11px 16px;border-bottom:1px solid #e3e6ec;font-size:14px;"><b>CCD-HYPERV</b> · Celtic Construction</td></tr>
+            <tr><td style="padding:11px 16px;border-bottom:1px solid #e3e6ec;font-size:11px;color:#8892a4;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;">Source</td><td style="padding:11px 16px;border-bottom:1px solid #e3e6ec;font-family:ui-monospace,Menlo,monospace;font-size:14px;color:#475063;">agent-uninstall</td></tr>
+            <tr><td style="padding:11px 16px;font-size:11px;color:#8892a4;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;">When</td><td style="padding:11px 16px;font-size:14px;color:#475063;">May 24, 2026 · 14:22 UTC</td></tr>
+          </table>
+          <div style="margin-top:18px;">
+            <a href="#" style="display:inline-block;background:#0a6b6b;color:#fff;text-decoration:none;padding:10px 20px;border-radius:8px;font-weight:600;font-size:13.5px;">Open host in dashboard →</a>
+          </div>
+        </div>
+        <div style="background:#fafbfc;padding:14px 26px;border-top:1px solid #e3e6ec;font-size:11.5px;color:#8892a4;">
+          Watchtower · Umbrella Automation
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Webhook samples for variant A -->
+  <div class="section-label">Webhooks (4 platforms · variant A polish)</div>
+  <div class="webhook-grid">
+    <div class="webhook-mock gchat">
+      <div class="platform-bar">Google Chat · Cards v2</div>
+      <div class="platform-body">
+        <div style="background:#fff;border:1px solid #e3e6ec;border-radius:10px;max-width:480px;overflow:hidden;font-family:Roboto,Arial,sans-serif;">
+          <div style="padding:14px 16px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #e3e6ec;">
+            <div style="width:36px;height:36px;background:#0a6b6b;border-radius:8px;display:grid;place-items:center;">
+              <svg width="22" height="22" viewBox="0 0 64 64"><rect x="20" y="24" width="24" height="30" fill="#fff"/><rect x="16" y="20" width="32" height="4" fill="#fff"/><circle cx="32" cy="32" r="4" fill="#5af4e3"/></svg>
+            </div>
+            <div>
+              <div style="font-size:14px;font-weight:700;color:#1f1f1f;">Watchtower</div>
+              <div style="font-size:12px;color:#5f6368;">Backup failed</div>
+            </div>
+          </div>
+          <div style="padding:14px 16px;">
+            <div style="display:grid;grid-template-columns:90px 1fr;gap:6px 14px;font-size:13px;color:#202124;">
+              <div style="color:#5f6368;">Host</div><div><b>CCD-HYPERV</b></div>
+              <div style="color:#5f6368;">Client</div><div>Celtic Construction</div>
+              <div style="color:#5f6368;">Result</div><div style="color:#b91c1c;font-weight:600;">VSS_E_PROVIDER_VETO</div>
+              <div style="color:#5f6368;">Days w/o</div><div style="color:#b91c1c;font-weight:600;">5</div>
+            </div>
+            <a href="#" style="display:inline-block;margin-top:14px;padding:7px 16px;background:#0a6b6b;color:#fff;text-decoration:none;border-radius:18px;font-size:13px;font-weight:600;">Open host in dashboard</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="webhook-mock slack">
+      <div class="platform-bar">Slack · Rich attachment</div>
+      <div class="platform-body">
+        <div style="background:#fff;border-radius:8px;padding:14px;max-width:480px;border-left:4px solid #b91c1c;font-family:Lato,sans-serif;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+            <div style="width:24px;height:24px;background:#0a6b6b;border-radius:6px;display:grid;place-items:center;"><svg width="16" height="16" viewBox="0 0 64 64"><rect x="20" y="24" width="24" height="30" fill="#fff"/><circle cx="32" cy="32" r="4" fill="#5af4e3"/></svg></div>
+            <div style="font-weight:700;font-size:14px;">Watchtower <span style="color:#616061;font-weight:400;font-size:11.5px;">APP  9:14 AM</span></div>
+          </div>
+          <div style="font-size:14px;color:#1d1c1d;margin-bottom:6px;"><b>Backup failed</b> on CCD-HYPERV (Celtic Construction)</div>
+          <div style="font-size:13px;color:#454545;line-height:1.55;">
+            Result: <code style="background:#f4ede4;padding:1px 4px;border-radius:3px;">VSS_E_PROVIDER_VETO</code><br>
+            5 days since last success · attempted 2026-05-24 02:00 UTC
+          </div>
+          <a href="#" style="display:inline-block;margin-top:10px;font-size:13px;color:#1264a3;text-decoration:none;font-weight:600;">Open host in dashboard ↗</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="webhook-mock teams">
+      <div class="platform-bar">Microsoft Teams · MessageCard</div>
+      <div class="platform-body">
+        <div style="background:#fff;border:1px solid #d8dce4;border-radius:6px;max-width:480px;font-family:'Segoe UI',sans-serif;border-top:4px solid #b91c1c;">
+          <div style="padding:14px 18px;border-bottom:1px solid #f1f1f1;">
+            <div style="font-weight:600;font-size:15px;color:#252423;">Watchtower</div>
+            <div style="font-size:13px;color:#605e5c;margin-top:2px;">Backup failed on CCD-HYPERV (Celtic Construction)</div>
+          </div>
+          <div style="padding:14px 18px;font-size:13px;color:#252423;">
+            <table style="width:100%;font-size:13px;">
+              <tr><td style="color:#605e5c;padding:3px 0;width:80px;">Host</td><td><b>CCD-HYPERV</b></td></tr>
+              <tr><td style="color:#605e5c;padding:3px 0;">Result</td><td>VSS_E_PROVIDER_VETO</td></tr>
+              <tr><td style="color:#605e5c;padding:3px 0;">Days</td><td>5</td></tr>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="webhook-mock discord">
+      <div class="platform-bar">Discord · Embed</div>
+      <div class="platform-body">
+        <div style="background:#36393f;color:#dcddde;border-radius:6px;padding:14px;max-width:480px;font-family:Whitney,sans-serif;border-left:4px solid #b91c1c;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+            <div style="width:20px;height:20px;background:#0a6b6b;border-radius:50%;display:grid;place-items:center;"><svg width="14" height="14" viewBox="0 0 64 64"><rect x="20" y="24" width="24" height="30" fill="#fff"/><circle cx="32" cy="32" r="4" fill="#5af4e3"/></svg></div>
+            <span style="font-weight:600;color:#fff;font-size:14px;">Watchtower</span>
+          </div>
+          <div style="font-size:14px;color:#fff;margin-bottom:4px;font-weight:600;">Backup failed</div>
+          <div style="font-size:13.5px;color:#b9bbbe;line-height:1.55;">
+            <b>CCD-HYPERV</b> (Celtic Construction)<br>
+            Result: <code style="background:#2f3136;padding:1px 4px;border-radius:3px;color:#f8a4a4;">VSS_E_PROVIDER_VETO</code> · 5 days since last success
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="picker-cta">
+    Like <strong>Variant A</strong>? Tell me and I'll roll it into the worker email templates + webhook adapters.
+  </div>
+</div>
+
+
+<!-- =========================================================== -->
+<!--   VARIANT B · Hero Card                                       -->
+<!-- =========================================================== -->
+<div class="variant-pane" data-variant="b">
+
+  <div class="pane-intro">
+    <h2>B — Hero Card</h2>
+    <p>Bigger visual investment. Full-bleed teal header with the tower mark, then a colored severity band, headline, and a structured fact grid (not tables). One prominent brand-teal CTA button per email. Branded footer bar. Feels more like a SaaS dashboard email (Vercel / Notion / PagerDuty alert style).</p>
+  </div>
+
+  <div class="section-label">Emails (6)</div>
+
+  <!-- B1 · IP change -->
+  <div class="email-mock">
+    <div class="meta-bar">
+      <div class="meta-label">From</div><div class="meta-val">Watchtower &lt;alerts@umbrellaautomation.com&gt;</div>
+      <div class="meta-label">Subject</div><div class="meta-val subject">CCD-HYPERV · external IP changed to 198.51.100.7</div>
+    </div>
+    <div class="email-body">
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:640px;margin:0 auto;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 12px rgba(20,25,40,0.06);">
+        <!-- Hero -->
+        <div style="background:linear-gradient(135deg,#0a6b6b 0%,#074a4a 100%);padding:28px 30px;color:#fff;">
+          <table cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
+            <td width="50" style="vertical-align:middle;">
+              <svg width="42" height="42" viewBox="0 0 64 64"><circle cx="32" cy="32" r="30" fill="rgba(255,255,255,0.08)" stroke="#5af4e3" stroke-width="2"/><rect x="18" y="14" width="4" height="6" fill="#fff"/><rect x="26" y="14" width="4" height="6" fill="#fff"/><rect x="34" y="14" width="4" height="6" fill="#fff"/><rect x="42" y="14" width="4" height="6" fill="#fff"/><rect x="16" y="20" width="32" height="4" fill="#fff"/><rect x="20" y="24" width="24" height="30" fill="#fff"/><circle cx="32" cy="32" r="4" fill="#5af4e3"/><rect x="24" y="38" width="3" height="8" fill="#0a6b6b"/><rect x="37" y="38" width="3" height="8" fill="#0a6b6b"/></svg>
+            </td>
+            <td style="vertical-align:middle;padding-left:14px;">
+              <div style="font-size:11px;color:#5af4e3;text-transform:uppercase;letter-spacing:0.1em;font-weight:600;">Umbrella Automation · Watchtower</div>
+              <div style="font-size:22px;color:#fff;font-weight:700;line-height:1.15;margin-top:2px;">External IP changed</div>
+            </td>
+          </tr></table>
+        </div>
+        <!-- Severity band -->
+        <div style="background:#e6f4f4;color:#074a4a;padding:9px 30px;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;border-bottom:1px solid #d0e8e8;">
+          <span style="display:inline-block;width:8px;height:8px;background:#0a6b6b;border-radius:50%;margin-right:8px;vertical-align:middle;"></span>
+          Network event · informational
+        </div>
+        <!-- Body -->
+        <div style="padding:24px 30px;">
+          <p style="font-size:15px;color:#1a1f2b;line-height:1.55;margin:0 0 22px;">
+            <b>CCD-HYPERV</b> (Celtic Construction) is now reaching the internet from a new public address. If this isn't expected, check the host's WAN equipment or ISP.
+          </p>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px 24px;margin-bottom:24px;">
+            <div>
+              <div style="font-size:10.5px;color:#8892a4;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:4px;">Previous IP</div>
+              <div style="font-family:ui-monospace,Menlo,monospace;font-size:16px;color:#475063;">192.0.2.45</div>
+            </div>
+            <div>
+              <div style="font-size:10.5px;color:#8892a4;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:4px;">New IP</div>
+              <div style="font-family:ui-monospace,Menlo,monospace;font-size:16px;color:#0a6b6b;font-weight:700;">198.51.100.7</div>
+            </div>
+            <div>
+              <div style="font-size:10.5px;color:#8892a4;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:4px;">When</div>
+              <div style="font-size:14px;color:#1a1f2b;">May 24, 2026 · 09:14 UTC</div>
+            </div>
+            <div>
+              <div style="font-size:10.5px;color:#8892a4;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:4px;">Client</div>
+              <div style="font-size:14px;color:#1a1f2b;">Celtic Construction</div>
+            </div>
+          </div>
+          <a href="#" style="display:block;text-align:center;background:#0a6b6b;color:#fff;text-decoration:none;padding:14px 22px;border-radius:10px;font-weight:700;font-size:14.5px;box-shadow:0 2px 4px rgba(10,107,107,0.25);">Open host in dashboard →</a>
+        </div>
+        <!-- Footer -->
+        <div style="background:#fafbfc;padding:16px 30px;border-top:1px solid #e3e6ec;">
+          <table cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
+            <td style="font-size:11.5px;color:#8892a4;"><b style="color:#475063;">Watchtower</b> · Umbrella Automation</td>
+            <td align="right" style="font-size:11.5px;"><a href="#" style="color:#8892a4;text-decoration:none;">Silence this host</a></td>
+          </tr></table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- B2 · Backup failed -->
+  <div class="email-mock">
+    <div class="meta-bar">
+      <div class="meta-label">From</div><div class="meta-val">Watchtower &lt;alerts@umbrellaautomation.com&gt;</div>
+      <div class="meta-label">Subject</div><div class="meta-val subject">CCD-HYPERV · backup failed · 5 days since success</div>
+    </div>
+    <div class="email-body">
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:640px;margin:0 auto;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 12px rgba(20,25,40,0.06);">
+        <div style="background:linear-gradient(135deg,#0a6b6b 0%,#074a4a 100%);padding:28px 30px;color:#fff;">
+          <table cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
+            <td width="50"><svg width="42" height="42" viewBox="0 0 64 64"><circle cx="32" cy="32" r="30" fill="rgba(255,255,255,0.08)" stroke="#5af4e3" stroke-width="2"/><rect x="18" y="14" width="4" height="6" fill="#fff"/><rect x="26" y="14" width="4" height="6" fill="#fff"/><rect x="34" y="14" width="4" height="6" fill="#fff"/><rect x="42" y="14" width="4" height="6" fill="#fff"/><rect x="16" y="20" width="32" height="4" fill="#fff"/><rect x="20" y="24" width="24" height="30" fill="#fff"/><circle cx="32" cy="32" r="4" fill="#5af4e3"/></svg></td>
+            <td style="padding-left:14px;"><div style="font-size:11px;color:#5af4e3;text-transform:uppercase;letter-spacing:0.1em;font-weight:600;">Umbrella Automation · Watchtower</div><div style="font-size:22px;color:#fff;font-weight:700;line-height:1.15;margin-top:2px;">Backup failed</div></td>
+          </tr></table>
+        </div>
+        <div style="background:#fee2e2;color:#7f1d1d;padding:9px 30px;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;border-bottom:1px solid #fca5a5;">
+          <span style="display:inline-block;width:8px;height:8px;background:#b91c1c;border-radius:50%;margin-right:8px;vertical-align:middle;"></span>
+          Windows Server Backup · CRITICAL · 5 days since last success
+        </div>
+        <div style="padding:24px 30px;">
+          <p style="font-size:15px;color:#1a1f2b;line-height:1.55;margin:0 0 22px;">
+            The last scheduled WSB run on <b>CCD-HYPERV</b> (Celtic Construction) did not complete. The VSS provider failed to take a shadow copy of one of the selected volumes.
+          </p>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px 24px;margin-bottom:18px;">
+            <div><div style="font-size:10.5px;color:#8892a4;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:4px;">Result</div><div style="font-family:ui-monospace,Menlo,monospace;font-size:14px;color:#b91c1c;font-weight:700;">VSS_E_PROVIDER_VETO</div></div>
+            <div><div style="font-size:10.5px;color:#8892a4;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:4px;">Days w/o success</div><div style="font-size:24px;color:#b91c1c;font-weight:800;line-height:1;">5</div></div>
+            <div><div style="font-size:10.5px;color:#8892a4;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:4px;">Attempted</div><div style="font-size:14px;color:#1a1f2b;">May 24 · 02:00 UTC</div></div>
+            <div><div style="font-size:10.5px;color:#8892a4;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:4px;">Last success</div><div style="font-size:14px;color:#1a1f2b;">May 19 · 02:00 UTC</div></div>
+          </div>
+          <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:14px 16px;margin-bottom:20px;">
+            <div style="font-size:10.5px;color:#b91c1c;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;">WSB detail</div>
+            <div style="font-size:13.5px;color:#7f1d1d;line-height:1.55;">The VSS provider failed to take a shadow copy of one of the volumes selected for backup.</div>
+          </div>
+          <a href="#" style="display:block;text-align:center;background:#0a6b6b;color:#fff;text-decoration:none;padding:14px 22px;border-radius:10px;font-weight:700;font-size:14.5px;box-shadow:0 2px 4px rgba(10,107,107,0.25);">Open host in dashboard →</a>
+        </div>
+        <div style="background:#fafbfc;padding:16px 30px;border-top:1px solid #e3e6ec;">
+          <table cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
+            <td style="font-size:11.5px;color:#8892a4;"><b style="color:#475063;">Watchtower</b> · Umbrella Automation</td>
+            <td align="right" style="font-size:11.5px;"><a href="#" style="color:#8892a4;text-decoration:none;">Silence this host</a></td>
+          </tr></table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- B3 · OMSA -->
+  <div class="email-mock">
+    <div class="meta-bar">
+      <div class="meta-label">Subject</div><div class="meta-val subject">CCD-HYPERV · Dell OMSA CRITICAL · 2 issues flagged</div>
+    </div>
+    <div class="email-body">
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:640px;margin:0 auto;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 12px rgba(20,25,40,0.06);">
+        <div style="background:linear-gradient(135deg,#0a6b6b 0%,#074a4a 100%);padding:28px 30px;color:#fff;">
+          <table cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
+            <td width="50"><svg width="42" height="42" viewBox="0 0 64 64"><circle cx="32" cy="32" r="30" fill="rgba(255,255,255,0.08)" stroke="#5af4e3" stroke-width="2"/><rect x="18" y="14" width="4" height="6" fill="#fff"/><rect x="26" y="14" width="4" height="6" fill="#fff"/><rect x="34" y="14" width="4" height="6" fill="#fff"/><rect x="42" y="14" width="4" height="6" fill="#fff"/><rect x="16" y="20" width="32" height="4" fill="#fff"/><rect x="20" y="24" width="24" height="30" fill="#fff"/><circle cx="32" cy="32" r="4" fill="#5af4e3"/></svg></td>
+            <td style="padding-left:14px;"><div style="font-size:11px;color:#5af4e3;text-transform:uppercase;letter-spacing:0.1em;font-weight:600;">Umbrella Automation · Watchtower</div><div style="font-size:22px;color:#fff;font-weight:700;line-height:1.15;margin-top:2px;">Storage health: CRITICAL</div></td>
+          </tr></table>
+        </div>
+        <div style="background:#fee2e2;color:#7f1d1d;padding:9px 30px;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;border-bottom:1px solid #fca5a5;">
+          <span style="display:inline-block;width:8px;height:8px;background:#b91c1c;border-radius:50%;margin-right:8px;vertical-align:middle;"></span>
+          Dell OMSA · rollup BAD · 2 issues
+        </div>
+        <div style="padding:24px 30px;">
+          <p style="font-size:15px;color:#1a1f2b;line-height:1.55;margin:0 0 22px;">
+            <b>CCD-HYPERV</b> (Celtic Construction) is reporting a failed drive and a degraded array.
+          </p>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px 24px;margin-bottom:18px;">
+            <div><div style="font-size:10.5px;color:#8892a4;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:4px;">OMSA version</div><div style="font-size:14px;color:#1a1f2b;">10.4.0.0</div></div>
+            <div><div style="font-size:10.5px;color:#8892a4;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:4px;">Detected</div><div style="font-size:14px;color:#1a1f2b;">May 24 · 09:14 UTC</div></div>
+          </div>
+          <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:14px 16px;margin-bottom:20px;">
+            <div style="font-size:10.5px;color:#b91c1c;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">What needs attention</div>
+            <ul style="margin:0;padding-left:18px;font-size:13.5px;color:#7f1d1d;line-height:1.7;">
+              <li>Physical disk <b>0:1:3</b> on controller 0: <b>Failed</b> (ST4000NM0023)</li>
+              <li>Virtual disk <b>0</b>: Degraded / Resyncing (RAID-5)</li>
+            </ul>
+          </div>
+          <a href="#" style="display:block;text-align:center;background:#0a6b6b;color:#fff;text-decoration:none;padding:14px 22px;border-radius:10px;font-weight:700;font-size:14.5px;box-shadow:0 2px 4px rgba(10,107,107,0.25);">Open host in dashboard →</a>
+        </div>
+        <div style="background:#fafbfc;padding:16px 30px;border-top:1px solid #e3e6ec;">
+          <table cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
+            <td style="font-size:11.5px;color:#8892a4;"><b style="color:#475063;">Watchtower</b> · Umbrella Automation</td>
+            <td align="right" style="font-size:11.5px;"><a href="#" style="color:#8892a4;text-decoration:none;">Silence this host</a></td>
+          </tr></table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- B4 · Disk low -->
+  <div class="email-mock">
+    <div class="meta-bar">
+      <div class="meta-label">Subject</div><div class="meta-val subject">CCD-HYPERV · C: drive 4% free (CRITICAL)</div>
+    </div>
+    <div class="email-body">
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:640px;margin:0 auto;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 12px rgba(20,25,40,0.06);">
+        <div style="background:linear-gradient(135deg,#0a6b6b 0%,#074a4a 100%);padding:28px 30px;color:#fff;">
+          <table cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
+            <td width="50"><svg width="42" height="42" viewBox="0 0 64 64"><circle cx="32" cy="32" r="30" fill="rgba(255,255,255,0.08)" stroke="#5af4e3" stroke-width="2"/><rect x="18" y="14" width="4" height="6" fill="#fff"/><rect x="26" y="14" width="4" height="6" fill="#fff"/><rect x="34" y="14" width="4" height="6" fill="#fff"/><rect x="42" y="14" width="4" height="6" fill="#fff"/><rect x="16" y="20" width="32" height="4" fill="#fff"/><rect x="20" y="24" width="24" height="30" fill="#fff"/><circle cx="32" cy="32" r="4" fill="#5af4e3"/></svg></td>
+            <td style="padding-left:14px;"><div style="font-size:11px;color:#5af4e3;text-transform:uppercase;letter-spacing:0.1em;font-weight:600;">Umbrella Automation · Watchtower</div><div style="font-size:22px;color:#fff;font-weight:700;line-height:1.15;margin-top:2px;">C: drive critically low</div></td>
+          </tr></table>
+        </div>
+        <div style="background:#fee2e2;color:#7f1d1d;padding:9px 30px;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;border-bottom:1px solid #fca5a5;">
+          <span style="display:inline-block;width:8px;height:8px;background:#b91c1c;border-radius:50%;margin-right:8px;vertical-align:middle;"></span>
+          Disk capacity · CRITICAL · 4% free
+        </div>
+        <div style="padding:24px 30px;">
+          <!-- Visual progress strip -->
+          <div style="margin-bottom:20px;">
+            <div style="display:flex;justify-content:space-between;font-size:11.5px;color:#475063;margin-bottom:6px;">
+              <span><b style="color:#b91c1c;">8 GB free</b></span>
+              <span>of 200 GB total</span>
+            </div>
+            <div style="height:10px;background:#fee2e2;border-radius:5px;overflow:hidden;">
+              <div style="height:100%;width:96%;background:linear-gradient(90deg,#b91c1c,#dc2626);"></div>
+            </div>
+          </div>
+          <p style="font-size:14px;color:#475063;line-height:1.55;margin:0 0 20px;">
+            <b>CCD-HYPERV</b> (Celtic Construction) is below the 5% / 5 GB threshold on the system volume. Common culprits:
+          </p>
+          <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:14px 16px;margin-bottom:20px;">
+            <ul style="margin:0;padding-left:18px;font-size:13.5px;color:#7f1d1d;line-height:1.7;">
+              <li>Storage Sense / Disk Cleanup for temp + Windows Update cache</li>
+              <li><span style="font-family:ui-monospace,Menlo,monospace;background:#fff5f5;padding:1px 5px;border-radius:3px;">SoftwareDistribution\Download</span> + CBS logs</li>
+              <li>Veeam / WSB destination accidentally landing on C: (common on Hyper-V)</li>
+              <li>Page file growth on heavily-loaded servers</li>
+            </ul>
+          </div>
+          <a href="#" style="display:block;text-align:center;background:#0a6b6b;color:#fff;text-decoration:none;padding:14px 22px;border-radius:10px;font-weight:700;font-size:14.5px;box-shadow:0 2px 4px rgba(10,107,107,0.25);">Open host in dashboard →</a>
+        </div>
+        <div style="background:#fafbfc;padding:16px 30px;border-top:1px solid #e3e6ec;">
+          <table cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
+            <td style="font-size:11.5px;color:#8892a4;"><b style="color:#475063;">Watchtower</b> · Umbrella Automation</td>
+            <td align="right" style="font-size:11.5px;"><a href="#" style="color:#8892a4;text-decoration:none;">Silence this host</a></td>
+          </tr></table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- B5 · Intake -->
+  <div class="email-mock">
+    <div class="meta-bar">
+      <div class="meta-label">Subject</div><div class="meta-val subject">New host onboarded · CCD-HYPERV (Celtic Construction)</div>
+    </div>
+    <div class="email-body">
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:680px;margin:0 auto;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 12px rgba(20,25,40,0.06);">
+        <div style="background:linear-gradient(135deg,#0a6b6b 0%,#074a4a 100%);padding:28px 30px;color:#fff;">
+          <table cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
+            <td width="50"><svg width="42" height="42" viewBox="0 0 64 64"><circle cx="32" cy="32" r="30" fill="rgba(255,255,255,0.08)" stroke="#5af4e3" stroke-width="2"/><rect x="18" y="14" width="4" height="6" fill="#fff"/><rect x="26" y="14" width="4" height="6" fill="#fff"/><rect x="34" y="14" width="4" height="6" fill="#fff"/><rect x="42" y="14" width="4" height="6" fill="#fff"/><rect x="16" y="20" width="32" height="4" fill="#fff"/><rect x="20" y="24" width="24" height="30" fill="#fff"/><circle cx="32" cy="32" r="4" fill="#5af4e3"/></svg></td>
+            <td style="padding-left:14px;"><div style="font-size:11px;color:#5af4e3;text-transform:uppercase;letter-spacing:0.1em;font-weight:600;">Umbrella Automation · Watchtower</div><div style="font-size:22px;color:#fff;font-weight:700;line-height:1.15;margin-top:2px;">New host onboarded</div></td>
+          </tr></table>
+        </div>
+        <div style="background:#e6f4f4;color:#074a4a;padding:9px 30px;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;border-bottom:1px solid #d0e8e8;">
+          <span style="display:inline-block;width:8px;height:8px;background:#0a6b6b;border-radius:50%;margin-right:8px;vertical-align:middle;"></span>
+          First check-in · one-time intake report
+        </div>
+        <div style="padding:24px 30px;">
+          <p style="font-size:15px;color:#1a1f2b;line-height:1.55;margin:0 0 18px;">
+            <b>CCD-HYPERV</b> joined Watchtower on May 24, 2026. This is the intake summary — future check-ins won't send this email.
+          </p>
+
+          <!-- Identity card -->
+          <div style="background:#fafbfc;border:1px solid #e3e6ec;border-radius:10px;padding:16px 18px;margin-bottom:14px;">
+            <div style="font-size:10.5px;color:#0a6b6b;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:10px;">Identity</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 18px;font-size:13.5px;">
+              <div><span style="color:#8892a4;">Host</span> <b style="color:#1a1f2b;">CCD-HYPERV</b></div>
+              <div><span style="color:#8892a4;">Client</span> <span style="color:#1a1f2b;">Celtic Construction</span></div>
+              <div><span style="color:#8892a4;">External IP</span> <span style="font-family:ui-monospace,Menlo,monospace;color:#1a1f2b;">198.51.100.7</span></div>
+              <div><span style="color:#8892a4;">Agent</span> <span style="color:#1a1f2b;">0.14.26</span></div>
+            </div>
+          </div>
+
+          <!-- Hardware card -->
+          <div style="background:#fafbfc;border:1px solid #e3e6ec;border-radius:10px;padding:16px 18px;margin-bottom:14px;">
+            <div style="font-size:10.5px;color:#0a6b6b;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:10px;">Hardware</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 18px;font-size:13.5px;">
+              <div><span style="color:#8892a4;">Manufacturer</span> <span style="color:#1a1f2b;">Dell Inc.</span></div>
+              <div><span style="color:#8892a4;">Model</span> <span style="color:#1a1f2b;">PowerEdge R740</span></div>
+              <div><span style="color:#8892a4;">Service tag</span> <a href="#" style="color:#0a6b6b;text-decoration:none;font-family:ui-monospace,Menlo,monospace;">3JK7M82</a></div>
+              <div><span style="color:#8892a4;">RAM</span> <span style="color:#1a1f2b;">128 GB</span></div>
+              <div style="grid-column:1/-1;"><span style="color:#8892a4;">CPU</span> <span style="color:#1a1f2b;">Intel Xeon Silver 4214R (24 cores)</span></div>
+            </div>
+          </div>
+
+          <!-- Products card -->
+          <div style="background:#fafbfc;border:1px solid #e3e6ec;border-radius:10px;padding:16px 18px;margin-bottom:20px;">
+            <div style="font-size:10.5px;color:#0a6b6b;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:10px;">Detected products</div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
+              <span style="display:inline-block;padding:3px 10px;background:#e6f4f4;color:#074a4a;border-radius:999px;font-size:11.5px;font-weight:600;">Veeam B&amp;R</span>
+              <span style="display:inline-block;padding:3px 10px;background:#e6f4f4;color:#074a4a;border-radius:999px;font-size:11.5px;font-weight:600;">WSB</span>
+              <span style="display:inline-block;padding:3px 10px;background:#e6f4f4;color:#074a4a;border-radius:999px;font-size:11.5px;font-weight:600;">Dell OMSA</span>
+              <span style="display:inline-block;padding:3px 10px;background:#e6f4f4;color:#074a4a;border-radius:999px;font-size:11.5px;font-weight:600;">iDRAC iSM</span>
+              <span style="display:inline-block;padding:3px 10px;background:#e6f4f4;color:#074a4a;border-radius:999px;font-size:11.5px;font-weight:600;">Defender</span>
+            </div>
+            <div style="font-size:12.5px;color:#475063;line-height:1.7;">
+              · Veeam Backup &amp; Replication 12.1.2.172 — last job <b style="color:#16a34a;">Success</b><br>
+              · OMSA 10.4.0.0 · rollup <b style="color:#16a34a;">ok</b> · 8 disks, 2 arrays<br>
+              · Defender realtime <b style="color:#16a34a;">on</b> · defs 1.413.234.0 (2026-05-23)
+            </div>
+          </div>
+
+          <a href="#" style="display:block;text-align:center;background:#0a6b6b;color:#fff;text-decoration:none;padding:14px 22px;border-radius:10px;font-weight:700;font-size:14.5px;box-shadow:0 2px 4px rgba(10,107,107,0.25);">Open host in dashboard →</a>
+        </div>
+        <div style="background:#fafbfc;padding:16px 30px;border-top:1px solid #e3e6ec;">
+          <table cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
+            <td style="font-size:11.5px;color:#8892a4;"><b style="color:#475063;">Watchtower</b> · Umbrella Automation · one-time onboarding email</td>
+          </tr></table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- B6 · Uninstall -->
+  <div class="email-mock">
+    <div class="meta-bar">
+      <div class="meta-label">Subject</div><div class="meta-val subject">CCD-HYPERV · agent decommissioned</div>
+    </div>
+    <div class="email-body">
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:640px;margin:0 auto;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 12px rgba(20,25,40,0.06);">
+        <div style="background:linear-gradient(135deg,#0a6b6b 0%,#074a4a 100%);padding:28px 30px;color:#fff;">
+          <table cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
+            <td width="50"><svg width="42" height="42" viewBox="0 0 64 64"><circle cx="32" cy="32" r="30" fill="rgba(255,255,255,0.08)" stroke="#5af4e3" stroke-width="2"/><rect x="18" y="14" width="4" height="6" fill="#fff"/><rect x="26" y="14" width="4" height="6" fill="#fff"/><rect x="34" y="14" width="4" height="6" fill="#fff"/><rect x="42" y="14" width="4" height="6" fill="#fff"/><rect x="16" y="20" width="32" height="4" fill="#fff"/><rect x="20" y="24" width="24" height="30" fill="#fff"/><circle cx="32" cy="32" r="4" fill="#5af4e3"/></svg></td>
+            <td style="padding-left:14px;"><div style="font-size:11px;color:#5af4e3;text-transform:uppercase;letter-spacing:0.1em;font-weight:600;">Umbrella Automation · Watchtower</div><div style="font-size:22px;color:#fff;font-weight:700;line-height:1.15;margin-top:2px;">Agent decommissioned</div></td>
+          </tr></table>
+        </div>
+        <div style="background:#f3f4f6;color:#475063;padding:9px 30px;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;border-bottom:1px solid #e3e6ec;">
+          <span style="display:inline-block;width:8px;height:8px;background:#6b7280;border-radius:50%;margin-right:8px;vertical-align:middle;"></span>
+          Agent lifecycle · uninstalled at host
+        </div>
+        <div style="padding:24px 30px;">
+          <p style="font-size:15px;color:#1a1f2b;line-height:1.55;margin:0 0 22px;">
+            <b>CCD-HYPERV</b> (Celtic Construction) has been removed from Watchtower. The uninstaller ran on the host. The row stays in the dashboard with a Decommissioned badge until you delete it.
+          </p>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px 24px;margin-bottom:20px;">
+            <div><div style="font-size:10.5px;color:#8892a4;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:4px;">Source</div><div style="font-family:ui-monospace,Menlo,monospace;font-size:14px;color:#475063;">agent-uninstall</div></div>
+            <div><div style="font-size:10.5px;color:#8892a4;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:4px;">When</div><div style="font-size:14px;color:#1a1f2b;">May 24 · 14:22 UTC</div></div>
+          </div>
+          <a href="#" style="display:block;text-align:center;background:#0a6b6b;color:#fff;text-decoration:none;padding:14px 22px;border-radius:10px;font-weight:700;font-size:14.5px;box-shadow:0 2px 4px rgba(10,107,107,0.25);">Open host in dashboard →</a>
+        </div>
+        <div style="background:#fafbfc;padding:16px 30px;border-top:1px solid #e3e6ec;">
+          <table cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
+            <td style="font-size:11.5px;color:#8892a4;"><b style="color:#475063;">Watchtower</b> · Umbrella Automation</td>
+          </tr></table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-label">Webhooks (4 platforms · variant B polish)</div>
+  <div class="webhook-grid">
+    <div class="webhook-mock gchat">
+      <div class="platform-bar">Google Chat · Cards v2</div>
+      <div class="platform-body">
+        <div style="background:#fff;border:1px solid #e3e6ec;border-radius:12px;max-width:480px;overflow:hidden;font-family:Roboto,Arial,sans-serif;">
+          <div style="background:linear-gradient(135deg,#0a6b6b,#074a4a);padding:16px;color:#fff;display:flex;align-items:center;gap:12px;">
+            <div style="width:38px;height:38px;background:rgba(255,255,255,0.1);border:1.5px solid #5af4e3;border-radius:8px;display:grid;place-items:center;"><svg width="24" height="24" viewBox="0 0 64 64"><rect x="20" y="24" width="24" height="30" fill="#fff"/><rect x="16" y="20" width="32" height="4" fill="#fff"/><circle cx="32" cy="32" r="4" fill="#5af4e3"/></svg></div>
+            <div>
+              <div style="font-size:11px;color:#5af4e3;text-transform:uppercase;letter-spacing:0.08em;font-weight:600;">Watchtower</div>
+              <div style="font-size:16px;font-weight:700;line-height:1.1;">Backup failed</div>
+            </div>
+          </div>
+          <div style="background:#fee2e2;padding:8px 16px;font-size:11.5px;color:#7f1d1d;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;">CRITICAL · 5 days since success</div>
+          <div style="padding:14px 16px;">
+            <div style="display:grid;grid-template-columns:90px 1fr;gap:6px 14px;font-size:13px;color:#202124;">
+              <div style="color:#5f6368;">Host</div><div><b>CCD-HYPERV</b></div>
+              <div style="color:#5f6368;">Client</div><div>Celtic Construction</div>
+              <div style="color:#5f6368;">Result</div><div style="font-family:ui-monospace,Menlo,monospace;color:#b91c1c;">VSS_E_PROVIDER_VETO</div>
+            </div>
+            <a href="#" style="display:inline-block;margin-top:14px;padding:8px 18px;background:#0a6b6b;color:#fff;text-decoration:none;border-radius:18px;font-size:13px;font-weight:600;">Open host in dashboard</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="webhook-mock slack">
+      <div class="platform-bar">Slack · Block Kit</div>
+      <div class="platform-body">
+        <div style="background:#fff;border-radius:8px;padding:14px;max-width:480px;border-left:4px solid #b91c1c;font-family:Lato,sans-serif;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+            <div style="width:28px;height:28px;background:#0a6b6b;border-radius:6px;display:grid;place-items:center;"><svg width="18" height="18" viewBox="0 0 64 64"><rect x="20" y="24" width="24" height="30" fill="#fff"/><circle cx="32" cy="32" r="4" fill="#5af4e3"/></svg></div>
+            <div style="font-weight:700;font-size:14.5px;">Watchtower</div>
+            <div style="margin-left:auto;padding:2px 8px;background:#fee2e2;color:#7f1d1d;font-size:11px;font-weight:700;text-transform:uppercase;border-radius:4px;">Critical</div>
+          </div>
+          <div style="font-size:15px;color:#1d1c1d;margin-bottom:8px;font-weight:600;">Backup failed on CCD-HYPERV</div>
+          <div style="font-size:13.5px;color:#454545;line-height:1.6;">
+            Celtic Construction · 5 days since last success<br>
+            Result: <code style="background:#f4ede4;padding:1px 4px;border-radius:3px;">VSS_E_PROVIDER_VETO</code>
+          </div>
+          <a href="#" style="display:inline-block;margin-top:12px;padding:6px 14px;background:#0a6b6b;color:#fff;text-decoration:none;border-radius:4px;font-size:13px;font-weight:600;">Open host →</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="webhook-mock teams">
+      <div class="platform-bar">Microsoft Teams · Adaptive Card</div>
+      <div class="platform-body">
+        <div style="background:#fff;border:1px solid #d8dce4;border-radius:8px;max-width:480px;font-family:'Segoe UI',sans-serif;border-top:6px solid #b91c1c;overflow:hidden;">
+          <div style="background:linear-gradient(135deg,#0a6b6b,#074a4a);padding:14px 18px;color:#fff;">
+            <div style="font-size:11px;color:#5af4e3;text-transform:uppercase;letter-spacing:0.08em;font-weight:600;">Watchtower</div>
+            <div style="font-size:17px;font-weight:600;line-height:1.2;">Backup failed</div>
+          </div>
+          <div style="padding:14px 18px;font-size:13.5px;color:#252423;">
+            <div style="font-weight:600;color:#b91c1c;margin-bottom:6px;">CRITICAL · 5 days since success</div>
+            CCD-HYPERV · Celtic Construction · VSS_E_PROVIDER_VETO
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="webhook-mock discord">
+      <div class="platform-bar">Discord · Rich Embed</div>
+      <div class="platform-body">
+        <div style="background:#36393f;color:#dcddde;border-radius:6px;padding:14px;max-width:480px;font-family:Whitney,sans-serif;border-left:4px solid #b91c1c;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+            <div style="width:24px;height:24px;background:#0a6b6b;border-radius:50%;display:grid;place-items:center;"><svg width="16" height="16" viewBox="0 0 64 64"><rect x="20" y="24" width="24" height="30" fill="#fff"/><circle cx="32" cy="32" r="4" fill="#5af4e3"/></svg></div>
+            <span style="font-weight:600;color:#fff;font-size:14px;">Watchtower</span>
+            <span style="margin-left:auto;padding:1px 7px;background:#5c1c1c;color:#fff;font-size:10.5px;font-weight:700;text-transform:uppercase;border-radius:3px;">Critical</span>
+          </div>
+          <div style="font-size:15px;color:#fff;margin-bottom:6px;font-weight:600;">Backup failed</div>
+          <div style="font-size:13.5px;color:#b9bbbe;line-height:1.6;">
+            <b style="color:#fff;">CCD-HYPERV</b> · Celtic Construction<br>
+            Result: <code style="background:#2f3136;padding:1px 4px;border-radius:3px;color:#f8a4a4;">VSS_E_PROVIDER_VETO</code><br>
+            5 days since last success
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="picker-cta">
+    Like <strong>Variant B</strong>? Tell me and I'll roll it into the worker email templates + webhook adapters.
+  </div>
+</div>
+
+
+<!-- =========================================================== -->
+<!--   VARIANT C · Dark Brand                                      -->
+<!-- =========================================================== -->
+<div class="variant-pane" data-variant="c">
+
+  <div class="pane-intro">
+    <h2>C — Dark Brand</h2>
+    <p>The most brand-forward option. Dark-navy hero with a glowing cyan beacon and the full Watchtower mark. Severity gets a pill-shape badge sitting on a light card body. Two-button footer (primary "Open" + secondary "Silence"). Looks like a Datadog / Linear / Vercel critical-alert page emailed to you. Highest visual weight — feels serious.</p>
+  </div>
+
+  <div class="section-label">Emails (6)</div>
+
+  <!-- C1 · IP change -->
+  <div class="email-mock">
+    <div class="meta-bar">
+      <div class="meta-label">Subject</div><div class="meta-val subject">CCD-HYPERV · external IP changed to 198.51.100.7</div>
+    </div>
+    <div class="email-body">
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:640px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;">
+        <div style="background:#050816;padding:32px 32px 28px;color:#fff;position:relative;">
+          <table cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
+            <td>
+              <table cellpadding="0" cellspacing="0" border="0"><tr>
+                <td width="46" style="vertical-align:middle;">
+                  <svg width="44" height="44" viewBox="0 0 64 64">
+                    <circle cx="32" cy="32" r="12" fill="#5af4e3" opacity="0.18"/>
+                    <circle cx="32" cy="32" r="30" fill="none" stroke="#5af4e3" stroke-width="1" opacity="0.4"/>
+                    <rect x="18" y="14" width="4" height="6" fill="#fff"/><rect x="26" y="14" width="4" height="6" fill="#fff"/><rect x="34" y="14" width="4" height="6" fill="#fff"/><rect x="42" y="14" width="4" height="6" fill="#fff"/>
+                    <rect x="16" y="20" width="32" height="4" fill="#fff"/><rect x="20" y="24" width="24" height="30" fill="#fff"/>
+                    <circle cx="32" cy="32" r="4" fill="#5af4e3"/>
+                    <rect x="24" y="38" width="3" height="8" fill="#050816"/><rect x="37" y="38" width="3" height="8" fill="#050816"/>
+                  </svg>
+                </td>
+                <td style="vertical-align:middle;padding-left:14px;">
+                  <div style="font-size:18px;color:#fff;font-weight:700;line-height:1;">Watchtower</div>
+                  <div style="font-size:11px;color:#5af4e3;text-transform:uppercase;letter-spacing:0.12em;font-weight:600;margin-top:3px;">Umbrella Automation</div>
+                </td>
+              </tr></table>
+            </td>
+            <td align="right" style="vertical-align:top;">
+              <span style="display:inline-block;padding:5px 12px;background:rgba(90,244,227,0.15);color:#5af4e3;border:1px solid rgba(90,244,227,0.3);border-radius:999px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;">Informational</span>
+            </td>
+          </tr></table>
+          <div style="margin-top:22px;font-size:24px;color:#fff;font-weight:700;line-height:1.2;letter-spacing:-0.01em;">External IP changed</div>
+          <div style="font-size:14px;color:#a0aec0;margin-top:6px;">
+            <b style="color:#5af4e3;">CCD-HYPERV</b> · Celtic Construction · May 24 · 09:14 UTC
+          </div>
+        </div>
+        <div style="padding:26px 32px;">
+          <p style="font-size:14.5px;color:#475063;line-height:1.6;margin:0 0 24px;">
+            CCD-HYPERV is now reaching the internet from a new public address. If this isn't expected, check the host's WAN equipment or ISP.
+          </p>
+          <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:24px;"><tr>
+            <td style="background:#f4f6f9;border-radius:10px;padding:16px 18px;width:48%;vertical-align:top;">
+              <div style="font-size:10.5px;color:#8892a4;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:6px;">Previous</div>
+              <div style="font-family:ui-monospace,Menlo,monospace;font-size:18px;color:#475063;">192.0.2.45</div>
+            </td>
+            <td width="4%"></td>
+            <td style="background:#e6f4f4;border:1px solid #b8dbdb;border-radius:10px;padding:16px 18px;width:48%;vertical-align:top;">
+              <div style="font-size:10.5px;color:#0a6b6b;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:6px;">Now</div>
+              <div style="font-family:ui-monospace,Menlo,monospace;font-size:18px;color:#0a6b6b;font-weight:700;">198.51.100.7</div>
+            </td>
+          </tr></table>
+          <table cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
+            <td><a href="#" style="display:inline-block;background:#0a6b6b;color:#fff;text-decoration:none;padding:12px 22px;border-radius:10px;font-weight:700;font-size:14px;">Open host in dashboard →</a></td>
+            <td align="right"><a href="#" style="display:inline-block;color:#475063;text-decoration:none;padding:12px 16px;border:1px solid #d8dce4;border-radius:10px;font-weight:600;font-size:14px;">Silence host</a></td>
+          </tr></table>
+        </div>
+        <div style="background:#050816;padding:18px 32px;color:#a0aec0;font-size:11.5px;text-align:center;">
+          <b style="color:#5af4e3;">Watchtower</b> · Umbrella Automation · <a href="#" style="color:#a0aec0;text-decoration:underline;">Operator's guide</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- C2 · Backup failed -->
+  <div class="email-mock">
+    <div class="meta-bar">
+      <div class="meta-label">Subject</div><div class="meta-val subject">CCD-HYPERV · backup FAILED · 5 days since success</div>
+    </div>
+    <div class="email-body">
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:640px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;">
+        <div style="background:#050816;padding:32px 32px 28px;color:#fff;">
+          <table cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
+            <td>
+              <table cellpadding="0" cellspacing="0" border="0"><tr>
+                <td width="46"><svg width="44" height="44" viewBox="0 0 64 64"><circle cx="32" cy="32" r="12" fill="#5af4e3" opacity="0.18"/><circle cx="32" cy="32" r="30" fill="none" stroke="#5af4e3" stroke-width="1" opacity="0.4"/><rect x="18" y="14" width="4" height="6" fill="#fff"/><rect x="26" y="14" width="4" height="6" fill="#fff"/><rect x="34" y="14" width="4" height="6" fill="#fff"/><rect x="42" y="14" width="4" height="6" fill="#fff"/><rect x="16" y="20" width="32" height="4" fill="#fff"/><rect x="20" y="24" width="24" height="30" fill="#fff"/><circle cx="32" cy="32" r="4" fill="#5af4e3"/></svg></td>
+                <td style="padding-left:14px;"><div style="font-size:18px;color:#fff;font-weight:700;line-height:1;">Watchtower</div><div style="font-size:11px;color:#5af4e3;text-transform:uppercase;letter-spacing:0.12em;font-weight:600;margin-top:3px;">Umbrella Automation</div></td>
+              </tr></table>
+            </td>
+            <td align="right">
+              <span style="display:inline-block;padding:5px 12px;background:rgba(220,38,38,0.18);color:#fca5a5;border:1px solid rgba(252,165,165,0.4);border-radius:999px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;">Critical</span>
+            </td>
+          </tr></table>
+          <div style="margin-top:22px;font-size:24px;color:#fff;font-weight:700;line-height:1.2;letter-spacing:-0.01em;">Backup failed</div>
+          <div style="font-size:14px;color:#a0aec0;margin-top:6px;">
+            <b style="color:#fca5a5;">CCD-HYPERV</b> · Celtic Construction · <b style="color:#fca5a5;">5 days</b> since last success
+          </div>
+        </div>
+        <div style="padding:26px 32px;">
+          <p style="font-size:14.5px;color:#475063;line-height:1.6;margin:0 0 22px;">
+            The VSS provider failed to take a shadow copy of one of the volumes selected for backup. The last scheduled WSB attempt did not complete.
+          </p>
+          <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:18px;"><tr>
+            <td style="background:#f4f6f9;border-radius:10px;padding:16px 18px;width:32%;vertical-align:top;text-align:center;">
+              <div style="font-size:10.5px;color:#8892a4;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:4px;">Days w/o</div>
+              <div style="font-size:28px;color:#b91c1c;font-weight:800;line-height:1;">5</div>
+            </td>
+            <td width="4%"></td>
+            <td style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:16px 18px;vertical-align:top;">
+              <div style="font-size:10.5px;color:#8892a4;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:4px;">Failure code</div>
+              <div style="font-family:ui-monospace,Menlo,monospace;font-size:14px;color:#b91c1c;font-weight:700;line-height:1.3;">VSS_E_PROVIDER_VETO</div>
+              <div style="font-size:11.5px;color:#7f1d1d;margin-top:4px;">attempted May 24 · 02:00 UTC</div>
+            </td>
+          </tr></table>
+          <table cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
+            <td><a href="#" style="display:inline-block;background:#0a6b6b;color:#fff;text-decoration:none;padding:12px 22px;border-radius:10px;font-weight:700;font-size:14px;">Open host in dashboard →</a></td>
+            <td align="right"><a href="#" style="display:inline-block;color:#475063;text-decoration:none;padding:12px 16px;border:1px solid #d8dce4;border-radius:10px;font-weight:600;font-size:14px;">Silence host</a></td>
+          </tr></table>
+        </div>
+        <div style="background:#050816;padding:18px 32px;color:#a0aec0;font-size:11.5px;text-align:center;">
+          <b style="color:#5af4e3;">Watchtower</b> · Umbrella Automation · Sent once per new failed attempt
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- C3 · OMSA -->
+  <div class="email-mock">
+    <div class="meta-bar">
+      <div class="meta-label">Subject</div><div class="meta-val subject">CCD-HYPERV · OMSA CRITICAL · failed drive + degraded array</div>
+    </div>
+    <div class="email-body">
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:640px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;">
+        <div style="background:#050816;padding:32px 32px 28px;color:#fff;">
+          <table cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
+            <td><table cellpadding="0" cellspacing="0" border="0"><tr><td width="46"><svg width="44" height="44" viewBox="0 0 64 64"><circle cx="32" cy="32" r="12" fill="#5af4e3" opacity="0.18"/><circle cx="32" cy="32" r="30" fill="none" stroke="#5af4e3" stroke-width="1" opacity="0.4"/><rect x="18" y="14" width="4" height="6" fill="#fff"/><rect x="26" y="14" width="4" height="6" fill="#fff"/><rect x="34" y="14" width="4" height="6" fill="#fff"/><rect x="42" y="14" width="4" height="6" fill="#fff"/><rect x="16" y="20" width="32" height="4" fill="#fff"/><rect x="20" y="24" width="24" height="30" fill="#fff"/><circle cx="32" cy="32" r="4" fill="#5af4e3"/></svg></td><td style="padding-left:14px;"><div style="font-size:18px;color:#fff;font-weight:700;">Watchtower</div><div style="font-size:11px;color:#5af4e3;text-transform:uppercase;letter-spacing:0.12em;font-weight:600;margin-top:3px;">Umbrella Automation</div></td></tr></table></td>
+            <td align="right"><span style="display:inline-block;padding:5px 12px;background:rgba(220,38,38,0.18);color:#fca5a5;border:1px solid rgba(252,165,165,0.4);border-radius:999px;font-size:11px;font-weight:700;text-transform:uppercase;">Critical</span></td>
+          </tr></table>
+          <div style="margin-top:22px;font-size:24px;color:#fff;font-weight:700;letter-spacing:-0.01em;">Storage health: CRITICAL</div>
+          <div style="font-size:14px;color:#a0aec0;margin-top:6px;">
+            <b style="color:#fca5a5;">CCD-HYPERV</b> · Celtic Construction · OMSA rollup <b style="color:#fca5a5;">BAD</b>
+          </div>
+        </div>
+        <div style="padding:26px 32px;">
+          <div style="font-size:10.5px;color:#b91c1c;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:10px;">2 issues flagged</div>
+          <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:14px 18px;margin-bottom:22px;">
+            <div style="font-size:13.5px;color:#7f1d1d;line-height:1.8;">
+              <div>· Physical disk <b>0:1:3</b> on controller 0: <b>Failed</b> (ST4000NM0023)</div>
+              <div>· Virtual disk <b>0</b>: Degraded / Resyncing (RAID-5)</div>
+            </div>
+          </div>
+          <p style="font-size:12.5px;color:#8892a4;margin:0 0 22px;">OMSA 10.4.0.0 · detected May 24 · 09:14 UTC</p>
+          <table cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
+            <td><a href="#" style="display:inline-block;background:#0a6b6b;color:#fff;text-decoration:none;padding:12px 22px;border-radius:10px;font-weight:700;font-size:14px;">Open host in dashboard →</a></td>
+            <td align="right"><a href="#" style="display:inline-block;color:#475063;text-decoration:none;padding:12px 16px;border:1px solid #d8dce4;border-radius:10px;font-weight:600;font-size:14px;">Silence host</a></td>
+          </tr></table>
+        </div>
+        <div style="background:#050816;padding:18px 32px;color:#a0aec0;font-size:11.5px;text-align:center;">
+          <b style="color:#5af4e3;">Watchtower</b> · Umbrella Automation · One email per warning episode
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- C4 · Disk low -->
+  <div class="email-mock">
+    <div class="meta-bar">
+      <div class="meta-label">Subject</div><div class="meta-val subject">CCD-HYPERV · C: drive at 4% (CRITICAL)</div>
+    </div>
+    <div class="email-body">
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:640px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;">
+        <div style="background:#050816;padding:32px 32px 28px;color:#fff;">
+          <table cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
+            <td><table cellpadding="0" cellspacing="0" border="0"><tr><td width="46"><svg width="44" height="44" viewBox="0 0 64 64"><circle cx="32" cy="32" r="12" fill="#5af4e3" opacity="0.18"/><circle cx="32" cy="32" r="30" fill="none" stroke="#5af4e3" stroke-width="1" opacity="0.4"/><rect x="18" y="14" width="4" height="6" fill="#fff"/><rect x="26" y="14" width="4" height="6" fill="#fff"/><rect x="34" y="14" width="4" height="6" fill="#fff"/><rect x="42" y="14" width="4" height="6" fill="#fff"/><rect x="16" y="20" width="32" height="4" fill="#fff"/><rect x="20" y="24" width="24" height="30" fill="#fff"/><circle cx="32" cy="32" r="4" fill="#5af4e3"/></svg></td><td style="padding-left:14px;"><div style="font-size:18px;color:#fff;font-weight:700;">Watchtower</div><div style="font-size:11px;color:#5af4e3;text-transform:uppercase;letter-spacing:0.12em;font-weight:600;margin-top:3px;">Umbrella Automation</div></td></tr></table></td>
+            <td align="right"><span style="display:inline-block;padding:5px 12px;background:rgba(220,38,38,0.18);color:#fca5a5;border:1px solid rgba(252,165,165,0.4);border-radius:999px;font-size:11px;font-weight:700;text-transform:uppercase;">Critical</span></td>
+          </tr></table>
+          <div style="margin-top:22px;font-size:24px;color:#fff;font-weight:700;letter-spacing:-0.01em;">C: drive critically low</div>
+          <div style="font-size:14px;color:#a0aec0;margin-top:6px;">
+            <b style="color:#fca5a5;">CCD-HYPERV</b> · Celtic Construction
+          </div>
+        </div>
+        <div style="padding:26px 32px;">
+          <!-- Big stat -->
+          <div style="text-align:center;padding:20px 0 16px;">
+            <div style="font-size:48px;color:#b91c1c;font-weight:800;line-height:1;letter-spacing:-0.02em;">4%</div>
+            <div style="font-size:14px;color:#475063;margin-top:6px;"><b style="color:#b91c1c;">8 GB</b> free of 200 GB</div>
+          </div>
+          <div style="height:10px;background:#fee2e2;border-radius:5px;overflow:hidden;margin:0 0 24px;">
+            <div style="height:100%;width:96%;background:linear-gradient(90deg,#b91c1c,#dc2626);"></div>
+          </div>
+          <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:14px 18px;margin-bottom:22px;">
+            <div style="font-size:10.5px;color:#b91c1c;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;">Common culprits</div>
+            <ul style="margin:0;padding-left:18px;font-size:13px;color:#7f1d1d;line-height:1.7;">
+              <li>Storage Sense / Disk Cleanup</li>
+              <li>SoftwareDistribution\Download + CBS logs</li>
+              <li>Veeam / WSB destination landing on C:</li>
+              <li>Page-file growth</li>
+            </ul>
+          </div>
+          <table cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
+            <td><a href="#" style="display:inline-block;background:#0a6b6b;color:#fff;text-decoration:none;padding:12px 22px;border-radius:10px;font-weight:700;font-size:14px;">Open host in dashboard →</a></td>
+            <td align="right"><a href="#" style="display:inline-block;color:#475063;text-decoration:none;padding:12px 16px;border:1px solid #d8dce4;border-radius:10px;font-weight:600;font-size:14px;">Silence host</a></td>
+          </tr></table>
+        </div>
+        <div style="background:#050816;padding:18px 32px;color:#a0aec0;font-size:11.5px;text-align:center;">
+          <b style="color:#5af4e3;">Watchtower</b> · Umbrella Automation
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- C5 · Intake -->
+  <div class="email-mock">
+    <div class="meta-bar">
+      <div class="meta-label">Subject</div><div class="meta-val subject">New host onboarded · CCD-HYPERV (Celtic Construction)</div>
+    </div>
+    <div class="email-body">
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:680px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;">
+        <div style="background:#050816;padding:32px 32px 28px;color:#fff;">
+          <table cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
+            <td><table cellpadding="0" cellspacing="0" border="0"><tr><td width="46"><svg width="44" height="44" viewBox="0 0 64 64"><circle cx="32" cy="32" r="12" fill="#5af4e3" opacity="0.18"/><circle cx="32" cy="32" r="30" fill="none" stroke="#5af4e3" stroke-width="1" opacity="0.4"/><rect x="18" y="14" width="4" height="6" fill="#fff"/><rect x="26" y="14" width="4" height="6" fill="#fff"/><rect x="34" y="14" width="4" height="6" fill="#fff"/><rect x="42" y="14" width="4" height="6" fill="#fff"/><rect x="16" y="20" width="32" height="4" fill="#fff"/><rect x="20" y="24" width="24" height="30" fill="#fff"/><circle cx="32" cy="32" r="4" fill="#5af4e3"/></svg></td><td style="padding-left:14px;"><div style="font-size:18px;color:#fff;font-weight:700;">Watchtower</div><div style="font-size:11px;color:#5af4e3;text-transform:uppercase;letter-spacing:0.12em;font-weight:600;margin-top:3px;">Umbrella Automation</div></td></tr></table></td>
+            <td align="right"><span style="display:inline-block;padding:5px 12px;background:rgba(90,244,227,0.15);color:#5af4e3;border:1px solid rgba(90,244,227,0.3);border-radius:999px;font-size:11px;font-weight:700;text-transform:uppercase;">Onboarded</span></td>
+          </tr></table>
+          <div style="margin-top:22px;font-size:24px;color:#fff;font-weight:700;letter-spacing:-0.01em;">New host onboarded</div>
+          <div style="font-size:14px;color:#a0aec0;margin-top:6px;">
+            <b style="color:#5af4e3;">CCD-HYPERV</b> · Celtic Construction · joined May 24, 2026
+          </div>
+        </div>
+        <div style="padding:26px 32px;">
+          <p style="font-size:14.5px;color:#475063;line-height:1.6;margin:0 0 22px;">
+            One-time intake summary. Future check-ins won't send this email — they'll flow into the dashboard quietly.
+          </p>
+
+          <!-- Hardware big card -->
+          <div style="background:linear-gradient(135deg,#fafbfc 0%,#e6f4f4 100%);border:1px solid #d0e8e8;border-radius:12px;padding:20px;margin-bottom:14px;">
+            <div style="font-size:10.5px;color:#0a6b6b;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:12px;">Hardware</div>
+            <div style="font-size:18px;color:#1a1f2b;font-weight:700;line-height:1.2;">Dell PowerEdge R740</div>
+            <div style="font-size:13px;color:#475063;margin-top:4px;">
+              Service tag <a href="#" style="color:#0a6b6b;font-family:ui-monospace,Menlo,monospace;text-decoration:none;font-weight:600;">3JK7M82</a> ·
+              Intel Xeon Silver 4214R (24 cores) · 128 GB RAM
+            </div>
+          </div>
+
+          <!-- Product chips -->
+          <div style="background:#f4f6f9;border:1px solid #e3e6ec;border-radius:12px;padding:16px 18px;margin-bottom:14px;">
+            <div style="font-size:10.5px;color:#475063;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:10px;">Detected products</div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;">
+              <span style="display:inline-block;padding:5px 12px;background:#0a6b6b;color:#fff;border-radius:999px;font-size:12px;font-weight:600;">Veeam B&amp;R 12.1.2</span>
+              <span style="display:inline-block;padding:5px 12px;background:#0a6b6b;color:#fff;border-radius:999px;font-size:12px;font-weight:600;">WSB</span>
+              <span style="display:inline-block;padding:5px 12px;background:#0a6b6b;color:#fff;border-radius:999px;font-size:12px;font-weight:600;">OMSA 10.4</span>
+              <span style="display:inline-block;padding:5px 12px;background:#0a6b6b;color:#fff;border-radius:999px;font-size:12px;font-weight:600;">iDRAC iSM 4.3</span>
+              <span style="display:inline-block;padding:5px 12px;background:#0a6b6b;color:#fff;border-radius:999px;font-size:12px;font-weight:600;">Defender</span>
+            </div>
+          </div>
+
+          <!-- Stats grid -->
+          <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:24px;"><tr>
+            <td style="background:#f4f6f9;border-radius:10px;padding:14px;text-align:center;width:31%;">
+              <div style="font-size:22px;color:#0a6b6b;font-weight:700;line-height:1;">8</div>
+              <div style="font-size:11.5px;color:#475063;margin-top:4px;">disks</div>
+            </td>
+            <td width="3%"></td>
+            <td style="background:#f4f6f9;border-radius:10px;padding:14px;text-align:center;width:31%;">
+              <div style="font-size:22px;color:#0a6b6b;font-weight:700;line-height:1;">2</div>
+              <div style="font-size:11.5px;color:#475063;margin-top:4px;">RAID arrays</div>
+            </td>
+            <td width="3%"></td>
+            <td style="background:#f4f6f9;border-radius:10px;padding:14px;text-align:center;width:32%;">
+              <div style="font-size:22px;color:#16a34a;font-weight:700;line-height:1;">OK</div>
+              <div style="font-size:11.5px;color:#475063;margin-top:4px;">rollup</div>
+            </td>
+          </tr></table>
+
+          <a href="#" style="display:block;text-align:center;background:#0a6b6b;color:#fff;text-decoration:none;padding:14px 22px;border-radius:10px;font-weight:700;font-size:14.5px;">Open host in dashboard →</a>
+        </div>
+        <div style="background:#050816;padding:18px 32px;color:#a0aec0;font-size:11.5px;text-align:center;">
+          <b style="color:#5af4e3;">Watchtower</b> · Umbrella Automation · One-time onboarding email
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- C6 · Uninstall -->
+  <div class="email-mock">
+    <div class="meta-bar">
+      <div class="meta-label">Subject</div><div class="meta-val subject">CCD-HYPERV · agent decommissioned</div>
+    </div>
+    <div class="email-body">
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;max-width:640px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;">
+        <div style="background:#050816;padding:32px 32px 28px;color:#fff;">
+          <table cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
+            <td><table cellpadding="0" cellspacing="0" border="0"><tr><td width="46"><svg width="44" height="44" viewBox="0 0 64 64"><circle cx="32" cy="32" r="12" fill="#5af4e3" opacity="0.18"/><circle cx="32" cy="32" r="30" fill="none" stroke="#5af4e3" stroke-width="1" opacity="0.4"/><rect x="18" y="14" width="4" height="6" fill="#fff"/><rect x="26" y="14" width="4" height="6" fill="#fff"/><rect x="34" y="14" width="4" height="6" fill="#fff"/><rect x="42" y="14" width="4" height="6" fill="#fff"/><rect x="16" y="20" width="32" height="4" fill="#fff"/><rect x="20" y="24" width="24" height="30" fill="#fff"/><circle cx="32" cy="32" r="4" fill="#5af4e3"/></svg></td><td style="padding-left:14px;"><div style="font-size:18px;color:#fff;font-weight:700;">Watchtower</div><div style="font-size:11px;color:#5af4e3;text-transform:uppercase;letter-spacing:0.12em;font-weight:600;margin-top:3px;">Umbrella Automation</div></td></tr></table></td>
+            <td align="right"><span style="display:inline-block;padding:5px 12px;background:rgba(160,174,192,0.15);color:#a0aec0;border:1px solid rgba(160,174,192,0.3);border-radius:999px;font-size:11px;font-weight:700;text-transform:uppercase;">Decommissioned</span></td>
+          </tr></table>
+          <div style="margin-top:22px;font-size:24px;color:#fff;font-weight:700;letter-spacing:-0.01em;">Agent decommissioned</div>
+          <div style="font-size:14px;color:#a0aec0;margin-top:6px;">
+            <b style="color:#fff;">CCD-HYPERV</b> · Celtic Construction · uninstalled at host
+          </div>
+        </div>
+        <div style="padding:26px 32px;">
+          <p style="font-size:14.5px;color:#475063;line-height:1.6;margin:0 0 22px;">
+            The Watchtower agent has been removed from CCD-HYPERV. The host's row stays in the dashboard with a Decommissioned badge until you delete it. If the agent is reinstalled with the same pcId, it'll reactivate automatically.
+          </p>
+          <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:22px;"><tr>
+            <td style="background:#f4f6f9;border-radius:10px;padding:14px 18px;width:48%;">
+              <div style="font-size:10.5px;color:#8892a4;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:4px;">Source</div>
+              <div style="font-family:ui-monospace,Menlo,monospace;font-size:14px;color:#475063;">agent-uninstall</div>
+            </td>
+            <td width="4%"></td>
+            <td style="background:#f4f6f9;border-radius:10px;padding:14px 18px;width:48%;">
+              <div style="font-size:10.5px;color:#8892a4;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:4px;">When</div>
+              <div style="font-size:14px;color:#1a1f2b;">May 24 · 14:22 UTC</div>
+            </td>
+          </tr></table>
+          <a href="#" style="display:block;text-align:center;background:#0a6b6b;color:#fff;text-decoration:none;padding:14px 22px;border-radius:10px;font-weight:700;font-size:14px;">Open in dashboard →</a>
+        </div>
+        <div style="background:#050816;padding:18px 32px;color:#a0aec0;font-size:11.5px;text-align:center;">
+          <b style="color:#5af4e3;">Watchtower</b> · Umbrella Automation
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-label">Webhooks (4 platforms · variant C polish)</div>
+  <div class="webhook-grid">
+    <div class="webhook-mock gchat">
+      <div class="platform-bar">Google Chat · Cards v2</div>
+      <div class="platform-body">
+        <div style="background:#fff;border:1px solid #e3e6ec;border-radius:12px;max-width:480px;overflow:hidden;font-family:Roboto,Arial,sans-serif;">
+          <div style="background:#050816;padding:16px;color:#fff;display:flex;align-items:center;gap:12px;">
+            <div style="width:40px;height:40px;background:rgba(90,244,227,0.1);border:1px solid rgba(90,244,227,0.4);border-radius:8px;display:grid;place-items:center;"><svg width="26" height="26" viewBox="0 0 64 64"><rect x="20" y="24" width="24" height="30" fill="#fff"/><rect x="16" y="20" width="32" height="4" fill="#fff"/><circle cx="32" cy="32" r="4" fill="#5af4e3"/></svg></div>
+            <div>
+              <div style="font-size:11px;color:#5af4e3;text-transform:uppercase;letter-spacing:0.1em;font-weight:600;">Watchtower</div>
+              <div style="font-size:16px;font-weight:700;line-height:1.1;">Backup failed</div>
+            </div>
+            <div style="margin-left:auto;padding:3px 9px;background:rgba(220,38,38,0.2);color:#fca5a5;border:1px solid rgba(252,165,165,0.4);border-radius:999px;font-size:10px;font-weight:700;text-transform:uppercase;">Critical</div>
+          </div>
+          <div style="padding:14px 16px;">
+            <div style="font-size:14px;color:#1a1f2b;margin-bottom:10px;"><b>CCD-HYPERV</b> · Celtic Construction</div>
+            <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:10px 12px;font-size:13px;color:#7f1d1d;">
+              <code style="font-weight:700;">VSS_E_PROVIDER_VETO</code> · 5 days since success
+            </div>
+            <a href="#" style="display:inline-block;margin-top:14px;padding:8px 18px;background:#0a6b6b;color:#fff;text-decoration:none;border-radius:18px;font-size:13px;font-weight:600;">Open host</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="webhook-mock slack">
+      <div class="platform-bar">Slack · Block Kit</div>
+      <div class="platform-body">
+        <div style="background:#fff;border-radius:8px;padding:14px;max-width:480px;border-left:5px solid #b91c1c;font-family:Lato,sans-serif;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+            <div style="width:30px;height:30px;background:#050816;border-radius:6px;display:grid;place-items:center;"><svg width="20" height="20" viewBox="0 0 64 64"><rect x="20" y="24" width="24" height="30" fill="#fff"/><circle cx="32" cy="32" r="4" fill="#5af4e3"/></svg></div>
+            <div>
+              <div style="font-weight:700;font-size:14.5px;">Watchtower</div>
+              <div style="font-size:11px;color:#5af4e3;text-transform:uppercase;letter-spacing:0.06em;font-weight:600;">Umbrella Automation</div>
+            </div>
+            <div style="margin-left:auto;padding:3px 9px;background:#b91c1c;color:#fff;font-size:11px;font-weight:700;text-transform:uppercase;border-radius:999px;">Critical</div>
+          </div>
+          <div style="font-size:15px;color:#1d1c1d;margin-bottom:6px;font-weight:600;">Backup failed on CCD-HYPERV</div>
+          <div style="font-size:13.5px;color:#454545;line-height:1.55;">
+            Celtic Construction · <b>5 days</b> since last success<br>
+            <code style="background:#f4ede4;padding:1px 4px;border-radius:3px;">VSS_E_PROVIDER_VETO</code>
+          </div>
+          <a href="#" style="display:inline-block;margin-top:12px;padding:7px 16px;background:#0a6b6b;color:#fff;text-decoration:none;border-radius:6px;font-size:13px;font-weight:600;">Open host →</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="webhook-mock teams">
+      <div class="platform-bar">Microsoft Teams · Adaptive Card</div>
+      <div class="platform-body">
+        <div style="background:#fff;border:1px solid #d8dce4;border-radius:8px;max-width:480px;font-family:'Segoe UI',sans-serif;overflow:hidden;">
+          <div style="background:#050816;padding:16px 18px;color:#fff;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div style="width:30px;height:30px;background:rgba(90,244,227,0.1);border:1px solid rgba(90,244,227,0.4);border-radius:6px;display:grid;place-items:center;"><svg width="20" height="20" viewBox="0 0 64 64"><rect x="20" y="24" width="24" height="30" fill="#fff"/><circle cx="32" cy="32" r="4" fill="#5af4e3"/></svg></div>
+              <div>
+                <div style="font-size:10px;color:#5af4e3;text-transform:uppercase;letter-spacing:0.08em;font-weight:600;">Watchtower</div>
+                <div style="font-size:16px;font-weight:600;line-height:1.2;">Backup failed</div>
+              </div>
+              <div style="margin-left:auto;padding:3px 9px;background:rgba(220,38,38,0.2);color:#fca5a5;border:1px solid rgba(252,165,165,0.4);border-radius:999px;font-size:10px;font-weight:700;text-transform:uppercase;">Critical</div>
+            </div>
+          </div>
+          <div style="padding:14px 18px;font-size:13.5px;color:#252423;">
+            <div style="margin-bottom:8px;"><b>CCD-HYPERV</b> · Celtic Construction</div>
+            <div style="color:#605e5c;">VSS_E_PROVIDER_VETO · 5 days since success</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="webhook-mock discord">
+      <div class="platform-bar">Discord · Rich Embed</div>
+      <div class="platform-body">
+        <div style="background:#36393f;color:#dcddde;border-radius:6px;padding:14px;max-width:480px;font-family:Whitney,sans-serif;border-left:5px solid #b91c1c;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+            <div style="width:26px;height:26px;background:#050816;border:1px solid rgba(90,244,227,0.4);border-radius:50%;display:grid;place-items:center;"><svg width="16" height="16" viewBox="0 0 64 64"><rect x="20" y="24" width="24" height="30" fill="#fff"/><circle cx="32" cy="32" r="4" fill="#5af4e3"/></svg></div>
+            <div>
+              <div style="font-weight:600;color:#fff;font-size:14px;">Watchtower</div>
+              <div style="font-size:10px;color:#5af4e3;text-transform:uppercase;letter-spacing:0.08em;font-weight:600;">Umbrella Automation</div>
+            </div>
+            <div style="margin-left:auto;padding:1px 8px;background:#5c1c1c;color:#fff;font-size:10.5px;font-weight:700;text-transform:uppercase;border-radius:3px;">Critical</div>
+          </div>
+          <div style="font-size:15px;color:#fff;margin-bottom:6px;font-weight:600;">Backup failed</div>
+          <div style="font-size:13.5px;color:#b9bbbe;line-height:1.6;">
+            <b style="color:#fff;">CCD-HYPERV</b> · Celtic Construction<br>
+            <code style="background:#2f3136;padding:1px 4px;border-radius:3px;color:#f8a4a4;">VSS_E_PROVIDER_VETO</code> · 5 days
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="picker-cta">
+    Like <strong>Variant C</strong>? Tell me and I'll roll it into the worker email templates + webhook adapters.
+  </div>
+</div>
+
+</main>
+
+<script>
+  // Variant tab switching. Stateless -- on click, hide all panes, show the
+  // clicked one. Each variant pane is self-contained markup; no rendering JS.
+  document.querySelectorAll(".variant-tab").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const v = btn.dataset.variant;
+      document.querySelectorAll(".variant-tab").forEach(b => b.classList.toggle("active", b === btn));
+      document.querySelectorAll(".variant-pane").forEach(p => p.classList.toggle("active", p.dataset.variant === v));
+      window.scrollTo({ top: 0, behavior: "instant" });
+    });
+  });
+</script>
+</body>
+</html>
