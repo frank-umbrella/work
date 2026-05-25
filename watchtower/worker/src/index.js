@@ -1366,6 +1366,36 @@ async function handleCheckin(request, env, ctx) {
     && wsbCurrentTime !== wsbPrevTime  // new attempt since last check-in (or never seen)
   );
 
+  // ----- 3f. Detect aged primary backup disk (warn-level advisory) -----
+  // Picks the target whose newestBackup is the latest -- that's the disk
+  // currently being written to. Computes age as (now - that target's
+  // oldestBackup). Mirrors the dashboard's backupDiskAgeFinding() so the
+  // server-side trigger and the UI agree on which target is "primary."
+  //
+  // Threshold comes from /settings/backupDiskAge.thresholdDays (admin-
+  // configurable from the dashboard's Settings tab); falls back to 913
+  // days (~2.5y) when the setting is absent or unparseable. Same default
+  // as the dashboard's BACKUP_DISK_AGE_DEFAULT_DAYS constant.
+  const backupAgeSettingDoc = await firestoreGetDoc(env, accessToken, 'settings/backupDiskAge');
+  const backupAgeThresholdRaw = backupAgeSettingDoc?.fields?.thresholdDays?.integerValue
+    ?? backupAgeSettingDoc?.fields?.thresholdDays?.doubleValue
+    ?? null;
+  const backupAgeThresholdDays = (backupAgeThresholdRaw && Number(backupAgeThresholdRaw) > 0)
+    ? Number(backupAgeThresholdRaw)
+    : 913;
+  const backupAgedFinding = pickPrimaryAgedBackupDisk(wsbCurrent, backupAgeThresholdDays);
+  const backupDiskAged = backupAgedFinding !== null && backupAgedFinding.exceeds;
+  const backupDiskAgePrevWarnAt = existing?.fields?.backupDiskAgeFirstWarnAt?.stringValue || null;
+  let backupDiskAgeFirstWarnAt;
+  if (backupDiskAged && !backupDiskAgePrevWarnAt) {
+    backupDiskAgeFirstWarnAt = nowIso;
+  } else if (!backupDiskAged) {
+    backupDiskAgeFirstWarnAt = null;
+  } else {
+    backupDiskAgeFirstWarnAt = backupDiskAgePrevWarnAt;
+  }
+  const backupDiskAgedNewWarning = backupDiskAged && !backupDiskAgePrevWarnAt;
+
   // ----- 4. Read per-PC config (kill switches) — but treat absence as defaults -----
   const configDoc = await firestoreGetDoc(env, accessToken, `agents/${pcId}/config/current`);
   const config = readConfig(configDoc);
@@ -1462,6 +1492,12 @@ async function handleCheckin(request, env, ctx) {
     cDriveFreeGB,
     cDriveFreePct,
     cDriveLowFirstWarnAt,
+    // First-detection timestamp for an aged primary WSB target. Tracked
+    // for the same reason as omsaFirstWarnAt -- so we email/webhook once
+    // on the OK→aged transition rather than every check-in. Auto-clears
+    // when the operator swaps the disk (oldestBackup drops, ageDays
+    // falls under threshold) or bumps the threshold past current age.
+    backupDiskAgeFirstWarnAt,
     // Connectivity history. Read by the dashboard drawer to render the
     // 30-day powered-vs-online chart. Each entry:
     //   { startedAt, endedAt, durationSec, reason, attempts }
@@ -1720,6 +1756,66 @@ async function handleCheckin(request, env, ctx) {
           freePct: cDriveFreePct,
           sizeGB: cDriveSizeGB,
           severity: cDriveIsCritical ? 'critical' : 'warning',
+          when: nowIso,
+        }).catch((e) => console.error('Webhook POST failed:', e))
+      );
+    }
+  }
+
+  // ----- 7a3. Notify on new aged primary backup disk -----
+  // Same OK→aged transition pattern as OMSA. Fires once when the
+  // primary target's first-backup age first crosses the configured
+  // threshold (default 913 days / 2.5y, /settings/backupDiskAge). Stays
+  // silent on subsequent check-ins while still aged. Auto-clears when
+  // the operator swaps the disk (oldestBackup drops) or bumps the
+  // threshold past current age, then re-arms.
+  if (backupDiskAgedNewWarning && config.enabled) {
+    const ageLabel = _fmtAgeDays(backupAgedFinding.ageDays);
+    const thresholdLabel = _fmtAgeDays(backupAgedFinding.thresholdDays);
+    ctx.waitUntil(logActivity(env, accessToken, {
+      type: 'backup_disk_aged',
+      actor: { type: 'agent', id: pcId },
+      target: { type: 'host', id: pcId, label: hostname },
+      client: resolvedClient,
+      details: {
+        target: backupAgedFinding.target,
+        ageDays: Math.floor(backupAgedFinding.ageDays),
+        thresholdDays: backupAgedFinding.thresholdDays,
+        oldestBackup: backupAgedFinding.oldestBackup,
+        newestBackup: backupAgedFinding.newestBackup,
+      },
+    }));
+    if (config.emailEnabled && env.RESEND_API_KEY) {
+      ctx.waitUntil(
+        sendBackupDiskAgedEmail(env, {
+          pcId,
+          hostname,
+          client: resolvedClient,
+          target: backupAgedFinding.target,
+          ageDays: backupAgedFinding.ageDays,
+          ageLabel,
+          thresholdDays: backupAgedFinding.thresholdDays,
+          thresholdLabel,
+          oldestBackup: backupAgedFinding.oldestBackup,
+          newestBackup: backupAgedFinding.newestBackup,
+          when: nowIso,
+        }).catch((e) => console.error('Backup-disk-aged email failed:', e))
+      );
+    }
+    if (config.webhookEnabled !== false && effectiveWebhookUrl) {
+      ctx.waitUntil(
+        postWebhook(effectiveWebhookUrl, {
+          event: 'backup_disk_aged',
+          pcId,
+          hostname,
+          client: resolvedClient,
+          target: backupAgedFinding.target,
+          ageDays: Math.floor(backupAgedFinding.ageDays),
+          ageLabel,
+          thresholdDays: backupAgedFinding.thresholdDays,
+          thresholdLabel,
+          oldestBackup: backupAgedFinding.oldestBackup,
+          newestBackup: backupAgedFinding.newestBackup,
           when: nowIso,
         }).catch((e) => console.error('Webhook POST failed:', e))
       );
@@ -2043,6 +2139,10 @@ const TOWER_ICON_IMG = `<img src="${TOWER_ICON_PNG}" width="42" height="42" alt=
 
 const SEVERITY_PALETTE = {
   info:     { bg: '#e6f4f4', text: '#074a4a', border: '#d0e8e8', dot: '#0a6b6b' },
+  // warn = advisory amber. Reads as "plan a response," not "outage in
+  // progress." Currently used by backup_disk_aged. The dashboard's
+  // alert chip + favicon also map this tier to amber.
+  warn:     { bg: '#fef3c7', text: '#78350f', border: '#fcd34d', dot: '#d97706' },
   critical: { bg: '#fee2e2', text: '#7f1d1d', border: '#fca5a5', dot: '#b91c1c' },
   neutral:  { bg: '#f3f4f6', text: '#475063', border: '#e3e6ec', dot: '#6b7280' },
 };
@@ -2308,6 +2408,59 @@ async function logActivity(env, accessToken, event) {
 // for the email + webhook payloads. Same view the dashboard's red
 // callout shows, but flattened for non-HTML consumers.
 // ─────────────────────────────────────────────────────────────────────
+// Mirror of the dashboard's backupDiskAgeFinding(). Walks the WSB
+// probe's backupsByTarget list, picks the target whose newestBackup
+// is the latest (= currently active disk), computes age as (now -
+// that target's oldestBackup), compares to threshold. Returns null
+// when WSB isn't installed / no per-target history / no dates we can
+// parse. Returns { target, ageDays, thresholdDays, exceeds,
+// oldestBackup, newestBackup } otherwise. The trigger only fires when
+// exceeds === true.
+function pickPrimaryAgedBackupDisk(wsb, thresholdDays) {
+  if (!wsb || !wsb.installed) return null;
+  const targets = Array.isArray(wsb.backupsByTarget) ? wsb.backupsByTarget : [];
+  if (!targets.length) return null;
+  let primary = null;
+  let latestMs = -Infinity;
+  for (const t of targets) {
+    const newestIso = t && t.newestBackup;
+    if (!newestIso) continue;
+    const ms = Date.parse(newestIso);
+    if (!isFinite(ms)) continue;
+    if (ms > latestMs) {
+      latestMs = ms;
+      primary = t;
+    }
+  }
+  if (!primary) return null;
+  const oldestIso = primary.oldestBackup;
+  if (!oldestIso) return null;
+  const oldestMs = Date.parse(oldestIso);
+  if (!isFinite(oldestMs)) return null;
+  const ageDays = (Date.now() - oldestMs) / 86_400_000;
+  return {
+    target: primary.target || '?',
+    ageDays,
+    thresholdDays,
+    exceeds: ageDays > thresholdDays,
+    oldestBackup: oldestIso,
+    newestBackup: primary.newestBackup || null,
+  };
+}
+
+// Convert a fractional day count into the "Xd" / "Xy Yd" / "Xy" labels
+// the dashboard's _fmtAgeDays produces. Used in both the email subject
+// + webhook payloads so the operator sees consistent phrasing everywhere.
+function _fmtAgeDays(days) {
+  if (!isFinite(days) || days < 0) return '?';
+  const d = Math.floor(days);
+  if (d < 365) return `${d}d`;
+  const y = Math.floor(d / 365);
+  const remD = d - y * 365;
+  if (remD === 0) return `${y}y`;
+  return `${y}y ${remD}d`;
+}
+
 function extractOmsaIssues(omsa) {
   if (!omsa) return [];
   const issues = [];
@@ -2439,6 +2592,58 @@ async function sendBackupFailureEmail(env, { pcId, hostname, client, result, det
 }
 
 // ─────────────────────────────────────────────────────────────────────
+// Resend email — primary backup disk aged out alert
+// ─────────────────────────────────────────────────────────────────────
+//
+// Fires once per OK -> aged transition. Warn-level (amber), not
+// critical -- the host's backups still ran successfully on this disk,
+// it's just been in continuous rotation longer than the admin's
+// configured threshold (default 913 days / 2.5y). Body emphasizes
+// "plan a swap" rather than "outage now."
+async function sendBackupDiskAgedEmail(env, { pcId, hostname, client, target, ageDays, ageLabel, thresholdDays, thresholdLabel, oldestBackup, newestBackup, when }) {
+  const subject = `[Watchtower] ${hostname} · Backup disk aged · ${ageLabel} in rotation`;
+  const subtitleHtml = `on <b style="color:#ffffff;">${escapeHtml(hostname || '?')}</b> &middot; <span style="color:#fcd34d;">${escapeHtml(ageLabel || '?')} in rotation${thresholdLabel ? ` (threshold ${escapeHtml(thresholdLabel)})` : ''}</span>`;
+  const targetShort = target ? escapeHtml(String(target).slice(0, 64)) : '?';
+  const oldestShort = oldestBackup ? escapeHtml(String(oldestBackup).slice(0, 10)) : '?';
+  const newestShort = newestBackup ? escapeHtml(String(newestBackup).slice(0, 10)) : '?';
+  const bodyHtml = `
+    <p style="font-size:15px;color:#1a1f2b;line-height:1.55;margin:0 0 22px;">
+      The primary backup target on this host has been in continuous rotation for longer than the configured threshold. Backup disks are a wear item &mdash; rotating to a fresh unit now keeps you ahead of the failure curve rather than scrambling after one.
+    </p>
+    <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:18px;"><tr>
+      <td style="background:#fef3c7;border:1px solid #fcd34d;border-radius:10px;padding:14px 18px;width:32%;vertical-align:top;text-align:center;">
+        <div style="font-size:10.5px;color:#8892a4;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:4px;">In rotation</div>
+        <div style="font-size:28px;color:#78350f;font-weight:800;line-height:1;">${escapeHtml(ageLabel || '?')}</div>
+        <div style="font-size:11px;color:#a16207;margin-top:4px;">since first backup</div>
+      </td>
+      <td width="4%"></td>
+      <td style="background:#fafbfc;border:1px solid #e3e6ec;border-radius:10px;padding:14px 18px;vertical-align:top;">
+        <div style="font-size:10.5px;color:#8892a4;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:4px;">Backup target</div>
+        <div style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:14px;color:#475063;font-weight:700;line-height:1.3;word-break:break-all;">${targetShort}</div>
+        <div style="font-size:11.5px;color:#475063;margin-top:6px;">First backup ${oldestShort} &middot; latest ${newestShort}</div>
+      </td>
+    </tr></table>
+    <div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;padding:14px 18px;margin-bottom:0;">
+      <div style="font-size:10.5px;color:#92400e;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">Suggested next steps</div>
+      <ul style="margin:0;padding-left:18px;font-size:13.5px;color:#78350f;line-height:1.7;">
+        <li>Pull SMART data &mdash; if reallocated sectors or pending sectors are non-zero, swap immediately.</li>
+        <li>Order a replacement disk in the same capacity tier and confirm WSB picks it up via <code style="font-family:ui-monospace,Menlo,Consolas,monospace;background:#fffbeb;padding:1px 5px;border-radius:3px;">wbadmin enable backup -addtarget</code>.</li>
+        <li>Adjust the threshold under <b>Settings &middot; Backup disk age alert</b> if ${escapeHtml(thresholdLabel || 'the default')} is too aggressive for this customer.</li>
+      </ul>
+    </div>
+  `;
+  const html = renderEmailShell({
+    client, hostname, pcId,
+    headline: 'Backup Disk Aging Out',
+    subtitleHtml,
+    severity: 'warn',
+    bandText: 'Windows Server Backup · advisory',
+    bodyHtml,
+  });
+  await postResendEmail(env, { subject, html });
+}
+
+// ─────────────────────────────────────────────────────────────────────
 // Resend email — agent uninstalled at the host side
 // ─────────────────────────────────────────────────────────────────────
 // Fires once from the /uninstall endpoint. Distinct from the admin's
@@ -2544,6 +2749,11 @@ function eventMeta(p) {
     }
     case 'wsb_backup_failed':
       return { headline: 'Backup Failed', severity: 'critical', context: p.daysSinceSuccess != null ? `${p.daysSinceSuccess} day${p.daysSinceSuccess === 1 ? '' : 's'} since last success` : 'no successful backup on record' };
+    case 'backup_disk_aged':
+      // ageDays is float; we already humanize it (e.g. "2y 285d") on
+      // the agent side as p.ageLabel. Fall back to "?" if a downstream
+      // payload omitted it.
+      return { headline: 'Backup Disk Aging Out', severity: 'warn', context: p.ageLabel ? `${p.ageLabel} in rotation${p.thresholdLabel ? ` (threshold ${p.thresholdLabel})` : ''}` : 'past configured threshold' };
     case 'disk_low': {
       const sev = p.severity === 'critical' ? 'critical' : 'critical';   // any disk_low is critical-flavored
       return { headline: `${p.drive || 'C:'} Drive Critically Low`, severity: sev, context: p.freeGB != null ? `${p.freeGB} GB / ${p.freePct}% free` : null };
@@ -2559,9 +2769,9 @@ function eventMeta(p) {
 // Per-platform color encodings of {info, critical, neutral}. Same
 // brand teal / red / gray as the emails; just the format the
 // platform expects.
-const _WH_HEX_HASH    = { info: '#0a6b6b', critical: '#b91c1c', neutral: '#6b7280' };  // Slack attachment
-const _WH_HEX_NOHASH  = { info: '0a6b6b',  critical: 'b91c1c',  neutral: '6b7280'  };  // Teams MessageCard
-const _WH_DECIMAL_RGB = { info: 0x0a6b6b,  critical: 0xb91c1c,  neutral: 0x6b7280  };  // Discord embed
+const _WH_HEX_HASH    = { info: '#0a6b6b', warn: '#d97706', critical: '#b91c1c', neutral: '#6b7280' };  // Slack attachment
+const _WH_HEX_NOHASH  = { info: '0a6b6b',  warn: 'd97706',  critical: 'b91c1c',  neutral: '6b7280'  };  // Teams MessageCard
+const _WH_DECIMAL_RGB = { info: 0x0a6b6b,  warn: 0xd97706,  critical: 0xb91c1c,  neutral: 0x6b7280  };  // Discord embed
 
 function buildWebhookBody(url, payload) {
   const summary = humanSummary(payload);
@@ -2594,7 +2804,7 @@ function buildSlackMessage(p, summary, meta) {
   const client = p.client || 'Unassigned';
   const hostname = p.hostname || '?';
   const cardUrl = dashboardUrl(p.pcId);
-  const sevLabel = meta.severity === 'critical' ? 'CRITICAL' : meta.severity === 'neutral' ? 'INFO' : 'INFO';
+  const sevLabel = meta.severity === 'critical' ? 'CRITICAL' : meta.severity === 'warn' ? 'ADVISORY' : meta.severity === 'neutral' ? 'INFO' : 'INFO';
 
   // Lead context: bold client + severity label so the FIRST line of
   // the message in the Slack channel screams "WHO + HOW URGENT".
@@ -2666,6 +2876,12 @@ function _slackFacts(p) {
       add('Drive', p.drive || 'C:');
       add('Free',  `${p.freeGB} GB (${p.freePct}%)`);
       break;
+    case 'backup_disk_aged':
+      if (p.ageLabel) add('In rotation', p.ageLabel);
+      if (p.thresholdLabel) add('Threshold', p.thresholdLabel);
+      if (p.target) add('Target', `\`${String(p.target).slice(0, 60)}\``);
+      if (p.oldestBackup) add('First backup', p.oldestBackup.slice(0, 10));
+      break;
     case 'agent_uninstalled':
     case 'agent_decommissioned':
       if (p.source) add('Source', `\`${p.source}\``);
@@ -2689,7 +2905,7 @@ function buildTeamsMessageCard(p, summary, meta) {
   const client = p.client || 'Unassigned';
   const hostname = p.hostname || '?';
   const cardUrl = dashboardUrl(p.pcId);
-  const sevLabel = meta.severity === 'critical' ? 'CRITICAL' : meta.severity === 'neutral' ? 'INFO' : 'INFO';
+  const sevLabel = meta.severity === 'critical' ? 'CRITICAL' : meta.severity === 'warn' ? 'ADVISORY' : meta.severity === 'neutral' ? 'INFO' : 'INFO';
 
   // Watchtower icon as activityImage. Teams expects an HTTPS URL.
   const iconUrl = 'https://frank-umbrella.github.io/work/watchtower/icon-192.png';
@@ -2714,6 +2930,12 @@ function buildTeamsMessageCard(p, summary, meta) {
     case 'disk_low':
       if (p.drive) facts.push({ name: 'Drive', value: p.drive });
       if (p.freeGB != null) facts.push({ name: 'Free', value: `${p.freeGB} GB (${p.freePct}%)` });
+      break;
+    case 'backup_disk_aged':
+      if (p.ageLabel) facts.push({ name: 'In rotation', value: p.ageLabel });
+      if (p.thresholdLabel) facts.push({ name: 'Threshold', value: p.thresholdLabel });
+      if (p.target) facts.push({ name: 'Target', value: String(p.target).slice(0, 80) });
+      if (p.oldestBackup) facts.push({ name: 'First backup', value: p.oldestBackup.slice(0, 10) });
       break;
     case 'agent_uninstalled':
     case 'agent_decommissioned':
@@ -2780,6 +3002,12 @@ function buildDiscordEmbed(p, summary, meta) {
       if (p.drive) fields.push({ name: 'Drive', value: p.drive, inline: true });
       if (p.freeGB != null) fields.push({ name: 'Free', value: `${p.freeGB} GB (${p.freePct}%)`, inline: true });
       break;
+    case 'backup_disk_aged':
+      if (p.ageLabel) fields.push({ name: 'In rotation', value: p.ageLabel, inline: true });
+      if (p.thresholdLabel) fields.push({ name: 'Threshold', value: p.thresholdLabel, inline: true });
+      if (p.oldestBackup) fields.push({ name: 'First backup', value: p.oldestBackup.slice(0, 10), inline: true });
+      if (p.target) fields.push({ name: 'Target', value: `\`${String(p.target).slice(0, 80)}\``, inline: false });
+      break;
     case 'agent_uninstalled':
     case 'agent_decommissioned':
       if (p.source) fields.push({ name: 'Source', value: `\`${p.source}\``, inline: true });
@@ -2829,7 +3057,7 @@ function buildGoogleChatCard(p, summary, meta) {
   // Reuse the same dashboard URL helper the email templates use so deep
   // links stay consistent across surfaces.
   const cardUrl = dashboardUrl(p.pcId);
-  const sevLabel = meta.severity === 'critical' ? 'CRITICAL' : meta.severity === 'neutral' ? 'INFO' : 'INFO';
+  const sevLabel = meta.severity === 'critical' ? 'CRITICAL' : meta.severity === 'warn' ? 'ADVISORY' : meta.severity === 'neutral' ? 'INFO' : 'INFO';
 
   const widgets = [];
 
@@ -2889,6 +3117,12 @@ function buildGoogleChatCard(p, summary, meta) {
       widgets.push(_gchatFact('Severity', String(p.severity || 'warning').toUpperCase(), 'STAR'));
       widgets.push(_gchatFact('Free', `${p.freeGB} GB (${p.freePct}%)`, 'STAR'));
       if (p.sizeGB) widgets.push(_gchatFact('Total', `${p.sizeGB} GB`, 'BOOKMARK'));
+      break;
+    case 'backup_disk_aged':
+      if (p.ageLabel) widgets.push(_gchatFact('In rotation', p.ageLabel, 'CLOCK'));
+      if (p.thresholdLabel) widgets.push(_gchatFact('Threshold', p.thresholdLabel, 'BOOKMARK'));
+      if (p.oldestBackup) widgets.push(_gchatFact('First backup', p.oldestBackup.slice(0, 10), 'CLOCK'));
+      if (p.target) widgets.push(_gchatFact('Target', String(p.target).slice(0, 80), 'DESCRIPTION'));
       break;
     case 'wsb_backup_failed':
       widgets.push(_gchatFact('Result', p.result || '?', 'STAR'));
@@ -2992,6 +3226,8 @@ function humanSummary(p) {
       return `${prefix} · OMSA ${String(p.rollup || 'WARN').toUpperCase()} on ${host}`;
     case 'wsb_backup_failed':
       return `${prefix} · Backup FAILED on ${host}${p.daysSinceSuccess != null ? ` (${p.daysSinceSuccess}d w/o success)` : ''}`;
+    case 'backup_disk_aged':
+      return `${prefix} · Backup disk aged on ${host}${p.ageLabel ? ` (${p.ageLabel} in rotation)` : ''}`;
     case 'disk_low':
       return `${prefix} · ${p.drive || 'C:'} ${(p.severity || 'warning').toUpperCase()} on ${host} (${p.freePct}% free)`;
     case 'agent_uninstalled':

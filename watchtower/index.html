@@ -1103,7 +1103,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.45";
+const APP_VERSION = "0.14.46";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -3002,6 +3002,9 @@ function renderActivityRow(e) {
       break;
     case "wsb_failure":
       summary = `Windows Server Backup failed on ${hostLink}${clientLabel} &middot; <code>${esc(e.details?.result || "?")}</code>`;
+      break;
+    case "backup_disk_aged":
+      summary = `Primary backup disk aged on ${hostLink}${clientLabel} &middot; <code>${esc(e.details?.target || "?")}</code> in rotation ${esc(_fmtAgeDays(e.details?.ageDays || 0))} (threshold ${esc(_fmtAgeDays(e.details?.thresholdDays || 0))})`;
       break;
     case "host_reassigned":
       summary = `${hostLink} reassigned: ${esc(e.details?.previousClient || "?")} &rarr; ${esc(e.details?.newClient || "?")}`;

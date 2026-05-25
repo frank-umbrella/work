@@ -128,7 +128,7 @@
       </svg>
       <div>
         <div class="meta">Umbrella Automation</div>
-        <h1>Watchtower &middot; Docs <span class="version-chip">v0.14.45</span></h1>
+        <h1>Watchtower &middot; Docs <span class="version-chip">v0.14.46</span></h1>
       </div>
     </a>
     <a class="btn brand-link" href="index.html">&larr; Back to dashboard</a>
@@ -619,7 +619,7 @@ Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" 
 <ul>
   <li>If the URL is empty, no webhook events fire across any endpoint regardless of per-PC toggles.</li>
   <li>If a host has a legacy per-agent <code>webhookUrl</code> set (from before v0.8.0), that wins over the master URL for that one host &mdash; the drawer shows the override inline. To clear it, toggle <code>webhookEnabled</code> off then on, or edit <code>/agents/&lt;pcId&gt;/config/current</code> directly in the Firebase console.</li>
-  <li>Events fired: <code>external_ip_changed</code>, <code>omsa_warning</code>, <code>wsb_backup_failed</code>, <code>agent_uninstalled</code>, and <code>test</code> (from the Test webhook button).</li>
+  <li>Events fired: <code>external_ip_changed</code>, <code>omsa_warning</code>, <code>wsb_backup_failed</code>, <code>backup_disk_aged</code>, <code>disk_low</code>, <code>host_onboarded</code>, <code>agent_uninstalled</code>, and <code>test</code> (from the Test webhook button).</li>
 </ul>
 
 <h4>Payload format per receiver (auto-detected)</h4>
@@ -802,6 +802,16 @@ Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" 
   <li><b>Honors the per-PC kill switches</b> &mdash; flipping <code>emailEnabled</code> off in the drawer silences backup alerts for that host the same way it silences IP-change alerts.</li>
   <li><b>Webhook payload</b> &mdash; if <code>webhookEnabled</code> is on, a JSON POST also fires with <code>event: "wsb_backup_failed"</code> and the full failure context (result, attemptedAt, lastSuccess, daysSinceSuccess).</li>
   <li><b>Recovery</b> &mdash; when a backup eventually succeeds, no email fires (no point celebrating a normal day). The next failure starts the cycle again.</li>
+</ul>
+
+<h3 id="backup-aged-alerts">Email + webhook alerts on aging backup disks</h3>
+<p>Separate from the failure alert: the worker also fires a one-time <b>advisory</b> (amber severity, not critical) when a host's primary backup disk has been in continuous rotation longer than the configured threshold. The default is <b>913 days (~2.5 years)</b>, set in <b>Settings &middot; Backup disk age alert</b>. Bumping that field re-evaluates every host on the next check-in &mdash; raising it past a host's current age silences the alert; lowering it past current age fires it.</p>
+<ul>
+  <li><b>Primary disk</b> &mdash; defined as the WSB target whose most-recent backup is the newest across all targets. Multi-target hosts (e.g. local disk + UNC share) get their <i>active</i> disk evaluated, not the older one.</li>
+  <li><b>Age</b> &mdash; computed as (today &minus; that target's oldest backup timestamp). The first time WSB wrote a backup to the disk is the start of its rotation.</li>
+  <li><b>Once per crossing</b> &mdash; same dedup pattern as OMSA / disk-low. The first check-in that detects the threshold crossing emails + webhooks; subsequent check-ins stay silent. Swap the disk (oldestBackup drops &rarr; age plummets) and the dedup clears; if the new disk later ages out, you'll get a fresh alert.</li>
+  <li><b>Severity is <code>warn</code></b> &mdash; new amber color band on the email + warn-colored webhook (Slack/Discord left bar amber, Teams top bar amber, Google Chat ADVISORY label). Reads as "plan a swap" not "outage."</li>
+  <li><b>Webhook payload</b> &mdash; <code>event: "backup_disk_aged"</code> with <code>target</code>, <code>ageDays</code>, <code>ageLabel</code> ("2y 285d"), <code>thresholdDays</code>, <code>thresholdLabel</code>, <code>oldestBackup</code>, <code>newestBackup</code>.</li>
 </ul>
 
 <h2 id="exports">Exports (PDF / CSV / Excel)</h2>
