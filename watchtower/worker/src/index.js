@@ -2294,6 +2294,12 @@ async function sendIntakeEmail(env, { pcId, hostname, client, agentVersion, when
   if (r.carbonite && r.carbonite.installed) {
     for (const p of (r.carbonite.products || [])) productChips.push(`${escapeHtml(p.name)} ${escapeHtml(p.version || '')}`.trim());
   }
+  if (r.ibackup && r.ibackup.installed) {
+    for (const p of (r.ibackup.products || [])) productChips.push(`${escapeHtml(p.name)} ${escapeHtml(p.version || '')}`.trim());
+    if (r.ibackup.lastBackupResult || r.ibackup.lastBackupAt) {
+      productDetails.push(`IBackup &middot; last run <b style="color:${r.ibackup.lastBackupResult === 'Success' ? '#16a34a' : '#b91c1c'};">${escapeHtml(r.ibackup.lastBackupResult || 'unknown')}</b>${r.ibackup.lastBackupAt ? ` &middot; ${escapeHtml(String(r.ibackup.lastBackupAt).replace('T', ' ').replace('Z', ''))}` : ''}`);
+    }
+  }
   if (r.omsa && r.omsa.installed) {
     productChips.push(`OMSA ${escapeHtml(r.omsa.version || '?')}`);
     productDetails.push(`Dell OMSA <b>${escapeHtml(r.omsa.version || '?')}</b> &middot; rollup <b style="color:${r.omsa.healthRollup === 'ok' ? '#16a34a' : '#b91c1c'};">${escapeHtml(r.omsa.healthRollup || 'unknown')}</b> &middot; ${(r.omsa.physicalDisks || []).length} disks, ${(r.omsa.virtualDisks || []).length} arrays`);

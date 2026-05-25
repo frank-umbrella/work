@@ -143,11 +143,13 @@ if (-not $SkipPyInstaller) {
             --hidden-import probes.network `
             --hidden-import probes.storage `
             --hidden-import probes.users `
+            --hidden-import probes.admins `
             --hidden-import probes.software `
             --hidden-import probes.defender `
             --hidden-import probes.veeam `
             --hidden-import probes.wsb `
             --hidden-import probes.carbonite `
+            --hidden-import probes.ibackup `
             --hidden-import probes.logmein `
             --hidden-import probes.sentinelone `
             --hidden-import probes.omsa `

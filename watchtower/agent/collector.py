@@ -44,6 +44,7 @@ PROBES = [
     ("veeam",        "veeam"),
     ("wsb",          "wsb"),
     ("carbonite",    "carbonite"),
+    ("ibackup",      "ibackup"),
     ("logmein",      "logmein"),
     ("sentinelone",  "sentinelone"),
     ("omsa",         "omsa"),

@@ -542,6 +542,7 @@
   .pill-veeam      { background: #ecfdf5; border-color: #6ee7b7; color: #065f46; }
   .pill-wsb        { background: #eff6ff; border-color: #93c5fd; color: #1e3a8a; }
   .pill-carbonite  { background: #fef3c7; border-color: #fcd34d; color: #78350f; }
+  .pill-ibackup    { background: #e0f2fe; border-color: #7dd3fc; color: #075985; }
   .pill-lmi        { background: #fae8ff; border-color: #d8b4fe; color: #581c87; }
   .pill-idrac      { background: #e0e7ff; border-color: #a5b4fc; color: #312e81; }
 
@@ -1103,7 +1104,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.53";
+const APP_VERSION = "0.14.54";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -1980,6 +1981,7 @@ function renderFleet() {
     if (r.veeam && r.veeam.installed) backupPills.push(`<span class="pill pill-veeam" title="Veeam">Veeam</span>`);
     if (r.wsb && r.wsb.installed) backupPills.push(`<span class="pill pill-wsb" title="Windows Server Backup">WSB</span>`);
     if (r.carbonite && r.carbonite.installed) backupPills.push(`<span class="pill pill-carbonite" title="Carbonite">Carb</span>`);
+    if (r.ibackup && r.ibackup.installed) backupPills.push(`<span class="pill pill-ibackup" title="IBackup (Pro Softnet)">IBack</span>`);
     const backupCell = backupPills.length ? backupPills.join(" ") : `<span class="meta">—</span>`;
     const remotePills = [];
     if (r.logmein && r.logmein.installed) remotePills.push(`<span class="pill pill-lmi" title="LogMeIn">LMI</span>`);
@@ -3826,6 +3828,7 @@ function buildReportDom(a, logoPngDataUrl) {
   const veeam = r.veeam;
   const wsb = r.wsb;
   const carbonite = r.carbonite;
+  const ibackup = r.ibackup;
   const lmi = r.logmein;
   const s1 = r.sentinelone;
   const def = r.defender;
@@ -4086,7 +4089,7 @@ function buildReportDom(a, logoPngDataUrl) {
       `;
     })() : ""}
 
-    ${(veeam || wsb || carbonite) ? sectionHdr("Backups") + `
+    ${(veeam || wsb || carbonite || ibackup) ? sectionHdr("Backups") + `
       ${veeam && veeam.installed ? (veeam.products || []).map(p => {
         const productLine = `<div style="font-size:12px;margin-bottom:4px;"><b>${p.edition === "br" ? "Veeam Backup &amp; Replication" : "Veeam Agent for Windows"}</b> v${esc(p.version || "?")}${p.lastJob && p.lastJob.result ? ` &middot; last job: <b>${esc(p.lastJob.result)}</b>${p.lastJob.endTime ? ` (${esc(p.lastJob.endTime)})` : ""}` : ""}</div>`;
         // Per-job policy table (v0.14.11+). Color-coded policyType cell
@@ -4206,6 +4209,27 @@ function buildReportDom(a, logoPngDataUrl) {
         return productList + `<div style="font-size:12px;margin-top:2px;margin-bottom:8px;">
           &nbsp;&nbsp;&nbsp;&nbsp;Protected per Carbonite: ${protBadge}
           &middot; Files protected: ${filesCell}
+        </div>`;
+      })() : ""}
+      ${ibackup && ibackup.installed ? (() => {
+        // IBackup mirrors the Carbonite pattern: per-product list + a
+        // "Last backup" / "Last result" operational summary pulled from
+        // the IBackup registry surface. PDF uses the same badge colors
+        // as the dashboard so a printed report reads identically.
+        const productList = (ibackup.products || []).map(p => `<div style="font-size:12px;margin-bottom:4px;"><b>${esc(p.name)}</b> v${esc(p.version || "?")}</div>`).join("");
+        const resBadge = ibackup.lastBackupResult === "Success"
+          ? `<span style="background:#dcfce7;color:#14532d;padding:1px 6px;border-radius:3px;font-size:10.5px;font-weight:700;">SUCCESS</span>`
+          : ibackup.lastBackupResult === "Failed"
+            ? `<span style="background:#fee2e2;color:#7f1d1d;padding:1px 6px;border-radius:3px;font-size:10.5px;font-weight:700;">FAILED</span>`
+            : ibackup.lastBackupResult === "Warning"
+              ? `<span style="background:#fef3c7;color:#78350f;padding:1px 6px;border-radius:3px;font-size:10.5px;font-weight:700;">WARNING</span>`
+              : `<span style="background:#f3f4f6;color:#374151;padding:1px 6px;border-radius:3px;font-size:10.5px;font-weight:700;">UNKNOWN</span>`;
+        const whenCell = ibackup.lastBackupAt
+          ? `<code>${esc(String(ibackup.lastBackupAt).replace("T", " ").replace("Z", ""))}</code>`
+          : `<span style="color:#888;">unknown</span>`;
+        return productList + `<div style="font-size:12px;margin-top:2px;margin-bottom:8px;">
+          &nbsp;&nbsp;&nbsp;&nbsp;Last backup: ${whenCell}
+          &middot; Result: ${resBadge}
         </div>`;
       })() : ""}
     ` : ""}
@@ -4385,6 +4409,7 @@ function buildHostSections(a) {
   const veeam = r.veeam;
   const wsb = r.wsb;
   const carbonite = r.carbonite;
+  const ibackup = r.ibackup;
   const lmi = r.logmein;
   const s1 = r.sentinelone;
   const def = r.defender;
@@ -4519,6 +4544,20 @@ function buildHostSections(a) {
   if (carbonite && carbonite.installed) {
     (carbonite.products || []).forEach(p => backupRows.push([
       p.name, p.version || "", "", "", "", "", "",
+    ]));
+  }
+  if (ibackup && ibackup.installed) {
+    // IBackup populates lastBackupResult + lastBackupAt fields off the
+    // top-level probe object (one set per host, not per product), so
+    // we attach them to the FIRST product row and emit subsequent
+    // products with blank result/timestamp cells -- mirrors how the
+    // probe surfaces "this host's last IBackup run" rather than a
+    // per-edition session history.
+    (ibackup.products || []).forEach((p, idx) => backupRows.push([
+      p.name, p.version || "",
+      idx === 0 ? (ibackup.lastBackupResult || "") : "",
+      idx === 0 ? (ibackup.lastBackupAt || "") : "",
+      "", "", "",
     ]));
   }
   if (backupRows.length) {
@@ -5217,6 +5256,7 @@ function renderDrawer(pcId) {
   const veeam = r.veeam;
   const wsb = r.wsb;
   const carbonite = r.carbonite;
+  const ibackup = r.ibackup;
   const lmi = r.logmein;
   const s1 = r.sentinelone;
   const omsa = r.omsa;
@@ -5459,6 +5499,8 @@ function renderDrawer(pcId) {
     ${wsb ? `<div class="section"><h3>Windows Server Backup</h3>${renderWsb(wsb)}</div>` : ""}
 
     ${carbonite ? `<div class="section"><h3>Carbonite</h3>${renderCarbonite(carbonite)}</div>` : ""}
+
+    ${(r.ibackup) ? `<div class="section"><h3>IBackup</h3>${renderIBackup(r.ibackup)}</div>` : ""}
 
     ${omsa ? `<div class="section"><h3>Dell OMSA &middot; storage</h3>${renderOmsa(omsa)}</div>` : ""}
 
@@ -6094,6 +6136,52 @@ function renderCarbonite(c) {
     ${services ? `<div class="list" style="margin-top:8px;">${services}</div>` : ""}
     ${statusKv}
     ${!products && !services ? `<div class="meta">Detected — no product or service details available.</div>` : ""}
+  `;
+}
+
+function renderIBackup(ib) {
+  if (ib._error) return `<div class="meta">Probe error: ${esc(ib._error)}</div>`;
+  const products = (ib.products || []).map(p => `
+    <div class="row">
+      <div><div class="name">${esc(p.name)}</div><div class="meta">${esc(p.publisher || "")}</div></div>
+      <div class="meta">v${esc(p.version || "?")}</div>
+    </div>
+  `).join("");
+  const services = (ib.services || []).map(s => `
+    <div class="row">
+      <div class="name">${esc(s.name)}</div>
+      <div class="meta"><span class="badge ${s.state === "running" ? "ok" : "warn"}">${esc(s.state)}</span></div>
+    </div>
+  `).join("");
+
+  // Operational status -- last-backup time + result, both best-effort
+  // from the IBackup registry surface. Same pattern Carbonite uses:
+  // null means we couldn't find the value in any known location, render
+  // as "unknown" so we don't lie about backup state. Where IBackup
+  // reports a clear result, surface a colored badge.
+  const resultBadge = ib.lastBackupResult === "Success"
+    ? `<span class="badge ok">Success</span>`
+    : ib.lastBackupResult === "Failed"
+      ? `<span class="badge bad">Failed</span>`
+      : ib.lastBackupResult === "Warning"
+        ? `<span class="badge warn">Warning</span>`
+        : `<span class="badge muted" title="IBackup didn't write a recognizable result value to any of the registry locations we check. Open the IBackup UI on the host to see live status.">unknown</span>`;
+  const whenCell = ib.lastBackupAt
+    ? `<code>${esc(String(ib.lastBackupAt).replace("T", " ").replace("Z", ""))}</code>`
+    : `<span class="badge muted" title="IBackup didn't write a recognizable last-backup timestamp to any of the registry locations we check.">unknown</span>`;
+
+  const statusKv = `<div class="kv" style="margin-top:10px;">
+    <div class="k" title="Pulled from the registry value IBackup writes when a backup session completes. Walks SOFTWARE\\Pro Softnet Corporation\\IBackup subtree for any matching field.">Last backup</div>
+    <div class="v">${whenCell}${ib.lastBackupSource ? ` <span class="meta" style="font-size:11px;">&middot; <code>${esc(ib.lastBackupSource)}</code></span>` : ""}</div>
+    <div class="k" title="Success/Failed/Warning. Both numeric (0=success) and string values are coerced.">Last result</div>
+    <div class="v">${resultBadge}</div>
+  </div>`;
+
+  return `
+    ${products ? `<div class="list">${products}</div>` : ""}
+    ${services ? `<div class="list" style="margin-top:8px;">${services}</div>` : ""}
+    ${statusKv}
+    ${!products && !services ? `<div class="meta">Detected &mdash; no product or service details available.</div>` : ""}
   `;
 }
 

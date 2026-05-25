@@ -128,7 +128,7 @@
       </svg>
       <div>
         <div class="meta">Umbrella Automation</div>
-        <h1>Watchtower &middot; Docs <span class="version-chip">v0.14.53</span></h1>
+        <h1>Watchtower &middot; Docs <span class="version-chip">v0.14.54</span></h1>
       </div>
     </a>
     <a class="btn brand-link" href="index.html">&larr; Back to dashboard</a>
@@ -207,6 +207,7 @@
   <li><b>System &middot; network &middot; storage &middot; users &middot; software &middot; hotfixes &middot; pending Windows Updates &middot; USB history</b> &mdash; Belarc-lite asset inventory pulled from WMI + registry + WUApi COM. System probe also detects whether the host is a VM, and on Hyper-V guests captures the parent host's name so the dashboard can link VM &harr; physical host.</li>
   <li><b>Defender</b> &mdash; enabled, realtime status, definitions version + age, last scan times.</li>
   <li><b>Veeam</b> &mdash; detects Backup &amp; Replication and/or Agent for Windows side-by-side (both can be installed on the same host). <b>Agent:</b> last-session result + configured job list with policy type (EntireComputer / Volume / File / SystemState) and destination. <b>B&amp;R:</b> 5 most recent sessions across all jobs (job name, result, end time) via the Veeam.Backup.PowerShell module.</li>
+  <li><b>IBackup</b> &mdash; cloud backup from Pro Softnet Corp. Detects every IBackup SKU (IBackup for Windows, IBackup for Servers, IBackup Professional, legacy IBackup Online) via Uninstall registry + service candidates. Reports per-product version + last-backup timestamp + last-backup result (Success / Failed / Warning) when IBackup writes recognizable values to its registry surface; otherwise "unknown" with a tooltip explaining the missing field.</li>
   <li><b>Windows Server Backup</b> &mdash; <code>Get-WBSummary</code> on Server SKUs. Last backup time, last successful backup, retained versions, next scheduled backup, current operation.</li>
   <li><b>Carbonite</b> &mdash; presence + version + service state for Server Backup, Endpoint Backup, or Safe variants.</li>
   <li><b>LogMeIn</b> &mdash; install state, service + guardian state, Central computer description.</li>
