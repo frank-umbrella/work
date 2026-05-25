@@ -49,6 +49,37 @@ class UpdateError(Exception):
     pass
 
 
+def scrub_legacy_token_leaks():
+    """Removes install tokens from existing install.log files. Earlier
+    builds (<=v0.14.39) passed /TOKEN= on the command line, which Inno
+    Setup echoes verbatim into install.log's header. That log lives in
+    %ProgramData%\\Watchtower\\ with users-modify ACL -- any local user
+    could read the token. This function is called once per agent boot
+    to scrub any historical leaks. Idempotent / safe to call repeatedly.
+
+    Replaces every occurrence of `wt_<43-base64-chars>` in install.log
+    with `<redacted-by-scrub>`. Also redacts the legacy
+    WATCHTOWER_INSTALL_TOKEN shared-secret form (any token after
+    `/TOKEN=` up to whitespace) for older installers."""
+    import re
+    log_path = r"C:\ProgramData\Watchtower\install.log"
+    if not os.path.exists(log_path):
+        return
+    try:
+        with open(log_path, "r", encoding="utf-8", errors="replace") as f:
+            content = f.read()
+        # Per-client token format: wt_<43 base64url chars>
+        scrubbed = re.sub(r"wt_[A-Za-z0-9_\-]{40,}", "wt_<redacted-by-scrub>", content)
+        # Legacy /TOKEN=<anything> shared-secret form
+        scrubbed = re.sub(r"(/TOKEN=)\S+", r"\1<redacted-by-scrub>", scrubbed)
+        if scrubbed != content:
+            with open(log_path, "w", encoding="utf-8") as f:
+                f.write(scrubbed)
+            _logger.log(f"updater.scrub_legacy_token_leaks: redacted token(s) in {log_path}")
+    except OSError as e:
+        _logger.log(f"updater.scrub_legacy_token_leaks: skipped ({e})")
+
+
 def _semver_tuple(v):
     """Best-effort semver parse: '0.9.0' -> (0, 9, 0). Handles 'wt_' prefix
     and trailing labels (e.g. '0.9.0-beta1') by stripping non-numeric tails."""
@@ -190,18 +221,55 @@ def apply_update_if_needed(worker_url, current_version, install_token, force=Fal
         pass
     install_log_path = os.path.join(install_log_dir, "install.log")
 
+    # CRITICAL: do NOT pass the install token via the command line.
+    # Inno Setup writes the entire command line into install.log as
+    # part of its standard header -- and that log lives in
+    # %ProgramData%\Watchtower\ which has users-modify permissions, so
+    # any non-admin user on the box could read the token and use it to
+    # silently install rogue agents that appear in the dashboard as
+    # legitimate endpoints. Write the token to a stash file with
+    # admin-only ACL, pass the file path instead; the installer's
+    # [Code] reads it and deletes the stash on success.
+    token_stash = os.path.join(install_log_dir, ".install-token.stash")
+    try:
+        # Write atomically + restrict ACL. We use icacls because
+        # creating a Windows ACL from Python's stdlib alone is messy --
+        # icacls.exe is universally available and predictable.
+        with open(token_stash, "w", encoding="ascii") as f:
+            f.write(install_token)
+        # /inheritance:r removes inherited ACEs (so users-modify on the
+        # parent dir doesn't grant anyone read access). Then explicit
+        # grants for SYSTEM + Administrators only.
+        subprocess.run(
+            ["icacls.exe", token_stash,
+             "/inheritance:r",
+             "/grant:r", "SYSTEM:F",
+             "/grant:r", "Administrators:F"],
+            capture_output=True,
+            timeout=15,
+            creationflags=0x08000000,
+        )
+        _logger.log(f"updater.apply_update_if_needed: wrote token stash {token_stash} with admin-only ACL")
+    except (OSError, subprocess.TimeoutExpired) as e:
+        _logger.log(f"updater.apply_update_if_needed: token-stash write failed: {e}")
+        raise UpdateError(f"could not write token stash: {e}")
+
     # Spawn installer detached so the existing service can exit cleanly
     # when the installer's [UninstallRun] eventually stops it. /TOKEN
     # reuses the existing install token so no operator interaction
     # required. /COMPONENTS="" (no Tasks override) defaults to whatever
     # Tasks the original install had — we don't want to surprise-install
     # LogMeIn during an update if it wasn't part of the original.
+    # /TOKENFILE replaces the old /TOKEN= argument so the token never
+    # appears in Inno's command-line log. The installer's [Code] reads
+    # the file when /TOKENFILE= is present (falling back to /TOKEN= if
+    # someone runs an older installer build manually).
     args = [
         dest,
         "/VERYSILENT",
         "/SUPPRESSMSGBOXES",
         "/NORESTART",
-        f"/TOKEN={install_token}",
+        f"/TOKENFILE={token_stash}",
         '/TASKS=""',  # opt out of any newly-added optional tasks; updates should be conservative
         f"/LOG={install_log_path}",
     ]

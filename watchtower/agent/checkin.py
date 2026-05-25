@@ -217,6 +217,13 @@ def run_checkin():
         if cfg_resp.get("autoUpdate") or cfg_resp.get("forceUpdate"):
             try:
                 import updater
+                # One-shot cleanup of any token leaked into install.log
+                # by older builds (<= v0.14.39 passed /TOKEN= inline).
+                # Idempotent; cheap when there's nothing to scrub.
+                try:
+                    updater.scrub_legacy_token_leaks()
+                except Exception:
+                    pass  # never fail an update because of log scrubbing
                 result = updater.apply_update_if_needed(
                     worker_url=config["workerUrl"],
                     current_version=AGENT_VERSION,

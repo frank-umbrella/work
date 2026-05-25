@@ -300,7 +300,32 @@ var
 // ──────────────────────────────────────────────────────────────────────
 
 function GetCmdToken: string;
+var
+  TokenFilePath: string;
+  AnsiContent: AnsiString;
 begin
+  // /TOKENFILE= takes precedence over /TOKEN= -- the auto-updater
+  // writes the token to a file with admin-only ACL and passes the
+  // file path here, so the token never lands in Inno's install.log
+  // header (which echoes the full command line). Falls through to
+  // /TOKEN= for back-compat with older installers / manual silent
+  // installs that still pass the token inline.
+  TokenFilePath := ExpandConstant('{param:TOKENFILE|}');
+  if TokenFilePath <> '' then
+  begin
+    if FileExists(TokenFilePath) and LoadStringFromFile(TokenFilePath, AnsiContent) then
+    begin
+      Result := Trim(string(AnsiContent));
+      // Best-effort: delete the stash file immediately after reading
+      // so it doesn't linger on disk longer than necessary. Ignore
+      // failure -- worst case the next install reuses the same
+      // location and overwrites it.
+      DeleteFile(TokenFilePath);
+      Exit;
+    end;
+    // /TOKENFILE= passed but unreadable -- fall through and try
+    // /TOKEN= so we don't silently use an empty token.
+  end;
   Result := ExpandConstant('{param:TOKEN|}');
 end;
 
