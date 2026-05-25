@@ -1368,7 +1368,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.79";
+const APP_VERSION = "0.14.80";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -6391,9 +6391,15 @@ function renderLocalAdmins(a) {
         const isRedFlag = ADMIN_RED_FLAG_PRINCIPALS.includes(lowerBare);
         const isService = SERVICE_ACCOUNT_PATTERNS.some(re => re.test(bare));
         const isBuiltinAdmin = lowerBare === "administrator" && (m.principalSource || "").toLowerCase() === "local";
+        // "account" rather than "user" -- every row in this table is an
+        // administrator, so labelling individuals as "user" reads as
+        // confusing/contradictory. "account" parallels "group" cleanly
+        // and just answers the actual question: is this an individual
+        // SAM/AD account, or a nested group whose members all inherit
+        // admin rights?
         const typeChip = m.type === "group"
           ? `<span class="badge muted" style="font-size:10.5px;padding:1px 7px;">group</span>`
-          : `<span class="badge muted" style="font-size:10.5px;padding:1px 7px;">user</span>`;
+          : `<span class="badge muted" style="font-size:10.5px;padding:1px 7px;">account</span>`;
         const srcChip = m.principalSource
           ? `<span class="meta" style="font-size:11px;">${esc(m.principalSource)}</span>`
           : `<span class="meta" style="font-size:11px;">?</span>`;
