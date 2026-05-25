@@ -1103,7 +1103,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.52";
+const APP_VERSION = "0.14.53";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -6414,19 +6414,69 @@ function renderVeeam(veeam) {
   // full EntireComputer image-level backups.
   const parts = (veeam.products || []).map(p => {
     const lj = p.lastJob;
+    // B&R: lastJob is intentionally null (different API surface),
+    // recentSessions carries the data instead. Show "see sessions
+    // below" so the row doesn't look broken when the Agent row has a
+    // result badge and the B&R row is blank.
+    const isBr = p.edition === 'br';
+    const rightSide = isBr
+      ? (Array.isArray(p.recentSessions) && p.recentSessions.length
+          ? `<span class="meta">${p.recentSessions.length} recent session${p.recentSessions.length === 1 ? '' : 's'} below</span>`
+          : (p.recentSessionsError
+              ? `<span class="badge muted" title="${esc(p.recentSessionsError)}">sessions unavailable</span>`
+              : `<span class="meta">no sessions</span>`))
+      : `${lj && lj.result ? `<span class="badge ${lj.result === 'Success' ? 'ok' : 'warn'}">${esc(lj.result)}</span><br>` : ""}${lj && lj.endTime ? `<small>${esc(lj.endTime)}</small>` : ""}`;
     return `
       <div class="row">
         <div>
-          <div class="name">${esc(p.edition === 'br' ? 'Backup & Replication' : 'Agent for Microsoft Windows')}</div>
+          <div class="name">${esc(isBr ? 'Backup & Replication' : 'Agent for Microsoft Windows')}</div>
           <div class="meta">v${esc(p.version)}</div>
         </div>
         <div class="meta" style="text-align:right;">
-          ${lj && lj.result ? `<span class="badge ${lj.result === 'Success' ? 'ok' : 'warn'}">${esc(lj.result)}</span><br>` : ""}
-          ${lj && lj.endTime ? `<small>${esc(lj.endTime)}</small>` : ""}
+          ${rightSide}
         </div>
       </div>
     `;
   });
+
+  // B&R recent sessions table. Aggregated across every detected B&R
+  // product (in practice always 0 or 1 -- you don't run two B&R
+  // installations side-by-side). Shows job name + result (color-coded)
+  // + end time. Surfaces the 5 most recent so the operator can see
+  // whether the server is actively running jobs without leaving the
+  // dashboard, and spot trailing failures in the recent history that
+  // the lastJob single-row view would miss.
+  const brSessions = [];
+  for (const p of (veeam.products || [])) {
+    if (p.edition === 'br' && Array.isArray(p.recentSessions)) {
+      for (const s of p.recentSessions) brSessions.push(s);
+    }
+  }
+  const brSessionsBlock = brSessions.length ? `
+    <div style="margin-top:12px;font-size:12px;font-weight:600;color:var(--ink-soft);">B&amp;R recent sessions (${brSessions.length})</div>
+    <div class="list" style="margin-top:4px;">
+      ${brSessions.map(s => {
+        // Color the result badge: Success = green, Warning = amber,
+        // Failed = red, anything else (Running / Starting / Stopped) = muted.
+        const r = (s.result || '').toLowerCase();
+        const tone = r === 'success' ? 'ok'
+          : r === 'warning' ? 'warn'
+          : r === 'failed' ? 'bad'
+          : 'muted';
+        const when = s.endTime || s.creationTime || '';
+        return `<div class="row">
+          <div>
+            <div class="name">${esc(s.jobName || s.name || '(unnamed session)')}</div>
+            ${s.state ? `<div class="meta">${esc(s.state)}</div>` : ''}
+          </div>
+          <div class="meta" style="text-align:right;">
+            <span class="badge ${tone}">${esc(s.result || '?')}</span>
+            ${when ? `<div style="font-size:11px;margin-top:2px;">${esc(when.replace('T', ' '))}</div>` : ''}
+          </div>
+        </div>`;
+      }).join("")}
+    </div>
+  ` : "";
 
   // Aggregate jobs across every detected product (typically just the
   // Agent has them; B&R server-side jobs aren't exposed via
@@ -6464,7 +6514,7 @@ function renderVeeam(veeam) {
     </div>
   ` : "";
 
-  return `<div class="list">${parts.join("")}</div>${jobsBlock}`;
+  return `<div class="list">${parts.join("")}</div>${brSessionsBlock}${jobsBlock}`;
 }
 
 async function writeConfig(pcId, field, value) {

@@ -128,7 +128,7 @@
       </svg>
       <div>
         <div class="meta">Umbrella Automation</div>
-        <h1>Watchtower &middot; Docs <span class="version-chip">v0.14.52</span></h1>
+        <h1>Watchtower &middot; Docs <span class="version-chip">v0.14.53</span></h1>
       </div>
     </a>
     <a class="btn brand-link" href="index.html">&larr; Back to dashboard</a>
@@ -206,7 +206,7 @@
 <ul>
   <li><b>System &middot; network &middot; storage &middot; users &middot; software &middot; hotfixes &middot; pending Windows Updates &middot; USB history</b> &mdash; Belarc-lite asset inventory pulled from WMI + registry + WUApi COM. System probe also detects whether the host is a VM, and on Hyper-V guests captures the parent host's name so the dashboard can link VM &harr; physical host.</li>
   <li><b>Defender</b> &mdash; enabled, realtime status, definitions version + age, last scan times.</li>
-  <li><b>Veeam</b> &mdash; detects Backup &amp; Replication and/or Agent for Windows side-by-side (both can be installed on the same host), with last-session result.</li>
+  <li><b>Veeam</b> &mdash; detects Backup &amp; Replication and/or Agent for Windows side-by-side (both can be installed on the same host). <b>Agent:</b> last-session result + configured job list with policy type (EntireComputer / Volume / File / SystemState) and destination. <b>B&amp;R:</b> 5 most recent sessions across all jobs (job name, result, end time) via the Veeam.Backup.PowerShell module.</li>
   <li><b>Windows Server Backup</b> &mdash; <code>Get-WBSummary</code> on Server SKUs. Last backup time, last successful backup, retained versions, next scheduled backup, current operation.</li>
   <li><b>Carbonite</b> &mdash; presence + version + service state for Server Backup, Endpoint Backup, or Safe variants.</li>
   <li><b>LogMeIn</b> &mdash; install state, service + guardian state, Central computer description.</li>
@@ -474,7 +474,7 @@ Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" 
   <tr><td><code>users</code></td><td>Local user accounts with status (enabled/disabled, password-required, lockout), plus recent interactive logon history.</td></tr>
   <tr><td><code>software</code></td><td>Every installed app from the Uninstall registry tree: name, version, publisher. Count + full list.</td></tr>
   <tr><td><code>defender</code></td><td>Enabled, realtime status, definitions version + age, last quick + full scan timestamps, AV engine + product versions.</td></tr>
-  <tr><td><code>veeam</code></td><td>Per Veeam product (B&amp;R and/or Agent for Windows): edition, version, last session result + start/end times.</td></tr>
+  <tr><td><code>veeam</code></td><td>Per Veeam product (B&amp;R and/or Agent for Windows): edition, version, last session result + start/end times (Agent) or 5 most recent sessions across all jobs (B&amp;R, via Veeam.Backup.PowerShell module).</td></tr>
   <tr><td><code>wsb</code></td><td>Windows Server Backup (server SKUs only): last backup time, last <i>successful</i> backup time (these diverge on failure), next scheduled, retained versions, current operation, last result mapped from HRESULT, plus a <code>recentJobs</code> array carrying the last 10 backup attempts (<code>Get-WBJob -Previous 10</code>) with per-job result + error description.</td></tr>
   <tr><td><code>carbonite</code></td><td>Product flavor + version + publisher (Server Backup / Endpoint / Safe), service state.</td></tr>
   <tr><td><code>logmein</code></td><td>Install state, agent version, service state, guardian-service state, Central computer description.</td></tr>

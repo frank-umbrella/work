@@ -65,9 +65,125 @@ def _detect_br():
         r"SOFTWARE\Veeam\Veeam Backup and Replication",
         "DisplayVersion",
     )
-    if ver:
-        return {"edition": "br", "version": ver, "lastJob": None}
-    return None
+    if not ver:
+        return None
+    sessions, sessions_error = _detect_br_recent_sessions()
+    out = {
+        "edition": "br",
+        "version": ver,
+        # We don't populate lastJob for B&R the way we do for Agent --
+        # Get-VBRComputerBackupJobSession is a different API surface
+        # and the more useful view for a B&R server is "what are the
+        # latest 5 sessions across all jobs," surfaced as recentSessions
+        # below. lastJob stays None so the dashboard's existing renderer
+        # doesn't show a stale "no last job" line under B&R rows.
+        "lastJob": None,
+        "recentSessions": sessions,
+    }
+    if sessions_error:
+        out["recentSessionsError"] = sessions_error
+    return out
+
+
+def _detect_br_recent_sessions():
+    """
+    Pull the 5 most recent Get-VBRBackupSession results across every
+    configured B&R job. Returns (list, error_string_or_None).
+
+    Why a single PowerShell invocation:
+    - The Veeam.Backup.PowerShell module is HEAVY (~3-5s import). We
+      pay that cost once, run all our queries, and exit. Running it
+      per query would 3x the wall time.
+    - JSON output via ConvertTo-Json -Compress lets us parse a
+      well-defined shape rather than fragile table-text scraping.
+
+    Module fallback chain:
+      1. Import-Module Veeam.Backup.PowerShell  (B&R 11+ -- ships as
+         a real PS module installed to the system module path)
+      2. Add-PSSnapin VeeamPSSnapIn             (B&R 9.x / 10.x -- the
+         older snapin format, registered into the host's PS providers
+         by the B&R installer)
+    If both fail, return ([], "<reason>") so the dashboard can show
+    "B&R installed, sessions unavailable" rather than silently empty.
+
+    Forces `,$out | ConvertTo-Json` (array wrapping via the unary
+    comma operator) so a single-session result is still serialized
+    as a JSON array -- PowerShell 5.1's default behavior is to drop
+    the array wrap for 1-element collections.
+    """
+    ps_script = r"""
+$ErrorActionPreference = 'SilentlyContinue'
+$loaded = $false
+try {
+    Import-Module Veeam.Backup.PowerShell -ErrorAction Stop -WarningAction SilentlyContinue 3>$null
+    $loaded = $true
+} catch {}
+if (-not $loaded) {
+    try {
+        Add-PSSnapin VeeamPSSnapIn -ErrorAction Stop
+        $loaded = $true
+    } catch {}
+}
+if (-not $loaded) {
+    Write-Output '__WT_NO_MODULE__'
+    exit
+}
+try {
+    $sessions = @(Get-VBRBackupSession | Sort-Object EndTimeUTC -Descending | Select-Object -First 5)
+} catch {
+    Write-Output '__WT_QUERY_FAIL__'
+    exit
+}
+$out = @()
+foreach ($s in $sessions) {
+    $out += [PSCustomObject]@{
+        name         = if ($s.Name) { "$($s.Name)" } else { $null }
+        jobName      = if ($s.JobName) { "$($s.JobName)" } else { $null }
+        result       = "$($s.Result)"
+        state        = "$($s.State)"
+        creationTime = if ($s.CreationTime) { $s.CreationTime.ToString('yyyy-MM-ddTHH:mm:ss') } else { $null }
+        endTime      = if ($s.EndTime)      { $s.EndTime.ToString('yyyy-MM-ddTHH:mm:ss') }      else { $null }
+    }
+}
+# Unary comma forces array wrapping even for 0/1 elements.
+,$out | ConvertTo-Json -Compress -Depth 3
+"""
+    try:
+        r = subprocess.run(
+            ["powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command", ps_script],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            creationflags=0x08000000,
+        )
+    except (subprocess.TimeoutExpired, OSError) as e:
+        return [], f"powershell invocation failed: {e}"
+
+    stdout = (r.stdout or "").strip()
+    if not stdout:
+        # PowerShell exited with no output. Could be a hung module load,
+        # an empty Get-VBRBackupSession, or stderr-only output. Treat as
+        # "no data" but surface the stderr if any so the operator can see.
+        err = (r.stderr or "").strip()
+        return [], f"empty output{(' / stderr: ' + err[:200]) if err else ''}"
+
+    if "__WT_NO_MODULE__" in stdout:
+        return [], "Veeam PowerShell module/snapin not available (B&R Console-only install?)"
+    if "__WT_QUERY_FAIL__" in stdout:
+        return [], "Get-VBRBackupSession query failed"
+
+    try:
+        # Strip any leading non-JSON noise (warning text PowerShell can
+        # emit before the JSON line even with -WarningAction silent).
+        json_start = stdout.find("[")
+        if json_start < 0:
+            return [], f"unexpected output: {stdout[:200]}"
+        data = json.loads(stdout[json_start:])
+        if not isinstance(data, list):
+            data = [data] if data else []
+        return data, None
+    except (ValueError, json.JSONDecodeError) as e:
+        return [], f"json parse failed: {e}; raw: {stdout[:200]}"
 
 
 def _scan_uninstall_for_veeam_agent():
