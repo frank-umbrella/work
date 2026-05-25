@@ -6,6 +6,15 @@
 <title>Watchtower &middot; Umbrella Automation</title>
 <meta name="description" content="Internal endpoint monitoring dashboard for Umbrella Automation client PCs.">
 <meta name="robots" content="noindex">
+<!-- Force browsers + GitHub Pages CDN to revalidate index.html on every
+     load. Without this, stale CSS (which is inlined in this file) keeps
+     showing for up to 10 minutes after a deploy -- operators kept
+     reporting fixed-and-shipped bugs as "still broken" because their
+     browser was serving an old version. The whole file is ~700 KB; the
+     re-fetch cost is negligible for a low-traffic admin dashboard. -->
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 
 <!-- Open Graph / Twitter card for social previews -->
@@ -1359,7 +1368,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.72";
+const APP_VERSION = "0.14.73";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
