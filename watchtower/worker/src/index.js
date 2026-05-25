@@ -1614,7 +1614,17 @@ async function handleCheckin(request, env, ctx) {
           externalIp: newExternalIp,
           manufacturer: sys.manufacturer || null,
           model: sys.model || null,
-          serviceTag: sys.serviceTag || null,
+          // Omit serviceTag for VMs -- Win32_BIOS.SerialNumber on a Hyper-V
+          // / VMware / etc. guest is a generated UUID-like string, not a
+          // Dell-style service tag. Surfacing it in chat alerts is
+          // misleading (and the dashboard already suppresses it for VMs
+          // for the same reason). isVirtual === true =>  no field at all
+          // in the payload, so the per-platform adapters skip the row.
+          serviceTag: sys.isVirtual ? null : (sys.serviceTag || null),
+          // Carry the virtual flag through too so adapters that want to
+          // surface "VM" can do so explicitly.
+          isVirtual: sys.isVirtual === true,
+          hypervisor: sys.hypervisor || null,
           os: os.name || null,
         }).catch((e) => console.error('Intake webhook failed:', e))
       );
@@ -2270,11 +2280,18 @@ async function sendIntakeEmail(env, { pcId, hostname, client, agentVersion, when
   const hf = r.hotfixes || {};
 
   const isDell = /dell/i.test(sys.manufacturer || '');
-  const tagHtml = sys.serviceTag
-    ? (isDell
-        ? `<a href="https://www.dell.com/support/home/en-us/product-support/servicetag/${encodeURIComponent(sys.serviceTag)}" style="color:#0a6b6b;text-decoration:none;font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:600;">${escapeHtml(sys.serviceTag)}</a>`
-        : `<span style="font-family:ui-monospace,Menlo,Consolas,monospace;">${escapeHtml(sys.serviceTag)}</span>`)
-    : '<span style="color:#8892a4;">none</span>';
+  // VMs report Win32_BIOS.SerialNumber as a generated UUID-like string
+  // (Hyper-V/VMware/etc.) which is NOT a Dell-style service tag and
+  // doesn't help anyone reading the email. Mirror the dashboard's
+  // "physical-only field" rule and replace with an italic "virtual
+  // machine" note instead of pretending the BIOS UUID is a service tag.
+  const tagHtml = sys.isVirtual
+    ? `<span style="color:#8892a4;font-style:italic;">n/a (virtual machine)</span>`
+    : sys.serviceTag
+      ? (isDell
+          ? `<a href="https://www.dell.com/support/home/en-us/product-support/servicetag/${encodeURIComponent(sys.serviceTag)}" style="color:#0a6b6b;text-decoration:none;font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:600;">${escapeHtml(sys.serviceTag)}</a>`
+          : `<span style="font-family:ui-monospace,Menlo,Consolas,monospace;">${escapeHtml(sys.serviceTag)}</span>`)
+      : '<span style="color:#8892a4;">none</span>';
 
   // Product-detection -- collect short chip labels + a few details for the
   // body. Same data the dashboard's drawer renders, just flattened.
@@ -2905,7 +2922,11 @@ function _slackFacts(p) {
       break;
     case 'host_onboarded':
       if (p.externalIp) add('External IP', `\`${p.externalIp}\``);
-      if (p.serviceTag) add('Service tag', `\`${p.serviceTag}\``);
+      if (p.isVirtual) {
+        add('Virtualization', p.hypervisor || 'virtual machine');
+      } else if (p.serviceTag) {
+        add('Service tag', `\`${p.serviceTag}\``);
+      }
       break;
   }
   if (p.when) add('When', p.when);
@@ -2961,7 +2982,11 @@ function buildTeamsMessageCard(p, summary, meta) {
       break;
     case 'host_onboarded':
       if (p.externalIp) facts.push({ name: 'External IP', value: p.externalIp });
-      if (p.serviceTag) facts.push({ name: 'Service tag', value: p.serviceTag });
+      if (p.isVirtual) {
+        facts.push({ name: 'Virtualization', value: p.hypervisor || 'virtual machine' });
+      } else if (p.serviceTag) {
+        facts.push({ name: 'Service tag', value: p.serviceTag });
+      }
       break;
   }
 
@@ -3033,7 +3058,11 @@ function buildDiscordEmbed(p, summary, meta) {
       break;
     case 'host_onboarded':
       if (p.externalIp) fields.push({ name: 'External IP', value: `\`${p.externalIp}\``, inline: true });
-      if (p.serviceTag) fields.push({ name: 'Service tag', value: `\`${p.serviceTag}\``, inline: true });
+      if (p.isVirtual) {
+        fields.push({ name: 'Virtualization', value: p.hypervisor || 'virtual machine', inline: true });
+      } else if (p.serviceTag) {
+        fields.push({ name: 'Service tag', value: `\`${p.serviceTag}\``, inline: true });
+      }
       break;
   }
   if (p.when) fields.push({ name: 'When', value: p.when, inline: true });
@@ -3107,7 +3136,11 @@ function buildGoogleChatCard(p, summary, meta) {
         widgets.push(_gchatFact('Hardware', [p.manufacturer, p.model].filter(Boolean).join(' '), 'TICKET'));
       }
       if (p.os) widgets.push(_gchatFact('OS', p.os, 'STAR'));
-      if (p.serviceTag) widgets.push(_gchatFact('Service tag', p.serviceTag, 'BOOKMARK'));
+      if (p.isVirtual) {
+        widgets.push(_gchatFact('Virtualization', p.hypervisor || 'virtual machine', 'BOOKMARK'));
+      } else if (p.serviceTag) {
+        widgets.push(_gchatFact('Service tag', p.serviceTag, 'BOOKMARK'));
+      }
       if (p.externalIp) widgets.push(_gchatFact('External IP', p.externalIp, 'MAP_PIN'));
       break;
     case 'external_ip_changed':
