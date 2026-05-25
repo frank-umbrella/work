@@ -318,6 +318,24 @@
   /* Collapsible config panel — replaces the wall-of-toggles that used to
      sit between Status and System and pushed actual host data below the
      fold. Closed by default; one click on the cog-row reveals everything. */
+  /* Connectivity chart -- thin segmented dual-strip showing 30 days of
+   * online state in the host drawer. See connectivity-chart-previews.html
+   * for the design rationale (refined Option D). */
+  .conn-chart { display: grid; grid-template-columns: 60px 1fr; align-items: center; gap: 6px 10px; margin: 8px 0 4px; }
+  .conn-label { font-size: 10.5px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.05em; }
+  .conn-lane { display: grid; grid-template-columns: repeat(30, 1fr); gap: 2px; height: 14px; }
+  .conn-cell { background: var(--accent); border-radius: 2px; transition: transform 0.08s; }
+  .conn-cell:hover { transform: scaleY(1.4); }
+  .conn-cell.warn { background: var(--amber, #f59e0b); }
+  .conn-cell.crit { background: var(--danger, #b91c1c); }
+  .conn-cell.off  { background: #eef2f7; }
+  .conn-axis { margin-left: 70px; display: flex; justify-content: space-between; font-size: 10px; color: var(--ink-faint); margin-top: 4px; }
+  .conn-legend { display: flex; gap: 14px; font-size: 11.5px; color: var(--ink-soft); flex-wrap: wrap; margin-top: 10px; }
+  .conn-swatch { display: inline-block; width: 11px; height: 11px; border-radius: 3px; vertical-align: middle; margin-right: 5px; }
+  .conn-stats { display: flex; gap: 24px; font-size: 13px; color: var(--ink-soft); margin: 6px 0 14px; flex-wrap: wrap; }
+  .conn-stats .stat .val { font-size: 19px; color: var(--ink); font-weight: 600; line-height: 1.1; }
+  .conn-stats .stat .lbl { font-size: 10.5px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 2px; }
+
   #drawer details.section-config { margin-bottom: 22px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); padding: 0; overflow: hidden; }
   #drawer details.section-config[open] { background: var(--surface); }
   #drawer details.section-config > summary { list-style: none; cursor: pointer; padding: 10px 14px; display: flex; align-items: center; gap: 10px; user-select: none; }
@@ -1069,7 +1087,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.34";
+const APP_VERSION = "0.14.35";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -4441,6 +4459,138 @@ function kv(rows) {
   }).join("")}</div>`;
 }
 
+// Format a duration in seconds as a human-readable string. Used by the
+// connectivity chart summary stats. Falls back to "—" for null/invalid.
+function fmtDurationSec(s) {
+  if (s == null || !isFinite(s) || s < 0) return "—";
+  const n = Math.floor(s);
+  if (n < 60) return `${n}s`;
+  const mins = Math.floor(n / 60);
+  if (mins < 60) return `${mins}m`;
+  const hrs = Math.floor(mins / 60);
+  const remMin = mins - hrs * 60;
+  if (hrs < 24) return remMin ? `${hrs}h ${remMin}m` : `${hrs}h`;
+  const days = Math.floor(hrs / 24);
+  const remHrs = hrs - days * 24;
+  return remHrs ? `${days}d ${remHrs}h` : `${days}d`;
+}
+
+// Render the 30-day connectivity strip from agent.offlinePeriods.
+// Each cell is one day; color reflects total offline duration on that day.
+// Returns a complete <div class="section"> ready to inject into the drawer.
+// Renders an "older agent" message when the field is absent so the drawer
+// gracefully degrades for hosts running <0.14.27.
+function renderConnectivityChart(a) {
+  const periods = Array.isArray(a.offlinePeriods) ? a.offlinePeriods : [];
+
+  // Pre-v0.14.27 agents won't have this field at all. Show a small notice
+  // instead of an empty chart so the operator knows why nothing's there.
+  // (vs. "this host has been perfectly online for 30 days" — those still
+  // show the chart, just all-teal.)
+  const hasField = a.offlinePeriods !== undefined;
+  if (!hasField) {
+    return `
+      <div class="section">
+        <h3>Connectivity</h3>
+        <div class="meta">Needs agent v0.14.27 or later. Upgrade this host to start tracking connectivity history.</div>
+      </div>
+    `;
+  }
+
+  // Bucket overlap per day for the last 30 days. Day 0 = 29 days ago,
+  // day 29 = today.
+  const now = new Date();
+  const dayStartMs = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const days = [];
+  for (let i = 29; i >= 0; i--) {
+    const ds = dayStartMs - i * 86400000;
+    const de = ds + 86400000;
+    let offlineMs = 0;
+    let reasons = new Set();
+    for (const p of periods) {
+      if (!p.startedAt) continue;
+      const ps = Date.parse(p.startedAt);
+      const pe = p.endedAt ? Date.parse(p.endedAt) : Date.now();
+      if (!isFinite(ps) || !isFinite(pe) || pe <= ps) continue;
+      const overlap = Math.max(0, Math.min(pe, de) - Math.max(ps, ds));
+      if (overlap > 0) {
+        offlineMs += overlap;
+        if (p.reason) reasons.add(p.reason);
+      }
+    }
+    // Day state: ok / warn (<30min) / crit (>=30min). Powered-off detection
+    // would need check-in attempt history, which we don't yet ship -- adding
+    // a future v2 "did this host even try to check in" data path would let
+    // us color powered-off days gray. For now, days with no outage are 'ok'.
+    let state = 'ok';
+    if (offlineMs >= 30 * 60 * 1000) state = 'crit';
+    else if (offlineMs > 0) state = 'warn';
+    days.push({
+      state,
+      offlineMs,
+      date: new Date(ds),
+      reasons: Array.from(reasons),
+    });
+  }
+
+  // Summary stats over the same 30-day window.
+  const windowStart = dayStartMs - 30 * 86400000;
+  let totalOfflineSec = 0;
+  let longestSec = 0;
+  let outageCount = 0;
+  let internetDownCount = 0;
+  let workerDownCount = 0;
+  for (const p of periods) {
+    if (!p.startedAt) continue;
+    const ps = Date.parse(p.startedAt);
+    if (!isFinite(ps) || ps < windowStart) continue;
+    outageCount++;
+    const d = Number(p.durationSec) || 0;
+    totalOfflineSec += d;
+    if (d > longestSec) longestSec = d;
+    if (p.reason === 'internet_down') internetDownCount++;
+    else if (p.reason === 'worker_down') workerDownCount++;
+  }
+  const windowSec = 30 * 86400;
+  const uptimePct = ((windowSec - totalOfflineSec) / windowSec * 100);
+  const uptimeStr = uptimePct >= 99.95 ? '100%' : `${uptimePct.toFixed(1)}%`;
+
+  const dayCells = days.map(d => {
+    const cls = d.state === 'crit' ? 'crit' : d.state === 'warn' ? 'warn' : '';
+    const dateStr = d.date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    const summary = d.offlineMs > 0
+      ? `${Math.round(d.offlineMs / 60000)}m offline${d.reasons.length ? ` (${d.reasons.join(', ').replace(/_/g, ' ')})` : ''}`
+      : 'no outages';
+    return `<div class="conn-cell ${cls}" title="${esc(dateStr)} — ${esc(summary)}"></div>`;
+  }).join('');
+
+  const breakdown = (internetDownCount || workerDownCount)
+    ? ` <span class="meta">(${internetDownCount} internet-down, ${workerDownCount} worker-down)</span>`
+    : '';
+
+  return `
+    <div class="section">
+      <h3>Connectivity <span class="meta" style="font-weight:400;font-size:13px;">last 30 days</span></h3>
+      <div class="conn-stats">
+        <div class="stat"><div class="val">${uptimeStr}</div><div class="lbl">Uptime</div></div>
+        <div class="stat"><div class="val">${outageCount}</div><div class="lbl">Outages${breakdown}</div></div>
+        <div class="stat"><div class="val">${esc(fmtDurationSec(totalOfflineSec))}</div><div class="lbl">Total offline</div></div>
+        <div class="stat"><div class="val">${esc(fmtDurationSec(longestSec))}</div><div class="lbl">Longest</div></div>
+      </div>
+      <div class="conn-chart">
+        <div class="conn-label">Online</div>
+        <div class="conn-lane">${dayCells}</div>
+      </div>
+      <div class="conn-axis"><span>30d ago</span><span>15d ago</span><span>Today</span></div>
+      <div class="conn-legend">
+        <span><span class="conn-swatch" style="background:var(--accent);"></span>Online</span>
+        <span><span class="conn-swatch" style="background:#f59e0b;"></span>Brief outage (&lt;30m)</span>
+        <span><span class="conn-swatch" style="background:#b91c1c;"></span>Major outage (&ge;30m)</span>
+      </div>
+    </div>
+  `;
+}
+
 function renderDrawer(pcId) {
   const a = state.agents.find(x => x.id === pcId);
   if (!a) {
@@ -4534,6 +4684,8 @@ function renderDrawer(pcId) {
         ["Collection time", r.collectionMs ? fmtMs(r.collectionMs) : "—", "Total time the agent spent running all probes during the last check-in (system inventory, network, storage, OMSA disk health, Veeam / WSB backup status, Defender / SentinelOne / LogMeIn detection, etc). Low = fast machine. Spikes typically mean slow disks, WMI bottlenecks, OMSA timing out on a degraded controller, or Get-WBJob waiting on a hung backup."],
       ])}
     </div>
+
+    ${renderConnectivityChart(a)}
 
     ${(() => {
       // Build a compact "what's non-default about this host" summary for
