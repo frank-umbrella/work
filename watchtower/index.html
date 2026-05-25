@@ -1376,7 +1376,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.93";
+const APP_VERSION = "0.14.94";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -7355,7 +7355,7 @@ function renderCarbonite(c) {
   </div>` : `<div style="margin-top:10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 14px;">
     <div style="font-size:12.5px;color:#475569;">
       <b style="color:#1a1f2b;">Live status not available via registry.</b>
-      Carbonite Endpoint v11+ writes operational state to <code style="background:#fff;padding:1px 5px;border-radius:3px;">%ProgramData%\\Carbonite\\</code> files rather than the registry surface we probe. Detection (install + service) is confirmed; for live "protected / files protected" numbers, open the Carbonite agent on the host.
+      Carbonite Endpoint (every version we've encountered) keeps operational state in <code style="background:#fff;padding:1px 5px;border-radius:3px;">%ProgramData%\\Carbonite\\</code> files and the backup user's HKCU rather than the HKLM surface we probe. Detection (install + service) is confirmed; for live "protected / files protected" numbers, open the Carbonite agent on the host.
     </div>
   </div>`;
 
