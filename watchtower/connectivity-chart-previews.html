@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Watchtower connectivity chart previews</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<style>
+  :root {
+    --bg: #f4f6f9;
+    --surface: #ffffff;
+    --surface-2: #fafbfc;
+    --ink: #1a1f2b;
+    --ink-soft: #475063;
+    --ink-faint: #8892a4;
+    --line: #e3e6ec;
+    --line-strong: #c9cfdb;
+    --accent: #0a6b6b;
+    --accent-soft: #e6f4f4;
+    --accent-deep: #074a4a;
+    --amber: #f59e0b;
+    --amber-soft: #fef3c7;
+    --amber-deep: #78350f;
+    --red: #b91c1c;
+    --red-soft: #fee2e2;
+    --red-deep: #7f1d1d;
+    --gray-off: #cbd5e1;
+    --gray-faint: #eef2f7;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  header.inspector {
+    background: #fff; border-bottom: 1px solid #d8dce4; padding: 20px 24px;
+  }
+  header.inspector h1 { margin: 0; font-size: 20px; }
+  header.inspector p { margin: 6px 0 0; color: var(--ink-soft); font-size: 14px; line-height: 1.55; max-width: 820px; }
+  main { max-width: 1100px; margin: 0 auto; padding: 28px 24px 80px; }
+
+  /* The "drawer" wrapper mimics the actual host-drawer width in the dashboard */
+  .drawer-mock {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 22px;
+    margin-bottom: 32px;
+    box-shadow: 0 1px 2px rgba(20,25,40,0.03), 0 6px 18px rgba(20,25,40,0.04);
+  }
+  .drawer-mock h2 { margin: 0 0 4px; font-size: 17px; }
+  .drawer-mock .lede { margin: 0 0 4px; color: var(--ink-soft); font-size: 13.5px; }
+  .drawer-mock .tradeoffs {
+    background: var(--surface-2);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin: 16px 0 0;
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    line-height: 1.55;
+  }
+  .drawer-mock .tradeoffs b { color: var(--ink); }
+  .drawer-mock .tradeoffs ul { margin: 4px 0 0; padding-left: 18px; }
+  .drawer-mock .tradeoffs li { margin-bottom: 2px; }
+
+  /* Section labels matching the host drawer */
+  .section-label {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--ink-faint); font-weight: 700; margin: 18px 0 8px;
+  }
+  .stat-row {
+    display: flex; gap: 18px; font-size: 13px; color: var(--ink-soft);
+    margin: 6px 0 14px; flex-wrap: wrap;
+  }
+  .stat-row .stat { display: flex; flex-direction: column; }
+  .stat-row .stat .val { font-size: 20px; color: var(--ink); font-weight: 600; line-height: 1.1; }
+  .stat-row .stat .lbl { font-size: 11px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 2px; }
+
+  /* Shared legend */
+  .legend { display: flex; gap: 14px; font-size: 11.5px; color: var(--ink-soft); flex-wrap: wrap; margin-top: 10px; }
+  .legend .swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: middle; margin-right: 5px; }
+
+  /* ==================  OPTION A — 30-day daily strip  ================== */
+  .strip-30d {
+    display: grid;
+    grid-template-columns: repeat(30, 1fr);
+    gap: 2px;
+    height: 36px;
+    margin: 8px 0 4px;
+  }
+  .strip-30d .day {
+    border-radius: 3px;
+    position: relative;
+    cursor: pointer;
+    transition: transform 0.1s;
+  }
+  .strip-30d .day:hover { transform: scaleY(1.15); z-index: 2; }
+  .strip-30d .day.ok    { background: var(--accent); }
+  .strip-30d .day.warn  { background: var(--amber); }
+  .strip-30d .day.crit  { background: var(--red); }
+  .strip-30d .day.off   { background: var(--gray-off); }
+  .strip-axis { display: flex; justify-content: space-between; font-size: 10px; color: var(--ink-faint); margin-top: 4px; }
+
+  /* ==================  OPTION B — 7-day hourly heatmap  ================== */
+  .heatmap-7d {
+    display: grid;
+    grid-template-columns: 80px 1fr;
+    gap: 8px;
+    margin: 8px 0 4px;
+  }
+  .heatmap-7d .lane-label { font-size: 11px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.05em; padding-top: 6px; }
+  .heatmap-7d .lane {
+    display: grid;
+    grid-template-columns: repeat(168, 1fr);  /* 24 hours x 7 days */
+    gap: 1px;
+    height: 18px;
+  }
+  .heatmap-7d .cell { background: var(--accent); border-radius: 1px; }
+  .heatmap-7d .cell.warn { background: var(--amber); }
+  .heatmap-7d .cell.crit { background: var(--red); }
+  .heatmap-7d .cell.off { background: var(--gray-off); }
+  .heatmap-7d .cell.pwr-off { background: var(--gray-faint); }
+  .heatmap-7d .lane.pwr .cell { background: var(--accent-deep); }
+  .heatmap-7d .lane.pwr .cell.off { background: var(--gray-off); }
+  .heatmap-axis {
+    grid-column: 2;
+    display: grid; grid-template-columns: repeat(7, 1fr); font-size: 10px;
+    color: var(--ink-faint); margin-top: 4px;
+  }
+
+  /* ==================  OPTION C — calendar heatmap  ================== */
+  .calendar {
+    display: grid;
+    grid-template-columns: 60px repeat(7, 1fr);
+    gap: 4px;
+    max-width: 360px;
+    margin: 8px 0 4px;
+  }
+  .calendar .head {
+    font-size: 10px;
+    color: var(--ink-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    text-align: center;
+    padding-bottom: 4px;
+  }
+  .calendar .head.row-label { text-align: left; }
+  .calendar .row-label-week {
+    font-size: 11px;
+    color: var(--ink-faint);
+    align-self: center;
+  }
+  .calendar .cell {
+    aspect-ratio: 1;
+    border-radius: 4px;
+    background: var(--accent);
+    position: relative;
+    cursor: pointer;
+    font-size: 9px;
+    color: rgba(255,255,255,0.7);
+    text-align: center;
+    line-height: 1;
+    padding-top: 3px;
+  }
+  .calendar .cell.warn { background: var(--amber); color: rgba(120,53,15,0.85); }
+  .calendar .cell.crit { background: var(--red); color: rgba(255,255,255,0.8); }
+  .calendar .cell.off  { background: var(--gray-off); color: rgba(0,0,0,0.4); }
+  .calendar .cell.empty { background: var(--gray-faint); color: var(--ink-faint); }
+
+  /* ==================  OPTION D — dual-strip 30 days  ================== */
+  .dual-strip { margin: 8px 0 4px; }
+  .dual-strip .lane-pair {
+    display: grid;
+    grid-template-columns: 86px 1fr;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  .dual-strip .lane-label { font-size: 11px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.05em; }
+  .dual-strip .lane {
+    position: relative;
+    height: 16px;
+    background: var(--accent);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .dual-strip .lane.pwr { background: var(--accent-deep); }
+  .dual-strip .lane .seg {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    border-left: 1px solid rgba(255,255,255,0.3);
+    border-right: 1px solid rgba(255,255,255,0.3);
+  }
+  .dual-strip .lane .seg.warn { background: var(--amber); }
+  .dual-strip .lane .seg.crit { background: var(--red); }
+  .dual-strip .lane .seg.off { background: var(--gray-off); }
+  .dual-strip .lane .seg.pwr-off { background: var(--gray-faint); }
+  .dual-strip-axis {
+    margin-left: 94px;
+    display: flex; justify-content: space-between;
+    font-size: 10px; color: var(--ink-faint); margin-top: 6px;
+  }
+</style>
+</head>
+<body>
+
+<header class="inspector">
+  <h1>Watchtower connectivity chart previews</h1>
+  <p>Four ways to visualize a host's powered + internet uptime in the dashboard drawer. Same sample data across all four — a host that's mostly online, with one 6-hour outage 15 days ago, three smaller blips, and a 2-day powered-off window (vacation). Pick whichever reads best for spotting "did this host blip last week?"</p>
+</header>
+
+<main>
+
+  <!-- ==================  OPTION A  ================== -->
+  <div class="drawer-mock">
+    <h2>Option A — 30-day daily strip</h2>
+    <p class="lede">One cell per day, color tells you whether the day was clean or had problems.</p>
+
+    <div class="section-label">Connectivity · last 30 days</div>
+
+    <div class="stat-row">
+      <div class="stat"><span class="val">99.4%</span><span class="lbl">Uptime</span></div>
+      <div class="stat"><span class="val">4</span><span class="lbl">Outages</span></div>
+      <div class="stat"><span class="val">6h 32m</span><span class="lbl">Total offline</span></div>
+      <div class="stat"><span class="val">6h 03m</span><span class="lbl">Longest</span></div>
+    </div>
+
+    <div class="strip-30d" id="strip30">
+      <!-- Populated by JS, but writing static for fidelity -->
+    </div>
+    <div class="strip-axis">
+      <span>30 days ago</span>
+      <span>15 days ago</span>
+      <span>Today</span>
+    </div>
+
+    <div class="legend">
+      <span><span class="swatch" style="background:var(--accent);"></span>Online</span>
+      <span><span class="swatch" style="background:var(--amber);"></span>Brief outage (&lt;30m)</span>
+      <span><span class="swatch" style="background:var(--red);"></span>Major outage (&gt;30m)</span>
+      <span><span class="swatch" style="background:var(--gray-off);"></span>Powered off</span>
+    </div>
+
+    <div class="tradeoffs">
+      <b>A · Best for</b> at-a-glance "any bad days lately." Tiny vertical footprint. Reads like a Datadog uptime bar. Doesn't show time-of-day — a 30-min outage at 9 AM looks the same as a 30-min outage at 3 PM. Sub-day blips collapse into "amber" without exact timing.
+      <ul>
+        <li>Drawer space: ~80px tall total</li>
+        <li>Resolution: per-day</li>
+        <li>Hover tooltip would show exact times</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ==================  OPTION B  ================== -->
+  <div class="drawer-mock">
+    <h2>Option B — 7-day hourly heatmap (two lanes)</h2>
+    <p class="lede">Top lane is powered state, bottom is internet state. 168 cells across (24h × 7 days). You can see "host was on but offline at 9 AM Tuesday."</p>
+
+    <div class="section-label">Connectivity · last 7 days</div>
+
+    <div class="stat-row">
+      <div class="stat"><span class="val">98.2%</span><span class="lbl">Online (7d)</span></div>
+      <div class="stat"><span class="val">2</span><span class="lbl">Outages</span></div>
+      <div class="stat"><span class="val">3h 02m</span><span class="lbl">Total offline</span></div>
+    </div>
+
+    <div class="heatmap-7d">
+      <div class="lane-label">Powered</div>
+      <div class="lane pwr" id="heatPwr"></div>
+      <div class="lane-label">Online</div>
+      <div class="lane" id="heatOnline"></div>
+      <div></div>
+      <div class="heatmap-axis">
+        <span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span>
+      </div>
+    </div>
+
+    <div class="legend">
+      <span><span class="swatch" style="background:var(--accent-deep);"></span>Host powered on</span>
+      <span><span class="swatch" style="background:var(--accent);"></span>Internet online</span>
+      <span><span class="swatch" style="background:var(--amber);"></span>Worker reachable, internet flaky</span>
+      <span><span class="swatch" style="background:var(--red);"></span>Internet down</span>
+      <span><span class="swatch" style="background:var(--gray-off);"></span>Off / no data</span>
+    </div>
+
+    <div class="tradeoffs">
+      <b>B · Best for</b> spotting a specific blip and its exact time. The two-lane stacking is the cleanest way to answer "was the host even on when it went offline?" — if powered shows on but online shows red, you have a real outage. If powered is grey too, the user just shut down the laptop.
+      <ul>
+        <li>Drawer space: ~110px tall total</li>
+        <li>Resolution: per-hour</li>
+        <li>Needs 15-min sampling on the agent (Phase 2 work)</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ==================  OPTION C  ================== -->
+  <div class="drawer-mock">
+    <h2>Option C — GitHub-style calendar heatmap</h2>
+    <p class="lede">Each cell is one day. Color = % uptime. Weeks stack vertically.</p>
+
+    <div class="section-label">Connectivity · last 4 weeks</div>
+
+    <div class="stat-row">
+      <div class="stat"><span class="val">99.4%</span><span class="lbl">Uptime</span></div>
+      <div class="stat"><span class="val">4</span><span class="lbl">Outages</span></div>
+      <div class="stat"><span class="val">6h 32m</span><span class="lbl">Total offline</span></div>
+    </div>
+
+    <div class="calendar" id="calendarGrid">
+      <div class="head row-label"></div>
+      <div class="head">Sun</div>
+      <div class="head">Mon</div>
+      <div class="head">Tue</div>
+      <div class="head">Wed</div>
+      <div class="head">Thu</div>
+      <div class="head">Fri</div>
+      <div class="head">Sat</div>
+      <!-- Rows filled by JS -->
+    </div>
+
+    <div class="legend">
+      <span><span class="swatch" style="background:var(--accent);"></span>100% online</span>
+      <span><span class="swatch" style="background:var(--amber);"></span>Minor outage</span>
+      <span><span class="swatch" style="background:var(--red);"></span>Major outage</span>
+      <span><span class="swatch" style="background:var(--gray-off);"></span>Powered off</span>
+      <span><span class="swatch" style="background:var(--gray-faint);"></span>No data</span>
+    </div>
+
+    <div class="tradeoffs">
+      <b>C · Best for</b> spotting patterns over weeks — "Friday afternoons are always bad" or "this host hasn't blipped in a month." Familiar from GitHub contribution graphs. Wastes horizontal space (only ~360px wide). Day numbers fit inside but tiny.
+      <ul>
+        <li>Drawer space: ~200px tall, ~360px wide</li>
+        <li>Resolution: per-day, with numeric in-cell label</li>
+        <li>Mobile-friendly</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ==================  OPTION D  ================== -->
+  <div class="drawer-mock">
+    <h2>Option D — 30-day dual-strip overlay</h2>
+    <p class="lede">Two stacked continuous bars across 30 days. Top = powered, bottom = online. Notches/colors mark outages. Compares the two metrics side-by-side at full width.</p>
+
+    <div class="section-label">Connectivity · last 30 days</div>
+
+    <div class="stat-row">
+      <div class="stat"><span class="val">99.4%</span><span class="lbl">Online</span></div>
+      <div class="stat"><span class="val">93.3%</span><span class="lbl">Powered</span></div>
+      <div class="stat"><span class="val">4</span><span class="lbl">Outages</span></div>
+      <div class="stat"><span class="val">6h 32m</span><span class="lbl">Total offline</span></div>
+    </div>
+
+    <div class="dual-strip">
+      <div class="lane-pair">
+        <div class="lane-label">Powered</div>
+        <div class="lane pwr" id="dualPwr"></div>
+      </div>
+      <div class="lane-pair">
+        <div class="lane-label">Online</div>
+        <div class="lane" id="dualOnline"></div>
+      </div>
+      <div class="dual-strip-axis">
+        <span>30d ago</span>
+        <span>15d ago</span>
+        <span>Today</span>
+      </div>
+    </div>
+
+    <div class="legend">
+      <span><span class="swatch" style="background:var(--accent-deep);"></span>Powered</span>
+      <span><span class="swatch" style="background:var(--accent);"></span>Online</span>
+      <span><span class="swatch" style="background:var(--amber);"></span>Brief outage</span>
+      <span><span class="swatch" style="background:var(--red);"></span>Major outage</span>
+      <span><span class="swatch" style="background:var(--gray-off);"></span>Powered off</span>
+    </div>
+
+    <div class="tradeoffs">
+      <b>D · Best for</b> answering "is this a network problem or a power problem?" Side-by-side comparison makes the cause obvious — gaps in BOTH lanes = user turned the machine off; gaps only in the bottom lane = network blip. Sub-day resolution via narrow notches. Most "ops dashboard" feel.
+      <ul>
+        <li>Drawer space: ~90px tall total</li>
+        <li>Resolution: positional within 30 days (~6 min per pixel at 640px wide)</li>
+        <li>Hover tooltip would show exact times</li>
+      </ul>
+    </div>
+  </div>
+
+</main>
+
+<script>
+  // ─────────────────────────────────────────────────────────────────
+  // Sample data: 30 days of host state. Index 0 = 30 days ago.
+  // 'state' for each day = one of 'ok'|'warn'|'crit'|'off'
+  // Some days have hour-level detail for the 7-day option.
+  // ─────────────────────────────────────────────────────────────────
+
+  // Day-level state for last 30 days (oldest first)
+  const days30 = [
+    'ok','ok','ok','ok','warn','ok','ok',       // days 0-6
+    'ok','warn','ok','ok','ok','ok','ok',       // days 7-13
+    'crit','ok','ok','ok','ok','ok','ok',       // day 14 = major outage
+    'warn','ok','ok','off','off','ok','ok',     // days 21-27 (off = vacation)
+    'ok','ok'                                    // days 28-29 (today)
+  ];
+
+  // Hour-level state for last 7 days (168 hours, oldest first).
+  // Mostly online; powered down each night (8 PM - 7 AM) on weekdays
+  // (this is a workstation, not a server). Brief blip Tuesday morning.
+  function buildHourly() {
+    const onlineCells = [];
+    const poweredCells = [];
+    // Day 0 = 7 days ago (Mon), Day 6 = today (Sun)
+    for (let day = 0; day < 7; day++) {
+      const isWeekend = (day === 5 || day === 6);
+      for (let h = 0; h < 24; h++) {
+        // Powered: workstation is ON only 7 AM - 8 PM weekdays;
+        // server-style "always on" weekends for variety
+        let pwr = 'on';
+        if (!isWeekend && (h < 7 || h >= 20)) pwr = 'off';
+        // Online: same as powered, except day 1 (Tue) has a blip 9-11 AM
+        let online = pwr;
+        if (day === 1 && (h === 9 || h === 10)) online = 'crit';
+        // Day 4 (Fri) blip at 3 PM
+        if (day === 4 && h === 15) online = 'warn';
+        onlineCells.push(online);
+        poweredCells.push(pwr);
+      }
+    }
+    return { onlineCells, poweredCells };
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  // Render Option A
+  // ─────────────────────────────────────────────────────────────────
+  const stripEl = document.getElementById('strip30');
+  days30.forEach((s, i) => {
+    const d = document.createElement('div');
+    d.className = 'day ' + s;
+    const dayLabel = i === 29 ? 'Today' : `${29 - i} days ago`;
+    d.title = `${dayLabel} — ${s === 'ok' ? 'No outages' : s === 'warn' ? 'Brief outage' : s === 'crit' ? 'Major outage (6h)' : 'Powered off'}`;
+    stripEl.appendChild(d);
+  });
+
+  // ─────────────────────────────────────────────────────────────────
+  // Render Option B
+  // ─────────────────────────────────────────────────────────────────
+  const { onlineCells, poweredCells } = buildHourly();
+  const heatPwr = document.getElementById('heatPwr');
+  const heatOnline = document.getElementById('heatOnline');
+  poweredCells.forEach(s => {
+    const c = document.createElement('div');
+    c.className = 'cell' + (s === 'off' ? ' off' : '');
+    heatPwr.appendChild(c);
+  });
+  onlineCells.forEach(s => {
+    const c = document.createElement('div');
+    c.className = 'cell' + (s === 'off' ? ' pwr-off' : s === 'warn' ? ' warn' : s === 'crit' ? ' crit' : '');
+    heatOnline.appendChild(c);
+  });
+
+  // ─────────────────────────────────────────────────────────────────
+  // Render Option C — calendar
+  // 30 days = ~5 weeks. Show 5 rows of 7.
+  // ─────────────────────────────────────────────────────────────────
+  const cal = document.getElementById('calendarGrid');
+  const weeks = 5;
+  let dayIdx = -1;  // shift so today is in the last row
+  const todayDayOfWeek = 0;  // pretend today is Sunday (index 6)
+  // Pad empty cells before day 0
+  const totalCells = weeks * 7;
+  const padStart = totalCells - days30.length;
+  for (let row = 0; row < weeks; row++) {
+    // Row label
+    const label = document.createElement('div');
+    label.className = 'row-label-week';
+    label.textContent = `Wk ${row + 1}`;
+    cal.appendChild(label);
+    for (let col = 0; col < 7; col++) {
+      const pos = row * 7 + col;
+      const cell = document.createElement('div');
+      if (pos < padStart) {
+        cell.className = 'cell empty';
+      } else {
+        const i = pos - padStart;
+        const s = days30[i] || 'ok';
+        cell.className = 'cell ' + s;
+        cell.textContent = String(i + 1);
+        cell.title = s === 'ok' ? 'No outages' : s === 'warn' ? 'Brief outage' : s === 'crit' ? 'Major outage (6h)' : 'Powered off';
+      }
+      cal.appendChild(cell);
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  // Render Option D — dual strip with positional segments
+  // Each day = ~3.33% of the strip width. Render the 30-day state as
+  // colored absolute-positioned segments inside the lanes.
+  // ─────────────────────────────────────────────────────────────────
+  const dualPwr = document.getElementById('dualPwr');
+  const dualOnline = document.getElementById('dualOnline');
+  days30.forEach((s, i) => {
+    const left = (i / 30) * 100;
+    const width = (1 / 30) * 100;
+    // Powered lane: gray for 'off' days only
+    if (s === 'off') {
+      const seg = document.createElement('div');
+      seg.className = 'seg pwr-off';
+      seg.style.left = left + '%';
+      seg.style.width = width + '%';
+      dualPwr.appendChild(seg);
+    }
+    // Online lane: amber/red for outage days, gray for powered-off days
+    if (s === 'warn' || s === 'crit' || s === 'off') {
+      const seg = document.createElement('div');
+      seg.className = 'seg ' + (s === 'off' ? 'off' : s);
+      seg.style.left = left + '%';
+      seg.style.width = width + '%';
+      dualOnline.appendChild(seg);
+    }
+  });
+</script>
+</body>
+</html>
