@@ -1368,7 +1368,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.74";
+const APP_VERSION = "0.14.75";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -2897,13 +2897,16 @@ function _openAlertChipPopover() {
     `;
   }
 
-  // Per-host rows. Click -> open that host's drawer, close popover.
+  // Per-host rows. Multi-column layout so long lists don't trigger
+  // scrollbars (which would clash with the global scroll-closes-
+  // popover handler). Click -> open that host's drawer, close popover.
+  const colCount = allHosts.length <= 6 ? 1 : allHosts.length <= 18 ? 2 : 3;
   const hostRows = allHosts.length ? `
     <div style="border-top:1px solid var(--line);padding:6px 14px 2px 14px;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-faint);font-weight:700;">Alerting endpoints</div>
-    <div style="max-height:280px;overflow-y:auto;">
+    <div style="column-count:${colCount};column-gap:0;column-fill:balance;padding:0 0 4px;">
       ${allHosts.map((h, i) => {
         const rowIcon = i < alerts.crit ? '🚨' : '⚠️';
-        return `<button class="pop-action" data-chip-pcid="${esc(h.id)}" style="display:flex;align-items:baseline;gap:8px;">
+        return `<button class="pop-action" data-chip-pcid="${esc(h.id)}" style="display:flex;align-items:baseline;gap:8px;break-inside:avoid;">
           <span style="font-size:11px;line-height:1;">${rowIcon}</span>
           <span style="font-weight:600;flex:1;">${esc(h.name)}</span>
           ${h.reason ? `<span class="meta" style="font-size:11.5px;font-weight:400;">${esc(h.reason)}</span>` : ''}
@@ -2911,7 +2914,11 @@ function _openAlertChipPopover() {
       }).join('')}
     </div>
   ` : '';
+  // Widen the popover when we're in multi-column mode so columns
+  // have breathing room. Reset to default when 1 col.
+  const popMaxWidth = colCount === 3 ? 720 : colCount === 2 ? 520 : 360;
 
+  pop.style.maxWidth = popMaxWidth + 'px';
   pop.innerHTML = `
     <div class="pop-title">Alerts <div class="pop-host">${headerLine}</div></div>
     ${controls}
@@ -3797,24 +3804,40 @@ function _openStatDrilldown(statKey, label, anchorEl) {
   }
   const clientNames = Array.from(byClient.keys()).sort((a, b) => a.localeCompare(b));
 
-  // Build the popover HTML. Hostname rows are anchor-like so a click
-  // opens the drawer for that host (the global stat-host-row handler
-  // wires this after innerHTML insert).
+  // Build the popover HTML using CSS columns so the list flows into
+  // multiple columns instead of getting tall + scroll-bound. Scroll
+  // bars inside the popover used to clash with the global "scroll-
+  // anywhere closes the popover" handler, snapping it shut whenever
+  // the operator tried to read past the cap. Multi-column layout
+  // also makes large clients (20+ hosts) much faster to scan.
+  //
+  // CSS columns count is determined by host total: 1 col for small
+  // lists, 2 for medium, 3 for big. break-inside: avoid keeps each
+  // client's group + its rows from splitting mid-block across the
+  // column boundary.
+  const colCount = hosts.length <= 8 ? 1 : hosts.length <= 24 ? 2 : 3;
+  // Cap the popover width based on column count so a 3-col grid
+  // doesn't blow out across the whole viewport.
+  const popMaxWidth = colCount === 3 ? 720 : colCount === 2 ? 520 : 320;
+
   const hostRows = clientNames.map(client => {
     const list = byClient.get(client);
-    return `<div style="padding:6px 14px 2px 14px;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-faint);font-weight:700;border-top:1px solid var(--line);">${esc(client)} <span style="color:var(--ink-soft);font-weight:500;text-transform:none;letter-spacing:0;">&middot; ${list.length}</span></div>` +
-      list.map(a => {
+    return `<div style="break-inside:avoid;page-break-inside:avoid;">
+      <div style="padding:6px 14px 2px 14px;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-faint);font-weight:700;border-top:1px solid var(--line);">${esc(client)} <span style="color:var(--ink-soft);font-weight:500;text-transform:none;letter-spacing:0;">&middot; ${list.length}</span></div>
+      ${list.map(a => {
         const age = a.lastCheckin ? tsToAgo(a.lastCheckin) : "never";
-        return `<button class="pop-action stat-host-row" data-stat-pcid="${esc(a.id)}" style="display:flex;justify-content:space-between;gap:10px;align-items:baseline;">
+        return `<button class="pop-action stat-host-row" data-stat-pcid="${esc(a.id)}" style="display:flex;justify-content:space-between;gap:10px;align-items:baseline;break-inside:avoid;">
           <span style="font-weight:600;">${esc(a.hostname || a.id)}</span>
           <span class="meta" style="font-size:11.5px;font-weight:400;">${esc(age)}</span>
         </button>`;
-      }).join("");
+      }).join("")}
+    </div>`;
   }).join("");
 
+  pop.style.maxWidth = popMaxWidth + 'px';
   pop.innerHTML = `
     <div class="pop-title">${esc(label)} <div class="pop-host">${hosts.length} endpoint${hosts.length === 1 ? "" : "s"} &middot; click any host to open its drawer</div></div>
-    <div style="max-height:340px;overflow-y:auto;">${hostRows}</div>
+    <div style="column-count:${colCount};column-gap:0;column-fill:balance;padding:0 0 4px;">${hostRows}</div>
   `;
 
   // Position the popover -- prefer anchored to the clicked row, but
@@ -7647,6 +7670,12 @@ function openBadgePopover(anchorEl) {
   } else {
     pop.innerHTML = _renderBadgePopover(pcId, hostname, kind, agent);
   }
+  // Apply max-width hint from the rendered content (set by
+  // _renderWuCriticalPopover when multi-column layout needs more
+  // breathing room). Reset to default when no hint -- prevents stale
+  // wide-popover dimensions from leaking across opens.
+  const widthHint = pop.querySelector('[data-pop-max-width]');
+  pop.style.maxWidth = widthHint ? widthHint.dataset.popMaxWidth + 'px' : '320px';
 
   // Position: anchor below the badge. If that would push it off the
   // bottom of the viewport, flip above. Right-align so it doesn't
@@ -7704,7 +7733,17 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') _closeBadgePopover();
 });
 window.addEventListener('resize', _closeBadgePopover);
-window.addEventListener('scroll', _closeBadgePopover, true);
+// Close on page scroll, but NOT when the scroll event originated
+// inside the popover itself (a long host list / column-grid of
+// endpoints might still need to scroll within its own viewport
+// cap). Without the e.target check, scrolling inside the popover
+// fires through the capture-phase listener and slams it shut.
+window.addEventListener('scroll', (e) => {
+  const pop = document.getElementById('badgePopover');
+  if (!pop || pop.hidden) return;
+  if (pop.contains(e.target)) return;
+  _closeBadgePopover();
+}, true);
 
 // List-only popover for the WU-critical badge. Shows each pending
 // critical update with its title + size + KB number so the operator
@@ -7721,11 +7760,17 @@ function _renderWuCriticalPopover(hostname, agent) {
   if (!critical.length) {
     body = `<div class="meta" style="padding:10px 14px;">No critical-severity updates in the captured list. ${updates.length ? `(${updates.length} non-critical update${updates.length === 1 ? '' : 's'} pending -- open the drawer to see them.)` : '(Empty pending list.)'}</div>`;
   } else {
-    body = `<div style="max-height:340px;overflow-y:auto;">
+    // Multi-column layout for long KB lists -- avoids the scrollbar
+    // that was conflicting with the "scroll closes popover" handler.
+    // 1 col up to 5 KBs, 2 cols up to 14, 3 cols above. Each KB block
+    // marks break-inside:avoid so title + meta line don't split across
+    // a column boundary.
+    const colCount = critical.length <= 5 ? 1 : critical.length <= 14 ? 2 : 3;
+    body = `<div style="column-count:${colCount};column-gap:0;column-fill:balance;padding:0 0 4px;">
       ${critical.map(u => {
         const kb = (u.kb || (u.title || '').match(/KB\d+/i)?.[0] || '').toString();
         const size = fmtMB(u.sizeBytes);
-        return `<div style="padding:8px 14px;border-top:1px solid var(--line);">
+        return `<div style="padding:8px 14px;border-top:1px solid var(--line);break-inside:avoid;">
           <div style="font-size:13px;font-weight:600;line-height:1.35;color:var(--ink);">${esc(u.title || '(untitled)')}</div>
           <div class="meta" style="font-size:11.5px;margin-top:2px;">
             ${kb ? `<code>${esc(kb)}</code>` : ''}${kb && size ? ' &middot; ' : ''}${size || ''}
@@ -7736,10 +7781,16 @@ function _renderWuCriticalPopover(hostname, agent) {
     </div>`;
   }
 
-  return `
+  // Tag the popover element with a maxWidth hint so openBadgePopover()
+  // can apply it before positioning. _renderWuCriticalPopover returns
+  // HTML only; the maxWidth is attached via the returned obj for the
+  // caller to read. Caller falls back to default if missing.
+  const desiredMaxWidth = !critical.length ? 320 : (critical.length <= 5 ? 360 : critical.length <= 14 ? 560 : 760);
+  // Attach the width hint via a data attribute the caller can read off.
+  return `<div data-pop-max-width="${desiredMaxWidth}" style="display:contents;">
     <div class="pop-title">Pending critical Windows Updates <div class="pop-host">${esc(hostname)} &middot; ${critical.length} of ${updates.length || 0} pending</div></div>
     ${body}
-  `;
+  </div>`;
 }
 
 // Content for each badge kind. Headlines + action labels tuned to the
