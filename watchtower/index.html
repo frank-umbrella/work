@@ -1087,7 +1087,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.41";
+const APP_VERSION = "0.14.42";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -5700,19 +5700,52 @@ function renderWsb(w) {
         <div class="k">Total backups</div>
         <div class="v"><b>${w.totalBackups}</b> backup set${w.totalBackups === 1 ? "" : "s"} retained <span class="meta">(across every destination, all VSS modes)</span></div>
       ` : ""}
-      ${Array.isArray(w.backupsByTarget) && w.backupsByTarget.length ? `
+      ${Array.isArray(w.backupsByTarget) && w.backupsByTarget.length ? (() => {
+        // Find the target with the most recent newestBackup -- the disk
+        // currently receiving the freshest backups (the "primary" disk
+        // the rotation is actively writing to). Operator wants this one
+        // visually distinct so they can spot at a glance which destination
+        // is actively being used, vs. ones that haven't seen a write in
+        // weeks (which often indicates a removed-USB / dead-mount issue).
+        let primaryIdx = -1;
+        let latestMs = -Infinity;
+        w.backupsByTarget.forEach((t, i) => {
+          const iso = dateToIso(t.newestBackup);
+          if (iso) {
+            const ms = new Date(iso).getTime();
+            if (isFinite(ms) && ms > latestMs) {
+              latestMs = ms;
+              primaryIdx = i;
+            }
+          }
+        });
+        return `
         <div class="k">Backups per disk</div>
-        <div class="v">${w.backupsByTarget.map(t => `
+        <div class="v">${w.backupsByTarget.map((t, i) => {
+          const isPrimary = i === primaryIdx;
+          // Pale purple highlight on the disk name. Subtle pill: light
+          // purple background, deep purple text, thin purple border.
+          // Plus a small "primary" pill chip in the same palette so it
+          // reads as intentional emphasis, not a syntax-highlight glitch.
+          const codeStyle = isPrimary
+            ? 'background:#f3e8ff;color:#6b21a8;padding:1px 7px;border-radius:4px;border:1px solid #d8b4fe;font-weight:600;'
+            : '';
+          const primaryChip = isPrimary
+            ? ` <span class="badge" style="background:#ede9fe;color:#6b21a8;border:1px solid #d8b4fe;font-size:10px;padding:1px 7px;margin-left:6px;" title="Most recently written-to backup destination">primary</span>`
+            : '';
+          return `
           <div style="margin-bottom:4px;">
-            <code>${esc(t.target || "—")}</code>
+            <code style="${codeStyle}">${esc(t.target || "—")}</code>${primaryChip}
             <span class="badge muted" style="margin-left:6px;">${t.count} backup${t.count === 1 ? "" : "s"}</span>
             ${(t.oldestBackup && t.newestBackup) ? (() => {
               const o = dateToIso(t.oldestBackup);
               const n = dateToIso(t.newestBackup);
               return o && n ? `<div class="meta" style="margin-left:4px;font-size:11px;">oldest ${esc(o.slice(0, 10))} &middot; newest ${esc(n.slice(0, 10))}</div>` : "";
             })() : ""}
-          </div>`).join("")}</div>
-      ` : ""}
+          </div>`;
+        }).join("")}</div>
+        `;
+      })() : ""}
       ${w.frequency ? `
         <div class="k">Frequency</div>
         <div class="v">${esc(w.frequency)}</div>
