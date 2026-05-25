@@ -1501,7 +1501,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.108";
+const APP_VERSION = "0.14.109";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -1580,7 +1580,6 @@ function openChangelogModal() {
   const body = `
     <div class="meta" style="margin-bottom:14px;">
       Major changes per version, newest first. Patch-level no-ops aren't listed.
-      <br>Full commit log: <a href="https://github.com/frank-umbrella/work/commits/main/watchtower" target="_blank">github.com/frank-umbrella/work</a>.
     </div>
     <div style="display:flex;flex-direction:column;gap:18px;max-height:500px;overflow-y:auto;padding-right:8px;">
       ${CHANGELOG.map(entry => `
