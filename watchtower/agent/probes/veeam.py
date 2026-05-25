@@ -385,6 +385,9 @@ def _detect_agent():
         return None
 
     last_job = None
+    last_job_reason = None  # diagnostic surfaced to the dashboard when
+                            # last_job stays None -- lets the operator
+                            # see WHY rather than just "no session data"
     # Try `veeamconfig session list` — the Agent's CLI. Output is a
     # human-readable table; we parse the first data row. veeamconfig.exe
     # has moved across versions:
@@ -399,7 +402,9 @@ def _detect_agent():
     veeamconfig = _locate_veeamconfig()
     _logger.log(f"  veeam.veeamconfig path resolved to: {veeamconfig!r}")
 
-    if veeamconfig:
+    if not veeamconfig:
+        last_job_reason = "veeamconfig.exe not located -- checked registry InstallDir + hardcoded paths"
+    else:
         try:
             r = subprocess.run(
                 [veeamconfig, "session", "list"],
@@ -408,10 +413,21 @@ def _detect_agent():
                 timeout=20,
                 creationflags=0x08000000,
             )
-            if r.returncode == 0 and r.stdout:
-                last_job = _parse_session_list(r.stdout)
-        except (subprocess.TimeoutExpired, OSError) as e:
+            if r.returncode != 0:
+                last_job_reason = f"veeamconfig session list returned exit {r.returncode} (stderr: {(r.stderr or '').strip()[:200]!r})"
+            elif not r.stdout or not r.stdout.strip():
+                last_job_reason = "veeamconfig session list produced no output -- no completed backup sessions on this host yet"
+            else:
+                parsed = _parse_session_list(r.stdout)
+                if parsed is None:
+                    last_job_reason = "veeamconfig session list output didn't match expected table format (probe parser miss)"
+                else:
+                    last_job = parsed
+        except subprocess.TimeoutExpired:
+            last_job_reason = "veeamconfig session list timed out after 20s"
+        except OSError as e:
             last_job = {"_error": f"veeamconfig failed: {e}"}
+            last_job_reason = f"veeamconfig launch failed: {e}"
 
     # Backup policy type(s) -- `veeamconfig job list` enumerates every
     # configured job with its backup type (Volume / File / EntireComputer /
@@ -423,12 +439,15 @@ def _detect_agent():
     if veeamconfig:
         jobs = _list_veeam_jobs(veeamconfig)
 
-    return {
+    out = {
         "edition": "agent",
         "version": ver,
         "lastJob": last_job,
         "jobs": jobs,
     }
+    if last_job_reason:
+        out["lastJobReason"] = last_job_reason
+    return out
 
 
 def _list_veeam_jobs(veeamconfig_path):

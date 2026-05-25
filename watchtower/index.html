@@ -1376,7 +1376,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.82";
+const APP_VERSION = "0.14.83";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -7316,24 +7316,35 @@ function renderCarbonite(c) {
   `).join("");
 
   // Operational status -- best-effort signals pulled from Carbonite's
-  // own registry surface. null means we couldn't find the value in
-  // any known location; render as "unknown" so we don't lie about
-  // protection state. Where Carbonite reports a clear yes/no, surface
-  // a colored badge so the operator can spot at a glance.
+  // own registry surface (HKLM + HKEY_USERS per-profile hives as of
+  // agent v0.14.35). null means we walked every known location and
+  // didn't find a usable value. When BOTH protected + filesProtected
+  // are null we show a single explanatory message instead of two
+  // useless "unknown" pills -- modern Carbonite Endpoint v11+ keeps
+  // a lot of state in ProgramData files outside the registry surface
+  // we currently probe, so a host with Carbonite running fine can
+  // legitimately have no signal here.
+  const haveProtected = c.protected === true || c.protected === false;
+  const haveFiles = typeof c.filesProtected === "number";
   const protBadge = c.protected === true
     ? `<span class="badge ok">Yes</span>`
     : c.protected === false
       ? `<span class="badge bad">No</span>`
-      : `<span class="badge muted" title="Carbonite didn't write a recognizable status value to any of the registry locations we check. Open the Carbonite UI on the host to see live status.">unknown</span>`;
-  const filesCell = (typeof c.filesProtected === "number")
+      : `<span class="badge muted" title="Carbonite didn't write a recognizable status value to any of the registry locations we check (HKLM + HKEY_USERS). Open the Carbonite UI on the host to see live status.">unknown</span>`;
+  const filesCell = haveFiles
     ? `<b>${c.filesProtected.toLocaleString()}</b> file${c.filesProtected === 1 ? "" : "s"}`
-    : `<span class="badge muted" title="Carbonite didn't write a file-count value to any of the registry locations we check. The Carbonite UI on the host should show this number live.">unknown</span>`;
+    : `<span class="badge muted" title="Carbonite didn't write a file-count value to any of the registry locations we check (HKLM + HKEY_USERS). The Carbonite UI on the host should show this number live.">unknown</span>`;
 
-  const statusKv = `<div class="kv" style="margin-top:10px;">
+  const statusKv = (haveProtected || haveFiles) ? `<div class="kv" style="margin-top:10px;">
     <div class="k" title="Per Carbonite's own status reporting -- not just 'service is running'. Pulled from the registry value Carbonite writes when it confirms a successful protection state.">Protected?</div>
     <div class="v">${protBadge}${c.protectedSource ? ` <span class="meta" style="font-size:11px;">&middot; <code>${esc(c.protectedSource)}</code></span>` : ""}</div>
     <div class="k" title="Number of files Carbonite has enrolled in the backup set. Flatlining or shrinking growth is usually a sign something stopped getting picked up.">Files protected</div>
     <div class="v">${filesCell}${c.filesProtectedSource ? ` <span class="meta" style="font-size:11px;">&middot; <code>${esc(c.filesProtectedSource)}</code></span>` : ""}</div>
+  </div>` : `<div style="margin-top:10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 14px;">
+    <div style="font-size:12.5px;color:#475569;">
+      <b style="color:#1a1f2b;">Live status not available via registry.</b>
+      Carbonite Endpoint v11+ writes operational state to <code style="background:#fff;padding:1px 5px;border-radius:3px;">%ProgramData%\\Carbonite\\</code> files rather than the registry surface we probe. Detection (install + service) is confirmed; for live "protected / files protected" numbers, open the Carbonite agent on the host.
+    </div>
   </div>`;
 
   return `
@@ -7733,18 +7744,35 @@ function renderVeeam(veeam) {
     // below" so the row doesn't look broken when the Agent row has a
     // result badge and the B&R row is blank.
     const isBr = p.edition === 'br';
-    const rightSide = isBr
-      ? (Array.isArray(p.recentSessions) && p.recentSessions.length
-          ? `<span class="meta">${p.recentSessions.length} recent session${p.recentSessions.length === 1 ? '' : 's'} below</span>`
-          : (p.recentSessionsError
-              ? `<span class="badge muted" title="${esc(p.recentSessionsError)}">sessions unavailable</span>`
-              : `<span class="meta">no sessions</span>`))
-      : `${lj && lj.result ? `<span class="badge ${lj.result === 'Success' ? 'ok' : 'warn'}">${esc(lj.result)}</span><br>` : ""}${lj && lj.endTime ? `<small>${esc(lj.endTime)}</small>` : ""}`;
+    let rightSide;
+    if (isBr) {
+      rightSide = Array.isArray(p.recentSessions) && p.recentSessions.length
+        ? `<span class="meta">${p.recentSessions.length} recent session${p.recentSessions.length === 1 ? '' : 's'} below</span>`
+        : (p.recentSessionsError
+            ? `<span class="badge muted" title="${esc(p.recentSessionsError)}">sessions unavailable</span>`
+            : `<span class="meta">no sessions</span>`);
+    } else if (lj && lj.result) {
+      rightSide = `<span class="badge ${lj.result === 'Success' ? 'ok' : 'warn'}">${esc(lj.result)}</span>${lj.endTime ? `<br><small>${esc(lj.endTime)}</small>` : ""}`;
+    } else if (p.lastJobReason) {
+      // Probe ran but couldn't read session data -- surface WHY. Earlier
+      // versions silently left the cell blank, so a host with no completed
+      // backups looked identical to one where veeamconfig.exe was missing.
+      rightSide = `<span class="badge muted" title="${esc(p.lastJobReason)}">no session data</span>`;
+    } else {
+      rightSide = "";
+    }
+    // When the probe surfaced a reason for missing session data, also
+    // emit a small explanatory line under the product row so the user
+    // can see it without hovering the badge.
+    const reasonLine = (!isBr && !(lj && lj.result) && p.lastJobReason)
+      ? `<div class="meta" style="font-size:11.5px;margin-top:2px;">${esc(p.lastJobReason)}</div>`
+      : "";
     return `
       <div class="row">
         <div>
           <div class="name">${esc(isBr ? 'Backup & Replication' : 'Agent for Microsoft Windows')}</div>
           <div class="meta">v${esc(p.version)}</div>
+          ${reasonLine}
         </div>
         <div class="meta" style="text-align:right;">
           ${rightSide}

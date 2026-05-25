@@ -242,10 +242,55 @@ FILE_COUNT_NAME_PATTERNS = (
 )
 
 
+def _hku_carbonite_roots():
+    """Enumerate loaded user hives (HKEY_USERS\\<SID>) and return every
+    Carbonite-related subkey path we find. Modern Carbonite Endpoint
+    (v11+) runs as a service but writes a lot of operational state into
+    the backup user's HKCU. Our SYSTEM-context agent can't read HKCU
+    directly, but HKEY_USERS exposes every currently-loaded profile as
+    a SID-named subkey -- so we walk those.
+
+    Only loaded profiles are visible. If the Carbonite user hasn't
+    signed in since boot, their hive isn't mounted and we can't read
+    it. Acceptable: we'll get the data on the next check-in after
+    they sign in (rare on a server -- the backup user is usually
+    always signed in via Carbonite's own scheduled task / RunAs)."""
+    roots = []
+    try:
+        with winreg.OpenKey(winreg.HKEY_USERS, "", 0,
+                            winreg.KEY_READ | winreg.KEY_WOW64_64KEY) as users:
+            i = 0
+            while True:
+                try:
+                    sid = winreg.EnumKey(users, i)
+                except OSError:
+                    break
+                i += 1
+                # Real user SIDs start with S-1-5-21-...; skip service
+                # SIDs (LocalSystem, LocalService, NetworkService) and
+                # the _Classes side-hives.
+                if not sid.startswith("S-1-5-21-") or sid.endswith("_Classes"):
+                    continue
+                for sub in (r"Software\Carbonite", r"Software\WOW6432Node\Carbonite"):
+                    path = f"{sid}\\{sub}"
+                    try:
+                        with winreg.OpenKey(winreg.HKEY_USERS, path, 0,
+                                            winreg.KEY_READ | winreg.KEY_WOW64_64KEY):
+                            roots.append(path)
+                    except (FileNotFoundError, OSError):
+                        continue
+    except (FileNotFoundError, OSError):
+        pass
+    if roots:
+        _logger.log(f"  carbonite._hku_carbonite_roots: found {len(roots)} per-user hives -> {roots}")
+    return roots
+
+
 def _walk_carbonite_for_protected():
-    """Last-resort: walk every subkey of HKLM\\SOFTWARE\\Carbonite (both
-    hives) for a value whose name matches a protected-ish pattern AND
-    coerces cleanly to bool."""
+    """Last-resort: walk every subkey of HKLM\\SOFTWARE\\Carbonite AND
+    every loaded user hive's Software\\Carbonite tree, looking for a
+    value whose name matches a protected-ish pattern AND coerces
+    cleanly to bool."""
     hits = []
 
     def visit(path, name, value):
@@ -257,6 +302,8 @@ def _walk_carbonite_for_protected():
 
     for root in (r"SOFTWARE\Carbonite", r"SOFTWARE\WOW6432Node\Carbonite"):
         _walk_subtree(winreg.HKEY_LOCAL_MACHINE, root, visit)
+    for hku_root in _hku_carbonite_roots():
+        _walk_subtree(winreg.HKEY_USERS, hku_root, visit)
 
     if hits:
         # Prefer hits whose name is exactly 'isprotected' / 'protected'
@@ -265,7 +312,7 @@ def _walk_carbonite_for_protected():
         path, name, value, coerced = hits[0]
         _logger.log(f"  carbonite._walk MATCH (fallback) {path}\\{name} = {value!r} -> {coerced}")
         return coerced, f"{path}\\{name}"
-    _logger.log("  carbonite._walk_for_protected: no match in any subkey")
+    _logger.log("  carbonite._walk_for_protected: no match in HKLM or any HKU hive")
     return None, None
 
 
@@ -281,6 +328,8 @@ def _walk_carbonite_for_file_count():
 
     for root in (r"SOFTWARE\Carbonite", r"SOFTWARE\WOW6432Node\Carbonite"):
         _walk_subtree(winreg.HKEY_LOCAL_MACHINE, root, visit)
+    for hku_root in _hku_carbonite_roots():
+        _walk_subtree(winreg.HKEY_USERS, hku_root, visit)
 
     if hits:
         # Prefer the largest count (most likely "total files protected"
@@ -289,7 +338,7 @@ def _walk_carbonite_for_file_count():
         path, name, value, coerced = hits[0]
         _logger.log(f"  carbonite._walk MATCH (fallback) {path}\\{name} = {value!r} -> {coerced}")
         return coerced, f"{path}\\{name}"
-    _logger.log("  carbonite._walk_for_file_count: no match in any subkey")
+    _logger.log("  carbonite._walk_for_file_count: no match in HKLM or any HKU hive")
     return None, None
 
 
