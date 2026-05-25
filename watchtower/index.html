@@ -1460,7 +1460,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.103";
+const APP_VERSION = "0.14.104";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -2147,11 +2147,32 @@ async function loadUserColumnPrefs(uid) {
 }
 
 function activeFleetColumns() {
-  const selected = new Set(getSelectedFleetColumns());
-  // Preserve canonical column order from FLEET_COLUMNS rather than the
-  // selection order in localStorage -- the operator's expectation is
-  // that toggling a checkbox restores its native position.
-  return FLEET_COLUMNS.filter(c => selected.has(c.key));
+  // The saved array IS order-significant as of v0.14.104 (drag-and-
+  // drop in the column chooser). Walk the saved key order; each
+  // matching FLEET_COLUMNS entry contributes a column. Then append
+  // any newly-introduced columns we don't have an order for yet
+  // (e.g. a future version adds a column nobody has dragged into
+  // their preferences yet) at the end so they appear without
+  // requiring a "Reset to defaults" click.
+  const savedKeys = getSelectedFleetColumns();
+  const seen = new Set();
+  const out = [];
+  for (const k of savedKeys) {
+    const col = FLEET_COLUMNS.find(c => c.key === k);
+    if (col && !seen.has(k)) {
+      out.push(col);
+      seen.add(k);
+    }
+  }
+  // (Newly-introduced columns the user hasn't seen yet -- those that
+  // are default:true but absent from savedKeys.)
+  for (const c of FLEET_COLUMNS) {
+    if (c.default && !seen.has(c.key)) {
+      out.push(c);
+      seen.add(c.key);
+    }
+  }
+  return out;
 }
 
 function renderFleetHead() {
@@ -2170,38 +2191,133 @@ function renderFleetHead() {
 }
 
 function openColumnChooser() {
-  const selected = new Set(getSelectedFleetColumns());
+  // Build an ordered union list:
+  //   1. Columns the user currently has selected, in THEIR saved order
+  //      (top of the list, checkboxes ticked)
+  //   2. Remaining columns the user has hidden, in canonical order
+  //      (below, checkboxes unticked)
+  // Drag a row to reorder. Checkbox toggles visibility. On Apply we
+  // capture the ticked rows in their displayed order -- so the user
+  // gets exactly what they see.
+  const savedKeys = getSelectedFleetColumns();
+  const selectedSet = new Set(savedKeys);
+  const orderedKeys = [];
+  // Selected first, in saved order
+  for (const k of savedKeys) {
+    if (FLEET_COLUMNS.some(c => c.key === k)) orderedKeys.push(k);
+  }
+  // Then everything else in canonical order
+  for (const c of FLEET_COLUMNS) {
+    if (!selectedSet.has(c.key)) orderedKeys.push(c.key);
+  }
+
+  const rowHtml = (k) => {
+    const c = FLEET_COLUMNS.find(col => col.key === k);
+    if (!c) return "";
+    const checked = selectedSet.has(k) ? "checked" : "";
+    const optTag = c.default ? "" : ' <span class="meta" style="font-size:11px;">(optional)</span>';
+    return `
+      <div class="col-chooser-row" draggable="true" data-col-key="${esc(c.key)}"
+           style="display:flex;align-items:center;gap:10px;padding:7px 10px;border:1px solid var(--line);border-radius:7px;background:var(--surface);cursor:grab;user-select:none;">
+        <span class="col-chooser-grip" title="Drag to reorder" style="color:var(--ink-faint);font-size:14px;line-height:1;font-family:monospace;cursor:grab;">&#x2630;</span>
+        <input type="checkbox" data-col-key="${esc(c.key)}" ${checked} style="margin:0;cursor:pointer;">
+        <span style="flex:1;">${esc(c.label)}${optTag}</span>
+      </div>
+    `;
+  };
+
   const body = `
-    <div class="meta" style="margin-bottom:10px;">Pick which columns are visible in the Endpoints table. Your selection is saved to your account and syncs across devices.</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 18px;">
-      ${FLEET_COLUMNS.map(c => `
-        <label style="display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer;">
-          <input type="checkbox" data-col-key="${esc(c.key)}" ${selected.has(c.key) ? "checked" : ""}>
-          <span>${esc(c.label)}${c.default ? "" : ' <span class="meta" style="font-size:11px;">(optional)</span>'}</span>
-        </label>
-      `).join("")}
+    <div class="meta" style="margin-bottom:10px;">
+      Tick the columns you want visible and <b>drag rows up/down</b> to reorder them. Your selection + order saves to your account and syncs across devices and browsers.
+    </div>
+    <div id="colChooserList" style="display:flex;flex-direction:column;gap:6px;max-height:480px;overflow-y:auto;padding:2px;">
+      ${orderedKeys.map(rowHtml).join("")}
     </div>
   `;
   const foot = `
-    <button class="btn" id="colChooserReset" title="Restore the original column set">Reset to defaults</button>
+    <button class="btn" id="colChooserReset" title="Restore the original column set + order">Reset to defaults</button>
     <span style="flex:1;"></span>
     <button class="btn" data-modal-close>Cancel</button>
     <button class="btn btn-primary" id="colChooserApply">Apply</button>
   `;
   openModal({ title: "Columns", sub: "Endpoints table", body, foot });
-  $("#colChooserReset").addEventListener("click", () => {
-    $$("#modalBody input[data-col-key]").forEach(cb => {
-      const def = FLEET_COLUMNS.find(c => c.key === cb.dataset.colKey);
-      cb.checked = !!(def && def.default);
+
+  // ---- Drag-and-drop wiring ----
+  // HTML5 native drag API. No external library. Pattern:
+  //   dragstart  -> remember the dragged row, set dragging class for styling
+  //   dragover   -> on each row, calculate whether mouse is above/below
+  //                 the row's vertical midpoint, splice the dragged row
+  //                 above or below accordingly. preventDefault to allow drop.
+  //   dragend    -> clean up the styling
+  // Reordering is done by DOM mutation; on Apply we read the new order
+  // directly from the live DOM.
+  const list = document.getElementById("colChooserList");
+  if (list) {
+    let dragged = null;
+    list.addEventListener("dragstart", (e) => {
+      const row = e.target.closest(".col-chooser-row");
+      if (!row) return;
+      dragged = row;
+      row.style.opacity = "0.45";
+      // Required for Firefox to actually fire drag events.
+      try { e.dataTransfer.setData("text/plain", row.dataset.colKey); } catch {}
+      e.dataTransfer.effectAllowed = "move";
     });
+    list.addEventListener("dragend", () => {
+      if (dragged) {
+        dragged.style.opacity = "";
+        dragged = null;
+      }
+    });
+    list.addEventListener("dragover", (e) => {
+      e.preventDefault();  // allow drop
+      e.dataTransfer.dropEffect = "move";
+      if (!dragged) return;
+      const target = e.target.closest(".col-chooser-row");
+      if (!target || target === dragged) return;
+      const rect = target.getBoundingClientRect();
+      const midY = rect.top + rect.height / 2;
+      if (e.clientY < midY) {
+        if (target.previousElementSibling !== dragged) {
+          list.insertBefore(dragged, target);
+        }
+      } else {
+        if (target.nextElementSibling !== dragged) {
+          list.insertBefore(dragged, target.nextElementSibling);
+        }
+      }
+    });
+  }
+
+  $("#colChooserReset").addEventListener("click", () => {
+    // Rebuild the list in canonical FLEET_COLUMNS order with defaults
+    // selected, mimicking a fresh install.
+    if (!list) return;
+    list.innerHTML = FLEET_COLUMNS.map(c => {
+      const def = !!c.default;
+      const optTag = c.default ? "" : ' <span class="meta" style="font-size:11px;">(optional)</span>';
+      return `
+        <div class="col-chooser-row" draggable="true" data-col-key="${esc(c.key)}"
+             style="display:flex;align-items:center;gap:10px;padding:7px 10px;border:1px solid var(--line);border-radius:7px;background:var(--surface);cursor:grab;user-select:none;">
+          <span class="col-chooser-grip" title="Drag to reorder" style="color:var(--ink-faint);font-size:14px;line-height:1;font-family:monospace;cursor:grab;">&#x2630;</span>
+          <input type="checkbox" data-col-key="${esc(c.key)}" ${def ? "checked" : ""} style="margin:0;cursor:pointer;">
+          <span style="flex:1;">${esc(c.label)}${optTag}</span>
+        </div>`;
+    }).join("");
   });
+
   $("#colChooserApply").addEventListener("click", () => {
-    const picked = $$("#modalBody input[data-col-key]")
-      .filter(cb => cb.checked)
-      .map(cb => cb.dataset.colKey);
-    // Always require at least the Host column so the table isn't useless.
-    if (!picked.includes("hostname")) picked.unshift("hostname");
-    setSelectedFleetColumns(picked);
+    // Read order from the DOM (post-drag), filter to ticked checkboxes.
+    if (!list) return;
+    const ordered = [];
+    list.querySelectorAll(".col-chooser-row").forEach(row => {
+      const cb = row.querySelector('input[type="checkbox"][data-col-key]');
+      if (cb && cb.checked) ordered.push(row.dataset.colKey);
+    });
+    // Always require Host so the table isn't useless. Put it first if
+    // the user unticked it (won't happen unless they tried hard).
+    if (!ordered.includes("hostname")) ordered.unshift("hostname");
+    setSelectedFleetColumns(ordered);
     renderFleetHead();
     renderFleet();
     closeModal();
