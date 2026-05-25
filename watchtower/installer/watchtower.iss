@@ -1146,6 +1146,44 @@ begin
 end;
 
 
+// Returns True if watchtower-tray.exe is currently a running process.
+// Used post-install to verify that the [Run] section's tray launch
+// actually produced a visible process; if not, we fall back to the
+// schtasks path that the SYSTEM-context auto-update has always used.
+function IsTrayRunning(): Boolean;
+var
+  ResultCode: Integer;
+  TmpFile: string;
+  Lines: TArrayOfString;
+  I: Integer;
+begin
+  Result := False;
+  TmpFile := ExpandConstant('{tmp}\wt-tray-check.txt');
+  // tasklist /fi "IMAGENAME eq watchtower-tray.exe" outputs:
+  //   "INFO: No tasks are running which match the specified criteria."
+  // when no tray exists, or a header + a row per matching process.
+  Exec(ExpandConstant('{cmd}'),
+       '/c tasklist /fi "IMAGENAME eq watchtower-tray.exe" > "' + TmpFile + '" 2>&1',
+       '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  if not LoadStringsFromFile(TmpFile, Lines) then begin
+    DeleteFile(TmpFile);
+    Exit;
+  end;
+  // Look for any line containing the EXE name (case-insensitive).
+  // tasklist's "no tasks" message doesn't include the EXE name in the
+  // body so this match is unambiguous.
+  for I := 0 to GetArrayLength(Lines) - 1 do
+  begin
+    if Pos('watchtower-tray.exe', Lowercase(Lines[I])) > 0 then
+    begin
+      Result := True;
+      Break;
+    end;
+  end;
+  DeleteFile(TmpFile);
+end;
+
+
 procedure LaunchTrayAsActiveUser();
 var
   ResultCode: Integer;
@@ -1268,6 +1306,29 @@ begin
     // can't use runasoriginaluser to launch the tray. Use schtasks to
     // schedule a one-shot task that runs as the active console user.
     if IsSystemContext() then
-      LaunchTrayAsActiveUser();
+      LaunchTrayAsActiveUser()
+    else
+    begin
+      // Non-SYSTEM path: the [Run] section ALREADY tried to launch the
+      // tray via runasoriginaluser. That works on most hosts but is
+      // fragile when the installer was spawned by a process (e.g.
+      // tray.exe's "Check for updates" -> Popen) rather than launched
+      // via Explorer's UAC chain. Verify the tray actually came back;
+      // if not, fall through to the schtasks path that's known to work
+      // across user-session boundaries.
+      //
+      // 4-second poll: tray initialization on slower hosts takes a
+      // couple of seconds (PyInstaller bootstrap + pystray + PIL).
+      Sleep(2000);
+      if not IsTrayRunning() then
+      begin
+        Sleep(2000);  // one more wait in case the host is slow
+        if not IsTrayRunning() then
+        begin
+          Log('Watchtower install: [Run] runasoriginaluser tray launch did not produce a running tray, falling back to schtasks path');
+          LaunchTrayAsActiveUser();
+        end;
+      end;
+    end;
   end;
 end;

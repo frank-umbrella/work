@@ -50,6 +50,50 @@ POLL_INTERVAL_SEC = 30
 BLINK_INTERVAL_SEC = 1.0       # critical-state icon flip interval
 RUN_NOW_MARKER = cfg_mod.DATA_DIR / ".run-now"
 
+# Startup breadcrumb. Each tray launch appends a single line to this
+# file with: timestamp, agent version, PID, process owner (best-effort
+# via USERNAME env var). Catches the "tray launched but never appeared
+# in the taskbar" case -- if the file has a recent entry but no tray
+# is visible, the tray started + died before reaching Shell_NotifyIcon.
+# If the file has NO recent entry post-install, [Run]'s tray launch
+# never actually fired.
+_TRAY_STARTUP_LOG = cfg_mod.DATA_DIR / "tray-startup.log"
+
+
+def _log_tray_startup(stage):
+    """Append a stage marker to the startup log. Failure-tolerant --
+    a logging glitch must never prevent the tray from launching."""
+    import datetime as _dt
+    try:
+        cfg_mod.DATA_DIR.mkdir(parents=True, exist_ok=True)
+        ts = _dt.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+        pid = os.getpid()
+        owner = os.environ.get("USERNAME", "?")
+        line = f"{ts} stage={stage} pid={pid} owner={owner} version={AGENT_VERSION}\n"
+        # Keep the file from growing unbounded -- truncate at ~64 KB.
+        # Rare for a tray to accumulate that much (each line is ~80 B).
+        try:
+            if _TRAY_STARTUP_LOG.exists() and _TRAY_STARTUP_LOG.stat().st_size > 65536:
+                # Keep last ~half. Cheap rotation.
+                with open(_TRAY_STARTUP_LOG, "rb") as f:
+                    f.seek(-32768, os.SEEK_END)
+                    tail = f.read()
+                with open(_TRAY_STARTUP_LOG, "wb") as f:
+                    f.write(b"... earlier lines truncated ...\n")
+                    f.write(tail)
+        except OSError:
+            pass
+        with open(_TRAY_STARTUP_LOG, "a", encoding="utf-8") as f:
+            f.write(line)
+    except Exception:
+        # Logging failures must never stop tray startup.
+        pass
+
+
+# First breadcrumb -- fires as soon as the module is imported, BEFORE
+# any pystray/PIL initialization that could blow up.
+_log_tray_startup("imported")
+
 # Dashboard URL — surfaced as a tray menu item so users can jump
 # to the management page. Empty string means "no dashboard link"
 # (e.g. when the dashboard isn't deployed yet).
@@ -475,12 +519,28 @@ def main():
         title=_tooltip(initial_state),
         menu=menu,
     )
+    _log_tray_startup("icon_created")
     icon._keep_polling = True
     t = threading.Thread(target=_poll_loop, args=(icon,), daemon=True)
     t.start()
-    icon.run()
-    icon._keep_polling = False
+    _log_tray_startup("entering_run_loop")
+    try:
+        icon.run()
+        _log_tray_startup("run_loop_exited_normally")
+    except Exception as e:
+        _log_tray_startup(f"run_loop_exception:{e}")
+        raise
+    finally:
+        icon._keep_polling = False
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        _log_tray_startup("main_called")
+        main()
+    except Exception as e:
+        # Best-effort capture of any startup-time exception that would
+        # otherwise vanish into the void (no stderr when launched via
+        # runhidden + nowait from Inno's [Run] section).
+        _log_tray_startup(f"main_exception:{type(e).__name__}:{e}")
+        raise
