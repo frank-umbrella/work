@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Watchtower logo pulse — diagnostic</title>
+<style>
+  body {
+    margin: 0; padding: 28px 24px 60px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #f6f8fa; color: #0f172a;
+  }
+  h1 { margin: 0 0 6px; font-size: 22px; }
+  .lede { color: #64748b; margin: 0 0 22px; max-width: 720px; font-size: 14px; line-height: 1.55; }
+  .verdict {
+    display: inline-block; padding: 10px 16px; border-radius: 8px;
+    font-weight: 700; font-size: 14px; margin-bottom: 28px;
+  }
+  .verdict.ok    { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+  .verdict.bad   { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+  .grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px;
+    max-width: 1100px;
+  }
+  @media (max-width: 800px) { .grid { grid-template-columns: 1fr; } }
+  .card {
+    background: #fff; border: 1px solid #e5e7eb; border-radius: 10px;
+    padding: 18px; display: flex; flex-direction: column; gap: 14px;
+  }
+  .card h2 { margin: 0; font-size: 15px; }
+  .card p { margin: 0; color: #64748b; font-size: 12.5px; line-height: 1.5; }
+  .stage {
+    background: #f1f5f9; border-radius: 8px; padding: 22px;
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+  }
+  .stage svg.tiny   { width: 24px; height: 24px; display: block; }
+  .stage svg.medium { width: 64px; height: 64px; display: block; }
+  .stage svg.big    { width: 128px; height: 128px; display: block; }
+  .stage .label { font-size: 11px; color: #64748b; }
+
+  /* -------- Variant 1: original halo bloom (respects reduce-motion) -------- */
+  .halo-original {
+    transform-origin: 32px 32px;
+    animation: bloomNormal 3s ease-in-out infinite;
+  }
+  @keyframes bloomNormal {
+    0%, 100% { opacity: 0.3; transform: scale(1);    }
+    50%      { opacity: 0.7; transform: scale(1.15); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .halo-original { animation: none !important; }
+  }
+
+  /* -------- Variant 2: halo bloom FORCED (ignores reduce-motion) -------- */
+  /* Same animation, no guard. Tests whether the engine CAN animate at all
+     on this browser, independent of OS settings. */
+  .halo-forced {
+    transform-origin: 32px 32px;
+    animation: bloomNormal 3s ease-in-out infinite !important;
+  }
+
+  /* -------- Variant 3: comically obvious so you cannot miss it -------- */
+  /* Big amplitude + bright cyan flash + 1.5s loop. Sanity check: if you
+     don't see this one, animations are broken at the browser level
+     (extension blocking, bug, etc.) not just OS reduce-motion. */
+  .halo-obvious {
+    transform-origin: 32px 32px;
+    animation: bloomObvious 1.5s ease-in-out infinite !important;
+  }
+  @keyframes bloomObvious {
+    0%, 100% { opacity: 0.2; transform: scale(0.5);  fill: #5af4e3; }
+    50%      { opacity: 1;   transform: scale(2.2);  fill: #ffffff; }
+  }
+</style>
+</head>
+<body>
+
+<h1>Watchtower logo pulse — diagnostic</h1>
+<p class="lede">If you saw no motion on <code>logo-pulse-previews.html</code>, this page narrows down why. The browser's resolved <code>prefers-reduced-motion</code> value is shown below, followed by three versions of the halo at three sizes each.</p>
+
+<div id="motionVerdict" class="verdict ok">Detecting…</div>
+
+<div class="grid">
+
+  <!-- ===== Variant 1: original (respects reduce-motion) ===== -->
+  <div class="card">
+    <h2>1. Original halo bloom</h2>
+    <p>Exactly what's wired into the dashboard right now. Respects <code>prefers-reduced-motion</code>. If you see motion here, the dashboard is also pulsing — just refresh it with Ctrl+Shift+R.</p>
+    <div class="stage">
+      <svg class="tiny" viewBox="0 0 64 64">
+        <circle cx="32" cy="32" r="30" fill="#0a6b6b"/>
+        <circle class="halo-original" cx="32" cy="32" r="10" fill="#5af4e3" opacity="0.3"/>
+        <rect x="18" y="14" width="4" height="6" fill="#fff"/><rect x="26" y="14" width="4" height="6" fill="#fff"/><rect x="34" y="14" width="4" height="6" fill="#fff"/><rect x="42" y="14" width="4" height="6" fill="#fff"/>
+        <rect x="16" y="20" width="32" height="4" fill="#fff"/><rect x="20" y="24" width="24" height="30" fill="#fff"/>
+        <circle cx="32" cy="32" r="4" fill="#5af4e3"/>
+        <rect x="24" y="38" width="3" height="8" fill="#0a6b6b"/><rect x="37" y="38" width="3" height="8" fill="#0a6b6b"/>
+        <path d="M28 54 L28 50 Q32 46 36 50 L36 54 Z" fill="#0a6b6b"/>
+      </svg>
+      <span class="label">24 px (header size)</span>
+
+      <svg class="medium" viewBox="0 0 64 64">
+        <circle cx="32" cy="32" r="30" fill="#0a6b6b"/>
+        <circle class="halo-original" cx="32" cy="32" r="10" fill="#5af4e3" opacity="0.3"/>
+        <rect x="18" y="14" width="4" height="6" fill="#fff"/><rect x="26" y="14" width="4" height="6" fill="#fff"/><rect x="34" y="14" width="4" height="6" fill="#fff"/><rect x="42" y="14" width="4" height="6" fill="#fff"/>
+        <rect x="16" y="20" width="32" height="4" fill="#fff"/><rect x="20" y="24" width="24" height="30" fill="#fff"/>
+        <circle cx="32" cy="32" r="4" fill="#5af4e3"/>
+        <rect x="24" y="38" width="3" height="8" fill="#0a6b6b"/><rect x="37" y="38" width="3" height="8" fill="#0a6b6b"/>
+        <path d="M28 54 L28 50 Q32 46 36 50 L36 54 Z" fill="#0a6b6b"/>
+      </svg>
+      <span class="label">64 px</span>
+
+      <svg class="big" viewBox="0 0 64 64">
+        <circle cx="32" cy="32" r="30" fill="#0a6b6b"/>
+        <circle class="halo-original" cx="32" cy="32" r="10" fill="#5af4e3" opacity="0.3"/>
+        <rect x="18" y="14" width="4" height="6" fill="#fff"/><rect x="26" y="14" width="4" height="6" fill="#fff"/><rect x="34" y="14" width="4" height="6" fill="#fff"/><rect x="42" y="14" width="4" height="6" fill="#fff"/>
+        <rect x="16" y="20" width="32" height="4" fill="#fff"/><rect x="20" y="24" width="24" height="30" fill="#fff"/>
+        <circle cx="32" cy="32" r="4" fill="#5af4e3"/>
+        <rect x="24" y="38" width="3" height="8" fill="#0a6b6b"/><rect x="37" y="38" width="3" height="8" fill="#0a6b6b"/>
+        <path d="M28 54 L28 50 Q32 46 36 50 L36 54 Z" fill="#0a6b6b"/>
+      </svg>
+      <span class="label">128 px</span>
+    </div>
+  </div>
+
+  <!-- ===== Variant 2: forced (ignores reduce-motion) ===== -->
+  <div class="card">
+    <h2>2. Same animation, FORCED on</h2>
+    <p>No <code>prefers-reduced-motion</code> guard. If you see motion here but NOT in card #1, the verdict is OS reduced-motion — turn it off, or I'll change the dashboard to ignore it.</p>
+    <div class="stage">
+      <svg class="tiny" viewBox="0 0 64 64">
+        <circle cx="32" cy="32" r="30" fill="#0a6b6b"/>
+        <circle class="halo-forced" cx="32" cy="32" r="10" fill="#5af4e3" opacity="0.3"/>
+        <rect x="18" y="14" width="4" height="6" fill="#fff"/><rect x="26" y="14" width="4" height="6" fill="#fff"/><rect x="34" y="14" width="4" height="6" fill="#fff"/><rect x="42" y="14" width="4" height="6" fill="#fff"/>
+        <rect x="16" y="20" width="32" height="4" fill="#fff"/><rect x="20" y="24" width="24" height="30" fill="#fff"/>
+        <circle cx="32" cy="32" r="4" fill="#5af4e3"/>
+        <rect x="24" y="38" width="3" height="8" fill="#0a6b6b"/><rect x="37" y="38" width="3" height="8" fill="#0a6b6b"/>
+        <path d="M28 54 L28 50 Q32 46 36 50 L36 54 Z" fill="#0a6b6b"/>
+      </svg>
+      <span class="label">24 px (header size)</span>
+
+      <svg class="medium" viewBox="0 0 64 64">
+        <circle cx="32" cy="32" r="30" fill="#0a6b6b"/>
+        <circle class="halo-forced" cx="32" cy="32" r="10" fill="#5af4e3" opacity="0.3"/>
+        <rect x="18" y="14" width="4" height="6" fill="#fff"/><rect x="26" y="14" width="4" height="6" fill="#fff"/><rect x="34" y="14" width="4" height="6" fill="#fff"/><rect x="42" y="14" width="4" height="6" fill="#fff"/>
+        <rect x="16" y="20" width="32" height="4" fill="#fff"/><rect x="20" y="24" width="24" height="30" fill="#fff"/>
+        <circle cx="32" cy="32" r="4" fill="#5af4e3"/>
+        <rect x="24" y="38" width="3" height="8" fill="#0a6b6b"/><rect x="37" y="38" width="3" height="8" fill="#0a6b6b"/>
+        <path d="M28 54 L28 50 Q32 46 36 50 L36 54 Z" fill="#0a6b6b"/>
+      </svg>
+      <span class="label">64 px</span>
+
+      <svg class="big" viewBox="0 0 64 64">
+        <circle cx="32" cy="32" r="30" fill="#0a6b6b"/>
+        <circle class="halo-forced" cx="32" cy="32" r="10" fill="#5af4e3" opacity="0.3"/>
+        <rect x="18" y="14" width="4" height="6" fill="#fff"/><rect x="26" y="14" width="4" height="6" fill="#fff"/><rect x="34" y="14" width="4" height="6" fill="#fff"/><rect x="42" y="14" width="4" height="6" fill="#fff"/>
+        <rect x="16" y="20" width="32" height="4" fill="#fff"/><rect x="20" y="24" width="24" height="30" fill="#fff"/>
+        <circle cx="32" cy="32" r="4" fill="#5af4e3"/>
+        <rect x="24" y="38" width="3" height="8" fill="#0a6b6b"/><rect x="37" y="38" width="3" height="8" fill="#0a6b6b"/>
+        <path d="M28 54 L28 50 Q32 46 36 50 L36 54 Z" fill="#0a6b6b"/>
+      </svg>
+      <span class="label">128 px</span>
+    </div>
+  </div>
+
+  <!-- ===== Variant 3: obviously huge ===== -->
+  <div class="card">
+    <h2>3. Sanity check (huge + bright)</h2>
+    <p>Big scale jumps + color flash + 1.5 s loop. If you don't see motion HERE, animations are broken at the browser level (extension, GPU issue, etc.) — not just OS reduce-motion.</p>
+    <div class="stage">
+      <svg class="tiny" viewBox="0 0 64 64">
+        <circle cx="32" cy="32" r="30" fill="#0a6b6b"/>
+        <circle class="halo-obvious" cx="32" cy="32" r="10" fill="#5af4e3" opacity="0.3"/>
+        <rect x="18" y="14" width="4" height="6" fill="#fff"/><rect x="26" y="14" width="4" height="6" fill="#fff"/><rect x="34" y="14" width="4" height="6" fill="#fff"/><rect x="42" y="14" width="4" height="6" fill="#fff"/>
+        <rect x="16" y="20" width="32" height="4" fill="#fff"/><rect x="20" y="24" width="24" height="30" fill="#fff"/>
+        <circle cx="32" cy="32" r="4" fill="#5af4e3"/>
+        <rect x="24" y="38" width="3" height="8" fill="#0a6b6b"/><rect x="37" y="38" width="3" height="8" fill="#0a6b6b"/>
+        <path d="M28 54 L28 50 Q32 46 36 50 L36 54 Z" fill="#0a6b6b"/>
+      </svg>
+      <span class="label">24 px (header size)</span>
+
+      <svg class="medium" viewBox="0 0 64 64">
+        <circle cx="32" cy="32" r="30" fill="#0a6b6b"/>
+        <circle class="halo-obvious" cx="32" cy="32" r="10" fill="#5af4e3" opacity="0.3"/>
+        <rect x="18" y="14" width="4" height="6" fill="#fff"/><rect x="26" y="14" width="4" height="6" fill="#fff"/><rect x="34" y="14" width="4" height="6" fill="#fff"/><rect x="42" y="14" width="4" height="6" fill="#fff"/>
+        <rect x="16" y="20" width="32" height="4" fill="#fff"/><rect x="20" y="24" width="24" height="30" fill="#fff"/>
+        <circle cx="32" cy="32" r="4" fill="#5af4e3"/>
+        <rect x="24" y="38" width="3" height="8" fill="#0a6b6b"/><rect x="37" y="38" width="3" height="8" fill="#0a6b6b"/>
+        <path d="M28 54 L28 50 Q32 46 36 50 L36 54 Z" fill="#0a6b6b"/>
+      </svg>
+      <span class="label">64 px</span>
+
+      <svg class="big" viewBox="0 0 64 64">
+        <circle cx="32" cy="32" r="30" fill="#0a6b6b"/>
+        <circle class="halo-obvious" cx="32" cy="32" r="10" fill="#5af4e3" opacity="0.3"/>
+        <rect x="18" y="14" width="4" height="6" fill="#fff"/><rect x="26" y="14" width="4" height="6" fill="#fff"/><rect x="34" y="14" width="4" height="6" fill="#fff"/><rect x="42" y="14" width="4" height="6" fill="#fff"/>
+        <rect x="16" y="20" width="32" height="4" fill="#fff"/><rect x="20" y="24" width="24" height="30" fill="#fff"/>
+        <circle cx="32" cy="32" r="4" fill="#5af4e3"/>
+        <rect x="24" y="38" width="3" height="8" fill="#0a6b6b"/><rect x="37" y="38" width="3" height="8" fill="#0a6b6b"/>
+        <path d="M28 54 L28 50 Q32 46 36 50 L36 54 Z" fill="#0a6b6b"/>
+      </svg>
+      <span class="label">128 px</span>
+    </div>
+  </div>
+
+</div>
+
+<div style="max-width: 720px; margin: 32px 0 0; padding: 16px 20px; background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; font-size: 13px; color: #475063; line-height: 1.6;">
+  <b style="color: #0f172a;">Decision tree:</b><br>
+  &bull; Card #1 animates &rarr; the dashboard is fine, hard-refresh it (Ctrl+Shift+R).<br>
+  &bull; Card #1 still, #2 animates &rarr; OS reduced-motion is on. Either turn it off in Windows Settings &mdash; Accessibility &mdash; Visual effects &mdash; <b>Animation effects</b> &mdash; or tell me to drop the <code>prefers-reduced-motion</code> guard from the dashboard.<br>
+  &bull; #1 + #2 still, only #3 animates &rarr; weird (some browsers disable subtle animations under battery saver). Tell me and I'll bump amplitude on the production version.<br>
+  &bull; Nothing animates including #3 &rarr; browser extension blocking animations, GPU acceleration off, or a render bug. Try a different browser to confirm.
+</div>
+
+<script>
+  // Resolve prefers-reduced-motion at load time and report verdict.
+  const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const v = document.getElementById('motionVerdict');
+  function paintVerdict() {
+    if (mq.matches) {
+      v.className = 'verdict bad';
+      v.textContent = 'OS / browser reports: prefers-reduced-motion = REDUCE (animations suppressed)';
+    } else {
+      v.className = 'verdict ok';
+      v.textContent = 'OS / browser reports: prefers-reduced-motion = no-preference (animations should run)';
+    }
+  }
+  paintVerdict();
+  mq.addEventListener && mq.addEventListener('change', paintVerdict);
+</script>
+
+</body>
+</html>
