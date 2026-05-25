@@ -397,8 +397,16 @@
   table.fleet th { text-align: left; padding: 10px 14px; font-size: 11px; text-transform: uppercase; color: var(--ink-faint); letter-spacing: 0.06em; font-weight: 700; border-bottom: 1px solid var(--line); background: var(--surface-2); position: sticky; top: 56px; z-index: 30; }
   /* Sortable-header polish: clickable cursor + hover state + chevron
      marker on the active column. The chevron uses simple CSS unicode
-     so we don't need an icon font or SVG sprite. */
-  table.sortable th[data-sort] { cursor: pointer; user-select: none; position: relative; padding-right: 22px; }
+     so we don't need an icon font or SVG sprite.
+     IMPORTANT: do NOT set position:relative here. The fleet th already
+     has position:sticky (above), which is itself a positioning context
+     for its absolutely-positioned ::after chevron. Setting relative
+     would CLOBBER sticky -- and combined with the inherited top:56px,
+     would shift the th 56px DOWN from its layout slot (instead of
+     sticking it to the viewport at top:56), making the row visually
+     overlap the first tbody row. That was the long-running "sticky
+     header is broken / blocks the first entry" bug. */
+  table.sortable th[data-sort] { cursor: pointer; user-select: none; padding-right: 22px; }
   table.sortable th[data-sort]:hover { color: var(--ink); }
   table.sortable th[data-sort]::after { content: "\2195"; position: absolute; right: 8px; top: 50%; transform: translateY(-50%); opacity: 0.3; font-size: 10px; }
   table.sortable th.sorted-asc::after  { content: "\25B2"; opacity: 1; color: var(--accent); }
@@ -1368,7 +1376,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.81";
+const APP_VERSION = "0.14.82";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
