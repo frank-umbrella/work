@@ -276,6 +276,13 @@
     color: var(--ink-soft);
     font-size: 12px;
   }
+  /* Clickable stat row (when count > 0) -- subtle hover ring so the
+     operator can tell rows are interactive without making them look
+     button-y. Click opens the drill-down popover listing the
+     endpoints in that bucket grouped by client. */
+  .stat-bars .row.stat-row-clickable { cursor: pointer; border-radius: 5px; }
+  .stat-bars .row.stat-row-clickable:hover .label { box-shadow: 0 0 0 2px rgba(10, 107, 107, 0.15); }
+  .stat-bars .row.stat-row-clickable:hover .count { color: var(--ink); font-weight: 600; }
 
   /* sign-in */
   /* align-items: stretch makes BOTH children grow to the same height --
@@ -1107,7 +1114,7 @@
     <div class="tab-pane" data-tab="stats" hidden>
       <div class="panel">
         <div class="panel-header">
-          <h2>Fleet stats</h2>
+          <h2>Endpoint stats</h2>
           <div class="right">
             <span class="meta" id="statsSummary"></span>
           </div>
@@ -1189,7 +1196,7 @@
 
           <!-- Backup disk age threshold -->
           <h3 style="margin:28px 0 4px;font-size:14px;">Backup disk age alert</h3>
-          <p style="margin:0 0 10px;color:var(--ink-soft);font-size:13px;">Flag hosts whose <b>primary backup disk</b> (the destination most recently written to) has its <i>oldest</i> backup further back than this threshold &mdash; i.e. the disk has been the active rotation for that long without being swapped out. Catches drives at end-of-life before they catastrophically fail. Default <b>2.5 years</b> &middot; consumer USB drives typically degrade past this window. Synced fleet-wide.</p>
+          <p style="margin:0 0 10px;color:var(--ink-soft);font-size:13px;">Flag hosts whose <b>primary backup disk</b> (the destination most recently written to) has its <i>oldest</i> backup further back than this threshold &mdash; i.e. the disk has been the active rotation for that long without being swapped out. Catches drives at end-of-life before they catastrophically fail. Default <b>2.5 years</b> &middot; consumer USB drives typically degrade past this window. Synced across all endpoints.</p>
           <div style="display:grid;grid-template-columns:100px 1fr;gap:10px 12px;max-width:560px;align-items:center;">
             <label for="backupDiskAgeDays" style="font-size:12px;text-transform:uppercase;color:var(--ink-faint);font-weight:600;">Threshold</label>
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
@@ -1232,6 +1239,24 @@
           </div>
           <div class="callout" style="background:var(--info-soft);border:1px solid #bae6fd;color:#075985;padding:10px 12px;border-radius:8px;margin-top:14px;font-size:12.5px;">
             Agents verify the SHA256 of the downloaded EXE against this value before running it. A mismatch refuses the install — protects against tampered uploads.
+          </div>
+
+          <!-- Skip-versions blocklist: comma-separated list of agent
+               versions that the worker's /latest-version should never
+               return as "latest." Used to fence off a known-bad release
+               so endpoints auto-update to the next safe version instead
+               of installing the broken one. The pinned version above
+               (if set) bypasses this list since it's an explicit admin
+               override. -->
+          <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--line);">
+            <h4 style="margin:0 0 4px;font-size:13px;text-transform:uppercase;letter-spacing:0.04em;color:var(--ink-faint);font-weight:700;">Skip versions <span style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--ink-soft);">(auto-update blocklist)</span></h4>
+            <p style="margin:0 0 10px;color:var(--ink-soft);font-size:13px;">Comma-separated list of agent versions that should be <b>skipped</b> by the auto-updater. The worker's <code>/latest-version</code> filters these out before reporting "latest" so endpoints jump past known-bad releases to the next safe version. Example: <code>0.14.30, 0.14.31</code></p>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              <input type="text" id="skipVersionsInput" placeholder="e.g. 0.14.30, 0.14.31" style="flex:1 1 320px;min-width:240px;padding:7px 10px;border:1px solid var(--line-strong);border-radius:7px;font-size:13px;font-family:var(--mono);">
+              <button class="btn btn-primary btn-sm" id="saveSkipVersions">Save blocklist</button>
+              <button class="btn btn-sm" id="clearSkipVersions">Clear</button>
+              <span class="meta" id="skipVersionsStatus" style="margin-left:6px;"></span>
+            </div>
           </div>
         </div>
       </div>
@@ -1341,7 +1366,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.68";
+const APP_VERSION = "0.14.69";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -2226,7 +2251,11 @@ function renderFleet() {
       const crit = (wuRow.severityBreakdown && wuRow.severityBreakdown.Critical) || 0;
       const reboot = wuRow.rebootRequired === true;
       if (crit > 0) {
-        wuBadge = ` <span class="badge bad" title="${crit} critical Windows Update(s) pending. Click the row to see the list.">${crit} critical upd</span>`;
+        // Clickable critical-updates badge -- opens a popover listing
+        // the actual KB titles so the operator can see WHICH critical
+        // patch is pending without opening the drawer + scrolling to
+        // the Windows Updates section.
+        wuBadge = ` <span class="badge bad badge-action" role="button" tabindex="0" data-pcid="${esc(a.id)}" data-badge-kind="wu-critical" title="${crit} critical Windows Update(s) pending -- click to see the list">${crit} critical upd</span>`;
       } else if (reboot) {
         wuBadge = ` <span class="badge warn" title="Reboot pending to finish a prior update.">reboot pending</span>`;
       }
@@ -2541,6 +2570,8 @@ document.getElementById("resetAllHostsWebhook").addEventListener("click", async 
 });
 document.getElementById("saveLatestAgent").addEventListener("click", saveLatestAgent);
 document.getElementById("clearLatestAgent").addEventListener("click", clearLatestAgent);
+document.getElementById("saveSkipVersions").addEventListener("click", saveSkipVersions);
+document.getElementById("clearSkipVersions").addEventListener("click", clearSkipVersions);
 
 // Top-bar "Download installer" link -- shows a chooser modal when the
 // worker reports two variants (slim + LogMeIn-bundled), otherwise
@@ -3075,6 +3106,14 @@ function subscribeLatestAgent() {
         }
       }
     }
+    // Mirror skipVersions array into the comma-separated text input
+    // whenever the doc updates and the input isn't focused.
+    const skipInput = document.getElementById("skipVersionsInput");
+    if (skipInput && document.activeElement !== skipInput) {
+      const arr = (fromSettings && Array.isArray(fromSettings.skipVersions))
+        ? fromSettings.skipVersions : [];
+      skipInput.value = arr.join(", ");
+    }
     renderFleet();
     if (state.openPcId) renderDrawer(state.openPcId);
   }, err => {
@@ -3136,6 +3175,59 @@ async function clearLatestAgent() {
   } catch (e) {
     if (status) status.textContent = "Clear failed: " + (e.message || e);
   }
+}
+
+// Save the skipVersions blocklist into /settings/agentVersion. Parses
+// the comma-separated text input into an array; trims, lowercases,
+// and rejects anything that doesn't look like a semver (e.g. "0.14.30").
+// Uses updateDoc + a setDoc fallback so the field merges cleanly with
+// any existing pin (we don't want a save here to wipe a version pin
+// the admin set above).
+async function saveSkipVersions() {
+  const input = document.getElementById("skipVersionsInput");
+  const status = document.getElementById("skipVersionsStatus");
+  if (!input) return;
+  const raw = input.value || "";
+  const tokens = raw.split(/[\s,;]+/).map(s => s.trim()).filter(Boolean);
+  const bad = tokens.filter(t => !/^\d+\.\d+\.\d+$/.test(t));
+  if (bad.length) {
+    if (status) status.textContent = `Invalid version${bad.length === 1 ? '' : 's'}: ${bad.slice(0, 3).join(', ')} (need x.y.z)`;
+    return;
+  }
+  // Dedupe + lowercase for consistency with the worker's case-insensitive
+  // match (it lowercases on read too).
+  const cleaned = Array.from(new Set(tokens.map(t => t.toLowerCase())));
+  try {
+    // Try updateDoc first (preserves any version pin sibling fields).
+    const ref = doc(db, "settings", "agentVersion");
+    const snap = await getDoc(ref);
+    if (snap.exists()) {
+      await updateDoc(ref, {
+        skipVersions: cleaned,
+        updatedAt: new Date().toISOString(),
+        updatedBy: state.user.email,
+      });
+    } else {
+      // No doc yet -- create one with just the skipVersions field.
+      await setDoc(ref, {
+        skipVersions: cleaned,
+        updatedAt: new Date().toISOString(),
+        updatedBy: state.user.email,
+      });
+    }
+    if (status) status.textContent = cleaned.length ? `Saved (${cleaned.length} skipped).` : "Cleared.";
+    setTimeout(() => { if (status) status.textContent = ""; }, 2500);
+  } catch (e) {
+    if (status) status.textContent = "Save failed: " + (e.message || e);
+  }
+}
+
+async function clearSkipVersions() {
+  const input = document.getElementById("skipVersionsInput");
+  const status = document.getElementById("skipVersionsStatus");
+  if (input) input.value = "";
+  if (status) status.textContent = "Cleared input -- click Save blocklist to persist.";
+  setTimeout(() => { if (status) status.textContent = ""; }, 3500);
 }
 
 // Compares the Firestore-pinned version against GitHub's latest, shows
@@ -3263,56 +3355,64 @@ function renderStats() {
     return;
   }
   empty.hidden = true;
-  if (summary) summary.textContent = `${active.length} active host${active.length === 1 ? "" : "s"} across ${new Set(active.map(a => a.client || "Unassigned")).size} client${new Set(active.map(a => a.client || "Unassigned")).size === 1 ? "" : "s"}`;
+  const clientSet = new Set(active.map(a => a.client || "Unassigned"));
+  if (summary) summary.textContent = `${active.length} active endpoint${active.length === 1 ? "" : "s"} across ${clientSet.size} client${clientSet.size === 1 ? "" : "s"}`;
+
+  // Reset the row-to-agents registry for this render pass.
+  _statRowRegistry.clear();
 
   const cards = [];
 
   // ---- OS distribution ----
-  // Bucket by OS Caption with "Microsoft " prefix stripped so the same
-  // 11-Pro variants don't split into two slices.
-  const osCounts = _statCount(active, a => {
+  const osStat = _statCount(active, a => {
     const name = ((a.report && a.report.system && a.report.system.os && a.report.system.os.name) || "Unknown").replace(/^Microsoft\s+/i, "");
     return name;
   });
-  cards.push(_statCard("Operating systems", _statBars(osCounts, active.length, 8), `${osCounts.length} distinct OS edition${osCounts.length === 1 ? "" : "s"} in the fleet`));
+  cards.push(_statCard("Operating systems",
+    _statBars(osStat.rows, active.length, 8, { statKey: "os", byLabel: osStat.byLabel }),
+    `${osStat.rows.length} distinct OS edition${osStat.rows.length === 1 ? "" : "s"} across all endpoints`));
 
   // ---- Hardware manufacturer ----
-  const mfrCounts = _statCount(active, a => {
+  const mfrStat = _statCount(active, a => {
     const m = (a.report && a.report.system && a.report.system.manufacturer) || "Unknown";
-    // Normalize common variants so "Dell Inc." + "Dell Inc" + "Dell Computer Corporation" all collapse.
     return /dell/i.test(m) ? "Dell" : /hp|hewlett/i.test(m) ? "HP" : /lenovo/i.test(m) ? "Lenovo" : /microsoft/i.test(m) ? "Microsoft (VM)" : /vmware/i.test(m) ? "VMware (VM)" : /innotek|virtualbox/i.test(m) ? "VirtualBox (VM)" : /qemu|kvm|bochs/i.test(m) ? "KVM/QEMU (VM)" : m;
   });
-  cards.push(_statCard("Hardware manufacturer", _statBars(mfrCounts, active.length, 8), null));
+  cards.push(_statCard("Hardware manufacturer",
+    _statBars(mfrStat.rows, active.length, 8, { statKey: "mfr", byLabel: mfrStat.byLabel }), null));
 
   // ---- Physical vs virtual ----
-  // Mutually-exclusive split so a stacked bar reads cleanly.
-  const physicalCount = active.filter(a => a.report && a.report.system && a.report.system.isVirtual === false).length;
-  const virtualCount  = active.filter(a => a.report && a.report.system && a.report.system.isVirtual === true).length;
-  const unknownVirt   = active.length - physicalCount - virtualCount;
+  const virtByLabel = _bucketByLabel(active, a => {
+    const v = a.report && a.report.system && a.report.system.isVirtual;
+    return v === true ? "Virtual machine" : v === false ? "Physical" : "Unknown";
+  });
+  const physicalCount = (virtByLabel.get("Physical") || []).length;
+  const virtRows = [
+    { label: "Physical", count: physicalCount },
+    { label: "Virtual machine", count: (virtByLabel.get("Virtual machine") || []).length },
+    ...((virtByLabel.get("Unknown") || []).length ? [{ label: "Unknown", count: virtByLabel.get("Unknown").length }] : []),
+  ];
   cards.push(_statCard(
     "Physical vs virtual",
     _statHeadline(`${Math.round((physicalCount / Math.max(1, active.length)) * 100)}%`, "physical hosts"),
-    _statBars([
-      { label: "Physical", count: physicalCount },
-      { label: "Virtual machine", count: virtualCount },
-      ...(unknownVirt ? [{ label: "Unknown", count: unknownVirt }] : []),
-    ], active.length, 5)
+    _statBars(virtRows, active.length, 5, { statKey: "virt", byLabel: virtByLabel })
   ));
 
   // ---- Domain membership ----
-  const domainCount = active.filter(a => a.report && a.report.system && a.report.system.partOfDomain === true).length;
-  const workgroupCount = active.length - domainCount;
+  const domainByLabel = _bucketByLabel(active, a =>
+    (a.report && a.report.system && a.report.system.partOfDomain === true) ? "Domain-joined" : "Workgroup"
+  );
+  const domainCount = (domainByLabel.get("Domain-joined") || []).length;
   cards.push(_statCard(
     "Domain membership",
     _statHeadline(`${domainCount}`, `host${domainCount === 1 ? "" : "s"} joined to an AD domain`),
-    _statBars([
-      { label: "Domain-joined", count: domainCount },
-      { label: "Workgroup", count: workgroupCount },
-    ], active.length, 5)
+    _statBars(
+      [{ label: "Domain-joined", count: domainCount }, { label: "Workgroup", count: (domainByLabel.get("Workgroup") || []).length }],
+      active.length, 5, { statKey: "domain", byLabel: domainByLabel }
+    )
   ));
 
   // ---- Memory tier ----
-  const memCounts = _statCount(active, a => {
+  const memStat = _statCount(active, a => {
     const gb = a.report && a.report.system && a.report.system.memory && a.report.system.memory.totalGB;
     if (gb == null) return "Unknown";
     if (gb < 8)  return "< 8 GB";
@@ -3322,102 +3422,113 @@ function renderStats() {
     if (gb < 128) return "64 GB";
     return "128+ GB";
   });
-  // Sort low-to-high instead of by count for memory specifically -- reads
-  // like a histogram of installed-RAM tiers.
   const memOrder = ["< 8 GB", "8 GB", "16 GB", "32 GB", "64 GB", "128+ GB", "Unknown"];
-  memCounts.sort((a, b) => memOrder.indexOf(a.label) - memOrder.indexOf(b.label));
-  cards.push(_statCard("Installed RAM", _statBars(memCounts, active.length, 7), null));
+  memStat.rows.sort((a, b) => memOrder.indexOf(a.label) - memOrder.indexOf(b.label));
+  cards.push(_statCard("Installed RAM",
+    _statBars(memStat.rows, active.length, 7, { statKey: "ram", byLabel: memStat.byLabel }), null));
 
   // ---- C: drive headroom ----
-  const cBuckets = { "< 5% free (critical)": 0, "5-10% free (warn)": 0, "10-25% free": 0, "25-50% free": 0, "≥ 50% free": 0, "Unknown": 0 };
-  for (const a of active) {
+  const cByLabel = _bucketByLabel(active, a => {
     const pct = a.cDriveFreePct;
-    if (pct == null) cBuckets["Unknown"]++;
-    else if (pct < 5) cBuckets["< 5% free (critical)"]++;
-    else if (pct < 10) cBuckets["5-10% free (warn)"]++;
-    else if (pct < 25) cBuckets["10-25% free"]++;
-    else if (pct < 50) cBuckets["25-50% free"]++;
-    else cBuckets["≥ 50% free"]++;
-  }
-  const cBucketRows = Object.entries(cBuckets).map(([label, count]) => ({ label, count }));
-  cards.push(_statCard("C: drive headroom", _statBars(cBucketRows, active.length, 6), null));
+    if (pct == null) return "Unknown";
+    if (pct < 5) return "< 5% free (critical)";
+    if (pct < 10) return "5-10% free (warn)";
+    if (pct < 25) return "10-25% free";
+    if (pct < 50) return "25-50% free";
+    return "≥ 50% free";
+  });
+  const cRows = ["< 5% free (critical)", "5-10% free (warn)", "10-25% free", "25-50% free", "≥ 50% free", "Unknown"]
+    .map(label => ({ label, count: (cByLabel.get(label) || []).length }))
+    .filter(r => r.count > 0);
+  cards.push(_statCard("C: drive headroom",
+    _statBars(cRows, active.length, 6, { statKey: "cfree", byLabel: cByLabel }), null));
 
   // ---- Backup tooling adoption ----
-  // Per-product counts (a host with both WSB + Veeam shows up in both).
-  // Critical signal: "no backup tool detected at all" -- the bottom row
-  // calls that out separately.
-  const noBackup = active.filter(a => {
+  const backupByLabel = new Map();
+  const wsbHosts  = active.filter(a => a.report && a.report.wsb && a.report.wsb.installed);
+  const veeamHosts = active.filter(a => a.report && a.report.veeam && a.report.veeam.installed);
+  const carbHosts = active.filter(a => a.report && a.report.carbonite && a.report.carbonite.installed);
+  const ibackHosts = active.filter(a => a.report && a.report.ibackup && a.report.ibackup.installed);
+  const noBackupHosts = active.filter(a => {
     const r = a.report || {};
     return !(r.wsb && r.wsb.installed) && !(r.veeam && r.veeam.installed) && !(r.carbonite && r.carbonite.installed) && !(r.ibackup && r.ibackup.installed);
-  }).length;
-  const backupCounts = [
-    { label: "Windows Server Backup", count: active.filter(a => a.report && a.report.wsb && a.report.wsb.installed).length },
-    { label: "Veeam (any edition)",   count: active.filter(a => a.report && a.report.veeam && a.report.veeam.installed).length },
-    { label: "Carbonite",             count: active.filter(a => a.report && a.report.carbonite && a.report.carbonite.installed).length },
-    { label: "IBackup (Pro Softnet)", count: active.filter(a => a.report && a.report.ibackup && a.report.ibackup.installed).length },
-    { label: "(NO backup tool found)", count: noBackup },
-  ].sort((a, b) => b.count - a.count);
-  cards.push(_statCard("Backup tooling", _statBars(backupCounts, active.length, 6),
-    noBackup ? `<b style="color:#b91c1c;">${noBackup}</b> host${noBackup === 1 ? "" : "s"} have NO backup tool detected` : "every host has at least one backup tool"));
+  });
+  backupByLabel.set("Windows Server Backup", wsbHosts);
+  backupByLabel.set("Veeam (any edition)", veeamHosts);
+  backupByLabel.set("Carbonite", carbHosts);
+  backupByLabel.set("IBackup (Pro Softnet)", ibackHosts);
+  backupByLabel.set("(NO backup tool found)", noBackupHosts);
+  const backupRows = Array.from(backupByLabel.entries())
+    .map(([label, list]) => ({ label, count: list.length }))
+    .sort((a, b) => b.count - a.count);
+  cards.push(_statCard("Backup tooling",
+    _statBars(backupRows, active.length, 6, { statKey: "backup", byLabel: backupByLabel }),
+    noBackupHosts.length ? `<b style="color:#b91c1c;">${noBackupHosts.length}</b> host${noBackupHosts.length === 1 ? "" : "s"} have NO backup tool detected` : "every host has at least one backup tool"));
 
   // ---- Remote access tooling ----
-  const remoteCounts = [
-    { label: "LogMeIn", count: active.filter(a => a.report && a.report.logmein && a.report.logmein.installed).length },
-    { label: "Dell iDRAC iSM", count: active.filter(a => a.report && a.report.idrac && a.report.idrac.installed).length },
-  ].sort((a, b) => b.count - a.count);
-  cards.push(_statCard("Remote access tooling", _statBars(remoteCounts, active.length, 4), null));
+  const remoteByLabel = new Map();
+  remoteByLabel.set("LogMeIn", active.filter(a => a.report && a.report.logmein && a.report.logmein.installed));
+  remoteByLabel.set("Dell iDRAC iSM", active.filter(a => a.report && a.report.idrac && a.report.idrac.installed));
+  const remoteRows = Array.from(remoteByLabel.entries())
+    .map(([label, list]) => ({ label, count: list.length }))
+    .sort((a, b) => b.count - a.count);
+  cards.push(_statCard("Remote access tooling",
+    _statBars(remoteRows, active.length, 4, { statKey: "remote", byLabel: remoteByLabel }), null));
 
   // ---- Defender real-time status ----
-  const defOn = active.filter(a => a.report && a.report.defender && a.report.defender.realtimeOn === true).length;
-  const defOff = active.filter(a => a.report && a.report.defender && a.report.defender.realtimeOn === false).length;
-  const defNone = active.length - defOn - defOff;
+  const defByLabel = _bucketByLabel(active, a => {
+    const rt = a.report && a.report.defender && a.report.defender.realtimeOn;
+    if (rt === true) return "Real-time ON";
+    if (rt === false) return "Real-time OFF";
+    return "Defender not reported";
+  });
+  const defOff = (defByLabel.get("Real-time OFF") || []).length;
+  const defRows = ["Real-time ON", "Real-time OFF", "Defender not reported"]
+    .map(label => ({ label, count: (defByLabel.get(label) || []).length }))
+    .filter(r => r.count > 0);
   cards.push(_statCard(
     "Defender real-time protection",
     _statHeadline(`${defOff > 0 ? `<span style="color:#b91c1c;">${defOff}</span>` : defOff}`, `host${defOff === 1 ? "" : "s"} with real-time protection OFF`),
-    _statBars([
-      { label: "Real-time ON", count: defOn },
-      { label: "Real-time OFF", count: defOff },
-      ...(defNone ? [{ label: "Defender not reported", count: defNone }] : []),
-    ], active.length, 5)
+    _statBars(defRows, active.length, 5, { statKey: "defender", byLabel: defByLabel })
   ));
 
   // ---- Agent version distribution ----
-  const agentCounts = _statCount(active, a => a.agentVersion || "unknown");
-  // Highest semver first so the upgrade backlog is obvious -- the top
-  // row is the newest version, lower rows are the laggards.
-  agentCounts.sort((a, b) => {
+  const agentStat = _statCount(active, a => a.agentVersion || "unknown");
+  agentStat.rows.sort((a, b) => {
     const aP = String(a.label).split(".").map(n => parseInt(n, 10) || 0);
     const bP = String(b.label).split(".").map(n => parseInt(n, 10) || 0);
     for (let i = 0; i < 3; i++) if ((aP[i] || 0) !== (bP[i] || 0)) return (bP[i] || 0) - (aP[i] || 0);
     return 0;
   });
-  cards.push(_statCard("Agent version distribution", _statBars(agentCounts, active.length, 8), `${agentCounts.length} distinct agent version${agentCounts.length === 1 ? "" : "s"} in the fleet`));
+  cards.push(_statCard("Agent version distribution",
+    _statBars(agentStat.rows, active.length, 8, { statKey: "agent", byLabel: agentStat.byLabel }),
+    `${agentStat.rows.length} distinct agent version${agentStat.rows.length === 1 ? "" : "s"} across all endpoints`));
 
   // ---- Last check-in age ----
-  // Buckets aligned to the dashboard's existing "stale" / "dead"
-  // status thresholds (30h / 7d) so the picture matches the row badges.
-  const ageBuckets = { "< 1 hour": 0, "1-6 hours": 0, "6-24 hours": 0, "24-30 hours": 0, "30 hours - 7 days (stale)": 0, "> 7 days (dead)": 0 };
   const now = Date.now();
-  for (const a of active) {
+  const ageByLabel = _bucketByLabel(active, a => {
     const ts = a.lastCheckin ? Date.parse(a.lastCheckin) : null;
-    if (!ts) { ageBuckets["> 7 days (dead)"]++; continue; }
+    if (!ts) return "> 7 days (dead)";
     const h = (now - ts) / 3600000;
-    if (h < 1) ageBuckets["< 1 hour"]++;
-    else if (h < 6) ageBuckets["1-6 hours"]++;
-    else if (h < 24) ageBuckets["6-24 hours"]++;
-    else if (h < 30) ageBuckets["24-30 hours"]++;
-    else if (h < 168) ageBuckets["30 hours - 7 days (stale)"]++;
-    else ageBuckets["> 7 days (dead)"]++;
-  }
-  const ageRows = Object.entries(ageBuckets).map(([label, count]) => ({ label, count }));
-  cards.push(_statCard("Last check-in age", _statBars(ageRows, active.length, 6), null));
+    if (h < 1) return "< 1 hour";
+    if (h < 6) return "1-6 hours";
+    if (h < 24) return "6-24 hours";
+    if (h < 30) return "24-30 hours";
+    if (h < 168) return "30 hours - 7 days (stale)";
+    return "> 7 days (dead)";
+  });
+  const ageRows = ["< 1 hour", "1-6 hours", "6-24 hours", "24-30 hours", "30 hours - 7 days (stale)", "> 7 days (dead)"]
+    .map(label => ({ label, count: (ageByLabel.get(label) || []).length }))
+    .filter(r => r.count > 0);
+  cards.push(_statCard("Last check-in age",
+    _statBars(ageRows, active.length, 6, { statKey: "checkin", byLabel: ageByLabel }), null));
 
   // ---- Most-common installed apps ----
-  // Walks every host's software list, sums occurrences, picks top 10.
-  // Skips OS-builtin packages + Watchtower itself (uninteresting noise).
-  // Heavy single pass -- O(hosts × installedApps) -- but fleets are
-  // small and apps lists are modest (Belarc-lite caps ~200/host).
-  const appCounts = new Map();
+  // The byLabel map here is harder -- one host can contribute to many
+  // app rows. We track per-app a list of host references so the
+  // drill-down still works.
+  const appCounts = new Map();           // appName -> count
+  const appByLabel = new Map();          // appName -> [agent, ...]
   const skipPatterns = /^(Microsoft|Windows|VC\+\+|Visual C\+\+|.NET|Watchtower|Update for|Security Update|KB\d)/i;
   for (const a of active) {
     const apps = a.report && a.report.software && a.report.software.applications;
@@ -3426,9 +3537,11 @@ function renderStats() {
     for (const app of apps) {
       const name = (app && app.name) || "";
       if (!name || skipPatterns.test(name)) continue;
-      if (seen.has(name)) continue;  // dedupe within same host
+      if (seen.has(name)) continue;
       seen.add(name);
       appCounts.set(name, (appCounts.get(name) || 0) + 1);
+      if (!appByLabel.has(name)) appByLabel.set(name, []);
+      appByLabel.get(name).push(a);
     }
   }
   const topApps = Array.from(appCounts.entries())
@@ -3438,13 +3551,22 @@ function renderStats() {
   cards.push(_statCard(
     "Most common installed apps",
     topApps.length
-      ? _statBars(topApps, active.length, 10)
+      ? _statBars(topApps, active.length, 10, { statKey: "apps", byLabel: appByLabel })
       : `<div class="meta">No software inventory available -- this stat needs the <code>software</code> probe data on each host.</div>`,
     "top 10, OS builtins + Watchtower itself excluded",
     "span-2"
   ));
 
   body.innerHTML = cards.join("");
+
+  // Wire click handlers for the drill-down popovers. Delegated at the
+  // body level so re-renders don't lose the bindings.
+  body.querySelectorAll(".stat-row-clickable").forEach(row => {
+    row.addEventListener("click", (e) => {
+      e.stopPropagation();
+      _openStatDrilldown(row.dataset.statKey, row.dataset.statLabel, row);
+    });
+  });
 }
 
 // Build a stat card. Optional fourth arg is an extra class (e.g. "span-2"
@@ -3464,34 +3586,71 @@ function _statHeadline(value, sub) {
   return `<div class="stat-headline">${value}</div><div class="stat-sub">${esc(sub)}</div>`;
 }
 
-// Count occurrences of a key derived from each agent. Returns [{label,
-// count}, ...] sorted by count descending. _statBars() expects this
-// shape exactly.
+// Count occurrences of a key derived from each agent. Returns
+// { rows: [{label, count}, ...sorted-desc], byLabel: Map(label -> [a,...]) }
+// so _statBars() gets both the bar data AND the per-bucket agent
+// arrays needed for drill-down clicks.
 function _statCount(agents, keyFn) {
-  const map = new Map();
+  const byLabel = new Map();
   for (const a of agents) {
     const k = keyFn(a) || "Unknown";
-    map.set(k, (map.get(k) || 0) + 1);
+    if (!byLabel.has(k)) byLabel.set(k, []);
+    byLabel.get(k).push(a);
   }
-  return Array.from(map.entries())
-    .map(([label, count]) => ({ label, count }))
+  const rows = Array.from(byLabel.entries())
+    .map(([label, list]) => ({ label, count: list.length }))
     .sort((a, b) => b.count - a.count);
+  return { rows, byLabel };
+}
+
+// Build a per-bucket agent map for a manually-bucketed dataset (where
+// the bucketing logic isn't a simple keyFn -- e.g. ranges like RAM
+// tier or C: drive headroom). Mirrors _statCount's byLabel output.
+function _bucketByLabel(agents, bucketFn) {
+  const byLabel = new Map();
+  for (const a of agents) {
+    const k = bucketFn(a);
+    if (!k) continue;
+    if (!byLabel.has(k)) byLabel.set(k, []);
+    byLabel.get(k).push(a);
+  }
+  return byLabel;
 }
 
 // Horizontal bar list. Each row: label cell with a colored fill that
 // represents its proportion of the total, then a tabular-num count.
 // max parameter caps the number of rows shown; remaining count goes
 // into a "...and N more" footer so a long tail doesn't blow up the card.
-function _statBars(rows, total, max) {
+//
+// Each row is clickable when a slug is provided -- click opens a
+// popover listing the endpoints that fall in that bucket. The data
+// flow: rows can carry `agents: [a, a, ...]` arrays + we stash the
+// label + statKey on the DOM via data attributes for the global
+// click handler to read. statKey is the card's identifier; slug is
+// a URL-safe version of the row label for matching in the click
+// handler.
+function _statBars(rows, total, max, opts) {
   if (!rows || !rows.length) return `<div class="meta">No data.</div>`;
+  const statKey = (opts && opts.statKey) || null;
   const shown = rows.slice(0, max);
   const hidden = rows.length - shown.length;
   const hiddenCount = rows.slice(max).reduce((sum, r) => sum + r.count, 0);
   const maxCount = Math.max(1, ...rows.map(r => r.count));
+  // Stash the row->agents map in a module-level registry so the click
+  // handler can find it by (statKey + label) without re-running the
+  // bucketing logic. Reset per renderStats() call (renderStats clears
+  // before re-populating).
+  if (statKey && opts && opts.byLabel) {
+    _statRowRegistry.set(statKey, opts.byLabel);
+  }
   const html = shown.map(r => {
     const fillPct = Math.round((r.count / maxCount) * 100);
-    return `<div class="row">
-      <div class="label" title="${esc(r.label)} -- ${r.count} of ${total} (${Math.round((r.count / total) * 100)}%)">
+    const clickable = statKey && r.count > 0;
+    const interactive = clickable
+      ? ` role="button" tabindex="0" class="row stat-row-clickable" data-stat-key="${esc(statKey)}" data-stat-label="${esc(r.label)}"`
+      : ` class="row"`;
+    return `<div${interactive}>
+      <div class="label" title="${esc(r.label)} -- ${r.count} of ${total} (${Math.round((r.count / total) * 100)}%)${clickable ? ' (click to list)' : ''}">
         <div class="fill" style="width:${fillPct}%;"></div>
         <span class="text">${esc(r.label)}</span>
       </div>
@@ -3502,6 +3661,99 @@ function _statBars(rows, total, max) {
     ? `<div class="meta" style="font-size:11.5px;margin-top:4px;">+ ${hidden} more (${hiddenCount} host${hiddenCount === 1 ? "" : "s"} combined)</div>`
     : "";
   return `<div class="stat-bars">${html}</div>${footer}`;
+}
+
+// Module-level map: statKey -> Map(rowLabel -> [agent, agent, ...])
+// Cleared at the start of each renderStats() pass so stale entries
+// from previous renders don't leak in.
+const _statRowRegistry = new Map();
+
+// Open a drill-down popover anchored near a clicked stat row, listing
+// the endpoints in that bucket (hostname + client + last-check age,
+// hostname links into the drawer on click). Reuses #badgePopover's
+// CSS scaffold so the visual style matches the existing per-host
+// action popover. Closes on outside click / Escape / scroll / resize
+// via the same global handlers that close the badge popover.
+function _openStatDrilldown(statKey, label, anchorEl) {
+  const byLabel = _statRowRegistry.get(statKey);
+  const hosts = (byLabel && byLabel.get(label)) || [];
+  if (!hosts.length) return;
+  const pop = document.getElementById("badgePopover");
+  if (!pop) return;
+
+  // Group hosts by client so the operator can see at-a-glance which
+  // customers are affected -- big help for "X hosts on Windows 10 EOL,
+  // which clients do I need to call." Hosts sorted alphabetically
+  // within each client group.
+  const byClient = new Map();
+  for (const a of hosts) {
+    const c = a.client || "Unassigned";
+    if (!byClient.has(c)) byClient.set(c, []);
+    byClient.get(c).push(a);
+  }
+  for (const list of byClient.values()) {
+    list.sort((a, b) => String(a.hostname || a.id).localeCompare(String(b.hostname || b.id)));
+  }
+  const clientNames = Array.from(byClient.keys()).sort((a, b) => a.localeCompare(b));
+
+  // Build the popover HTML. Hostname rows are anchor-like so a click
+  // opens the drawer for that host (the global stat-host-row handler
+  // wires this after innerHTML insert).
+  const hostRows = clientNames.map(client => {
+    const list = byClient.get(client);
+    return `<div style="padding:6px 14px 2px 14px;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-faint);font-weight:700;border-top:1px solid var(--line);">${esc(client)} <span style="color:var(--ink-soft);font-weight:500;text-transform:none;letter-spacing:0;">&middot; ${list.length}</span></div>` +
+      list.map(a => {
+        const age = a.lastCheckin ? tsToAgo(a.lastCheckin) : "never";
+        return `<button class="pop-action stat-host-row" data-stat-pcid="${esc(a.id)}" style="display:flex;justify-content:space-between;gap:10px;align-items:baseline;">
+          <span style="font-weight:600;">${esc(a.hostname || a.id)}</span>
+          <span class="meta" style="font-size:11.5px;font-weight:400;">${esc(age)}</span>
+        </button>`;
+      }).join("");
+  }).join("");
+
+  pop.innerHTML = `
+    <div class="pop-title">${esc(label)} <div class="pop-host">${hosts.length} endpoint${hosts.length === 1 ? "" : "s"} &middot; click any host to open its drawer</div></div>
+    <div style="max-height:340px;overflow-y:auto;">${hostRows}</div>
+  `;
+
+  // Position the popover -- prefer anchored to the clicked row, but
+  // a stat-row click can happen anywhere on the page so the
+  // anchor-rect math from openBadgePopover() applies cleanly here too.
+  pop.hidden = false;
+  const rect = anchorEl.getBoundingClientRect();
+  const popRect = pop.getBoundingClientRect();
+  let top = rect.bottom + 6;
+  let left = Math.max(8, Math.min(window.innerWidth - popRect.width - 8, rect.left));
+  if (top + popRect.height > window.innerHeight - 8) {
+    top = Math.max(8, rect.top - popRect.height - 6);
+  }
+  pop.style.top  = `${top}px`;
+  pop.style.left = `${left}px`;
+
+  // Per-host click handler: jump to the drawer for that host. Closes
+  // the popover + activates the Endpoints tab in case we were on Stats.
+  pop.querySelectorAll(".stat-host-row").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const pcId = btn.dataset.statPcid;
+      _closeBadgePopover();
+      activateTab("fleet");
+      openDrawer(pcId);
+    });
+  });
+}
+
+// Humanize a check-in timestamp into "5m ago" / "2h ago" / "3d ago".
+// Used by the stat drill-down popover so each host row shows freshness.
+function tsToAgo(iso) {
+  if (!iso) return "never";
+  const ms = Date.parse(iso);
+  if (!isFinite(ms)) return iso;
+  const sec = Math.max(0, (Date.now() - ms) / 1000);
+  if (sec < 60) return `${Math.floor(sec)}s ago`;
+  if (sec < 3600) return `${Math.floor(sec / 60)}m ago`;
+  if (sec < 86400) return `${Math.floor(sec / 3600)}h ago`;
+  return `${Math.floor(sec / 86400)}d ago`;
 }
 
 function renderActivity() {
@@ -7279,7 +7531,14 @@ function openBadgePopover(anchorEl) {
   const hostname = agent.hostname || pcId;
 
   const pop = document.getElementById('badgePopover');
-  pop.innerHTML = _renderBadgePopover(pcId, hostname, kind, agent);
+  // wu-critical kind = informational list of pending critical
+  // Windows Updates, NOT a mute/disable action. Render a list-only
+  // popover with no action buttons.
+  if (kind === 'wu-critical') {
+    pop.innerHTML = _renderWuCriticalPopover(hostname, agent);
+  } else {
+    pop.innerHTML = _renderBadgePopover(pcId, hostname, kind, agent);
+  }
 
   // Position: anchor below the badge. If that would push it off the
   // bottom of the viewport, flip above. Right-align so it doesn't
@@ -7338,6 +7597,42 @@ document.addEventListener('keydown', (e) => {
 });
 window.addEventListener('resize', _closeBadgePopover);
 window.addEventListener('scroll', _closeBadgePopover, true);
+
+// List-only popover for the WU-critical badge. Shows each pending
+// critical update with its title + size + KB number so the operator
+// can identify which patch is overdue without leaving the row.
+// Read-only -- no actions (Windows Update install isn't something
+// we trigger remotely from here).
+function _renderWuCriticalPopover(hostname, agent) {
+  const wu = agent.report && agent.report.windowsUpdates;
+  const updates = (wu && wu.updates) || [];
+  const critical = updates.filter(u => u && u.severity === 'Critical');
+  const fmtMB = (b) => (b == null) ? null : (b >= 1e9 ? `${(b / 1e9).toFixed(2)} GB` : `${Math.round(b / 1e6)} MB`);
+
+  let body;
+  if (!critical.length) {
+    body = `<div class="meta" style="padding:10px 14px;">No critical-severity updates in the captured list. ${updates.length ? `(${updates.length} non-critical update${updates.length === 1 ? '' : 's'} pending -- open the drawer to see them.)` : '(Empty pending list.)'}</div>`;
+  } else {
+    body = `<div style="max-height:340px;overflow-y:auto;">
+      ${critical.map(u => {
+        const kb = (u.kb || (u.title || '').match(/KB\d+/i)?.[0] || '').toString();
+        const size = fmtMB(u.sizeBytes);
+        return `<div style="padding:8px 14px;border-top:1px solid var(--line);">
+          <div style="font-size:13px;font-weight:600;line-height:1.35;color:var(--ink);">${esc(u.title || '(untitled)')}</div>
+          <div class="meta" style="font-size:11.5px;margin-top:2px;">
+            ${kb ? `<code>${esc(kb)}</code>` : ''}${kb && size ? ' &middot; ' : ''}${size || ''}
+            ${u.releaseDate ? ` &middot; released ${esc(String(u.releaseDate).slice(0, 10))}` : ''}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }
+
+  return `
+    <div class="pop-title">Pending critical Windows Updates <div class="pop-host">${esc(hostname)} &middot; ${critical.length} of ${updates.length || 0} pending</div></div>
+    ${body}
+  `;
+}
 
 // Content for each badge kind. Headlines + action labels tuned to the
 // specific subsystem so the operator's mental model maps cleanly.

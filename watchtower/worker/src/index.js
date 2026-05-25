@@ -791,13 +791,23 @@ async function handleLatestVersion(request, env, ctx) {
 
   let payload = null;
 
-  // ----- 1. Try Firestore /settings/agentVersion (explicit override) -----
-  // Operator-set; used to pin a specific version, or to point at a
-  // staging build that isn't the most recent GitHub release yet. If set,
-  // wins over the GitHub fallback below.
+  // ----- 0. Resolve the skipVersions blocklist (used by Tier 1 + 2) -----
+  // /settings/agentVersion.skipVersions: [ "0.14.30", "0.14.31", ... ]
+  // Versions in this list will be skipped over by fetchLatestFromGitHub
+  // so agents auto-update to the next non-blocklisted release. Use case:
+  // a published build with a discovered bug -- adding it here means
+  // hosts in the fleet auto-update to the next safe version instead of
+  // installing the bad one. The Firestore-pinned version (settings
+  // version field) bypasses the blocklist since the admin set it
+  // explicitly and presumably knows what they're doing.
+  let skipVersions = [];
+  let accessToken = null;
   try {
-    const accessToken = await getServiceAccountToken(env);
+    accessToken = await getServiceAccountToken(env);
     const doc = await firestoreGetDoc(env, accessToken, 'settings/agentVersion');
+
+    // Pin path -- explicit settings/agentVersion override. Wins over
+    // the GitHub fallback below.
     const v = doc?.fields?.version?.stringValue;
     const u = doc?.fields?.downloadUrl?.stringValue;
     if (v && u) {
@@ -810,6 +820,12 @@ async function handleLatestVersion(request, env, ctx) {
         updatedAt: doc.fields.updatedAt?.stringValue || null,
         source: 'settings',
       };
+    }
+
+    // Blocklist -- parse skipVersions array from the same doc.
+    const skipArr = doc?.fields?.skipVersions?.arrayValue?.values;
+    if (Array.isArray(skipArr)) {
+      skipVersions = skipArr.map(v => v?.stringValue).filter(Boolean);
     }
   } catch (e) {
     // Non-fatal — fall through to GitHub
@@ -826,7 +842,7 @@ async function handleLatestVersion(request, env, ctx) {
   let githubError = null;
   if (!payload) {
     try {
-      payload = await fetchLatestFromGitHub();
+      payload = await fetchLatestFromGitHub(skipVersions);
     } catch (e) {
       githubFailed = true;
       githubError = String(e).slice(0, 200);
@@ -898,10 +914,14 @@ async function handleLatestVersion(request, env, ctx) {
   );
 }
 
-async function fetchLatestFromGitHub() {
-  // Pull the 10 most recent releases (not just /releases/latest, which
-  // can return drafts or non-watchtower tags if the work repo grows other
-  // products). Filter ourselves so we only ever match watchtower-v* tags.
+async function fetchLatestFromGitHub(skipVersions) {
+  // skipVersions: array of version strings ("0.14.30") that should be
+  // filtered out before picking the "latest" -- the operator marked
+  // these as known-bad and doesn't want fleet auto-updates landing
+  // on them. We pull the 10 most recent releases anyway (so the
+  // next-newest non-skipped version is usually in the set) and
+  // pick the highest non-skipped one.
+  const skipSet = new Set((skipVersions || []).map(s => String(s).toLowerCase()));
   const r = await fetch('https://api.github.com/repos/frank-umbrella/work/releases?per_page=10', {
     headers: {
       'User-Agent': 'watchtower-worker',
@@ -922,8 +942,14 @@ async function fetchLatestFromGitHub() {
   // than some weird out-of-band release.
   const candidates = releases
     .filter(rel => !rel.draft && /^watchtower-v/i.test(rel.tag_name || ''))
-    .filter(rel => (rel.assets || []).some(a => /watchtower-setup\.exe$/i.test(a.name || '')));
-  if (!candidates.length) throw new Error('no watchtower-v* release with Watchtower-Setup.exe asset found');
+    .filter(rel => (rel.assets || []).some(a => /watchtower-setup\.exe$/i.test(a.name || '')))
+    // Filter out blocklisted versions BEFORE the semver-sort so the
+    // next "latest" is the highest NON-skipped release.
+    .filter(rel => {
+      const v = String(rel.tag_name || '').replace(/^watchtower-v/i, '').toLowerCase();
+      return !skipSet.has(v);
+    });
+  if (!candidates.length) throw new Error('no watchtower-v* release with Watchtower-Setup.exe asset found (after applying skipVersions blocklist)');
 
   const semverParts = (tag) => {
     return String(tag).replace(/^watchtower-v/i, '').split('.').map(p => parseInt(p, 10) || 0);
