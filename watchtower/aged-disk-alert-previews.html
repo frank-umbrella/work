@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Watchtower &middot; Aged primary backup disk alert previews</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<style>
+  :root {
+    --page-bg: #eef0f4;
+    --page-ink: #1a1f2b;
+    --page-soft: #475063;
+    --page-faint: #8892a4;
+    --teal: #0a6b6b;
+    --teal-deep: #074a4a;
+    --teal-soft: #e6f4f4;
+    --cyan: #5af4e3;
+    --navy: #050816;
+    --line: #d8dce4;
+    --amber-strong: #d97706;
+    --amber-ink: #78350f;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--page-bg); color: var(--page-ink); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  header.inspector {
+    background: #fff; border-bottom: 1px solid var(--line); padding: 18px 24px;
+  }
+  header.inspector .wrap { max-width: 1320px; margin: 0 auto; }
+  header.inspector h1 { margin: 0 0 4px; font-size: 18px; }
+  header.inspector p { margin: 0; color: var(--page-soft); font-size: 13.5px; line-height: 1.55; max-width: 880px; }
+  main { max-width: 1320px; margin: 0 auto; padding: 28px 24px 80px; }
+
+  .section-label {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--page-faint); font-weight: 700; margin: 0 0 12px;
+  }
+  .section-intro {
+    color: var(--page-soft); font-size: 13.5px; line-height: 1.55;
+    max-width: 880px; margin: 0 0 18px;
+  }
+
+  /* Email mockup chrome */
+  .email-mock {
+    background: #fff; border: 1px solid var(--line); border-radius: 14px;
+    box-shadow: 0 1px 2px rgba(20,25,40,0.04), 0 8px 24px rgba(20,25,40,0.05);
+    margin-bottom: 32px; overflow: hidden;
+  }
+  .email-mock .meta-bar {
+    background: #f8f9fb; border-bottom: 1px solid #e3e6ec;
+    padding: 12px 18px; font-size: 12.5px; color: var(--page-soft);
+    display: grid; grid-template-columns: 70px 1fr; row-gap: 4px; column-gap: 14px;
+  }
+  .email-mock .meta-bar .meta-label {
+    color: var(--page-faint); font-weight: 600; text-transform: uppercase;
+    font-size: 10.5px; letter-spacing: 0.06em; padding-top: 2px;
+  }
+  .email-mock .meta-bar .meta-val { color: var(--page-ink); }
+  .email-mock .meta-bar .meta-val.subject { font-weight: 600; }
+  .email-mock .email-body { padding: 22px; background: #f4f6f9; }
+
+  /* Webhook mockups */
+  .webhook-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 22px;
+  }
+  @media (max-width: 900px) { .webhook-grid { grid-template-columns: 1fr; } }
+  .webhook-mock {
+    background: #fff; border: 1px solid var(--line); border-radius: 14px;
+    box-shadow: 0 1px 2px rgba(20,25,40,0.04), 0 8px 24px rgba(20,25,40,0.05);
+    overflow: hidden;
+  }
+  .webhook-mock .platform-bar {
+    background: #f8f9fb; border-bottom: 1px solid #e3e6ec;
+    padding: 10px 16px; font-size: 12px; font-weight: 600;
+    color: var(--page-soft); display: flex; align-items: center;
+    justify-content: space-between;
+  }
+  .webhook-mock .platform-bar .platform-name { text-transform: uppercase; letter-spacing: 0.06em; }
+  .webhook-mock .platform-bar .room { color: var(--page-faint); font-weight: 500; }
+  .webhook-mock .platform-body { padding: 14px 14px 18px; background: #fff; }
+
+  /* Google Chat card body styling */
+  .gchat-card {
+    background: #ffffff; border: 1px solid #dadce0; border-radius: 8px;
+    overflow: hidden; max-width: 480px; font-family: "Google Sans", Roboto, Arial, sans-serif;
+  }
+  .gchat-card .gc-header {
+    padding: 14px 16px 12px; display: flex; align-items: center; gap: 12px;
+  }
+  .gchat-card .gc-header .gc-avatar {
+    width: 36px; height: 36px; flex-shrink: 0;
+  }
+  .gchat-card .gc-header .gc-title { font-weight: 500; font-size: 14px; color: #202124; line-height: 1.3; }
+  .gchat-card .gc-header .gc-subtitle { font-size: 12px; color: #5f6368; margin-top: 2px; }
+  .gchat-card .gc-body { padding: 4px 16px 14px; font-size: 13.5px; color: #3c4043; line-height: 1.5; }
+  .gchat-card .gc-row { display: flex; justify-content: space-between; padding: 8px 0; border-top: 1px solid #f1f3f4; }
+  .gchat-card .gc-row:first-of-type { border-top: 0; }
+  .gchat-card .gc-row .gc-key { color: #5f6368; }
+  .gchat-card .gc-row .gc-val { color: #202124; font-weight: 500; }
+  .gchat-card .gc-btn {
+    margin: 4px 16px 14px;
+    display: inline-block; padding: 8px 16px;
+    background: #fff; color: #1a73e8;
+    border: 1px solid #dadce0; border-radius: 4px;
+    font-size: 13px; font-weight: 500; text-decoration: none;
+  }
+
+  /* Discord embed styling */
+  .discord-wrap { padding: 4px 0; font-family: gg sans, Whitney, "Helvetica Neue", Helvetica, Arial, sans-serif; }
+  .discord-embed {
+    max-width: 480px;
+    background: #2b2d31; border-left: 4px solid var(--amber-strong);
+    border-radius: 4px; padding: 12px 16px 14px;
+  }
+  .discord-embed .d-author {
+    font-size: 12px; color: #b5bac1; font-weight: 600; margin-bottom: 4px;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .discord-embed .d-author img { width: 18px; height: 18px; border-radius: 50%; }
+  .discord-embed .d-title { font-size: 15px; color: #fff; font-weight: 600; line-height: 1.3; margin-bottom: 6px; }
+  .discord-embed .d-desc { font-size: 13.5px; color: #dbdee1; line-height: 1.45; margin-bottom: 12px; }
+  .discord-embed .d-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 18px; margin-bottom: 12px; }
+  .discord-embed .d-field-name { font-size: 12px; color: #fff; font-weight: 600; margin-bottom: 2px; }
+  .discord-embed .d-field-val { font-size: 13px; color: #dbdee1; }
+  .discord-embed .d-link {
+    display: inline-block; color: #00a8fc; font-size: 13px; text-decoration: none;
+  }
+  .discord-embed .d-footer { font-size: 12px; color: #949ba4; margin-top: 8px; padding-top: 8px; border-top: 1px solid #3f4147; }
+
+  /* Teams (Adaptive Card) styling */
+  .teams-card {
+    max-width: 480px; background: #fff;
+    border: 1px solid #edebe9; border-radius: 4px;
+    box-shadow: 0 1.6px 3.6px rgba(0,0,0,0.13);
+    overflow: hidden;
+    font-family: "Segoe UI", system-ui, sans-serif;
+  }
+  .teams-card .t-color-bar { height: 4px; background: var(--amber-strong); }
+  .teams-card .t-header { padding: 12px 16px 6px; display: flex; align-items: center; gap: 10px; }
+  .teams-card .t-header img { width: 32px; height: 32px; border-radius: 4px; }
+  .teams-card .t-from { font-size: 12px; color: #605e5c; font-weight: 600; }
+  .teams-card .t-title { font-size: 16px; color: #201f1e; font-weight: 600; line-height: 1.3; }
+  .teams-card .t-subtitle { font-size: 13px; color: #605e5c; margin-top: 2px; }
+  .teams-card .t-body { padding: 0 16px 14px; font-size: 13.5px; color: #323130; line-height: 1.5; }
+  .teams-card .t-facts { padding: 6px 16px 0; }
+  .teams-card .t-facts table { width: 100%; border-collapse: collapse; }
+  .teams-card .t-facts td { padding: 6px 0; font-size: 13px; vertical-align: top; }
+  .teams-card .t-facts td.k { color: #605e5c; padding-right: 16px; white-space: nowrap; }
+  .teams-card .t-facts td.v { color: #201f1e; font-weight: 600; }
+  .teams-card .t-actions { padding: 8px 16px 14px; }
+  .teams-card .t-btn {
+    display: inline-block; padding: 6px 16px;
+    background: #6264a7; color: #fff; border-radius: 2px;
+    font-size: 13px; font-weight: 600; text-decoration: none;
+  }
+
+  /* Slack message styling */
+  .slack-msg {
+    max-width: 540px; padding: 8px 14px 12px 18px;
+    font-family: Slack-Lato, Lato, system-ui, sans-serif;
+    border-left: 4px solid var(--amber-strong);
+    background: #fff;
+  }
+  .slack-msg .s-from { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+  .slack-msg .s-from img { width: 20px; height: 20px; border-radius: 4px; }
+  .slack-msg .s-from .name { font-weight: 700; color: #1d1c1d; font-size: 14px; }
+  .slack-msg .s-from .badge { font-size: 10.5px; background: #e8e8e8; color: #696969; padding: 1px 5px; border-radius: 3px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+  .slack-msg .s-from .time { font-size: 12px; color: #696969; }
+  .slack-msg .s-title { font-size: 15px; color: #1d1c1d; font-weight: 700; margin: 2px 0 6px; }
+  .slack-msg .s-desc { font-size: 14px; color: #1d1c1d; line-height: 1.45; margin-bottom: 10px; }
+  .slack-msg .s-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 30px; margin-bottom: 12px; }
+  .slack-msg .s-field-name { font-size: 12px; color: #1d1c1d; font-weight: 700; margin-bottom: 1px; }
+  .slack-msg .s-field-val { font-size: 13.5px; color: #1d1c1d; }
+  .slack-msg .s-btn {
+    display: inline-block; padding: 7px 14px;
+    background: #fff; color: #1d1c1d;
+    border: 1px solid #c9c9c9; border-radius: 4px;
+    font-size: 13.5px; font-weight: 700; text-decoration: none;
+  }
+
+  .nb {
+    background: #fff; border: 1px solid var(--line); border-radius: 10px;
+    padding: 14px 18px; font-size: 13px; color: var(--page-soft); line-height: 1.55;
+    margin-top: 28px;
+  }
+  .nb b { color: var(--page-ink); }
+  .nb code { background: #f4f6f9; padding: 1px 6px; border-radius: 4px; font-size: 12.5px; }
+</style>
+</head>
+<body>
+
+<header class="inspector">
+  <div class="wrap">
+    <h1>Aged primary backup disk alert</h1>
+    <p>How the new "your primary WSB target disk has been in rotation longer than the configured threshold" notification will look across Resend email + the four supported webhook chat platforms. Severity is <b>warn</b> (amber) &mdash; an aged disk is a recommendation, not an outage.</p>
+  </div>
+</header>
+
+<main>
+
+  <div class="section-label">Email &mdash; Resend (ALERT_TO recipient)</div>
+  <p class="section-intro">Uses the same branded shell as the existing backup-failed / OMSA-warning / disk-low emails, just in the new <b>warn</b> amber palette so the eye reads it as "advisory, not panic." Fires once per host when a target first crosses the threshold &mdash; tracked with a per-pcId <code>backupDiskAgeFirstWarnAt</code> field on the PC doc so we don't re-send every check-in.</p>
+
+  <div class="email-mock">
+    <div class="meta-bar">
+      <span class="meta-label">From</span>
+      <span class="meta-val">Watchtower &lt;onboarding@resend.dev&gt;</span>
+      <span class="meta-label">To</span>
+      <span class="meta-val">frank@umbrellaautomation.com</span>
+      <span class="meta-label">Subject</span>
+      <span class="meta-val subject">[Watchtower] CELTIC-DC01 &middot; Backup disk aged &middot; 2y 285d in rotation</span>
+    </div>
+    <div class="email-body">
+      <!-- ========================================================== -->
+      <!-- This is the actual HTML the worker will emit.               -->
+      <!-- ========================================================== -->
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;max-width:640px;margin:0 auto;background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 2px 12px rgba(20,25,40,0.06);">
+
+        <!-- Hero -->
+        <div style="background:linear-gradient(135deg,#0a6b6b 0%,#074a4a 100%);padding:24px 30px;color:#ffffff;">
+          <table cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
+            <td width="50" style="vertical-align:middle;">
+              <svg width="40" height="40" viewBox="0 0 64 64">
+                <circle cx="32" cy="32" r="30" fill="#0a6b6b"/>
+                <circle cx="32" cy="32" r="10" fill="#5af4e3" opacity="0.3"/>
+                <rect x="18" y="14" width="4" height="6" fill="#fff"/><rect x="26" y="14" width="4" height="6" fill="#fff"/><rect x="34" y="14" width="4" height="6" fill="#fff"/><rect x="42" y="14" width="4" height="6" fill="#fff"/>
+                <rect x="16" y="20" width="32" height="4" fill="#fff"/><rect x="20" y="24" width="24" height="30" fill="#fff"/>
+                <circle cx="32" cy="32" r="4" fill="#5af4e3"/>
+                <rect x="24" y="38" width="3" height="8" fill="#0a6b6b"/><rect x="37" y="38" width="3" height="8" fill="#0a6b6b"/>
+                <path d="M28 54 L28 50 Q32 46 36 50 L36 54 Z" fill="#0a6b6b"/>
+              </svg>
+            </td>
+            <td style="vertical-align:middle;padding-left:14px;">
+              <div style="font-size:11px;color:#5af4e3;text-transform:uppercase;letter-spacing:0.1em;font-weight:600;">Umbrella Automation &middot; Watchtower</div>
+            </td>
+            <td align="right" style="vertical-align:middle;">
+              <span style="display:inline-block;padding:7px 16px;background:#ffffff;color:#0a6b6b;border-radius:999px;font-size:12.5px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.18);">Celtic Properties</span>
+            </td>
+          </tr></table>
+          <div style="font-size:26px;color:#ffffff;font-weight:700;line-height:1.2;margin-top:18px;letter-spacing:-0.01em;">Backup Disk Aging Out</div>
+          <div style="font-size:14px;color:rgba(255,255,255,0.78);margin-top:5px;">on <b style="color:#ffffff;">CELTIC-DC01</b> &middot; <span style="color:#fcd34d;">2 years 285 days in rotation (threshold 2.5y)</span></div>
+        </div>
+
+        <!-- Severity band (warn / amber) -->
+        <div style="background:#fef3c7;color:#78350f;padding:9px 30px;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;border-bottom:1px solid #fcd34d;">
+          <span style="display:inline-block;width:8px;height:8px;background:#d97706;border-radius:50%;margin-right:8px;vertical-align:middle;"></span>Windows Server Backup &middot; advisory
+        </div>
+
+        <!-- Body -->
+        <div style="padding:24px 30px;">
+          <p style="font-size:15px;color:#1a1f2b;line-height:1.55;margin:0 0 22px;">
+            The primary backup target on this host has been in continuous rotation for longer than the configured threshold. Backup disks are a wear item &mdash; rotating to a fresh unit now keeps you ahead of the failure curve rather than scrambling after one.
+          </p>
+
+          <!-- Hero stat row -->
+          <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:18px;"><tr>
+            <td style="background:#fef3c7;border:1px solid #fcd34d;border-radius:10px;padding:14px 18px;width:32%;vertical-align:top;text-align:center;">
+              <div style="font-size:10.5px;color:#8892a4;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:4px;">In rotation</div>
+              <div style="font-size:28px;color:#78350f;font-weight:800;line-height:1;">2y 285d</div>
+              <div style="font-size:11px;color:#a16207;margin-top:4px;">since first backup</div>
+            </td>
+            <td width="4%"></td>
+            <td style="background:#fafbfc;border:1px solid #e3e6ec;border-radius:10px;padding:14px 18px;vertical-align:top;">
+              <div style="font-size:10.5px;color:#8892a4;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:4px;">Backup target</div>
+              <div style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:14px;color:#475063;font-weight:700;line-height:1.3;word-break:break-all;">\\?\Volume{a83d9e1c-...}</div>
+              <div style="font-size:11.5px;color:#475063;margin-top:6px;">First backup 2023-08-14 &middot; latest 2026-05-25</div>
+            </td>
+          </tr></table>
+
+          <!-- What to do -->
+          <div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;padding:14px 18px;margin-bottom:0;">
+            <div style="font-size:10.5px;color:#92400e;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">Suggested next steps</div>
+            <ul style="margin:0;padding-left:18px;font-size:13.5px;color:#78350f;line-height:1.7;">
+              <li>Pull SMART data &mdash; if reallocated sectors or pending sectors are non-zero, swap immediately.</li>
+              <li>Order a replacement disk in the same capacity tier and confirm WSB picks it up via <code style="font-family:ui-monospace,Menlo,Consolas,monospace;background:#fffbeb;padding:1px 5px;border-radius:3px;">wbadmin enable backup -addtarget</code>.</li>
+              <li>Adjust the threshold under <b>Settings &middot; Backup disk age alert</b> if 2.5 years is too aggressive for this customer.</li>
+            </ul>
+          </div>
+
+          <a href="https://frank-umbrella.github.io/work/watchtower/?pc=pc_3f2a..." style="display:block;text-align:center;background:#0a6b6b;color:#ffffff;text-decoration:none;padding:14px 22px;border-radius:10px;font-weight:700;font-size:14.5px;box-shadow:0 2px 4px rgba(10,107,107,0.25);margin-top:20px;">Open host in dashboard &rarr;</a>
+        </div>
+
+        <!-- Footer -->
+        <div style="background:#fafbfc;padding:16px 30px;border-top:1px solid #e3e6ec;">
+          <table cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
+            <td style="font-size:11.5px;color:#8892a4;"><b style="color:#475063;">Watchtower</b> &middot; Umbrella Automation</td>
+            <td align="right" style="font-size:11.5px;"><a href="#" style="color:#8892a4;text-decoration:none;">Silence this host</a></td>
+          </tr></table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-label" style="margin-top: 40px;">Webhook variants &mdash; chat-platform-specific shapes</div>
+  <p class="section-intro">Same payload, four different envelopes &mdash; the worker's <code>buildWebhookBody()</code> already routes by URL host (chat.googleapis.com / discord.com / webhook.office.com / hooks.slack.com), so this just slots a fifth <code>eventMeta</code> entry in and reuses the existing adapter machinery.</p>
+
+  <div class="webhook-grid">
+
+    <!-- ============ Google Chat ============ -->
+    <div class="webhook-mock">
+      <div class="platform-bar"><span class="platform-name">Google Chat</span><span class="room">#watchtower-alerts</span></div>
+      <div class="platform-body">
+        <div class="gchat-card">
+          <div class="gc-header">
+            <svg class="gc-avatar" viewBox="0 0 64 64">
+              <circle cx="32" cy="32" r="30" fill="#0a6b6b"/>
+              <circle cx="32" cy="32" r="10" fill="#5af4e3" opacity="0.3"/>
+              <rect x="18" y="14" width="4" height="6" fill="#fff"/><rect x="26" y="14" width="4" height="6" fill="#fff"/><rect x="34" y="14" width="4" height="6" fill="#fff"/><rect x="42" y="14" width="4" height="6" fill="#fff"/>
+              <rect x="16" y="20" width="32" height="4" fill="#fff"/><rect x="20" y="24" width="24" height="30" fill="#fff"/>
+              <circle cx="32" cy="32" r="4" fill="#5af4e3"/>
+              <rect x="24" y="38" width="3" height="8" fill="#0a6b6b"/><rect x="37" y="38" width="3" height="8" fill="#0a6b6b"/>
+              <path d="M28 54 L28 50 Q32 46 36 50 L36 54 Z" fill="#0a6b6b"/>
+            </svg>
+            <div>
+              <div class="gc-title">Backup Disk Aging Out &middot; CELTIC-DC01</div>
+              <div class="gc-subtitle">Celtic Properties &middot; advisory</div>
+            </div>
+          </div>
+          <div class="gc-body">
+            <div class="gc-row"><span class="gc-key">In rotation</span><span class="gc-val">2y 285d</span></div>
+            <div class="gc-row"><span class="gc-key">Threshold</span><span class="gc-val">2.5y (913d)</span></div>
+            <div class="gc-row"><span class="gc-key">First backup</span><span class="gc-val">2023-08-14</span></div>
+            <div class="gc-row"><span class="gc-key">Target</span><span class="gc-val">\\?\Volume{a83d9e…}</span></div>
+          </div>
+          <a class="gc-btn" href="#">Open in Watchtower</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ Discord ============ -->
+    <div class="webhook-mock">
+      <div class="platform-bar"><span class="platform-name">Discord</span><span class="room">#alerts</span></div>
+      <div class="platform-body" style="background:#313338;border-radius:0 0 14px 14px;">
+        <div class="discord-wrap">
+          <div class="discord-embed">
+            <div class="d-author">
+              <svg width="18" height="18" viewBox="0 0 64 64">
+                <circle cx="32" cy="32" r="30" fill="#0a6b6b"/>
+                <circle cx="32" cy="32" r="10" fill="#5af4e3" opacity="0.3"/>
+                <rect x="18" y="14" width="4" height="6" fill="#fff"/><rect x="26" y="14" width="4" height="6" fill="#fff"/><rect x="34" y="14" width="4" height="6" fill="#fff"/><rect x="42" y="14" width="4" height="6" fill="#fff"/>
+                <rect x="16" y="20" width="32" height="4" fill="#fff"/><rect x="20" y="24" width="24" height="30" fill="#fff"/>
+                <circle cx="32" cy="32" r="4" fill="#5af4e3"/>
+              </svg>
+              Watchtower &middot; Celtic Properties
+            </div>
+            <div class="d-title">Backup Disk Aging Out on CELTIC-DC01</div>
+            <div class="d-desc">Primary WSB target has been in continuous rotation for 2 years 285 days. Plan to swap before failure.</div>
+            <div class="d-fields">
+              <div>
+                <div class="d-field-name">In rotation</div>
+                <div class="d-field-val">2y 285d</div>
+              </div>
+              <div>
+                <div class="d-field-name">Threshold</div>
+                <div class="d-field-val">2.5y (913d)</div>
+              </div>
+              <div>
+                <div class="d-field-name">First backup</div>
+                <div class="d-field-val">2023-08-14</div>
+              </div>
+              <div>
+                <div class="d-field-name">Latest backup</div>
+                <div class="d-field-val">2026-05-25</div>
+              </div>
+            </div>
+            <a class="d-link" href="#">Open host in dashboard &rarr;</a>
+            <div class="d-footer">Detected 2026-05-25 09:14 UTC</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ Microsoft Teams ============ -->
+    <div class="webhook-mock">
+      <div class="platform-bar"><span class="platform-name">Microsoft Teams</span><span class="room">Umbrella &middot; Watchtower channel</span></div>
+      <div class="platform-body">
+        <div class="teams-card">
+          <div class="t-color-bar"></div>
+          <div class="t-header">
+            <svg width="32" height="32" viewBox="0 0 64 64">
+              <circle cx="32" cy="32" r="30" fill="#0a6b6b"/>
+              <circle cx="32" cy="32" r="10" fill="#5af4e3" opacity="0.3"/>
+              <rect x="18" y="14" width="4" height="6" fill="#fff"/><rect x="26" y="14" width="4" height="6" fill="#fff"/><rect x="34" y="14" width="4" height="6" fill="#fff"/><rect x="42" y="14" width="4" height="6" fill="#fff"/>
+              <rect x="16" y="20" width="32" height="4" fill="#fff"/><rect x="20" y="24" width="24" height="30" fill="#fff"/>
+              <circle cx="32" cy="32" r="4" fill="#5af4e3"/>
+              <rect x="24" y="38" width="3" height="8" fill="#0a6b6b"/><rect x="37" y="38" width="3" height="8" fill="#0a6b6b"/>
+              <path d="M28 54 L28 50 Q32 46 36 50 L36 54 Z" fill="#0a6b6b"/>
+            </svg>
+            <div>
+              <div class="t-from">Umbrella Watchtower</div>
+              <div class="t-title">Backup Disk Aging Out</div>
+              <div class="t-subtitle">CELTIC-DC01 &middot; Celtic Properties &middot; advisory</div>
+            </div>
+          </div>
+          <div class="t-body" style="padding-top:6px;">
+            Primary WSB target has been in continuous rotation for longer than the configured threshold. Rotate now before failure rather than after.
+          </div>
+          <div class="t-facts">
+            <table>
+              <tr><td class="k">In rotation</td><td class="v">2y 285d</td></tr>
+              <tr><td class="k">Threshold</td><td class="v">2.5y (913 days)</td></tr>
+              <tr><td class="k">First backup</td><td class="v">2023-08-14</td></tr>
+              <tr><td class="k">Latest backup</td><td class="v">2026-05-25</td></tr>
+              <tr><td class="k">Target</td><td class="v" style="font-family:ui-monospace,Consolas,monospace;">\\?\Volume{a83d9e…}</td></tr>
+            </table>
+          </div>
+          <div class="t-actions"><a class="t-btn" href="#">Open in Watchtower</a></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ Slack ============ -->
+    <div class="webhook-mock">
+      <div class="platform-bar"><span class="platform-name">Slack</span><span class="room">#watchtower-alerts</span></div>
+      <div class="platform-body">
+        <div class="slack-msg">
+          <div class="s-from">
+            <svg width="20" height="20" viewBox="0 0 64 64">
+              <circle cx="32" cy="32" r="30" fill="#0a6b6b"/>
+              <circle cx="32" cy="32" r="10" fill="#5af4e3" opacity="0.3"/>
+              <rect x="18" y="14" width="4" height="6" fill="#fff"/><rect x="26" y="14" width="4" height="6" fill="#fff"/><rect x="34" y="14" width="4" height="6" fill="#fff"/><rect x="42" y="14" width="4" height="6" fill="#fff"/>
+              <rect x="16" y="20" width="32" height="4" fill="#fff"/><rect x="20" y="24" width="24" height="30" fill="#fff"/>
+              <circle cx="32" cy="32" r="4" fill="#5af4e3"/>
+            </svg>
+            <span class="name">Watchtower</span>
+            <span class="badge">App</span>
+            <span class="time">9:14 AM</span>
+          </div>
+          <div class="s-title">Backup Disk Aging Out &middot; CELTIC-DC01 (Celtic Properties)</div>
+          <div class="s-desc">Primary WSB target has been in rotation for 2 years 285 days &mdash; past the configured 2.5y threshold.</div>
+          <div class="s-fields">
+            <div>
+              <div class="s-field-name">In rotation</div>
+              <div class="s-field-val">2y 285d</div>
+            </div>
+            <div>
+              <div class="s-field-name">Threshold</div>
+              <div class="s-field-val">2.5y (913 days)</div>
+            </div>
+            <div>
+              <div class="s-field-name">First backup</div>
+              <div class="s-field-val">2023-08-14</div>
+            </div>
+            <div>
+              <div class="s-field-name">Latest backup</div>
+              <div class="s-field-val">2026-05-25</div>
+            </div>
+          </div>
+          <a class="s-btn" href="#">Open in Watchtower</a>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="nb">
+    <b>Firing rules.</b> Once per host per threshold-crossing. The worker writes <code>backupDiskAgeFirstWarnAt</code> on the PC doc when an aged target is first detected; subsequent check-ins skip the email/webhook as long as the same target is still primary and still aged. If the operator swaps the disk (or bumps the threshold past the current age), the field clears and we'll re-arm. Snoozes obey the same <code>alertsSnoozeUntil</code> mute as every other alert &mdash; muted hosts won't email/webhook but still tint the dashboard.
+    <br><br>
+    <b>What changes in the worker.</b> A new <code>sendBackupDiskAgedEmail()</code> in the same shape as <code>sendOmsaWarningEmail</code> / <code>sendBackupFailureEmail</code>; a new <code>warn</code> entry in <code>SEVERITY_PALETTE</code>; a new event type in <code>eventMeta()</code> so the webhook adapters know what subject + color to use; and the trigger guard inside <code>handleCheckin</code> that compares the freshly-computed primary target's <code>(target, ageDays)</code> against the stored <code>backupDiskAgeFirstWarnAt</code>.
+  </div>
+
+</main>
+
+</body>
+</html>
