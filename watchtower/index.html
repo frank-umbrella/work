@@ -1460,7 +1460,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.101";
+const APP_VERSION = "0.14.102";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -2639,13 +2639,25 @@ const FLEET_PROP_FILTERS = {
     value: (a) => {
       const o = a.report && a.report.omsa;
       if (!o || !o.installed) return "Not installed";
+      // "Blind" = OMSA daemon is up but reports zero controllers, zero
+      // RAID arrays, AND zero physical disks. Common on hosts with
+      // onboard SATA only, paravirtualized VM disks, or stale PERC
+      // firmware -- the host has no disk-health visibility via OMSA.
+      // Distinct from "Unknown" (which means the rollup field itself
+      // is some non-ok/warn/bad value).
+      const ctlCount = (o.controllers || []).length;
+      const vdCount  = (o.virtualDisks || []).length;
+      const pdCount  = (o.physicalDisks || []).length;
+      if (ctlCount === 0 && vdCount === 0 && pdCount === 0) {
+        return "Blind (no controller)";
+      }
       const r = o.healthRollup;
       if (r === "ok") return "OK";
       if (r === "warn") return "Warning";
       if (r === "bad") return "Critical";
-      return "Unknown / blind";
+      return "Unknown";
     },
-    options: ["OK", "Warning", "Critical", "Unknown / blind", "Not installed"],
+    options: ["OK", "Warning", "Critical", "Blind (no controller)", "Unknown", "Not installed"],
   },
   agentVersion: {
     label: "Agent version",
