@@ -203,6 +203,18 @@ def run_checkin():
         state["lastCheckinAt"] = _now_iso()
         state["lastResponse"] = resp
         state["ok"] = True
+        # Promote helpDeskUrl from the response config to a top-level
+        # state field so the tray can read it cheaply at menu-open time
+        # without parsing the full lastResponse blob. Always assigned
+        # (even when None) so a cleared URL is reflected immediately
+        # rather than leaving a stale value behind.
+        cfg_resp = resp.get("config") or {}
+        state["helpDeskUrl"] = cfg_resp.get("helpDeskUrl") or None
+        # Also retain the resolved client name so the tray menu can
+        # label the link "Open <Client> help desk" rather than the
+        # generic phrasing.
+        if cfg_resp.get("client") or resp.get("client"):
+            state["clientName"] = cfg_resp.get("client") or resp.get("client")
         cfg_mod.save_state(state)
         _logger.log(f"run_checkin: SUCCESS (worker ok={resp.get('ok')}, uninstall={resp.get('uninstall', False)})")
 

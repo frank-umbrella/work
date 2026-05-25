@@ -345,6 +345,62 @@ def _on_open_dashboard(icon, item):
         webbrowser.open(DASHBOARD_URL)
 
 
+def _help_desk_url():
+    """Reads the per-client help desk URL out of state.json (populated
+    by checkin.py from the worker's /checkin response). Returns '' when
+    none is configured. Called fresh on each menu open so dashboard
+    edits take effect on the host's next check-in poll cycle without
+    needing to restart the tray."""
+    try:
+        st = cfg_mod.load_state() or {}
+        url = (st.get("helpDeskUrl") or "").strip()
+        return url
+    except Exception:
+        return ""
+
+
+def _help_desk_label(_item):
+    """Dynamic menu-item label: includes the client name when known so
+    the operator sees 'Open Acme Corp help desk' rather than the
+    generic phrasing. pystray calls this each time the menu renders."""
+    url = _help_desk_url()
+    if not url:
+        return "Help desk not configured"
+    try:
+        st = cfg_mod.load_state() or {}
+        client = (st.get("clientName") or "").strip()
+    except Exception:
+        client = ""
+    return f"Open {client} help desk" if client else "Open client help desk"
+
+
+def _on_open_help_desk(icon, item):
+    url = _help_desk_url()
+    if not url:
+        try:
+            icon.notify(
+                "No help desk URL has been configured for this client yet. "
+                "Set one from the Watchtower dashboard's Clients tab.",
+                "Watchtower",
+            )
+        except Exception:
+            pass
+        return
+    try:
+        webbrowser.open(url)
+    except Exception as e:
+        try:
+            icon.notify(f"Couldn't open help desk URL: {e}", "Watchtower")
+        except Exception:
+            pass
+
+
+def _help_desk_enabled(_item):
+    # Disable the menu item visually when no URL is set so the operator
+    # gets a clear "this is intentional, not broken" cue.
+    return bool(_help_desk_url())
+
+
 def _on_show_status_file(icon, item):
     # Open the parent folder in Explorer so users / Frank can quickly
     # inspect state.json and config.json.
@@ -501,6 +557,12 @@ def main():
         pystray.MenuItem("Check now", _on_check_now),
         pystray.MenuItem("Check for updates", _on_check_for_updates),
         pystray.MenuItem("Open Watchtower dashboard", _on_open_dashboard),
+        # Per-client help desk link. Label + enabled-state are dynamic
+        # so the menu reflects the latest state.json on every open
+        # (e.g. when an admin sets the URL via the dashboard, the next
+        # check-in writes it to state.json and the next menu open
+        # shows the updated label).
+        pystray.MenuItem(_help_desk_label, _on_open_help_desk, enabled=_help_desk_enabled),
         pystray.Menu.SEPARATOR,
         pystray.MenuItem(
             "Troubleshoot",

@@ -1622,15 +1622,29 @@ async function handleCheckin(request, env, ctx) {
   const config = readConfig(configDoc);
 
   // ----- 4a. Apply clientIdOverride if the admin reassigned the host -----
+  // ALSO pull the helpDeskUrl off the resolved client doc so we can ship
+  // it down to the agent (state.json), letting the tray surface a
+  // client-specific "Open client help desk" menu item.
+  let resolvedHelpDeskUrl = null;
+  // Try the override client first; fall back to the token-bound clientId
+  // if no override is set.
+  const helpDeskClientId = config.clientIdOverride || resolvedClientId;
   if (config.clientIdOverride) {
     const overrideDoc = await firestoreGetDoc(env, accessToken, `clients/${config.clientIdOverride}`);
     if (overrideDoc && overrideDoc.fields) {
       resolvedClientId = config.clientIdOverride;
       resolvedClient = overrideDoc.fields.name?.stringValue || resolvedClient;
+      resolvedHelpDeskUrl = overrideDoc.fields.helpDeskUrl?.stringValue || null;
     }
     // If the client doc was deleted out from under the override, fall
     // back silently to the token-bound value rather than crashing the
     // check-in. Operator can clean up by clearing the override in the UI.
+  } else if (helpDeskClientId) {
+    // No override -- fetch the token-bound client to pick up its URL.
+    const clientDoc = await firestoreGetDoc(env, accessToken, `clients/${helpDeskClientId}`);
+    if (clientDoc && clientDoc.fields) {
+      resolvedHelpDeskUrl = clientDoc.fields.helpDeskUrl?.stringValue || null;
+    }
   }
 
   // ----- 4b. Read global webhook URL (single fleet-wide value) -----
@@ -1696,6 +1710,11 @@ async function handleCheckin(request, env, ctx) {
     hostname,
     client: resolvedClient,
     clientId: resolvedClientId,
+    // Per-client help desk URL. Shipped to the agent in the checkin
+    // response config so the tray can surface a client-branded
+    // "Open client help desk" menu item. Resolved fresh each check-in
+    // so dashboard edits take effect on the host's next poll cycle.
+    helpDeskUrl: resolvedHelpDeskUrl,
     tokenLegacy: auth.legacy === true,
     agentVersion: agentVersion || 'unknown',
     lastCheckin: nowIso,
@@ -2175,6 +2194,10 @@ async function handleCheckin(request, env, ctx) {
       // Forwarded to the agent. checkin.py treats this as "run the
       // updater right now even if autoUpdate is off" -- one-shot push.
       forceUpdate: config.forceUpdate,
+      // Per-client help desk URL resolved at section 4a. Null when
+      // the client doesn't have one set. checkin.py writes this into
+      // state.json; the tray reads it on menu open.
+      helpDeskUrl: resolvedHelpDeskUrl,
     },
     uninstall: config.uninstall,
   }, 200);

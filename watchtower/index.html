@@ -1167,32 +1167,73 @@
 
     <div class="tab-pane" data-tab="activity" hidden>
       <div class="panel">
-        <div class="filters">
-          <label>Type</label>
-          <select id="activityFilter">
-            <option value="">All</option>
-            <option value="host_first_seen">Host first seen</option>
-            <option value="ip_change">IP change</option>
-            <option value="omsa_warning">OMSA warning</option>
-            <option value="wsb_failure">Backup failure</option>
-            <option value="host_reassigned">Host reassigned</option>
-            <option value="client_added">Client added</option>
-            <option value="client_deleted">Client deleted</option>
-            <option value="token_generated">Token generated</option>
-            <option value="token_revoked">Token revoked</option>
-            <option value="agent_decommissioned">Agent decommissioned</option>
-            <option value="agent_uninstalled">Agent uninstalled (host side)</option>
-            <option value="agent_reactivated">Agent reactivated</option>
-          </select>
-          <span class="spacer"></span>
-          <span class="count" id="activityCount"></span>
+        <!-- Sub-tab toggle. The default "Activity" view is what's
+             always been here (chronological list, type filter). The
+             new "Feed" view groups the same /activity events by
+             endpoint so the operator can see at a glance what's been
+             happening on each host over time. -->
+        <div style="display:flex;gap:4px;border-bottom:1px solid var(--line);padding:8px 14px 0;">
+          <button class="sub-tab active" data-activity-subtab="activity"
+                  style="background:none;border:0;padding:8px 14px;border-bottom:2px solid var(--accent);font-weight:600;color:var(--ink);cursor:pointer;font-size:13.5px;">
+            Activity
+          </button>
+          <button class="sub-tab" data-activity-subtab="feed"
+                  style="background:none;border:0;padding:8px 14px;border-bottom:2px solid transparent;font-weight:500;color:var(--ink-soft);cursor:pointer;font-size:13.5px;">
+            Feed
+          </button>
+          <span class="meta" style="margin-left:auto;font-size:11.5px;align-self:center;">Same underlying events; different lens.</span>
         </div>
-        <div id="activityWrap" style="padding:0 0 8px;">
-          <div id="activityList" style="font-size:13.5px;"></div>
+
+        <!-- Activity (existing) view -->
+        <div data-activity-pane="activity">
+          <div class="filters">
+            <label>Type</label>
+            <select id="activityFilter">
+              <option value="">All</option>
+              <option value="host_first_seen">Host first seen</option>
+              <option value="ip_change">IP change</option>
+              <option value="omsa_warning">OMSA warning</option>
+              <option value="wsb_failure">Backup failure</option>
+              <option value="host_reassigned">Host reassigned</option>
+              <option value="client_added">Client added</option>
+              <option value="client_deleted">Client deleted</option>
+              <option value="client_help_desk_url_set">Client help desk URL set</option>
+              <option value="token_generated">Token generated</option>
+              <option value="token_revoked">Token revoked</option>
+              <option value="agent_decommissioned">Agent decommissioned</option>
+              <option value="agent_uninstalled">Agent uninstalled (host side)</option>
+              <option value="agent_reactivated">Agent reactivated</option>
+            </select>
+            <span class="spacer"></span>
+            <span class="count" id="activityCount"></span>
+          </div>
+          <div id="activityWrap" style="padding:0 0 8px;">
+            <div id="activityList" style="font-size:13.5px;"></div>
+          </div>
+          <div id="activityEmpty" class="empty" hidden>
+            <h3>No activity yet</h3>
+            <p>Events from agents (check-ins, IP changes, OMSA warnings, backup failures) and admin actions (client added, host reassigned, etc) appear here as they happen.</p>
+          </div>
         </div>
-        <div id="activityEmpty" class="empty" hidden>
-          <h3>No activity yet</h3>
-          <p>Events from agents (check-ins, IP changes, OMSA warnings, backup failures) and admin actions (client added, host reassigned, etc) appear here as they happen.</p>
+
+        <!-- Feed (new) view: same events, grouped by endpoint -->
+        <div data-activity-pane="feed" hidden>
+          <div class="filters">
+            <input type="search" id="feedSearch" placeholder="Search hostname, client, event type..." style="min-width:260px;">
+            <label style="display:flex;gap:6px;align-items:center;cursor:pointer;font-size:12.5px;">
+              <input type="checkbox" id="feedAgentOnly" checked style="margin:0;">
+              Agent-detected only
+            </label>
+            <span class="spacer"></span>
+            <span class="count" id="feedCount"></span>
+          </div>
+          <div id="feedWrap" style="padding:0 14px 14px;">
+            <div id="feedList" style="display:flex;flex-direction:column;gap:18px;"></div>
+          </div>
+          <div id="feedEmpty" class="empty" hidden>
+            <h3>Feed is empty</h3>
+            <p>Once agents start reporting events (first check-ins, IP changes, backup outcomes, etc.) they'll show up here grouped by endpoint with timestamps.</p>
+          </div>
         </div>
       </div>
     </div>
@@ -1460,7 +1501,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.105";
+const APP_VERSION = "0.14.106";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -1473,7 +1514,92 @@ const db = getFirestore(app);
 // `defer` on the script tag would also work, but doing it at module
 // init means we don't need to wait for DOMContentLoaded.
 const _versionChip = document.getElementById("versionChip");
-if (_versionChip) _versionChip.textContent = `v${APP_VERSION}`;
+if (_versionChip) {
+  _versionChip.textContent = `v${APP_VERSION}`;
+  _versionChip.style.cursor = "pointer";
+  _versionChip.title = "Click to view what's new in recent versions";
+  _versionChip.addEventListener("click", (e) => {
+    // Stop the brand link's <a> from navigating home.
+    e.preventDefault();
+    e.stopPropagation();
+    openChangelogModal();
+  });
+}
+
+// CHANGELOG: hand-curated list of notable changes per version, newest
+// first. Add a new entry here when shipping anything worth surfacing
+// to the operator (UI changes, new probes, behavior changes, security
+// fixes). Patch-level no-op bumps don't need entries -- only stuff a
+// human reader would want to know about.
+const CHANGELOG = [
+  { version: "0.14.106", date: "2026-05-25", changes: [
+    "Activity tab gains a new Feed sub-tab: per-endpoint card view of the same /activity events, grouped by host with timestamps + search.",
+    "Per-client Help Desk URL: set a support URL on each client (Clients tab → expand row → Client help desk). Each endpoint's system tray menu picks up its client's URL on the next check-in.",
+    "Version chip in the header is now clickable -- opens this changelog.",
+  ]},
+  { version: "0.14.105", date: "2026-05-25", changes: [
+    "diagnostic.ps1 expanded with 7 new sections (binaries on disk, tray + service process state, tray-startup log, install log tail, WinHTTP proxy config, backup-product event log inventory, Veeam install layout) so support diagnostics include everything Frank typically asks for live.",
+  ]},
+  { version: "0.14.103-0.14.104", date: "2026-05-25", changes: [
+    "Tray-startup log + schtasks fallback for the manual Check-for-updates path (Path A): tray now reliably comes back even when runasoriginaluser misses.",
+    "Endpoints table: drag-and-drop column reorder, persisted to user profile so the order syncs across browsers and devices.",
+    "OMSA state filter splits 'Blind (no controller)' out from 'Unknown' as a first-class value.",
+  ]},
+  { version: "0.14.101", date: "2026-05-25", changes: [
+    "Carbonite + IBackup event-log probes: speculative fallback that surfaces last-backup outcomes when the products write to Windows event log under their own provider names (Carbonite/DCProtect/DataCastle/Webroot for Carbonite; IBackup/IDrive/Pro Softnet for IBackup).",
+    "VM hosts get a purple VM pill in the Service tag + Model columns instead of em-dashes.",
+    "Built-in Administrator enabled no longer counts toward the alert chip.",
+  ]},
+  { version: "0.14.99", date: "2026-05-25", changes: [
+    "Email notification opt-ins: 7 checkboxes in Settings let you disable individual email categories (intake, IP change, OMSA, disk low, backup disk aged, backup failure, uninstall). Defaults to all-on.",
+    "Endpoints table: new Filter-by property dropdown for filtering by Defender, Backup tool, OS, Hypervisor, Domain, RAM tier, C: drive headroom, LogMeIn, iDRAC, OMSA state, agent version.",
+  ]},
+  { version: "0.14.95", date: "2026-05-25", changes: [
+    "Installer: disabled Restart Manager integration that was causing silent install death on Server 2012 R2 (PCA Service was flagged as a file-locker, no way to suppress the prompt under /VERYSILENT).",
+  ]},
+  { version: "0.14.93", date: "2026-05-25", changes: [
+    "Installer: PowerShell Invoke-WebRequest fallback when the in-installer WinHTTP token-revalidation fails (observed on Server 2025 with RedirectionGuard).",
+    "Auto-update spawn passes /SKIPVALIDATE=1: the agent already validated the token to receive the update signal, so re-validating from inside the installer is redundant.",
+  ]},
+  { version: "0.14.92", date: "2026-05-25", changes: [
+    "SECURITY: install token no longer leaks into install.log. Token is written to a stash file with admin-only ACL; /TOKENFILE= replaces /TOKEN= on the installer command line. Existing leaked logs are auto-scrubbed on next agent boot.",
+  ]},
+  { version: "0.14.91", date: "2026-05-25", changes: [
+    "Veeam Agent without veeamconfig.exe: probe falls back to the 'Veeam Agent' Windows event log to extract backup outcomes (events 190/191).",
+  ]},
+  { version: "0.14.89", date: "2026-05-25", changes: [
+    "Updater writes structured logs to watchtower.log (download, sha256 verify, installer spawn args, exit codes).",
+    "Installer passes /LOG=C:\\ProgramData\\Watchtower\\install.log so Inno's verbose transcript is always captured.",
+  ]},
+];
+
+function openChangelogModal() {
+  const body = `
+    <div class="meta" style="margin-bottom:14px;">
+      Major changes per version, newest first. Patch-level no-ops aren't listed.
+      <br>Full commit log: <a href="https://github.com/frank-umbrella/work/commits/main/watchtower" target="_blank">github.com/frank-umbrella/work</a>.
+    </div>
+    <div style="display:flex;flex-direction:column;gap:18px;max-height:500px;overflow-y:auto;padding-right:8px;">
+      ${CHANGELOG.map(entry => `
+        <div>
+          <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:6px;">
+            <span style="font-weight:700;font-size:14px;color:var(--accent);font-variant-numeric:tabular-nums;">v${esc(entry.version)}</span>
+            <span class="meta" style="font-size:11.5px;">${esc(entry.date)}</span>
+          </div>
+          <ul style="margin:0;padding-left:20px;font-size:13.5px;line-height:1.55;color:var(--ink);">
+            ${entry.changes.map(c => `<li style="margin-bottom:4px;">${esc(c)}</li>`).join("")}
+          </ul>
+        </div>
+      `).join("")}
+    </div>
+  `;
+  openModal({
+    title: "What's new",
+    sub: `Currently running v${APP_VERSION}`,
+    body,
+    foot: `<button class="btn" data-modal-close>Close</button>`,
+  });
+}
 
 const state = {
   user: null,
@@ -1486,6 +1612,7 @@ const state = {
   latestAgent: { version: "", downloadUrl: "", sha256: "", notes: "" },
   expandedClientId: null,
   filter: { search: "", client: "", status: "", propKey: "", propValue: "" },
+  feed: { search: "", agentOnly: true, activeSubtab: "activity" },
   // Click-to-sort state per table. `key` = which data-sort attribute is
   // active, `dir` = "asc" or "desc". null = use the table's natural
   // default order. Persists across re-renders within the session so
@@ -2881,6 +3008,43 @@ document.getElementById("activityFilter").addEventListener("change", e => {
   renderActivity();
 });
 
+// Activity sub-tab toggle (Activity / Feed). Same underlying data,
+// different rendering: Activity = chronological flat list with type
+// filter; Feed = same events grouped by endpoint as cards.
+$$('button[data-activity-subtab]').forEach(btn => {
+  btn.addEventListener("click", () => {
+    const target = btn.dataset.activitySubtab;
+    state.feed.activeSubtab = target;
+    $$('button[data-activity-subtab]').forEach(b => {
+      const active = b.dataset.activitySubtab === target;
+      b.style.borderBottom = active ? "2px solid var(--accent)" : "2px solid transparent";
+      b.style.fontWeight = active ? "600" : "500";
+      b.style.color = active ? "var(--ink)" : "var(--ink-soft)";
+      b.classList.toggle("active", active);
+    });
+    $$('div[data-activity-pane]').forEach(p => {
+      p.hidden = p.dataset.activityPane !== target;
+    });
+    if (target === "feed") renderFeed();
+  });
+});
+
+// Feed filter wiring -- live as the user types / toggles.
+const feedSearchEl = document.getElementById("feedSearch");
+if (feedSearchEl) {
+  feedSearchEl.addEventListener("input", e => {
+    state.feed.search = e.target.value;
+    renderFeed();
+  });
+}
+const feedAgentOnlyEl = document.getElementById("feedAgentOnly");
+if (feedAgentOnlyEl) {
+  feedAgentOnlyEl.addEventListener("change", e => {
+    state.feed.agentOnly = !!e.target.checked;
+    renderFeed();
+  });
+}
+
 // ============== Settings tab wiring ==============
 
 // Snooze buttons -- one click sets snoozedUntil + snoozedBy + snoozedAt
@@ -3869,6 +4033,7 @@ function subscribeActivity() {
   state.unsub.activity = onSnapshot(q, snap => {
     state.activity = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     renderActivity();
+    if (typeof renderFeed === "function") renderFeed();
   }, err => {
     toast("Failed to load activity: " + (err.message || err), true);
   });
@@ -4741,6 +4906,110 @@ function renderActivityRow(e) {
   `;
 }
 
+
+// ──────────────────────────────────────────────────────────────────────
+// Feed view: the same /activity events as renderActivity above, but
+// grouped by endpoint and presented as per-host cards. Quicker scan
+// for "what's been happening on host X" than scrolling a flat list
+// filtered down to one type at a time. Reuses renderActivityRow for
+// each line so the visual language matches.
+// ──────────────────────────────────────────────────────────────────────
+function renderFeed() {
+  const listEl = document.getElementById("feedList");
+  const emptyEl = document.getElementById("feedEmpty");
+  const countEl = document.getElementById("feedCount");
+  if (!listEl) return;
+
+  const search = ((state.feed && state.feed.search) || "").toLowerCase().trim();
+  const agentOnly = state.feed ? state.feed.agentOnly !== false : true;
+
+  // Filter the /activity collection. Default to agent-detected events
+  // (actor.type === 'agent') since those are the "what happened on
+  // this host" signal the operator wants when scanning the feed.
+  const events = (state.activity || []).filter(e => {
+    if (agentOnly && e.actor?.type !== "agent") return false;
+    if (search) {
+      const hay = [
+        e.target?.label, e.target?.id, e.client, e.type,
+      ].filter(Boolean).join(" ").toLowerCase();
+      if (!hay.includes(search)) return false;
+    }
+    return true;
+  });
+
+  if (countEl) {
+    countEl.textContent = events.length === 1
+      ? "1 event"
+      : `${events.length} events`;
+  }
+
+  if (!events.length) {
+    listEl.innerHTML = "";
+    if (emptyEl) emptyEl.hidden = false;
+    return;
+  }
+  if (emptyEl) emptyEl.hidden = true;
+
+  // Group by host. Use target.id when target.type === 'host', else
+  // bucket under "(non-host events)" so client/system events still
+  // appear somewhere -- they're rare and almost always relevant
+  // context (e.g. "Acme Corp added" before that client's first
+  // endpoint events).
+  const groups = new Map();  // hostId -> { label, client, events: [] }
+  for (const e of events) {
+    let key, label, client;
+    if (e.target?.type === "host" && e.target?.id) {
+      key = e.target.id;
+      label = e.target.label || e.target.id;
+      client = e.client || null;
+    } else {
+      key = "_non_host_";
+      label = "(non-host events)";
+      client = null;
+    }
+    if (!groups.has(key)) {
+      groups.set(key, { key, label, client, events: [] });
+    }
+    groups.get(key).events.push(e);
+  }
+
+  // Sort groups by their most recent event (newest hosts first)
+  const sorted = Array.from(groups.values()).sort((a, b) => {
+    const aTs = Math.max(...a.events.map(e => Date.parse(e.ts) || 0));
+    const bTs = Math.max(...b.events.map(e => Date.parse(e.ts) || 0));
+    return bTs - aTs;
+  });
+
+  listEl.innerHTML = sorted.map(g => {
+    const hostHeader = g.key !== "_non_host_"
+      ? `<a href="#" data-pcid="${esc(g.key)}" style="color:var(--ink);text-decoration:none;font-weight:600;font-size:14.5px;">${esc(g.label)}</a>`
+      : `<span style="font-weight:600;font-size:14.5px;color:var(--ink-soft);">${esc(g.label)}</span>`;
+    const clientChip = g.client
+      ? ` <span class="badge muted" style="font-size:10.5px;margin-left:6px;">${esc(g.client)}</span>`
+      : "";
+    const eventCount = g.events.length;
+    return `
+      <div class="feed-card" style="border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--surface);">
+        <div class="feed-card-head" style="padding:10px 14px;border-bottom:1px solid var(--line);background:var(--surface-2);display:flex;align-items:center;gap:8px;">
+          ${hostHeader}${clientChip}
+          <span class="meta" style="margin-left:auto;font-size:11.5px;">${eventCount} event${eventCount === 1 ? "" : "s"}</span>
+        </div>
+        <div class="feed-card-body" style="padding:6px 6px;">
+          ${g.events.map(renderActivityRow).join("")}
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  // Wire host-jump links the same way renderActivity does.
+  listEl.querySelectorAll("a[data-pcid]").forEach(a => {
+    a.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      openDrawer(a.dataset.pcid);
+    });
+  });
+}
+
 async function saveMasterWebhook(url) {
   const trimmed = (url || "").trim();
   const status = document.getElementById("masterWebhookStatus");
@@ -4873,9 +5142,28 @@ function renderClients() {
         `).join("")}</div>
       ` : `<div class="client-section-label">Install tokens</div><div class="meta" style="padding:6px 12px 14px;">No tokens yet. Click <b>+ Token</b> to generate one.</div>`;
 
+      // Help desk URL editor. When set, the per-host tray menu shows
+      // an "Open client help desk" item that opens this URL. Worker
+      // includes the value in /checkin responses so the agent service
+      // mirrors it into state.json; tray reads from state.json on
+      // menu open (so URL changes propagate without a tray restart).
+      const helpDeskHtml = `
+        <div class="client-section-label">Client help desk</div>
+        <div style="padding:6px 12px 14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <input type="url" data-help-desk-input="${esc(c.id)}"
+                 value="${esc(c.helpDeskUrl || '')}"
+                 placeholder="https://support.example.com/portal"
+                 style="flex:1;min-width:240px;padding:6px 9px;border:1px solid var(--line-strong);border-radius:6px;font-size:13px;background:var(--surface);">
+          <button class="btn btn-sm btn-primary" data-act="savehelpdesk" data-id="${esc(c.id)}">Save</button>
+          ${c.helpDeskUrl ? `<button class="btn btn-sm" data-act="clearhelpdesk" data-id="${esc(c.id)}">Clear</button>` : ''}
+          <span class="meta" style="font-size:11.5px;flex-basis:100%;">When set, every endpoint under this client gets an &ldquo;Open client help desk&rdquo; item in its system tray menu. Each host picks up the URL on its next check-in.</span>
+        </div>
+      `;
+
       rows.push(`
         <tr class="tokens-row"><td colspan="5">
           ${hostsHtml}
+          ${helpDeskHtml}
           ${tokensHtml}
         </td></tr>
       `);
@@ -4896,7 +5184,7 @@ function renderClients() {
       renderClients();
     });
   });
-  $$("#clientsBody [data-act='gen'], #clientsBody [data-act='del'], #clientsBody [data-act='revoke'], #clientsBody [data-act='rename']").forEach(btn => {
+  $$("#clientsBody [data-act='gen'], #clientsBody [data-act='del'], #clientsBody [data-act='revoke'], #clientsBody [data-act='rename'], #clientsBody [data-act='savehelpdesk'], #clientsBody [data-act='clearhelpdesk']").forEach(btn => {
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
       const act = btn.dataset.act;
@@ -4905,6 +5193,21 @@ function renderClients() {
       else if (act === "del") deleteClient(id);
       else if (act === "rename") renameClient(id);
       else if (act === "revoke") revokeToken(btn.dataset.hash);
+      else if (act === "savehelpdesk") saveHelpDeskUrl(id);
+      else if (act === "clearhelpdesk") saveHelpDeskUrl(id, "");
+    });
+  });
+  // Stop propagation on the URL input so clicking/typing inside doesn't
+  // collapse the client row.
+  $$("#clientsBody input[data-help-desk-input]").forEach(input => {
+    input.addEventListener("click", e => e.stopPropagation());
+    // Enter = save
+    input.addEventListener("keydown", e => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        e.stopPropagation();
+        saveHelpDeskUrl(input.dataset.helpDeskInput);
+      }
     });
   });
   $$("#clientsBody .hrow[data-act='openhost']").forEach(row => {
@@ -5184,6 +5487,51 @@ async function renameClient(clientId) {
     // /clients will tick + re-render the table on its own.
   } catch (e) {
     toast("Rename failed: " + (e.message || e), true);
+  }
+}
+
+// Save a per-client help desk URL. Used by the inline input in the
+// expanded client row. Passing override="" explicitly clears the URL
+// (the Save button defaults to reading the input's current value).
+async function saveHelpDeskUrl(clientId, override) {
+  const client = state.clients.find(c => c.id === clientId);
+  if (!client) return;
+  let value;
+  if (typeof override === "string") {
+    value = override;
+  } else {
+    const input = document.querySelector(`input[data-help-desk-input="${CSS.escape(clientId)}"]`);
+    if (!input) return;
+    value = input.value.trim();
+  }
+  // Lightweight validation: empty (clears) or starts with http(s)://.
+  if (value && !/^https?:\/\//i.test(value)) {
+    toast("URL must start with http:// or https://", true);
+    return;
+  }
+  if (value.length > 1024) {
+    toast("URL too long (max 1024 chars).", true);
+    return;
+  }
+  try {
+    await setDoc(doc(db, "clients", clientId), {
+      helpDeskUrl: value || null,
+      helpDeskUrlUpdatedAt: new Date().toISOString(),
+      helpDeskUrlUpdatedBy: state.user.email,
+    }, { merge: true });
+    // Optimistic local update so the row re-renders with Clear button
+    // (or without, if cleared) before the snapshot tick lands.
+    const idx = state.clients.findIndex(c => c.id === clientId);
+    if (idx >= 0) state.clients[idx].helpDeskUrl = value || null;
+    renderClients();
+    logActivity({
+      type: "client_help_desk_url_set",
+      target: { type: "client", id: clientId, label: client.name },
+      details: { url: value || null },
+    });
+    toast(value ? `Help desk URL saved for ${client.name}.` : `Help desk URL cleared for ${client.name}.`);
+  } catch (e) {
+    toast("Save failed: " + (e.message || e), true);
   }
 }
 
