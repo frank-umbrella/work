@@ -264,15 +264,20 @@
 
   /* fleet table */
   table.fleet { width: 100%; border-collapse: collapse; font-size: 13.5px; }
-  /* When the configured columns + per-column min-widths exceed the
-     panel's content width, the table needs to scroll horizontally
-     inside its wrapper instead of overflowing the panel chrome.
-     Without this, the table rendered past the panel's right edge --
-     the white panel background ended partway across each row, so
-     the rightmost cells appeared to float over the page background.
-     overflow-x: auto only shows the scrollbar when actually needed;
-     wide screens still see everything without a scrollbar. */
-  #fleetWrap { width: 100%; overflow-x: auto; }
+  /* No overflow-x on #fleetWrap any more. v0.14.58 had it as auto to
+     contain a too-wide table inside the panel, but that created a
+     new scroll context that BROKE the sticky thead -- the header
+     stuck relative to #fleetWrap (which never scrolls vertically)
+     instead of the viewport, so on scroll the header rendered in
+     random mid-table positions instead of staying at the top.
+     Now: main is 1760 px wide (v0.14.62), the table fits without
+     horizontal scroll on any monitor wider than ~1400 px. Below
+     that, the mobile-breakpoint media query (max-width: 760 px)
+     converts the table to a stacked card layout anyway, so genuine
+     mobile/narrow viewports never see a too-wide grid. The narrow
+     desktop window edge case (1100-1400 px wide) does get a tiny
+     amount of cell wrapping but no broken sticky header. */
+  #fleetWrap { width: 100%; }
   /* thead sticks BELOW the page header (~56 px) + the sticky filter
      bar (~56 px) so column labels stay visible while scrolling a long
      fleet. z-index 30 keeps it above row content (default 0) but below
@@ -1209,7 +1214,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.63";
+const APP_VERSION = "0.14.64";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
