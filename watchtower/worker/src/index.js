@@ -784,10 +784,16 @@ async function handleLatestVersion(request, env, ctx) {
   // API was 403-rate-limited and the worker fell back to the stale KV.
   // Bumping the suffix purges all three tiers so the next request
   // forces a fresh GitHub fetch.
+  //
+  // v6 (2026-05-25): bumping again -- v5 captured a payload built from
+  // the release BODY text whose SHA pointed at an EXE that got
+  // overwritten by a later re-upload. switched the SHA source to
+  // asset.digest (server-computed, can't drift) but v5 cache still
+  // serves the wrong body-derived hash. Purge.
   const cache = caches.default;
-  const shortKey = new Request('https://internal-cache/latest-version?v=5', { method: 'GET' });
-  const longKey  = new Request('https://internal-cache/latest-version-lastgood?v=5', { method: 'GET' });
-  const KV_KEY   = 'latest-version:v5';
+  const shortKey = new Request('https://internal-cache/latest-version?v=6', { method: 'GET' });
+  const longKey  = new Request('https://internal-cache/latest-version-lastgood?v=6', { method: 'GET' });
+  const KV_KEY   = 'latest-version:v6';
 
   // TIER 1 -- POP-local short cache fast path.
   const cachedShort = await cache.match(shortKey);
@@ -998,14 +1004,38 @@ async function fetchLatestFromGitHub(skipVersions, env) {
   const slimAsset = (latest.assets || []).find(a => /^watchtower-setup\.exe$/i.test(a.name || ''));
   const lmiAsset  = (latest.assets || []).find(a => /^watchtower-setup-logmein\.exe$/i.test(a.name || ''));
 
-  // build.ps1 -Publish writes "Watchtower agent X.Y.Z. SHA256: <hex>"
-  // into the release body for EACH asset. Body now has TWO SHA lines
-  // (one per variant) so we parse them by filename context. If only
-  // one variant exists the body has just one SHA line.
+  // SHA resolution: prefer GitHub's server-computed asset.digest field
+  // ("sha256:..." string GitHub computes at upload time and never lets
+  // get out of sync with the file). Fall back to parsing the release
+  // body text ONLY when the digest is missing -- some pre-2024 assets
+  // and re-uploads don't have it.
+  //
+  // The body-parsing fallback was the source of a long-running class of
+  // bug: build.ps1 wrote the body SHA from the EXE it had just built,
+  // then a later step re-uploaded a different EXE, and the body SHA
+  // pointed at the now-gone build. Agents got "sha256 mismatch:
+  // expected X, got Y" toasts even though both the manifest and the
+  // EXE were "valid" on their own. asset.digest can't disagree with
+  // the file it describes -- it's computed FROM that file at upload.
   const body = latest.body || '';
-  const slimShaMatch = body.match(/Watchtower-Setup\.exe[^]*?SHA256:\s*([a-f0-9]{64})/i)
-                    || body.match(/SHA256:\s*([a-f0-9]{64})/i);  // single-line legacy fallback
-  const lmiShaMatch  = body.match(/Watchtower-Setup-LogMeIn\.exe[^]*?SHA256:\s*([a-f0-9]{64})/i);
+  const parseDigest = (asset) => {
+    if (!asset) return null;
+    const d = asset.digest || '';
+    if (typeof d === 'string' && d.toLowerCase().startsWith('sha256:')) {
+      return d.slice(7).toLowerCase();
+    }
+    return null;
+  };
+  const slimDigest = parseDigest(slimAsset);
+  const lmiDigest  = parseDigest(lmiAsset);
+
+  // Body fallback (named-match preferred, then single-line legacy)
+  const bodySlimMatch = body.match(/Watchtower-Setup\.exe[^]*?SHA256:\s*([a-f0-9]{64})/i)
+                     || body.match(/SHA256:\s*([a-f0-9]{64})/i);
+  const bodyLmiMatch  = body.match(/Watchtower-Setup-LogMeIn\.exe[^]*?SHA256:\s*([a-f0-9]{64})/i);
+
+  const slimSha = slimDigest || (bodySlimMatch ? bodySlimMatch[1].toLowerCase() : null);
+  const lmiSha  = lmiDigest  || (bodyLmiMatch  ? bodyLmiMatch[1].toLowerCase()  : null);
 
   return {
     ok: true,
@@ -1016,13 +1046,16 @@ async function fetchLatestFromGitHub(skipVersions, env) {
     // would surprise-install something the host might have opted
     // out of originally).
     downloadUrl: slimAsset ? slimAsset.browser_download_url : null,
-    sha256: slimShaMatch ? slimShaMatch[1].toLowerCase() : null,
+    sha256: slimSha,
     // Bundled variant fields. Null when the release didn't include
     // a LogMeIn-bundled asset (bundles/LogMeIn.msi not committed
     // when this version was built). Dashboard chooser hides the
     // "With LogMeIn" option in that case.
     downloadUrlWithLogmein: lmiAsset ? lmiAsset.browser_download_url : null,
-    sha256WithLogmein: lmiShaMatch ? lmiShaMatch[1].toLowerCase() : null,
+    sha256WithLogmein: lmiSha,
+    // Diagnostic: indicate the SHA source so the dashboard can show
+    // "digest" (trustworthy) vs "body" (potentially stale) if needed.
+    sha256Source: slimDigest ? 'digest' : (bodySlimMatch ? 'body' : null),
     notes: body || latest.name || null,
     updatedAt: latest.published_at || latest.created_at || null,
     source: 'github',
