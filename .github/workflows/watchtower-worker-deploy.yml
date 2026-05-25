@@ -39,17 +39,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      # @v5 runs on Node 24 so we don't trip the Node 20 deprecation
-      # warning Github's runners are working through. No npm cache here
-      # on purpose -- the worker's only deps are jose + wrangler and
-      # the lockfile isn't committed, so caching would either fail
-      # (no lockfile to key on) or cache stale resolutions. The npm
-      # install completes in ~5s on a clean runner; not worth the
-      # complication.
-      - name: Set up Node 20
+      # Wrangler 4.x requires Node >= 22 -- we bumped to 4.94 when the
+      # local dev environment's `wrangler deploy` auto-updated the
+      # devDependency (see watchtower v0.14.46 commit). Sticking to
+      # Node 20 here broke CI because wrangler 4 refuses to run.
+      # Node 22 is the current LTS so this is safe long-term.
+      # No npm cache on purpose -- the worker's only deps are jose +
+      # wrangler and the lockfile isn't committed, so caching would
+      # either fail (no lockfile to key on) or cache stale resolutions.
+      # The npm install completes in ~5s on a clean runner; not worth
+      # the complication.
+      - name: Set up Node 22
         uses: actions/setup-node@v5
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Install worker deps
         working-directory: watchtower/worker
