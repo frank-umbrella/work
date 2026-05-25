@@ -1376,7 +1376,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.96";
+const APP_VERSION = "0.14.97";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -2768,11 +2768,13 @@ function computeFleetAlerts() {
     else if (st.kind === 'warn') reason = st.label || 'warning';
     else if (bh && bh.kind === 'warn') reason = bh.label || 'backup degraded';
     else if (oh && oh.kind === 'warn') reason = 'OMSA warn';
-    // "too many admins" used to fire here but the count-based findings
-    // are now chipSilent (see computeAdminVulnerabilities) -- adminHealthOf
-    // strips them. So 'warn' from ah now means built-in Administrator
-    // enabled (the only remaining warn-kind admin finding).
-    else if (ah === 'warn') reason = 'built-in admin enabled';
+    // Every warn-kind admin finding is now chipSilent (count-based
+    // privilege creep + built-in Administrator enabled both don't
+    // contribute to the chip). So ah will only ever be 'bad' (red-flag
+    // principal -- already handled in the crit branch above) or null.
+    // Keep this branch as a defensive fallback in case a future
+    // non-chipSilent warn finding is added to computeAdminVulnerabilities.
+    else if (ah === 'warn') reason = 'admin-group warning';
     else if (bda === 'warn') {
       const f = backupDiskAgeFinding(a);
       reason = f ? `backup disk aged ${_fmtAgeDays(f.ageDays)}` : 'backup disk aged';
@@ -6241,9 +6243,19 @@ function computeAdminVulnerabilities(admins) {
     findings.push({ kind: "warn", chipSilent: true, text: `${members.length} local admins (>${ADMIN_WARN_COUNT} threshold) -- review for privilege creep` });
   }
 
-  // Built-in Administrator enabled
+  // Built-in Administrator enabled. Same chipSilent treatment as the
+  // count-based findings above: the per-host drawer still surfaces it
+  // in the Vulnerabilities Flagged callout (because an operator who
+  // opens the host detail page should still see it), but the fleet
+  // alert chip / favicon doesn't count it. Practical reasoning: many
+  // legacy servers + workstations have the built-in admin enabled by
+  // long-standing convention or RMM tooling that requires it. Surfacing
+  // it as a fleet-wide warning trains operators to ignore the chip
+  // because it's noisy. Red-flag principals (Everyone / Domain Users
+  // in admins / etc.) are the still-screaming-loud entries that DO
+  // contribute to the chip.
   if (admins.builtinAdministratorEnabled === true) {
-    findings.push({ kind: "warn", text: "Built-in Administrator account is enabled (most-targeted default account in Windows)" });
+    findings.push({ kind: "warn", chipSilent: true, text: "Built-in Administrator account is enabled (most-targeted default account in Windows)" });
   }
 
   // Red-flag principals
