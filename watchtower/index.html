@@ -1020,7 +1020,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.29";
+const APP_VERSION = "0.14.30";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -1471,7 +1471,14 @@ const FLEET_COLUMNS = [
   { key: "status",     label: "Status",       default: true,  sortKey: "status",        thClass: "",             tdClass: "",
     render: (a, ctx) => `${ctx.stBadge}${ctx.bhBadge}${ctx.ohBadge}${ctx.wuBadge}${ctx.diskBadge}` },
   { key: "lastCheckin",label: "Last check",   default: true,  sortKey: "lastCheckin",   thClass: "",             tdClass: "age",
-    render: (a) => fmtAge(a.lastCheckin) },
+    // Hover tooltip exposes the full timestamp -- the operator can scan
+    // the relative "1d ago" at a glance but still get the exact wall-
+    // clock time when they need it without opening the drawer. Plain
+    // HTML title attribute is the cheapest path: no JS, works on every
+    // desktop browser, and screen readers pick it up as accessible text.
+    render: (a) => a.lastCheckin
+      ? `<span title="${esc(tsToStr(a.lastCheckin))}">${fmtAge(a.lastCheckin)}</span>`
+      : `<span class="meta">—</span>` },
   // ---- optional columns (off by default) ----
   { key: "cpu",        label: "CPU",          default: false, sortKey: null,            thClass: "",             tdClass: "meta",
     render: (a) => {
