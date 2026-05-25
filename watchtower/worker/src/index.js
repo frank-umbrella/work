@@ -1959,6 +1959,7 @@ async function handleCheckin(request, env, ctx) {
           pcId,
           hostname,
           client: resolvedClient,
+          tool: 'Windows Server Backup',
           result: wsbCurrentResult,
           detail: wsbCurrent?.detail || null,
           attemptedAt: wsbCurrentTime,
@@ -1979,6 +1980,7 @@ async function handleCheckin(request, env, ctx) {
           pcId,
           hostname,
           client: resolvedClient,
+          tool: 'Windows Server Backup',
           result: wsbCurrentResult,
           detail: wsbCurrent?.detail || null,
           attemptedAt: wsbCurrentTime,
@@ -2705,16 +2707,33 @@ async function sendDiskLowEmail(env, { pcId, hostname, client, drive, freeGB, fr
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// Resend email — Windows Server Backup failure alert
+// Resend email — backup failure alert
 // ─────────────────────────────────────────────────────────────────────
-async function sendBackupFailureEmail(env, { pcId, hostname, client, result, detail, attemptedAt, lastSuccess, daysSinceSuccess, when }) {
+// Currently only fires for Windows Server Backup (the only tool whose
+// failure transition the worker detects today). The `tool` parameter
+// is named so when Veeam / Carbonite / IBackup failure detection is
+// added later, those callers can pass their own tool label and the
+// subject / headline / band / body all update consistently. Default
+// "Windows Server Backup" mirrors today's behavior.
+async function sendBackupFailureEmail(env, { pcId, hostname, client, result, detail, attemptedAt, lastSuccess, daysSinceSuccess, when, tool }) {
+  const toolLabel = tool || 'Windows Server Backup';
   const daysLabel = daysSinceSuccess != null ? `${daysSinceSuccess} day${daysSinceSuccess === 1 ? '' : 's'} since last success` : 'no successful backup on record';
-  const subject = `[Watchtower] ${hostname} · Backup FAILED · ${daysLabel}`;
+  // Subject: prepend the tool name so the operator's inbox makes the
+  // failing system unambiguous from the row preview alone -- previously
+  // "Backup FAILED" left them wondering whether WSB, Veeam, or some
+  // other tool died.
+  const subject = `[Watchtower] ${hostname} · ${toolLabel} FAILED · ${daysLabel}`;
   const subtitleHtml = `on <b style="color:#ffffff;">${escapeHtml(hostname || '?')}</b> &middot; <span style="color:#fca5a5;">${escapeHtml(daysLabel)}</span>`;
   const bodyHtml = `
-    <p style="font-size:15px;color:#1a1f2b;line-height:1.55;margin:0 0 22px;">
-      The last scheduled WSB run did not complete. ${detail ? 'See the failure detail below.' : 'See the dashboard for the full job history.'}
+    <p style="font-size:15px;color:#1a1f2b;line-height:1.55;margin:0 0 18px;">
+      The last scheduled <b>${escapeHtml(toolLabel)}</b> run did not complete. ${detail ? 'See the failure detail below.' : 'See the dashboard for the full job history.'}
     </p>
+    <!-- Backup-tool badge surfaces WHICH product failed front-and-center
+         since "Backup FAILED" alone is ambiguous on hosts running
+         multiple backup tools side-by-side. -->
+    <div style="display:inline-block;background:#fef2f2;border:1px solid #fca5a5;border-radius:999px;padding:5px 14px 5px 12px;font-size:12px;color:#7f1d1d;font-weight:700;letter-spacing:0.02em;margin-bottom:18px;">
+      <span style="color:#b91c1c;">&#9888;</span> Backup tool: ${escapeHtml(toolLabel)}
+    </div>
     <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:18px;"><tr>
       <td style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:14px 18px;width:32%;vertical-align:top;text-align:center;">
         <div style="font-size:10.5px;color:#8892a4;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:4px;">${daysSinceSuccess != null ? 'Days w/o' : 'Last success'}</div>
@@ -2729,16 +2748,16 @@ async function sendBackupFailureEmail(env, { pcId, hostname, client, result, det
     </tr></table>
     ${detail ? `
     <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:14px 16px;margin-bottom:0;">
-      <div style="font-size:10.5px;color:#b91c1c;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;">WSB detail</div>
+      <div style="font-size:10.5px;color:#b91c1c;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;">${escapeHtml(toolLabel)} detail</div>
       <div style="font-size:13.5px;color:#7f1d1d;line-height:1.55;">${escapeHtml(detail)}</div>
     </div>` : ''}
   `;
   const html = renderEmailShell({
     client, hostname, pcId,
-    headline: 'Backup Failed',
+    headline: `${toolLabel} Backup Failed`,
     subtitleHtml,
     severity: 'critical',
-    bandText: 'Windows Server Backup · critical',
+    bandText: `${toolLabel} · critical`,
     bodyHtml,
   });
   await postResendEmail(env, { subject, html });
@@ -2909,8 +2928,14 @@ function eventMeta(p) {
       const ctx = (p.issues && p.issues.length) ? `${p.issues.length} issue${p.issues.length === 1 ? '' : 's'}` : `rollup ${rollup}`;
       return { headline: `Storage Health: ${rollup}`, severity: 'critical', context: ctx };
     }
-    case 'wsb_backup_failed':
-      return { headline: 'Backup Failed', severity: 'critical', context: p.daysSinceSuccess != null ? `${p.daysSinceSuccess} day${p.daysSinceSuccess === 1 ? '' : 's'} since last success` : 'no successful backup on record' };
+    case 'wsb_backup_failed': {
+      // Prefix the headline with the tool name so chat surfaces match
+      // the email -- "Windows Server Backup Failed" instead of the
+      // bare "Backup Failed" which left readers wondering which tool
+      // died on a multi-tool host.
+      const tool = p.tool || 'Windows Server Backup';
+      return { headline: `${tool} Failed`, severity: 'critical', context: p.daysSinceSuccess != null ? `${p.daysSinceSuccess} day${p.daysSinceSuccess === 1 ? '' : 's'} since last success` : 'no successful backup on record' };
+    }
     case 'backup_disk_aged':
       // ageDays is float; we already humanize it (e.g. "2y 285d") on
       // the agent side as p.ageLabel. Fall back to "?" if a downstream
@@ -3027,6 +3052,7 @@ function _slackFacts(p) {
       add('New IP',      `\`${p.newIp || '?'}\``);
       break;
     case 'wsb_backup_failed':
+      if (p.tool) add('Tool', `\`${p.tool}\``);
       add('Result',      `\`${p.result || '?'}\``);
       if (p.daysSinceSuccess != null) add('Days w/o success', String(p.daysSinceSuccess));
       break;
@@ -3087,6 +3113,7 @@ function buildTeamsMessageCard(p, summary, meta) {
       if (p.newIp) facts.push({ name: 'New IP', value: p.newIp });
       break;
     case 'wsb_backup_failed':
+      if (p.tool) facts.push({ name: 'Tool', value: p.tool });
       if (p.result) facts.push({ name: 'Result', value: p.result });
       if (p.daysSinceSuccess != null) facts.push({ name: 'Days since success', value: String(p.daysSinceSuccess) });
       break;
@@ -3161,6 +3188,7 @@ function buildDiscordEmbed(p, summary, meta) {
       if (p.newIp) fields.push({ name: 'New IP', value: `\`${p.newIp}\``, inline: true });
       break;
     case 'wsb_backup_failed':
+      if (p.tool) fields.push({ name: 'Tool', value: p.tool, inline: true });
       if (p.result) fields.push({ name: 'Result', value: `\`${p.result}\``, inline: true });
       if (p.daysSinceSuccess != null) fields.push({ name: 'Days w/o success', value: String(p.daysSinceSuccess), inline: true });
       if (p.detail) fields.push({ name: 'Detail', value: String(p.detail).slice(0, 1024), inline: false });
@@ -3307,6 +3335,7 @@ function buildGoogleChatCard(p, summary, meta) {
       if (p.target) widgets.push(_gchatFact('Target', String(p.target).slice(0, 80), 'DESCRIPTION'));
       break;
     case 'wsb_backup_failed':
+      if (p.tool) widgets.push(_gchatFact('Tool', p.tool, 'BOOKMARK'));
       widgets.push(_gchatFact('Result', p.result || '?', 'STAR'));
       if (p.daysSinceSuccess != null) {
         widgets.push(_gchatFact('Days since last success', String(p.daysSinceSuccess), 'CLOCK'));
@@ -3407,7 +3436,7 @@ function humanSummary(p) {
     case 'omsa_warning':
       return `${prefix} · OMSA ${String(p.rollup || 'WARN').toUpperCase()} on ${host}`;
     case 'wsb_backup_failed':
-      return `${prefix} · Backup FAILED on ${host}${p.daysSinceSuccess != null ? ` (${p.daysSinceSuccess}d w/o success)` : ''}`;
+      return `${prefix} · ${p.tool || 'Windows Server Backup'} FAILED on ${host}${p.daysSinceSuccess != null ? ` (${p.daysSinceSuccess}d w/o success)` : ''}`;
     case 'backup_disk_aged':
       return `${prefix} · Backup disk aged on ${host}${p.ageLabel ? ` (${p.ageLabel} in rotation)` : ''}`;
     case 'disk_low':

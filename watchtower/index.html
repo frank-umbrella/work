@@ -373,11 +373,19 @@
      desktop window edge case (1100-1400 px wide) does get a tiny
      amount of cell wrapping but no broken sticky header. */
   #fleetWrap { width: 100%; }
-  /* thead sticks BELOW the page header (~56 px) + the sticky filter
-     bar (~56 px) so column labels stay visible while scrolling a long
-     fleet. z-index 30 keeps it above row content (default 0) but below
-     the filter bar (40) and page header (50). Bumped from "top: 0"
-     which slid under the page header and was effectively hidden. */
+  /* Sticky table header. Two-layer sticky setup (both <thead> AND
+     individual <th>s) because browsers vary on which one they honor
+     reliably:
+       - Chrome/Edge: works either way
+       - Firefox: prefers sticky on <thead>
+       - Safari: historically wonky with <th>-only sticky
+     Belt-and-suspenders applies both so the column labels always pin
+     correctly under the sticky filter bar regardless of browser.
+     z-index: 30 keeps the row above table-body content (default 0)
+     but below the filter bar (40) and page header (50). Background
+     on each <th> is REQUIRED -- without it, scrolled rows show
+     through the gap between cells. */
+  table.fleet thead { position: sticky; top: 112px; z-index: 30; }
   table.fleet th { text-align: left; padding: 10px 14px; font-size: 11px; text-transform: uppercase; color: var(--ink-faint); letter-spacing: 0.06em; font-weight: 700; border-bottom: 1px solid var(--line); background: var(--surface-2); position: sticky; top: 112px; z-index: 30; }
   /* Sortable-header polish: clickable cursor + hover state + chevron
      marker on the active column. The chevron uses simple CSS unicode
@@ -1333,7 +1341,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.67";
+const APP_VERSION = "0.14.68";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
