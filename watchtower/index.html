@@ -810,6 +810,16 @@
   </header>
 
   <main>
+    <!-- Alert snooze banner. Visible only while an admin has snoozed
+         fleet-wide alerts via Settings. Reads the snooze state from
+         /settings/alertSnooze (live-subscribed). The favicon stops
+         blinking + reads as OK while this banner is visible. -->
+    <div id="snoozeBanner" hidden style="margin: 0 12px 14px; padding: 9px 14px; background: var(--info-soft); border: 1px solid #bae6fd; border-radius: 9px; display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--info-ink, #075985);">
+      <span style="font-size:16px;line-height:1;">🔕</span>
+      <span id="snoozeBannerText" style="flex:1;"></span>
+      <button class="btn btn-sm" id="snoozeCancelBtn" style="background:#fff;">Cancel snooze</button>
+    </div>
+
     <div class="tabs">
       <button class="tab active" data-tab="fleet">Endpoints</button>
       <button class="tab" data-tab="clients">Clients</button>
@@ -913,6 +923,18 @@
           <div id="testWebhookResult" class="meta" style="margin-top:8px;font-family:var(--mono);font-size:11.5px;word-break:break-all;"></div>
           <div class="callout" style="background:var(--info-soft);border:1px solid #bae6fd;color:#075985;padding:10px 12px;border-radius:8px;margin-top:14px;font-size:12.5px;">
             Per-host drawer lets you set a different URL just for that PC; the master URL above is the default for every endpoint. <b>Reset all hosts to master</b> wipes every per-host override in one shot — useful after consolidating from a multi-URL setup.
+          </div>
+
+          <!-- Alert snooze -->
+          <h3 style="margin:28px 0 4px;font-size:14px;">Snooze fleet alerts</h3>
+          <p style="margin:0 0 10px;color:var(--ink-soft);font-size:13px;">Stops the browser-tab favicon from blinking on critical fleet state until the snooze expires. Doesn't silence emails or webhooks (use the per-host Config toggles for that). Synced across devices for all admins.</p>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <button class="btn btn-sm" data-snooze-mins="60">1 hour</button>
+            <button class="btn btn-sm" data-snooze-mins="240">4 hours</button>
+            <button class="btn btn-sm" data-snooze-mins="endOfDay">Until midnight</button>
+            <button class="btn btn-sm" data-snooze-mins="tomorrow8am">Until 8 AM tomorrow</button>
+            <button class="btn btn-sm btn-danger" id="snoozeClearSettingsBtn" hidden>Clear snooze</button>
+            <span class="meta" id="snoozeStatusText" style="margin-left:6px;"></span>
           </div>
 
           <hr style="margin:24px 0;border:0;border-top:1px solid var(--line);">
@@ -1047,7 +1069,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.33";
+const APP_VERSION = "0.14.34";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -1396,8 +1418,10 @@ onAuthStateChanged(auth, async (user) => {
   subscribeClients();
   subscribeTokens();
   subscribeSettings();
+  subscribeAlertSnooze();
   subscribeLatestAgent();
   subscribeActivity();
+  startSnoozeAutoTick();
   // Load column preferences from Firestore so the layout syncs across
   // devices. Runs async after subscriptions start; the table renders
   // immediately from localStorage and re-renders when Firestore returns.
@@ -1445,6 +1469,15 @@ function _setFaviconSvg(svgString) {
 }
 
 function computeFleetWorstState() {
+  // Snooze check: if any admin has snoozed alerts via the Settings tab
+  // and the snooze hasn't expired yet, suppress alerting entirely.
+  // The fleet may still be in a non-OK state -- we just don't blink the
+  // favicon or surface the alert banner. The actual host badges stay
+  // colored so the operator can scan the table.
+  if (state.alertSnooze && state.alertSnooze.snoozedUntil) {
+    const until = new Date(state.alertSnooze.snoozedUntil).getTime();
+    if (Number.isFinite(until) && until > Date.now()) return 'ok';
+  }
   let worst = 'ok';
   for (const a of state.agents) {
     if (a.decommissioned === true) continue;
@@ -1481,12 +1514,20 @@ function updateFaviconForFleetState() {
     return;
   }
 
-  const alertSvg = next === 'crit' ? FAVICON_CRIT_SVG : FAVICON_WARN_SVG;
+  // WARN is a static amber icon -- no blinking. Blinking yellow reads
+  // as panicky for a "something needs eyes eventually" state. CRIT
+  // blinks because it's the "act now" state.
+  if (next === 'warn') {
+    _setFaviconSvg(FAVICON_WARN_SVG);
+    return;
+  }
+
+  // CRIT: alternate the crumbling red tower with the OK teal tower.
   let phase = 0;
-  _setFaviconSvg(alertSvg);                             // start ON
+  _setFaviconSvg(FAVICON_CRIT_SVG);                     // start ON
   _faviconBlinkTimer = setInterval(() => {
     phase = 1 - phase;
-    _setFaviconSvg(phase ? FAVICON_OK_SVG : alertSvg);
+    _setFaviconSvg(phase ? FAVICON_OK_SVG : FAVICON_CRIT_SVG);
   }, FAVICON_BLINK_MS);
 }
 
@@ -1987,6 +2028,49 @@ document.getElementById("activityFilter").addEventListener("change", e => {
 });
 
 // ============== Settings tab wiring ==============
+
+// Snooze buttons -- one click sets snoozedUntil + snoozedBy + snoozedAt
+// in /settings/alertSnooze. The subscription handler re-renders the
+// banner + settings UI within ~100ms via the Firestore live update.
+document.querySelectorAll("[data-snooze-mins]").forEach(btn => {
+  btn.addEventListener("click", async () => {
+    const spec = btn.getAttribute("data-snooze-mins");
+    const untilIso = _computeSnoozeUntilIso(spec);
+    if (!untilIso) return;
+    try {
+      await setDoc(doc(db, "settings", "alertSnooze"), {
+        snoozedUntil: untilIso,
+        snoozedBy: state.profile && state.profile.email || "unknown",
+        snoozedAt: new Date().toISOString(),
+      });
+      toast(`Alerts snoozed until ${new Date(untilIso).toLocaleString(undefined, { hour: "numeric", minute: "2-digit", month: "short", day: "numeric" })}.`);
+    } catch (e) {
+      toast("Snooze failed: " + (e.message || e), true);
+    }
+  });
+});
+
+// Clear-snooze button in the Settings tab.
+document.getElementById("snoozeClearSettingsBtn").addEventListener("click", async () => {
+  try {
+    await deleteDoc(doc(db, "settings", "alertSnooze"));
+    toast("Snooze cleared.");
+  } catch (e) {
+    toast("Clear failed: " + (e.message || e), true);
+  }
+});
+
+// Cancel button in the top-of-page banner (mirrors the Settings tab's
+// clear button -- two paths to the same outcome).
+document.getElementById("snoozeCancelBtn").addEventListener("click", async () => {
+  try {
+    await deleteDoc(doc(db, "settings", "alertSnooze"));
+    toast("Snooze cleared.");
+  } catch (e) {
+    toast("Clear failed: " + (e.message || e), true);
+  }
+});
+
 document.getElementById("saveMasterWebhook").addEventListener("click", () => {
   saveMasterWebhook(document.getElementById("masterWebhookUrl").value);
 });
@@ -2129,6 +2213,112 @@ function subscribeTokens() {
   }, err => {
     toast("Failed to load tokens: " + (err.message || err), true);
   });
+}
+
+// ============== /settings/alertSnooze live subscription ==============
+//
+// Stores fleet-wide visual alert silencing. When snoozedUntil is in the
+// future, the favicon stops blinking and reads as OK regardless of the
+// actual fleet state. Email + webhook notifications are NOT silenced
+// (those still flow per their per-host config toggles) -- this only
+// muffles the visual eye-grabbers on the dashboard.
+//
+// Doc shape at /settings/alertSnooze:
+//   { snoozedUntil: "2026-05-25T20:00:00.000Z",
+//     snoozedBy: "frank@umbrellaautomation.com",
+//     snoozedAt: "2026-05-25T15:30:00.000Z" }
+//
+// Deleting the doc (or setting snoozedUntil to null / a past time) ends
+// the snooze immediately for every connected dashboard.
+function subscribeAlertSnooze() {
+  if (state.unsub.alertSnooze) state.unsub.alertSnooze();
+  state.unsub.alertSnooze = onSnapshot(doc(db, "settings", "alertSnooze"), snap => {
+    state.alertSnooze = snap.exists() ? snap.data() : null;
+    renderSnoozeBanner();
+    // Force re-evaluation of fleet state so the favicon flips
+    // immediately when a snooze is set/cleared.
+    _lastFleetWorstState = null;
+    updateFaviconForFleetState();
+    paintSnoozeSettingsUi();
+  }, err => {
+    console.error("Failed to subscribe to alertSnooze:", err);
+  });
+}
+
+// Translate a snooze button's data attribute into an ISO timestamp.
+function _computeSnoozeUntilIso(spec) {
+  const now = new Date();
+  if (spec === "endOfDay") {
+    const d = new Date(now); d.setHours(23, 59, 59, 999); return d.toISOString();
+  }
+  if (spec === "tomorrow8am") {
+    const d = new Date(now); d.setDate(d.getDate() + 1); d.setHours(8, 0, 0, 0); return d.toISOString();
+  }
+  const mins = parseInt(spec, 10);
+  if (!Number.isFinite(mins) || mins <= 0) return null;
+  return new Date(now.getTime() + mins * 60 * 1000).toISOString();
+}
+
+// Render the top-of-page snooze banner. Hidden when no snooze, or when
+// the snooze has expired (we check before rendering so a stale doc
+// doesn't keep the banner up forever -- subscribeAlertSnooze re-fires
+// on doc updates, not on time passing).
+function renderSnoozeBanner() {
+  const banner = $("#snoozeBanner");
+  if (!banner) return;
+  const snooze = state.alertSnooze;
+  const until = snooze && snooze.snoozedUntil ? new Date(snooze.snoozedUntil) : null;
+  const active = until && until.getTime() > Date.now();
+  banner.hidden = !active;
+  if (!active) return;
+  const text = $("#snoozeBannerText");
+  if (text) {
+    const whenStr = until.toLocaleString(undefined, { hour: "numeric", minute: "2-digit", month: "short", day: "numeric" });
+    const who = snooze.snoozedBy ? snooze.snoozedBy.split("@")[0] : "an admin";
+    text.innerHTML = `<b>Fleet alerts snoozed until ${esc(whenStr)}</b> &middot; <span class="meta">by ${esc(who)} &middot; favicon stops blinking, host badges stay visible, emails/webhooks still fire</span>`;
+  }
+}
+
+// Reflect snooze state into the Settings tab UI (status text + clear
+// button visibility). Called from subscribeAlertSnooze and after a
+// button click.
+function paintSnoozeSettingsUi() {
+  const text = $("#snoozeStatusText");
+  const clearBtn = $("#snoozeClearSettingsBtn");
+  if (!text || !clearBtn) return;
+  const snooze = state.alertSnooze;
+  const until = snooze && snooze.snoozedUntil ? new Date(snooze.snoozedUntil) : null;
+  const active = until && until.getTime() > Date.now();
+  if (active) {
+    const whenStr = until.toLocaleString(undefined, { hour: "numeric", minute: "2-digit", month: "short", day: "numeric" });
+    text.textContent = `Active until ${whenStr}.`;
+    clearBtn.hidden = false;
+  } else {
+    text.textContent = "Not snoozed.";
+    clearBtn.hidden = true;
+  }
+}
+
+// Auto-tick: re-render the banner once per minute so the "until X"
+// text drops away the moment the snooze expires (without needing a
+// fresh Firestore event). Started once on auth resolution.
+let _snoozeTickInterval = null;
+function startSnoozeAutoTick() {
+  if (_snoozeTickInterval) return;
+  _snoozeTickInterval = setInterval(() => {
+    if (!state.alertSnooze || !state.alertSnooze.snoozedUntil) return;
+    const until = new Date(state.alertSnooze.snoozedUntil).getTime();
+    if (until <= Date.now()) {
+      // Just expired -- re-render so the banner hides + the favicon
+      // can resume blinking. We deliberately don't delete the
+      // Firestore doc here (another admin's tab will too, race), the
+      // doc just becomes stale and the next set replaces it.
+      renderSnoozeBanner();
+      _lastFleetWorstState = null;
+      updateFaviconForFleetState();
+      paintSnoozeSettingsUi();
+    }
+  }, 60_000);
 }
 
 // ============== /settings/webhook live subscription ==============
