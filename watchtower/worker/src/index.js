@@ -778,10 +778,16 @@ async function handleLatestVersion(request, env, ctx) {
   //
   // Bump the ?v= suffix when a deploy needs to force a cache
   // invalidation; bump the KV_KEY constant for the same reason.
+  // v5 (2026-05-25): forcing invalidation because a stale v4 KV value
+  // held "0.14.34" while GitHub had already published 0.14.35 -- agents
+  // hitting "Check for updates" got "you're up to date" because GitHub
+  // API was 403-rate-limited and the worker fell back to the stale KV.
+  // Bumping the suffix purges all three tiers so the next request
+  // forces a fresh GitHub fetch.
   const cache = caches.default;
-  const shortKey = new Request('https://internal-cache/latest-version?v=4', { method: 'GET' });
-  const longKey  = new Request('https://internal-cache/latest-version-lastgood?v=4', { method: 'GET' });
-  const KV_KEY   = 'latest-version:v4';
+  const shortKey = new Request('https://internal-cache/latest-version?v=5', { method: 'GET' });
+  const longKey  = new Request('https://internal-cache/latest-version-lastgood?v=5', { method: 'GET' });
+  const KV_KEY   = 'latest-version:v5';
 
   // TIER 1 -- POP-local short cache fast path.
   const cachedShort = await cache.match(shortKey);
@@ -842,7 +848,7 @@ async function handleLatestVersion(request, env, ctx) {
   let githubError = null;
   if (!payload) {
     try {
-      payload = await fetchLatestFromGitHub(skipVersions);
+      payload = await fetchLatestFromGitHub(skipVersions, env);
     } catch (e) {
       githubFailed = true;
       githubError = String(e).slice(0, 200);
@@ -914,21 +920,40 @@ async function handleLatestVersion(request, env, ctx) {
   );
 }
 
-async function fetchLatestFromGitHub(skipVersions) {
+async function fetchLatestFromGitHub(skipVersions, env) {
   // skipVersions: array of version strings ("0.14.30") that should be
   // filtered out before picking the "latest" -- the operator marked
   // these as known-bad and doesn't want fleet auto-updates landing
   // on them. We pull the 10 most recent releases anyway (so the
   // next-newest non-skipped version is usually in the set) and
   // pick the highest non-skipped one.
+  //
+  // GITHUB_TOKEN: optional fine-grained PAT with NO scopes (just an
+  // authenticated identity) bumps the GitHub API rate limit from 60
+  // requests/hour/IP (unauthenticated) to 5000 requests/hour/token
+  // (authenticated). With ~20 hosts polling /latest-version every
+  // 15 min + dashboard polls + tray "Check for updates" clicks, the
+  // unauthenticated 60/hour limit gets hit easily, sending the worker
+  // into the stale-KV fallback. With a token we have 80x more headroom.
+  // Set via: `wrangler secret put GITHUB_TOKEN` (paste any PAT, even
+  // a no-scope one). Optional -- the worker still works without it,
+  // just degrades faster under load.
   const skipSet = new Set((skipVersions || []).map(s => String(s).toLowerCase()));
-  const r = await fetch('https://api.github.com/repos/frank-umbrella/work/releases?per_page=10', {
-    headers: {
-      'User-Agent': 'watchtower-worker',
-      'Accept': 'application/vnd.github+json',
-    },
-  });
-  if (!r.ok) throw new Error(`GitHub API ${r.status}`);
+  const headers = {
+    'User-Agent': 'watchtower-worker',
+    'Accept': 'application/vnd.github+json',
+  };
+  if (env && env.GITHUB_TOKEN) {
+    headers['Authorization'] = `Bearer ${env.GITHUB_TOKEN}`;
+  }
+  const r = await fetch('https://api.github.com/repos/frank-umbrella/work/releases?per_page=10', { headers });
+  if (!r.ok) {
+    // Include rate-limit headers in the error so the KV-fallback path's
+    // staleReason field tells the operator whether to wait or add a PAT.
+    const rl = r.headers.get('x-ratelimit-remaining');
+    const reset = r.headers.get('x-ratelimit-reset');
+    throw new Error(`GitHub API ${r.status}${rl !== null ? ` (rate-limit remaining=${rl}, reset=${reset})` : ''}`);
+  }
   const releases = await r.json();
   if (!Array.isArray(releases)) throw new Error('unexpected GitHub API response');
 
@@ -2072,7 +2097,7 @@ async function handleCheckin(request, env, ctx) {
     try {
       // Fetch latest-version quickly to compare. If we can't determine
       // latest, leave the flag (will retry next time).
-      const latest = await fetchLatestFromGitHub().catch(() => null);
+      const latest = await fetchLatestFromGitHub(undefined, env).catch(() => null);
       if (latest && latest.version && (agentVersion || '').trim() === latest.version) {
         await firestoreSetDoc(env, accessToken, `agents/${pcId}/config/current`, {
           forceUpdate: false,
