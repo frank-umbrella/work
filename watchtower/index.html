@@ -1120,7 +1120,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.59";
+const APP_VERSION = "0.14.60";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -5187,12 +5187,19 @@ function renderLocalAdmins(a) {
   // the connectivity section already nags the operator about upgrading, no
   // need to nag twice for the same reason.
   if (admins === undefined) return "";
-  // Probe ran but errored (older OS without Get-LocalGroupMember, etc).
+  // Probe ran but errored. As of agent v0.14.31 the probe falls back
+  // to ADSI on hosts without Get-LocalGroupMember (Server 2012 R2 and
+  // older), so this branch only fires for genuinely unexpected
+  // failures -- log access denied, COM init issues, etc. Reflect that
+  // in the framing so it doesn't look like a routine probe gap.
   if (admins && admins._error) {
     return `
       <div class="section">
         <h3>Local Administrators</h3>
-        <div class="meta">Probe couldn't read group membership: <code>${esc(admins._error)}</code></div>
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 14px;">
+          <div style="font-size:13px;color:#475569;"><b style="color:#1a1f2b;">Membership read failed.</b> Agent couldn't enumerate the Administrators group via either Get-LocalGroupMember or ADSI. Most likely cause: agent service is running under a context without local read rights, or the local SAM database is in an unusual state.</div>
+          <div class="meta" style="margin-top:6px;font-size:11.5px;">Underlying error: <code>${esc(admins._error)}</code></div>
+        </div>
       </div>
     `;
   }
@@ -5207,7 +5214,14 @@ function renderLocalAdmins(a) {
     : warnFindings.length
       ? `<span class="badge warn" style="margin-left:8px;">${warnFindings.length} warning${warnFindings.length === 1 ? '' : 's'}</span>`
       : `<span class="badge muted" style="margin-left:8px;">no findings</span>`;
-  const countMeta = `<span class="meta" style="font-weight:400;font-size:13px;">${members.length} member${members.length === 1 ? '' : 's'}</span>`;
+  // "via ADSI fallback" hint when this host is too old for
+  // Get-LocalGroupMember (Server 2012 R2 / NT-era). Small + muted --
+  // operational info, not a warning. Nudges the operator that this is
+  // a legacy OS without making it look like a problem.
+  const adsiHint = admins.usedAdsiFallback
+    ? ` <span class="meta" style="font-weight:400;font-size:11.5px;color:var(--ink-faint);" title="Get-LocalGroupMember isn't available on this OS (Server 2012 R2 or older). Membership was read via the universal ADSI WinNT:// provider instead -- same data, older API.">via ADSI fallback</span>`
+    : '';
+  const countMeta = `<span class="meta" style="font-weight:400;font-size:13px;">${members.length} member${members.length === 1 ? '' : 's'}</span>${adsiHint}`;
 
   // Findings callout (if any)
   const findingsHtml = findings.length
@@ -6477,6 +6491,27 @@ function renderWindowsUpdates(wu) {
     const rebootLine = (wu.rebootRequired === true)
       ? `<div class="row"><div class="name">Reboot pending</div><div class="meta"><span class="badge warn">yes</span></div></div>`
       : "";
+    // Soften the framing for the well-known WSUS-timeout case. It's
+    // not really an agent fault -- WUApi search synchronously waits for
+    // the configured WSUS server to respond, and the timeout signals
+    // either a misconfigured WSUS URL or a stale/unreachable on-prem
+    // WSUS box. Calling that out specifically (vs. generic "Probe
+    // error: ...") spares the operator from re-diagnosing the same
+    // false alarm every time they open the drawer for a 2012 R2 box.
+    const err = String(wu._error || "");
+    const isWsusTimeout = /wuapi/i.test(err) && /(timeout|did not return|wsus)/i.test(err);
+    if (isWsusTimeout) {
+      return `
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 14px;">
+          <div style="font-size:13px;color:#475569;">
+            <b style="color:#1a1f2b;">Pending count unavailable</b> &mdash;
+            WSUS didn't respond before the probe timed out. Check
+            <code>HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows\\WindowsUpdate\\WUServer</code>
+            and make sure that URL is reachable from this host.
+          </div>
+          <div class="meta" style="margin-top:6px;font-size:11.5px;">Hotfix history (below) still reflects actual installed updates &mdash; this only affects the <i>pending</i> list.</div>
+        </div>${rebootLine}`;
+    }
     return `<div class="meta" style="color:#b45309;">Probe error: ${esc(wu._error)}</div>${rebootLine}`;
   }
   const sev = wu.severityBreakdown || {};
