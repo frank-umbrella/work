@@ -828,14 +828,14 @@
   </header>
 
   <main>
-    <!-- Alert snooze banner. Visible only while an admin has snoozed
-         fleet-wide alerts via Settings. Reads the snooze state from
-         /settings/alertSnooze (live-subscribed). The favicon stops
-         blinking + reads as OK while this banner is visible. -->
-    <div id="snoozeBanner" hidden style="margin: 0 12px 14px; padding: 9px 14px; background: var(--info-soft); border: 1px solid #bae6fd; border-radius: 9px; display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--info-ink, #075985);">
-      <span style="font-size:16px;line-height:1;">🔕</span>
-      <span id="snoozeBannerText" style="flex:1;"></span>
-      <button class="btn btn-sm" id="snoozeCancelBtn" style="background:#fff;">Cancel snooze</button>
+    <!-- Compact alert chip. Replaces the previous full-width snooze
+         banner. Visible whenever the fleet has any non-OK host OR
+         while alerts are snoozed. Shows WHY alerts are firing (top
+         host + reason) right next to the snooze button so the
+         operator can decide whether to silence without leaving the
+         current view. Hidden when fleet is all-OK + not snoozed. -->
+    <div id="alertChipWrap" style="margin: 0 12px 12px;">
+      <div id="alertChip" hidden style="display: inline-flex; align-items: center; gap: 10px; padding: 6px 10px 6px 12px; background: var(--info-soft); border: 1px solid #bae6fd; border-radius: 999px; font-size: 12.5px; color: var(--info-ink, #075985); max-width: 100%;"></div>
     </div>
 
     <div class="tabs">
@@ -1087,7 +1087,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.35";
+const APP_VERSION = "0.14.36";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -1557,6 +1557,7 @@ function subscribeAgents() {
     rebuildClientFilter();
     renderFleet();
     updateFaviconForFleetState();
+    renderAlertChip();
     // If a drawer is open, refresh its content too.
     if (state.openPcId) renderDrawer(state.openPcId);
   }, err => {
@@ -2078,16 +2079,9 @@ document.getElementById("snoozeClearSettingsBtn").addEventListener("click", asyn
   }
 });
 
-// Cancel button in the top-of-page banner (mirrors the Settings tab's
-// clear button -- two paths to the same outcome).
-document.getElementById("snoozeCancelBtn").addEventListener("click", async () => {
-  try {
-    await deleteDoc(doc(db, "settings", "alertSnooze"));
-    toast("Snooze cleared.");
-  } catch (e) {
-    toast("Clear failed: " + (e.message || e), true);
-  }
-});
+// (The old top-of-page snoozeCancelBtn was replaced by the per-chip
+// Resume button rendered inside renderAlertChip(). Both endpoints hit
+// the same deleteDoc on /settings/alertSnooze.)
 
 document.getElementById("saveMasterWebhook").addEventListener("click", () => {
   saveMasterWebhook(document.getElementById("masterWebhookUrl").value);
@@ -2252,7 +2246,7 @@ function subscribeAlertSnooze() {
   if (state.unsub.alertSnooze) state.unsub.alertSnooze();
   state.unsub.alertSnooze = onSnapshot(doc(db, "settings", "alertSnooze"), snap => {
     state.alertSnooze = snap.exists() ? snap.data() : null;
-    renderSnoozeBanner();
+    renderAlertChip();
     // Force re-evaluation of fleet state so the favicon flips
     // immediately when a snooze is set/cleared.
     _lastFleetWorstState = null;
@@ -2277,23 +2271,145 @@ function _computeSnoozeUntilIso(spec) {
   return new Date(now.getTime() + mins * 60 * 1000).toISOString();
 }
 
-// Render the top-of-page snooze banner. Hidden when no snooze, or when
-// the snooze has expired (we check before rendering so a stale doc
-// doesn't keep the banner up forever -- subscribeAlertSnooze re-fires
-// on doc updates, not on time passing).
-function renderSnoozeBanner() {
-  const banner = $("#snoozeBanner");
-  if (!banner) return;
+// Compute current fleet alerts — counts + a "top reason" string suitable
+// for the inline alert chip. Iterates non-decommissioned hosts using the
+// same statusOf/backupHealthOf/omsaHealthOf helpers the fleet table and
+// favicon use, so the chip stays consistent with what's visible.
+function computeFleetAlerts() {
+  let crit = 0, warn = 0;
+  const critHosts = [];
+  const warnHosts = [];
+  for (const a of state.agents) {
+    if (a.decommissioned === true) continue;
+    const st = statusOf(a);
+    const bh = backupHealthOf(a);
+    const oh = omsaHealthOf(a);
+    const pct = a.cDriveFreePct;
+    const gb = a.cDriveFreeGB;
+    const diskCrit = (pct != null && pct < 5) || (gb != null && gb < 5);
+    const diskWarn = (pct != null && pct < 10) || (gb != null && gb < 10);
+    // Build a short reason for this host (used only when it ends up in
+    // the top-of-list slot)
+    let reason = '';
+    if (st.kind === 'bad') reason = st.label || 'stale';
+    else if (bh && bh.kind === 'bad') reason = bh.label || 'backup failing';
+    else if (oh && oh.kind === 'bad') reason = 'OMSA bad';
+    else if (diskCrit) reason = `C: ${pct}% free`;
+    else if (st.kind === 'warn') reason = st.label || 'warning';
+    else if (bh && bh.kind === 'warn') reason = bh.label || 'backup degraded';
+    else if (oh && oh.kind === 'warn') reason = 'OMSA warn';
+    else if (diskWarn) reason = `C: ${pct}% free`;
+
+    if (st.kind === 'bad' || (bh && bh.kind === 'bad') || (oh && oh.kind === 'bad') || diskCrit) {
+      crit++;
+      critHosts.push({ name: a.hostname || a.id, reason });
+    } else if (st.kind === 'warn' || (bh && bh.kind === 'warn') || (oh && oh.kind === 'warn') || diskWarn) {
+      warn++;
+      warnHosts.push({ name: a.hostname || a.id, reason });
+    }
+  }
+  return { crit, warn, critHosts, warnHosts };
+}
+
+// Render the compact alert chip in the tabs area. Three states:
+//   - Hidden: fleet is OK AND not snoozed
+//   - "Snoozed" form: 🔕 + 'Alerts snoozed until X' + Resume button
+//   - "Alerting" form: 🚨/⚠️ + 'N critical: HOSTNAME — reason' + Snooze 1h button
+//
+// The Snooze button defaults to 1h for quick acknowledge. Other durations
+// (4h / midnight / 8am tomorrow) stay available in the Settings tab.
+function renderAlertChip() {
+  const chip = $("#alertChip");
+  if (!chip) return;
   const snooze = state.alertSnooze;
   const until = snooze && snooze.snoozedUntil ? new Date(snooze.snoozedUntil) : null;
-  const active = until && until.getTime() > Date.now();
-  banner.hidden = !active;
-  if (!active) return;
-  const text = $("#snoozeBannerText");
-  if (text) {
-    const whenStr = until.toLocaleString(undefined, { hour: "numeric", minute: "2-digit", month: "short", day: "numeric" });
-    const who = snooze.snoozedBy ? snooze.snoozedBy.split("@")[0] : "an admin";
-    text.innerHTML = `<b>Fleet alerts snoozed until ${esc(whenStr)}</b> &middot; <span class="meta">by ${esc(who)} &middot; favicon stops blinking, host badges stay visible, emails/webhooks still fire</span>`;
+  const isSnoozed = until && until.getTime() > Date.now();
+  const alerts = computeFleetAlerts();
+  const hasAlerts = (alerts.crit + alerts.warn) > 0;
+
+  if (!hasAlerts && !isSnoozed) {
+    chip.hidden = true;
+    chip.innerHTML = '';
+    return;
+  }
+  chip.hidden = false;
+
+  if (isSnoozed) {
+    // Snoozed form — same chip color as info to stay distinct from the
+    // alerting form below. Show the snooze-until time + an optional
+    // count of currently-firing alerts (in case the fleet got worse
+    // since the snooze started).
+    const whenStr = until.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+    const dateStr = until.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    const countNote = hasAlerts
+      ? `<span class="meta" style="margin-left:6px;">(${alerts.crit} critical, ${alerts.warn} warning${alerts.warn === 1 ? '' : 's'} muted)</span>`
+      : '';
+    chip.style.background = 'var(--info-soft)';
+    chip.style.borderColor = '#bae6fd';
+    chip.style.color = 'var(--info-ink, #075985)';
+    chip.innerHTML = `
+      <span style="font-size:14px;line-height:1;">🔕</span>
+      <span>Snoozed until <b>${esc(whenStr)} &middot; ${esc(dateStr)}</b>${countNote}</span>
+      <button class="btn btn-sm" id="chipResumeBtn" style="padding:3px 10px;font-size:11.5px;background:#fff;">Resume alerts</button>
+    `;
+    const btn = $("#chipResumeBtn");
+    if (btn) btn.addEventListener('click', _chipClearSnooze);
+    return;
+  }
+
+  // Alerting form. Surface the WORST host's name + reason so the operator
+  // sees "what's wrong" inline with the snooze button instead of having
+  // to scroll the fleet table.
+  const sevColor = alerts.crit > 0 ? '#7f1d1d' : '#78350f';
+  const sevBg    = alerts.crit > 0 ? '#fee2e2' : '#fef3c7';
+  const sevBorder = alerts.crit > 0 ? '#fca5a5' : '#fde68a';
+  const icon = alerts.crit > 0 ? '🚨' : '⚠️';
+  const topHost = alerts.crit > 0 ? alerts.critHosts[0] : alerts.warnHosts[0];
+  let summary;
+  if (alerts.crit > 0 && alerts.warn > 0) {
+    summary = `<b>${alerts.crit} critical</b>, ${alerts.warn} warning${alerts.warn === 1 ? '' : 's'} &middot; ${esc(topHost.name)}${topHost.reason ? ` — ${esc(topHost.reason)}` : ''}${alerts.crit + alerts.warn > 1 ? ` <span class="meta">+${alerts.crit + alerts.warn - 1} more</span>` : ''}`;
+  } else if (alerts.crit > 0) {
+    summary = `<b>${alerts.crit} critical</b> &middot; ${esc(topHost.name)}${topHost.reason ? ` — ${esc(topHost.reason)}` : ''}${alerts.crit > 1 ? ` <span class="meta">+${alerts.crit - 1} more</span>` : ''}`;
+  } else {
+    summary = `<b>${alerts.warn} warning${alerts.warn === 1 ? '' : 's'}</b> &middot; ${esc(topHost.name)}${topHost.reason ? ` — ${esc(topHost.reason)}` : ''}${alerts.warn > 1 ? ` <span class="meta">+${alerts.warn - 1} more</span>` : ''}`;
+  }
+
+  chip.style.background = sevBg;
+  chip.style.borderColor = sevBorder;
+  chip.style.color = sevColor;
+  chip.innerHTML = `
+    <span style="font-size:14px;line-height:1;">${icon}</span>
+    <span>${summary}</span>
+    <button class="btn btn-sm" id="chipSnoozeBtn" style="padding:3px 10px;font-size:11.5px;background:#fff;color:#1a1f2b;" title="Snooze for 1 hour. Other durations available in Settings.">Snooze 1h</button>
+  `;
+  const btn = $("#chipSnoozeBtn");
+  if (btn) btn.addEventListener('click', () => _chipSnoozeFor(60));
+}
+
+// Quick-snooze helper bound to the chip's button. Other duration buttons
+// live in the Settings tab.
+async function _chipSnoozeFor(mins) {
+  const untilIso = new Date(Date.now() + mins * 60 * 1000).toISOString();
+  try {
+    await setDoc(doc(db, "settings", "alertSnooze"), {
+      snoozedUntil: untilIso,
+      snoozedBy: state.profile && state.profile.email || "unknown",
+      snoozedAt: new Date().toISOString(),
+    });
+    toast(`Alerts snoozed for ${mins} min.`);
+  } catch (e) {
+    toast("Snooze failed: " + (e.message || e), true);
+  }
+}
+
+// Quick-clear helper bound to the chip's Resume button. Same effect as
+// the Settings tab's Clear snooze button.
+async function _chipClearSnooze() {
+  try {
+    await deleteDoc(doc(db, "settings", "alertSnooze"));
+    toast("Alerts resumed.");
+  } catch (e) {
+    toast("Clear failed: " + (e.message || e), true);
   }
 }
 
@@ -2331,7 +2447,7 @@ function startSnoozeAutoTick() {
       // can resume blinking. We deliberately don't delete the
       // Firestore doc here (another admin's tab will too, race), the
       // doc just becomes stale and the next set replaces it.
-      renderSnoozeBanner();
+      renderAlertChip();
       _lastFleetWorstState = null;
       updateFaviconForFleetState();
       paintSnoozeSettingsUi();
