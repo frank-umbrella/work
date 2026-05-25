@@ -1404,6 +1404,42 @@ async function handleCheckin(request, env, ctx) {
   // exposed it (see system.py _hyperv_parent_host).
   const newPhysicalHost = report?.system?.physicalHost?.name || null;
 
+  // ----- 4d. Connectivity history (v0.14.27+ agents) -----
+  // The agent now tracks offline periods locally and ships the closed
+  // periods up on each successful check-in. We merge them into a
+  // rolling window on the agent doc (last 30 days), deduped by
+  // startedAt. consecutiveFailures is 0 when the check-in itself
+  // succeeded (we wouldn't be here otherwise) but the previous
+  // check-in's count is captured indirectly via the offlinePeriods
+  // entries the agent just sent up.
+  const reportedPeriods = Array.isArray(payload.offlinePeriods) ? payload.offlinePeriods : [];
+  const previousPeriods = (() => {
+    const arr = existing?.fields?.offlinePeriods?.arrayValue?.values || [];
+    return arr.map((v) => {
+      const m = v.mapValue?.fields || {};
+      const out = {};
+      if (m.startedAt?.stringValue)    out.startedAt    = m.startedAt.stringValue;
+      if (m.endedAt?.stringValue)      out.endedAt      = m.endedAt.stringValue;
+      if (m.reason?.stringValue)       out.reason       = m.reason.stringValue;
+      if (m.durationSec?.integerValue !== undefined) out.durationSec = parseInt(m.durationSec.integerValue, 10);
+      if (m.durationSec?.doubleValue !== undefined)  out.durationSec = m.durationSec.doubleValue;
+      if (m.attempts?.integerValue !== undefined)    out.attempts    = parseInt(m.attempts.integerValue, 10);
+      return out;
+    });
+  })();
+  const periodKey = (p) => `${p.startedAt}|${p.endedAt || ''}`;
+  const mergedMap = new Map();
+  for (const p of previousPeriods) mergedMap.set(periodKey(p), p);
+  for (const p of reportedPeriods) mergedMap.set(periodKey(p), p);
+  // Prune anything ended >30 days ago. Keep periods with no endedAt
+  // (shouldn't happen on a successful check-in but defensive).
+  const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+  const mergedPeriods = Array.from(mergedMap.values()).filter((p) => {
+    if (!p.endedAt) return true;
+    const t = Date.parse(p.endedAt);
+    return isNaN(t) ? true : t >= cutoff;
+  }).sort((a, b) => (a.startedAt || '').localeCompare(b.startedAt || ''));
+
   const statusUpdate = {
     pcId,
     hostname,
@@ -1426,6 +1462,17 @@ async function handleCheckin(request, env, ctx) {
     cDriveFreeGB,
     cDriveFreePct,
     cDriveLowFirstWarnAt,
+    // Connectivity history. Read by the dashboard drawer to render the
+    // 30-day powered-vs-online chart. Each entry:
+    //   { startedAt, endedAt, durationSec, reason, attempts }
+    //   reason in {'internet_down','worker_down','http_error'}
+    offlinePeriods: mergedPeriods,
+    // Last-known failure kind from the agent. Tracks across check-ins
+    // so the tray/dashboard can show "last failure was internet down
+    // 12 min ago" even after the host is online again. Older agents
+    // (<0.14.27) won't send this -- we still preserve any existing
+    // value rather than nuking it.
+    ...(payload.lastFailureKind ? { lastFailureKind: payload.lastFailureKind } : {}),
     // Clear decommissioned flags on any successful check-in — a live
     // agent reporting in is the definition of "not decommissioned." If
     // the host was flagged, we log a reactivation activity entry below.
