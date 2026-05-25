@@ -1047,7 +1047,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.32";
+const APP_VERSION = "0.14.33";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -1405,6 +1405,91 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 // ============== /agents live subscription ==============
+// ─────────────────────────────────────────────────────────────────────
+// Favicon alert blinking
+// ─────────────────────────────────────────────────────────────────────
+//
+// When the fleet has any non-OK host, the favicon switches to a Warn
+// (amber, sawtooth) or Critical (red, crumbling top-right + dark
+// beacon + punched hole) variant of the Watchtower mark, and blinks
+// at 800ms between the alert icon and the OK icon. Catches the eye in
+// the browser tab strip even when the dashboard isn't in focus.
+//
+// Three states drive the icon:
+//   crit  any host with status.kind=bad OR backup.kind=bad OR
+//         omsa.kind=bad OR C: drive critically low (<5% / <5GB)
+//   warn  any host with status.kind=warn OR backup.kind=warn OR
+//         omsa.kind=warn OR C: drive low-but-not-critical (<10%)
+//   ok    everything green
+//
+// Decommissioned hosts are ignored. Computation short-circuits on the
+// first critical host found.
+
+const FAVICON_OK_SVG = '<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><circle cx="32" cy="32" r="30" fill="#0a6b6b"/><rect x="18" y="14" width="4" height="6" fill="#fff"/><rect x="26" y="14" width="4" height="6" fill="#fff"/><rect x="34" y="14" width="4" height="6" fill="#fff"/><rect x="42" y="14" width="4" height="6" fill="#fff"/><rect x="16" y="20" width="32" height="4" fill="#fff"/><rect x="20" y="24" width="24" height="30" fill="#fff"/><circle cx="32" cy="32" r="4" fill="#5af4e3"/><rect x="24" y="38" width="3" height="8" fill="#0a6b6b"/><rect x="37" y="38" width="3" height="8" fill="#0a6b6b"/><path d="M28 54 L28 50 Q32 46 36 50 L36 54 Z" fill="#0a6b6b"/></svg>';
+const FAVICON_WARN_SVG = '<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><circle cx="32" cy="32" r="30" fill="#f59e0b"/><rect x="18" y="16" width="4" height="4" fill="#fff"/><rect x="26" y="18" width="4" height="2" fill="#fff"/><rect x="34" y="15" width="4" height="5" fill="#fff"/><rect x="42" y="17" width="4" height="3" fill="#fff"/><rect x="16" y="20" width="32" height="4" fill="#fff"/><rect x="20" y="24" width="24" height="30" fill="#fff"/><circle cx="32" cy="32" r="4" fill="#5af4e3"/><path d="M24 30 L23 33 L24 36" stroke="#b45309" stroke-width="0.7" fill="none" stroke-linecap="round"/><path d="M40 34 L38 37 L40 41" stroke="#b45309" stroke-width="0.7" fill="none" stroke-linecap="round"/><rect x="24" y="38" width="3" height="8" fill="#f59e0b"/><rect x="37" y="38" width="3" height="8" fill="#f59e0b"/><path d="M28 54 L28 50 Q32 46 36 50 L36 54 Z" fill="#f59e0b"/></svg>';
+const FAVICON_CRIT_SVG = '<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><circle cx="32" cy="32" r="30" fill="#b91c1c"/><rect x="18" y="14" width="4" height="6" fill="#fff"/><rect x="26" y="14" width="4" height="6" fill="#fff"/><rect x="34" y="17" width="4" height="3" fill="#fff"/><path d="M16 20 L40 20 L41 22 L39 24 L16 24 Z" fill="#fff"/><path d="M20 24 L36 24 L36 28 L39 28 L39 31 L42 31 L42 34 L44 34 L44 54 L20 54 Z" fill="#fff"/><circle cx="36" cy="40" r="3" fill="#b91c1c"/><circle cx="29" cy="34" r="3.5" fill="#450a0a"/><path d="M30 38 L28 42 L30 46 L28 50" stroke="#7f1d1d" stroke-width="0.8" fill="none" stroke-linecap="round"/><rect x="24" y="42" width="3" height="6" fill="#b91c1c"/><path d="M28 54 L28 50 Q32 46 36 50 L36 54 Z" fill="#b91c1c"/></svg>';
+
+const FAVICON_BLINK_MS = 800;
+let _faviconBlinkTimer = null;
+let _lastFleetWorstState = null;
+
+function _setFaviconSvg(svgString) {
+  let link = document.querySelector('link[rel="icon"]');
+  if (!link) {
+    link = document.createElement('link');
+    link.rel = 'icon';
+    document.head.appendChild(link);
+  }
+  link.type = 'image/svg+xml';
+  link.href = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
+}
+
+function computeFleetWorstState() {
+  let worst = 'ok';
+  for (const a of state.agents) {
+    if (a.decommissioned === true) continue;
+    const st = statusOf(a);
+    const bh = backupHealthOf(a);
+    const oh = omsaHealthOf(a);
+    const pct = a.cDriveFreePct;
+    const gb = a.cDriveFreeGB;
+    const diskCrit = (pct != null && pct < 5) || (gb != null && gb < 5);
+    const diskWarn = (pct != null && pct < 10) || (gb != null && gb < 10);
+    if (st.kind === 'bad' || (bh && bh.kind === 'bad') || (oh && oh.kind === 'bad') || diskCrit) {
+      return 'crit';                                   // short-circuit
+    }
+    if (st.kind === 'warn' || (bh && bh.kind === 'warn') || (oh && oh.kind === 'warn') || diskWarn) {
+      worst = 'warn';
+    }
+  }
+  return worst;
+}
+
+function updateFaviconForFleetState() {
+  const next = computeFleetWorstState();
+  if (next === _lastFleetWorstState) return;            // no-op when nothing changed
+  _lastFleetWorstState = next;
+
+  // Tear down any running blink so we can rebuild cleanly.
+  if (_faviconBlinkTimer) {
+    clearInterval(_faviconBlinkTimer);
+    _faviconBlinkTimer = null;
+  }
+
+  if (next === 'ok') {
+    _setFaviconSvg(FAVICON_OK_SVG);
+    return;
+  }
+
+  const alertSvg = next === 'crit' ? FAVICON_CRIT_SVG : FAVICON_WARN_SVG;
+  let phase = 0;
+  _setFaviconSvg(alertSvg);                             // start ON
+  _faviconBlinkTimer = setInterval(() => {
+    phase = 1 - phase;
+    _setFaviconSvg(phase ? FAVICON_OK_SVG : alertSvg);
+  }, FAVICON_BLINK_MS);
+}
+
 function subscribeAgents() {
   if (state.unsub.agents) state.unsub.agents();
   const q = query(collection(db, "agents"), orderBy("lastCheckin", "desc"));
@@ -1412,6 +1497,7 @@ function subscribeAgents() {
     state.agents = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     rebuildClientFilter();
     renderFleet();
+    updateFaviconForFleetState();
     // If a drawer is open, refresh its content too.
     if (state.openPcId) renderDrawer(state.openPcId);
   }, err => {
