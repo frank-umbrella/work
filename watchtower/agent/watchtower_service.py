@@ -38,8 +38,34 @@ if _here not in sys.path:
 import checkin  # noqa: E402  (must come after sys.path tweak)
 
 
-CHECKIN_INTERVAL_SEC = 24 * 60 * 60   # daily
+CHECKIN_INTERVAL_SEC = 24 * 60 * 60   # daily on success
 STARTUP_DELAY_SEC = 30                # let the network come up first
+
+# Exponential-backoff schedule after a failed check-in (in seconds).
+# Index N = wait time after the (N+1)th consecutive failure. After we
+# fall off the end of the list, we go back to the normal 24h cadence
+# (i.e. the worker is presumed dead-for-the-day and we'll try tomorrow).
+#
+# Designed to recover quickly from short ISP blips (5 min picks up the
+# common <15-min outages) without hammering Cloudflare during a real
+# sustained outage (caps at 4h then daily).
+BACKOFF_SCHEDULE_SEC = [
+     5 * 60,     # 1st failure: try again in 5 min
+    15 * 60,     # 2nd: 15 min
+    30 * 60,     # 3rd: 30 min
+    60 * 60,     # 4th: 1 hour
+    2 * 60 * 60, # 5th: 2 hours
+    4 * 60 * 60, # 6th: 4 hours
+]
+
+
+def _next_wait_after_failure(consecutive_failures):
+    """Map a consecutive-failure count to the seconds-until-next-attempt.
+    Caller passes the count AFTER the failing attempt was logged."""
+    n = max(0, int(consecutive_failures) - 1)
+    if n < len(BACKOFF_SCHEDULE_SEC):
+        return BACKOFF_SCHEDULE_SEC[n]
+    return CHECKIN_INTERVAL_SEC      # fall back to daily after we've exhausted backoff
 
 
 class WatchtowerService(win32serviceutil.ServiceFramework):
@@ -73,17 +99,41 @@ class WatchtowerService(win32serviceutil.ServiceFramework):
             return
 
         while True:
+            failed_this_round = False
             try:
                 resp = checkin.run_checkin()
                 if resp.get("uninstall"):
                     servicemanager.LogInfoMsg("Worker requested uninstall; spawning uninstaller and exiting.")
                     _spawn_uninstaller()
                     return
+                # run_checkin returns {ok: false, error, reason} on failure;
+                # check that explicitly so we shorten the next sleep.
+                if not resp.get("ok", False):
+                    failed_this_round = True
             except Exception as e:
                 servicemanager.LogErrorMsg(f"check-in raised: {e}")
+                failed_this_round = True
 
-            # Sleep until either CHECKIN_INTERVAL_SEC elapses or stop is signaled.
-            wait = win32event.WaitForSingleObject(self.stop_event, CHECKIN_INTERVAL_SEC * 1000)
+            # Choose the next sleep interval. On success we go back to the
+            # normal 24h cadence. On failure we use the backoff schedule
+            # keyed off the consecutiveFailures counter that run_checkin
+            # just bumped (and persisted to state.json).
+            if failed_this_round:
+                try:
+                    import config as cfg_mod
+                    cur_state = cfg_mod.load_state() or {}
+                    cf = cur_state.get("consecutiveFailures", 1)
+                except Exception:
+                    cf = 1
+                next_wait_sec = _next_wait_after_failure(cf)
+                servicemanager.LogInfoMsg(
+                    f"check-in failed (consecutive={cf}); next attempt in {next_wait_sec // 60} min"
+                )
+            else:
+                next_wait_sec = CHECKIN_INTERVAL_SEC
+
+            # Sleep until either next_wait_sec elapses or stop is signaled.
+            wait = win32event.WaitForSingleObject(self.stop_event, next_wait_sec * 1000)
             if wait == win32event.WAIT_OBJECT_0:
                 return
 

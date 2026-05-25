@@ -7,8 +7,19 @@ service's daily timer and the tray's "Check now" menu item.
 
 This function is safe to call multiple times. Concurrent calls are
 serialized via a file lock on %ProgramData%\\Watchtower\\.checkin.lock.
+
+v0.14.27: offline-period tracking
+  When a check-in fails, we open an entry in state['currentOfflinePeriod']
+  with the failure timestamp + the failure reason ('internet_down' if the
+  Google/Cloudflare 204 probes also fail, otherwise 'worker_down'). The
+  next successful check-in closes the period (sets endedAt + durationSec)
+  and appends it to state['offlinePeriods'][]. The agent then ships the
+  periods up to the worker in the check-in payload so the dashboard can
+  render the host's connectivity timeline. We prune anything older than
+  30 days locally to keep state.json bounded.
 """
 
+import datetime
 import os
 import sys
 import time
@@ -19,6 +30,14 @@ import config as cfg_mod
 import collector
 import client
 import logger as _logger
+
+
+# Local cap on how much offline history we keep in state.json. Worker
+# stores a longer rolling window in Firestore so the dashboard can show
+# multi-month timelines; the agent only needs enough to (a) close out
+# in-flight periods and (b) re-send the recent window on each check-in
+# in case the worker missed a previous one.
+OFFLINE_HISTORY_DAYS = 30
 
 
 def _read_version():
@@ -39,11 +58,92 @@ def _read_version():
 AGENT_VERSION = _read_version()
 
 
+def _now_iso():
+    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+
+
+def _classify_failure(exc):
+    """Return one of 'internet_down' / 'worker_down' / 'http_error'.
+
+    'http_error' is a 4xx (bad token / payload) which isn't a network
+    issue at all. The other two split network failures by whether our
+    own internet is reachable. The disambiguation probe runs ONLY when
+    we know the worker call failed -- we don't double-tax the network
+    in the happy path.
+    """
+    kind = getattr(exc, "kind", "network")
+    if kind == "http":
+        return "http_error"
+    # Worker /checkin failed at the network layer. Is the rest of the
+    # internet alive? If so, the worker (or Cloudflare in front of it)
+    # is the problem.
+    if client.check_internet_reachable():
+        return "worker_down"
+    return "internet_down"
+
+
+def _prune_offline_periods(periods):
+    """Drop periods that ended more than OFFLINE_HISTORY_DAYS ago.
+    Keeps the in-flight (no endedAt) entry untouched if any."""
+    cutoff = datetime.datetime.utcnow() - datetime.timedelta(days=OFFLINE_HISTORY_DAYS)
+    kept = []
+    for p in (periods or []):
+        ended = p.get("endedAt")
+        if not ended:
+            kept.append(p)            # in-flight, never drop
+            continue
+        try:
+            t = datetime.datetime.fromisoformat(ended.replace("Z", "+00:00")).replace(tzinfo=None)
+        except (ValueError, AttributeError):
+            kept.append(p)            # malformed -- keep it, don't lose data
+            continue
+        if t >= cutoff:
+            kept.append(p)
+    return kept
+
+
+def _open_offline_period_if_new(state, reason):
+    """Open state['currentOfflinePeriod'] iff one isn't already in flight.
+    Don't reopen mid-outage -- preserving the original startedAt is what
+    makes the dashboard's 'duration' calculation right."""
+    if state.get("currentOfflinePeriod"):
+        return
+    state["currentOfflinePeriod"] = {
+        "startedAt": _now_iso(),
+        "reason": reason,
+    }
+
+
+def _close_offline_period_if_any(state):
+    """If an offline period is in flight, close it and append to history.
+    Called from the success path. Returns the closed period (or None) so
+    the caller can log it."""
+    cur = state.get("currentOfflinePeriod")
+    if not cur:
+        return None
+    cur["endedAt"] = _now_iso()
+    # durationSec = endedAt - startedAt, best-effort
+    try:
+        started = datetime.datetime.fromisoformat(cur["startedAt"].replace("Z", "+00:00")).replace(tzinfo=None)
+        ended = datetime.datetime.fromisoformat(cur["endedAt"].replace("Z", "+00:00")).replace(tzinfo=None)
+        cur["durationSec"] = int((ended - started).total_seconds())
+    except (ValueError, AttributeError, KeyError):
+        cur["durationSec"] = None
+    cur["attempts"] = state.get("consecutiveFailures", 0) + 1  # this success closes the streak
+    state.setdefault("offlinePeriods", []).append(cur)
+    state["offlinePeriods"] = _prune_offline_periods(state["offlinePeriods"])
+    state.pop("currentOfflinePeriod", None)
+    return cur
+
+
 def run_checkin():
     """Performs one check-in. Returns the parsed worker response (dict)
     on success, or a dict with {ok:false, error:str} on failure. Always
     writes the result into state.json so the tray reflects it."""
-    state = {"checkinStartedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
+    # Preserve existing state across runs so offline-period tracking +
+    # consecutiveFailures survive between check-in attempts.
+    state = cfg_mod.load_state() or {}
+    state["checkinStartedAt"] = _now_iso()
     _logger.log(f"run_checkin: starting (agent v{AGENT_VERSION})")
     try:
         config = cfg_mod.load_config()
@@ -59,13 +159,21 @@ def run_checkin():
             "probeErrors": [e["probe"] for e in report.get("probeErrors", [])],
         }
 
+        # Include offline-period history in the payload so the worker can
+        # forward it into Firestore for the dashboard's connectivity chart.
+        # Prune in-flight first so a stale in-flight entry doesn't ship.
+        existing_periods = _prune_offline_periods(state.get("offlinePeriods", []))
+        state["offlinePeriods"] = existing_periods
+
         payload = {
             "pcId": config["pcId"],
             "agentVersion": AGENT_VERSION,
             "hostname": socket.gethostname(),
             "client": config.get("client"),
-            "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "ts": _now_iso(),
             "report": report,
+            "offlinePeriods": existing_periods,
+            "consecutiveFailures": state.get("consecutiveFailures", 0),
         }
         _logger.log(f"run_checkin: collected {len(report)} keys, posting to worker")
         resp = client.post_checkin(
@@ -73,7 +181,14 @@ def run_checkin():
             install_token=config["installToken"],
             payload=payload,
         )
-        state["lastCheckinAt"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        # Success path. Close any in-flight offline period and reset the
+        # consecutive-failures counter.
+        closed = _close_offline_period_if_any(state)
+        if closed:
+            _logger.log(f"run_checkin: closed offline period: started={closed.get('startedAt')}, duration={closed.get('durationSec')}s, reason={closed.get('reason')}")
+        state["consecutiveFailures"] = 0
+        state.pop("lastFailureKind", None)
+        state["lastCheckinAt"] = _now_iso()
         state["lastResponse"] = resp
         state["ok"] = True
         cfg_mod.save_state(state)
@@ -96,7 +211,7 @@ def run_checkin():
                     install_token=config.get("installToken"),
                 )
                 state["lastUpdateCheck"] = {
-                    "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                    "at": _now_iso(),
                     **result,
                 }
                 cfg_mod.save_state(state)
@@ -110,11 +225,39 @@ def run_checkin():
         # to the service lets it call the uninstaller.
         return resp
 
+    except client.CheckinError as e:
+        # Network or HTTP failure. Open / extend the offline period and
+        # bump the consecutive-failures counter. Categorize the failure
+        # via a quick connectivity probe so the dashboard can split
+        # internet-down vs worker-down outages.
+        reason = _classify_failure(e)
+        state["consecutiveFailures"] = (state.get("consecutiveFailures") or 0) + 1
+        state["lastFailureKind"] = reason
+        state["lastFailureAt"] = _now_iso()
+        # Don't open an offline period for HTTP errors (4xx) -- those
+        # mean the token is bad or the payload is wrong, not that the
+        # host is offline. The dashboard already surfaces that via the
+        # error field on the host doc.
+        if reason != "http_error":
+            _open_offline_period_if_new(state, reason)
+        state["ok"] = False
+        state["error"] = str(e)
+        state["lastCheckinAt"] = _now_iso()
+        cfg_mod.save_state(state)
+        _logger.log(f"run_checkin: FAILED ({reason}, attempt #{state['consecutiveFailures']}) -- {e}")
+        return {"ok": False, "error": str(e), "reason": reason}
+
     except Exception as e:
+        # Unexpected -- log full traceback and treat like a generic
+        # failure. Don't categorize via the internet probe (could be a
+        # probe crash, not a network issue).
+        state["consecutiveFailures"] = (state.get("consecutiveFailures") or 0) + 1
+        state["lastFailureKind"] = "unknown"
+        state["lastFailureAt"] = _now_iso()
         state["ok"] = False
         state["error"] = str(e)
         state["trace"] = traceback.format_exc()
-        state["lastCheckinAt"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        state["lastCheckinAt"] = _now_iso()
         cfg_mod.save_state(state)
         _logger.log(f"run_checkin: FAILED -- {e}")
         _logger.log(f"run_checkin: traceback:\n{traceback.format_exc()}")
