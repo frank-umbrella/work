@@ -38,25 +38,27 @@
   .stage svg.big    { width: 128px; height: 128px; display: block; }
   .stage .label { font-size: 11px; color: #64748b; }
 
-  /* -------- Variant 1: original halo bloom (respects reduce-motion) -------- */
+  /* -------- Variant 1: production halo bloom (matches the live dashboard) -------- */
+  /* Tracks the v0.14.51 production tune: scale 0.9 -> 1.55, opacity
+     0.25 -> 0.9, 2.2 s loop. No prefers-reduced-motion guard (was
+     dropped in v0.14.50 after this diagnostic page first ran). */
   .halo-original {
     transform-origin: 32px 32px;
-    animation: bloomNormal 3s ease-in-out infinite;
+    animation: bloomNormal 2.2s ease-in-out infinite;
   }
   @keyframes bloomNormal {
-    0%, 100% { opacity: 0.3; transform: scale(1);    }
-    50%      { opacity: 0.7; transform: scale(1.15); }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .halo-original { animation: none !important; }
+    0%, 100% { opacity: 0.25; transform: scale(0.9);  }
+    50%      { opacity: 0.9;  transform: scale(1.55); }
   }
 
-  /* -------- Variant 2: halo bloom FORCED (ignores reduce-motion) -------- */
-  /* Same animation, no guard. Tests whether the engine CAN animate at all
-     on this browser, independent of OS settings. */
+  /* -------- Variant 2: same as #1 with !important guard-buster -------- */
+  /* Kept for parity with the original diagnostic flow even though the
+     production version no longer has a guard to bust. Useful as a
+     control if we ever re-introduce a media query and want to be
+     sure the override pattern still works. */
   .halo-forced {
     transform-origin: 32px 32px;
-    animation: bloomNormal 3s ease-in-out infinite !important;
+    animation: bloomNormal 2.2s ease-in-out infinite !important;
   }
 
   /* -------- Variant 3: comically obvious so you cannot miss it -------- */
