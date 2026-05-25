@@ -1968,28 +1968,94 @@ function fieldBool(field, fallback) {
 }
 
 // ─────────────────────────────────────────────────────────────────────
-// Resend email — IP change alert
+// Branded email template helpers (Variant B "Hero Card" design)
 // ─────────────────────────────────────────────────────────────────────
-async function sendIpChangeEmail(env, { pcId, hostname, client, previousIp, newIp, when }) {
-  const subject = `Watchtower: external IP changed — ${hostname} (${client})`;
-  const html = `
-    <div style="font-family: system-ui, -apple-system, Segoe UI, sans-serif; color:#222; max-width:600px;">
-      <h2 style="color:#0a6; margin:0 0 12px;">External IP changed</h2>
-      <table cellpadding="6" style="border-collapse:collapse; font-size:14px;">
-        <tr><td style="color:#666;">Host</td><td><b>${escapeHtml(hostname)}</b></td></tr>
-        <tr><td style="color:#666;">Client</td><td>${escapeHtml(client)}</td></tr>
-        <tr><td style="color:#666;">Previous IP</td><td><code>${escapeHtml(previousIp)}</code></td></tr>
-        <tr><td style="color:#666;">New IP</td><td><code style="color:#0a6;"><b>${escapeHtml(newIp)}</b></code></td></tr>
-        <tr><td style="color:#666;">When</td><td>${escapeHtml(when)}</td></tr>
-        <tr><td style="color:#666;">pcId</td><td><code>${escapeHtml(pcId)}</code></td></tr>
-      </table>
-      <p style="color:#888; font-size:12px; margin-top:24px;">
-        Sent by watchtower-worker. To silence these emails, flip
-        <code>emailEnabled</code> off in the agent's per-PC config from the
-        Watchtower dashboard.
-      </p>
+//
+// All six Resend emails share the same chrome -- teal-gradient hero
+// with the Watchtower mark + Umbrella Automation eyebrow + a WHITE
+// pill chip with the client name, then a colored severity band, then
+// the per-email body, then a CTA button linking back to the dashboard.
+// Centralising the shell means a typography/color tweak lands in one
+// place, not six. See watchtower/notification-previews.html for the
+// reference renderings.
+//
+// Helpers are intentionally inline-styled and table-heavy so Outlook /
+// Gmail / Apple Mail render them consistently without external CSS.
+
+const DASHBOARD_BASE = 'https://frank-umbrella.github.io/work/watchtower/';
+
+// SVG mark, inlined so the email doesn't depend on an external image
+// host (some clients block remote images by default until the user
+// clicks "show pictures"). Same crenellated tower + cyan beacon as
+// the dashboard favicon, with a faded-white fill inside the disc so
+// the icon reads on the teal gradient hero.
+const TOWER_ICON_SVG = '<svg width="42" height="42" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><circle cx="32" cy="32" r="30" fill="rgba(255,255,255,0.08)" stroke="#5af4e3" stroke-width="2"/><rect x="18" y="14" width="4" height="6" fill="#ffffff"/><rect x="26" y="14" width="4" height="6" fill="#ffffff"/><rect x="34" y="14" width="4" height="6" fill="#ffffff"/><rect x="42" y="14" width="4" height="6" fill="#ffffff"/><rect x="16" y="20" width="32" height="4" fill="#ffffff"/><rect x="20" y="24" width="24" height="30" fill="#ffffff"/><circle cx="32" cy="32" r="4" fill="#5af4e3"/><rect x="24" y="38" width="3" height="8" fill="#0a6b6b"/><rect x="37" y="38" width="3" height="8" fill="#0a6b6b"/></svg>';
+
+const SEVERITY_PALETTE = {
+  info:     { bg: '#e6f4f4', text: '#074a4a', border: '#d0e8e8', dot: '#0a6b6b' },
+  critical: { bg: '#fee2e2', text: '#7f1d1d', border: '#fca5a5', dot: '#b91c1c' },
+  neutral:  { bg: '#f3f4f6', text: '#475063', border: '#e3e6ec', dot: '#6b7280' },
+};
+
+function dashboardUrl(pcId) {
+  return pcId ? `${DASHBOARD_BASE}?pc=${encodeURIComponent(pcId)}` : DASHBOARD_BASE;
+}
+
+// Wrap an email's body content with the standard branded chrome.
+//   client       -- client name (renders in the white pill chip)
+//   hostname     -- host display name (renders in the hero subtitle)
+//   headline     -- main H1, e.g. "Backup Failed"
+//   subtitleHtml -- pre-rendered HTML for the subtitle line; if omitted
+//                   defaults to "on <b>HOSTNAME</b>". Lets callers add
+//                   severity-tinted context like "5 days since last success".
+//   severity     -- "info" | "critical" | "neutral" (drives the band color)
+//   bandText     -- short label in the severity band
+//   bodyHtml     -- per-email body content (rendered before the CTA)
+//   pcId         -- used to deep-link the "Open host in dashboard" CTA
+function renderEmailShell({ client, hostname, headline, subtitleHtml, severity, bandText, bodyHtml, pcId }) {
+  const pal = SEVERITY_PALETTE[severity] || SEVERITY_PALETTE.info;
+  const dashUrl = dashboardUrl(pcId);
+  const clientLabel = client && client.trim() ? client : 'Unassigned';
+  const subtitle = subtitleHtml || `on <b style="color:#ffffff;">${escapeHtml(hostname || '?')}</b>`;
+  return `
+    <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;max-width:640px;margin:0 auto;background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 2px 12px rgba(20,25,40,0.06);">
+      <!-- Hero -->
+      <div style="background:linear-gradient(135deg,#0a6b6b 0%,#074a4a 100%);padding:24px 30px;color:#ffffff;">
+        <table cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
+          <td width="50" style="vertical-align:middle;">${TOWER_ICON_SVG}</td>
+          <td style="vertical-align:middle;padding-left:14px;">
+            <div style="font-size:11px;color:#5af4e3;text-transform:uppercase;letter-spacing:0.1em;font-weight:600;">Umbrella Automation &middot; Watchtower</div>
+          </td>
+          <td align="right" style="vertical-align:middle;">
+            <span style="display:inline-block;padding:7px 16px;background:#ffffff;color:#0a6b6b;border-radius:999px;font-size:12.5px;font-weight:700;letter-spacing:0.05em;text-transform:uppercase;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.18);">${escapeHtml(clientLabel)}</span>
+          </td>
+        </tr></table>
+        <div style="font-size:26px;color:#ffffff;font-weight:700;line-height:1.2;margin-top:18px;letter-spacing:-0.01em;">${escapeHtml(headline)}</div>
+        <div style="font-size:14px;color:rgba(255,255,255,0.78);margin-top:5px;">${subtitle}</div>
+      </div>
+      <!-- Severity band -->
+      <div style="background:${pal.bg};color:${pal.text};padding:9px 30px;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;border-bottom:1px solid ${pal.border};">
+        <span style="display:inline-block;width:8px;height:8px;background:${pal.dot};border-radius:50%;margin-right:8px;vertical-align:middle;"></span>${escapeHtml(bandText || '')}
+      </div>
+      <!-- Body -->
+      <div style="padding:24px 30px;">
+        ${bodyHtml}
+        <a href="${dashUrl}" style="display:block;text-align:center;background:#0a6b6b;color:#ffffff;text-decoration:none;padding:14px 22px;border-radius:10px;font-weight:700;font-size:14.5px;box-shadow:0 2px 4px rgba(10,107,107,0.25);margin-top:20px;">Open host in dashboard &rarr;</a>
+      </div>
+      <!-- Footer -->
+      <div style="background:#fafbfc;padding:16px 30px;border-top:1px solid #e3e6ec;">
+        <table cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
+          <td style="font-size:11.5px;color:#8892a4;"><b style="color:#475063;">Watchtower</b> &middot; Umbrella Automation</td>
+          <td align="right" style="font-size:11.5px;"><a href="${dashUrl}" style="color:#8892a4;text-decoration:none;">Silence this host</a></td>
+        </tr></table>
+      </div>
     </div>
   `;
+}
+
+// POST the rendered email to Resend. Shared across all six send*Email
+// functions so the auth + endpoint + error handling lives in one place.
+async function postResendEmail(env, { subject, html }) {
   const resp = await fetch(`${RESEND_BASE}/emails`, {
     method: 'POST',
     headers: {
@@ -2010,14 +2076,45 @@ async function sendIpChangeEmail(env, { pcId, hostname, client, previousIp, newI
 }
 
 // ─────────────────────────────────────────────────────────────────────
+// Resend email — IP change alert
+// ─────────────────────────────────────────────────────────────────────
+async function sendIpChangeEmail(env, { pcId, hostname, client, previousIp, newIp, when }) {
+  const subject = `[Watchtower] ${hostname} · External IP Changed to ${newIp}`;
+  const bodyHtml = `
+    <p style="font-size:15px;color:#1a1f2b;line-height:1.55;margin:0 0 22px;">
+      This host is now reaching the internet from a new public address. If this isn't expected, check the WAN equipment or ISP.
+    </p>
+    <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:0;"><tr>
+      <td style="background:#fafbfc;border:1px solid #e3e6ec;border-radius:10px;padding:14px 18px;width:48%;vertical-align:top;">
+        <div style="font-size:10.5px;color:#8892a4;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:4px;">Previous IP</div>
+        <div style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:16px;color:#475063;">${escapeHtml(previousIp || '?')}</div>
+      </td>
+      <td width="4%"></td>
+      <td style="background:#e6f4f4;border:1px solid #b8dbdb;border-radius:10px;padding:14px 18px;width:48%;vertical-align:top;">
+        <div style="font-size:10.5px;color:#0a6b6b;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:4px;">New IP</div>
+        <div style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:16px;color:#0a6b6b;font-weight:700;">${escapeHtml(newIp || '?')}</div>
+      </td>
+    </tr></table>
+    <p style="font-size:11.5px;color:#8892a4;margin:14px 0 0;">Detected ${escapeHtml(when)}</p>
+  `;
+  const html = renderEmailShell({
+    client, hostname, pcId,
+    headline: 'External IP Changed',
+    severity: 'info',
+    bandText: 'Network event · informational',
+    bodyHtml,
+  });
+  await postResendEmail(env, { subject, html });
+}
+
+// ─────────────────────────────────────────────────────────────────────
 // Resend email — first-time host intake (one per pcId, on firstSeen)
 // ─────────────────────────────────────────────────────────────────────
 async function sendIntakeEmail(env, { pcId, hostname, client, agentVersion, when, externalIp, report }) {
-  const subject = `Watchtower: New host onboarded — ${hostname} (${client})`;
+  const subject = `[Watchtower] New Host Onboarded — ${hostname} (${client})`;
   const r = report || {};
   const sys = r.system || {};
   const os = sys.os || {};
-  const net = r.network || {};
   const stor = r.storage || {};
   const sw = r.software || {};
   const hf = r.hotfixes || {};
@@ -2025,150 +2122,113 @@ async function sendIntakeEmail(env, { pcId, hostname, client, agentVersion, when
   const isDell = /dell/i.test(sys.manufacturer || '');
   const tagHtml = sys.serviceTag
     ? (isDell
-        ? `<a href="https://www.dell.com/support/home/en-us/product-support/servicetag/${encodeURIComponent(sys.serviceTag)}" style="color:#0a6b6b;"><code>${escapeHtml(sys.serviceTag)}</code></a>`
-        : `<code>${escapeHtml(sys.serviceTag)}</code>`)
-    : '—';
+        ? `<a href="https://www.dell.com/support/home/en-us/product-support/servicetag/${encodeURIComponent(sys.serviceTag)}" style="color:#0a6b6b;text-decoration:none;font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:600;">${escapeHtml(sys.serviceTag)}</a>`
+        : `<span style="font-family:ui-monospace,Menlo,Consolas,monospace;">${escapeHtml(sys.serviceTag)}</span>`)
+    : '<span style="color:#8892a4;">none</span>';
 
-  const row = (label, value) => value
-    ? `<tr><td style="color:#666; padding:4px 10px 4px 0; vertical-align:top;">${escapeHtml(label)}</td><td style="padding:4px 0; vertical-align:top;">${value}</td></tr>`
-    : '';
+  // Product-detection -- collect short chip labels + a few details for the
+  // body. Same data the dashboard's drawer renders, just flattened.
+  const productChips = [];
+  const productDetails = [];
+  if (r.veeam && r.veeam.installed) {
+    for (const p of (r.veeam.products || [])) {
+      const label = p.edition === 'br' ? `Veeam B&R ${escapeHtml(p.version || '?')}` : `Veeam Agent ${escapeHtml(p.version || '?')}`;
+      productChips.push(label);
+      if (p.lastJob && p.lastJob.result) productDetails.push(`${label} &mdash; last job <b style="color:${p.lastJob.result === 'Success' ? '#16a34a' : '#b91c1c'};">${escapeHtml(p.lastJob.result)}</b>`);
+    }
+  }
+  if (r.wsb && r.wsb.installed) {
+    productChips.push('WSB');
+    if (r.wsb.lastBackupResult) productDetails.push(`WSB <b style="color:${r.wsb.lastBackupResult === 'Success' ? '#16a34a' : '#b91c1c'};">${escapeHtml(r.wsb.lastBackupResult)}</b>${r.wsb.lastSuccessfulBackup ? ` &middot; last success ${escapeHtml(r.wsb.lastSuccessfulBackup)}` : ''}`);
+  }
+  if (r.carbonite && r.carbonite.installed) {
+    for (const p of (r.carbonite.products || [])) productChips.push(`${escapeHtml(p.name)} ${escapeHtml(p.version || '')}`.trim());
+  }
+  if (r.omsa && r.omsa.installed) {
+    productChips.push(`OMSA ${escapeHtml(r.omsa.version || '?')}`);
+    productDetails.push(`Dell OMSA <b>${escapeHtml(r.omsa.version || '?')}</b> &middot; rollup <b style="color:${r.omsa.healthRollup === 'ok' ? '#16a34a' : '#b91c1c'};">${escapeHtml(r.omsa.healthRollup || 'unknown')}</b> &middot; ${(r.omsa.physicalDisks || []).length} disks, ${(r.omsa.virtualDisks || []).length} arrays`);
+  }
+  if (r.idrac && r.idrac.installed) productChips.push(`iDRAC iSM ${escapeHtml(r.idrac.version || '?')}`);
+  if (r.logmein && r.logmein.installed) productChips.push('LogMeIn');
+  if (r.sentinelone && r.sentinelone.installed) productChips.push('SentinelOne');
+  if (r.defender) {
+    productChips.push('Defender');
+    productDetails.push(`Defender realtime <b style="color:${r.defender.realtimeOn ? '#16a34a' : '#b91c1c'};">${r.defender.realtimeOn ? 'on' : 'off'}</b>${r.defender.definitionsVersion ? ` &middot; defs ${escapeHtml(r.defender.definitionsVersion)}` : ''}`);
+  }
 
-  const sectionHeader = (title) => `<div style="margin:18px 0 6px; font-size:11px; text-transform:uppercase; color:#8892a4; letter-spacing:0.06em; font-weight:700;">${escapeHtml(title)}</div>`;
+  const chipPills = productChips.map(c => `<span style="display:inline-block;padding:3px 10px;background:#e6f4f4;color:#074a4a;border-radius:999px;font-size:11.5px;font-weight:600;margin:2px 4px 2px 0;">${c}</span>`).join('');
 
-  // Build optional product-detection sections only when present.
-  const veeam = r.veeam;
-  const wsb = r.wsb;
-  const carbonite = r.carbonite;
-  const lmi = r.logmein;
-  const s1 = r.sentinelone;
-  const def = r.defender;
-  const omsa = r.omsa;
-  const idrac = r.idrac;
-  const usb = r.usb;
+  const volumes = (stor.volumes || []).slice(0, 6).map(v => `<li>${escapeHtml(v.letter)} (${escapeHtml(v.filesystem || '?')}) &mdash; ${v.sizeGB || 0} GB total, ${v.freeGB || 0} GB free</li>`).join('');
 
-  const veeamHtml = veeam && veeam.installed
-    ? (veeam.products || []).map(p => `<div>${p.edition === 'br' ? 'Veeam Backup & Replication' : 'Veeam Agent for Windows'} <b>${escapeHtml(p.version || '?')}</b>${p.lastJob && p.lastJob.result ? ` — last job: <b>${escapeHtml(p.lastJob.result)}</b>` : ''}</div>`).join('')
-    : '';
+  const subtitleHtml = `<b style="color:#ffffff;">${escapeHtml(hostname || '?')}</b> &middot; joined ${escapeHtml(when)}`;
 
-  const wsbHtml = wsb && wsb.installed
-    ? `<div>WSB <b>${escapeHtml(wsb.lastBackupResult || 'no runs yet')}</b>${wsb.lastSuccessfulBackup ? ` · last success ${escapeHtml(wsb.lastSuccessfulBackup)}` : ''} · ${wsb.numberOfVersions || 0} version(s) retained</div>`
-    : '';
+  const bodyHtml = `
+    <p style="font-size:15px;color:#1a1f2b;line-height:1.55;margin:0 0 18px;">
+      This is the one-time intake summary captured at the host's first check-in. Future check-ins won't send this email &mdash; they flow into the dashboard quietly.
+    </p>
 
-  const carboniteHtml = carbonite && carbonite.installed
-    ? (carbonite.products || []).map(p => `<div>${escapeHtml(p.name)} <b>${escapeHtml(p.version || '?')}</b></div>`).join('')
-    : '';
-
-  const omsaHtml = omsa && omsa.installed
-    ? `<div>Dell OMSA <b>${escapeHtml(omsa.version || '?')}</b> · rollup: <b>${escapeHtml(omsa.healthRollup || 'unknown')}</b> · ${(omsa.physicalDisks || []).length} disks, ${(omsa.virtualDisks || []).length} RAID arrays</div>`
-    : '';
-
-  const idracHtml = idrac && idrac.installed
-    ? `<div>iDRAC Service Module <b>${escapeHtml(idrac.version || '?')}</b> · service ${escapeHtml(idrac.serviceState || '?')}</div>`
-    : '';
-
-  const lmiHtml = lmi && lmi.installed
-    ? `<div>LogMeIn <b>${escapeHtml(lmi.version || '?')}</b> · service ${escapeHtml(lmi.serviceState || '?')}${lmi.description ? ` · "${escapeHtml(lmi.description)}"` : ''}</div>`
-    : '';
-
-  const s1Html = s1 && s1.installed
-    ? `<div>SentinelOne <b>${escapeHtml(s1.version || '?')}</b> · service ${escapeHtml(s1.serviceState || '?')}</div>`
-    : '';
-
-  const defHtml = def
-    ? `<div>Defender: enabled=<b>${def.enabled ? 'yes' : 'no'}</b>, realtime=<b>${def.realtimeOn ? 'on' : 'off'}</b>, definitions ${escapeHtml(def.definitionsVersion || '?')} (${escapeHtml(def.definitionsUpdated || '?')})</div>`
-    : '';
-
-  const backupsBlock = (veeamHtml || wsbHtml || carboniteHtml)
-    ? sectionHeader('Backups') + `<div style="font-size:13px; line-height:1.6;">${veeamHtml}${wsbHtml}${carboniteHtml}</div>`
-    : '';
-
-  const securityBlock = (defHtml || s1Html)
-    ? sectionHeader('Security') + `<div style="font-size:13px; line-height:1.6;">${defHtml}${s1Html}</div>`
-    : '';
-
-  const remoteBlock = (lmiHtml || idracHtml)
-    ? sectionHeader('Remote access') + `<div style="font-size:13px; line-height:1.6;">${lmiHtml}${idracHtml}</div>`
-    : '';
-
-  const storageBlock = omsaHtml
-    ? sectionHeader('Storage (Dell OMSA)') + `<div style="font-size:13px; line-height:1.6;">${omsaHtml}</div>`
-    : '';
-
-  const volumes = (stor.volumes || []).map(v => `<li>${escapeHtml(v.letter)} (${escapeHtml(v.filesystem || '?')}) — ${v.sizeGB || 0} GB total, ${v.freeGB || 0} GB free</li>`).join('');
-  const nics = (net.nics || []).filter(n => (n.ipv4 || []).length).map(n => `<li>${escapeHtml(n.name || n.description || '?')} — ${escapeHtml((n.ipv4 || []).join(', '))}${n.speedMbps ? ` @ ${n.speedMbps} Mbps` : ''}</li>`).join('');
-
-  const html = `
-    <div style="font-family: system-ui, -apple-system, Segoe UI, sans-serif; color:#1a1f2b; max-width:680px;">
-      <h2 style="color:#0a6b6b; margin:0 0 4px; font-size:18px;">New host onboarded</h2>
-      <p style="color:#475063; margin:0 0 18px; font-size:14px;"><b>${escapeHtml(hostname)}</b> joined Watchtower at ${escapeHtml(when)}. Below is the intake report from its first check-in — a one-time summary so you have a record of what was on this machine when it came in. Future check-ins won't send this email.</p>
-
-      ${sectionHeader('Identity')}
-      <table cellpadding="0" style="font-size:13.5px; line-height:1.5;">
-        ${row('Hostname', `<b>${escapeHtml(hostname)}</b>`)}
-        ${row('Client', escapeHtml(client))}
-        ${row('External IP', `<code>${escapeHtml(externalIp || '?')}</code>`)}
-        ${row('pcId', `<code style="font-size:11px;">${escapeHtml(pcId)}</code>`)}
-        ${row('Agent version', escapeHtml(agentVersion))}
-      </table>
-
-      ${sectionHeader('Hardware')}
-      <table cellpadding="0" style="font-size:13.5px; line-height:1.5;">
-        ${row('Manufacturer', escapeHtml(sys.manufacturer))}
-        ${row('Model', escapeHtml(sys.model))}
-        ${row('Service Tag', tagHtml)}
-        ${row('CPU', `${escapeHtml((sys.cpu && sys.cpu.name) || '?')}${sys.cpu && sys.cpu.cores ? ` (${sys.cpu.cores} cores)` : ''}`)}
-        ${row('RAM', sys.memory && sys.memory.totalGB ? `${sys.memory.totalGB} GB` : null)}
-        ${row('TPM', sys.tpm ? (sys.tpm.present ? `present, spec ${escapeHtml(sys.tpm.specVersion || '?')}` : 'absent') : null)}
-        ${row('BIOS', `${escapeHtml(sys.biosVersion || '?')} (${escapeHtml(sys.biosDate || '?')})`)}
-      </table>
-
-      ${sectionHeader('Operating system')}
-      <table cellpadding="0" style="font-size:13.5px; line-height:1.5;">
-        ${row('OS', escapeHtml(os.name))}
-        ${row('Build', escapeHtml(os.build))}
-        ${row('Install date', escapeHtml(os.installDate))}
-        ${row('Domain', sys.partOfDomain ? escapeHtml(sys.workgroup || 'unknown domain') : `workgroup: ${escapeHtml(sys.workgroup || 'WORKGROUP')}`)}
-      </table>
-
-      ${volumes ? sectionHeader('Volumes') + `<ul style="font-size:13.5px; line-height:1.6; margin:0; padding-left:22px;">${volumes}</ul>` : ''}
-      ${nics ? sectionHeader('Network interfaces') + `<ul style="font-size:13.5px; line-height:1.6; margin:0; padding-left:22px;">${nics}</ul>` : ''}
-
-      ${storageBlock}
-      ${backupsBlock}
-      ${securityBlock}
-      ${remoteBlock}
-
-      ${sectionHeader('Inventory')}
-      <div style="font-size:13.5px; line-height:1.6;">
-        ${sw.count ? `<div>${sw.count} installed applications</div>` : ''}
-        ${hf.total ? `<div>${hf.total} hotfixes installed</div>` : ''}
-        ${usb && usb.devices ? `<div>${usb.devices.length} USB device(s) in history</div>` : ''}
-      </div>
-
-      <p style="color:#8892a4; font-size:12px; margin-top:28px;">
-        View full details at the <a href="https://frank-umbrella.github.io/work/watchtower/" style="color:#0a6b6b;">Watchtower dashboard</a> → click <b>${escapeHtml(hostname)}</b> in the Endpoints tab.
-        This is a one-time email per host. If you want to silence future alerts for this host, flip <code>emailEnabled</code> off in its per-PC config.
-      </p>
+    <!-- Identity card -->
+    <div style="background:#fafbfc;border:1px solid #e3e6ec;border-radius:10px;padding:16px 18px;margin-bottom:12px;">
+      <div style="font-size:10.5px;color:#0a6b6b;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:10px;">Identity</div>
+      <table cellpadding="0" cellspacing="0" border="0" width="100%" style="font-size:13.5px;"><tr>
+        <td style="padding:3px 0;width:50%;vertical-align:top;"><span style="color:#8892a4;">Host</span> <b style="color:#1a1f2b;">${escapeHtml(hostname || '?')}</b></td>
+        <td style="padding:3px 0;width:50%;vertical-align:top;"><span style="color:#8892a4;">Client</span> ${escapeHtml(client || 'unassigned')}</td>
+      </tr><tr>
+        <td style="padding:3px 0;vertical-align:top;"><span style="color:#8892a4;">External IP</span> <span style="font-family:ui-monospace,Menlo,Consolas,monospace;">${escapeHtml(externalIp || '?')}</span></td>
+        <td style="padding:3px 0;vertical-align:top;"><span style="color:#8892a4;">Agent</span> ${escapeHtml(agentVersion || '?')}</td>
+      </tr></table>
     </div>
+
+    <!-- Hardware card -->
+    ${sys.manufacturer || sys.model ? `
+    <div style="background:#fafbfc;border:1px solid #e3e6ec;border-radius:10px;padding:16px 18px;margin-bottom:12px;">
+      <div style="font-size:10.5px;color:#0a6b6b;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:10px;">Hardware</div>
+      <table cellpadding="0" cellspacing="0" border="0" width="100%" style="font-size:13.5px;"><tr>
+        <td style="padding:3px 0;width:50%;vertical-align:top;"><span style="color:#8892a4;">Manufacturer</span> ${escapeHtml(sys.manufacturer || '?')}</td>
+        <td style="padding:3px 0;width:50%;vertical-align:top;"><span style="color:#8892a4;">Model</span> ${escapeHtml(sys.model || '?')}</td>
+      </tr><tr>
+        <td style="padding:3px 0;vertical-align:top;"><span style="color:#8892a4;">Service tag</span> ${tagHtml}</td>
+        <td style="padding:3px 0;vertical-align:top;"><span style="color:#8892a4;">RAM</span> ${sys.memory && sys.memory.totalGB ? `${sys.memory.totalGB} GB` : '?'}</td>
+      </tr>${sys.cpu && sys.cpu.name ? `<tr>
+        <td colspan="2" style="padding:3px 0;vertical-align:top;"><span style="color:#8892a4;">CPU</span> ${escapeHtml(sys.cpu.name)}${sys.cpu.cores ? ` (${sys.cpu.cores} cores)` : ''}</td>
+      </tr>` : ''}</table>
+    </div>` : ''}
+
+    <!-- Operating system card -->
+    ${os.name ? `
+    <div style="background:#fafbfc;border:1px solid #e3e6ec;border-radius:10px;padding:16px 18px;margin-bottom:12px;">
+      <div style="font-size:10.5px;color:#0a6b6b;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:10px;">Operating System</div>
+      <div style="font-size:13.5px;color:#1a1f2b;">${escapeHtml(os.name)}${os.build ? ` &middot; build ${escapeHtml(os.build)}` : ''}${sys.partOfDomain ? ` &middot; domain ${escapeHtml(sys.workgroup || '?')}` : ` &middot; workgroup ${escapeHtml(sys.workgroup || 'WORKGROUP')}`}</div>
+    </div>` : ''}
+
+    <!-- Detected products card -->
+    ${productChips.length ? `
+    <div style="background:#fafbfc;border:1px solid #e3e6ec;border-radius:10px;padding:16px 18px;margin-bottom:12px;">
+      <div style="font-size:10.5px;color:#0a6b6b;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:10px;">Detected Products</div>
+      <div style="margin-bottom:10px;">${chipPills}</div>
+      ${productDetails.length ? `<div style="font-size:12.5px;color:#475063;line-height:1.7;">${productDetails.map(d => `&middot; ${d}`).join('<br>')}</div>` : ''}
+    </div>` : ''}
+
+    <!-- Volumes (compact) -->
+    ${volumes ? `
+    <div style="background:#fafbfc;border:1px solid #e3e6ec;border-radius:10px;padding:16px 18px;margin-bottom:0;">
+      <div style="font-size:10.5px;color:#0a6b6b;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:6px;">Volumes</div>
+      <ul style="font-size:13px;line-height:1.7;margin:0;padding-left:20px;color:#475063;">${volumes}</ul>
+    </div>` : ''}
+
+    <!-- Inventory totals -->
+    ${sw.count || hf.total ? `<p style="font-size:12.5px;color:#8892a4;margin:14px 0 0;">${sw.count ? `${sw.count} installed applications` : ''}${sw.count && hf.total ? ' &middot; ' : ''}${hf.total ? `${hf.total} hotfixes installed` : ''}</p>` : ''}
   `;
 
-  const resp = await fetch(`${RESEND_BASE}/emails`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${env.RESEND_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      from: env.SENDER_FROM || 'Watchtower <onboarding@resend.dev>',
-      to: [env.ALERT_TO],
-      subject,
-      html,
-    }),
+  const html = renderEmailShell({
+    client, hostname, pcId,
+    headline: 'New Host Onboarded',
+    subtitleHtml,
+    severity: 'info',
+    bandText: 'First check-in · one-time intake report',
+    bodyHtml,
   });
-  if (!resp.ok) {
-    const txt = await resp.text();
-    throw new Error(`Resend ${resp.status}: ${txt}`);
-  }
+  await postResendEmail(env, { subject, html });
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -2222,51 +2282,30 @@ function extractOmsaIssues(omsa) {
 // ─────────────────────────────────────────────────────────────────────
 async function sendOmsaWarningEmail(env, { pcId, hostname, client, rollup, version, issues, when }) {
   const sevLabel = rollup === 'bad' ? 'CRITICAL' : 'WARNING';
-  const sevColor = rollup === 'bad' ? '#b00' : '#b4632b';
-  const subject = `Watchtower: OMSA ${sevLabel} — ${hostname} (${client})`;
-  const issuesHtml = issues.length
-    ? `<ul style="margin:6px 0 0 16px; padding:0;">${issues.map(i => `<li>${escapeHtml(i)}</li>`).join('')}</ul>`
-    : `<i>No per-disk detail in this check-in.</i>`;
-  const html = `
-    <div style="font-family: system-ui, -apple-system, Segoe UI, sans-serif; color:#222; max-width:640px;">
-      <h2 style="color:${sevColor}; margin:0 0 12px;">Dell OMSA storage health: ${sevLabel}</h2>
-      <p style="color:#475063; margin:0 0 16px; font-size:14px;">
-        ${escapeHtml(hostname)} (${escapeHtml(client)}) is reporting OMSA rollup <b style="color:${sevColor};">${escapeHtml(rollup)}</b>.
-      </p>
-      <table cellpadding="6" style="border-collapse:collapse; font-size:14px; margin-bottom:16px;">
-        <tr><td style="color:#666; width:120px;">Host</td><td><b>${escapeHtml(hostname)}</b></td></tr>
-        <tr><td style="color:#666;">Client</td><td>${escapeHtml(client)}</td></tr>
-        <tr><td style="color:#666;">OMSA version</td><td>${escapeHtml(version || '?')}</td></tr>
-        <tr><td style="color:#666;">Detected at</td><td>${escapeHtml(when)}</td></tr>
-        <tr><td style="color:#666;">pcId</td><td><code style="font-size:12px;">${escapeHtml(pcId)}</code></td></tr>
-      </table>
-      <div style="background:#fef3c7; border:1px solid #fde68a; color:#78350f; padding:10px 14px; border-radius:8px; font-size:13.5px;">
-        <b>What needs attention:</b>
-        ${issuesHtml}
-      </div>
-      <p style="color:#888; font-size:12px; margin-top:24px;">
-        Sent once per OMSA warning episode (dedupe by omsaFirstWarnAt). You won't get a second email for the same incident; if it clears and reappears, the cycle restarts.
-        Silence per-host: flip <code>emailEnabled</code> off in the host's drawer.
-      </p>
+  const subject = `[Watchtower] ${hostname} · OMSA ${sevLabel} · ${issues.length} Issue${issues.length === 1 ? '' : 's'}`;
+  const subtitleHtml = `on <b style="color:#ffffff;">${escapeHtml(hostname || '?')}</b> &middot; <span style="color:#fca5a5;">rollup ${escapeHtml((rollup || '?').toUpperCase())}${issues.length ? ` &middot; ${issues.length} issue${issues.length === 1 ? '' : 's'}` : ''}</span>`;
+  const issuesListHtml = issues.length
+    ? `<ul style="margin:0;padding-left:18px;font-size:13.5px;color:#7f1d1d;line-height:1.7;">${issues.map(i => `<li>${escapeHtml(i)}</li>`).join('')}</ul>`
+    : `<div style="font-size:13.5px;color:#7f1d1d;font-style:italic;">No per-disk detail in this check-in.</div>`;
+  const bodyHtml = `
+    <p style="font-size:15px;color:#1a1f2b;line-height:1.55;margin:0 0 22px;">
+      This host's Dell OpenManage Server Administrator is reporting a non-OK storage rollup. The issues flagged in the latest check-in:
+    </p>
+    <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:14px 18px;margin-bottom:18px;">
+      <div style="font-size:10.5px;color:#b91c1c;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">What needs attention</div>
+      ${issuesListHtml}
     </div>
+    <p style="font-size:12px;color:#8892a4;margin:0;">OMSA ${escapeHtml(version || '?')} &middot; detected ${escapeHtml(when)}</p>
   `;
-  const resp = await fetch(`${RESEND_BASE}/emails`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${env.RESEND_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      from: env.SENDER_FROM || 'Watchtower <onboarding@resend.dev>',
-      to: [env.ALERT_TO],
-      subject,
-      html,
-    }),
+  const html = renderEmailShell({
+    client, hostname, pcId,
+    headline: `Storage Health: ${sevLabel}`,
+    subtitleHtml,
+    severity: 'critical',
+    bandText: `Dell OMSA · ${sevLabel.toLowerCase()}`,
+    bodyHtml,
   });
-  if (!resp.ok) {
-    const txt = await resp.text();
-    throw new Error(`Resend ${resp.status}: ${txt}`);
-  }
+  await postResendEmail(env, { subject, html });
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -2274,106 +2313,79 @@ async function sendOmsaWarningEmail(env, { pcId, hostname, client, rollup, versi
 // ─────────────────────────────────────────────────────────────────────
 async function sendDiskLowEmail(env, { pcId, hostname, client, drive, freeGB, freePct, sizeGB, severity, when }) {
   const sevLabel = severity === 'critical' ? 'CRITICAL' : 'WARNING';
-  const sevColor = severity === 'critical' ? '#b00' : '#b4632b';
-  const sevBg    = severity === 'critical' ? '#fee2e2' : '#fef3c7';
-  const sevBorder = severity === 'critical' ? '#fca5a5' : '#fde68a';
-  const sevText  = severity === 'critical' ? '#7f1d1d' : '#78350f';
-  const subject = `Watchtower: ${drive} drive ${sevLabel} (${freePct}% / ${freeGB} GB free) — ${hostname} (${client})`;
-  const html = `
-    <div style="font-family: system-ui, -apple-system, Segoe UI, sans-serif; color:#222; max-width:640px;">
-      <h2 style="color:${sevColor}; margin:0 0 12px;">${drive} drive low capacity: ${sevLabel}</h2>
-      <p style="color:#475063; margin:0 0 16px; font-size:14px;">
-        ${escapeHtml(hostname)} (${escapeHtml(client)}) is reporting <b style="color:${sevColor};">${freePct}%</b> free space on <b>${escapeHtml(drive)}</b> &mdash; only <b>${freeGB} GB</b> of <b>${sizeGB} GB</b> remaining.
-      </p>
-      <table cellpadding="6" style="border-collapse:collapse; font-size:14px; margin-bottom:16px;">
-        <tr><td style="color:#666; width:120px;">Host</td><td><b>${escapeHtml(hostname)}</b></td></tr>
-        <tr><td style="color:#666;">Client</td><td>${escapeHtml(client)}</td></tr>
-        <tr><td style="color:#666;">Drive</td><td>${escapeHtml(drive)}</td></tr>
-        <tr><td style="color:#666;">Free</td><td><b style="color:${sevColor};">${freeGB} GB (${freePct}%)</b></td></tr>
-        <tr><td style="color:#666;">Total</td><td>${sizeGB} GB</td></tr>
-        <tr><td style="color:#666;">Detected at</td><td>${escapeHtml(when)}</td></tr>
-        <tr><td style="color:#666;">pcId</td><td><code style="font-size:12px;">${escapeHtml(pcId)}</code></td></tr>
-      </table>
-      <div style="background:${sevBg}; border:1px solid ${sevBorder}; color:${sevText}; padding:10px 14px; border-radius:8px; font-size:13.5px;">
-        <b>What needs attention:</b>
-        <ul style="margin:6px 0 0 16px; padding:0;">
-          <li>Run Disk Cleanup / Storage Sense to clear temp files + Windows Update cache.</li>
-          <li>Check <code>C:\\Windows\\SoftwareDistribution\\Download</code> + <code>C:\\Windows\\Logs\\CBS</code> for old patch debris.</li>
-          <li>Inspect Veeam / WSB destination &mdash; backups landing on C: are a common culprit on Hyper-V hosts.</li>
-          <li>Page file growth on heavily-loaded servers can swallow tens of GB &mdash; relocate to a data drive if possible.</li>
-        </ul>
+  const subject = `[Watchtower] ${hostname} · ${drive} ${sevLabel} (${freePct}% / ${freeGB} GB Free)`;
+  const subtitleHtml = `on <b style="color:#ffffff;">${escapeHtml(hostname || '?')}</b> &middot; <span style="color:#fca5a5;">${freeGB} GB / ${freePct}% free</span>`;
+  const usedPct = Math.max(0, Math.min(100, 100 - (freePct || 0)));
+  const bodyHtml = `
+    <div style="margin-bottom:22px;">
+      <div style="display:block;font-size:11.5px;color:#475063;margin-bottom:6px;">
+        <b style="color:#b91c1c;">${freeGB} GB free</b> &middot; of ${sizeGB} GB total
       </div>
-      <p style="color:#888; font-size:12px; margin-top:24px;">
-        Sent once per low-capacity episode (dedupe by cDriveLowFirstWarnAt). You won't get a second email for the same incident; if free space recovers above 10% / 10 GB and drops again, the cycle restarts.
-        Silence per-host: flip <code>emailEnabled</code> off in the host's drawer.
-      </p>
+      <div style="height:10px;background:#fee2e2;border-radius:5px;overflow:hidden;">
+        <div style="height:10px;width:${usedPct}%;background:#b91c1c;"></div>
+      </div>
+    </div>
+    <p style="font-size:14px;color:#475063;line-height:1.55;margin:0 0 18px;">
+      This host is below the 5% / 5 GB threshold on <b>${escapeHtml(drive)}</b>. Common culprits:
+    </p>
+    <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:14px 18px;margin-bottom:0;">
+      <ul style="margin:0;padding-left:18px;font-size:13.5px;color:#7f1d1d;line-height:1.7;">
+        <li>Storage Sense / Disk Cleanup for temp + Windows Update cache</li>
+        <li><code style="font-family:ui-monospace,Menlo,Consolas,monospace;background:#fff5f5;padding:1px 5px;border-radius:3px;">SoftwareDistribution\\Download</code> + CBS logs</li>
+        <li>Veeam / WSB destination accidentally landing on C: (common on Hyper-V)</li>
+        <li>Page-file growth on heavy-load servers</li>
+      </ul>
     </div>
   `;
-  const resp = await fetch(`${RESEND_BASE}/emails`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${env.RESEND_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      from: env.SENDER_FROM || 'Watchtower <onboarding@resend.dev>',
-      to: [env.ALERT_TO],
-      subject,
-      html,
-    }),
+  const html = renderEmailShell({
+    client, hostname, pcId,
+    headline: `${drive} Drive Critically Low`,
+    subtitleHtml,
+    severity: 'critical',
+    bandText: `Disk capacity · ${sevLabel.toLowerCase()}`,
+    bodyHtml,
   });
-  if (!resp.ok) {
-    const txt = await resp.text();
-    throw new Error(`Resend ${resp.status}: ${txt}`);
-  }
+  await postResendEmail(env, { subject, html });
 }
 
 // ─────────────────────────────────────────────────────────────────────
 // Resend email — Windows Server Backup failure alert
 // ─────────────────────────────────────────────────────────────────────
 async function sendBackupFailureEmail(env, { pcId, hostname, client, result, detail, attemptedAt, lastSuccess, daysSinceSuccess, when }) {
-  const subject = `Watchtower: backup FAILED — ${hostname} (${client})`;
-  const daysLine = daysSinceSuccess != null
-    ? `<tr><td style="color:#666;">Days since success</td><td><b style="color:#b00;">${daysSinceSuccess}</b></td></tr>`
-    : `<tr><td style="color:#666;">Last success</td><td><i>No successful backup on record</i></td></tr>`;
-  const html = `
-    <div style="font-family: system-ui, -apple-system, Segoe UI, sans-serif; color:#222; max-width:600px;">
-      <h2 style="color:#b00; margin:0 0 12px;">Windows Server Backup failed</h2>
-      <table cellpadding="6" style="border-collapse:collapse; font-size:14px;">
-        <tr><td style="color:#666;">Host</td><td><b>${escapeHtml(hostname)}</b></td></tr>
-        <tr><td style="color:#666;">Client</td><td>${escapeHtml(client)}</td></tr>
-        <tr><td style="color:#666;">Result</td><td><code style="color:#b00;"><b>${escapeHtml(result)}</b></code></td></tr>
-        <tr><td style="color:#666;">Attempted at</td><td>${escapeHtml(attemptedAt)}</td></tr>
-        ${lastSuccess ? `<tr><td style="color:#666;">Last successful</td><td>${escapeHtml(lastSuccess)}</td></tr>` : ''}
-        ${daysLine}
-        <tr><td style="color:#666;">Detected</td><td>${escapeHtml(when)}</td></tr>
-        <tr><td style="color:#666;">pcId</td><td><code>${escapeHtml(pcId)}</code></td></tr>
-      </table>
-      ${detail ? `<p style="color:#444; font-size:13px; margin-top:16px; padding:10px; background:#fafafa; border-left:3px solid #b00;"><b>WSB detail:</b><br>${escapeHtml(detail)}</p>` : ''}
-      <p style="color:#888; font-size:12px; margin-top:24px;">
-        Sent once per new failed attempt (deduped by lastBackupTime). To silence
-        these emails for this host, flip <code>emailEnabled</code> off in the
-        agent's per-PC config from the Watchtower dashboard.
-      </p>
-    </div>
+  const daysLabel = daysSinceSuccess != null ? `${daysSinceSuccess} day${daysSinceSuccess === 1 ? '' : 's'} since last success` : 'no successful backup on record';
+  const subject = `[Watchtower] ${hostname} · Backup FAILED · ${daysLabel}`;
+  const subtitleHtml = `on <b style="color:#ffffff;">${escapeHtml(hostname || '?')}</b> &middot; <span style="color:#fca5a5;">${escapeHtml(daysLabel)}</span>`;
+  const bodyHtml = `
+    <p style="font-size:15px;color:#1a1f2b;line-height:1.55;margin:0 0 22px;">
+      The last scheduled WSB run did not complete. ${detail ? 'See the failure detail below.' : 'See the dashboard for the full job history.'}
+    </p>
+    <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:18px;"><tr>
+      <td style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:14px 18px;width:32%;vertical-align:top;text-align:center;">
+        <div style="font-size:10.5px;color:#8892a4;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:4px;">${daysSinceSuccess != null ? 'Days w/o' : 'Last success'}</div>
+        <div style="font-size:${daysSinceSuccess != null ? '28px' : '14px'};color:#b91c1c;font-weight:${daysSinceSuccess != null ? '800' : '700'};line-height:1;">${daysSinceSuccess != null ? daysSinceSuccess : 'never'}</div>
+      </td>
+      <td width="4%"></td>
+      <td style="background:#fafbfc;border:1px solid #e3e6ec;border-radius:10px;padding:14px 18px;vertical-align:top;">
+        <div style="font-size:10.5px;color:#8892a4;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:4px;">Failure result</div>
+        <div style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:14px;color:#b91c1c;font-weight:700;line-height:1.3;word-break:break-all;">${escapeHtml(result || 'unknown')}</div>
+        <div style="font-size:11.5px;color:#475063;margin-top:6px;">attempted ${escapeHtml(attemptedAt || when)}${lastSuccess ? ` &middot; last success ${escapeHtml(lastSuccess)}` : ''}</div>
+      </td>
+    </tr></table>
+    ${detail ? `
+    <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:14px 16px;margin-bottom:0;">
+      <div style="font-size:10.5px;color:#b91c1c;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;">WSB detail</div>
+      <div style="font-size:13.5px;color:#7f1d1d;line-height:1.55;">${escapeHtml(detail)}</div>
+    </div>` : ''}
   `;
-  const resp = await fetch(`${RESEND_BASE}/emails`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${env.RESEND_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      from: env.SENDER_FROM || 'Watchtower <onboarding@resend.dev>',
-      to: [env.ALERT_TO],
-      subject,
-      html,
-    }),
+  const html = renderEmailShell({
+    client, hostname, pcId,
+    headline: 'Backup Failed',
+    subtitleHtml,
+    severity: 'critical',
+    bandText: 'Windows Server Backup · critical',
+    bodyHtml,
   });
-  if (!resp.ok) {
-    const txt = await resp.text();
-    throw new Error(`Resend ${resp.status}: ${txt}`);
-  }
+  await postResendEmail(env, { subject, html });
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -2384,51 +2396,42 @@ async function sendBackupFailureEmail(env, { pcId, hostname, client, result, det
 // (the admin's already aware they did it). This email is the heads-up
 // that someone (or something) removed the agent on the box itself.
 async function sendUninstallEmail(env, { pcId, hostname, client, source, reason, when }) {
-  const subject = `Watchtower: agent uninstalled — ${hostname} (${client})`;
-  const sourceLabel = source === 'agent-uninstall'
-    ? 'Uninstalled at the host (Control Panel or operator-initiated)'
+  const subject = `[Watchtower] ${hostname} · Agent Decommissioned`;
+  const sourceShort = source === 'agent-uninstall' ? 'uninstalled at host'
+    : source === 'admin' ? 'decommissioned by admin'
+    : (source || 'unknown source');
+  const sourceLong = source === 'agent-uninstall'
+    ? 'The uninstaller ran on the host (Control Panel or operator-initiated).'
     : source === 'admin'
-      ? 'Marked decommissioned by an admin from the dashboard'
-      : `source: ${source || 'unknown'}`;
-  const html = `
-    <div style="font-family: system-ui, -apple-system, Segoe UI, sans-serif; color:#222; max-width:600px;">
-      <h2 style="color:#475063; margin:0 0 12px;">Agent decommissioned</h2>
-      <p style="color:#475063; margin:0 0 16px; font-size:14px;">
-        <b>${escapeHtml(hostname)}</b> (${escapeHtml(client)}) has been removed from Watchtower.
-        ${escapeHtml(sourceLabel)}.
-      </p>
-      <table cellpadding="6" style="border-collapse:collapse; font-size:14px;">
-        <tr><td style="color:#666; width:120px;">Host</td><td><b>${escapeHtml(hostname)}</b></td></tr>
-        <tr><td style="color:#666;">Client</td><td>${escapeHtml(client)}</td></tr>
-        <tr><td style="color:#666;">Source</td><td><code>${escapeHtml(source || 'unknown')}</code></td></tr>
-        <tr><td style="color:#666;">When</td><td>${escapeHtml(when)}</td></tr>
-        ${reason ? `<tr><td style="color:#666;">Reason</td><td>${escapeHtml(reason)}</td></tr>` : ''}
-        <tr><td style="color:#666;">pcId</td><td><code style="font-size:12px;">${escapeHtml(pcId)}</code></td></tr>
-      </table>
-      <p style="color:#888; font-size:12px; margin-top:24px;">
-        The host's row stays in the dashboard with a Decommissioned badge until you delete it.
-        If the same machine is re-installed with the Watchtower agent (preserving its pcId),
-        it'll automatically reactivate on next check-in.
-      </p>
-    </div>
+      ? 'An admin marked this host decommissioned from the dashboard.'
+      : `Source: ${escapeHtml(source || 'unknown')}.`;
+  const subtitleHtml = `on <b style="color:#ffffff;">${escapeHtml(hostname || '?')}</b> &middot; ${escapeHtml(sourceShort)}`;
+  const bodyHtml = `
+    <p style="font-size:15px;color:#1a1f2b;line-height:1.55;margin:0 0 22px;">
+      This host has been removed from Watchtower. ${sourceLong} The row stays in the dashboard with a Decommissioned badge until you delete it. If the agent is reinstalled with the same pcId, it'll automatically reactivate on next check-in.
+    </p>
+    <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:0;"><tr>
+      <td style="background:#f4f6f9;border-radius:10px;padding:14px 18px;width:48%;vertical-align:top;">
+        <div style="font-size:10.5px;color:#8892a4;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:4px;">Source</div>
+        <div style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:14px;color:#475063;">${escapeHtml(source || 'unknown')}</div>
+      </td>
+      <td width="4%"></td>
+      <td style="background:#f4f6f9;border-radius:10px;padding:14px 18px;width:48%;vertical-align:top;">
+        <div style="font-size:10.5px;color:#8892a4;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:4px;">When</div>
+        <div style="font-size:14px;color:#1a1f2b;">${escapeHtml(when)}</div>
+      </td>
+    </tr></table>
+    ${reason ? `<p style="font-size:13px;color:#475063;margin:16px 0 0;"><b style="color:#1a1f2b;">Reason:</b> ${escapeHtml(reason)}</p>` : ''}
   `;
-  const resp = await fetch(`${RESEND_BASE}/emails`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${env.RESEND_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      from: env.SENDER_FROM || 'Watchtower <onboarding@resend.dev>',
-      to: [env.ALERT_TO],
-      subject,
-      html,
-    }),
+  const html = renderEmailShell({
+    client, hostname, pcId,
+    headline: 'Agent Decommissioned',
+    subtitleHtml,
+    severity: 'neutral',
+    bandText: 'Agent lifecycle',
+    bodyHtml,
   });
-  if (!resp.ok) {
-    const txt = await resp.text();
-    throw new Error(`Resend ${resp.status}: ${txt}`);
-  }
+  await postResendEmail(env, { subject, html });
 }
 
 // ─────────────────────────────────────────────────────────────────────
@@ -2547,9 +2550,9 @@ function buildGoogleChatCard(p, summary) {
   const client = p.client || 'unknown';
   const eventLabel = _gchatEventLabel(p.event);
   const headerIcon = 'https://frank-umbrella.github.io/work/watchtower/icon-192.png';
-  const dashboardUrl = p.pcId
-    ? `https://frank-umbrella.github.io/work/watchtower/?pc=${encodeURIComponent(p.pcId)}`
-    : 'https://frank-umbrella.github.io/work/watchtower/';
+  // Reuse the same dashboard URL helper the email templates use so deep
+  // links stay consistent across surfaces.
+  const cardUrl = dashboardUrl(p.pcId);
 
   const widgets = [];
 
@@ -2631,7 +2634,7 @@ function buildGoogleChatCard(p, summary) {
       buttons: [
         {
           text: p.pcId ? 'Open host in dashboard' : 'Open Watchtower',
-          onClick: { openLink: { url: dashboardUrl } },
+          onClick: { openLink: { url: cardUrl } },
         },
       ],
     },
