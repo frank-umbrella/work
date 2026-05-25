@@ -1984,12 +1984,15 @@ function fieldBool(field, fallback) {
 
 const DASHBOARD_BASE = 'https://frank-umbrella.github.io/work/watchtower/';
 
-// SVG mark, inlined so the email doesn't depend on an external image
-// host (some clients block remote images by default until the user
-// clicks "show pictures"). Same crenellated tower + cyan beacon as
-// the dashboard favicon, with a faded-white fill inside the disc so
-// the icon reads on the teal gradient hero.
-const TOWER_ICON_SVG = '<svg width="42" height="42" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><circle cx="32" cy="32" r="30" fill="rgba(255,255,255,0.08)" stroke="#5af4e3" stroke-width="2"/><rect x="18" y="14" width="4" height="6" fill="#ffffff"/><rect x="26" y="14" width="4" height="6" fill="#ffffff"/><rect x="34" y="14" width="4" height="6" fill="#ffffff"/><rect x="42" y="14" width="4" height="6" fill="#ffffff"/><rect x="16" y="20" width="32" height="4" fill="#ffffff"/><rect x="20" y="24" width="24" height="30" fill="#ffffff"/><circle cx="32" cy="32" r="4" fill="#5af4e3"/><rect x="24" y="38" width="3" height="8" fill="#0a6b6b"/><rect x="37" y="38" width="3" height="8" fill="#0a6b6b"/></svg>';
+// Watchtower mark used in every email hero. Inline SVG works in browser
+// previews but Outlook / Gmail / Apple Mail strip or ignore it. Switched
+// to a hosted PNG <img> -- the same icon-192.png served from GitHub
+// Pages that the dashboard + Google Chat card already use. Width/height
+// attributes are required for Outlook (which otherwise renders the img
+// at natural 192x192). Alt text shows when remote images are blocked
+// before the user clicks "show images".
+const TOWER_ICON_PNG = 'https://frank-umbrella.github.io/work/watchtower/icon-192.png';
+const TOWER_ICON_IMG = `<img src="${TOWER_ICON_PNG}" width="42" height="42" alt="Watchtower" style="display:block;border-radius:8px;">`;
 
 const SEVERITY_PALETTE = {
   info:     { bg: '#e6f4f4', text: '#074a4a', border: '#d0e8e8', dot: '#0a6b6b' },
@@ -2022,7 +2025,7 @@ function renderEmailShell({ client, hostname, headline, subtitleHtml, severity, 
       <!-- Hero -->
       <div style="background:linear-gradient(135deg,#0a6b6b 0%,#074a4a 100%);padding:24px 30px;color:#ffffff;">
         <table cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
-          <td width="50" style="vertical-align:middle;">${TOWER_ICON_SVG}</td>
+          <td width="50" style="vertical-align:middle;">${TOWER_ICON_IMG}</td>
           <td style="vertical-align:middle;padding-left:14px;">
             <div style="font-size:11px;color:#5af4e3;text-transform:uppercase;letter-spacing:0.1em;font-weight:600;">Umbrella Automation &middot; Watchtower</div>
           </td>
@@ -2912,29 +2915,36 @@ function _gchatFact(label, value, iconName) {
   };
 }
 
+// Short notification-preview text shown above the card in chat clients
+// (Google Chat room list, mobile push notifications) and used as the
+// Slack/Discord text fallback. Kept under ~80 chars per line so it
+// wraps cleanly on phone-sized screens. Format: "Watchtower · CLIENT ·
+// HEADLINE on HOST" -- three space-padded segments so the chat client
+// can wrap at the middle dots.
 function humanSummary(p) {
   if (!p || typeof p !== 'object') return 'Watchtower event';
   const host = p.hostname || '?';
-  const client = p.client || 'unknown';
+  const client = p.client || 'Unassigned';
+  const prefix = `Watchtower · ${client}`;
   switch (p.event) {
     case 'test':
-      return `Watchtower test event from ${p.triggeredBy || 'dashboard'} at ${p.when || new Date().toISOString()}`;
+      return `${prefix} · Test event from ${p.triggeredBy || 'dashboard'}`;
     case 'host_onboarded':
-      return `Watchtower: new endpoint joined — ${host} (${client})${p.manufacturer || p.model ? ` · ${[p.manufacturer, p.model].filter(Boolean).join(' ')}` : ''}${p.os ? ` · ${p.os}` : ''}${p.externalIp ? ` · IP ${p.externalIp}` : ''}`;
+      return `${prefix} · New host onboarded: ${host}`;
     case 'external_ip_changed':
-      return `Watchtower: external IP changed on ${host} (${client}): ${p.previousIp || '?'} → ${p.newIp || '?'}`;
+      return `${prefix} · External IP changed on ${host} (now ${p.newIp || '?'})`;
     case 'omsa_warning':
-      return `Watchtower: OMSA ${p.rollup || 'warn'} on ${host} (${client})${(p.issues && p.issues.length) ? ` — ${p.issues.slice(0, 3).join('; ')}` : ''}`;
+      return `${prefix} · OMSA ${String(p.rollup || 'WARN').toUpperCase()} on ${host}`;
     case 'wsb_backup_failed':
-      return `Watchtower: backup failed on ${host} (${client}). Result: ${p.result || '?'}${p.daysSinceSuccess != null ? `, ${p.daysSinceSuccess}d since last success` : ''}`;
+      return `${prefix} · Backup FAILED on ${host}${p.daysSinceSuccess != null ? ` (${p.daysSinceSuccess}d w/o success)` : ''}`;
     case 'disk_low':
-      return `Watchtower: ${p.drive || 'C:'} drive ${(p.severity || 'warning').toUpperCase()} on ${host} (${client}) — ${p.freePct}% / ${p.freeGB} GB free of ${p.sizeGB} GB`;
+      return `${prefix} · ${p.drive || 'C:'} ${(p.severity || 'warning').toUpperCase()} on ${host} (${p.freePct}% free)`;
     case 'agent_uninstalled':
-      return `Watchtower: agent uninstalled on ${host} (${client})${p.reason ? ` — ${p.reason}` : ''}`;
+      return `${prefix} · Agent uninstalled on ${host}`;
     case 'agent_decommissioned':
-      return `Watchtower: ${host} (${client}) marked decommissioned by admin`;
+      return `${prefix} · ${host} decommissioned by admin`;
     default:
-      return `Watchtower event: ${p.event || 'unknown'} on ${host} (${client})`;
+      return `${prefix} · ${p.event || 'event'} on ${host}`;
   }
 }
 
