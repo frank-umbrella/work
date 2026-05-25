@@ -1376,7 +1376,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.95";
+const APP_VERSION = "0.14.96";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -7779,7 +7779,12 @@ function renderVeeam(veeam) {
             ? `<span class="badge muted" title="${esc(p.recentSessionsError)}">sessions unavailable</span>`
             : `<span class="meta">no sessions</span>`);
     } else if (lj && lj.result) {
-      rightSide = `<span class="badge ${lj.result === 'Success' ? 'ok' : 'warn'}">${esc(lj.result)}</span>${lj.endTime ? `<br><small>${esc(lj.endTime)}</small>` : ""}`;
+      // Same Firestore-Timestamp defense as the recent-sessions block
+      // below -- dateToIso() handles strings, Date objects, and the
+      // {seconds, nanoseconds} shape the SDK hydrates timestamps as.
+      const ljWhenIso = dateToIso(lj.endTime);
+      const ljWhenDisplay = ljWhenIso ? ljWhenIso.replace('T', ' ').replace(/\.\d+Z?$/, '').replace(/Z$/, '') : '';
+      rightSide = `<span class="badge ${lj.result === 'Success' ? 'ok' : 'warn'}">${esc(lj.result)}</span>${ljWhenDisplay ? `<br><small>${esc(ljWhenDisplay)}</small>` : ""}`;
     } else if (p.lastJobReason) {
       // Probe ran but couldn't read session data -- surface WHY. Earlier
       // versions silently left the cell blank, so a host with no completed
@@ -7841,7 +7846,14 @@ function renderVeeam(veeam) {
           : r === 'warning' ? 'warn'
           : r === 'failed' ? 'bad'
           : 'muted';
-        const when = s.endTime || s.creationTime || '';
+        // dateToIso() normalizes any shape (string / Date / Firestore
+        // Timestamp / {seconds,nanoseconds}) into an ISO string we
+        // can then slice/replace. Without this the renderer crashes
+        // with "when.replace is not a function" when Firestore
+        // hydrates the field as a Timestamp object (observed on a
+        // host running 0.14.41).
+        const whenIso = dateToIso(s.endTime || s.creationTime);
+        const whenDisplay = whenIso ? whenIso.replace('T', ' ').replace(/\.\d+Z?$/, '').replace(/Z$/, '') : '';
         return `<div class="row">
           <div>
             <div class="name">${esc(s.jobName || s.name || '(unnamed session)')}</div>
@@ -7849,7 +7861,7 @@ function renderVeeam(veeam) {
           </div>
           <div class="meta" style="text-align:right;">
             <span class="badge ${tone}">${esc(s.result || '?')}</span>
-            ${when ? `<div style="font-size:11px;margin-top:2px;">${esc(when.replace('T', ' '))}</div>` : ''}
+            ${whenDisplay ? `<div style="font-size:11px;margin-top:2px;">${esc(whenDisplay)}</div>` : ''}
           </div>
         </div>`;
       }).join("")}
