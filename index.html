@@ -211,7 +211,10 @@
   .preview {
     position: relative;
     width: 100%;
-    height: 240px;
+    /* Match the 1200x630 OG-image aspect ratio so OG previews fill
+       the tile edge-to-edge without cropping the title, and iframe
+       previews stay the same shape for visual consistency. */
+    aspect-ratio: 1200 / 630;
     overflow: hidden;
     background: var(--bg);
     border-bottom: 1px solid var(--line);
@@ -233,13 +236,13 @@
     margin-left: -189px;
   }
   /* Cards that opt into an OG image preview render an <img> in place
-     of the iframe. object-fit: contain shows the whole 1200x630 image
-     without cropping the title text; the preview's bg fills the
-     letterbox on top and bottom. */
+     of the iframe. The preview box matches the 1200x630 aspect ratio
+     so cover and contain are equivalent here -- the image fills the
+     tile exactly with no crop. */
   .preview img.og {
     width: 100%;
     height: 100%;
-    object-fit: contain;
+    object-fit: cover;
     object-position: center;
     display: block;
   }
@@ -472,7 +475,7 @@
 </main>
 
 <footer class="page">
-  <p>Work hub <span class="version">v0.5.2</span> &middot; static site &middot; add tiles by dropping new folders alongside this page.</p>
+  <p>Work hub <span class="version">v0.5.3</span> &middot; static site &middot; add tiles by dropping new folders alongside this page.</p>
 </footer>
 
 <script>
