@@ -1222,6 +1222,64 @@
 
           <hr style="margin:24px 0;border:0;border-top:1px solid var(--line);">
 
+          <!-- Email notification opt-ins. Stored in /settings/notifications.
+               Each key gates the matching email send call in the worker.
+               Defaults to "all enabled" so existing fleets keep their
+               current behavior until the operator explicitly turns
+               something off. -->
+          <h3 style="margin:0 0 4px;font-size:14px;">Email notifications</h3>
+          <p style="margin:0 0 10px;color:var(--ink-soft);font-size:13px;">Choose which alert categories you want to receive emails for. Disabled categories still get logged + reflected on the dashboard &mdash; only the email is suppressed. Webhook deliveries are independent (toggled per host in the drawer's Config section).</p>
+          <div id="notifPrefsGrid" style="display:grid;grid-template-columns:max-content 1fr;gap:8px 14px;max-width:680px;align-items:start;">
+            <label style="display:flex;gap:8px;align-items:center;font-size:13.5px;cursor:pointer;">
+              <input type="checkbox" data-notif-key="intake" checked style="margin:0;">
+              <span style="font-weight:600;">New host intake</span>
+            </label>
+            <span class="meta" style="font-size:12.5px;">Fires once when a brand-new agent checks in for the first time. Useful to confirm a deploy landed; can get noisy during big rollouts.</span>
+
+            <label style="display:flex;gap:8px;align-items:center;font-size:13.5px;cursor:pointer;">
+              <input type="checkbox" data-notif-key="ipChange" checked style="margin:0;">
+              <span style="font-weight:600;">External IP change</span>
+            </label>
+            <span class="meta" style="font-size:12.5px;">A host's public IP changed between check-ins. Helps catch ISP failover, VPN drops, or unexpected location changes; on dynamic-IP residential lines this can fire weekly.</span>
+
+            <label style="display:flex;gap:8px;align-items:center;font-size:13.5px;cursor:pointer;">
+              <input type="checkbox" data-notif-key="omsaWarning" checked style="margin:0;">
+              <span style="font-weight:600;">Dell OMSA storage warning</span>
+            </label>
+            <span class="meta" style="font-size:12.5px;">RAID array or physical disk reports non-OK status. Fires once on the OK&rarr;warn transition (not every check-in while degraded).</span>
+
+            <label style="display:flex;gap:8px;align-items:center;font-size:13.5px;cursor:pointer;">
+              <input type="checkbox" data-notif-key="diskLow" checked style="margin:0;">
+              <span style="font-weight:600;">C: drive low capacity</span>
+            </label>
+            <span class="meta" style="font-size:12.5px;">C: drops below 10% free OR 10 GB free. Fires once on the transition; persistent low-disk state stays silent until it recovers + re-drops.</span>
+
+            <label style="display:flex;gap:8px;align-items:center;font-size:13.5px;cursor:pointer;">
+              <input type="checkbox" data-notif-key="backupDiskAged" checked style="margin:0;">
+              <span style="font-weight:600;">Backup disk aged out</span>
+            </label>
+            <span class="meta" style="font-size:12.5px;">Primary WSB backup target has been in continuous rotation past the threshold above. Fires once per disk; clears + can re-fire if the disk is swapped.</span>
+
+            <label style="display:flex;gap:8px;align-items:center;font-size:13.5px;cursor:pointer;">
+              <input type="checkbox" data-notif-key="backupFailure" checked style="margin:0;">
+              <span style="font-weight:600;">Backup failure (WSB)</span>
+            </label>
+            <span class="meta" style="font-size:12.5px;">Windows Server Backup reports a Failed or Error result on a new attempt. Deduped by lastBackupTime &mdash; you get one email per failed run, not one per check-in.</span>
+
+            <label style="display:flex;gap:8px;align-items:center;font-size:13.5px;cursor:pointer;">
+              <input type="checkbox" data-notif-key="uninstall" checked style="margin:0;">
+              <span style="font-weight:600;">Agent uninstalled</span>
+            </label>
+            <span class="meta" style="font-size:12.5px;">Fires when an agent uninstalls itself (Add/Remove Programs run on the host). Heads-up that the dashboard will stop receiving data from that endpoint.</span>
+          </div>
+          <div style="margin-top:14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <button class="btn btn-primary btn-sm" id="saveNotifPrefs">Save</button>
+            <button class="btn btn-sm" id="enableAllNotifPrefs" title="Tick every box and save -- restores default behavior">Enable all</button>
+            <span class="meta" id="notifPrefsStatus" style="margin-left:6px;"></span>
+          </div>
+
+          <hr style="margin:24px 0;border:0;border-top:1px solid var(--line);">
+
           <h3 style="margin:0 0 4px;font-size:14px;">Latest agent version <span class="meta" style="font-weight:400;text-transform:none;letter-spacing:0;">(optional override)</span></h3>
           <p style="margin:0 0 10px;color:var(--ink-soft);font-size:13px;">After <code>build.ps1 -Publish</code> uploads to GitHub Releases, the worker automatically picks up the latest <code>watchtower-v*</code> tag — Download Installer + Update-available badges + auto-update all "just work" with no paste-in step. Set the fields below only when you want to <b>pin or stage</b> a specific version (e.g. hold back a hotfix while testing). Empty fields = use whatever GitHub Releases has as latest.</p>
           <div style="display:grid;grid-template-columns:120px 1fr;gap:10px 12px;max-width:720px;align-items:center;">
@@ -1376,7 +1434,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.98";
+const APP_VERSION = "0.14.99";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -2538,6 +2596,55 @@ document.getElementById("resetBackupDiskAge").addEventListener("click", async ()
   } catch (e) {
     if (status) status.innerHTML = `<span style="color:var(--danger);">Reset failed: ${esc(e.message || String(e))}</span>`;
   }
+});
+
+// ============== Notification preferences wiring ==============
+// Mirror of the worker's NOTIF_KEYS list. Each checkbox in the
+// Settings panel writes a single boolean into /settings/notifications.
+// Live subscription paints the saved state into the checkboxes on
+// load (and on changes from other admin sessions).
+const NOTIF_PREF_KEYS = ['intake', 'ipChange', 'omsaWarning', 'diskLow', 'backupDiskAged', 'backupFailure', 'uninstall'];
+
+// Live-subscribe to /settings/notifications so checkboxes reflect the
+// saved state on first render AND update if another admin changes
+// them from a different browser session.
+onSnapshot(doc(db, "settings", "notifications"), (snap) => {
+  const data = snap.exists() ? (snap.data() || {}) : {};
+  for (const key of NOTIF_PREF_KEYS) {
+    const cb = document.querySelector(`[data-notif-key="${key}"]`);
+    if (!cb) continue;
+    // Missing field = default true (matches worker behavior). Only
+    // an explicit false unchecks the box.
+    cb.checked = data[key] !== false;
+  }
+});
+
+document.getElementById("saveNotifPrefs").addEventListener("click", async () => {
+  const status = document.getElementById("notifPrefsStatus");
+  const payload = {
+    updatedBy: state.profile && state.profile.email || "unknown",
+    updatedAt: new Date().toISOString(),
+  };
+  for (const key of NOTIF_PREF_KEYS) {
+    const cb = document.querySelector(`[data-notif-key="${key}"]`);
+    payload[key] = !!(cb && cb.checked);
+  }
+  try {
+    await setDoc(doc(db, "settings", "notifications"), payload);
+    if (status) status.textContent = `Saved.`;
+    setTimeout(() => { if (status) status.textContent = ""; }, 3000);
+  } catch (e) {
+    if (status) status.innerHTML = `<span style="color:var(--danger);">Save failed: ${esc(e.message || String(e))}</span>`;
+  }
+});
+
+document.getElementById("enableAllNotifPrefs").addEventListener("click", async () => {
+  // Tick every box in the UI, then trigger Save so the change persists.
+  for (const key of NOTIF_PREF_KEYS) {
+    const cb = document.querySelector(`[data-notif-key="${key}"]`);
+    if (cb) cb.checked = true;
+  }
+  document.getElementById("saveNotifPrefs").click();
 });
 
 document.getElementById("saveMasterWebhook").addEventListener("click", () => {

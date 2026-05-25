@@ -447,7 +447,9 @@ async function handleUninstall(request, env, ctx) {
 
   // Optional email — same channel as IP-change / WSB failure alerts so
   // admins get a heads-up that an agent left the fleet on its own.
-  if (env.RESEND_API_KEY) {
+  // Gated by /settings/notifications.uninstall (defaults true).
+  const uninstallNotifPrefs = await readNotificationPrefs(env, accessToken);
+  if (env.RESEND_API_KEY && uninstallNotifPrefs.uninstall) {
     ctx.waitUntil(
       sendUninstallEmail(env, {
         pcId,
@@ -1574,6 +1576,12 @@ async function handleCheckin(request, env, ctx) {
   // configurable from the dashboard's Settings tab); falls back to 913
   // days (~2.5y) when the setting is absent or unparseable. Same default
   // as the dashboard's BACKUP_DISK_AGE_DEFAULT_DAYS constant.
+  // Per-event notification preferences. Defaults to "all on" so the
+  // worker behaves exactly as before when /settings/notifications
+  // doesn't exist. Operator can disable individual email categories
+  // from the dashboard Settings tab.
+  const notifPrefs = await readNotificationPrefs(env, accessToken);
+
   const backupAgeSettingDoc = await firestoreGetDoc(env, accessToken, 'settings/backupDiskAge');
   const backupAgeThresholdRaw = backupAgeSettingDoc?.fields?.thresholdDays?.integerValue
     ?? backupAgeSettingDoc?.fields?.thresholdDays?.doubleValue
@@ -1809,7 +1817,7 @@ async function handleCheckin(request, env, ctx) {
   // Both fire exactly once per pcId — firstSeen only triggers before the
   // first setDoc above.
   if (firstSeen && config.enabled) {
-    if (config.emailEnabled && env.RESEND_API_KEY) {
+    if (config.emailEnabled && env.RESEND_API_KEY && notifPrefs.intake) {
       ctx.waitUntil(
         sendIntakeEmail(env, {
           pcId,
@@ -1861,7 +1869,7 @@ async function handleCheckin(request, env, ctx) {
   // notifications fire in the background. If the agent's HTTP timeout is
   // short, this matters; we still observe failures via wrangler tail.
   if (ipChanged && config.enabled) {
-    if (config.emailEnabled && env.RESEND_API_KEY) {
+    if (config.emailEnabled && env.RESEND_API_KEY && notifPrefs.ipChange) {
       ctx.waitUntil(
         sendIpChangeEmail(env, {
           pcId,
@@ -1910,7 +1918,7 @@ async function handleCheckin(request, env, ctx) {
       client: resolvedClient,
       details: { rollup: omsaRollup, issues, omsaVersion: omsaCurrent?.version || null },
     }));
-    if (config.emailEnabled && env.RESEND_API_KEY) {
+    if (config.emailEnabled && env.RESEND_API_KEY && notifPrefs.omsaWarning) {
       ctx.waitUntil(
         sendOmsaWarningEmail(env, {
           pcId,
@@ -1964,7 +1972,7 @@ async function handleCheckin(request, env, ctx) {
         severity: cDriveIsCritical ? 'critical' : 'warning',
       },
     }));
-    if (config.emailEnabled && env.RESEND_API_KEY) {
+    if (config.emailEnabled && env.RESEND_API_KEY && notifPrefs.diskLow) {
       ctx.waitUntil(
         sendDiskLowEmail(env, {
           pcId,
@@ -2020,7 +2028,7 @@ async function handleCheckin(request, env, ctx) {
         newestBackup: backupAgedFinding.newestBackup,
       },
     }));
-    if (config.emailEnabled && env.RESEND_API_KEY) {
+    if (config.emailEnabled && env.RESEND_API_KEY && notifPrefs.backupDiskAged) {
       ctx.waitUntil(
         sendBackupDiskAgedEmail(env, {
           pcId,
@@ -2079,7 +2087,7 @@ async function handleCheckin(request, env, ctx) {
       },
     }));
 
-    if (config.emailEnabled && env.RESEND_API_KEY) {
+    if (config.emailEnabled && env.RESEND_API_KEY && notifPrefs.backupFailure) {
       ctx.waitUntil(
         sendBackupFailureEmail(env, {
           pcId,
@@ -3623,6 +3631,42 @@ async function getServiceAccountToken(env) {
     expiresAt: Date.now() + (data.expires_in - 120) * 1000,
   };
   return data.access_token;
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Notification preferences. Operator-controlled opt-in/out for each
+// email type, stored at /settings/notifications. ALL DEFAULT TO TRUE
+// so the worker behavior is identical to pre-v0.14.99 when the doc
+// doesn't exist yet (fresh installs, doc never written).
+//
+// Keys mirror the email send function names without the "send"/"Email"
+// affixes -- intake, ipChange, omsaWarning, diskLow, backupDiskAged,
+// backupFailure, uninstall. Each is a boolean.
+//
+// Called once per check-in (and once in handleUninstall). One Firestore
+// read per call. At the volume Watchtower runs at this is well below
+// any quota concern; we don't bother caching across requests.
+// ─────────────────────────────────────────────────────────────────────
+const NOTIF_KEYS = ['intake', 'ipChange', 'omsaWarning', 'diskLow', 'backupDiskAged', 'backupFailure', 'uninstall'];
+
+async function readNotificationPrefs(env, accessToken) {
+  // Default everything to enabled -- preserves pre-feature behavior
+  // when the settings doc has never been written.
+  const out = {};
+  for (const k of NOTIF_KEYS) out[k] = true;
+  try {
+    const doc = await firestoreGetDoc(env, accessToken, 'settings/notifications');
+    if (!doc || !doc.fields) return out;
+    for (const k of NOTIF_KEYS) {
+      const v = doc.fields[k]?.booleanValue;
+      if (typeof v === 'boolean') out[k] = v;
+    }
+  } catch (e) {
+    // Read failure is non-fatal -- fall back to defaults rather than
+    // suppressing notifications because Firestore had a hiccup.
+    console.warn('readNotificationPrefs failed (using defaults):', e);
+  }
+  return out;
 }
 
 async function firestoreGetDoc(env, accessToken, path) {
