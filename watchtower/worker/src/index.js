@@ -1397,26 +1397,41 @@ async function handleCheckin(request, env, ctx) {
 
   // ----- 3c. Track OMSA storage warning duration -----
   // omsaFirstWarnAt is the timestamp at which OMSA's healthRollup first
-  // went non-OK. We set it on the OK→warn/bad transition, preserve it
-  // while the warning persists across check-ins, and clear it on the
-  // warn/bad→OK transition (or when OMSA is no longer installed). The
-  // dashboard computes "Nd warn" from this field.
+  // went non-OK. The dashboard renders "Nd warn" from it; the alert
+  // pipeline uses the transition into a non-null value as the "new
+  // warning" signal (omsaNewWarning below).
   //
-  // "unknown" rollup is treated as OK for this purpose — we don't want
-  // to flag a host just because the probe couldn't read its state on
-  // one check-in.
+  // Transitions:
+  //   OK -> warn/bad      set to nowIso (new warning, fires email/webhook)
+  //   warn/bad -> ok      clear (recovery -- next warn will re-fire)
+  //   uninstalled         clear (host can't report any more, stop tracking)
+  //   warn -> warn        preserve (persistent warning, silent)
+  //
+  // The critical case: warn -> unknown. The OMSA probe can transiently
+  // return "unknown" for a single check-in (one status field empty,
+  // omreport CSV parse glitch, controller momentarily not responding).
+  // Earlier versions cleared the timestamp here, then re-fired the
+  // email on the next check-in when the rollup went back to "warn" --
+  // that's why the same host could receive the same OMSA warning email
+  // multiple times for one persistent condition. Preserve the timestamp
+  // through "unknown" so a transient probe miss can't trip the re-fire.
   const omsaCurrent = report?.omsa;
   const omsaPrevWarnAt = existing?.fields?.omsaFirstWarnAt?.stringValue || null;
   const omsaInstalled = omsaCurrent?.installed === true;
   const omsaRollup = omsaCurrent?.healthRollup;
   const omsaIsNonOk = omsaInstalled && (omsaRollup === 'warn' || omsaRollup === 'bad');
+  const omsaIsDefinitivelyOk = omsaInstalled && omsaRollup === 'ok';
   let omsaFirstWarnAt;
   if (omsaIsNonOk && !omsaPrevWarnAt) {
-    omsaFirstWarnAt = nowIso;  // first detected this check-in
-  } else if (!omsaIsNonOk) {
-    omsaFirstWarnAt = null;  // back to OK / not installed → clear
+    omsaFirstWarnAt = nowIso;                // OK -> warn/bad (fresh warning)
+  } else if (omsaIsNonOk) {
+    omsaFirstWarnAt = omsaPrevWarnAt;         // warn -> warn (preserve start)
+  } else if (omsaIsDefinitivelyOk || !omsaInstalled) {
+    omsaFirstWarnAt = null;                   // recovery or no longer installed
   } else {
-    omsaFirstWarnAt = omsaPrevWarnAt;  // still warning → preserve start
+    // omsaInstalled=true but rollup is "unknown" -- preserve whatever
+    // we had so a transient probe miss doesn't reset the dedupe gate.
+    omsaFirstWarnAt = omsaPrevWarnAt;
   }
 
   // ----- 3e. Track low C: drive capacity -----
@@ -1448,14 +1463,26 @@ async function handleCheckin(request, env, ctx) {
     (cDriveFreePct !== null && cDriveFreePct < 5) ||
     (cDriveFreeGB !== null && cDriveFreeGB < 5)
   );
+  // Distinguish "definitively measured, not low" from "no measurement
+  // available". When the storage probe transiently fails to return a
+  // C: volume (rare, but possible during Hyper-V snapshot pauses or
+  // VSS hangs), cDriveFreeGB/Pct are both null -- treating that as
+  // "recovered" cleared the dedupe gate and caused the email to re-fire
+  // on the next check-in when the volume reappeared still under
+  // threshold. Preserve the timestamp through no-measurement check-ins.
+  const cDriveHasMeasurement = cDriveFreeGB !== null && cDriveFreePct !== null;
+  const cDriveDefinitivelyOk = cDriveHasMeasurement && !cDriveIsLow;
   const cDrivePrevWarnAt = existing?.fields?.cDriveLowFirstWarnAt?.stringValue || null;
   let cDriveLowFirstWarnAt;
   if (cDriveIsLow && !cDrivePrevWarnAt) {
-    cDriveLowFirstWarnAt = nowIso;   // OK -> low transition this checkin
-  } else if (!cDriveIsLow) {
-    cDriveLowFirstWarnAt = null;     // recovered (or no measurement)
+    cDriveLowFirstWarnAt = nowIso;          // OK -> low (fresh warning)
+  } else if (cDriveIsLow) {
+    cDriveLowFirstWarnAt = cDrivePrevWarnAt; // still low, preserve start
+  } else if (cDriveDefinitivelyOk) {
+    cDriveLowFirstWarnAt = null;             // recovered (real measurement)
   } else {
-    cDriveLowFirstWarnAt = cDrivePrevWarnAt;  // still low, preserve start
+    // No measurement this check-in -- preserve existing state.
+    cDriveLowFirstWarnAt = cDrivePrevWarnAt;
   }
   // "New warning" = the same OK->low transition we use for emails.
   const cDriveNewWarning = cDriveIsLow && !cDrivePrevWarnAt;
@@ -1496,15 +1523,30 @@ async function handleCheckin(request, env, ctx) {
   const backupAgeThresholdDays = (backupAgeThresholdRaw && Number(backupAgeThresholdRaw) > 0)
     ? Number(backupAgeThresholdRaw)
     : 913;
+  // Same anti-re-fire pattern as OMSA / C: drive: distinguish a
+  // definitive "not aged" finding (probe ran, found backup history,
+  // disk is fresh) from a null finding (WSB missing, no completed
+  // backups yet, or transient probe miss). Clearing on null was
+  // causing the disk-aged email to re-fire whenever the probe briefly
+  // failed to read Get-WBSummary on a check-in -- worst case 3 fires
+  // a day for the same persistent condition.
   const backupAgedFinding = pickPrimaryAgedBackupDisk(wsbCurrent, backupAgeThresholdDays);
   const backupDiskAged = backupAgedFinding !== null && backupAgedFinding.exceeds;
+  const backupDiskDefinitivelyOk = backupAgedFinding !== null && !backupAgedFinding.exceeds;
+  // "WSB no longer relevant on this host" also clears the gate -- if
+  // WSB is uninstalled or reports installed=false, no point tracking.
+  const wsbNoLongerInstalled = !wsbInstalled;
   const backupDiskAgePrevWarnAt = existing?.fields?.backupDiskAgeFirstWarnAt?.stringValue || null;
   let backupDiskAgeFirstWarnAt;
   if (backupDiskAged && !backupDiskAgePrevWarnAt) {
-    backupDiskAgeFirstWarnAt = nowIso;
-  } else if (!backupDiskAged) {
-    backupDiskAgeFirstWarnAt = null;
+    backupDiskAgeFirstWarnAt = nowIso;            // OK -> aged (fresh warning)
+  } else if (backupDiskAged) {
+    backupDiskAgeFirstWarnAt = backupDiskAgePrevWarnAt;  // still aged, preserve
+  } else if (backupDiskDefinitivelyOk || wsbNoLongerInstalled) {
+    backupDiskAgeFirstWarnAt = null;              // recovered or uninstalled
   } else {
+    // Finding is null but WSB is installed -- transient probe miss or
+    // no backup history yet. Preserve existing state.
     backupDiskAgeFirstWarnAt = backupDiskAgePrevWarnAt;
   }
   const backupDiskAgedNewWarning = backupDiskAged && !backupDiskAgePrevWarnAt;
