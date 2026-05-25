@@ -1359,7 +1359,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.70";
+const APP_VERSION = "0.14.71";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -3797,11 +3797,18 @@ function _openStatDrilldown(statKey, label, anchorEl) {
 }
 
 // Humanize a check-in timestamp into "5m ago" / "2h ago" / "3d ago".
-// Used by the stat drill-down popover so each host row shows freshness.
-function tsToAgo(iso) {
+// Routes through tsToDate() so we accept every shape the agent docs
+// carry (Firestore Timestamp object, ISO string, JS Date, epoch
+// number) -- the earlier ISO-only implementation rendered raw
+// Timestamp(seconds=..., nanoseconds=...) strings when the field came
+// in as a Firestore Timestamp object, which made the stat-drilldown
+// popover ugly and wide.
+function tsToAgo(v) {
+  if (!v) return "never";
+  const iso = tsToDate(v);
   if (!iso) return "never";
   const ms = Date.parse(iso);
-  if (!isFinite(ms)) return iso;
+  if (!isFinite(ms)) return "never";
   const sec = Math.max(0, (Date.now() - ms) / 1000);
   if (sec < 60) return `${Math.floor(sec)}s ago`;
   if (sec < 3600) return `${Math.floor(sec / 60)}m ago`;
