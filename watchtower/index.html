@@ -77,7 +77,15 @@
      what we want. Adding transform-box: fill-box (a previous
      iteration of this rule) made 32px 32px reference the halo's
      own ~20x20 bounding box, pivoting the scale off-screen and
-     making the bloom invisible. */
+     making the bloom invisible.
+
+     No prefers-reduced-motion guard. The W3C spec for that media
+     query targets *large* motion (parallax, full-screen sweeps) to
+     prevent vestibular triggers. A 15% scale on a 24px icon doesn't
+     fall into that category, and the operator running this dashboard
+     explicitly asked to see the pulse. If we ever start animating
+     anything larger we should add the guard back for that specific
+     animation, not blanket. */
   .brand-halo,
   .login-halo {
     transform-origin: 32px 32px;
@@ -90,12 +98,6 @@
        to be aggressive enough to register against the teal disc. */
     0%, 100% { opacity: 0.3; transform: scale(1);    }
     50%      { opacity: 0.7; transform: scale(1.25); }
-  }
-  /* Don't pulse for users who've asked the OS to reduce motion --
-     this is a "feels alive" flourish, not load-bearing UX. */
-  @media (prefers-reduced-motion: reduce) {
-    .brand-halo,
-    .login-halo { animation: none; }
   }
   .brand .meta { font-size: 11px; color: var(--ink-faint); font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; }
   .brand h1 { font-size: 16px; margin: 0; line-height: 1.1; display: inline-flex; align-items: baseline; gap: 6px; }
@@ -1143,7 +1145,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.49";
+const APP_VERSION = "0.14.50";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
