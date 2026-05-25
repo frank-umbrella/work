@@ -753,22 +753,37 @@ async function handleTestWebhook(request, env, ctx) {
 //
 // Cached at the edge for 60s so a busy fleet doesn't hammer Firestore.
 async function handleLatestVersion(request, env, ctx) {
-  // Two caches at different TTLs:
-  //   - SHORT (5 min): success-only fast path so we don't hit GitHub on
-  //     every dashboard poll / tray click.
-  //   - LONG (24 h):  "last known good" payload, refreshed only on
-  //     success. When GitHub throws a 403 (rate limit) or 5xx, we serve
-  //     the LONG-cache payload instead of returning ok:false. This is
-  //     the safety net that broke before -- one 403 used to poison the
-  //     5-min cache and every agent saw "no version published yet"
-  //     until natural expiry. Now an error never reaches the agent as
-  //     long as we've seen at least one good response in the last 24 h.
-  // Bump the ?v= suffix on either key when a deploy needs to force a
-  // cache invalidation.
+  // Three-tier cache for /latest-version. Each tier has a different
+  // purpose; they all hold ONLY successful (ok:true) responses --
+  // errors are never cached, so a transient GitHub 403 never blocks
+  // the next request from retrying.
+  //
+  //   TIER 1 -- Cache API SHORT (5 min, per-POP)
+  //     Fast path. Same POP, recent request -> served in <5 ms with
+  //     no Firestore/GitHub hit. Spares GitHub on rapid-fire dashboard
+  //     polls + tray clicks.
+  //
+  //   TIER 2 -- KV "last good" (24 h, globally replicated)
+  //     Durable, cross-POP store. Refreshed on every successful
+  //     GitHub fetch. When GitHub fails (rate limit, 5xx), or when
+  //     the Cache API entry was evicted, we read from KV -- so even
+  //     if THIS POP has never seen a good response, we can serve the
+  //     answer that ANY OTHER POP captured in the last 24 h.
+  //
+  //   TIER 3 -- Cache API LONG (24 h, per-POP)
+  //     Belt-and-suspenders fallback for the rare case where KV is
+  //     itself degraded (Cloudflare KV has had multi-hour outages).
+  //     Same TTL as the KV tier so if KV comes back stale-but-up,
+  //     we still see a fresh local copy.
+  //
+  // Bump the ?v= suffix when a deploy needs to force a cache
+  // invalidation; bump the KV_KEY constant for the same reason.
   const cache = caches.default;
-  const shortKey = new Request('https://internal-cache/latest-version?v=3', { method: 'GET' });
-  const longKey  = new Request('https://internal-cache/latest-version-lastgood?v=3', { method: 'GET' });
+  const shortKey = new Request('https://internal-cache/latest-version?v=4', { method: 'GET' });
+  const longKey  = new Request('https://internal-cache/latest-version-lastgood?v=4', { method: 'GET' });
+  const KV_KEY   = 'latest-version:v4';
 
+  // TIER 1 -- POP-local short cache fast path.
   const cachedShort = await cache.match(shortKey);
   if (cachedShort) {
     return new Response(cachedShort.body, { status: cachedShort.status, headers: cachedShort.headers });
@@ -819,9 +834,11 @@ async function handleLatestVersion(request, env, ctx) {
     }
   }
 
-  // ----- 3. Got a good payload -- write to BOTH caches + return -----
-  // Long cache is the safety net for future rate-limit hits; short
-  // cache spares Firestore + GitHub from every dashboard poll.
+  // ----- 3. Got a good payload -- write to ALL THREE caches + return -----
+  // KV write is global (eventually-consistent, ~60s); Cache API writes
+  // are POP-local. All three keep the same payload shape so any tier
+  // can be read directly. expirationTtl on KV mirrors the 24 h Cache
+  // Control max-age on the long Cache API tier.
   if (payload && payload.ok) {
     const shortCopy = jsonResponse(payload, 200);
     shortCopy.headers.set('Cache-Control', 'public, max-age=300');     // 5 min
@@ -829,30 +846,52 @@ async function handleLatestVersion(request, env, ctx) {
     const longCopy = jsonResponse(payload, 200);
     longCopy.headers.set('Cache-Control', 'public, max-age=86400');    // 24 h
     ctx.waitUntil(cache.put(longKey, longCopy));
+    if (env.LATEST_VERSION_CACHE) {
+      ctx.waitUntil(
+        env.LATEST_VERSION_CACHE.put(KV_KEY, JSON.stringify(payload), { expirationTtl: 86400 })
+          .catch((e) => console.warn('KV put failed (non-fatal):', e))
+      );
+    }
     return jsonResponse(payload, 200);
   }
 
-  // ----- 4. Source-of-truth failed -- fall back to the long cache -----
-  // GitHub 403 / 5xx OR Firestore unavailable AND no settings override.
-  // Serve the last-known-good payload (up to 24 h old) with a
-  // staleFallback flag so the caller knows it's not fresh. Better than
-  // returning ok:false and breaking every agent's update check for
-  // the GitHub rate-limit window.
+  // ----- 4. Source-of-truth failed -- fall back through the cache tiers -----
+  // Try TIER 2 (KV) first since it's globally replicated; then TIER 3
+  // (POP-local long cache) as a final safety net for the rare case
+  // where KV is degraded too. Either way the staleFallback flag tells
+  // the caller it's not a fresh source-of-truth answer.
+  if (env.LATEST_VERSION_CACHE) {
+    try {
+      const kvPayload = await env.LATEST_VERSION_CACHE.get(KV_KEY, { type: 'json' });
+      if (kvPayload && kvPayload.ok) {
+        kvPayload.staleFallback = true;
+        kvPayload.staleSource = 'kv';
+        kvPayload.staleReason = githubFailed
+          ? `GitHub API unavailable (${githubError || 'unknown'}); serving KV last-known-good`
+          : 'source-of-truth lookup failed; serving KV last-known-good';
+        return jsonResponse(kvPayload, 200);
+      }
+    } catch (e) {
+      // KV itself is degraded -- fall through to Cache API tier.
+      console.warn('KV get failed (falling back to Cache API):', e);
+    }
+  }
   const cachedLong = await cache.match(longKey);
   if (cachedLong) {
     const body = await cachedLong.json();
     body.staleFallback = true;
+    body.staleSource = 'cache-api';
     body.staleReason = githubFailed
-      ? `GitHub API unavailable (${githubError || 'unknown'}); serving last-known-good payload`
-      : 'source-of-truth lookup failed; serving last-known-good payload';
+      ? `GitHub API unavailable (${githubError || 'unknown'}); serving Cache API last-known-good (KV miss/error)`
+      : 'source-of-truth lookup failed; serving Cache API last-known-good (KV miss/error)';
     return jsonResponse(body, 200);
   }
 
-  // ----- 5. Nothing cached and source failed -- honest error -----
+  // ----- 5. Nothing cached anywhere and source failed -- honest error -----
   // First-ever request after a deploy (or 24h+ since any success) AND
-  // GitHub is down. Best we can do is return the error so the operator
-  // sees it and knows to populate /settings/agentVersion manually.
-  // Important: do NOT write this error to either cache.
+  // GitHub is down AND no KV entry. Best we can do is return the error
+  // so the operator sees it and knows to populate /settings/agentVersion
+  // manually. Important: do NOT write this error to any cache tier.
   return jsonResponse(
     { ok: false, error: 'no version published yet', detail: githubError || 'no source-of-truth available' },
     200

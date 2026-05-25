@@ -43,6 +43,16 @@ ALERT_TO = "frank@umbrellaautomation.com"
 # end-to-end testing without needing wrangler dev.
 ALLOWED_ORIGINS = "https://frank-umbrella.github.io,http://localhost:8096,http://127.0.0.1:8096"
 
+# Durable global cache for /latest-version's "last known good" payload.
+# Backs up the per-edge-POP Cache API entry so a GitHub rate-limit hit
+# at one POP can still be answered with the last good response captured
+# by any POP. See handleLatestVersion() for the read-through logic.
+# Free tier covers 100k reads/day -- a 200-host fleet uses ~200 reads/day,
+# so we'd hit the limit at ~50,000 hosts. Way past any plausible scale.
+[[kv_namespaces]]
+binding = "LATEST_VERSION_CACHE"
+id = "42d2f00331ef41a29fa8a619d795be22"
+
 # Secrets — set with `wrangler secret put <NAME>`, never live in this file:
 #   wrangler secret put FIREBASE_SERVICE_ACCOUNT_JSON  # Service-account JSON for Firestore admin writes
 #   wrangler secret put RESEND_API_KEY                  # Resend API key for IP-change alerts
