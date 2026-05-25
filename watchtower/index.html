@@ -1513,7 +1513,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.110";
+const APP_VERSION = "0.14.111";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -7348,11 +7348,25 @@ function renderDrawer(pcId) {
   // dashboard operator typically jumps from the Endpoints table into a
   // host drawer to start triaging; having the client's helpdesk URL one
   // click away (rather than buried in the Clients tab) saves a tab
-  // switch on the most common operator path. The value is mirrored to
-  // the agent doc on each /checkin (worker section 4a), so it stays
-  // current with whatever is set in the Clients tab.
-  const helpDeskChip = a.helpDeskUrl
-    ? ` &middot; <a href="${esc(a.helpDeskUrl)}" target="_blank" rel="noopener" title="Per-client help desk URL set in the Clients tab. Opens in a new tab.">Help desk &#x2197;</a>`
+  // switch on the most common operator path.
+  //
+  // Two sources, in priority order:
+  //   1. a.helpDeskUrl  -- mirrored to the agent doc by the worker on
+  //      each /checkin. Authoritative AFTER the host has checked in
+  //      at least once since the URL was set.
+  //   2. state.clients.find(c => c.id === a.clientId).helpDeskUrl --
+  //      live-subscribed client doc. Reflects the URL the moment it's
+  //      saved, even if the host hasn't checked in yet (typical when
+  //      an admin sets a URL and immediately opens a host's drawer).
+  // The fallback prevents the "I just set it but it's not showing"
+  // UX bug.
+  let helpDeskUrl = a.helpDeskUrl || null;
+  if (!helpDeskUrl && a.clientId) {
+    const clientDoc = state.clients.find(c => c.id === a.clientId);
+    if (clientDoc && clientDoc.helpDeskUrl) helpDeskUrl = clientDoc.helpDeskUrl;
+  }
+  const helpDeskChip = helpDeskUrl
+    ? ` &middot; <a href="${esc(helpDeskUrl)}" target="_blank" rel="noopener" title="Per-client help desk URL set in the Clients tab. Opens in a new tab.">Help desk &#x2197;</a>`
     : "";
   $("#dSub").innerHTML = `<code>${esc(a.id)}</code> &middot; ${esc(a.client || "no client")}${helpDeskChip} &middot; agent ${esc(a.agentVersion || "?")}`;
 
