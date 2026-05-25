@@ -753,7 +753,11 @@ async function handleTestWebhook(request, env, ctx) {
 //
 // Cached at the edge for 60s so a busy fleet doesn't hammer Firestore.
 async function handleLatestVersion(request, env, ctx) {
-  const cacheKey = new Request('https://internal-cache/latest-version', { method: 'GET' });
+  // Cache key carries a version suffix so we can force-invalidate on
+  // deploy when the underlying source-of-truth (Firestore doc or
+  // GitHub release notes) was corrected and we don't want to wait
+  // 5 min for natural expiry. Bump the suffix when you need to bust.
+  const cacheKey = new Request('https://internal-cache/latest-version?v=2', { method: 'GET' });
   const cache = caches.default;
   const cached = await cache.match(cacheKey);
   if (cached) {
