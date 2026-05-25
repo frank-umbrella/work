@@ -1087,7 +1087,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.37";
+const APP_VERSION = "0.14.38";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -5161,11 +5161,17 @@ function renderDrawer(pcId) {
       const desc = (lmi.description || "").trim();
       const host = (a.hostname || "").trim();
       const matches = desc && host && desc.toLowerCase() === host.toLowerCase();
+      // descriptionSource (v0.14.28+ probe) tells us which registry path
+      // the value came from -- exposed as a title tooltip so it doesn't
+      // clutter the row but is one hover away when triaging.
+      const sourceAttr = lmi.descriptionSource
+        ? ` title="Read from ${esc(lmi.descriptionSource)}"`
+        : '';
       const descRow = desc
         ? (matches
-            ? `${esc(desc)} <span class="badge ok" style="margin-left:6px;">matches hostname</span>`
-            : `${esc(desc)} <span class="badge warn" style="margin-left:6px;" title="The LogMeIn description and the Windows hostname don't match — this is often intentional (a friendly label like 'Reception PC') but worth confirming.">differs from hostname</span>`)
-        : `<span class="meta">— (no description set in LogMeIn)</span>`;
+            ? `<span${sourceAttr}>${esc(desc)}</span> <span class="badge ok" style="margin-left:6px;">matches hostname</span>`
+            : `<span${sourceAttr}>${esc(desc)}</span> <span class="badge warn" style="margin-left:6px;" title="The LogMeIn description and the Windows hostname don't match — this is often intentional (a friendly label like 'Reception PC') but worth confirming.">differs from hostname</span>`)
+        : `<span class="meta" title="Agent scanned ${lmi.descriptionSource ? 'the registry up to' : '5 explicit registry candidates plus a recursive tree-walk of HKLM\\SOFTWARE\\LogMeIn and the WOW6432Node mirror, plus walked all subkeys for any value name containing &quot;Description&quot;'}. None contained a non-empty value -- the description either isn't set locally, lives in a path we haven't seen yet, or LogMeIn caches it cloud-side only. Run the diagnostic PowerShell on the host to dump the actual registry layout.">— (no description found in LogMeIn registry)</span>`;
       return `<div class="section"><h3>LogMeIn</h3>${kv([
         ["Installed", "yes"],
         ["Version", esc(lmi.version)],
