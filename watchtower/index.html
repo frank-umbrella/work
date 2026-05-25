@@ -65,20 +65,31 @@
   .brand svg { width: 24px; height: 24px; }
 
   /* Halo bloom — the soft cyan halo behind the tower body breathes,
-     opacity 0.3 -> 0.55 and scale 1.0 -> 1.15, on a 3 s loop. Body
+     opacity 0.3 -> 0.7 and scale 1.0 -> 1.25, on a 3 s loop. Body
      of the mark doesn't move; only the glow does. Reads as "ambient
      watchfulness." The animated element is the existing inner halo
      <circle r="10"> with class brand-halo / login-halo so we don't
-     need to add any extra SVG geometry. */
+     need to add any extra SVG geometry.
+
+     transform-origin uses the SVG viewBox coordinates (32,32 = center
+     of the 64x64 mark). NO transform-box override -- the default
+     transform-box for SVG elements IS view-box, which is exactly
+     what we want. Adding transform-box: fill-box (a previous
+     iteration of this rule) made 32px 32px reference the halo's
+     own ~20x20 bounding box, pivoting the scale off-screen and
+     making the bloom invisible. */
   .brand-halo,
   .login-halo {
     transform-origin: 32px 32px;
-    transform-box: fill-box;
     animation: brandHaloBreathe 3s ease-in-out infinite;
   }
   @keyframes brandHaloBreathe {
-    0%, 100% { opacity: 0.3;  transform: scale(1);    }
-    50%      { opacity: 0.55; transform: scale(1.15); }
+    /* Amplitude bumped from the original preview (0.55/1.15) up to
+       0.7/1.25 so the bloom reads even at the 24 px header size --
+       at 24 px the halo is only ~7 px across so the change needs
+       to be aggressive enough to register against the teal disc. */
+    0%, 100% { opacity: 0.3; transform: scale(1);    }
+    50%      { opacity: 0.7; transform: scale(1.25); }
   }
   /* Don't pulse for users who've asked the OS to reduce motion --
      this is a "feels alive" flourish, not load-bearing UX. */
@@ -1132,7 +1143,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.48";
+const APP_VERSION = "0.14.49";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
