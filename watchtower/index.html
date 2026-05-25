@@ -1094,6 +1094,32 @@
             <option value="decommissioned">Decommissioned only</option>
             <option value="all-with-decom">All + decommissioned</option>
           </select>
+          <!-- Property filter: a two-step "pick the attribute, then pick the
+               value" filter. Lets the operator narrow the table to e.g.
+               "every host with Defender real-time OFF" or "every host on
+               Windows Server 2019" without having to add a per-attribute
+               dropdown. The second dropdown is populated dynamically from
+               whichever property is selected. -->
+          <label>Filter by</label>
+          <select id="propFilter">
+            <option value="">&mdash;</option>
+            <option value="defender">Defender</option>
+            <option value="backup">Backup tool</option>
+            <option value="os">Operating system</option>
+            <option value="manufacturer">Hardware manufacturer</option>
+            <option value="virt">Physical / virtual</option>
+            <option value="hypervisor">Hypervisor</option>
+            <option value="domain">Domain membership</option>
+            <option value="ram">RAM tier</option>
+            <option value="cFree">C: drive headroom</option>
+            <option value="logmein">LogMeIn</option>
+            <option value="idrac">Dell iDRAC iSM</option>
+            <option value="omsaState">OMSA state</option>
+            <option value="agentVersion">Agent version</option>
+          </select>
+          <select id="propValueFilter" hidden>
+            <option value="">All</option>
+          </select>
           <span class="spacer"></span>
           <span class="count" id="fleetCount"></span>
           <div class="filter-actions">
@@ -1434,7 +1460,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.99";
+const APP_VERSION = "0.14.100";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -1459,7 +1485,7 @@ const state = {
   globalWebhookUrl: "",
   latestAgent: { version: "", downloadUrl: "", sha256: "", notes: "" },
   expandedClientId: null,
-  filter: { search: "", client: "", status: "" },
+  filter: { search: "", client: "", status: "", propKey: "", propValue: "" },
   // Click-to-sort state per table. `key` = which data-sort attribute is
   // active, `dir` = "asc" or "desc". null = use the table's natural
   // default order. Persists across re-renders within the session so
@@ -2188,6 +2214,14 @@ function renderFleet() {
   // called from anywhere else on initial load.
   if (!$("#fleetHead").children.length) renderFleetHead();
 
+  // Keep the property-filter value dropdown in sync with state.agents.
+  // Matters for dynamic-options properties (OS, agent version, etc.)
+  // where new check-ins can introduce values we haven't seen before.
+  // Cheap: walks state.agents once. Skipped when no prop is selected.
+  if (state.filter.propKey && typeof _refreshPropValueFilter === "function") {
+    _refreshPropValueFilter();
+  }
+
   const q = state.filter.search.toLowerCase().trim();
   const cf = state.filter.client;
   const sf = state.filter.status;
@@ -2241,6 +2275,22 @@ function renderFleet() {
       const gb = a.cDriveFreeGB;
       const isLow = (pct != null && pct < 10) || (gb != null && gb < 10);
       if (!isLow) return false;
+    }
+    // Property filter: only applied when BOTH a property and value are
+    // selected. Spec is in FLEET_PROP_FILTERS; the extractor returns
+    // either a single string or an array (for multi-bucket properties
+    // like "backup" where one host can contribute to multiple values).
+    if (state.filter.propKey && state.filter.propValue) {
+      const spec = FLEET_PROP_FILTERS[state.filter.propKey];
+      if (spec) {
+        const v = spec.value(a);
+        if (v == null) return false;  // extractor said "exclude"
+        if (Array.isArray(v)) {
+          if (!v.includes(state.filter.propValue)) return false;
+        } else if (v !== state.filter.propValue) {
+          return false;
+        }
+      }
     }
     if (q) {
       const hay = [a.hostname, a.client, a.externalIp, a.id].filter(Boolean).join(" ").toLowerCase();
@@ -2464,6 +2514,197 @@ function renderFleet() {
 $("#search").addEventListener("input", e => { state.filter.search = e.target.value; renderFleet(); });
 $("#clientFilter").addEventListener("change", e => { state.filter.client = e.target.value; renderFleet(); });
 $("#statusFilter").addEventListener("change", e => { state.filter.status = e.target.value; renderFleet(); });
+
+// ============== Property filter ==============
+// Two-step "pick the attribute, then pick the value" filter for the
+// Endpoints table. Each entry defines:
+//   key:    matches the option value in #propFilter
+//   label:  used in the value dropdown's empty-state ("All <label>")
+//   value:  function (agent) -> the bucket this agent falls in (null
+//           = exclude from value enumeration)
+//   options: optional static list of values in display order. When
+//           omitted, the value dropdown is populated dynamically from
+//           every distinct value present in state.agents.
+//
+// Adding a new property is just adding an entry here + a matching
+// <option> in #propFilter -- the dropdown wiring + filter application
+// below are generic.
+const FLEET_PROP_FILTERS = {
+  defender: {
+    label: "Defender",
+    value: (a) => {
+      const rt = a.report && a.report.defender && a.report.defender.realtimeOn;
+      if (rt === true) return "Real-time ON";
+      if (rt === false) return "Real-time OFF";
+      return "Not reported";
+    },
+    options: ["Real-time ON", "Real-time OFF", "Not reported"],
+  },
+  backup: {
+    label: "Backup tool",
+    // Multi-bucket: a single host can be in multiple buckets if it has
+    // multiple products installed. We return an ARRAY; the filter
+    // matches if any bucket matches.
+    value: (a) => {
+      const r = a.report || {};
+      const out = [];
+      if (r.wsb && r.wsb.installed) out.push("WSB");
+      if (r.veeam && r.veeam.installed) out.push("Veeam");
+      if (r.carbonite && r.carbonite.installed) out.push("Carbonite");
+      if (r.ibackup && r.ibackup.installed) out.push("IBackup");
+      if (!out.length) out.push("(no backup tool)");
+      return out;
+    },
+    options: ["WSB", "Veeam", "Carbonite", "IBackup", "(no backup tool)"],
+  },
+  os: {
+    label: "OS",
+    value: (a) => ((a.report && a.report.system && a.report.system.os && a.report.system.os.name) || "Unknown").replace(/^Microsoft\s+/i, ""),
+  },
+  manufacturer: {
+    label: "Manufacturer",
+    value: (a) => {
+      const m = (a.report && a.report.system && a.report.system.manufacturer) || "Unknown";
+      if (/dell/i.test(m)) return "Dell";
+      if (/hp|hewlett/i.test(m)) return "HP";
+      if (/lenovo/i.test(m)) return "Lenovo";
+      if (/microsoft/i.test(m)) return "Microsoft (VM)";
+      if (/vmware/i.test(m)) return "VMware (VM)";
+      if (/innotek|virtualbox/i.test(m)) return "VirtualBox (VM)";
+      return m;
+    },
+  },
+  virt: {
+    label: "Physical/Virtual",
+    value: (a) => {
+      const v = a.report && a.report.system && a.report.system.isVirtual;
+      if (v === true) return "Virtual";
+      if (v === false) return "Physical";
+      return "Unknown";
+    },
+    options: ["Physical", "Virtual", "Unknown"],
+  },
+  hypervisor: {
+    label: "Hypervisor",
+    value: (a) => {
+      const s = a.report && a.report.system;
+      if (!s || !s.isVirtual) return null;  // not a VM, exclude
+      return s.hypervisor || "Unknown hypervisor";
+    },
+  },
+  domain: {
+    label: "Domain",
+    value: (a) => (a.report && a.report.system && a.report.system.partOfDomain === true) ? "Domain-joined" : "Workgroup",
+    options: ["Domain-joined", "Workgroup"],
+  },
+  ram: {
+    label: "RAM tier",
+    value: (a) => {
+      const gb = a.report && a.report.system && a.report.system.memory && a.report.system.memory.totalGB;
+      if (gb == null) return "Unknown";
+      if (gb < 8) return "< 8 GB";
+      if (gb < 16) return "8 GB";
+      if (gb < 32) return "16 GB";
+      if (gb < 64) return "32 GB";
+      if (gb < 128) return "64 GB";
+      return "128+ GB";
+    },
+    options: ["< 8 GB", "8 GB", "16 GB", "32 GB", "64 GB", "128+ GB", "Unknown"],
+  },
+  cFree: {
+    label: "C: drive headroom",
+    value: (a) => {
+      const pct = a.cDriveFreePct;
+      if (pct == null) return "Unknown";
+      if (pct < 5) return "< 5% free (critical)";
+      if (pct < 10) return "5-10% free (warn)";
+      if (pct < 25) return "10-25% free";
+      if (pct < 50) return "25-50% free";
+      return ">= 50% free";
+    },
+    options: ["< 5% free (critical)", "5-10% free (warn)", "10-25% free", "25-50% free", ">= 50% free", "Unknown"],
+  },
+  logmein: {
+    label: "LogMeIn",
+    value: (a) => (a.report && a.report.logmein && a.report.logmein.installed) ? "Installed" : "Not installed",
+    options: ["Installed", "Not installed"],
+  },
+  idrac: {
+    label: "iDRAC",
+    value: (a) => (a.report && a.report.idrac && a.report.idrac.installed) ? "Installed" : "Not installed",
+    options: ["Installed", "Not installed"],
+  },
+  omsaState: {
+    label: "OMSA state",
+    value: (a) => {
+      const o = a.report && a.report.omsa;
+      if (!o || !o.installed) return "Not installed";
+      const r = o.healthRollup;
+      if (r === "ok") return "OK";
+      if (r === "warn") return "Warning";
+      if (r === "bad") return "Critical";
+      return "Unknown / blind";
+    },
+    options: ["OK", "Warning", "Critical", "Unknown / blind", "Not installed"],
+  },
+  agentVersion: {
+    label: "Agent version",
+    value: (a) => a.agentVersion || "unknown",
+  },
+};
+
+// Populate #propValueFilter when #propFilter changes -- and hide it
+// entirely when no property is selected.
+function _refreshPropValueFilter() {
+  const propSel = $("#propFilter");
+  const valSel = $("#propValueFilter");
+  if (!propSel || !valSel) return;
+  const key = propSel.value;
+  const spec = FLEET_PROP_FILTERS[key];
+  if (!spec) {
+    valSel.hidden = true;
+    valSel.innerHTML = '<option value="">All</option>';
+    state.filter.propValue = "";
+    return;
+  }
+  // Build value list: static options when defined, otherwise scan
+  // state.agents for every distinct value the extractor produces.
+  let values;
+  if (Array.isArray(spec.options)) {
+    values = spec.options.slice();
+  } else {
+    const set = new Set();
+    for (const a of (state.agents || [])) {
+      if (a.decommissioned) continue;
+      const v = spec.value(a);
+      if (v == null) continue;
+      if (Array.isArray(v)) v.forEach(x => set.add(x));
+      else set.add(v);
+    }
+    values = Array.from(set).sort((x, y) => String(x).localeCompare(String(y)));
+  }
+  const previouslySelected = state.filter.propValue;
+  valSel.innerHTML = `<option value="">All ${esc(spec.label)}</option>` +
+    values.map(v => `<option value="${esc(v)}"${v === previouslySelected ? " selected" : ""}>${esc(v)}</option>`).join("");
+  valSel.hidden = false;
+  // If the previously-selected value isn't in the new list, reset.
+  if (previouslySelected && !values.includes(previouslySelected)) {
+    state.filter.propValue = "";
+    valSel.value = "";
+  }
+}
+
+$("#propFilter").addEventListener("change", e => {
+  state.filter.propKey = e.target.value;
+  state.filter.propValue = "";  // reset value when property changes
+  _refreshPropValueFilter();
+  renderFleet();
+});
+$("#propValueFilter").addEventListener("change", e => {
+  state.filter.propValue = e.target.value;
+  renderFleet();
+});
+
 // Column chooser -- opens a modal with checkboxes for every column defined
 // in FLEET_COLUMNS. Selection persists in localStorage per browser.
 $("#fleetColumns").addEventListener("click", openColumnChooser);
@@ -2495,9 +2736,13 @@ $("#brandHome").addEventListener("click", (e) => {
   state.filter.search = "";
   state.filter.client = "";
   state.filter.status = "";
+  state.filter.propKey = "";
+  state.filter.propValue = "";
   const s = $("#search"); if (s) s.value = "";
   const cf = $("#clientFilter"); if (cf) cf.value = "";
   const sf = $("#statusFilter"); if (sf) sf.value = "";
+  const pf = $("#propFilter"); if (pf) pf.value = "";
+  const pvf = $("#propValueFilter"); if (pvf) { pvf.value = ""; pvf.hidden = true; }
   renderFleet();
   closeDrawer();
 });
