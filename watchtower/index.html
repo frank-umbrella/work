@@ -737,20 +737,32 @@
   .activity-row { display: flex; gap: 12px; align-items: flex-start; padding: 10px 18px; border-bottom: 1px solid var(--line); }
   .activity-row:last-child { border-bottom: 0; }
   .activity-row:hover { background: var(--surface-2); }
-  .activity-icon { flex: 0 0 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: #fff; }
+  /* Default background -- prevents white-on-white invisibility when an
+     event type is missing its specific .t-<type> rule below. Picks a
+     muted gray that's clearly visible without picking a wrong-sounding
+     semantic color. New event types fall through to this until someone
+     adds a proper class rule. */
+  .activity-icon { flex: 0 0 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: #fff; background: #6b7280; }
   .activity-icon.t-host_first_seen { background: #1bb978; }
   .activity-icon.t-ip_change        { background: #0ea5e9; }
   .activity-icon.t-omsa_warning     { background: #d04646; }
   .activity-icon.t-omsa_cleared     { background: #16a34a; }
   .activity-icon.t-wsb_failure      { background: #d04646; }
+  .activity-icon.t-backup_disk_aged { background: #ca8a04; }
   .activity-icon.t-host_reassigned  { background: #8b5cf6; }
   .activity-icon.t-client_added     { background: #0a6b6b; }
   .activity-icon.t-client_deleted   { background: #6b7280; }
+  .activity-icon.t-client_help_desk_url_set { background: #0a6b6b; }
   .activity-icon.t-token_generated  { background: #0a6b6b; }
   .activity-icon.t-token_revoked    { background: #6b7280; }
   .activity-icon.t-agent_decommissioned { background: #d04646; }
   .activity-icon.t-agent_uninstalled    { background: #475063; }
   .activity-icon.t-agent_reactivated    { background: #1bb978; }
+  .activity-icon.t-alerts_snoozed       { background: #f59e0b; }
+  .activity-icon.t-alerts_unsnoozed     { background: #16a34a; }
+  .activity-icon.t-monitoring_disabled  { background: #6b7280; }
+  .activity-icon.t-monitoring_enabled   { background: #1bb978; }
+  .activity-icon.t-marked_false_positive { background: #8b5cf6; }
   .activity-icon.t-update_applied   { background: #ca8a04; }
   .activity-icon.t-force_update_requested { background: #2563eb; }
   .activity-icon.t-force_update_applied   { background: #16a34a; }
@@ -1501,7 +1513,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.109";
+const APP_VERSION = "0.14.110";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -4796,14 +4808,21 @@ function renderActivityRow(e) {
     omsa_warning: "!",
     omsa_cleared: "✓",
     wsb_failure: "!",
+    backup_disk_aged: "⌛",
     host_reassigned: "→",
     client_added: "+",
     client_deleted: "-",
+    client_help_desk_url_set: "?",
     token_generated: "T",
     token_revoked: "X",
     agent_decommissioned: "-",
     agent_uninstalled: "✕",
     agent_reactivated: "↻",
+    alerts_snoozed: "Z",
+    alerts_unsnoozed: "♪",
+    monitoring_disabled: "M",
+    monitoring_enabled: "M",
+    marked_false_positive: "F",
     update_applied: "↑",
     force_update_requested: "⤴",
     force_update_applied: "↑",
