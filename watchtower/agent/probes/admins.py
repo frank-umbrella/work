@@ -12,16 +12,20 @@ can flag classic security-hygiene problems:
   - service-account naming patterns (svc_*, *_svc) so the operator
     can audit which automation has admin
 
-Implementation: PowerShell subprocess (same pattern network.py uses
-for Get-NetIPConfiguration). Two paths inside the same PS invocation:
+Implementation: uses `net localgroup Administrators` as the primary
+path (universally available since NT 4, sub-second response on
+every Windows release). Optional PowerShell enrichment via
+Get-LocalGroupMember (Win10/Server 2016+) adds PrincipalSource +
+SID -- best-effort; if it fails or isn't available we still report
+the names from `net localgroup`.
 
-  1. Get-LocalGroupMember (Win10 / Server 2016+) -- modern, returns
-     PrincipalSource + ObjectClass natively.
-  2. ADSI [ADSI]"WinNT://./Administrators,group" -- universal fallback
-     for Server 2012 R2 and any older host where the modern cmdlet
-     isn't available. Returns Name, Class (User/Group), AdsPath
-     (WinNT://DOMAIN/name => we derive Local vs ActiveDirectory from
-     the path's middle segment).
+Earlier versions of this probe relied on PowerShell exclusively
+(Get-LocalGroupMember with an ADSI fallback). That worked on most
+hosts but stalled on Server 2012 R2 boxes -- both code paths can
+hang for 10+ seconds on hosts with stale AD references or slow
+PSReadLine startup, blowing through the 20-second probe budget.
+`net localgroup` is bulletproof: pure Win32 SAM enumeration, no
+PowerShell, no .NET CLR, no module loading.
 
 The probe NEVER reads passwords, password hashes, or any other
 credential material. It enumerates names, types, and source domains
@@ -29,148 +33,153 @@ only.
 """
 
 import json
+import os
 import subprocess
+import winreg
+
+try:
+    import logger as _logger
+except ImportError:
+    class _Stub:
+        def log(self, *a, **kw): pass
+    _logger = _Stub()
 
 
-ADMIN_PROBE_TIMEOUT_SEC = 20
+# Probe timeout. Generous because `net localgroup` is fast but the
+# optional PS enrichment can be slow on busy hosts; we want neither
+# path to ever hit the per-probe timeout in collector.py (60s).
+ADMIN_PROBE_TIMEOUT_SEC = 50
+
+# Per-stage timeouts (independent of the overall budget above).
+NET_TIMEOUT_SEC = 10        # `net localgroup` -- typically 50-300 ms
+PS_ENRICH_TIMEOUT_SEC = 25  # Get-LocalGroupMember enrichment -- best effort
 
 
-# PowerShell that emits a single JSON object with the admin-group
-# member list + the built-in Administrator account's enabled state.
-# Suppress every non-stdout stream so the JSON output is clean -- same
-# defensive pattern wsb.py uses.
-#
-# Tries Get-LocalGroupMember first; on CommandNotFoundException (i.e.
-# Server 2012 R2 or older Windows) falls through to an ADSI WinNT://
-# enumeration, which has worked since NT 4 and returns the same shape
-# we need. PrincipalSource is synthesized from the AdsPath -- the
-# middle segment of "WinNT://<domain-or-machine>/<name>" tells us
-# Local vs ActiveDirectory.
-#
-# COMPUTER_NAME comparison is case-insensitive (Windows treats hostnames
-# that way) and avoids treating "BUILTIN" as ActiveDirectory.
-_PS_SNIPPET = r"""
+# PowerShell enrichment snippet. Returns SID + PrincipalSource for
+# each member when Get-LocalGroupMember is available; silently empty
+# otherwise. Faster than the previous full enumeration because we're
+# just augmenting names we already have.
+_PS_ENRICH_SNIPPET = r"""
 $ErrorActionPreference = 'Stop'
 $WarningPreference = 'SilentlyContinue'
-$InformationPreference = 'SilentlyContinue'
-$VerbosePreference = 'SilentlyContinue'
 $ProgressPreference = 'SilentlyContinue'
 try {
-    $members = @()
-    $usedFallback = $false
-
-    try {
-        # ---- Primary: Get-LocalGroupMember (Win10 / Server 2016+) ----
-        $raw = Get-LocalGroupMember -Group 'Administrators' -ErrorAction Stop
-        foreach ($m in $raw) {
-            $type = if ($m.ObjectClass -eq 'User') { 'user' }
-                    elseif ($m.ObjectClass -eq 'Group') { 'group' }
-                    else { 'unknown' }
-            $source = if ($m.PrincipalSource) { "$($m.PrincipalSource)" } else { 'Unknown' }
-            $sid = $null
-            try { if ($m.SID) { $sid = "$($m.SID.Value)" } } catch { $sid = $null }
-            $members += [PSCustomObject]@{
-                name            = "$($m.Name)"
-                type            = $type
-                principalSource = $source
-                sid             = $sid
-            }
-        }
-    } catch [System.Management.Automation.CommandNotFoundException] {
-        # ---- Fallback: ADSI WinNT (universal, including Server 2012 R2) ----
-        # Get-LocalGroupMember doesn't exist on this OS. The WinNT ADSI
-        # provider has been there since NT 4.0; works the same on every
-        # Windows release.
-        $usedFallback = $true
-        $localComputer = $env:COMPUTERNAME
-        $group = [ADSI]"WinNT://./Administrators,group"
-        $rawMembers = @($group.psbase.Invoke('Members'))
-        foreach ($m in $rawMembers) {
-            $name = [string]$m.GetType().InvokeMember('Name', 'GetProperty', $null, $m, $null)
-            $class = [string]$m.GetType().InvokeMember('Class', 'GetProperty', $null, $m, $null)
-            $adsPath = [string]$m.GetType().InvokeMember('AdsPath', 'GetProperty', $null, $m, $null)
-            $sidBytes = $null
-            try { $sidBytes = $m.GetType().InvokeMember('objectSid', 'GetProperty', $null, $m, $null) } catch {}
-            $sidStr = $null
-            try {
-                if ($sidBytes) {
-                    $sidObj = New-Object System.Security.Principal.SecurityIdentifier($sidBytes, 0)
-                    $sidStr = $sidObj.Value
-                }
-            } catch { $sidStr = $null }
-
-            # PrincipalSource derivation from AdsPath shape
-            # "WinNT://<COMPUTER-OR-DOMAIN>/<name>" -- the middle segment
-            # vs $env:COMPUTERNAME tells us local vs AD. Server 2012 R2
-            # workgroup machines see "WinNT://./Name" or
-            # "WinNT://COMPUTERNAME/Name" -- both are local.
-            $principalSource = 'Local'
-            if ($adsPath -match '^WinNT://([^/]+)/[^/]+$') {
-                $segment = $Matches[1]
-                if ($segment -and $segment -ne '.' -and $segment -ne $localComputer) {
-                    $principalSource = 'ActiveDirectory'
-                }
-            }
-
-            $type = if ($class -eq 'User') { 'user' }
-                    elseif ($class -eq 'Group') { 'group' }
-                    else { 'unknown' }
-            $members += [PSCustomObject]@{
-                name            = $name
-                type            = $type
-                principalSource = $principalSource
-                sid             = $sidStr
-            }
+    $members = Get-LocalGroupMember -Group 'Administrators' -ErrorAction Stop
+    $out = @()
+    foreach ($m in $members) {
+        $sid = $null
+        try { if ($m.SID) { $sid = "$($m.SID.Value)" } } catch {}
+        $out += [PSCustomObject]@{
+            name            = "$($m.Name)"
+            sid             = $sid
+            principalSource = if ($m.PrincipalSource) { "$($m.PrincipalSource)" } else { 'Unknown' }
         }
     }
-
-    # Built-in Administrator account state. Well-known SID ends with -500.
-    # Get-LocalUser is also Win10/2016+; ADSI fallback for Server 2012 R2.
-    $builtinAdminEnabled = $null
-    try {
-        $builtin = Get-LocalUser -ErrorAction Stop | Where-Object { $_.SID.Value -match '-500$' }
-        if ($builtin) { $builtinAdminEnabled = [bool]$builtin.Enabled }
-    } catch [System.Management.Automation.CommandNotFoundException] {
-        # ADSI fallback: walk WinNT://./<computername> for User accounts,
-        # find the one whose SID ends in -500, read its UserFlags. Bit
-        # 0x0002 (ADS_UF_ACCOUNTDISABLE) means disabled.
-        try {
-            $computer = [ADSI]"WinNT://."
-            foreach ($child in $computer.psbase.Children) {
-                if ($child.SchemaClassName -ne 'User') { continue }
-                $childSidBytes = $null
-                try { $childSidBytes = $child.GetType().InvokeMember('objectSid', 'GetProperty', $null, $child, $null) } catch {}
-                if (-not $childSidBytes) { continue }
-                $childSid = New-Object System.Security.Principal.SecurityIdentifier($childSidBytes, 0)
-                if ($childSid.Value -match '-500$') {
-                    $flags = [int]($child.GetType().InvokeMember('UserFlags', 'GetProperty', $null, $child, $null))
-                    $builtinAdminEnabled = (($flags -band 0x0002) -eq 0)
-                    break
-                }
-            }
-        } catch {
-            $builtinAdminEnabled = $null
-        }
-    } catch {
-        $builtinAdminEnabled = $null
-    }
-
-    $out = [PSCustomObject]@{
-        ok                          = $true
-        members                     = $members
-        memberCount                 = $members.Count
-        builtinAdministratorEnabled = $builtinAdminEnabled
-        usedAdsiFallback            = $usedFallback
-    }
-    $out | ConvertTo-Json -Depth 4 -Compress
+    @{ ok = $true; members = @($out) } | ConvertTo-Json -Depth 4 -Compress
 } catch {
-    $err = [PSCustomObject]@{ ok = $false; error = "$($_.Exception.Message)" }
-    $err | ConvertTo-Json -Compress
+    @{ ok = $false } | ConvertTo-Json -Compress
 }
 """
 
 
-def collect():
+def _run_net_localgroup():
+    """
+    Walk `net localgroup Administrators` output. Output shape:
+
+      Alias name     administrators
+      Comment        Administrators have complete and unrestricted access...
+
+      Members
+      -------------------------------------------------------------------------------
+      Administrator
+      DOMAIN\Domain Admins
+      WORKGROUP\someuser
+      The command completed successfully.
+
+    Returns a list of {name, type, principalSource} where:
+      - principalSource is 'ActiveDirectory' when the name contains '\'
+        and the prefix isn't the local computer name / BUILTIN / NT AUTHORITY
+      - principalSource is 'Local' otherwise
+      - type is best-effort: 'Group' for well-known group SIDs (Domain Admins,
+        Everyone, Authenticated Users), 'User' for everything else
+    """
+    try:
+        # /domain: forces SAM-only enumeration; on workgroup hosts net
+        # would otherwise sometimes try the domain controller and stall.
+        # Actually -- /domain WOULD force domain lookups. We want LOCAL
+        # only, which is what `net localgroup Administrators` without
+        # any switch does. Just being explicit in the comment.
+        r = subprocess.run(
+            ["net.exe", "localgroup", "Administrators"],
+            capture_output=True,
+            text=True,
+            timeout=NET_TIMEOUT_SEC,
+            creationflags=0x08000000,  # CREATE_NO_WINDOW
+        )
+    except subprocess.TimeoutExpired:
+        _logger.log(f"  admins._run_net_localgroup: timed out after {NET_TIMEOUT_SEC}s")
+        return None
+    except OSError as e:
+        _logger.log(f"  admins._run_net_localgroup: launch failed: {e}")
+        return None
+
+    if r.returncode != 0:
+        _logger.log(f"  admins._run_net_localgroup: rc={r.returncode} stderr={r.stderr.strip()[:200]!r}")
+        return None
+
+    lines = (r.stdout or "").splitlines()
+    members = []
+    in_members = False
+    local_computer = os.environ.get("COMPUTERNAME", "").upper()
+    known_group_names = (
+        "Domain Admins", "Domain Users", "Everyone", "Authenticated Users",
+        "Users", "Power Users", "Backup Operators",
+    )
+    for line in lines:
+        s = line.strip()
+        if not s:
+            continue
+        # Detect the start of the member list (the dashed separator line).
+        if not in_members:
+            if s.startswith("---"):
+                in_members = True
+            continue
+        # End-of-output marker.
+        if s.startswith("The command completed"):
+            break
+        # Member name.
+        name = s
+        if "\\" in name:
+            prefix, bare = name.split("\\", 1)
+            prefix_u = prefix.upper()
+            if prefix_u in ("BUILTIN", "NT AUTHORITY", "NT SERVICE"):
+                principal_source = "Local"
+            elif prefix_u == local_computer:
+                principal_source = "Local"
+            else:
+                principal_source = "ActiveDirectory"
+            mtype = "group" if any(bare.lower() == g.lower() for g in known_group_names) else "user"
+        else:
+            principal_source = "Local"
+            mtype = "group" if any(name.lower() == g.lower() for g in known_group_names) else "user"
+        members.append({
+            "name": name,
+            "type": mtype,
+            "principalSource": principal_source,
+            "sid": None,  # net localgroup doesn't emit SIDs; PS enrichment fills these in when available
+        })
+    _logger.log(f"  admins._run_net_localgroup: parsed {len(members)} members from `net localgroup`")
+    return members
+
+
+def _enrich_with_powershell(base_members):
+    """
+    Optional best-effort enrichment via Get-LocalGroupMember. Adds
+    SID + a more reliable PrincipalSource. If PS is missing the
+    cmdlet (Server 2012 R2 / older), returns the base list unchanged.
+    Matches PS members to base members by case-insensitive name
+    comparison.
+    """
     try:
         proc = subprocess.run(
             [
@@ -178,50 +187,126 @@ def collect():
                 "-NoProfile",
                 "-NonInteractive",
                 "-ExecutionPolicy", "Bypass",
-                "-Command", _PS_SNIPPET,
+                "-Command", _PS_ENRICH_SNIPPET,
             ],
             capture_output=True,
             text=True,
-            timeout=ADMIN_PROBE_TIMEOUT_SEC,
-            creationflags=0x08000000,  # CREATE_NO_WINDOW
+            timeout=PS_ENRICH_TIMEOUT_SEC,
+            creationflags=0x08000000,
         )
     except subprocess.TimeoutExpired:
-        return {"_error": f"admins probe timed out after {ADMIN_PROBE_TIMEOUT_SEC}s"}
-    except Exception as e:
-        return {"_error": f"admins probe failed to launch: {e}"}
+        _logger.log(f"  admins._enrich_with_powershell: PS timed out after {PS_ENRICH_TIMEOUT_SEC}s (using base list as-is)")
+        return base_members
+    except OSError as e:
+        _logger.log(f"  admins._enrich_with_powershell: PS launch failed: {e}")
+        return base_members
 
     raw = (proc.stdout or "").strip()
     if not raw:
-        err_tail = (proc.stderr or "").strip()[-300:]
-        return {"_error": f"admins probe produced no stdout (rc={proc.returncode}; stderr={err_tail!r})"}
-
+        _logger.log("  admins._enrich_with_powershell: empty PS output (using base list as-is)")
+        return base_members
     try:
         parsed = json.loads(raw)
-    except json.JSONDecodeError as e:
-        return {"_error": f"admins JSON parse failed: {e}; first 200 chars: {raw[:200]!r}"}
+    except json.JSONDecodeError:
+        _logger.log("  admins._enrich_with_powershell: PS JSON parse failed (using base list as-is)")
+        return base_members
+    if not parsed.get("ok"):
+        _logger.log("  admins._enrich_with_powershell: PS reported not-ok (Get-LocalGroupMember unavailable -- using base list as-is)")
+        return base_members
 
-    if isinstance(parsed, dict) and parsed.get("ok") is False:
-        return {"_error": f"PowerShell reported error: {parsed.get('error')}"}
+    ps_members = parsed.get("members") or []
+    if not isinstance(ps_members, list):
+        return base_members
 
-    if not isinstance(parsed, dict):
-        return {"_error": "admins probe returned unexpected JSON shape"}
+    # Build a lookup keyed by case-insensitive bare name AND by full
+    # DOMAIN\name string -- net localgroup uses the full form, PS
+    # uses either depending on the source.
+    ps_by_key = {}
+    for pm in ps_members:
+        name = (pm or {}).get("name") or ""
+        if not name:
+            continue
+        ps_by_key[name.lower()] = pm
+        if "\\" in name:
+            bare = name.split("\\", 1)[1]
+            ps_by_key[bare.lower()] = pm
+    enriched = 0
+    for bm in base_members:
+        key = bm.get("name", "").lower()
+        bare_key = key.split("\\", 1)[1] if "\\" in key else key
+        pm = ps_by_key.get(key) or ps_by_key.get(bare_key)
+        if pm:
+            if pm.get("sid"):
+                bm["sid"] = pm["sid"]
+            if pm.get("principalSource") and pm["principalSource"] != "Unknown":
+                bm["principalSource"] = pm["principalSource"]
+            enriched += 1
+    _logger.log(f"  admins._enrich_with_powershell: enriched {enriched}/{len(base_members)} members from PS")
+    return base_members
 
-    # Coerce shape just in case PowerShell returned a single member (which
-    # ConvertTo-Json would render as an object, not an array).
-    members = parsed.get("members")
-    if isinstance(members, dict):
-        members = [members]
-    elif not isinstance(members, list):
-        members = []
 
-    return {
-        "members": members,
-        "memberCount": len(members),
-        "builtinAdministratorEnabled": parsed.get("builtinAdministratorEnabled"),
-        # True when the probe fell back to the ADSI path (Server 2012 R2
-        # / older Windows without Get-LocalGroupMember). Surfaced so the
-        # dashboard can show a small "via ADSI fallback" hint -- useful
-        # for the operator deciding whether to push these hosts to a
-        # newer Windows release.
-        "usedAdsiFallback": bool(parsed.get("usedAdsiFallback")),
-    }
+def _builtin_admin_enabled():
+    """
+    Best-effort read of whether the built-in Administrator account
+    (SID-500) is enabled. Uses `net user Administrator` -- output line:
+      Account active               Yes
+    or:
+      Account active               No
+    Returns True / False / None (when we can't parse the output).
+    """
+    try:
+        r = subprocess.run(
+            ["net.exe", "user", "Administrator"],
+            capture_output=True,
+            text=True,
+            timeout=NET_TIMEOUT_SEC,
+            creationflags=0x08000000,
+        )
+    except (subprocess.TimeoutExpired, OSError) as e:
+        _logger.log(f"  admins._builtin_admin_enabled: net user failed: {e}")
+        return None
+    if r.returncode != 0:
+        return None
+    for line in (r.stdout or "").splitlines():
+        s = line.strip()
+        # Match case-insensitively because some locales return "ACCOUNT ACTIVE"
+        if s.lower().startswith("account active"):
+            tail = s.split(None, 2)[-1].strip().lower()
+            if tail.startswith("y"):
+                return True
+            if tail.startswith("n"):
+                return False
+            return None
+    return None
+
+
+def collect():
+    """
+    Returns the members list + metadata + a flag for whether the
+    enrichment path succeeded. Never raises -- on any error returns
+    a dict with `_error`.
+    """
+    try:
+        _logger.log("admins.collect: starting (net localgroup primary path)")
+        base = _run_net_localgroup()
+        if base is None:
+            return {"_error": "net localgroup Administrators failed -- check agent permissions or SAM state"}
+
+        # Best-effort enrichment. Doesn't fail the probe if PS times out.
+        enriched = _enrich_with_powershell(base)
+
+        builtin_enabled = _builtin_admin_enabled()
+
+        # usedAdsiFallback is now misnamed -- we removed the ADSI path
+        # entirely. The flag still exists in the dashboard renderer for
+        # backward compat; we report False since the new primary path
+        # is neither Get-LocalGroupMember NOR ADSI but `net localgroup`.
+        return {
+            "members": enriched,
+            "memberCount": len(enriched),
+            "builtinAdministratorEnabled": builtin_enabled,
+            "usedAdsiFallback": False,
+            "source": "net localgroup",
+        }
+    except Exception as e:
+        return {"_error": f"admins probe crashed: {e}"}

@@ -335,23 +335,13 @@
   }
 
   /* filter bar */
-  /* Filter bar (search + client dropdown + status dropdown + column /
-     export buttons) sticks to the top of the viewport so the operator
-     can search / filter without scrolling back up to find the inputs
-     when looking at a long fleet. Sits BELOW the page header (which
-     is also sticky, top: 0, ~60 px tall) -- the 56 px top value is
-     header.bar's resolved height (10 px padding top + bottom, ~36 px
-     content). Background opaque + z-index 40 (below header.bar's 50)
-     so rows scrolling under stay hidden.
-     Endpoints panel only -- Clients / Activity / Settings filters
-     don't get this treatment (short panels, no need). */
-  .tab-pane[data-tab="fleet"] .panel > .filters {
-    position: sticky;
-    top: 56px;
-    z-index: 40;
-    background: var(--surface);
-    border-bottom: 1px solid var(--line);
-  }
+  /* Filter bar -- earlier versions made this sticky too (under the
+     page header, above the thead) but the multi-layer sticky stack
+     was breaking the table's sticky thead in subtle browser-specific
+     ways. Dropped the filter sticky entirely so the thead is the
+     ONLY sticky element on the page besides header.bar. Operators
+     scrolling a long table can scroll back to the top to re-filter
+     -- not worth the layout fragility. */
   .filters { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 14px 18px; }
   .filters input[type="search"], .filters select { padding: 7px 10px; border: 1px solid var(--line-strong); border-radius: 7px; font-size: 13.5px; background: var(--surface); }
   .filters input[type="search"] { width: 260px; }
@@ -365,7 +355,15 @@
   .filters .filter-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 
   /* fleet table */
-  table.fleet { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  /* border-collapse: SEPARATE (not collapse) is the critical fix for
+     sticky thead. With border-collapse:collapse the thead/tbody share
+     borders, and several browsers (Chrome especially) refuse to keep
+     a sticky <th> visible because the row borders end up "owned" by
+     the tbody. Switching to separate + border-spacing:0 looks
+     identical visually but lets sticky work reliably. Borders that
+     used to live on <td>s now live on the cells themselves -- we add
+     row borders via td border-bottom in the row CSS below. */
+  table.fleet { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13.5px; }
   /* No overflow-x on #fleetWrap any more. v0.14.58 had it as auto to
      contain a too-wide table inside the panel, but that created a
      new scroll context that BROKE the sticky thead -- the header
@@ -380,20 +378,14 @@
      desktop window edge case (1100-1400 px wide) does get a tiny
      amount of cell wrapping but no broken sticky header. */
   #fleetWrap { width: 100%; }
-  /* Sticky table header. Two-layer sticky setup (both <thead> AND
-     individual <th>s) because browsers vary on which one they honor
-     reliably:
-       - Chrome/Edge: works either way
-       - Firefox: prefers sticky on <thead>
-       - Safari: historically wonky with <th>-only sticky
-     Belt-and-suspenders applies both so the column labels always pin
-     correctly under the sticky filter bar regardless of browser.
-     z-index: 30 keeps the row above table-body content (default 0)
-     but below the filter bar (40) and page header (50). Background
-     on each <th> is REQUIRED -- without it, scrolled rows show
-     through the gap between cells. */
-  table.fleet thead { position: sticky; top: 112px; z-index: 30; }
-  table.fleet th { text-align: left; padding: 10px 14px; font-size: 11px; text-transform: uppercase; color: var(--ink-faint); letter-spacing: 0.06em; font-weight: 700; border-bottom: 1px solid var(--line); background: var(--surface-2); position: sticky; top: 112px; z-index: 30; }
+  /* Sticky table header -- single layer (<th> only). The previous
+     two-layer attempt (sticky on both <thead> and <th>) was
+     overengineered; with border-collapse: separate above + an
+     opaque background on each <th>, just sticking the <th>s works
+     in Chrome / Edge / Firefox / Safari. top:56 = just below the
+     sticky page header (header.bar at top:0, ~56px tall). z-index:
+     above row content (default 0), below the page header (50). */
+  table.fleet th { text-align: left; padding: 10px 14px; font-size: 11px; text-transform: uppercase; color: var(--ink-faint); letter-spacing: 0.06em; font-weight: 700; border-bottom: 1px solid var(--line); background: var(--surface-2); position: sticky; top: 56px; z-index: 30; }
   /* Sortable-header polish: clickable cursor + hover state + chevron
      marker on the active column. The chevron uses simple CSS unicode
      so we don't need an icon font or SVG sprite. */
@@ -1043,22 +1035,23 @@
   </header>
 
   <main>
-    <!-- Compact alert chip. Replaces the previous full-width snooze
-         banner. Visible whenever the fleet has any non-OK host OR
-         while alerts are snoozed. Shows WHY alerts are firing (top
-         host + reason) right next to the snooze button so the
-         operator can decide whether to silence without leaving the
-         current view. Hidden when fleet is all-OK + not snoozed. -->
-    <div id="alertChipWrap" style="margin: 0 12px 12px;">
-      <div id="alertChip" hidden style="display: inline-flex; align-items: center; gap: 10px; padding: 6px 10px 6px 12px; background: var(--info-soft); border: 1px solid #bae6fd; border-radius: 999px; font-size: 12.5px; color: var(--info-ink, #075985); max-width: 100%;"></div>
-    </div>
-
-    <div class="tabs">
-      <button class="tab active" data-tab="fleet">Endpoints</button>
-      <button class="tab" data-tab="clients">Clients</button>
-      <button class="tab" data-tab="stats">Stats</button>
-      <button class="tab" data-tab="activity">Activity</button>
-      <button class="tab" data-tab="settings">Settings</button>
+    <!-- Tabs row + compact alert chip pinned to the right. Chip is
+         click-to-popover (renderAlertChip wires the handler) instead
+         of inline-expanding the way the earlier full-width version
+         did. Hidden entirely when fleet is all-OK + not snoozed --
+         the wrap is flex so the tab row collapses to its natural
+         width when the chip is absent. -->
+    <div class="tabs-row" style="display:flex;align-items:center;gap:12px;margin:0 12px 12px;">
+      <div class="tabs" style="margin:0;flex:1 1 auto;">
+        <button class="tab active" data-tab="fleet">Endpoints</button>
+        <button class="tab" data-tab="clients">Clients</button>
+        <button class="tab" data-tab="stats">Stats</button>
+        <button class="tab" data-tab="activity">Activity</button>
+        <button class="tab" data-tab="settings">Settings</button>
+      </div>
+      <div id="alertChipWrap" style="flex:0 0 auto;">
+        <div id="alertChip" hidden style="display: inline-flex; align-items: center; gap: 8px; padding: 6px 10px 6px 12px; background: var(--info-soft); border: 1px solid #bae6fd; border-radius: 999px; font-size: 12.5px; color: var(--info-ink, #075985); cursor: pointer;" role="button" tabindex="0" title="Click for details"></div>
+      </div>
     </div>
 
     <div class="tab-pane" data-tab="fleet">
@@ -1366,7 +1359,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.69";
+const APP_VERSION = "0.14.70";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -2771,134 +2764,145 @@ function renderAlertChip() {
   }
   chip.hidden = false;
 
+  // COMPACT chip -- always one short line. Click opens a popover
+  // (reuses #badgePopover) with the full list of alerting hosts +
+  // snooze/resume controls. The previous full-width inline-expanding
+  // chip ate too much vertical space on every tab; the popover keeps
+  // detail one click away without consuming layout.
+  let icon, bg, border, color, label;
   if (isSnoozed) {
-    // Snoozed form — same chip color as info to stay distinct from the
-    // alerting form below. Show the snooze-until time + an optional
-    // count of currently-firing alerts (in case the fleet got worse
-    // since the snooze started).
+    icon = '🔕';
+    bg = 'var(--info-soft)';
+    border = '#bae6fd';
+    color = 'var(--info-ink, #075985)';
+    const whenStr = until.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+    label = hasAlerts
+      ? `Muted until ${whenStr} &middot; ${alerts.crit + alerts.warn} firing`
+      : `Muted until ${whenStr}`;
+  } else if (alerts.crit > 0 && alerts.warn > 0) {
+    icon = '🚨';
+    bg = '#fee2e2'; border = '#fca5a5'; color = '#7f1d1d';
+    label = `<b>${alerts.crit} critical</b>, ${alerts.warn} warning${alerts.warn === 1 ? '' : 's'}`;
+  } else if (alerts.crit > 0) {
+    icon = '🚨';
+    bg = '#fee2e2'; border = '#fca5a5'; color = '#7f1d1d';
+    label = `<b>${alerts.crit} critical</b>`;
+  } else {
+    icon = '⚠️';
+    bg = '#fef3c7'; border = '#fde68a'; color = '#78350f';
+    label = `<b>${alerts.warn} warning${alerts.warn === 1 ? '' : 's'}</b>`;
+  }
+  chip.style.background = bg;
+  chip.style.borderColor = border;
+  chip.style.color = color;
+  chip.innerHTML = `<span style="font-size:14px;line-height:1;">${icon}</span><span>${label}</span>`;
+}
+
+// Click handler -- opens the full alert list in the badge popover.
+// Registered once at module load so chip re-renders don't lose it.
+// (The chip element itself stays the same node; we just replace its
+// innerHTML on every render.)
+document.addEventListener('DOMContentLoaded', () => {
+  const chip = document.getElementById('alertChip');
+  if (chip) chip.addEventListener('click', _openAlertChipPopover);
+});
+// Belt-and-suspenders: also wire it from inline JS since DOMContentLoaded
+// may have fired by the time the script is evaluated.
+setTimeout(() => {
+  const chip = document.getElementById('alertChip');
+  if (chip && !chip.__alertClickWired) {
+    chip.addEventListener('click', _openAlertChipPopover);
+    chip.__alertClickWired = true;
+  }
+}, 0);
+
+function _openAlertChipPopover() {
+  const chip = document.getElementById('alertChip');
+  if (!chip || chip.hidden) return;
+  const pop = document.getElementById('badgePopover');
+  if (!pop) return;
+
+  const snooze = state.alertSnooze;
+  const until = snooze && snooze.snoozedUntil ? new Date(snooze.snoozedUntil) : null;
+  const isSnoozed = until && until.getTime() > Date.now();
+  const alerts = computeFleetAlerts();
+  const allHosts = alerts.critHosts.concat(alerts.warnHosts);
+
+  const headerLine = isSnoozed
+    ? `Alerts muted &middot; ${alerts.crit + alerts.warn} firing`
+    : `${alerts.crit} critical, ${alerts.warn} warning${alerts.warn === 1 ? '' : 's'}`;
+
+  // Snooze/resume buttons up top.
+  let controls;
+  if (isSnoozed) {
     const whenStr = until.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
     const dateStr = until.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-    const countNote = hasAlerts
-      ? `<span class="meta" style="margin-left:6px;">(${alerts.crit} critical, ${alerts.warn} warning${alerts.warn === 1 ? '' : 's'} muted)</span>`
-      : '';
-    chip.style.background = 'var(--info-soft)';
-    chip.style.borderColor = '#bae6fd';
-    chip.style.color = 'var(--info-ink, #075985)';
-    chip.innerHTML = `
-      <span style="font-size:14px;line-height:1;">🔕</span>
-      <span>Snoozed until <b>${esc(whenStr)} &middot; ${esc(dateStr)}</b>${countNote}</span>
-      <button class="btn btn-sm" id="chipResumeBtn" style="padding:3px 10px;font-size:11.5px;background:#fff;">Resume alerts</button>
+    controls = `
+      <div style="padding:8px 14px;font-size:12.5px;color:var(--ink-soft);">Muted until <b style="color:var(--ink);">${esc(whenStr)} &middot; ${esc(dateStr)}</b></div>
+      <button class="pop-action" data-chip-action="resume">Resume alerts now</button>
     `;
-    const btn = $("#chipResumeBtn");
-    if (btn) btn.addEventListener('click', _chipClearSnooze);
-    return;
-  }
-
-  // Alerting form. Surface the WORST host's name + reason so the operator
-  // sees "what's wrong" inline with the snooze button instead of having
-  // to scroll the fleet table. The hostname is rendered as a clickable
-  // anchor that opens the host's drawer -- one-click triage from the
-  // alert banner straight into the details panel.
-  //
-  // When more than one host is alerting, the "+N more" text is itself
-  // clickable: it expands the chip into a list of every alerting host,
-  // each row a link to that host's drawer. Click again to collapse.
-  // _alertChipExpanded is a module-level boolean preserved across
-  // re-renders so the expanded view doesn't snap shut on every Firestore
-  // snapshot tick.
-  const sevColor = alerts.crit > 0 ? '#7f1d1d' : '#78350f';
-  const sevBg    = alerts.crit > 0 ? '#fee2e2' : '#fef3c7';
-  const sevBorder = alerts.crit > 0 ? '#fca5a5' : '#fde68a';
-  const icon = alerts.crit > 0 ? '🚨' : '⚠️';
-  const topHost = alerts.crit > 0 ? alerts.critHosts[0] : alerts.warnHosts[0];
-  const totalCount = alerts.crit + alerts.warn;
-  const allHosts = alerts.critHosts.concat(alerts.warnHosts);   // crit first, then warn
-  const moreCount = totalCount - 1;
-
-  // Inherit the chip's severity color so the link reads as part of the
-  // alert (not as a stock blue web link). Underlined so it's clearly
-  // clickable rather than just emphasized text.
-  const hostLink = `<a href="#" class="chipHostLink" data-pcid="${esc(topHost.id)}" style="color:inherit;font-weight:700;text-decoration:underline;cursor:pointer;" title="Open the host's drawer">${esc(topHost.name)}</a>`;
-
-  // "+N more" -- clickable when there's more than one host, plain text
-  // (empty) when there's only one.
-  const moreLink = moreCount > 0
-    ? ` <a href="#" id="chipMoreToggle" style="color:inherit;opacity:0.7;text-decoration:underline;cursor:pointer;font-size:11.5px;" title="${_alertChipExpanded ? 'Hide the list of other alerting hosts' : 'Show the other alerting hosts'}">${_alertChipExpanded ? '&minus; collapse' : '+' + moreCount + ' more'}</a>`
-    : '';
-
-  let summary;
-  if (alerts.crit > 0 && alerts.warn > 0) {
-    summary = `<b>${alerts.crit} critical</b>, ${alerts.warn} warning${alerts.warn === 1 ? '' : 's'} &middot; ${hostLink}${topHost.reason ? ` — ${esc(topHost.reason)}` : ''}${moreLink}`;
-  } else if (alerts.crit > 0) {
-    summary = `<b>${alerts.crit} critical</b> &middot; ${hostLink}${topHost.reason ? ` — ${esc(topHost.reason)}` : ''}${moreLink}`;
   } else {
-    summary = `<b>${alerts.warn} warning${alerts.warn === 1 ? '' : 's'}</b> &middot; ${hostLink}${topHost.reason ? ` — ${esc(topHost.reason)}` : ''}${moreLink}`;
+    controls = `
+      <button class="pop-action" data-chip-action="snooze-1h">Snooze alerts for 1 hour</button>
+      <button class="pop-action" data-chip-action="snooze-4h">Snooze alerts for 4 hours</button>
+      <button class="pop-action" data-chip-action="snooze-24h">Snooze alerts for 24 hours</button>
+    `;
   }
 
-  // Expanded list. Each alerting host is one clickable row with its
-  // severity icon, hostname, and short reason. Crit rows render first
-  // (allHosts is already crit-then-warn). Click a row -> open that
-  // host's drawer + auto-collapse the chip (no need to keep the list
-  // open after the operator's navigated away).
-  const expandedList = _alertChipExpanded && moreCount > 0
-    ? `<div style="margin-top:8px;border-top:1px solid ${sevBorder};padding-top:6px;display:flex;flex-direction:column;gap:2px;font-size:12.5px;">
-         ${allHosts.map((h, i) => {
-           const rowIcon = i < alerts.crit ? '🚨' : '⚠️';
-           return `<a href="#" class="chipHostLink" data-pcid="${esc(h.id)}" style="display:flex;align-items:center;gap:6px;color:inherit;text-decoration:none;padding:3px 4px;border-radius:4px;cursor:pointer;" onmouseover="this.style.background='rgba(0,0,0,0.05)'" onmouseout="this.style.background='transparent'" title="Open the host's drawer">
-             <span style="font-size:11px;line-height:1;">${rowIcon}</span>
-             <span style="font-weight:700;">${esc(h.name)}</span>
-             ${h.reason ? `<span style="opacity:0.8;">— ${esc(h.reason)}</span>` : ''}
-           </a>`;
-         }).join('')}
-       </div>`
-    : '';
-
-  // When expanded, switch from pill (border-radius:999px) to rounded
-  // rect (border-radius:10px) and let it flex column so the list sits
-  // below the summary row, taking the chip's full width.
-  chip.style.background = sevBg;
-  chip.style.borderColor = sevBorder;
-  chip.style.color = sevColor;
-  if (_alertChipExpanded && moreCount > 0) {
-    chip.style.borderRadius = '10px';
-    chip.style.flexDirection = 'column';
-    chip.style.alignItems = 'stretch';
-  } else {
-    chip.style.borderRadius = '999px';
-    chip.style.flexDirection = 'row';
-    chip.style.alignItems = 'center';
-  }
-  chip.innerHTML = `
-    <div style="display:flex;align-items:center;gap:10px;">
-      <span style="font-size:14px;line-height:1;">${icon}</span>
-      <span style="flex:1;">${summary}</span>
-      <button class="btn btn-sm" id="chipSnoozeBtn" style="padding:3px 10px;font-size:11.5px;background:#fff;color:#1a1f2b;" title="Snooze for 1 hour. Other durations available in Settings.">Snooze 1h</button>
+  // Per-host rows. Click -> open that host's drawer, close popover.
+  const hostRows = allHosts.length ? `
+    <div style="border-top:1px solid var(--line);padding:6px 14px 2px 14px;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-faint);font-weight:700;">Alerting endpoints</div>
+    <div style="max-height:280px;overflow-y:auto;">
+      ${allHosts.map((h, i) => {
+        const rowIcon = i < alerts.crit ? '🚨' : '⚠️';
+        return `<button class="pop-action" data-chip-pcid="${esc(h.id)}" style="display:flex;align-items:baseline;gap:8px;">
+          <span style="font-size:11px;line-height:1;">${rowIcon}</span>
+          <span style="font-weight:600;flex:1;">${esc(h.name)}</span>
+          ${h.reason ? `<span class="meta" style="font-size:11.5px;font-weight:400;">${esc(h.reason)}</span>` : ''}
+        </button>`;
+      }).join('')}
     </div>
-    ${expandedList}
+  ` : '';
+
+  pop.innerHTML = `
+    <div class="pop-title">Alerts <div class="pop-host">${headerLine}</div></div>
+    ${controls}
+    ${hostRows}
   `;
 
-  const btn = $("#chipSnoozeBtn");
-  if (btn) btn.addEventListener('click', () => _chipSnoozeFor(60));
-  // All hostname links (header + expanded rows) share the same handler.
-  document.querySelectorAll('.chipHostLink').forEach(a => {
-    a.addEventListener('click', (ev) => {
-      ev.preventDefault();
-      const pcId = a.getAttribute('data-pcid');
-      if (pcId) {
-        openDrawer(pcId);
-        _alertChipExpanded = false;
-        renderAlertChip();
+  // Position next to the chip.
+  pop.hidden = false;
+  const rect = chip.getBoundingClientRect();
+  const popRect = pop.getBoundingClientRect();
+  let top = rect.bottom + 6;
+  let left = Math.max(8, Math.min(window.innerWidth - popRect.width - 8, rect.right - popRect.width));
+  if (top + popRect.height > window.innerHeight - 8) {
+    top = Math.max(8, rect.top - popRect.height - 6);
+  }
+  pop.style.top  = `${top}px`;
+  pop.style.left = `${left}px`;
+
+  // Wire handlers (snooze/resume + per-host).
+  pop.querySelectorAll('[data-chip-action]').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const action = btn.dataset.chipAction;
+      _closeBadgePopover();
+      if (action === 'resume') {
+        await _chipClearSnooze();
+      } else {
+        const mins = action === 'snooze-1h' ? 60 : action === 'snooze-4h' ? 240 : 1440;
+        await _chipSnoozeFor(mins);
       }
     });
   });
-  const moreToggle = $("#chipMoreToggle");
-  if (moreToggle) {
-    moreToggle.addEventListener('click', (ev) => {
-      ev.preventDefault();
-      _alertChipExpanded = !_alertChipExpanded;
-      renderAlertChip();
+  pop.querySelectorAll('[data-chip-pcid]').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      _closeBadgePopover();
+      openDrawer(btn.dataset.chipPcid);
     });
-  }
+  });
 }
 
 // Module-level toggle so the expanded host list survives Firestore
@@ -3464,6 +3468,55 @@ function renderStats() {
   cards.push(_statCard("Backup tooling",
     _statBars(backupRows, active.length, 6, { statKey: "backup", byLabel: backupByLabel }),
     noBackupHosts.length ? `<b style="color:#b91c1c;">${noBackupHosts.length}</b> host${noBackupHosts.length === 1 ? "" : "s"} have NO backup tool detected` : "every host has at least one backup tool"));
+
+  // ---- WSB primary backup disk age (in years) ----
+  // For every host with WSB + backup history, compute the primary
+  // disk's age = today - oldest backup on the target with the newest
+  // most-recent backup. Buckets are year ranges so the operator can
+  // see the rotation cadence at a glance -- a fleet with a lot of
+  // "5+ years" disks is overdue for swaps.
+  const wsbAgeYears = (a) => {
+    const wsb = a.report && a.report.wsb;
+    if (!wsb || !wsb.installed) return null;
+    const targets = Array.isArray(wsb.backupsByTarget) ? wsb.backupsByTarget : [];
+    if (!targets.length) return null;
+    let primary = null;
+    let latestMs = -Infinity;
+    for (const t of targets) {
+      const iso = t && t.newestBackup;
+      if (!iso) continue;
+      const ms = Date.parse(iso);
+      if (isFinite(ms) && ms > latestMs) { latestMs = ms; primary = t; }
+    }
+    if (!primary || !primary.oldestBackup) return null;
+    const oldestMs = Date.parse(primary.oldestBackup);
+    if (!isFinite(oldestMs)) return null;
+    return (Date.now() - oldestMs) / (365.25 * 86400000);
+  };
+  const wsbAgeByLabel = _bucketByLabel(active, a => {
+    const y = wsbAgeYears(a);
+    if (y == null) return null;  // skip hosts without WSB / without backup history
+    if (y < 1) return "< 1 year";
+    if (y < 2) return "1-2 years";
+    if (y < 3) return "2-3 years";
+    if (y < 4) return "3-4 years";
+    if (y < 5) return "4-5 years";
+    return "5+ years (overdue for swap)";
+  });
+  const wsbAgeOrder = ["< 1 year", "1-2 years", "2-3 years", "3-4 years", "4-5 years", "5+ years (overdue for swap)"];
+  const wsbAgeRows = wsbAgeOrder
+    .map(label => ({ label, count: (wsbAgeByLabel.get(label) || []).length }))
+    .filter(r => r.count > 0);
+  const wsbAgeTotal = wsbAgeRows.reduce((s, r) => s + r.count, 0);
+  const wsbAgeOverdue = (wsbAgeByLabel.get("5+ years (overdue for swap)") || []).length;
+  cards.push(_statCard("WSB backup disk age (years)",
+    wsbAgeTotal
+      ? _statBars(wsbAgeRows, wsbAgeTotal, 6, { statKey: "wsbage", byLabel: wsbAgeByLabel })
+      : `<div class="meta">No WSB hosts with backup history yet. The probe needs at least one completed backup on each target to compute age.</div>`,
+    wsbAgeOverdue
+      ? `<b style="color:#b91c1c;">${wsbAgeOverdue}</b> primary disk${wsbAgeOverdue === 1 ? '' : 's'} have been in rotation 5+ years &mdash; plan a swap`
+      : (wsbAgeTotal ? `${wsbAgeTotal} WSB host${wsbAgeTotal === 1 ? '' : 's'} with backup history` : null)
+  ));
 
   // ---- Remote access tooling ----
   const remoteByLabel = new Map();
@@ -7702,22 +7755,42 @@ async function _handleBadgeAction(pcId, hostname, kind, action, reason) {
   const monitorField = fieldByKind[kind];
   const nowIso = new Date().toISOString();
 
+  // Optimistic local-state update: write to state.agents BEFORE the
+  // Firestore round-trip + re-render so the badge / mute chip flips
+  // instantly. The worker mirrors the config field back into the
+  // agent doc on the next check-in (~5 min); without this optimistic
+  // update the dashboard wouldn't reflect the change until then,
+  // which feels broken ("I clicked 'don't track' and the pill is
+  // still there").
+  const agent = state.agents.find(a => a.id === pcId);
+  const optimisticUpdate = (patch) => {
+    if (!agent) return;
+    Object.assign(agent, patch);
+    if (typeof renderFleet === 'function') renderFleet();
+    if (state.openPcId === pcId && typeof renderDrawer === 'function') renderDrawer(pcId);
+  };
+
   try {
     if (action === 'mute-24h' || action === 'mute-7d') {
       const hours = action === 'mute-24h' ? 24 : 24 * 7;
       const until = new Date(Date.now() + hours * 3600 * 1000).toISOString();
+      optimisticUpdate({ alertsSnoozeUntil: until });
       await writeConfig(pcId, 'alertsSnoozeUntil', until);
       await _logBadgeActivity('alerts_snoozed', pcId, hostname, { kind, until, hours });
     } else if (action === 'unmute') {
+      optimisticUpdate({ alertsSnoozeUntil: null });
       await writeConfig(pcId, 'alertsSnoozeUntil', null);
       await _logBadgeActivity('alerts_unsnoozed', pcId, hostname, { kind });
     } else if (action === 'reenable' && monitorField) {
+      optimisticUpdate({ [monitorField]: true });
       await writeConfig(pcId, monitorField, true);
       await _logBadgeActivity('monitoring_enabled', pcId, hostname, { kind, monitorField });
     } else if (action === 'stop' && monitorField) {
+      optimisticUpdate({ [monitorField]: false });
       await writeConfig(pcId, monitorField, false);
       await _logBadgeActivity('monitoring_disabled', pcId, hostname, { kind, monitorField });
     } else if (action === 'mark-fp' && monitorField) {
+      optimisticUpdate({ [monitorField]: false });
       await writeConfig(pcId, monitorField, false);
       await _logBadgeActivity('marked_false_positive', pcId, hostname, {
         kind, monitorField, reason: reason || '(no reason given)',
