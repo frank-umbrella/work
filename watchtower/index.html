@@ -1368,7 +1368,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.75";
+const APP_VERSION = "0.14.76";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -3631,6 +3631,114 @@ function renderStats() {
   cards.push(_statCard("Last check-in age",
     _statBars(ageRows, active.length, 6, { statKey: "checkin", byLabel: ageByLabel }), null));
 
+  // ---- Fleet-wide connectivity chart (last 30 days) ----
+  // Aggregates offlinePeriods across every active host into 30 daily
+  // buckets. Each cell's color reflects the WORST host on that day:
+  //   - ok    no host had any outage
+  //   - warn  some host had an outage < 30 min
+  //   - crit  any host had an outage >= 30 min
+  // Clicking a non-green cell opens a popover listing the affected
+  // hosts + their outage durations + reasons.
+  const fleetDayStartMs = new Date().setHours(0, 0, 0, 0);
+  const fleetDays = [];
+  for (let i = 29; i >= 0; i--) {
+    const ds = fleetDayStartMs - i * 86400000;
+    const de = ds + 86400000;
+    // Per-day collection of {host, offlineMs, reasons}.
+    const hostsAffected = [];
+    let worstOfflineMs = 0;
+    for (const a of active) {
+      const periods = Array.isArray(a.offlinePeriods) ? a.offlinePeriods : [];
+      let hostOfflineMs = 0;
+      const reasons = new Set();
+      for (const p of periods) {
+        if (!p.startedAt) continue;
+        const ps = Date.parse(p.startedAt);
+        const pe = p.endedAt ? Date.parse(p.endedAt) : Date.now();
+        if (!isFinite(ps) || !isFinite(pe) || pe <= ps) continue;
+        const overlap = Math.max(0, Math.min(pe, de) - Math.max(ps, ds));
+        if (overlap > 0) {
+          hostOfflineMs += overlap;
+          if (p.reason) reasons.add(p.reason);
+        }
+      }
+      if (hostOfflineMs > 0) {
+        hostsAffected.push({
+          id: a.id,
+          hostname: a.hostname || a.id,
+          client: a.client || 'Unassigned',
+          offlineMs: hostOfflineMs,
+          reasons: Array.from(reasons),
+        });
+        if (hostOfflineMs > worstOfflineMs) worstOfflineMs = hostOfflineMs;
+      }
+    }
+    // Sort affected hosts by worst-first within the day so the popover
+    // surfaces the longest outages at the top.
+    hostsAffected.sort((a, b) => b.offlineMs - a.offlineMs);
+    let state = 'ok';
+    if (worstOfflineMs >= 30 * 60 * 1000) state = 'crit';
+    else if (worstOfflineMs > 0) state = 'warn';
+    fleetDays.push({ ds, state, hostsAffected, worstOfflineMs });
+  }
+  // Stash the day buckets in a module map so the click handler can
+  // look them up by ds without re-running the aggregation.
+  _statRowRegistry.set('connectivity', new Map(fleetDays.map(d => [String(d.ds), d.hostsAffected])));
+  // Aggregate stats over the same 30-day window for the conn-stats row.
+  const fleetWindowStart = fleetDayStartMs - 30 * 86400000;
+  let fleetOutageCount = 0;
+  let fleetTotalOfflineSec = 0;
+  let fleetLongestSec = 0;
+  let fleetHostsImpacted = new Set();
+  for (const a of active) {
+    const periods = Array.isArray(a.offlinePeriods) ? a.offlinePeriods : [];
+    let impacted = false;
+    for (const p of periods) {
+      if (!p.startedAt) continue;
+      const ps = Date.parse(p.startedAt);
+      if (!isFinite(ps) || ps < fleetWindowStart) continue;
+      fleetOutageCount++;
+      const d = Number(p.durationSec) || 0;
+      fleetTotalOfflineSec += d;
+      if (d > fleetLongestSec) fleetLongestSec = d;
+      impacted = true;
+    }
+    if (impacted) fleetHostsImpacted.add(a.id);
+  }
+  const fleetDayCells = fleetDays.map((d, i) => {
+    const cls = d.state === 'crit' ? 'crit' : d.state === 'warn' ? 'warn' : '';
+    const date = new Date(d.ds);
+    const dateStr = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    const summary = d.hostsAffected.length
+      ? `${d.hostsAffected.length} host${d.hostsAffected.length === 1 ? '' : 's'} affected · worst ${Math.round(d.worstOfflineMs / 60000)}m`
+      : 'all hosts online';
+    const clickable = d.hostsAffected.length > 0;
+    return `<div class="conn-cell ${cls}" data-fleet-conn-day="${d.ds}" ${clickable ? 'role="button" tabindex="0" style="cursor:pointer;"' : ''} title="${esc(dateStr)} — ${esc(summary)}${clickable ? ' (click for details)' : ''}"></div>`;
+  }).join('');
+  const fleetConnChart = `
+    <div class="conn-stats" style="margin:6px 0 10px;">
+      <div class="stat"><div class="val">${fleetOutageCount}</div><div class="lbl">Outage events</div></div>
+      <div class="stat"><div class="val">${fleetHostsImpacted.size}</div><div class="lbl">Hosts impacted</div></div>
+      <div class="stat"><div class="val">${esc(fmtDurationSec(fleetTotalOfflineSec))}</div><div class="lbl">Cumulative offline</div></div>
+      <div class="stat"><div class="val">${esc(fmtDurationSec(fleetLongestSec))}</div><div class="lbl">Longest single outage</div></div>
+    </div>
+    <div class="conn-chart">
+      <div class="conn-label">Fleet</div>
+      <div class="conn-lane">${fleetDayCells}</div>
+    </div>
+    <div class="conn-axis"><span>30d ago</span><span>15d ago</span><span>Today</span></div>
+    <div class="conn-legend">
+      <span><span class="conn-swatch" style="background:var(--accent);"></span>All hosts online</span>
+      <span><span class="conn-swatch" style="background:#f59e0b;"></span>Brief outage on some host (&lt;30m)</span>
+      <span><span class="conn-swatch" style="background:#b91c1c;"></span>Major outage on some host (&ge;30m)</span>
+    </div>
+  `;
+  cards.push(_statCard("Connectivity",
+    fleetConnChart,
+    "Click any amber / red day for the list of affected endpoints",
+    "span-2"
+  ));
+
   // ---- Most-common installed apps ----
   // The byLabel map here is harder -- one host can contribute to many
   // app rows. We track per-app a list of host references so the
@@ -3673,6 +3781,88 @@ function renderStats() {
     row.addEventListener("click", (e) => {
       e.stopPropagation();
       _openStatDrilldown(row.dataset.statKey, row.dataset.statLabel, row);
+    });
+  });
+  // Fleet-wide connectivity day cells -- non-green cells are clickable
+  // and open a popover listing the hosts affected that day.
+  body.querySelectorAll(".conn-cell[data-fleet-conn-day]").forEach(cell => {
+    cell.addEventListener("click", (e) => {
+      e.stopPropagation();
+      _openConnectivityDayDrilldown(cell.dataset.fleetConnDay, cell);
+    });
+  });
+}
+
+// Opens the fleet-wide connectivity drilldown for one day cell. Shows
+// each affected host with its outage duration + reason, grouped by
+// client (matches the stat-drilldown popover layout for visual
+// consistency). Single-column since the list is usually small (a
+// handful of hosts) and the durations need width for the meta text.
+function _openConnectivityDayDrilldown(dsKey, anchorEl) {
+  const byDay = _statRowRegistry.get('connectivity');
+  const hosts = (byDay && byDay.get(String(dsKey))) || [];
+  if (!hosts.length) return;
+  const pop = document.getElementById('badgePopover');
+  if (!pop) return;
+  const date = new Date(Number(dsKey));
+  const dateStr = date.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
+
+  // Group by client like the other drilldowns do.
+  const byClient = new Map();
+  for (const h of hosts) {
+    const c = h.client || 'Unassigned';
+    if (!byClient.has(c)) byClient.set(c, []);
+    byClient.get(c).push(h);
+  }
+  const clientNames = Array.from(byClient.keys()).sort((a, b) => a.localeCompare(b));
+
+  const sectionHtml = clientNames.map(client => {
+    const list = byClient.get(client);
+    return `<div style="break-inside:avoid;page-break-inside:avoid;">
+      <div style="padding:6px 14px 2px 14px;font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:var(--ink-faint);font-weight:700;border-top:1px solid var(--line);">${esc(client)} <span style="color:var(--ink-soft);font-weight:500;text-transform:none;letter-spacing:0;">&middot; ${list.length}</span></div>
+      ${list.map(h => {
+        const mins = Math.round(h.offlineMs / 60000);
+        const durStr = mins >= 60
+          ? `${Math.floor(mins / 60)}h ${mins % 60}m offline`
+          : `${mins}m offline`;
+        const reasonStr = (h.reasons || []).length
+          ? ` &middot; ${(h.reasons || []).map(r => r.replace(/_/g, ' ')).join(', ')}`
+          : '';
+        return `<button class="pop-action stat-host-row" data-stat-pcid="${esc(h.id)}" style="display:flex;justify-content:space-between;gap:10px;align-items:baseline;break-inside:avoid;">
+          <span style="font-weight:600;">${esc(h.hostname)}</span>
+          <span class="meta" style="font-size:11.5px;font-weight:400;">${esc(durStr)}${reasonStr}</span>
+        </button>`;
+      }).join('')}
+    </div>`;
+  }).join('');
+
+  // Use multi-col for big days; usually <8 hosts so single col is fine.
+  const colCount = hosts.length <= 8 ? 1 : hosts.length <= 24 ? 2 : 3;
+  const popMaxWidth = colCount === 3 ? 720 : colCount === 2 ? 520 : 380;
+  pop.style.maxWidth = popMaxWidth + 'px';
+  pop.innerHTML = `
+    <div class="pop-title">${esc(dateStr)} <div class="pop-host">${hosts.length} endpoint${hosts.length === 1 ? '' : 's'} had outages &middot; click any host to open its drawer</div></div>
+    <div style="column-count:${colCount};column-gap:0;column-fill:balance;padding:0 0 4px;">${sectionHtml}</div>
+  `;
+
+  pop.hidden = false;
+  const rect = anchorEl.getBoundingClientRect();
+  const popRect = pop.getBoundingClientRect();
+  let top = rect.bottom + 6;
+  let left = Math.max(8, Math.min(window.innerWidth - popRect.width - 8, rect.left));
+  if (top + popRect.height > window.innerHeight - 8) {
+    top = Math.max(8, rect.top - popRect.height - 6);
+  }
+  pop.style.top  = `${top}px`;
+  pop.style.left = `${left}px`;
+
+  pop.querySelectorAll('.stat-host-row').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const pcId = btn.dataset.statPcid;
+      _closeBadgePopover();
+      activateTab('fleet');
+      openDrawer(pcId);
     });
   });
 }
