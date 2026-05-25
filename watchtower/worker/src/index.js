@@ -2255,7 +2255,7 @@ async function sendIpChangeEmail(env, { pcId, hostname, client, previousIp, newI
         <div style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:16px;color:#0a6b6b;font-weight:700;">${escapeHtml(newIp || '?')}</div>
       </td>
     </tr></table>
-    <p style="font-size:11.5px;color:#8892a4;margin:14px 0 0;">Detected ${escapeHtml(when)}</p>
+    <p style="font-size:11.5px;color:#8892a4;margin:14px 0 0;">Detected ${escapeHtml(fmtWhen(when))}</p>
   `;
   const html = renderEmailShell({
     client, hostname, pcId,
@@ -2333,7 +2333,7 @@ async function sendIntakeEmail(env, { pcId, hostname, client, agentVersion, when
 
   const volumes = (stor.volumes || []).slice(0, 6).map(v => `<li>${escapeHtml(v.letter)} (${escapeHtml(v.filesystem || '?')}) &mdash; ${v.sizeGB || 0} GB total, ${v.freeGB || 0} GB free</li>`).join('');
 
-  const subtitleHtml = `<b style="color:#ffffff;">${escapeHtml(hostname || '?')}</b> &middot; joined ${escapeHtml(when)}`;
+  const subtitleHtml = `<b style="color:#ffffff;">${escapeHtml(hostname || '?')}</b> &middot; joined ${escapeHtml(fmtWhen(when))}`;
 
   const bodyHtml = `
     <p style="font-size:15px;color:#1a1f2b;line-height:1.55;margin:0 0 18px;">
@@ -2521,7 +2521,7 @@ async function sendOmsaWarningEmail(env, { pcId, hostname, client, rollup, versi
       <div style="font-size:10.5px;color:#b91c1c;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">What needs attention</div>
       ${issuesListHtml}
     </div>
-    <p style="font-size:12px;color:#8892a4;margin:0;">OMSA ${escapeHtml(version || '?')} &middot; detected ${escapeHtml(when)}</p>
+    <p style="font-size:12px;color:#8892a4;margin:0;">OMSA ${escapeHtml(version || '?')} &middot; detected ${escapeHtml(fmtWhen(when))}</p>
   `;
   const html = renderEmailShell({
     client, hostname, pcId,
@@ -2594,7 +2594,7 @@ async function sendBackupFailureEmail(env, { pcId, hostname, client, result, det
       <td style="background:#fafbfc;border:1px solid #e3e6ec;border-radius:10px;padding:14px 18px;vertical-align:top;">
         <div style="font-size:10.5px;color:#8892a4;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:4px;">Failure result</div>
         <div style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:14px;color:#b91c1c;font-weight:700;line-height:1.3;word-break:break-all;">${escapeHtml(result || 'unknown')}</div>
-        <div style="font-size:11.5px;color:#475063;margin-top:6px;">attempted ${escapeHtml(attemptedAt || when)}${lastSuccess ? ` &middot; last success ${escapeHtml(lastSuccess)}` : ''}</div>
+        <div style="font-size:11.5px;color:#475063;margin-top:6px;">attempted ${escapeHtml(fmtWhen(attemptedAt || when))}${lastSuccess ? ` &middot; last success ${escapeHtml(fmtWhen(lastSuccess))}` : ''}</div>
       </td>
     </tr></table>
     ${detail ? `
@@ -2705,7 +2705,7 @@ async function sendUninstallEmail(env, { pcId, hostname, client, source, reason,
       <td width="4%"></td>
       <td style="background:#f4f6f9;border-radius:10px;padding:14px 18px;width:48%;vertical-align:top;">
         <div style="font-size:10.5px;color:#8892a4;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:4px;">When</div>
-        <div style="font-size:14px;color:#1a1f2b;">${escapeHtml(when)}</div>
+        <div style="font-size:14px;color:#1a1f2b;">${escapeHtml(fmtWhen(when))}</div>
       </td>
     </tr></table>
     ${reason ? `<p style="font-size:13px;color:#475063;margin:16px 0 0;"><b style="color:#1a1f2b;">Reason:</b> ${escapeHtml(reason)}</p>` : ''}
@@ -2929,7 +2929,7 @@ function _slackFacts(p) {
       }
       break;
   }
-  if (p.when) add('When', p.when);
+  if (p.when) add('When', fmtWhen(p.when));
   // Slack caps `fields` at 10; truncate if we got carried away.
   return facts.slice(0, 10);
 }
@@ -2950,7 +2950,7 @@ function buildTeamsMessageCard(p, summary, meta) {
   // Per-event fact list -- runs after the activity title/subtitle.
   const facts = [];
   if (hostname) facts.push({ name: 'Host', value: hostname });
-  if (p.when) facts.push({ name: 'When', value: p.when });
+  if (p.when) facts.push({ name: 'When', value: fmtWhen(p.when) });
   switch (p.event) {
     case 'external_ip_changed':
       if (p.previousIp) facts.push({ name: 'Previous IP', value: p.previousIp });
@@ -3065,7 +3065,7 @@ function buildDiscordEmbed(p, summary, meta) {
       }
       break;
   }
-  if (p.when) fields.push({ name: 'When', value: p.when, inline: true });
+  if (p.when) fields.push({ name: 'When', value: fmtWhen(p.when), inline: true });
 
   return {
     embeds: [
@@ -3200,7 +3200,7 @@ function buildGoogleChatCard(p, summary, meta) {
       break;
   }
 
-  if (p.when) widgets.push(_gchatFact('When', p.when, 'CLOCK'));
+  if (p.when) widgets.push(_gchatFact('When', fmtWhen(p.when), 'CLOCK'));
 
   // Footer: link button to the dashboard. Doesn't render on mobile push
   // notifications but works in the in-room card. Per-host deep-link via
@@ -3525,4 +3525,35 @@ function escapeHtml(s) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+// Turn an ISO 8601 timestamp into a human-readable string for use in
+// emails / webhook fact rows. Workers run UTC -- Intl.DateTimeFormat
+// honors the timeZone option and the locale's wall-clock formatting.
+// Falls back to the raw string if parsing fails so we never render
+// "undefined" or "Invalid Date" to the recipient.
+//
+// Output shape: "May 25, 2026 at 9:14 AM UTC"
+//   - en-US locale for predictable phrasing across runtimes
+//   - long month name reads better than 5/25/2026 at a glance
+//   - hour:minute (no seconds) -- the seconds aren't useful in an alert
+//   - timeZoneName: short tacks UTC on the end so readers can mentally
+//     shift to their local zone without needing to know we're UTC
+function fmtWhen(iso) {
+  if (!iso) return '';
+  const ms = Date.parse(iso);
+  if (!isFinite(ms)) return String(iso);
+  try {
+    const fmt = new Intl.DateTimeFormat('en-US', {
+      year: 'numeric', month: 'long', day: 'numeric',
+      hour: 'numeric', minute: '2-digit',
+      hour12: true, timeZone: 'UTC', timeZoneName: 'short',
+    });
+    // en-US format puts the date and time on either side of a comma;
+    // we want " at " between them for sentence-like phrasing
+    // ("May 25, 2026 at 9:14 AM UTC").
+    return fmt.format(new Date(ms)).replace(/,\s*(\d{1,2}:\d{2})/, ' at $1');
+  } catch (e) {
+    return String(iso);
+  }
 }
