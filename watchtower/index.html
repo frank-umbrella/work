@@ -1368,7 +1368,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.78";
+const APP_VERSION = "0.14.79";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -3503,14 +3503,24 @@ function renderStats() {
     _statBars(cRows, active.length, 6, { statKey: "cfree", byLabel: cByLabel }), null));
 
   // ---- Backup tooling adoption ----
+  // Hosts where the operator clicked "stop monitoring WSB" (mute pill
+  // → monitorWsb=false) are treated as if WSB isn't installed for
+  // stat purposes -- they shouldn't appear in the WSB count, and
+  // they also shouldn't get re-counted as "no backup tool found"
+  // (muting was an explicit acknowledgement, not a coverage gap).
   const backupByLabel = new Map();
-  const wsbHosts  = active.filter(a => a.report && a.report.wsb && a.report.wsb.installed);
+  const wsbHosts  = active.filter(a => a.report && a.report.wsb && a.report.wsb.installed && a.monitorWsb !== false);
   const veeamHosts = active.filter(a => a.report && a.report.veeam && a.report.veeam.installed);
   const carbHosts = active.filter(a => a.report && a.report.carbonite && a.report.carbonite.installed);
   const ibackHosts = active.filter(a => a.report && a.report.ibackup && a.report.ibackup.installed);
   const noBackupHosts = active.filter(a => {
     const r = a.report || {};
-    return !(r.wsb && r.wsb.installed) && !(r.veeam && r.veeam.installed) && !(r.carbonite && r.carbonite.installed) && !(r.ibackup && r.ibackup.installed);
+    // Treat a muted-WSB host as if WSB existed for the purpose of
+    // "has at least one backup tool" -- otherwise muting would shift
+    // hosts INTO the red "no backup tool" bucket, which is the
+    // opposite of the operator's intent.
+    const wsbSatisfies = (r.wsb && r.wsb.installed) || a.monitorWsb === false;
+    return !wsbSatisfies && !(r.veeam && r.veeam.installed) && !(r.carbonite && r.carbonite.installed) && !(r.ibackup && r.ibackup.installed);
   });
   backupByLabel.set("Windows Server Backup", wsbHosts);
   backupByLabel.set("Veeam (any edition)", veeamHosts);
@@ -3537,13 +3547,17 @@ function renderStats() {
   // Timestamp, not as strings) and made every host fall through
   // to the empty-state message even though the data was there.
   const wsbAgeYears = (a) => {
+    // Skip hosts where the operator muted WSB or backup-disk-age
+    // monitoring -- if they've explicitly opted out we shouldn't be
+    // tracking the disk age and counting them in this distribution.
+    if (a.monitorWsb === false || a.monitorDisk === false) return null;
     const f = backupDiskAgeFinding(a);
     if (!f || typeof f.ageDays !== 'number' || !isFinite(f.ageDays)) return null;
     return f.ageDays / 365.25;
   };
   const wsbAgeByLabel = _bucketByLabel(active, a => {
     const y = wsbAgeYears(a);
-    if (y == null) return null;  // skip hosts without WSB / without backup history
+    if (y == null) return null;  // skip hosts without WSB / without backup history / muted
     if (y < 1) return "< 1 year";
     if (y < 2) return "1-2 years";
     if (y < 3) return "2-3 years";
