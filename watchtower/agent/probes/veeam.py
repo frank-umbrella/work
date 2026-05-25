@@ -247,6 +247,53 @@ def _scan_uninstall_for_veeam_agent():
     return None
 
 
+def _locate_veeamconfig():
+    """Resolves the full path to veeamconfig.exe across Veeam Agent
+    versions. Order:
+      1. Registry InstallDir / Installation Path under the Veeam
+         Agent for Microsoft Windows key (modern + legacy paths)
+      2. Hardcoded fallback candidates covering 5.x / 6.x install dirs
+    Returns the absolute path string, or None when nothing's found.
+    """
+    # 1. Registry-based lookup. Newer installers write the install
+    #    directory at multiple variant names -- try them all.
+    reg_lookups = [
+        (r"SOFTWARE\Veeam\Veeam Agent for Microsoft Windows", "InstallDir"),
+        (r"SOFTWARE\Veeam\Veeam Agent for Microsoft Windows", "Installation Path"),
+        (r"SOFTWARE\Veeam\Veeam Agent for Microsoft Windows", "InstallPath"),
+        (r"SOFTWARE\Veeam\Veeam Endpoint Backup",             "InstallDir"),
+        (r"SOFTWARE\Veeam\Veeam Endpoint Backup",             "Installation Path"),
+        (r"SOFTWARE\Veeam\Veeam Endpoint Backup",             "InstallPath"),
+        (r"SOFTWARE\Veeam\Veeam Agent",                       "InstallDir"),
+        (r"SOFTWARE\Veeam\Veeam Agent",                       "InstallPath"),
+    ]
+    for path, name in reg_lookups:
+        install_dir = _reg_read(winreg.HKEY_LOCAL_MACHINE, path, name)
+        if not install_dir:
+            continue
+        candidate = os.path.join(str(install_dir).rstrip("\\"), "veeamconfig.exe")
+        if os.path.exists(candidate):
+            _logger.log(f"  veeam._locate_veeamconfig REG HIT {path}\\{name} -> {candidate}")
+            return candidate
+        _logger.log(f"  veeam._locate_veeamconfig REG NO-EXE {path}\\{name} = {install_dir!r} (no veeamconfig.exe)")
+    # 2. Hardcoded fallbacks. Both the legacy 5.x "Endpoint Backup"
+    #    folder and the newer 6.x "Backup" folder; both Program Files
+    #    + Program Files (x86) for completeness on 32-bit installs.
+    for candidate in (
+        r"C:\Program Files\Veeam\Endpoint Backup\veeamconfig.exe",
+        r"C:\Program Files (x86)\Veeam\Endpoint Backup\veeamconfig.exe",
+        r"C:\Program Files\Veeam\Backup\veeamconfig.exe",
+        r"C:\Program Files (x86)\Veeam\Backup\veeamconfig.exe",
+        r"C:\Program Files\Veeam\veeamconfig.exe",
+        r"C:\Program Files (x86)\Veeam\veeamconfig.exe",
+    ):
+        if os.path.exists(candidate):
+            _logger.log(f"  veeam._locate_veeamconfig HARDCODED HIT {candidate}")
+            return candidate
+    _logger.log("  veeam._locate_veeamconfig: no veeamconfig.exe found anywhere")
+    return None
+
+
 def _service_running(name):
     """
     Lightweight check: returns True if `sc query <name>` reports the
@@ -339,15 +386,18 @@ def _detect_agent():
 
     last_job = None
     # Try `veeamconfig session list` — the Agent's CLI. Output is a
-    # human-readable table; we parse the first data row.
-    veeamconfig = None
-    for candidate in (
-        r"C:\Program Files\Veeam\Endpoint Backup\veeamconfig.exe",
-        r"C:\Program Files (x86)\Veeam\Endpoint Backup\veeamconfig.exe",
-    ):
-        if os.path.exists(candidate):
-            veeamconfig = candidate
-            break
+    # human-readable table; we parse the first data row. veeamconfig.exe
+    # has moved across versions:
+    #   - Veeam Agent 5.x: C:\Program Files\Veeam\Endpoint Backup\
+    #   - Veeam Agent 6.x: C:\Program Files\Veeam\Backup\
+    #     (and the "Endpoint Backup" subfolder no longer exists)
+    # Rather than guessing every iteration of the path, READ the install
+    # location from the registry first -- the Veeam installer always
+    # writes InstallDir / Installation Path / DisplayIcon under the
+    # Veeam Agent registry key. Falls back to the hardcoded path
+    # candidates if the registry value isn't present.
+    veeamconfig = _locate_veeamconfig()
+    _logger.log(f"  veeam.veeamconfig path resolved to: {veeamconfig!r}")
 
     if veeamconfig:
         try:

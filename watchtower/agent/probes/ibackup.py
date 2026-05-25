@@ -71,13 +71,131 @@ PUBLISHER_PATTERNS = (
 # Known registry roots IBackup has written to. Walked by
 # _detect_last_backup() for status fields and also enumerated for
 # diagnostic logging so we can see what's actually there during
-# field troubleshooting.
-REG_ROOTS = [
+# field troubleshooting. Several variants because Pro Softnet has
+# used different publisher key names across SKUs (shortened "Corp"
+# in newer installers; IDrive Inc. for SKUs that share the IDrive
+# code base). Field discovery from the v0.14.30 log showed an
+# IBackup 11.0 install with NONE of the four original roots present
+# -- that prompted the wider candidate list + the dynamic top-level
+# scan below in _find_ibackup_roots().
+STATIC_REG_ROOTS = [
+    (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Pro Softnet Corp"),
+    (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\WOW6432Node\Pro Softnet Corp"),
     (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Pro Softnet Corporation"),
     (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\WOW6432Node\Pro Softnet Corporation"),
+    (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Pro Softnet"),
+    (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\WOW6432Node\Pro Softnet"),
     (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\IBackup"),
     (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\WOW6432Node\IBackup"),
+    (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\IDriveInc"),
+    (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\WOW6432Node\IDriveInc"),
+    (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\IDrive Inc"),
+    (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\WOW6432Node\IDrive Inc"),
 ]
+
+
+# Substrings that flag a top-level HKLM\SOFTWARE subkey as
+# IBackup-related. Used by _find_ibackup_roots() to walk every
+# direct child of SOFTWARE (and WOW6432Node\SOFTWARE) so we can
+# pick up future Pro Softnet rebranding without code changes.
+_REG_ROOT_NAME_PATTERNS = (
+    "ibackup", "pro softnet", "prosoftnet", "idrive",
+)
+
+
+def _find_ibackup_roots():
+    """Walks every direct child of HKLM\\SOFTWARE (and WOW6432Node)
+    looking for subkey NAMES containing any of our IBackup patterns.
+    Combined with the static candidate list, this lets us catch
+    publisher-key renames without needing to update the probe.
+    Returns a deduped (hive, path) list."""
+    found = []
+    seen = set()
+
+    def add(hive, path):
+        key = (hive, path.lower())
+        if key in seen:
+            return
+        seen.add(key)
+        found.append((hive, path))
+
+    for root in (r"SOFTWARE", r"SOFTWARE\WOW6432Node"):
+        try:
+            with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, root, 0,
+                                winreg.KEY_READ | winreg.KEY_WOW64_64KEY) as k:
+                i = 0
+                while True:
+                    try:
+                        sub = winreg.EnumKey(k, i)
+                    except OSError:
+                        break
+                    i += 1
+                    sub_l = sub.lower()
+                    if any(p in sub_l for p in _REG_ROOT_NAME_PATTERNS):
+                        add(winreg.HKEY_LOCAL_MACHINE, f"{root}\\{sub}")
+        except (FileNotFoundError, OSError):
+            continue
+    return found
+
+
+def _hkey_users_ibackup_roots():
+    """IBackup historically stores per-user config + last-backup state
+    under HKCU. Our agent runs as SYSTEM so it can't see HKCU directly,
+    but HKEY_USERS is enumerable -- every loaded user profile shows up
+    as a SID-named subkey. Walk each one looking for the same set of
+    IBackup-related publisher keys we look for under HKLM. Loaded
+    profiles only -- if the IBackup user hasn't logged in since boot,
+    their hive isn't mounted and we can't read it. That's acceptable;
+    we'll get the data on the next check-in after they sign in."""
+    found = []
+    try:
+        with winreg.OpenKey(winreg.HKEY_USERS, "", 0,
+                            winreg.KEY_READ | winreg.KEY_WOW64_64KEY) as users:
+            i = 0
+            while True:
+                try:
+                    sid = winreg.EnumKey(users, i)
+                except OSError:
+                    break
+                i += 1
+                # Skip the well-known service SIDs + the _Classes
+                # sub-hives. Real user SIDs start with S-1-5-21-...
+                if not sid.startswith("S-1-5-21-") or sid.endswith("_Classes"):
+                    continue
+                for sub in (
+                    r"Software\Pro Softnet Corp",
+                    r"Software\Pro Softnet Corporation",
+                    r"Software\Pro Softnet",
+                    r"Software\IBackup",
+                    r"Software\IDriveInc",
+                    r"Software\IDrive Inc",
+                ):
+                    path = f"{sid}\\{sub}"
+                    try:
+                        with winreg.OpenKey(winreg.HKEY_USERS, path, 0,
+                                            winreg.KEY_READ | winreg.KEY_WOW64_64KEY):
+                            found.append((winreg.HKEY_USERS, path))
+                    except (FileNotFoundError, OSError):
+                        continue
+    except (FileNotFoundError, OSError):
+        pass
+    return found
+
+
+def _all_reg_roots():
+    """Union of static candidates + dynamically-discovered HKLM
+    publisher keys + HKEY_USERS per-profile hives. Deduped."""
+    roots = list(STATIC_REG_ROOTS)
+    roots.extend(_find_ibackup_roots())
+    roots.extend(_hkey_users_ibackup_roots())
+    seen = set()
+    out = []
+    for hive, path in roots:
+        key = (hive, path.lower())
+        if key not in seen:
+            seen.add(key)
+            out.append((hive, path))
+    return out
 
 
 # Substring patterns we recognize as last-backup-time fields when walking
@@ -219,13 +337,21 @@ def _walk_subtree(hive, root, callback, depth=0, max_depth=4):
         return
 
 
-def _enumerate_ibackup_subkeys():
-    """Dump the top-level subkey names under each known IBackup-related
+def _enumerate_ibackup_subkeys(roots):
+    """Dump the top-level subkey names under each IBackup-related
     registry root into the log. Useful when an operator reports
     "IBackup is installed but Watchtower says no" or status fields are
     missing -- the diagnostic shows what's actually present on that
-    host so we can update the candidate lists."""
-    for hive, root in REG_ROOTS:
+    host so we can update the candidate lists. Takes the resolved
+    roots list (static + dynamic + HKEY_USERS) so the log entries
+    include whatever publisher-key variant we actually found."""
+    hive_label = {
+        winreg.HKEY_LOCAL_MACHINE: "HKLM",
+        winreg.HKEY_USERS: "HKU",
+        winreg.HKEY_CURRENT_USER: "HKCU",
+    }
+    for hive, root in roots:
+        prefix = hive_label.get(hive, str(hive))
         try:
             with winreg.OpenKey(hive, root, 0, winreg.KEY_READ | winreg.KEY_WOW64_64KEY) as k:
                 names = []
@@ -236,9 +362,9 @@ def _enumerate_ibackup_subkeys():
                     except OSError:
                         break
                     i += 1
-                _logger.log(f"  ibackup._enumerate {root!r}: {len(names)} subkeys = {names!r}")
+                _logger.log(f"  ibackup._enumerate {prefix}\\{root}: {len(names)} subkeys = {names!r}")
         except (FileNotFoundError, OSError) as e:
-            _logger.log(f"  ibackup._enumerate {root!r} not present ({e.__class__.__name__})")
+            _logger.log(f"  ibackup._enumerate {prefix}\\{root} not present ({e.__class__.__name__})")
 
 
 def _detect_last_backup():
@@ -265,7 +391,7 @@ def _detect_last_backup():
             if s:
                 result_hits.append((path, name, value, s))
 
-    for hive, root in REG_ROOTS:
+    for hive, root in _all_reg_roots():
         _walk_subtree(hive, root, visit)
 
     last_at = None
@@ -385,7 +511,7 @@ def _coerce_result_str(raw):
 def collect():
     try:
         _logger.log("ibackup.collect: starting")
-        _enumerate_ibackup_subkeys()
+        _enumerate_ibackup_subkeys(_all_reg_roots())
 
         products = _detect_installed_products()
         services = _detect_services()
