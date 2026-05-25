@@ -5,11 +5,43 @@ Sources:
   Win32_ComputerSystem, Win32_OperatingSystem, Win32_BIOS,
   Win32_Processor, Win32_PhysicalMemory, Win32_PhysicalMemoryArray,
   root\\CIMV2\\Security\\MicrosoftTpm  (Win32_Tpm namespace).
+  sc.exe query vmms  (Hyper-V VMMS service for hypervisor-host detection).
 """
 
 import socket
 import platform
+import subprocess
 import winreg
+
+
+def _is_hypervisor_host():
+    """Returns True if the Hyper-V Virtual Machine Management Service
+    (vmms) is registered on this host. The service exists as soon as
+    the Hyper-V role (Windows Server) or Hyper-V optional feature
+    (Windows Client) is installed -- it's registered BEFORE any VMs
+    are created, so this catches hypervisor-capable hosts even when
+    the fleet has no guest agents reporting.
+
+    Used by the dashboard's HYP badge as a direct fallback when the
+    'guests-reporting-physicalHost' heuristic comes up empty (e.g. a
+    Hyper-V host whose VMs aren't running Watchtower).
+
+    sc.exe error 1060 = 'service does not exist'. Anything else means
+    vmms is registered (Running / Stopped / Disabled all qualify).
+    """
+    try:
+        r = subprocess.run(
+            ["sc.exe", "query", "vmms"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            creationflags=0x08000000,   # CREATE_NO_WINDOW
+        )
+        if "1060" in r.stdout or "does not exist" in r.stdout.lower():
+            return False
+        return True
+    except (subprocess.TimeoutExpired, OSError, Exception):
+        return False
 
 
 def _hyperv_parent_host():
@@ -92,6 +124,18 @@ def collect():
         # strings are ambiguous.
         out["isVirtual"] = hypervisor is not None
         out["hypervisor"] = hypervisor
+
+        # ---- Is THIS host a Hyper-V hypervisor? ----
+        # Different from isVirtual (which tells us we're running INSIDE
+        # a VM). Detected by checking for the vmms service -- registered
+        # whenever the Hyper-V role / feature is installed, regardless
+        # of whether any VMs exist yet. A host can technically be both
+        # isVirtual=True AND isHypervisor=True via nested virtualization;
+        # the dashboard prefers VM-wins-over-HYP in that case since the
+        # outer hypervisor isn't usually the operationally interesting
+        # one. We deliberately don't skip this check when isVirtual is
+        # true -- nested-VM telemetry is genuinely useful.
+        out["isHypervisor"] = _is_hypervisor_host()
 
         # ---- Hyper-V parent host correlation ----
         # Only meaningful when we're a Hyper-V guest. Other hypervisors

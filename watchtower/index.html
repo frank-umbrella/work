@@ -1087,7 +1087,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.39";
+const APP_VERSION = "0.14.40";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -1975,9 +1975,23 @@ function renderFleet() {
     if (sysRow.isVirtual) {
       const tip = `Virtual machine${sysRow.hypervisor ? ` &middot; ${sysRow.hypervisor}` : ""}${sysRow.physicalHost ? ` &middot; hosted on ${sysRow.physicalHost.name}` : ""}`;
       hostTag = `<span class="host-tag vm-chip" title="${tip}">VM</span>`;
-    } else if (findGuestVms(a).length > 0) {
+    } else if (sysRow.isHypervisor || findGuestVms(a).length > 0) {
+      // Two paths to a HYP badge:
+      //   1. The agent's system probe detected the vmms service on this
+      //      host (Hyper-V role/feature installed) -- works even when no
+      //      guest agents are reporting.
+      //   2. At least one other Watchtower agent reports this host as
+      //      its physicalHost -- works even on agent versions <0.14.28
+      //      that don't ship the vmms check.
+      // Tooltip prefers the more specific 'N guests reporting' framing
+      // when guests ARE present; falls back to 'Hyper-V role installed'
+      // for the lonely-hypervisor case.
       const guests = findGuestVms(a);
-      hostTag = `<span class="host-tag hyp-chip" title="Hypervisor &middot; hosting ${guests.length} guest${guests.length === 1 ? "" : "s"} reporting to Watchtower">HYP</span>`;
+      const guestCount = guests.length;
+      const tip = guestCount > 0
+        ? `Hypervisor &middot; hosting ${guestCount} guest${guestCount === 1 ? "" : "s"} reporting to Watchtower`
+        : 'Hyper-V role installed (no guests reporting to Watchtower)';
+      hostTag = `<span class="host-tag hyp-chip" title="${tip}">HYP</span>`;
     } else {
       hostTag = `<span class="host-tag none" aria-hidden="true"></span>`;
     }
