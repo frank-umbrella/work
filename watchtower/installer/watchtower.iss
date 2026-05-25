@@ -86,6 +86,26 @@ WizardImageStretch=yes
 WizardImageAlphaFormat=premultiplied
 
 ; ----------------------------------------------------------------------------
+; Restart Manager integration. When extracting [Files], Inno will register
+; with the Windows Restart Manager (RM) to detect any process currently
+; holding a file we're about to overwrite, and ask those processes to
+; close gracefully. If they don't close, RM falls back to queueing the
+; replacement for next reboot rather than failing the install outright.
+;
+; CloseApplications=yes  -- enable RM detection + close requests
+; RestartApplications=yes -- relaunch what we closed (e.g. tray) after
+;                          the install finishes
+;
+; Belt-and-suspenders with our explicit PrepareToInstall taskkill: if
+; taskkill misses a locker (rare -- another process holding the EXE,
+; user opened Properties dialog on it, AV scanner), RM catches it. The
+; previous failure mode (install aborts halfway through and leaves the
+; service stopped + tray dead) is what these flags exist to prevent.
+; ----------------------------------------------------------------------------
+CloseApplications=yes
+RestartApplications=yes
+
+; ----------------------------------------------------------------------------
 ; Optional task: bundle a LogMeIn MSI to install alongside the agent.
 ; Only active when /DLogMeInMsi=<path> is passed at compile time (build.ps1
 ; -LogmeinMsi handles this). Without the define, no Tasks page appears and
