@@ -2789,11 +2789,14 @@ function buildGoogleChatCard(p, summary, meta) {
   // Leading banner widget: event headline + severity label + context.
   // This is the first thing rendered inside the card body, sitting under
   // the header (which already shows the client). Bold + uppercase severity
-  // makes the urgency unmissable on a small phone screen.
+  // makes the urgency unmissable on a small phone screen. wrapText:true
+  // ensures the context string (e.g. "5 days since last success") flows
+  // to a second line on mobile instead of getting truncated.
   widgets.push({
     decoratedText: {
       topLabel: sevLabel,
       text: `<b>${meta.headline}</b>${meta.context ? ` &middot; ${meta.context}` : ''}`,
+      wrapText: true,
       startIcon: { knownIcon: 'STAR' },
     },
   });
@@ -2905,11 +2908,16 @@ function buildGoogleChatCard(p, summary, meta) {
 // Helper: emit a decoratedText fact widget for the Google Chat card.
 // knownIcon is one of Google Chat's built-in icons -- the COMPUTER /
 // PERSON / MAP_PIN / CLOCK set is small but covers the relevant cases.
+// wrapText:true is critical -- without it Google Chat truncates the
+// value with ellipsis on mobile (e.g. "Triggered by: frank@umbrellaa..."
+// gets clipped on phone-sized screens). With wrapText the cell flows
+// onto a second line and stays readable.
 function _gchatFact(label, value, iconName) {
   return {
     decoratedText: {
       topLabel: label,
       text: String(value),
+      wrapText: true,
       startIcon: { knownIcon: iconName || 'DESCRIPTION' },
     },
   };

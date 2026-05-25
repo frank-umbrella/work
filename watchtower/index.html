@@ -723,8 +723,14 @@
 </head>
 <body>
 
-<!-- ================= sign-in screen ================= -->
-<div id="signin">
+<!-- ================= sign-in screen =================
+     Hidden by default with an inline style. The auth flow flips it to
+     display:flex when onAuthStateChanged resolves to a null user (i.e.
+     nobody signed in). Authenticated users never see this element --
+     before this inline override the signin card briefly flashed on
+     every page refresh while Firebase checked the session, which read
+     as a UI flicker. -->
+<div id="signin" style="display:none;">
   <!-- .pair wraps the banner + card so they share one rounded box +
        drop shadow, presenting as a single composite panel rather
        than two floating elements. align-items: stretch on the parent
@@ -1041,7 +1047,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.31";
+const APP_VERSION = "0.14.32";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
