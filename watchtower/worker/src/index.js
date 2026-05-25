@@ -2460,75 +2460,300 @@ async function postWebhook(url, payload) {
 // Webhook payload adapter — match the receiver's required shape
 // ─────────────────────────────────────────────────────────────────────
 //
-// Detection by URL host. We always include the raw structured payload
-// (under the `watchtower` key for generic receivers, or alongside the
-// receiver-specific fields for ones that ignore extra keys) so n8n /
-// Zapier / custom HTTP receivers can pull the structured data, while
-// chat receivers render the human-readable summary.
+// Detection by URL host. Every receiver-specific shape carries the
+// client name prominently (matching the email Hero Card design) plus
+// a severity indicator wired into whatever the platform supports for
+// color (Slack attachment color, Teams themeColor, Discord embed
+// color). Generic / unknown receivers get the full structured
+// payload so n8n / Zapier / custom HTTP endpoints can do anything.
 //
-// Adds:
-//   Google Chat (chat.googleapis.com)       → Cards v2 with header + sections
-//   Discord (discord.com|discordapp.com)    → { content }
+//   Google Chat (chat.googleapis.com)       → Cards v2, client in subtitle
+//   Discord (discord.com|discordapp.com)    → rich embed w/ color bar
 //   Teams classic (outlook.office.com,
-//                  webhook.office.com)      → MessageCard
-//   Slack (hooks.slack.com)                 → { text, attachments }
+//                  webhook.office.com)      → MessageCard w/ activityTitle
+//   Slack (hooks.slack.com)                 → blocks + attachment color bar
 //   Generic / unknown                       → { text, ...payload }
+
+// Map event type to display attributes shared across webhook surfaces.
+// Headline + severity match the email templates so an alert reads the
+// same whether it lands in Gmail or a chat room. `context` is the
+// short urgency string (e.g. "5 days since success") that follows the
+// headline -- not all events have one.
+function eventMeta(p) {
+  switch (p.event) {
+    case 'test':
+      return { headline: 'Test Event', severity: 'info', context: 'webhook test from dashboard' };
+    case 'host_onboarded':
+      return { headline: 'New Host Onboarded', severity: 'info', context: 'first check-in' };
+    case 'external_ip_changed':
+      return { headline: 'External IP Changed', severity: 'info', context: p.newIp ? `now ${p.newIp}` : null };
+    case 'omsa_warning': {
+      const rollup = String(p.rollup || 'warning').toUpperCase();
+      const ctx = (p.issues && p.issues.length) ? `${p.issues.length} issue${p.issues.length === 1 ? '' : 's'}` : `rollup ${rollup}`;
+      return { headline: `Storage Health: ${rollup}`, severity: 'critical', context: ctx };
+    }
+    case 'wsb_backup_failed':
+      return { headline: 'Backup Failed', severity: 'critical', context: p.daysSinceSuccess != null ? `${p.daysSinceSuccess} day${p.daysSinceSuccess === 1 ? '' : 's'} since last success` : 'no successful backup on record' };
+    case 'disk_low': {
+      const sev = p.severity === 'critical' ? 'critical' : 'critical';   // any disk_low is critical-flavored
+      return { headline: `${p.drive || 'C:'} Drive Critically Low`, severity: sev, context: p.freeGB != null ? `${p.freeGB} GB / ${p.freePct}% free` : null };
+    }
+    case 'agent_uninstalled':
+    case 'agent_decommissioned':
+      return { headline: 'Agent Decommissioned', severity: 'neutral', context: p.source === 'agent-uninstall' ? 'uninstalled at host' : (p.source ? `source: ${p.source}` : null) };
+    default:
+      return { headline: p.event || 'Event', severity: 'info', context: null };
+  }
+}
+
+// Per-platform color encodings of {info, critical, neutral}. Same
+// brand teal / red / gray as the emails; just the format the
+// platform expects.
+const _WH_HEX_HASH    = { info: '#0a6b6b', critical: '#b91c1c', neutral: '#6b7280' };  // Slack attachment
+const _WH_HEX_NOHASH  = { info: '0a6b6b',  critical: 'b91c1c',  neutral: '6b7280'  };  // Teams MessageCard
+const _WH_DECIMAL_RGB = { info: 0x0a6b6b,  critical: 0xb91c1c,  neutral: 0x6b7280  };  // Discord embed
+
 function buildWebhookBody(url, payload) {
   const summary = humanSummary(payload);
   const u = (url || '').toLowerCase();
+  const meta = eventMeta(payload);
 
-  // Google Chat — rich card with the Watchtower logo, color-coded
-  // subtitle, per-event facts, and a button linking to the dashboard.
-  // `text` is included alongside `cardsV2` as the notification preview
-  // (the line Chat shows in the room list / phone notification) and as
-  // a fallback if a client doesn't render cards.
   if (u.includes('chat.googleapis.com')) {
-    return buildGoogleChatCard(payload, summary);
+    return buildGoogleChatCard(payload, summary, meta);
   }
-  // Discord — uses `content` not `text`
   if (u.includes('discord.com/api/webhooks') || u.includes('discordapp.com/api/webhooks')) {
-    return { content: summary };
+    return buildDiscordEmbed(payload, summary, meta);
   }
-  // Microsoft Teams classic connectors. Workflows-based Teams webhooks
-  // accept Adaptive Cards; sending MessageCard to a Workflows endpoint
-  // still renders, just without the card styling — acceptable fallback.
   if (u.includes('outlook.office.com') || u.includes('webhook.office.com') || u.includes('.office.com/webhook')) {
-    const facts = [];
-    if (payload.hostname) facts.push({ name: 'Host', value: String(payload.hostname) });
-    if (payload.client) facts.push({ name: 'Client', value: String(payload.client) });
-    if (payload.event) facts.push({ name: 'Event', value: String(payload.event) });
-    if (payload.when) facts.push({ name: 'When', value: String(payload.when) });
-    if (payload.previousIp && payload.newIp) {
-      facts.push({ name: 'Previous IP', value: String(payload.previousIp) });
-      facts.push({ name: 'New IP', value: String(payload.newIp) });
-    }
-    if (payload.result) facts.push({ name: 'Result', value: String(payload.result) });
-    if (payload.rollup) facts.push({ name: 'OMSA rollup', value: String(payload.rollup) });
-    const color = (payload.event === 'wsb_backup_failed' || payload.event === 'omsa_warning')
-      ? 'd04646'
-      : payload.event === 'agent_uninstalled' || payload.event === 'agent_decommissioned'
-        ? '6b7280'
-        : '0a6b6b';
-    return {
-      '@type': 'MessageCard',
-      '@context': 'https://schema.org/extensions',
-      summary: summary.slice(0, 250),
-      themeColor: color,
-      title: 'Watchtower',
-      text: summary,
-      sections: facts.length ? [{ facts }] : undefined,
-    };
+    return buildTeamsMessageCard(payload, summary, meta);
   }
-  // Slack — `text` is mandatory; extra fields beyond text/attachments/blocks
-  // are silently ignored by Slack itself, which is fine.
   if (u.includes('hooks.slack.com')) {
-    return { text: summary, watchtower: payload };
+    return buildSlackMessage(payload, summary, meta);
   }
   // Generic / unknown receivers (n8n, Zapier, Make, custom HTTP endpoints).
-  // Send everything: a `text` summary that chat-style receivers will pick
-  // up, plus all the original structured fields for receivers that want
-  // structured data.
+  // Send everything so receivers that want structured data can pull it.
   return { text: summary, ...payload };
+}
+
+// Slack — Block Kit blocks inside an attachment so the left border
+// gets a severity color. Header block carries Watchtower + client
+// chip (rendered as a context line with bold client name). Section
+// block carries the headline + hostname. Facts come next when the
+// event has them. Final actions block has a button to the host.
+function buildSlackMessage(p, summary, meta) {
+  const client = p.client || 'Unassigned';
+  const hostname = p.hostname || '?';
+  const cardUrl = dashboardUrl(p.pcId);
+  const sevLabel = meta.severity === 'critical' ? 'CRITICAL' : meta.severity === 'neutral' ? 'INFO' : 'INFO';
+
+  // Lead context: bold client + severity label so the FIRST line of
+  // the message in the Slack channel screams "WHO + HOW URGENT".
+  const blocks = [
+    {
+      type: 'context',
+      elements: [
+        { type: 'mrkdwn', text: `:satellite_antenna: *Watchtower*  ·  \`${client}\`  ·  ${sevLabel}` },
+      ],
+    },
+    {
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: `*${meta.headline}*\non \`${hostname}\`${meta.context ? `  ·  ${meta.context}` : ''}`,
+      },
+    },
+  ];
+
+  // Event-specific fact rows (2-column grid via Block Kit `fields`).
+  const facts = _slackFacts(p);
+  if (facts.length) {
+    blocks.push({ type: 'section', fields: facts });
+  }
+
+  blocks.push({
+    type: 'actions',
+    elements: [
+      {
+        type: 'button',
+        text: { type: 'plain_text', text: 'Open host in dashboard' },
+        url: cardUrl,
+      },
+    ],
+  });
+
+  return {
+    text: summary,    // notification fallback (push, channel list)
+    attachments: [
+      {
+        color: _WH_HEX_HASH[meta.severity],
+        blocks,
+      },
+    ],
+  };
+}
+
+// Slack block-kit fields come in pairs (label + value, 2-column).
+function _slackFacts(p) {
+  const facts = [];
+  const add = (label, val) => {
+    if (val == null || val === '') return;
+    facts.push({ type: 'mrkdwn', text: `*${label}*\n${val}` });
+  };
+  switch (p.event) {
+    case 'external_ip_changed':
+      add('Previous IP', `\`${p.previousIp || '?'}\``);
+      add('New IP',      `\`${p.newIp || '?'}\``);
+      break;
+    case 'wsb_backup_failed':
+      add('Result',      `\`${p.result || '?'}\``);
+      if (p.daysSinceSuccess != null) add('Days w/o success', String(p.daysSinceSuccess));
+      break;
+    case 'omsa_warning':
+      add('Rollup', String(p.rollup || '?').toUpperCase());
+      if (p.omsaVersion) add('OMSA version', p.omsaVersion);
+      break;
+    case 'disk_low':
+      add('Drive', p.drive || 'C:');
+      add('Free',  `${p.freeGB} GB (${p.freePct}%)`);
+      break;
+    case 'agent_uninstalled':
+    case 'agent_decommissioned':
+      if (p.source) add('Source', `\`${p.source}\``);
+      if (p.reason) add('Reason', p.reason);
+      break;
+    case 'host_onboarded':
+      if (p.externalIp) add('External IP', `\`${p.externalIp}\``);
+      if (p.serviceTag) add('Service tag', `\`${p.serviceTag}\``);
+      break;
+  }
+  if (p.when) add('When', p.when);
+  // Slack caps `fields` at 10; truncate if we got carried away.
+  return facts.slice(0, 10);
+}
+
+// Teams classic MessageCard. activityTitle/activitySubtitle/activityImage
+// get rendered prominently at the top of the card -- using them to
+// put the client name and headline front-and-center (instead of
+// burying them in the `facts` list like the old version did).
+function buildTeamsMessageCard(p, summary, meta) {
+  const client = p.client || 'Unassigned';
+  const hostname = p.hostname || '?';
+  const cardUrl = dashboardUrl(p.pcId);
+  const sevLabel = meta.severity === 'critical' ? 'CRITICAL' : meta.severity === 'neutral' ? 'INFO' : 'INFO';
+
+  // Watchtower icon as activityImage. Teams expects an HTTPS URL.
+  const iconUrl = 'https://frank-umbrella.github.io/work/watchtower/icon-192.png';
+
+  // Per-event fact list -- runs after the activity title/subtitle.
+  const facts = [];
+  if (hostname) facts.push({ name: 'Host', value: hostname });
+  if (p.when) facts.push({ name: 'When', value: p.when });
+  switch (p.event) {
+    case 'external_ip_changed':
+      if (p.previousIp) facts.push({ name: 'Previous IP', value: p.previousIp });
+      if (p.newIp) facts.push({ name: 'New IP', value: p.newIp });
+      break;
+    case 'wsb_backup_failed':
+      if (p.result) facts.push({ name: 'Result', value: p.result });
+      if (p.daysSinceSuccess != null) facts.push({ name: 'Days since success', value: String(p.daysSinceSuccess) });
+      break;
+    case 'omsa_warning':
+      if (p.rollup) facts.push({ name: 'OMSA rollup', value: String(p.rollup).toUpperCase() });
+      if (p.omsaVersion) facts.push({ name: 'OMSA version', value: p.omsaVersion });
+      break;
+    case 'disk_low':
+      if (p.drive) facts.push({ name: 'Drive', value: p.drive });
+      if (p.freeGB != null) facts.push({ name: 'Free', value: `${p.freeGB} GB (${p.freePct}%)` });
+      break;
+    case 'agent_uninstalled':
+    case 'agent_decommissioned':
+      if (p.source) facts.push({ name: 'Source', value: p.source });
+      if (p.reason) facts.push({ name: 'Reason', value: p.reason });
+      break;
+    case 'host_onboarded':
+      if (p.externalIp) facts.push({ name: 'External IP', value: p.externalIp });
+      if (p.serviceTag) facts.push({ name: 'Service tag', value: p.serviceTag });
+      break;
+  }
+
+  return {
+    '@type': 'MessageCard',
+    '@context': 'https://schema.org/extensions',
+    summary: summary.slice(0, 250),
+    themeColor: _WH_HEX_NOHASH[meta.severity],
+    title: `Watchtower · ${client}`,                                // top line carries the client
+    text: `**${meta.headline}**${meta.context ? ` &middot; ${meta.context}` : ''}`,
+    sections: [
+      {
+        activityTitle: `**${meta.headline}**`,
+        activitySubtitle: `${client}  ·  ${sevLabel}  ·  on \`${hostname}\``,
+        activityImage: iconUrl,
+        facts,
+      },
+    ],
+    potentialAction: [
+      {
+        '@type': 'OpenUri',
+        name: 'Open host in dashboard',
+        targets: [{ os: 'default', uri: cardUrl }],
+      },
+    ],
+  };
+}
+
+// Discord rich embed. Embeds get a colored vertical left bar (severity),
+// support a title + description + structured fields, plus an author row
+// for the Watchtower branding. `content` (the older plain-text format)
+// drops to a single-line fallback for notification previews.
+function buildDiscordEmbed(p, summary, meta) {
+  const client = p.client || 'Unassigned';
+  const hostname = p.hostname || '?';
+  const cardUrl = dashboardUrl(p.pcId);
+
+  const fields = [];
+  switch (p.event) {
+    case 'external_ip_changed':
+      if (p.previousIp) fields.push({ name: 'Previous IP', value: `\`${p.previousIp}\``, inline: true });
+      if (p.newIp) fields.push({ name: 'New IP', value: `\`${p.newIp}\``, inline: true });
+      break;
+    case 'wsb_backup_failed':
+      if (p.result) fields.push({ name: 'Result', value: `\`${p.result}\``, inline: true });
+      if (p.daysSinceSuccess != null) fields.push({ name: 'Days w/o success', value: String(p.daysSinceSuccess), inline: true });
+      if (p.detail) fields.push({ name: 'Detail', value: String(p.detail).slice(0, 1024), inline: false });
+      break;
+    case 'omsa_warning':
+      if (p.rollup) fields.push({ name: 'Rollup', value: String(p.rollup).toUpperCase(), inline: true });
+      if (p.omsaVersion) fields.push({ name: 'OMSA version', value: p.omsaVersion, inline: true });
+      if (p.issues && p.issues.length) fields.push({ name: `Issues (${p.issues.length})`, value: p.issues.slice(0, 5).map(i => `· ${i}`).join('\n').slice(0, 1024), inline: false });
+      break;
+    case 'disk_low':
+      if (p.drive) fields.push({ name: 'Drive', value: p.drive, inline: true });
+      if (p.freeGB != null) fields.push({ name: 'Free', value: `${p.freeGB} GB (${p.freePct}%)`, inline: true });
+      break;
+    case 'agent_uninstalled':
+    case 'agent_decommissioned':
+      if (p.source) fields.push({ name: 'Source', value: `\`${p.source}\``, inline: true });
+      if (p.reason) fields.push({ name: 'Reason', value: p.reason, inline: false });
+      break;
+    case 'host_onboarded':
+      if (p.externalIp) fields.push({ name: 'External IP', value: `\`${p.externalIp}\``, inline: true });
+      if (p.serviceTag) fields.push({ name: 'Service tag', value: `\`${p.serviceTag}\``, inline: true });
+      break;
+  }
+  if (p.when) fields.push({ name: 'When', value: p.when, inline: true });
+
+  return {
+    embeds: [
+      {
+        author: { name: `Watchtower · ${client}` },
+        title: meta.headline,
+        description: `on \`${hostname}\`${meta.context ? `  ·  ${meta.context}` : ''}\n[Open host in dashboard](${cardUrl})`,
+        color: _WH_DECIMAL_RGB[meta.severity],
+        fields,
+        footer: { text: 'Umbrella Automation' },
+      },
+    ],
+  };
 }
 
 // Google Chat Cards v2 builder. Returns the {text, cardsV2:[...]} envelope.
@@ -2539,27 +2764,39 @@ function buildWebhookBody(url, payload) {
 //   * Card header has an `imageUrl` -- Google Chat needs a public HTTPS
 //     image. Pointing at the dashboard's icon-192.png (rasterized from
 //     favicon.svg, served by GitHub Pages).
-//   * Subtitle is the event type, color-coded indirectly via icon choice
-//     (Chat headers can't be tinted -- only the icon and decorated-text
-//     widgets show color).
+//   * Header subtitle now leads with the CLIENT NAME so the most useful
+//     identifier reads from the room list / mobile push without expanding
+//     the card. The event label still appears in a leading decoratedText
+//     widget at the top of the card body.
 //   * Sections use decoratedText widgets so each fact pair (Host: x,
 //     Client: y) gets a label + value rather than running text.
 //   * Footer button opens the dashboard to the relevant host.
-function buildGoogleChatCard(p, summary) {
+function buildGoogleChatCard(p, summary, meta) {
   const host = p.hostname || '?';
-  const client = p.client || 'unknown';
-  const eventLabel = _gchatEventLabel(p.event);
+  const client = p.client || 'Unassigned';
+  meta = meta || eventMeta(p);
   const headerIcon = 'https://frank-umbrella.github.io/work/watchtower/icon-192.png';
   // Reuse the same dashboard URL helper the email templates use so deep
   // links stay consistent across surfaces.
   const cardUrl = dashboardUrl(p.pcId);
+  const sevLabel = meta.severity === 'critical' ? 'CRITICAL' : meta.severity === 'neutral' ? 'INFO' : 'INFO';
 
   const widgets = [];
 
-  // Identity facts -- always present. knownIcon enum is small (no COMPUTER
-  // / SERVER variants); DESCRIPTION is the most generic neutral icon.
+  // Leading banner widget: event headline + severity label + context.
+  // This is the first thing rendered inside the card body, sitting under
+  // the header (which already shows the client). Bold + uppercase severity
+  // makes the urgency unmissable on a small phone screen.
+  widgets.push({
+    decoratedText: {
+      topLabel: sevLabel,
+      text: `<b>${meta.headline}</b>${meta.context ? ` &middot; ${meta.context}` : ''}`,
+      startIcon: { knownIcon: 'STAR' },
+    },
+  });
+
+  // Identity row: hostname (client is already in the card header subtitle).
   widgets.push(_gchatFact('Host', host, 'DESCRIPTION'));
-  widgets.push(_gchatFact('Client', client, 'PERSON'));
 
   // Event-specific facts.
   switch (p.event) {
@@ -2648,7 +2885,10 @@ function buildGoogleChatCard(p, summary) {
         card: {
           header: {
             title: 'Watchtower',
-            subtitle: eventLabel,
+            // Client name in the subtitle = visible in room/push without
+            // expanding the card. Falls back to "Unassigned" so the
+            // subtitle is never blank.
+            subtitle: client,
             imageUrl: headerIcon,
             imageType: 'SQUARE',
           },
@@ -2657,20 +2897,6 @@ function buildGoogleChatCard(p, summary) {
       },
     ],
   };
-}
-
-function _gchatEventLabel(event) {
-  switch (event) {
-    case 'test': return 'Test event';
-    case 'host_onboarded': return 'New endpoint joined';
-    case 'external_ip_changed': return 'External IP changed';
-    case 'omsa_warning': return 'OMSA storage warning';
-    case 'wsb_backup_failed': return 'Backup failed';
-    case 'disk_low': return 'C: drive low capacity';
-    case 'agent_uninstalled': return 'Agent uninstalled';
-    case 'agent_decommissioned': return 'Endpoint decommissioned';
-    default: return event ? `Event: ${event}` : 'Event';
-  }
 }
 
 // Helper: emit a decoratedText fact widget for the Google Chat card.
