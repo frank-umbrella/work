@@ -249,14 +249,85 @@ def _scan_uninstall_for_veeam_agent():
 
 def _locate_veeamconfig():
     """Resolves the full path to veeamconfig.exe across Veeam Agent
-    versions. Order:
-      1. Registry InstallDir / Installation Path under the Veeam
-         Agent for Microsoft Windows key (modern + legacy paths)
-      2. Hardcoded fallback candidates covering 5.x / 6.x install dirs
+    versions. Order (cheap-to-expensive):
+      1. PATH lookup -- if veeamconfig is on the system PATH (rare but
+         possible after a manual install), shutil.which finds it.
+      2. Uninstall registry InstallLocation -- the path Windows
+         Installer actually recorded at install time. More reliable
+         than Veeam-specific reg keys because it reflects whatever
+         folder the operator chose, not the installer's "expected"
+         default.
+      3. Veeam-specific registry keys under HKLM\\SOFTWARE\\Veeam --
+         legacy path, still works on hosts that have it.
+      4. Hardcoded fallback candidates (5.x / 6.x default dirs).
+      5. Bounded filesystem walk under every C:\\Program Files*\\Veeam\\
+         tree, depth <=3. Catches custom install paths the registry
+         doesn't surface (e.g. when Veeam was installed via group
+         policy with a remapped target).
+
     Returns the absolute path string, or None when nothing's found.
     """
-    # 1. Registry-based lookup. Newer installers write the install
-    #    directory at multiple variant names -- try them all.
+    import shutil
+
+    # 1. PATH lookup.
+    on_path = shutil.which("veeamconfig.exe") or shutil.which("veeamconfig")
+    if on_path:
+        _logger.log(f"  veeam._locate_veeamconfig PATH HIT -> {on_path}")
+        return on_path
+
+    # 2. Uninstall registry InstallLocation. Walk both 64-bit and
+    #    WOW6432Node Uninstall hives looking for any DisplayName
+    #    matching a Veeam Agent pattern; read the InstallLocation
+    #    value from the same key.
+    uninstall_patterns = (
+        "veeam agent for microsoft windows",
+        "veeam endpoint backup",
+        "veeam backup for microsoft windows",
+        "veeam backup for windows",
+        "veeam agent",
+    )
+    uninstall_roots = [
+        (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall"),
+        (winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall"),
+    ]
+    for hive, root in uninstall_roots:
+        try:
+            with winreg.OpenKey(hive, root, 0, winreg.KEY_READ | winreg.KEY_WOW64_64KEY) as parent:
+                i = 0
+                while True:
+                    try:
+                        sub_name = winreg.EnumKey(parent, i)
+                    except OSError:
+                        break
+                    i += 1
+                    try:
+                        with winreg.OpenKey(parent, sub_name) as k:
+                            try:
+                                display = winreg.QueryValueEx(k, "DisplayName")[0]
+                            except (FileNotFoundError, OSError):
+                                continue
+                            if not isinstance(display, str):
+                                continue
+                            d_lower = display.lower()
+                            if not any(p in d_lower for p in uninstall_patterns):
+                                continue
+                            try:
+                                loc = winreg.QueryValueEx(k, "InstallLocation")[0]
+                            except (FileNotFoundError, OSError):
+                                continue
+                            if not loc:
+                                continue
+                            candidate = os.path.join(str(loc).rstrip("\\"), "veeamconfig.exe")
+                            if os.path.exists(candidate):
+                                _logger.log(f"  veeam._locate_veeamconfig UNINSTALL HIT {display!r} -> {candidate}")
+                                return candidate
+                            _logger.log(f"  veeam._locate_veeamconfig UNINSTALL NO-EXE {display!r} InstallLocation={loc!r}")
+                    except (FileNotFoundError, OSError):
+                        continue
+        except (FileNotFoundError, OSError):
+            continue
+
+    # 3. Veeam-specific registry keys.
     reg_lookups = [
         (r"SOFTWARE\Veeam\Veeam Agent for Microsoft Windows", "InstallDir"),
         (r"SOFTWARE\Veeam\Veeam Agent for Microsoft Windows", "Installation Path"),
@@ -276,7 +347,8 @@ def _locate_veeamconfig():
             _logger.log(f"  veeam._locate_veeamconfig REG HIT {path}\\{name} -> {candidate}")
             return candidate
         _logger.log(f"  veeam._locate_veeamconfig REG NO-EXE {path}\\{name} = {install_dir!r} (no veeamconfig.exe)")
-    # 2. Hardcoded fallbacks. Both the legacy 5.x "Endpoint Backup"
+
+    # 4. Hardcoded fallbacks. Both the legacy 5.x "Endpoint Backup"
     #    folder and the newer 6.x "Backup" folder; both Program Files
     #    + Program Files (x86) for completeness on 32-bit installs.
     for candidate in (
@@ -290,7 +362,31 @@ def _locate_veeamconfig():
         if os.path.exists(candidate):
             _logger.log(f"  veeam._locate_veeamconfig HARDCODED HIT {candidate}")
             return candidate
-    _logger.log("  veeam._locate_veeamconfig: no veeamconfig.exe found anywhere")
+
+    # 5. Bounded filesystem walk under Program Files\Veeam trees.
+    #    Catches custom install paths (group policy remap, deliberate
+    #    relocation, etc.). Depth-limited to 3 so we don't scan the
+    #    entire Veeam tree when it has lots of subfolders.
+    for root in (r"C:\Program Files\Veeam", r"C:\Program Files (x86)\Veeam"):
+        if not os.path.isdir(root):
+            continue
+        try:
+            root_depth = root.count("\\")
+            for dirpath, dirnames, filenames in os.walk(root):
+                # Depth limit -- don't descend more than 3 levels under root.
+                if dirpath.count("\\") - root_depth > 3:
+                    dirnames[:] = []  # prune
+                    continue
+                for fn in filenames:
+                    if fn.lower() == "veeamconfig.exe":
+                        candidate = os.path.join(dirpath, fn)
+                        _logger.log(f"  veeam._locate_veeamconfig WALK HIT {candidate}")
+                        return candidate
+        except OSError as e:
+            _logger.log(f"  veeam._locate_veeamconfig WALK {root!r} failed: {e}")
+            continue
+
+    _logger.log("  veeam._locate_veeamconfig: no veeamconfig.exe found anywhere (path / uninstall / reg / hardcoded / walk all missed)")
     return None
 
 
