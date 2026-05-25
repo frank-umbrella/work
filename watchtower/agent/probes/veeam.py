@@ -390,6 +390,151 @@ def _locate_veeamconfig():
     return None
 
 
+# ──────────────────────────────────────────────────────────────────────
+# Event-log fallback for Veeam Agent session history.
+#
+# Modern Veeam Agent builds (some 6.x releases observed) ship WITHOUT
+# veeamconfig.exe entirely -- the standalone CLI was removed. There's
+# no PowerShell module installed either. The session/job data exists
+# in two places:
+#   1. C:\ProgramData\Veeam\EndpointData\VeeamBackup.db (SQLite,
+#      typically held open with an exclusive lock by the Veeam service
+#      so opening it would race the running agent)
+#   2. The dedicated "Veeam Agent" Windows event log
+#
+# We use the event log. It's a stable public API, lock-free, and the
+# event IDs Veeam writes haven't drifted across the last ~5 years of
+# Agent versions.
+#
+# Event IDs we care about (observed on Veeam Agent 6.3.1.1074):
+#   190 (Information): "Veeam Agent '<jobname>' finished with <result>."
+#                      where <result> is Success / Warning / Failed.
+#                      Fires on EVERY job completion regardless of
+#                      severity (Level=Information).
+#   191 (Warning):     Same message format but emitted at Level=Warning
+#                      for non-Success outcomes. Some Veeam versions
+#                      emit 190 only, others emit both 190 + 191. We
+#                      query both and dedup on TimeCreated.
+#
+# Message regex extracts job name (single-quoted) and result word.
+# ──────────────────────────────────────────────────────────────────────
+_VEEAM_EVENTLOG_PS = r"""
+$ErrorActionPreference = 'Stop'
+$WarningPreference = 'SilentlyContinue'
+$ProgressPreference = 'SilentlyContinue'
+try {
+    $events = Get-WinEvent -LogName 'Veeam Agent' `
+        -FilterXPath "*[System[(EventID=190) or (EventID=191)]]" `
+        -MaxEvents 50 -ErrorAction Stop
+    $out = @()
+    foreach ($e in $events) {
+        $out += [PSCustomObject]@{
+            timeCreated = $e.TimeCreated.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+            id          = $e.Id
+            level       = $e.LevelDisplayName
+            message     = "$($e.Message)"
+        }
+    }
+    @{ ok = $true; events = @($out) } | ConvertTo-Json -Depth 4 -Compress
+} catch {
+    @{ ok = $false; error = "$($_.Exception.Message)" } | ConvertTo-Json -Compress
+}
+"""
+
+
+def _parse_veeam_eventlog_message(msg):
+    """Extracts (job_name, result) from an event 190/191 message body.
+    Expected: "Veeam Agent '<name>' finished with <Result>."
+    Returns (None, None) on parse miss."""
+    if not msg:
+        return None, None
+    import re
+    m = re.search(r"Veeam Agent '([^']+)' finished with (\w+)", msg)
+    if not m:
+        return None, None
+    return m.group(1), m.group(2)
+
+
+def _detect_agent_sessions_from_eventlog():
+    """Reads the 'Veeam Agent' event log via PowerShell + Get-WinEvent.
+    Returns (last_job_dict_or_None, recent_sessions_list, reason_string_or_None).
+
+    last_job shape (matches what _parse_session_list produces from
+    veeamconfig output, so the dashboard's existing renderer works):
+        {result: 'Success'|'Warning'|'Failed', endTime: 'YYYY-MM-DDTHH:MM:SSZ',
+         jobName: '<name>'}
+    """
+    try:
+        proc = subprocess.run(
+            [
+                "powershell.exe",
+                "-NoProfile",
+                "-NonInteractive",
+                "-ExecutionPolicy", "Bypass",
+                "-Command", _VEEAM_EVENTLOG_PS,
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            creationflags=0x08000000,
+        )
+    except subprocess.TimeoutExpired:
+        return None, [], "Veeam event-log read timed out after 30s"
+    except OSError as e:
+        return None, [], f"Veeam event-log PowerShell launch failed: {e}"
+
+    raw = (proc.stdout or "").strip()
+    if not raw:
+        return None, [], "Veeam event-log query returned empty output"
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        return None, [], f"Veeam event-log JSON parse failed; first 200 chars: {raw[:200]!r}"
+    if not parsed.get("ok"):
+        err = parsed.get("error") or "unknown"
+        return None, [], f"Veeam event-log Get-WinEvent failed: {err}"
+
+    events = parsed.get("events") or []
+    if not isinstance(events, list) or not events:
+        return None, [], "Veeam event log has no job-completion events (190/191) yet"
+
+    # Build session list -- dedup by (timeCreated, jobName) since some
+    # versions emit BOTH 190+191 for the same outcome.
+    seen = set()
+    sessions = []
+    for e in events:
+        name, result = _parse_veeam_eventlog_message((e or {}).get("message") or "")
+        if not name or not result:
+            continue
+        key = (e.get("timeCreated"), name)
+        if key in seen:
+            continue
+        seen.add(key)
+        sessions.append({
+            "jobName": name,
+            "result": result,
+            "endTime": e.get("timeCreated"),
+            "source": "eventlog",
+        })
+
+    if not sessions:
+        return None, [], "Veeam event log returned events but none matched the expected message format"
+
+    # Sort newest-first by endTime (ISO 8601 strings sort correctly)
+    sessions.sort(key=lambda s: s["endTime"] or "", reverse=True)
+    last_job = {
+        "result": sessions[0]["result"],
+        "endTime": sessions[0]["endTime"],
+        "jobName": sessions[0]["jobName"],
+    }
+    _logger.log(
+        f"  veeam._detect_agent_sessions_from_eventlog: found {len(sessions)} sessions, "
+        f"most recent={last_job!r}"
+    )
+    # Cap recent at 5 to match the B&R panel layout
+    return last_job, sessions[:5], None
+
+
 def _service_running(name):
     """
     Lightweight check: returns True if `sc query <name>` reports the
@@ -498,17 +643,30 @@ def _detect_agent():
     veeamconfig = _locate_veeamconfig()
     _logger.log(f"  veeam.veeamconfig path resolved to: {veeamconfig!r}")
 
+    # Recent-sessions list -- populated by either the veeamconfig path
+    # or the event-log fallback. Same shape as B&R's recentSessions so
+    # the dashboard renderer reuses its existing markup.
+    recent_sessions = []
+
     if not veeamconfig:
-        # The locator searches 5 tiers (see _locate_veeamconfig); when
-        # all miss, the watchtower.log has the full per-tier breakdown
-        # (grep for 'veeam._locate_veeamconfig'). Surfaced reason names
-        # every tier so the operator knows what was tried without
-        # having to read the log.
-        last_job_reason = (
-            "veeamconfig.exe not located -- checked PATH, Uninstall InstallLocation, "
-            "Veeam reg keys, hardcoded Program Files paths, and walked the Veeam "
-            "directory tree (depth <=3). See watchtower.log for per-tier outcomes."
-        )
+        # Modern Veeam Agent builds (some 6.x releases observed in the
+        # field) ship WITHOUT veeamconfig.exe entirely -- the standalone
+        # CLI was dropped. Fall back to the dedicated 'Veeam Agent'
+        # Windows event log, which has the same job-completion data
+        # (events 190/191) and is a stable public API. See
+        # _detect_agent_sessions_from_eventlog for details.
+        _logger.log("  veeam._detect_agent: veeamconfig missing, trying event-log fallback")
+        evt_last_job, evt_sessions, evt_reason = _detect_agent_sessions_from_eventlog()
+        if evt_last_job:
+            last_job = evt_last_job
+            recent_sessions = evt_sessions or []
+            last_job_reason = None  # we have data; suppress the diagnostic
+        else:
+            last_job_reason = (
+                "Couldn't read Veeam Agent job history. veeamconfig.exe is not "
+                "shipped in this Veeam Agent build, and the event-log fallback "
+                f"failed: {evt_reason or 'unknown'}"
+            )
     else:
         try:
             r = subprocess.run(
@@ -550,6 +708,12 @@ def _detect_agent():
         "lastJob": last_job,
         "jobs": jobs,
     }
+    # recentSessions: populated by the event-log fallback when
+    # veeamconfig.exe is missing. The dashboard already renders this
+    # field for the B&R edition, so the same UI block lights up for
+    # Agent installs when we have it.
+    if recent_sessions:
+        out["recentSessions"] = recent_sessions
     if last_job_reason:
         out["lastJobReason"] = last_job_reason
     return out
