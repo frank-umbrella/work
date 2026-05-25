@@ -1460,7 +1460,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.100";
+const APP_VERSION = "0.14.101";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -7686,6 +7686,37 @@ function renderWsb(w) {
   `;
 }
 
+// Shared "Recent backups (event log)" block for Carbonite + IBackup.
+// Both probes return recentSessions in the same shape -- an array of
+// { result, endTime, provider, eventId } objects derived from the
+// Windows event log. The Veeam renderer has its own copy with slightly
+// different field names; this helper keeps the Carbonite/IBackup
+// branches DRY since they share the exact event-log payload format.
+function _renderBackupEventLogSessions(label, sessions) {
+  if (!Array.isArray(sessions) || !sessions.length) return "";
+  return `
+    <div style="margin-top:12px;font-size:12px;font-weight:600;color:var(--ink-soft);">${esc(label)} (${sessions.length})</div>
+    <div class="list" style="margin-top:4px;">
+      ${sessions.map(s => {
+        const r = (s.result || '').toLowerCase();
+        const tone = r === 'success' ? 'ok' : r === 'warning' ? 'warn' : r === 'failed' ? 'bad' : 'muted';
+        const whenIso = dateToIso(s.endTime);
+        const whenDisplay = whenIso ? whenIso.replace('T', ' ').replace(/\.\d+Z?$/, '').replace(/Z$/, '') : '';
+        return `<div class="row">
+          <div>
+            <div class="name">${esc(s.provider || '(provider unknown)')}</div>
+            ${s.eventId ? `<div class="meta">Event ID ${esc(s.eventId)}</div>` : ''}
+          </div>
+          <div class="meta" style="text-align:right;">
+            <span class="badge ${tone}">${esc(s.result || '?')}</span>
+            ${whenDisplay ? `<div style="font-size:11px;margin-top:2px;">${esc(whenDisplay)}</div>` : ''}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+  `;
+}
+
 function renderCarbonite(c) {
   if (c._error) return `<div class="meta">Probe error: ${esc(c._error)}</div>`;
   const products = (c.products || []).map(p => `
@@ -7712,6 +7743,22 @@ function renderCarbonite(c) {
   // legitimately have no signal here.
   const haveProtected = c.protected === true || c.protected === false;
   const haveFiles = typeof c.filesProtected === "number";
+  // Event-log derived fields (agent v0.14.43+). Populated only when
+  // the speculative Carbonite/DCProtect/DataCastle event-log probe
+  // found and parsed entries. None of these are present on hosts
+  // where the probe found nothing (which is the common case for
+  // Carbonite Endpoint consumer SKUs that don't write to the log).
+  const haveEvtResult = c.lastBackupResult === "Success" || c.lastBackupResult === "Failed" || c.lastBackupResult === "Warning";
+  const haveEvtTime = !!c.lastBackupAt;
+  const evtResultBadge = c.lastBackupResult === "Success"
+    ? `<span class="badge ok">Success</span>`
+    : c.lastBackupResult === "Failed"
+      ? `<span class="badge bad">Failed</span>`
+      : c.lastBackupResult === "Warning"
+        ? `<span class="badge warn">Warning</span>`
+        : '';
+  const evtWhenIso = haveEvtTime ? dateToIso(c.lastBackupAt) : '';
+  const evtWhenDisplay = evtWhenIso ? evtWhenIso.replace('T', ' ').replace(/\.\d+Z?$/, '').replace(/Z$/, '') : '';
   const protBadge = c.protected === true
     ? `<span class="badge ok">Yes</span>`
     : c.protected === false
@@ -7721,22 +7768,38 @@ function renderCarbonite(c) {
     ? `<b>${c.filesProtected.toLocaleString()}</b> file${c.filesProtected === 1 ? "" : "s"}`
     : `<span class="badge muted" title="Carbonite didn't write a file-count value to any of the registry locations we check (HKLM + HKEY_USERS). The Carbonite UI on the host should show this number live.">unknown</span>`;
 
+  // Last backup row from the event log -- only when present. Different
+  // semantic from the registry-derived "Protected? / Files protected"
+  // pair, so we render it as a separate kv pair above the existing
+  // status grid.
+  const lastBackupKv = (haveEvtResult || haveEvtTime) ? `<div class="kv" style="margin-top:10px;">
+    <div class="k" title="Most recent Carbonite/DCProtect backup outcome extracted from the Windows event log.">Last backup (event log)</div>
+    <div class="v">${evtWhenDisplay ? `<code>${esc(evtWhenDisplay)}</code>` : '<span class="meta">unknown</span>'}${evtResultBadge ? ` &middot; ${evtResultBadge}` : ''}</div>
+  </div>` : '';
+
   const statusKv = (haveProtected || haveFiles) ? `<div class="kv" style="margin-top:10px;">
     <div class="k" title="Per Carbonite's own status reporting -- not just 'service is running'. Pulled from the registry value Carbonite writes when it confirms a successful protection state.">Protected?</div>
     <div class="v">${protBadge}${c.protectedSource ? ` <span class="meta" style="font-size:11px;">&middot; <code>${esc(c.protectedSource)}</code></span>` : ""}</div>
     <div class="k" title="Number of files Carbonite has enrolled in the backup set. Flatlining or shrinking growth is usually a sign something stopped getting picked up.">Files protected</div>
     <div class="v">${filesCell}${c.filesProtectedSource ? ` <span class="meta" style="font-size:11px;">&middot; <code>${esc(c.filesProtectedSource)}</code></span>` : ""}</div>
-  </div>` : `<div style="margin-top:10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 14px;">
+  </div>` : (haveEvtResult || haveEvtTime ? '' : `<div style="margin-top:10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:10px 14px;">
     <div style="font-size:12.5px;color:#475569;">
       <b style="color:#1a1f2b;">Live status not available via registry.</b>
       Carbonite Endpoint (every version we've encountered) keeps operational state in <code style="background:#fff;padding:1px 5px;border-radius:3px;">%ProgramData%\\Carbonite\\</code> files and the backup user's HKCU rather than the HKLM surface we probe. Detection (install + service) is confirmed; for live "protected / files protected" numbers, open the Carbonite agent on the host.
     </div>
-  </div>`;
+  </div>`);
+
+  // Recent backups block. Populated from c.recentSessions (event-log
+  // sourced). DRY helper handles the layout; renderVeeam has the same
+  // pattern for its Agent-edition event-log path.
+  const recentBackups = _renderBackupEventLogSessions("Recent backups (event log)", c.recentSessions);
 
   return `
     ${products ? `<div class="list">${products}</div>` : ""}
     ${services ? `<div class="list" style="margin-top:8px;">${services}</div>` : ""}
+    ${lastBackupKv}
     ${statusKv}
+    ${recentBackups}
     ${!products && !services ? `<div class="meta">Detected — no product or service details available.</div>` : ""}
   `;
 }
@@ -7789,10 +7852,16 @@ function renderIBackup(ib) {
     </div>
   </div>`;
 
+  // Recent backups from the event log (when present). Same DRY helper
+  // the Carbonite renderer uses -- both probes emit recentSessions in
+  // the identical shape.
+  const recentBackups = _renderBackupEventLogSessions("Recent backups (event log)", ib.recentSessions);
+
   return `
     ${products ? `<div class="list">${products}</div>` : ""}
     ${services ? `<div class="list" style="margin-top:8px;">${services}</div>` : ""}
     ${statusKv}
+    ${recentBackups}
     ${!products && !services ? `<div class="meta">Detected &mdash; no product or service details available.</div>` : ""}
   `;
 }

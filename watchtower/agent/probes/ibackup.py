@@ -31,6 +31,7 @@ no candidate service registered). Otherwise:
   }
 """
 
+import json
 import subprocess
 import winreg
 
@@ -508,6 +509,150 @@ def _coerce_result_str(raw):
     return None
 
 
+# ──────────────────────────────────────────────────────────────────────
+# Event-log fallback for IBackup. The registry surface we walk covers
+# HKLM + every loaded HKEY_USERS hive (added v0.14.83), but on hosts
+# where the backup user isn't currently signed in, IBackup's per-
+# session state in their HKCU is invisible. The Windows event log is
+# a separate channel that IBackup / IDrive sometimes write to under
+# their own provider names. Mirror of the Carbonite event-log probe.
+# ──────────────────────────────────────────────────────────────────────
+_IBACKUP_EVENTLOG_PS = r"""
+$ErrorActionPreference = 'Stop'
+$WarningPreference = 'SilentlyContinue'
+$ProgressPreference = 'SilentlyContinue'
+try {
+    $patterns = @('ibackup', 'idrive', 'pro softnet')
+    $providers = Get-WinEvent -ListProvider * -ErrorAction SilentlyContinue |
+        Where-Object {
+            $name = $_.Name.ToLower()
+            $matched = $false
+            foreach ($p in $patterns) { if ($name -match $p) { $matched = $true; break } }
+            $matched
+        } | Select-Object -ExpandProperty Name
+    if (-not $providers -or $providers.Count -eq 0) {
+        @{ ok = $true; events = @(); providers = @() } | ConvertTo-Json -Compress
+        return
+    }
+    $dedicatedLogs = Get-WinEvent -ListLog * -ErrorAction SilentlyContinue |
+        Where-Object {
+            $ln = $_.LogName.ToLower()
+            $matched = $false
+            foreach ($p in $patterns) { if ($ln -match $p) { $matched = $true; break } }
+            $matched -and $_.RecordCount -gt 0
+        } | Select-Object -ExpandProperty LogName
+    $events = @()
+    try {
+        $appEvents = Get-WinEvent -FilterHashtable @{LogName='Application'; ProviderName=$providers} -MaxEvents 50 -ErrorAction Stop
+        foreach ($e in $appEvents) { $events += $e }
+    } catch {}
+    foreach ($ln in $dedicatedLogs) {
+        try {
+            $logEvents = Get-WinEvent -LogName $ln -MaxEvents 50 -ErrorAction Stop
+            foreach ($e in $logEvents) { $events += $e }
+        } catch {}
+    }
+    $out = @()
+    foreach ($e in $events) {
+        $out += [PSCustomObject]@{
+            timeCreated = $e.TimeCreated.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+            id          = $e.Id
+            level       = $e.LevelDisplayName
+            provider    = "$($e.ProviderName)"
+            message     = "$($e.Message)"
+        }
+    }
+    @{ ok = $true; events = @($out); providers = @($providers) } | ConvertTo-Json -Depth 4 -Compress
+} catch {
+    @{ ok = $false; error = "$($_.Exception.Message)" } | ConvertTo-Json -Compress
+}
+"""
+
+
+def _classify_ibackup_event(msg, level):
+    """Best-effort outcome classification for an IBackup / IDrive event.
+    Returns "Success" / "Failed" / "Warning" / None."""
+    if not msg:
+        return None
+    m = msg.lower()
+    fail_signals = ("failed", "failure", "aborted", "error occurred", "could not back up", "backup did not complete")
+    success_signals = ("completed successfully", "succeeded", "backup completed", "finished successfully", "backup successful")
+    warn_signals = ("completed with warnings", "completed with errors", "skipped")
+    if any(s in m for s in fail_signals) or (level == "Error" and "back" in m):
+        return "Failed"
+    if any(s in m for s in warn_signals) or level == "Warning":
+        return "Warning"
+    if any(s in m for s in success_signals):
+        return "Success"
+    return None
+
+
+def _detect_ibackup_sessions_from_eventlog():
+    """Runs the IBackup/IDrive event-log query and parses results.
+    Returns (last_backup_at, last_backup_result, recent_sessions, providers_found).
+    """
+    try:
+        proc = subprocess.run(
+            [
+                "powershell.exe",
+                "-NoProfile",
+                "-NonInteractive",
+                "-ExecutionPolicy", "Bypass",
+                "-Command", _IBACKUP_EVENTLOG_PS,
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            creationflags=0x08000000,
+        )
+    except subprocess.TimeoutExpired:
+        _logger.log("  ibackup._detect_sessions_from_eventlog: PowerShell timed out after 30s")
+        return None, None, [], []
+    except OSError as e:
+        _logger.log(f"  ibackup._detect_sessions_from_eventlog: PowerShell launch failed: {e}")
+        return None, None, [], []
+
+    raw = (proc.stdout or "").strip()
+    if not raw:
+        return None, None, [], []
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        _logger.log(f"  ibackup._detect_sessions_from_eventlog: JSON parse failed; first 200 chars: {raw[:200]!r}")
+        return None, None, [], []
+    if not parsed.get("ok"):
+        _logger.log(f"  ibackup._detect_sessions_from_eventlog: Get-WinEvent failed: {parsed.get('error')}")
+        return None, None, [], []
+
+    providers = parsed.get("providers") or []
+    events = parsed.get("events") or []
+    if not events:
+        _logger.log(f"  ibackup._detect_sessions_from_eventlog: {len(providers)} matching providers found, no events emitted")
+        return None, None, [], providers
+
+    sessions = []
+    for e in events:
+        result = _classify_ibackup_event((e or {}).get("message") or "", (e or {}).get("level") or "")
+        if not result:
+            continue
+        sessions.append({
+            "result": result,
+            "endTime": e.get("timeCreated"),
+            "provider": e.get("provider"),
+            "eventId": e.get("id"),
+            "source": "eventlog",
+        })
+
+    if not sessions:
+        _logger.log(f"  ibackup._detect_sessions_from_eventlog: {len(events)} events found but none matched outcome verbs")
+        return None, None, [], providers
+
+    sessions.sort(key=lambda s: s.get("endTime") or "", reverse=True)
+    last = sessions[0]
+    _logger.log(f"  ibackup._detect_sessions_from_eventlog: parsed {len(sessions)} sessions, most recent result={last['result']} at {last['endTime']}")
+    return last["endTime"], last["result"], sessions[:5], providers
+
+
 def collect():
     try:
         _logger.log("ibackup.collect: starting")
@@ -522,7 +667,22 @@ def collect():
 
         last_at, last_source, last_result = _detect_last_backup()
 
-        return {
+        # Event-log fallback: when the registry walk doesn't yield a
+        # last-backup timestamp (backup user not signed in, or IBackup
+        # version doesn't write status to registry), try the event log.
+        # Even when the registry DOES have data, the event log gives us
+        # recentSessions for the dashboard's recent-backups list.
+        evt_last_at, evt_last_result, recent_sessions, evt_providers = \
+            _detect_ibackup_sessions_from_eventlog()
+        # Prefer registry-derived data when both are present (more
+        # canonical); fall back to event-log data otherwise.
+        if not last_at and evt_last_at:
+            last_at = evt_last_at
+            last_source = "eventlog"
+        if not last_result and evt_last_result:
+            last_result = evt_last_result
+
+        out = {
             "installed": True,
             "products": products,
             "services": services,
@@ -530,5 +690,10 @@ def collect():
             "lastBackupSource": last_source,
             "lastBackupResult": last_result,
         }
+        if recent_sessions:
+            out["recentSessions"] = recent_sessions
+        if evt_providers:
+            out["eventLogProviders"] = evt_providers
+        return out
     except Exception as e:
         return {"_error": f"ibackup probe failed: {e}"}

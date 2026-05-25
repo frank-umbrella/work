@@ -29,7 +29,9 @@ contain a usable value the fields stay null and the dashboard
 shows them as "unknown" -- never lie about a backup product.
 """
 
+import json
 import os
+import re
 import subprocess
 import winreg
 
@@ -387,6 +389,171 @@ def _detect_installed_products():
     return products
 
 
+# ──────────────────────────────────────────────────────────────────────
+# Event log probe -- speculative. Carbonite Endpoint v10/v11 and its
+# enterprise sibling DCProtect (DataCastle Agent, Carbonite's managed
+# tier) both potentially write backup outcomes to the Application log
+# under their own provider names. On hosts where they don't, this
+# returns nothing and the existing "Live status not available" callout
+# still renders. On hosts where they do, we get real success/failure
+# data into the dashboard without the operator opening the agent UI.
+#
+# Providers we cast a wide net for:
+#   Carbonite, DCProtect, DCA, DataCastle, Webroot, "Carbonite Backup"
+#
+# Match heuristic: any provider name containing one of those tokens
+# (case-insensitive). Cheap to add new ones later.
+#
+# Message parser: regex looks for "succeeded|completed|finished" vs
+# "failed|error|aborted" -- we don't know the exact format Carbonite
+# uses across versions, so we classify on common verbs rather than
+# requiring an exact string match. If found and parseable, we surface
+# lastBackupAt, lastBackupResult, and the 5 most recent sessions.
+# ──────────────────────────────────────────────────────────────────────
+_CARBONITE_EVENTLOG_PS = r"""
+$ErrorActionPreference = 'Stop'
+$WarningPreference = 'SilentlyContinue'
+$ProgressPreference = 'SilentlyContinue'
+try {
+    $patterns = @('carbonite', 'dcprotect', 'dca', 'datacastle', 'webroot')
+    $providers = Get-WinEvent -ListProvider * -ErrorAction SilentlyContinue |
+        Where-Object {
+            $name = $_.Name.ToLower()
+            $matched = $false
+            foreach ($p in $patterns) { if ($name -match $p) { $matched = $true; break } }
+            $matched
+        } | Select-Object -ExpandProperty Name
+    if (-not $providers -or $providers.Count -eq 0) {
+        @{ ok = $true; events = @(); providers = @() } | ConvertTo-Json -Compress
+        return
+    }
+    # Some Carbonite installs ship a dedicated log; check those too.
+    $dedicatedLogs = Get-WinEvent -ListLog * -ErrorAction SilentlyContinue |
+        Where-Object {
+            $ln = $_.LogName.ToLower()
+            $matched = $false
+            foreach ($p in $patterns) { if ($ln -match $p) { $matched = $true; break } }
+            $matched -and $_.RecordCount -gt 0
+        } | Select-Object -ExpandProperty LogName
+    $events = @()
+    # Application log filtered by our providers
+    try {
+        $appEvents = Get-WinEvent -FilterHashtable @{LogName='Application'; ProviderName=$providers} -MaxEvents 50 -ErrorAction Stop
+        foreach ($e in $appEvents) { $events += $e }
+    } catch {}
+    # Dedicated logs
+    foreach ($ln in $dedicatedLogs) {
+        try {
+            $logEvents = Get-WinEvent -LogName $ln -MaxEvents 50 -ErrorAction Stop
+            foreach ($e in $logEvents) { $events += $e }
+        } catch {}
+    }
+    $out = @()
+    foreach ($e in $events) {
+        $out += [PSCustomObject]@{
+            timeCreated = $e.TimeCreated.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+            id          = $e.Id
+            level       = $e.LevelDisplayName
+            provider    = "$($e.ProviderName)"
+            message     = "$($e.Message)"
+        }
+    }
+    @{ ok = $true; events = @($out); providers = @($providers) } | ConvertTo-Json -Depth 4 -Compress
+} catch {
+    @{ ok = $false; error = "$($_.Exception.Message)" } | ConvertTo-Json -Compress
+}
+"""
+
+
+def _classify_carbonite_event(msg, level):
+    """Best-effort outcome classification from a Carbonite/DCProtect
+    event message. We don't have a canonical event-ID table for these
+    products across versions, so we look at level + common verbs in
+    the message body. Returns "Success" / "Failed" / "Warning" / None.
+    """
+    if not msg:
+        return None
+    m = msg.lower()
+    # Failure indicators (level=Error usually + failure verbs)
+    fail_signals = ("failed", "failure", "aborted", "error occurred", "could not", "unable to back up")
+    success_signals = ("completed successfully", "succeeded", "backup completed", "finished successfully", "backup successful")
+    warn_signals = ("completed with warnings", "completed with errors")
+    if any(s in m for s in fail_signals) or (level == "Error" and "back" in m):
+        return "Failed"
+    if any(s in m for s in warn_signals) or level == "Warning":
+        return "Warning"
+    if any(s in m for s in success_signals):
+        return "Success"
+    return None
+
+
+def _detect_carbonite_sessions_from_eventlog():
+    """Runs the broad Carbonite/DCProtect event-log query and parses
+    the results. Returns (last_backup_at, last_backup_result, recent_sessions, providers_found).
+    All four are None / empty when nothing useful was found.
+    """
+    try:
+        proc = subprocess.run(
+            [
+                "powershell.exe",
+                "-NoProfile",
+                "-NonInteractive",
+                "-ExecutionPolicy", "Bypass",
+                "-Command", _CARBONITE_EVENTLOG_PS,
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            creationflags=0x08000000,
+        )
+    except subprocess.TimeoutExpired:
+        _logger.log("  carbonite._detect_sessions_from_eventlog: PowerShell timed out after 30s")
+        return None, None, [], []
+    except OSError as e:
+        _logger.log(f"  carbonite._detect_sessions_from_eventlog: PowerShell launch failed: {e}")
+        return None, None, [], []
+
+    raw = (proc.stdout or "").strip()
+    if not raw:
+        return None, None, [], []
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        _logger.log(f"  carbonite._detect_sessions_from_eventlog: JSON parse failed; first 200 chars: {raw[:200]!r}")
+        return None, None, [], []
+    if not parsed.get("ok"):
+        _logger.log(f"  carbonite._detect_sessions_from_eventlog: Get-WinEvent failed: {parsed.get('error')}")
+        return None, None, [], []
+
+    providers = parsed.get("providers") or []
+    events = parsed.get("events") or []
+    if not events:
+        _logger.log(f"  carbonite._detect_sessions_from_eventlog: {len(providers)} matching providers found, no events emitted")
+        return None, None, [], providers
+
+    sessions = []
+    for e in events:
+        result = _classify_carbonite_event((e or {}).get("message") or "", (e or {}).get("level") or "")
+        if not result:
+            continue
+        sessions.append({
+            "result": result,
+            "endTime": e.get("timeCreated"),
+            "provider": e.get("provider"),
+            "eventId": e.get("id"),
+            "source": "eventlog",
+        })
+
+    if not sessions:
+        _logger.log(f"  carbonite._detect_sessions_from_eventlog: {len(events)} events found but none matched outcome verbs")
+        return None, None, [], providers
+
+    sessions.sort(key=lambda s: s.get("endTime") or "", reverse=True)
+    last = sessions[0]
+    _logger.log(f"  carbonite._detect_sessions_from_eventlog: parsed {len(sessions)} sessions, most recent result={last['result']} at {last['endTime']}")
+    return last["endTime"], last["result"], sessions[:5], providers
+
+
 def collect():
     try:
         products = _detect_installed_products()
@@ -401,7 +568,14 @@ def collect():
         protected, protected_source = _detect_protected()
         files_protected, files_source = _detect_files_protected()
 
-        return {
+        # Speculative event-log probe. On most Carbonite Endpoint
+        # installs there's nothing here; on DCProtect / enterprise tier
+        # installs we might extract real backup outcomes. Falls through
+        # cleanly when no events are present.
+        last_backup_at, last_backup_result, recent_sessions, evt_providers = \
+            _detect_carbonite_sessions_from_eventlog()
+
+        out = {
             "installed": True,
             "products": products,
             "services": services,
@@ -410,5 +584,18 @@ def collect():
             "filesProtected": files_protected,
             "filesProtectedSource": files_source,
         }
+        if last_backup_at:
+            out["lastBackupAt"] = last_backup_at
+        if last_backup_result:
+            out["lastBackupResult"] = last_backup_result
+        if recent_sessions:
+            out["recentSessions"] = recent_sessions
+        # Always surface what providers (if any) we found, even when no
+        # parseable events were extracted. Helps debug "I know DCProtect
+        # is running but nothing shows" cases without re-running PS by
+        # hand.
+        if evt_providers:
+            out["eventLogProviders"] = evt_providers
+        return out
     except Exception as e:
         return {"_error": f"carbonite probe failed: {e}"}
