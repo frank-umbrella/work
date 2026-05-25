@@ -128,7 +128,7 @@
       </svg>
       <div>
         <div class="meta">Umbrella Automation</div>
-        <h1>Watchtower &middot; Docs <span class="version-chip">v0.14.55</span></h1>
+        <h1>Watchtower &middot; Docs <span class="version-chip">v0.14.56</span></h1>
       </div>
     </a>
     <a class="btn brand-link" href="index.html">&larr; Back to dashboard</a>
@@ -812,7 +812,7 @@ Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" 
   <li><b>Age</b> &mdash; computed as (today &minus; that target's oldest backup timestamp). The first time WSB wrote a backup to the disk is the start of its rotation.</li>
   <li><b>Once per crossing</b> &mdash; same dedup pattern as OMSA / disk-low. The first check-in that detects the threshold crossing emails + webhooks; subsequent check-ins stay silent. Swap the disk (oldestBackup drops &rarr; age plummets) and the dedup clears; if the new disk later ages out, you'll get a fresh alert.</li>
   <li><b>Severity is <code>warn</code></b> &mdash; new amber color band on the email + warn-colored webhook (Slack/Discord left bar amber, Teams top bar amber, Google Chat ADVISORY label). Reads as "plan a swap" not "outage."</li>
-  <li><b>Webhook payload</b> &mdash; <code>event: "backup_disk_aged"</code> with <code>target</code>, <code>ageDays</code>, <code>ageLabel</code> ("2y 285d"), <code>thresholdDays</code>, <code>thresholdLabel</code>, <code>oldestBackup</code>, <code>newestBackup</code>.</li>
+  <li><b>Webhook payload</b> &mdash; <code>event: "backup_disk_aged"</code> with <code>target</code>, <code>ageDays</code>, <code>ageLabel</code> ("2y 285d"), <code>thresholdDays</code>, <code>thresholdLabel</code>, <code>oldestBackup</code>, <code>newestBackup</code>. All four chat surfaces (Email + Slack + Teams + Discord + Google Chat) render both the first and latest backup dates so you can tell whether the disk is still being actively written to (= just old hardware to swap) or fell out of rotation (= bigger problem).</li>
 </ul>
 
 <h2 id="exports">Exports (PDF / CSV / Excel)</h2>

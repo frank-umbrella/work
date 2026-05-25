@@ -2625,8 +2625,17 @@ async function sendBackupDiskAgedEmail(env, { pcId, hostname, client, target, ag
       <td width="4%"></td>
       <td style="background:#fafbfc;border:1px solid #e3e6ec;border-radius:10px;padding:14px 18px;vertical-align:top;">
         <div style="font-size:10.5px;color:#8892a4;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:4px;">Backup target</div>
-        <div style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:14px;color:#475063;font-weight:700;line-height:1.3;word-break:break-all;">${targetShort}</div>
-        <div style="font-size:11.5px;color:#475063;margin-top:6px;">First backup ${oldestShort} &middot; latest ${newestShort}</div>
+        <div style="font-family:ui-monospace,Menlo,Consolas,monospace;font-size:14px;color:#475063;font-weight:700;line-height:1.3;word-break:break-all;margin-bottom:10px;">${targetShort}</div>
+        <table cellpadding="0" cellspacing="0" border="0" width="100%" style="font-size:11.5px;color:#475063;"><tr>
+          <td style="padding-right:14px;border-right:1px solid #e3e6ec;">
+            <div style="font-size:9.5px;color:#8892a4;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:2px;">First backup</div>
+            <div style="color:#1a1f2b;font-weight:600;">${oldestShort}</div>
+          </td>
+          <td style="padding-left:14px;">
+            <div style="font-size:9.5px;color:#8892a4;text-transform:uppercase;letter-spacing:0.08em;font-weight:700;margin-bottom:2px;">Latest backup</div>
+            <div style="color:#1a1f2b;font-weight:600;">${newestShort}</div>
+          </td>
+        </tr></table>
       </td>
     </tr></table>
     <div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;padding:14px 18px;margin-bottom:0;">
@@ -2885,8 +2894,9 @@ function _slackFacts(p) {
     case 'backup_disk_aged':
       if (p.ageLabel) add('In rotation', p.ageLabel);
       if (p.thresholdLabel) add('Threshold', p.thresholdLabel);
-      if (p.target) add('Target', `\`${String(p.target).slice(0, 60)}\``);
       if (p.oldestBackup) add('First backup', p.oldestBackup.slice(0, 10));
+      if (p.newestBackup) add('Latest backup', p.newestBackup.slice(0, 10));
+      if (p.target) add('Target', `\`${String(p.target).slice(0, 60)}\``);
       break;
     case 'agent_uninstalled':
     case 'agent_decommissioned':
@@ -2940,8 +2950,9 @@ function buildTeamsMessageCard(p, summary, meta) {
     case 'backup_disk_aged':
       if (p.ageLabel) facts.push({ name: 'In rotation', value: p.ageLabel });
       if (p.thresholdLabel) facts.push({ name: 'Threshold', value: p.thresholdLabel });
-      if (p.target) facts.push({ name: 'Target', value: String(p.target).slice(0, 80) });
       if (p.oldestBackup) facts.push({ name: 'First backup', value: p.oldestBackup.slice(0, 10) });
+      if (p.newestBackup) facts.push({ name: 'Latest backup', value: p.newestBackup.slice(0, 10) });
+      if (p.target) facts.push({ name: 'Target', value: String(p.target).slice(0, 80) });
       break;
     case 'agent_uninstalled':
     case 'agent_decommissioned':
@@ -3012,6 +3023,7 @@ function buildDiscordEmbed(p, summary, meta) {
       if (p.ageLabel) fields.push({ name: 'In rotation', value: p.ageLabel, inline: true });
       if (p.thresholdLabel) fields.push({ name: 'Threshold', value: p.thresholdLabel, inline: true });
       if (p.oldestBackup) fields.push({ name: 'First backup', value: p.oldestBackup.slice(0, 10), inline: true });
+      if (p.newestBackup) fields.push({ name: 'Latest backup', value: p.newestBackup.slice(0, 10), inline: true });
       if (p.target) fields.push({ name: 'Target', value: `\`${String(p.target).slice(0, 80)}\``, inline: false });
       break;
     case 'agent_uninstalled':
@@ -3128,6 +3140,7 @@ function buildGoogleChatCard(p, summary, meta) {
       if (p.ageLabel) widgets.push(_gchatFact('In rotation', p.ageLabel, 'CLOCK'));
       if (p.thresholdLabel) widgets.push(_gchatFact('Threshold', p.thresholdLabel, 'BOOKMARK'));
       if (p.oldestBackup) widgets.push(_gchatFact('First backup', p.oldestBackup.slice(0, 10), 'CLOCK'));
+      if (p.newestBackup) widgets.push(_gchatFact('Latest backup', p.newestBackup.slice(0, 10), 'CLOCK'));
       if (p.target) widgets.push(_gchatFact('Target', String(p.target).slice(0, 80), 'DESCRIPTION'));
       break;
     case 'wsb_backup_failed':

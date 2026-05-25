@@ -1111,7 +1111,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.55";
+const APP_VERSION = "0.14.56";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -3020,7 +3020,11 @@ function renderActivityRow(e) {
       summary = `Windows Server Backup failed on ${hostLink}${clientLabel} &middot; <code>${esc(e.details?.result || "?")}</code>`;
       break;
     case "backup_disk_aged":
-      summary = `Primary backup disk aged on ${hostLink}${clientLabel} &middot; <code>${esc(e.details?.target || "?")}</code> in rotation ${esc(_fmtAgeDays(e.details?.ageDays || 0))} (threshold ${esc(_fmtAgeDays(e.details?.thresholdDays || 0))})`;
+      // Latest backup date helps the operator gauge whether the disk is
+      // still being written to actively (= just old hardware) vs. fell
+      // out of rotation entirely (= bigger problem). Sliced to YYYY-MM-DD
+      // so the activity row stays single-line.
+      summary = `Primary backup disk aged on ${hostLink}${clientLabel} &middot; <code>${esc(e.details?.target || "?")}</code> in rotation ${esc(_fmtAgeDays(e.details?.ageDays || 0))} (threshold ${esc(_fmtAgeDays(e.details?.thresholdDays || 0))})${e.details?.newestBackup ? ` &middot; latest ${esc(String(e.details.newestBackup).slice(0, 10))}` : ""}`;
       break;
     case "host_reassigned":
       summary = `${hostLink} reassigned: ${esc(e.details?.previousClient || "?")} &rarr; ${esc(e.details?.newClient || "?")}`;
