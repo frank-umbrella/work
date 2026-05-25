@@ -1502,6 +1502,18 @@ async function handleCheckin(request, env, ctx) {
     // when the operator swaps the disk (oldestBackup drops, ageDays
     // falls under threshold) or bumps the threshold past current age.
     backupDiskAgeFirstWarnAt,
+    // Mirror the per-subsystem monitoring flags + snooze timestamp
+    // from the agent's config doc into the status doc. The dashboard's
+    // fleet listener has the agent doc but doesn't (cheaply) have the
+    // config doc -- mirroring lets the table row suppress the WSB /
+    // OMSA / disk badges when monitoring is off without having to
+    // subscribe to a config-per-host. Source of truth stays the config
+    // doc; this is just a denormalized cache that the next check-in
+    // refreshes.
+    monitorWsb: config.monitorWsb !== false,
+    monitorOmsa: config.monitorOmsa !== false,
+    monitorDisk: config.monitorDisk !== false,
+    alertsSnoozeUntil: config.alertsSnoozeUntil || null,
     // Connectivity history. Read by the dashboard drawer to render the
     // 30-day powered-vs-online chart. Each entry:
     //   { startedAt, endedAt, durationSec, reason, attempts }
@@ -1679,7 +1691,7 @@ async function handleCheckin(request, env, ctx) {
   // Re-fires only after the warning clears (back to OK) and reappears.
   const omsaNewWarning = omsaIsNonOk && !omsaPrevWarnAt;
   const omsaCleared = !omsaIsNonOk && omsaPrevWarnAt;
-  if (omsaNewWarning && config.enabled) {
+  if (omsaNewWarning && config.enabled && config.monitorOmsa !== false && !isAlertsSnoozed(config)) {
     const issues = extractOmsaIssues(omsaCurrent);
     // Activity entry for the warning start
     ctx.waitUntil(logActivity(env, accessToken, {
@@ -1729,7 +1741,7 @@ async function handleCheckin(request, env, ctx) {
   // or 5 GB) gets a different subject line + severity but uses the
   // same transition trigger -- we don't want to double-fire if a
   // host drops from 8% -> 4% in a single check-in.
-  if (cDriveNewWarning && config.enabled) {
+  if (cDriveNewWarning && config.enabled && config.monitorDisk !== false && !isAlertsSnoozed(config)) {
     ctx.waitUntil(logActivity(env, accessToken, {
       type: 'disk_low',
       actor: { type: 'agent', id: pcId },
@@ -1783,7 +1795,7 @@ async function handleCheckin(request, env, ctx) {
   // silent on subsequent check-ins while still aged. Auto-clears when
   // the operator swaps the disk (oldestBackup drops) or bumps the
   // threshold past current age, then re-arms.
-  if (backupDiskAgedNewWarning && config.enabled) {
+  if (backupDiskAgedNewWarning && config.enabled && config.monitorWsb !== false && !isAlertsSnoozed(config)) {
     const ageLabel = _fmtAgeDays(backupAgedFinding.ageDays);
     const thresholdLabel = _fmtAgeDays(backupAgedFinding.thresholdDays);
     ctx.waitUntil(logActivity(env, accessToken, {
@@ -1837,7 +1849,7 @@ async function handleCheckin(request, env, ctx) {
   }
 
   // ----- 7b. Notify on new WSB backup failure -----
-  if (wsbNewFailure && config.enabled) {
+  if (wsbNewFailure && config.enabled && config.monitorWsb !== false && !isAlertsSnoozed(config)) {
     const lastSuccess = wsbCurrent?.lastSuccessfulBackup || null;
     const daysSinceSuccess = lastSuccess
       ? Math.floor((Date.now() - new Date(lastSuccess).getTime()) / 86400000)
@@ -2095,6 +2107,22 @@ function readConfig(doc) {
     autoUpdate: false,  // safety default — opt-in per host
     forceUpdate: false, // one-shot push, self-clears after success
     clientIdOverride: null,
+    // Per-subsystem monitoring flags. Default true so existing hosts
+    // keep firing alerts as before. Admin toggles them off from the
+    // dashboard ("Stop monitoring WSB on this host" etc.) when a
+    // subsystem isn't applicable -- e.g. a VM that never had WSB, an
+    // Optiplex desktop with no Dell PERC for OMSA to report on. When
+    // false the dashboard suppresses that subsystem's badge in the
+    // row AND the worker skips its email/webhook fires.
+    monitorWsb: true,
+    monitorOmsa: true,
+    monitorDisk: true,
+    // Snooze-all timestamp. When set + in the future, all email +
+    // webhook fires for this host are skipped regardless of which
+    // subsystem triggered. Lets the operator silence a host that's
+    // mid-maintenance without losing the underlying signal (the
+    // dashboard still shows status). null / past = not snoozed.
+    alertsSnoozeUntil: null,
   };
   if (!doc || !doc.fields) return defaults;
   return {
@@ -2106,7 +2134,22 @@ function readConfig(doc) {
     autoUpdate: fieldBool(doc.fields.autoUpdate, defaults.autoUpdate),
     forceUpdate: fieldBool(doc.fields.forceUpdate, defaults.forceUpdate),
     clientIdOverride: doc.fields.clientIdOverride?.stringValue || null,
+    monitorWsb: fieldBool(doc.fields.monitorWsb, defaults.monitorWsb),
+    monitorOmsa: fieldBool(doc.fields.monitorOmsa, defaults.monitorOmsa),
+    monitorDisk: fieldBool(doc.fields.monitorDisk, defaults.monitorDisk),
+    alertsSnoozeUntil: doc.fields.alertsSnoozeUntil?.stringValue || null,
   };
+}
+
+// Returns true if the host is in an active snooze window (admin
+// clicked "Mute 24h" / "Mute 7d" on a badge). Past-date or unset
+// alertsSnoozeUntil reads as not snoozed. Centralizes the parse +
+// comparison so each firing site stays one-liner readable.
+function isAlertsSnoozed(config) {
+  if (!config?.alertsSnoozeUntil) return false;
+  const until = Date.parse(config.alertsSnoozeUntil);
+  if (!isFinite(until)) return false;
+  return until > Date.now();
 }
 
 // Like fieldBool but returns null when the field doesn't exist at all.

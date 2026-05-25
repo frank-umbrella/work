@@ -345,6 +345,59 @@
      overflow the cell horizontally and let flex-wrap on the parent push
      the badge to a new line. */
   .badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 999px; font-size: 11.5px; font-weight: 600; white-space: nowrap; }
+  /* Clickable status badges (WSB / OMSA / disk / snooze) -- a click
+     opens openBadgePopover() instead of falling through to the row's
+     openDrawer handler. Hover ring is subtle; no border-color shift
+     so the severity color (red/amber/etc.) stays the dominant signal. */
+  .badge.badge-action { cursor: pointer; transition: box-shadow 0.12s, transform 0.08s; }
+  .badge.badge-action:hover { box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.12); }
+  .badge.badge-action:active { transform: scale(0.96); }
+  /* The popover itself -- fixed-positioned panel anchored next to
+     the clicked badge by JS (openBadgePopover sets style.top/left).
+     z-index above the sticky table header (30) + sticky filter bar
+     (40) + page header (50) so it floats over everything. */
+  #badgePopover {
+    position: fixed; z-index: 200;
+    background: var(--surface); border: 1px solid var(--line-strong);
+    border-radius: 10px; box-shadow: 0 8px 24px rgba(20,25,40,0.18);
+    padding: 10px 0; min-width: 260px; max-width: 320px;
+    font-size: 13px; color: var(--ink);
+  }
+  #badgePopover[hidden] { display: none; }
+  #badgePopover .pop-title {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--ink-faint); font-weight: 700;
+    padding: 0 14px 8px; border-bottom: 1px solid var(--line); margin-bottom: 6px;
+  }
+  #badgePopover .pop-host { color: var(--ink-soft); font-weight: 500; text-transform: none; letter-spacing: 0; font-size: 12px; }
+  #badgePopover button.pop-action {
+    display: block; width: 100%; text-align: left;
+    background: transparent; border: 0; padding: 8px 14px;
+    font: inherit; color: var(--ink); cursor: pointer;
+  }
+  #badgePopover button.pop-action:hover { background: var(--surface-2); }
+  #badgePopover button.pop-action.danger { color: #b91c1c; }
+  #badgePopover .pop-divider { height: 1px; background: var(--line); margin: 6px 0; }
+  #badgePopover .pop-reason {
+    padding: 10px 14px;
+    border-top: 1px solid var(--line);
+  }
+  #badgePopover .pop-reason label { font-size: 11px; color: var(--ink-faint); display: block; margin-bottom: 4px; }
+  #badgePopover .pop-reason textarea {
+    width: 100%; min-height: 56px; padding: 6px 8px;
+    border: 1px solid var(--line-strong); border-radius: 6px;
+    font: inherit; resize: vertical;
+  }
+  #badgePopover .pop-reason .pop-row {
+    display: flex; gap: 8px; margin-top: 8px; justify-content: flex-end;
+  }
+  #badgePopover .pop-reason button {
+    padding: 6px 12px; border-radius: 6px; border: 1px solid var(--line-strong);
+    background: var(--surface); cursor: pointer; font: inherit;
+  }
+  #badgePopover .pop-reason button.primary {
+    background: var(--teal); color: white; border-color: var(--teal);
+  }
   .badge.ok { background: var(--ok-soft); color: #166534; }
   .badge.warn { background: var(--warn-soft); color: #854d0e; }
   .badge.bad { background: var(--danger-soft); color: #7f1d1d; }
@@ -1110,6 +1163,12 @@
     </div>
   </div>
 
+  <!-- Status-badge action popover. Opened by openBadgePopover() when
+       the operator clicks a clickable badge (WSB / OMSA / disk / snooze)
+       in the Endpoints table. Hidden by default; JS positions + fills
+       it dynamically per badge kind. -->
+  <div id="badgePopover" hidden></div>
+
   <!-- scrim + drawer -->
   <div id="scrim"></div>
   <aside id="drawer" aria-hidden="true">
@@ -1150,7 +1209,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.62";
+const APP_VERSION = "0.14.63";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -1710,7 +1769,7 @@ const FLEET_COLUMNS = [
   // phone home" pair reads together -- that's the bundle the operator
   // checks when triaging a stale host. ----
   { key: "status",     label: "Status",       default: true,  sortKey: "status",        thClass: "",             tdClass: "",
-    render: (a, ctx) => `${ctx.stBadge}${ctx.bhBadge}${ctx.ohBadge}${ctx.wuBadge}${ctx.diskBadge}` },
+    render: (a, ctx) => `${ctx.stBadge}${ctx.bhBadge}${ctx.ohBadge}${ctx.wuBadge}${ctx.diskBadge}${ctx.snoozeBadge}${ctx.offBadge}` },
   { key: "agentVersion", label: "Agent",      default: true,  sortKey: "agentVersion",  thClass: "",             tdClass: "meta",
     render: (a) => esc(a.agentVersion || "—") },
   { key: "lastCheckin",label: "Last check",   default: true,  sortKey: "lastCheckin",   thClass: "",             tdClass: "age",
@@ -2000,11 +2059,27 @@ function renderFleet() {
     const stBadge = isDecom
       ? `<span class="badge muted" title="${esc(a.decommissionedBy === 'agent-uninstall' ? 'Uninstalled at the host' : 'Marked decommissioned by admin')} on ${esc(tsToStr(a.decommissionedAt))}"><span class="badge-dot"></span>Decommissioned</span>`
       : `<span class="badge ${st.kind === "ok" ? "ok" : st.kind === "warn" ? "warn" : st.kind === "bad" ? "bad" : "muted"}"><span class="badge-dot"></span>${esc(st.label)}</span>`;
-    const bhBadge = (bh && bh.kind !== "ok")
-      ? ` <span class="badge ${bh.kind === "warn" ? "warn" : "bad"}" title="Windows Server Backup status">${esc(bh.label)}</span>`
+    // Suppress the WSB / OMSA / disk badges when the operator has
+    // turned monitoring off for that subsystem on this host (via the
+    // status-badge popover or the drawer's Config section). The flag
+    // lives on the agent doc (worker mirrors it from the config doc
+    // on every check-in) so we can read it without an extra Firestore
+    // round-trip per row. monitorX === false is the explicit-opt-out
+    // case; null / undefined / true all leave the badge visible.
+    const wsbMuted = a.monitorWsb === false;
+    const omsaMuted = a.monitorOmsa === false;
+    const diskMuted = a.monitorDisk === false;
+    const snoozedUntil = (a.alertsSnoozeUntil && Date.parse(a.alertsSnoozeUntil) > Date.now())
+      ? a.alertsSnoozeUntil : null;
+    // data-pcid + data-badge-kind on each clickable badge -- the
+    // global click handler reads these to know which host + which
+    // subsystem the popover should target. role="button" + cursor in
+    // CSS makes the badge feel interactive without changing its look.
+    const bhBadge = (bh && bh.kind !== "ok" && !wsbMuted)
+      ? ` <span class="badge ${bh.kind === "warn" ? "warn" : "bad"} badge-action" role="button" tabindex="0" data-pcid="${esc(a.id)}" data-badge-kind="wsb" title="Windows Server Backup status -- click for actions">${esc(bh.label)}</span>`
       : "";
-    const ohBadge = oh
-      ? ` <span class="badge ${oh.kind === "bad" ? "bad" : oh.kind === "warn" ? "warn" : "muted"}" title="${oh.kind === "info" ? "OMSA is installed but reports no controllers / RAID / disks on this host — open the drawer for likely causes" : "Dell OMSA storage health"}">${esc(oh.label)}</span>`
+    const ohBadge = (oh && !omsaMuted)
+      ? ` <span class="badge ${oh.kind === "bad" ? "bad" : oh.kind === "warn" ? "warn" : "muted"} badge-action" role="button" tabindex="0" data-pcid="${esc(a.id)}" data-badge-kind="omsa" title="${oh.kind === "info" ? "OMSA is installed but reports no controllers / RAID / disks on this host — click for actions" : "Dell OMSA storage health -- click for actions"}">${esc(oh.label)}</span>`
       : "";
     const wuRow = a.report && a.report.windowsUpdates;
     let wuBadge = "";
@@ -2018,17 +2093,35 @@ function renderFleet() {
       }
     }
     let diskBadge = "";
-    if (typeof a.cDriveFreePct === "number" || typeof a.cDriveFreeGB === "number") {
+    if ((typeof a.cDriveFreePct === "number" || typeof a.cDriveFreeGB === "number") && !diskMuted) {
       const pct = a.cDriveFreePct;
       const gb = a.cDriveFreeGB;
       const isCritical = (pct != null && pct < 5) || (gb != null && gb < 5);
       const isWarn = (pct != null && pct < 10) || (gb != null && gb < 10);
       if (isCritical) {
-        diskBadge = ` <span class="badge bad" title="C: drive critically low. ${gb} GB / ${pct}% free of ${a.cDriveSizeGB} GB. Click the row for details.">C: ${pct}% free</span>`;
+        diskBadge = ` <span class="badge bad badge-action" role="button" tabindex="0" data-pcid="${esc(a.id)}" data-badge-kind="disk" title="C: drive critically low. ${gb} GB / ${pct}% free of ${a.cDriveSizeGB} GB. Click for actions.">C: ${pct}% free</span>`;
       } else if (isWarn) {
-        diskBadge = ` <span class="badge warn" title="C: drive low capacity. ${gb} GB / ${pct}% free of ${a.cDriveSizeGB} GB.">C: ${pct}% free</span>`;
+        diskBadge = ` <span class="badge warn badge-action" role="button" tabindex="0" data-pcid="${esc(a.id)}" data-badge-kind="disk" title="C: drive low capacity. ${gb} GB / ${pct}% free of ${a.cDriveSizeGB} GB. Click for actions.">C: ${pct}% free</span>`;
       }
     }
+    // Snooze chip — shows when alerts are muted for this host, even
+    // if no subsystem badge is currently lit. Gives the operator a
+    // visible "still muted, expires X" without having to open the
+    // drawer. Clickable to undo the snooze.
+    const snoozeBadge = snoozedUntil
+      ? ` <span class="badge muted badge-action" role="button" tabindex="0" data-pcid="${esc(a.id)}" data-badge-kind="snooze" title="Alerts muted until ${esc(snoozedUntil)} -- click to unmute or extend">🔕 muted</span>`
+      : "";
+    // "Monitoring off" chips for subsystems the operator turned off
+    // via the badge popover. Without these the host would show NO
+    // status indicator for that subsystem and there'd be no way to
+    // re-enable from the row -- the operator would have to open the
+    // drawer. Tiny muted chip, clickable to open the same popover
+    // (which detects monitorX=false and offers a "Re-enable" option).
+    const offBadges = [];
+    if (wsbMuted)  offBadges.push(`<span class="badge muted badge-action" role="button" tabindex="0" data-pcid="${esc(a.id)}" data-badge-kind="wsb"  title="WSB monitoring disabled on this host -- click to re-enable">WSB ✕</span>`);
+    if (omsaMuted) offBadges.push(`<span class="badge muted badge-action" role="button" tabindex="0" data-pcid="${esc(a.id)}" data-badge-kind="omsa" title="OMSA monitoring disabled on this host -- click to re-enable">OMSA ✕</span>`);
+    if (diskMuted) offBadges.push(`<span class="badge muted badge-action" role="button" tabindex="0" data-pcid="${esc(a.id)}" data-badge-kind="disk" title="C: drive monitoring disabled on this host -- click to re-enable">C: ✕</span>`);
+    const offBadge = offBadges.length ? ' ' + offBadges.join(' ') : '';
     const r = a.report || {};
     const backupPills = [];
     if (r.veeam && r.veeam.installed) backupPills.push(`<span class="pill pill-veeam" title="Veeam">Veeam</span>`);
@@ -2072,7 +2165,7 @@ function renderFleet() {
     } else {
       hostTag = `<span class="host-tag none" aria-hidden="true"></span>`;
     }
-    const ctx = { st, bh, oh, os, isDecom, stBadge, bhBadge, ohBadge, wuBadge, diskBadge, backupCell, remoteCell, hostTag };
+    const ctx = { st, bh, oh, os, isDecom, stBadge, bhBadge, ohBadge, wuBadge, diskBadge, snoozeBadge, offBadge, backupCell, remoteCell, hostTag };
 
     const rowClasses = [
       state.openPcId === a.id ? 'selected' : '',
@@ -2094,7 +2187,20 @@ function renderFleet() {
   }).join("");
 
   $$("#fleetBody tr").forEach(tr => {
-    tr.addEventListener("click", () => openDrawer(tr.dataset.id));
+    tr.addEventListener("click", (e) => {
+      // Click on a clickable badge opens the per-badge action popover
+      // instead of falling through to openDrawer -- otherwise every
+      // badge interaction would yank the operator into a drawer they
+      // didn't want. .badge-action is the class on bhBadge / ohBadge /
+      // diskBadge / snoozeBadge (and any future status-action badge).
+      const action = e.target.closest && e.target.closest(".badge-action");
+      if (action) {
+        e.stopPropagation();
+        openBadgePopover(action);
+        return;
+      }
+      openDrawer(tr.dataset.id);
+    });
   });
 }
 
@@ -3064,6 +3170,21 @@ function renderActivityRow(e) {
       // out of rotation entirely (= bigger problem). Sliced to YYYY-MM-DD
       // so the activity row stays single-line.
       summary = `Primary backup disk aged on ${hostLink}${clientLabel} &middot; <code>${esc(e.details?.target || "?")}</code> in rotation ${esc(_fmtAgeDays(e.details?.ageDays || 0))} (threshold ${esc(_fmtAgeDays(e.details?.thresholdDays || 0))})${e.details?.newestBackup ? ` &middot; latest ${esc(String(e.details.newestBackup).slice(0, 10))}` : ""}`;
+      break;
+    case "alerts_snoozed":
+      summary = `${hostLink}${clientLabel} alerts muted for ${esc(String(e.details?.hours || "?"))}h${e.details?.kind ? ` <span class="meta">(triggered from ${esc(e.details.kind)} badge)</span>` : ""}`;
+      break;
+    case "alerts_unsnoozed":
+      summary = `${hostLink}${clientLabel} alert mute cleared`;
+      break;
+    case "monitoring_disabled":
+      summary = `${hostLink}${clientLabel} <code>${esc(e.details?.monitorField || "monitor")}</code> turned off &middot; <span class="meta">no further alerts for this subsystem</span>`;
+      break;
+    case "monitoring_enabled":
+      summary = `${hostLink}${clientLabel} <code>${esc(e.details?.monitorField || "monitor")}</code> turned back on`;
+      break;
+    case "marked_false_positive":
+      summary = `${hostLink}${clientLabel} ${esc(e.details?.kind || "alert")} marked as false positive${e.details?.reason ? ` &middot; <span class="meta">${esc(e.details.reason)}</span>` : ""}`;
       break;
     case "host_reassigned":
       summary = `${hostLink} reassigned: ${esc(e.details?.previousClient || "?")} &rarr; ${esc(e.details?.newClient || "?")}`;
@@ -6709,6 +6830,211 @@ async function writeConfig(pcId, field, value) {
     toast(`Updated ${field}`);
   } catch (e) {
     toast(`Save failed: ${e.message || e}`, true);
+  }
+}
+
+// ═════════════════════════════════════════════════════════════════════
+// STATUS-BADGE ACTION POPOVER
+// ═════════════════════════════════════════════════════════════════════
+//
+// Opens a small floating panel next to a clicked badge (WSB / OMSA /
+// disk / snooze) with per-kind actions:
+//
+//   - Mute alerts for 24 h / 7 d / clear mute  (writes alertsSnoozeUntil)
+//   - Stop monitoring this subsystem on this host (writes monitorWsb /
+//     monitorOmsa / monitorDisk = false). Suppresses the badge in the
+//     row + skips the corresponding email/webhook fires in the worker.
+//   - Mark as false positive (with reason text). Same effect as
+//     "stop monitoring" but tagged with a documented reason for the
+//     activity log + audit trail.
+//
+// All writes go through writeConfig() so updates land in
+// /agents/{pcId}/config/current and the worker mirrors them back into
+// the agent doc on the next check-in (fields show up at top-level
+// a.monitorWsb / a.monitorOmsa / a.monitorDisk / a.alertsSnoozeUntil
+// so the row renderer can read them without a per-host config sub).
+//
+// The popover is a singleton -- #badgePopover -- positioned by JS at
+// open time and closed on outside click / Escape / window resize.
+function openBadgePopover(anchorEl) {
+  const pcId = anchorEl.dataset.pcid;
+  const kind = anchorEl.dataset.badgeKind;
+  const agent = state.agents.find(a => a.id === pcId);
+  if (!agent) return;
+  const hostname = agent.hostname || pcId;
+
+  const pop = document.getElementById('badgePopover');
+  pop.innerHTML = _renderBadgePopover(pcId, hostname, kind, agent);
+
+  // Position: anchor below the badge. If that would push it off the
+  // bottom of the viewport, flip above. Right-align so it doesn't
+  // overflow the right edge.
+  pop.hidden = false;
+  const rect = anchorEl.getBoundingClientRect();
+  const popRect = pop.getBoundingClientRect();
+  let top = rect.bottom + 6;
+  let left = Math.max(8, Math.min(window.innerWidth - popRect.width - 8, rect.left));
+  if (top + popRect.height > window.innerHeight - 8) {
+    top = Math.max(8, rect.top - popRect.height - 6);
+  }
+  pop.style.top  = `${top}px`;
+  pop.style.left = `${left}px`;
+
+  // Wire button handlers. Delegated since the popover content varies
+  // by kind.
+  pop.querySelectorAll('button.pop-action').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const action = btn.dataset.popAction;
+      _handleBadgeAction(pcId, hostname, kind, action);
+      _closeBadgePopover();
+    });
+  });
+  const reasonForm = pop.querySelector('.pop-reason');
+  if (reasonForm) {
+    reasonForm.querySelector('button.primary').addEventListener('click', (e) => {
+      e.stopPropagation();
+      const text = (reasonForm.querySelector('textarea').value || '').trim();
+      _handleBadgeAction(pcId, hostname, kind, 'mark-fp', text);
+      _closeBadgePopover();
+    });
+    reasonForm.querySelector('button.secondary').addEventListener('click', (e) => {
+      e.stopPropagation();
+      _closeBadgePopover();
+    });
+  }
+}
+
+function _closeBadgePopover() {
+  const pop = document.getElementById('badgePopover');
+  if (pop) { pop.hidden = true; pop.innerHTML = ''; }
+}
+
+// Click-outside + Escape to close. Registered once at module load.
+document.addEventListener('click', (e) => {
+  const pop = document.getElementById('badgePopover');
+  if (!pop || pop.hidden) return;
+  if (pop.contains(e.target)) return;
+  if (e.target.closest && e.target.closest('.badge-action')) return;  // re-click on a badge re-opens via row handler
+  _closeBadgePopover();
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') _closeBadgePopover();
+});
+window.addEventListener('resize', _closeBadgePopover);
+window.addEventListener('scroll', _closeBadgePopover, true);
+
+// Content for each badge kind. Headlines + action labels tuned to the
+// specific subsystem so the operator's mental model maps cleanly.
+function _renderBadgePopover(pcId, hostname, kind, agent) {
+  const labels = {
+    wsb:    { title: 'Windows Server Backup',    stop: "Don't track WSB on this host",    fp: 'Mark WSB alert as false positive' },
+    omsa:   { title: 'Dell OMSA storage',        stop: "Don't track OMSA on this host",   fp: 'Mark OMSA alert as false positive' },
+    disk:   { title: 'C: drive low capacity',    stop: "Don't track C: capacity on this host", fp: 'Mark disk alert as false positive' },
+    snooze: { title: 'Alert snooze',              stop: null,                                fp: null },
+  };
+  const meta = labels[kind] || { title: 'Status', stop: null, fp: null };
+  const snoozedUntil = (agent.alertsSnoozeUntil && Date.parse(agent.alertsSnoozeUntil) > Date.now())
+    ? agent.alertsSnoozeUntil : null;
+  // Already-disabled detection so the popover offers Re-enable instead
+  // of a duplicate "stop" + reason form when the operator clicks a
+  // greyed-out "WSB ✕" badge.
+  const isDisabled = (kind === 'wsb'  && agent.monitorWsb  === false)
+                  || (kind === 'omsa' && agent.monitorOmsa === false)
+                  || (kind === 'disk' && agent.monitorDisk === false);
+
+  let html = `
+    <div class="pop-title">${esc(meta.title)} <div class="pop-host">${esc(hostname)}</div></div>
+  `;
+
+  if (isDisabled) {
+    html += `<button class="pop-action" data-pop-action="reenable">Re-enable ${esc(meta.title)} monitoring</button>`;
+    html += `<div class="pop-divider"></div>`;
+  }
+
+  html += `
+    <button class="pop-action" data-pop-action="mute-24h">Mute all alerts for this host &middot; 24 h</button>
+    <button class="pop-action" data-pop-action="mute-7d">Mute all alerts for this host &middot; 7 days</button>
+  `;
+  if (snoozedUntil) {
+    html += `<button class="pop-action danger" data-pop-action="unmute">Clear mute (currently active until ${esc(snoozedUntil.slice(0, 16).replace('T', ' '))})</button>`;
+  }
+  // "Stop monitoring" + reason form only when the subsystem is
+  // currently being monitored. If it's already disabled, the
+  // Re-enable button up top is the only relevant subsystem-level
+  // action.
+  if (meta.stop && !isDisabled) {
+    html += `<div class="pop-divider"></div>`;
+    html += `<button class="pop-action danger" data-pop-action="stop">${esc(meta.stop)}</button>`;
+  }
+  if (meta.fp && !isDisabled) {
+    html += `<div class="pop-reason">
+      <label>Mark as false positive (reason for audit log)</label>
+      <textarea placeholder="e.g. ${esc(hostname)} is a VM that hasn't run WSB in years -- not actually monitored here"></textarea>
+      <div class="pop-row">
+        <button class="secondary">Cancel</button>
+        <button class="primary">Save reason &amp; stop monitoring</button>
+      </div>
+    </div>`;
+  }
+  return html;
+}
+
+// Apply a popover action. Each action writes a per-host config field
+// + logs an activity entry so the audit trail captures who muted
+// what and why.
+async function _handleBadgeAction(pcId, hostname, kind, action, reason) {
+  const fieldByKind = {
+    wsb:  'monitorWsb',
+    omsa: 'monitorOmsa',
+    disk: 'monitorDisk',
+  };
+  const monitorField = fieldByKind[kind];
+  const nowIso = new Date().toISOString();
+
+  try {
+    if (action === 'mute-24h' || action === 'mute-7d') {
+      const hours = action === 'mute-24h' ? 24 : 24 * 7;
+      const until = new Date(Date.now() + hours * 3600 * 1000).toISOString();
+      await writeConfig(pcId, 'alertsSnoozeUntil', until);
+      await _logBadgeActivity('alerts_snoozed', pcId, hostname, { kind, until, hours });
+    } else if (action === 'unmute') {
+      await writeConfig(pcId, 'alertsSnoozeUntil', null);
+      await _logBadgeActivity('alerts_unsnoozed', pcId, hostname, { kind });
+    } else if (action === 'reenable' && monitorField) {
+      await writeConfig(pcId, monitorField, true);
+      await _logBadgeActivity('monitoring_enabled', pcId, hostname, { kind, monitorField });
+    } else if (action === 'stop' && monitorField) {
+      await writeConfig(pcId, monitorField, false);
+      await _logBadgeActivity('monitoring_disabled', pcId, hostname, { kind, monitorField });
+    } else if (action === 'mark-fp' && monitorField) {
+      await writeConfig(pcId, monitorField, false);
+      await _logBadgeActivity('marked_false_positive', pcId, hostname, {
+        kind, monitorField, reason: reason || '(no reason given)',
+      });
+    }
+  } catch (e) {
+    toast(`Action failed: ${e.message || e}`, true);
+  }
+}
+
+async function _logBadgeActivity(type, pcId, hostname, details) {
+  // Activity collection write. Mirrors the shape worker-side
+  // logActivity() uses so the Activity tab renders it consistently.
+  try {
+    const ts = new Date().toISOString();
+    await addDoc(collection(db, 'activity'), {
+      ts,
+      type,
+      actor: { type: 'admin', id: state.user.email },
+      target: { type: 'host', id: pcId, label: hostname },
+      client: (state.agents.find(a => a.id === pcId) || {}).client || null,
+      details,
+    });
+  } catch (e) {
+    // Activity log is best-effort -- a failed write shouldn't surface
+    // as a toast over the successful config change.
+    console.warn('activity log write failed', e);
   }
 }
 
