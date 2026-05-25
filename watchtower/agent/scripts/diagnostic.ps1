@@ -28,6 +28,15 @@
       historically missed installs)
     - System summary (hostname, OS, manufacturer, Hyper-V status,
       C: drive free space)
+    - Binary versions on disk (svc.exe + tray.exe LastWriteTime + size)
+    - Watchtower processes currently running (PID + StartTime)
+    - Tray startup log (last 30 entries with PID + owner per launch)
+    - Inno Setup install log tail (last 60 lines of last install)
+    - WinHTTP proxy config (relevant when installer can't reach worker)
+    - Backup-product event log inventory: dedicated logs + Application
+      log providers + sample of recent events, for Veeam / Carbonite /
+      DCProtect / DataCastle / Webroot / IBackup / IDrive / Pro Softnet
+    - Veeam install layout (locating veeamconfig.exe under Program Files)
 
   Designed to be a single attachment for support. The operator just
   needs to send this file -- no copy/paste of multiple commands.
@@ -337,6 +346,150 @@ try {
     W "Is virtual?  : $(if ($cs.Manufacturer -match 'Microsoft Corporation' -and $cs.Model -match 'Virtual') { 'yes (Hyper-V)' } elseif ($cs.Manufacturer -match 'VMware') { 'yes (VMware)' } else { 'no / unknown' })"
 } catch {
     W "Couldn't read system info: $_"
+}
+
+# ============================================================
+H "13. Binary versions on disk (agent service + tray)"
+# ============================================================
+# Tells us at a glance whether the last auto-update actually replaced
+# the EXEs (LastWriteTime should match the most recent install attempt).
+# Mismatched dates between svc.exe + tray.exe = partial install.
+try {
+    foreach ($base in @("C:\Program Files\Umbrella Watchtower", "C:\Program Files (x86)\Umbrella Watchtower")) {
+        if (Test-Path $base) {
+            W "Install root: $base"
+            Get-ChildItem "$base\*.exe" -EA SilentlyContinue |
+                Select-Object Name, Length, LastWriteTime |
+                Format-Table -AutoSize | Out-String | ForEach-Object { W $_ }
+        }
+    }
+} catch {
+    W "Couldn't enumerate binaries: $_"
+}
+
+# ============================================================
+H "14. Watchtower processes currently running"
+# ============================================================
+# PyInstaller --onefile spawns a bootstrap + child, so EXPECT TWO
+# watchtower-tray.exe entries when the tray is healthy. More than 2
+# = duplicate tray (the ghost-icon-disappears-on-hover failure mode).
+try {
+    Get-Process | Where-Object { $_.Name -match 'watchtower' } |
+        Select-Object Name, Id, StartTime, Path -EA SilentlyContinue |
+        Format-Table -AutoSize | Out-String | ForEach-Object { W $_ }
+} catch {
+    W "Couldn't enumerate processes: $_"
+}
+
+# ============================================================
+H "15. Tray startup log (last 30 entries)"
+# ============================================================
+# Added in v0.14.103. Each tray launch attempt writes a breadcrumb
+# with PID + owner + timestamp. Catches "tray launched but crashed
+# during init" -- the file has a recent entry but no tray process
+# is running.
+$trayLog = "C:\ProgramData\Watchtower\tray-startup.log"
+if (Test-Path $trayLog) {
+    Get-Content $trayLog -Tail 30 | ForEach-Object { W $_ }
+} else {
+    W "(tray-startup.log not present -- agent <= 0.14.43 or tray has never started)"
+}
+
+# ============================================================
+H "16. Install log tail (last 60 lines)"
+# ============================================================
+# Added in v0.14.89. Inno Setup's verbose transcript of the most
+# recent install attempt. Shows PrepareToInstall taskkill outcomes,
+# [Files] extraction lines, [Run] sc.exe return codes, and any
+# Pascal Log() entries the .iss code wrote.
+$installLog = "C:\ProgramData\Watchtower\install.log"
+if (Test-Path $installLog) {
+    Get-Content $installLog -Tail 60 | ForEach-Object { W $_ }
+} else {
+    W "(install.log not present -- agent <= 0.14.39 or no install has run via the updater)"
+}
+
+# ============================================================
+H "17. WinHTTP proxy config (relevant when installer can't reach worker)"
+# ============================================================
+# When ValidateTokenWithWorker fails inside the installer, the most
+# common per-host cause is a misconfigured WinHTTP proxy. The agent's
+# Python requests stack uses a different code path, so the agent
+# checks in fine even when WinHTTP is broken.
+try {
+    netsh winhttp show proxy 2>&1 | ForEach-Object { W $_ }
+} catch {
+    W "Couldn't query WinHTTP proxy: $_"
+}
+
+# ============================================================
+H "18. Backup product event log inventory"
+# ============================================================
+# Veeam Agent / Carbonite / DCProtect / IBackup / IDrive: identifies
+# which (if any) of these products write to the Windows event log on
+# this host. Drives the agent's event-log fallback probes added in
+# v0.14.91 (Veeam Agent), v0.14.101 (Carbonite + IBackup).
+$patterns = @('veeam', 'carbonite', 'dcprotect', 'dca', 'datacastle', 'webroot', 'ibackup', 'idrive', 'pro softnet')
+
+W "--- Dedicated event logs matching backup-product names ---"
+try {
+    Get-WinEvent -ListLog * -EA SilentlyContinue | Where-Object {
+        $ln = $_.LogName.ToLower()
+        $matched = $false
+        foreach ($p in $patterns) { if ($ln -match $p) { $matched = $true; break } }
+        $matched
+    } | Select-Object LogName, RecordCount, IsEnabled | Format-Table -AutoSize | Out-String | ForEach-Object { W $_ }
+} catch {
+    W "  (no matching logs OR query failed: $_)"
+}
+
+W "--- Application-log providers matching backup-product names ---"
+try {
+    $providers = Get-WinEvent -ListProvider * -EA SilentlyContinue | Where-Object {
+        $n = $_.Name.ToLower()
+        $matched = $false
+        foreach ($p in $patterns) { if ($n -match $p) { $matched = $true; break } }
+        $matched
+    } | Select-Object -ExpandProperty Name
+    if ($providers) {
+        $providers | ForEach-Object { W "  $_" }
+        W ""
+        W "--- 5 most recent events from each matching provider ---"
+        foreach ($prov in $providers) {
+            W "PROVIDER: $prov"
+            try {
+                Get-WinEvent -FilterHashtable @{LogName='Application'; ProviderName=$prov} -MaxEvents 5 -EA SilentlyContinue |
+                    Select-Object TimeCreated, Id, LevelDisplayName, @{Name='Msg';Expression={if ($_.Message) { $_.Message.Substring(0, [Math]::Min(180, $_.Message.Length)) } else { '(no message)' }}} |
+                    Format-List | Out-String | ForEach-Object { W $_ }
+            } catch {
+                W "  (couldn't read events: $_)"
+            }
+        }
+    } else {
+        W "  (no providers found)"
+    }
+} catch {
+    W "  (provider query failed: $_)"
+}
+
+# ============================================================
+H "19. Veeam install layout (when veeamconfig.exe location matters)"
+# ============================================================
+# Recent installs of Veeam Agent dropped veeamconfig.exe entirely
+# (modern enterprise SKUs). This section helps confirm whether
+# veeamconfig is even on disk and what the install layout looks like
+# for the agent's _locate_veeamconfig() routine.
+foreach ($base in @("C:\Program Files\Veeam", "C:\Program Files (x86)\Veeam")) {
+    if (Test-Path $base) {
+        W "Veeam install root: $base"
+        Get-ChildItem $base -Filter 'veeamconfig.exe' -Recurse -EA SilentlyContinue |
+            Select-Object FullName, LastWriteTime |
+            Format-Table -AutoSize | Out-String | ForEach-Object { W $_ }
+        W "Top-level *.exe in ${base}:"
+        Get-ChildItem $base -Filter '*.exe' -EA SilentlyContinue |
+            Select-Object Name, LastWriteTime |
+            Format-Table -AutoSize | Out-String | ForEach-Object { W $_ }
+    }
 }
 
 # Write + reveal the file
