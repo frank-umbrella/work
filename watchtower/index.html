@@ -1087,7 +1087,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.40";
+const APP_VERSION = "0.14.41";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -2380,43 +2380,113 @@ function renderAlertChip() {
   // to scroll the fleet table. The hostname is rendered as a clickable
   // anchor that opens the host's drawer -- one-click triage from the
   // alert banner straight into the details panel.
+  //
+  // When more than one host is alerting, the "+N more" text is itself
+  // clickable: it expands the chip into a list of every alerting host,
+  // each row a link to that host's drawer. Click again to collapse.
+  // _alertChipExpanded is a module-level boolean preserved across
+  // re-renders so the expanded view doesn't snap shut on every Firestore
+  // snapshot tick.
   const sevColor = alerts.crit > 0 ? '#7f1d1d' : '#78350f';
   const sevBg    = alerts.crit > 0 ? '#fee2e2' : '#fef3c7';
   const sevBorder = alerts.crit > 0 ? '#fca5a5' : '#fde68a';
   const icon = alerts.crit > 0 ? '🚨' : '⚠️';
   const topHost = alerts.crit > 0 ? alerts.critHosts[0] : alerts.warnHosts[0];
+  const totalCount = alerts.crit + alerts.warn;
+  const allHosts = alerts.critHosts.concat(alerts.warnHosts);   // crit first, then warn
+  const moreCount = totalCount - 1;
+
   // Inherit the chip's severity color so the link reads as part of the
   // alert (not as a stock blue web link). Underlined so it's clearly
   // clickable rather than just emphasized text.
-  const hostLink = `<a href="#" id="chipHostLink" data-pcid="${esc(topHost.id)}" style="color:inherit;font-weight:700;text-decoration:underline;cursor:pointer;" title="Open the host's drawer">${esc(topHost.name)}</a>`;
+  const hostLink = `<a href="#" class="chipHostLink" data-pcid="${esc(topHost.id)}" style="color:inherit;font-weight:700;text-decoration:underline;cursor:pointer;" title="Open the host's drawer">${esc(topHost.name)}</a>`;
+
+  // "+N more" -- clickable when there's more than one host, plain text
+  // (empty) when there's only one.
+  const moreLink = moreCount > 0
+    ? ` <a href="#" id="chipMoreToggle" style="color:inherit;opacity:0.7;text-decoration:underline;cursor:pointer;font-size:11.5px;" title="${_alertChipExpanded ? 'Hide the list of other alerting hosts' : 'Show the other alerting hosts'}">${_alertChipExpanded ? '&minus; collapse' : '+' + moreCount + ' more'}</a>`
+    : '';
+
   let summary;
   if (alerts.crit > 0 && alerts.warn > 0) {
-    summary = `<b>${alerts.crit} critical</b>, ${alerts.warn} warning${alerts.warn === 1 ? '' : 's'} &middot; ${hostLink}${topHost.reason ? ` — ${esc(topHost.reason)}` : ''}${alerts.crit + alerts.warn > 1 ? ` <span class="meta">+${alerts.crit + alerts.warn - 1} more</span>` : ''}`;
+    summary = `<b>${alerts.crit} critical</b>, ${alerts.warn} warning${alerts.warn === 1 ? '' : 's'} &middot; ${hostLink}${topHost.reason ? ` — ${esc(topHost.reason)}` : ''}${moreLink}`;
   } else if (alerts.crit > 0) {
-    summary = `<b>${alerts.crit} critical</b> &middot; ${hostLink}${topHost.reason ? ` — ${esc(topHost.reason)}` : ''}${alerts.crit > 1 ? ` <span class="meta">+${alerts.crit - 1} more</span>` : ''}`;
+    summary = `<b>${alerts.crit} critical</b> &middot; ${hostLink}${topHost.reason ? ` — ${esc(topHost.reason)}` : ''}${moreLink}`;
   } else {
-    summary = `<b>${alerts.warn} warning${alerts.warn === 1 ? '' : 's'}</b> &middot; ${hostLink}${topHost.reason ? ` — ${esc(topHost.reason)}` : ''}${alerts.warn > 1 ? ` <span class="meta">+${alerts.warn - 1} more</span>` : ''}`;
+    summary = `<b>${alerts.warn} warning${alerts.warn === 1 ? '' : 's'}</b> &middot; ${hostLink}${topHost.reason ? ` — ${esc(topHost.reason)}` : ''}${moreLink}`;
   }
 
+  // Expanded list. Each alerting host is one clickable row with its
+  // severity icon, hostname, and short reason. Crit rows render first
+  // (allHosts is already crit-then-warn). Click a row -> open that
+  // host's drawer + auto-collapse the chip (no need to keep the list
+  // open after the operator's navigated away).
+  const expandedList = _alertChipExpanded && moreCount > 0
+    ? `<div style="margin-top:8px;border-top:1px solid ${sevBorder};padding-top:6px;display:flex;flex-direction:column;gap:2px;font-size:12.5px;">
+         ${allHosts.map((h, i) => {
+           const rowIcon = i < alerts.crit ? '🚨' : '⚠️';
+           return `<a href="#" class="chipHostLink" data-pcid="${esc(h.id)}" style="display:flex;align-items:center;gap:6px;color:inherit;text-decoration:none;padding:3px 4px;border-radius:4px;cursor:pointer;" onmouseover="this.style.background='rgba(0,0,0,0.05)'" onmouseout="this.style.background='transparent'" title="Open the host's drawer">
+             <span style="font-size:11px;line-height:1;">${rowIcon}</span>
+             <span style="font-weight:700;">${esc(h.name)}</span>
+             ${h.reason ? `<span style="opacity:0.8;">— ${esc(h.reason)}</span>` : ''}
+           </a>`;
+         }).join('')}
+       </div>`
+    : '';
+
+  // When expanded, switch from pill (border-radius:999px) to rounded
+  // rect (border-radius:10px) and let it flex column so the list sits
+  // below the summary row, taking the chip's full width.
   chip.style.background = sevBg;
   chip.style.borderColor = sevBorder;
   chip.style.color = sevColor;
+  if (_alertChipExpanded && moreCount > 0) {
+    chip.style.borderRadius = '10px';
+    chip.style.flexDirection = 'column';
+    chip.style.alignItems = 'stretch';
+  } else {
+    chip.style.borderRadius = '999px';
+    chip.style.flexDirection = 'row';
+    chip.style.alignItems = 'center';
+  }
   chip.innerHTML = `
-    <span style="font-size:14px;line-height:1;">${icon}</span>
-    <span>${summary}</span>
-    <button class="btn btn-sm" id="chipSnoozeBtn" style="padding:3px 10px;font-size:11.5px;background:#fff;color:#1a1f2b;" title="Snooze for 1 hour. Other durations available in Settings.">Snooze 1h</button>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span style="font-size:14px;line-height:1;">${icon}</span>
+      <span style="flex:1;">${summary}</span>
+      <button class="btn btn-sm" id="chipSnoozeBtn" style="padding:3px 10px;font-size:11.5px;background:#fff;color:#1a1f2b;" title="Snooze for 1 hour. Other durations available in Settings.">Snooze 1h</button>
+    </div>
+    ${expandedList}
   `;
+
   const btn = $("#chipSnoozeBtn");
   if (btn) btn.addEventListener('click', () => _chipSnoozeFor(60));
-  const hostA = $("#chipHostLink");
-  if (hostA) {
-    hostA.addEventListener('click', (ev) => {
+  // All hostname links (header + expanded rows) share the same handler.
+  document.querySelectorAll('.chipHostLink').forEach(a => {
+    a.addEventListener('click', (ev) => {
       ev.preventDefault();
-      const pcId = hostA.getAttribute('data-pcid');
-      if (pcId) openDrawer(pcId);
+      const pcId = a.getAttribute('data-pcid');
+      if (pcId) {
+        openDrawer(pcId);
+        _alertChipExpanded = false;
+        renderAlertChip();
+      }
+    });
+  });
+  const moreToggle = $("#chipMoreToggle");
+  if (moreToggle) {
+    moreToggle.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      _alertChipExpanded = !_alertChipExpanded;
+      renderAlertChip();
     });
   }
 }
+
+// Module-level toggle so the expanded host list survives Firestore
+// snapshot re-renders. Reset on snooze, on host-link click, and
+// implicitly when there's only one alerting host (the toggle simply
+// isn't rendered).
+let _alertChipExpanded = false;
 
 // Quick-snooze helper bound to the chip's button. Other duration buttons
 // live in the Settings tab.
