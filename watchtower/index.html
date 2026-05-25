@@ -1368,7 +1368,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.73";
+const APP_VERSION = "0.14.74";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -1781,15 +1781,25 @@ function computeFleetWorstState() {
   let worst = 'ok';
   for (const a of state.agents) {
     if (a.decommissioned === true) continue;
+    // Honor per-subsystem monitor flags + whole-host snooze the same
+    // way computeFleetAlerts does so the favicon colour matches the
+    // alert chip. An admin who muted a subsystem doesn't want the
+    // browser tab still glowing red because of it.
+    const wsbMuted  = a.monitorWsb  === false;
+    const omsaMuted = a.monitorOmsa === false;
+    const diskMuted = a.monitorDisk === false;
+    const snoozedUntil = a.alertsSnoozeUntil ? Date.parse(a.alertsSnoozeUntil) : null;
+    if (snoozedUntil && snoozedUntil > Date.now()) continue;
+
     const st = statusOf(a);
-    const bh = backupHealthOf(a);
-    const oh = omsaHealthOf(a);
+    const bh = wsbMuted  ? null : backupHealthOf(a);
+    const oh = omsaMuted ? null : omsaHealthOf(a);
     const ah = adminHealthOf(a);
-    const bda = backupDiskAgeHealthOf(a);
+    const bda = wsbMuted ? null : backupDiskAgeHealthOf(a);
     const pct = a.cDriveFreePct;
     const gb = a.cDriveFreeGB;
-    const diskCrit = (pct != null && pct < 5) || (gb != null && gb < 5);
-    const diskWarn = (pct != null && pct < 10) || (gb != null && gb < 10);
+    const diskCrit = !diskMuted && ((pct != null && pct < 5) || (gb != null && gb < 5));
+    const diskWarn = !diskMuted && ((pct != null && pct < 10) || (gb != null && gb < 10));
     if (st.kind === 'bad' || (bh && bh.kind === 'bad') || (oh && oh.kind === 'bad') || ah === 'bad' || diskCrit) {
       return 'crit';                                   // short-circuit
     }
@@ -2712,15 +2722,33 @@ function computeFleetAlerts() {
   const warnHosts = [];
   for (const a of state.agents) {
     if (a.decommissioned === true) continue;
+
+    // Per-subsystem mute flags -- mirrored from the config doc into
+    // the agent doc by the worker on every check-in. When false, the
+    // dashboard skips that subsystem's badge in the row AND ignores
+    // it here in the alert count so muted subsystems can't keep
+    // flagging a host in the "2 critical, 2 warnings" pill.
+    // Optimistic-update path (writeConfig from the badge popover)
+    // also patches these locally so the chip updates instantly when
+    // the admin clicks "don't track WSB on this host."
+    const wsbMuted  = a.monitorWsb  === false;
+    const omsaMuted = a.monitorOmsa === false;
+    const diskMuted = a.monitorDisk === false;
+    // Whole-host snooze (also from the badge popover's "Mute 24h /
+    // 7d"). If in the future, skip the host entirely from the alert
+    // count -- it stays in the table but doesn't drive the chip.
+    const snoozedUntil = a.alertsSnoozeUntil ? Date.parse(a.alertsSnoozeUntil) : null;
+    if (snoozedUntil && snoozedUntil > Date.now()) continue;
+
     const st = statusOf(a);
-    const bh = backupHealthOf(a);
-    const oh = omsaHealthOf(a);
+    const bh = wsbMuted  ? null : backupHealthOf(a);
+    const oh = omsaMuted ? null : omsaHealthOf(a);
     const ah = adminHealthOf(a);
-    const bda = backupDiskAgeHealthOf(a);
+    const bda = wsbMuted ? null : backupDiskAgeHealthOf(a);
     const pct = a.cDriveFreePct;
     const gb = a.cDriveFreeGB;
-    const diskCrit = (pct != null && pct < 5) || (gb != null && gb < 5);
-    const diskWarn = (pct != null && pct < 10) || (gb != null && gb < 10);
+    const diskCrit = !diskMuted && ((pct != null && pct < 5) || (gb != null && gb < 5));
+    const diskWarn = !diskMuted && ((pct != null && pct < 10) || (gb != null && gb < 10));
     // Build a short reason for this host (used only when it ends up in
     // the top-of-list slot)
     let reason = '';
@@ -7794,6 +7822,16 @@ async function _handleBadgeAction(pcId, hostname, kind, action, reason) {
     if (!agent) return;
     Object.assign(agent, patch);
     if (typeof renderFleet === 'function') renderFleet();
+    // Also recompute the alert chip + favicon -- a "stop monitoring
+    // WSB" click should remove the host from the "2 critical, 2
+    // warnings" count + un-tint the browser tab favicon instantly,
+    // not wait for the next worker check-in to mirror the config
+    // back into the agent doc.
+    if (typeof renderAlertChip === 'function') renderAlertChip();
+    if (typeof updateFaviconForFleetState === 'function') {
+      _lastFleetWorstState = null;   // force re-evaluation
+      updateFaviconForFleetState();
+    }
     if (state.openPcId === pcId && typeof renderDrawer === 'function') renderDrawer(pcId);
   };
 
