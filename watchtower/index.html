@@ -1501,7 +1501,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.106";
+const APP_VERSION = "0.14.107";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -5084,6 +5084,14 @@ function renderClients() {
         <td>
           <div class="name">${esc(c.name)} <span class="row-chevron" aria-hidden="true">${expanded ? "▾" : "▸"}</span></div>
           ${c.notes ? `<div class="notes">${esc(c.notes)}</div>` : ""}
+          ${c.helpDeskUrl ? `<div class="notes" style="margin-top:2px;">
+            <a href="${esc(c.helpDeskUrl)}" target="_blank" rel="noopener" data-help-desk-link
+               title="Per-client help desk URL. Opens in a new tab."
+               style="color:var(--accent);text-decoration:none;font-size:11.5px;">
+              Help desk &#x2197;
+            </a>
+            <span class="meta" style="font-size:11px;color:var(--ink-faint);">&middot; ${esc(c.helpDeskUrl)}</span>
+          </div>` : ""}
         </td>
         <td class="num">${agentCount[c.id] || 0}</td>
         <td class="num">${activeTokens}${tokens.length > activeTokens ? ` <span class="meta">(+${tokens.length - activeTokens} revoked)</span>` : ""}</td>
@@ -5179,6 +5187,9 @@ function renderClients() {
       // Buttons inside the actions cell have their own data-act handlers
       // (next loop). Don't double-fire.
       if (e.target.closest("button[data-act]")) return;
+      // Help desk link in the collapsed row -- clicking it should
+      // open the URL in a new tab, NOT toggle expand/collapse.
+      if (e.target.closest("a[data-help-desk-link]")) return;
       const id = tr.dataset.id;
       state.expandedClientId = (state.expandedClientId === id) ? null : id;
       renderClients();
@@ -7312,7 +7323,17 @@ function renderDrawer(pcId) {
     return;
   }
   $("#dHost").textContent = a.hostname || a.id;
-  $("#dSub").innerHTML = `<code>${esc(a.id)}</code> &middot; ${esc(a.client || "no client")} &middot; agent ${esc(a.agentVersion || "?")}`;
+  // Per-client help desk link surfaces in the drawer subhead too -- the
+  // dashboard operator typically jumps from the Endpoints table into a
+  // host drawer to start triaging; having the client's helpdesk URL one
+  // click away (rather than buried in the Clients tab) saves a tab
+  // switch on the most common operator path. The value is mirrored to
+  // the agent doc on each /checkin (worker section 4a), so it stays
+  // current with whatever is set in the Clients tab.
+  const helpDeskChip = a.helpDeskUrl
+    ? ` &middot; <a href="${esc(a.helpDeskUrl)}" target="_blank" rel="noopener" title="Per-client help desk URL set in the Clients tab. Opens in a new tab.">Help desk &#x2197;</a>`
+    : "";
+  $("#dSub").innerHTML = `<code>${esc(a.id)}</code> &middot; ${esc(a.client || "no client")}${helpDeskChip} &middot; agent ${esc(a.agentVersion || "?")}`;
 
   const r = a.report || {};
   const sys = r.system || {};
