@@ -955,6 +955,22 @@
             <span class="meta" id="snoozeStatusText" style="margin-left:6px;"></span>
           </div>
 
+          <!-- Backup disk age threshold -->
+          <h3 style="margin:28px 0 4px;font-size:14px;">Backup disk age alert</h3>
+          <p style="margin:0 0 10px;color:var(--ink-soft);font-size:13px;">Flag hosts whose <b>primary backup disk</b> (the destination most recently written to) has its <i>oldest</i> backup further back than this threshold &mdash; i.e. the disk has been the active rotation for that long without being swapped out. Catches drives at end-of-life before they catastrophically fail. Default <b>2.5 years</b> &middot; consumer USB drives typically degrade past this window. Synced fleet-wide.</p>
+          <div style="display:grid;grid-template-columns:100px 1fr;gap:10px 12px;max-width:560px;align-items:center;">
+            <label for="backupDiskAgeDays" style="font-size:12px;text-transform:uppercase;color:var(--ink-faint);font-weight:600;">Threshold</label>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <input type="number" id="backupDiskAgeDays" min="1" max="36500" placeholder="913" style="padding:7px 10px;border:1px solid var(--line-strong);border-radius:7px;font-size:13.5px;width:120px;">
+              <span style="font-size:13px;color:var(--ink-soft);">days <span class="meta" id="backupDiskAgeYearsHint" style="margin-left:6px;"></span></span>
+            </div>
+          </div>
+          <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <button class="btn btn-primary btn-sm" id="saveBackupDiskAge">Save</button>
+            <button class="btn btn-sm" id="resetBackupDiskAge" title="Restore the 913-day (2.5-year) default">Reset to default</button>
+            <span class="meta" id="backupDiskAgeStatus" style="margin-left:6px;"></span>
+          </div>
+
           <hr style="margin:24px 0;border:0;border-top:1px solid var(--line);">
 
           <h3 style="margin:0 0 4px;font-size:14px;">Latest agent version <span class="meta" style="font-weight:400;text-transform:none;letter-spacing:0;">(optional override)</span></h3>
@@ -1087,7 +1103,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.42";
+const APP_VERSION = "0.14.43";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -1437,6 +1453,7 @@ onAuthStateChanged(auth, async (user) => {
   subscribeTokens();
   subscribeSettings();
   subscribeAlertSnooze();
+  subscribeBackupDiskAge();
   subscribeLatestAgent();
   subscribeActivity();
   startSnoozeAutoTick();
@@ -1503,6 +1520,7 @@ function computeFleetWorstState() {
     const bh = backupHealthOf(a);
     const oh = omsaHealthOf(a);
     const ah = adminHealthOf(a);
+    const bda = backupDiskAgeHealthOf(a);
     const pct = a.cDriveFreePct;
     const gb = a.cDriveFreeGB;
     const diskCrit = (pct != null && pct < 5) || (gb != null && gb < 5);
@@ -1510,7 +1528,7 @@ function computeFleetWorstState() {
     if (st.kind === 'bad' || (bh && bh.kind === 'bad') || (oh && oh.kind === 'bad') || ah === 'bad' || diskCrit) {
       return 'crit';                                   // short-circuit
     }
-    if (st.kind === 'warn' || (bh && bh.kind === 'warn') || (oh && oh.kind === 'warn') || ah === 'warn' || diskWarn) {
+    if (st.kind === 'warn' || (bh && bh.kind === 'warn') || (oh && oh.kind === 'warn') || ah === 'warn' || bda === 'warn' || diskWarn) {
       worst = 'warn';
     }
   }
@@ -2098,6 +2116,59 @@ document.getElementById("snoozeClearSettingsBtn").addEventListener("click", asyn
 // Resume button rendered inside renderAlertChip(). Both endpoints hit
 // the same deleteDoc on /settings/alertSnooze.)
 
+// Backup-disk-age threshold wiring.
+//   - Live keystroke updates the years hint so the operator sees the
+//     year equivalent as they type.
+//   - Save writes thresholdDays to /settings/backupDiskAge, the live
+//     subscription paints the new value across every connected dash.
+//   - Reset deletes the doc (subscription falls back to the hard-coded
+//     default = 913 days = 2.5 years).
+{
+  const input = document.getElementById("backupDiskAgeDays");
+  const hint = document.getElementById("backupDiskAgeYearsHint");
+  if (input && hint) {
+    input.addEventListener("input", () => {
+      const n = parseInt(input.value, 10);
+      if (Number.isFinite(n) && n > 0) {
+        const years = (n / 365).toFixed(2).replace(/\.?0+$/, "");
+        hint.textContent = `(≈ ${years} year${years === "1" ? "" : "s"})`;
+      } else {
+        hint.textContent = "";
+      }
+    });
+  }
+}
+document.getElementById("saveBackupDiskAge").addEventListener("click", async () => {
+  const input = document.getElementById("backupDiskAgeDays");
+  const status = document.getElementById("backupDiskAgeStatus");
+  const n = parseInt(input.value, 10);
+  if (!Number.isFinite(n) || n <= 0) {
+    if (status) status.innerHTML = `<span style="color:var(--danger);">Threshold must be a positive number of days.</span>`;
+    return;
+  }
+  try {
+    await setDoc(doc(db, "settings", "backupDiskAge"), {
+      thresholdDays: n,
+      updatedBy: state.profile && state.profile.email || "unknown",
+      updatedAt: new Date().toISOString(),
+    });
+    if (status) status.textContent = `Saved (${n} days).`;
+    setTimeout(() => { if (status) status.textContent = ""; }, 3000);
+  } catch (e) {
+    if (status) status.innerHTML = `<span style="color:var(--danger);">Save failed: ${esc(e.message || String(e))}</span>`;
+  }
+});
+document.getElementById("resetBackupDiskAge").addEventListener("click", async () => {
+  const status = document.getElementById("backupDiskAgeStatus");
+  try {
+    await deleteDoc(doc(db, "settings", "backupDiskAge"));
+    if (status) status.textContent = `Reset to default (913 days).`;
+    setTimeout(() => { if (status) status.textContent = ""; }, 3000);
+  } catch (e) {
+    if (status) status.innerHTML = `<span style="color:var(--danger);">Reset failed: ${esc(e.message || String(e))}</span>`;
+  }
+});
+
 document.getElementById("saveMasterWebhook").addEventListener("click", () => {
   saveMasterWebhook(document.getElementById("masterWebhookUrl").value);
 });
@@ -2300,6 +2371,7 @@ function computeFleetAlerts() {
     const bh = backupHealthOf(a);
     const oh = omsaHealthOf(a);
     const ah = adminHealthOf(a);
+    const bda = backupDiskAgeHealthOf(a);
     const pct = a.cDriveFreePct;
     const gb = a.cDriveFreeGB;
     const diskCrit = (pct != null && pct < 5) || (gb != null && gb < 5);
@@ -2316,12 +2388,16 @@ function computeFleetAlerts() {
     else if (bh && bh.kind === 'warn') reason = bh.label || 'backup degraded';
     else if (oh && oh.kind === 'warn') reason = 'OMSA warn';
     else if (ah === 'warn') reason = 'too many admins';
+    else if (bda === 'warn') {
+      const f = backupDiskAgeFinding(a);
+      reason = f ? `backup disk aged ${_fmtAgeDays(f.ageDays)}` : 'backup disk aged';
+    }
     else if (diskWarn) reason = `C: ${pct}% free`;
 
     if (st.kind === 'bad' || (bh && bh.kind === 'bad') || (oh && oh.kind === 'bad') || ah === 'bad' || diskCrit) {
       crit++;
       critHosts.push({ id: a.id, name: a.hostname || a.id, reason });
-    } else if (st.kind === 'warn' || (bh && bh.kind === 'warn') || (oh && oh.kind === 'warn') || ah === 'warn' || diskWarn) {
+    } else if (st.kind === 'warn' || (bh && bh.kind === 'warn') || (oh && oh.kind === 'warn') || ah === 'warn' || bda === 'warn' || diskWarn) {
       warn++;
       warnHosts.push({ id: a.id, name: a.hostname || a.id, reason });
     }
@@ -2555,6 +2631,56 @@ function startSnoozeAutoTick() {
       paintSnoozeSettingsUi();
     }
   }, 60_000);
+}
+
+// ============== /settings/backupDiskAge live subscription ==============
+//
+// Stores the fleet-wide threshold (in days) past which the primary
+// backup disk is considered too old and worth alerting on. Default
+// 913 days (~2.5 years) hard-coded in backupDiskAgeHealthOf's
+// fallback. Admin-editable from the Settings tab.
+//
+// Doc shape at /settings/backupDiskAge:
+//   { thresholdDays: 913, updatedBy: "...", updatedAt: "..." }
+//
+// Live-synced so a change on one device immediately re-evaluates
+// every host on every connected dashboard.
+function subscribeBackupDiskAge() {
+  if (state.unsub.backupDiskAge) state.unsub.backupDiskAge();
+  state.unsub.backupDiskAge = onSnapshot(doc(db, "settings", "backupDiskAge"), snap => {
+    const data = snap.exists() ? snap.data() : null;
+    const v = data && typeof data.thresholdDays === "number" ? data.thresholdDays : null;
+    state.backupDiskAgeThresholdDays = (v && v > 0) ? v : null;   // null = use default
+    // Refresh anything that depends on the threshold.
+    paintBackupDiskAgeSettingsUi();
+    _lastFleetWorstState = null;          // force favicon re-evaluate
+    updateFaviconForFleetState();
+    renderAlertChip();
+    // If a drawer is open, re-render so the "aged" chip appears /
+    // disappears immediately.
+    if (state.openPcId) renderDrawer(state.openPcId);
+  }, err => {
+    console.error("Failed to subscribe to backupDiskAge:", err);
+  });
+}
+
+// Reflect the current threshold into the Settings tab input + the
+// years-hint helper text. Called on subscription update + after a
+// user save. Doesn't clobber the input while the user is actively
+// editing (same pattern used by masterWebhookUrl).
+function paintBackupDiskAgeSettingsUi() {
+  const input = $("#backupDiskAgeDays");
+  const hint = $("#backupDiskAgeYearsHint");
+  if (!input) return;
+  const effective = _activeBackupDiskAgeThresholdDays();
+  if (document.activeElement !== input) {
+    input.value = String(effective);
+  }
+  if (hint) {
+    const years = (effective / 365).toFixed(2).replace(/\.?0+$/, "");
+    const isDefault = state.backupDiskAgeThresholdDays == null;
+    hint.textContent = `(≈ ${years} year${years === "1" ? "" : "s"}${isDefault ? " · default" : ""})`;
+  }
 }
 
 // ============== /settings/webhook live subscription ==============
@@ -4902,6 +5028,86 @@ function adminHealthOf(agent) {
   return null;
 }
 
+// ─────────────────────────────────────────────────────────────────────
+// Backup disk age check
+// ─────────────────────────────────────────────────────────────────────
+//
+// Flags hosts whose primary backup disk (most recently written-to
+// target in report.wsb.backupsByTarget) has its OLDEST backup further
+// back than the configured threshold -- i.e. the disk has been in
+// continuous rotation for that long. Consumer USB drives commonly
+// used for WSB typically degrade past the 2-3 year mark, so default
+// 2.5 years catches them before the drive fails outright.
+//
+// Threshold is admin-configurable via Settings tab (live-synced from
+// /settings/backupDiskAge.thresholdDays via subscribeBackupDiskAge).
+// Missing setting / unparseable value = use BACKUP_DISK_AGE_DEFAULT_DAYS.
+
+const BACKUP_DISK_AGE_DEFAULT_DAYS = 913;     // ~2.5 years (365 * 2.5 = 912.5)
+
+function _activeBackupDiskAgeThresholdDays() {
+  const v = state.backupDiskAgeThresholdDays;
+  if (typeof v === "number" && isFinite(v) && v > 0) return v;
+  return BACKUP_DISK_AGE_DEFAULT_DAYS;
+}
+
+// Finds the primary backup target (latest newestBackup) + computes
+// its age in days from its oldestBackup. Returns { target, ageDays,
+// thresholdDays, exceeds } or null if the host doesn't have WSB
+// or doesn't have backupsByTarget data yet.
+function backupDiskAgeFinding(agent) {
+  const wsb = agent.report && agent.report.wsb;
+  if (!wsb || !wsb.installed || !Array.isArray(wsb.backupsByTarget) || !wsb.backupsByTarget.length) {
+    return null;
+  }
+  let primaryIdx = -1;
+  let latestMs = -Infinity;
+  wsb.backupsByTarget.forEach((t, i) => {
+    const iso = dateToIso(t.newestBackup);
+    if (iso) {
+      const ms = new Date(iso).getTime();
+      if (isFinite(ms) && ms > latestMs) {
+        latestMs = ms;
+        primaryIdx = i;
+      }
+    }
+  });
+  if (primaryIdx < 0) return null;
+  const primary = wsb.backupsByTarget[primaryIdx];
+  const oldestIso = dateToIso(primary.oldestBackup);
+  if (!oldestIso) return null;
+  const oldestMs = new Date(oldestIso).getTime();
+  if (!isFinite(oldestMs)) return null;
+  const ageDays = (Date.now() - oldestMs) / 86400000;
+  const thresholdDays = _activeBackupDiskAgeThresholdDays();
+  return {
+    target: primary.target || "?",
+    ageDays,
+    thresholdDays,
+    exceeds: ageDays > thresholdDays,
+  };
+}
+
+// Returns 'warn' or null. Warn-level only -- an aging disk is a
+// recommendation, not an outage. Bumps the host into the alert chip
+// and the favicon warn-tinted (non-blinking) state so the operator
+// sees it but doesn't get panic-blinked at.
+function backupDiskAgeHealthOf(agent) {
+  const f = backupDiskAgeFinding(agent);
+  return (f && f.exceeds) ? "warn" : null;
+}
+
+// Format days as "Xd" / "Xy Yd" / "Xy" for human display.
+function _fmtAgeDays(days) {
+  if (!isFinite(days) || days < 0) return "?";
+  const d = Math.floor(days);
+  if (d < 365) return `${d}d`;
+  const y = Math.floor(d / 365);
+  const remD = d - y * 365;
+  if (remD === 0) return `${y}y`;
+  return `${y}y ${remD}d`;
+}
+
 function renderLocalAdmins(a) {
   const admins = a.report && a.report.localAdmins;
   // Probe didn't ship yet for this agent version. Don't render anything --
@@ -5719,6 +5925,21 @@ function renderWsb(w) {
             }
           }
         });
+        // Compute age of the primary disk vs. the configured threshold
+        // so we can surface an "aged" warning right inline with the
+        // disk that triggered it. Threshold comes from
+        // /settings/backupDiskAge.thresholdDays (default 2.5 years).
+        const thresholdDays = _activeBackupDiskAgeThresholdDays();
+        const primary = primaryIdx >= 0 ? w.backupsByTarget[primaryIdx] : null;
+        let primaryAgeDays = null;
+        if (primary) {
+          const oIso = dateToIso(primary.oldestBackup);
+          if (oIso) {
+            const oMs = new Date(oIso).getTime();
+            if (isFinite(oMs)) primaryAgeDays = (Date.now() - oMs) / 86400000;
+          }
+        }
+        const primaryExceeds = primaryAgeDays != null && primaryAgeDays > thresholdDays;
         return `
         <div class="k">Backups per disk</div>
         <div class="v">${w.backupsByTarget.map((t, i) => {
@@ -5733,9 +5954,15 @@ function renderWsb(w) {
           const primaryChip = isPrimary
             ? ` <span class="badge" style="background:#ede9fe;color:#6b21a8;border:1px solid #d8b4fe;font-size:10px;padding:1px 7px;margin-left:6px;" title="Most recently written-to backup destination">primary</span>`
             : '';
+          // Aged-disk amber chip, only on the primary disk when it
+          // exceeds the configured threshold. Pales/amberish to match
+          // the warn palette used elsewhere on the dashboard.
+          const agedChip = (isPrimary && primaryExceeds)
+            ? ` <span class="badge warn" style="font-size:10px;padding:1px 7px;margin-left:4px;" title="Primary backup disk has been in continuous rotation for ${_fmtAgeDays(primaryAgeDays)} -- exceeds the ${_fmtAgeDays(thresholdDays)} threshold set in Settings. Consumer USB drives commonly fail past this point; consider rotating in a fresh disk.">aged ${_fmtAgeDays(primaryAgeDays)}</span>`
+            : '';
           return `
           <div style="margin-bottom:4px;">
-            <code style="${codeStyle}">${esc(t.target || "—")}</code>${primaryChip}
+            <code style="${codeStyle}">${esc(t.target || "—")}</code>${primaryChip}${agedChip}
             <span class="badge muted" style="margin-left:6px;">${t.count} backup${t.count === 1 ? "" : "s"}</span>
             ${(t.oldestBackup && t.newestBackup) ? (() => {
               const o = dateToIso(t.oldestBackup);
