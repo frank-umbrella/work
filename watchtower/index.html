@@ -743,6 +743,10 @@
      semantic color. New event types fall through to this until someone
      adds a proper class rule. */
   .activity-icon { flex: 0 0 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: #fff; background: #6b7280; }
+  /* SVG glyphs (the six mix-in icons from preview Set C). Stroke
+     style matches Heroicons defaults; sized to fit the 28x28 badge
+     with comfortable padding. */
+  .activity-icon svg { width: 16px; height: 16px; stroke: #fff; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
   .activity-icon.t-host_first_seen { background: #1bb978; }
   .activity-icon.t-ip_change        { background: #0ea5e9; }
   .activity-icon.t-omsa_warning     { background: #d04646; }
@@ -1513,7 +1517,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.112";
+const APP_VERSION = "0.14.113";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -4802,45 +4806,57 @@ function renderActivity() {
 }
 
 function renderActivityRow(e) {
-  // Set B (Refined Unicode), chosen via the activity-icons preview page.
-  // All glyphs are BMP (Basic Multilingual Plane) characters supported
-  // by the default fonts on every Windows release we care about --
-  // tested against Server 2012 R2's Segoe UI baseline. Two glyphs from
-  // the original Set B proposal (POWER SYMBOL ⏻ U+23FB and RING BUOY
-  // 🛟 U+1F6DF) rendered as tofu boxes on the operator's machine, so
-  // they got swapped:
-  //   power     ⏻  ->  Φ   (Greek capital Phi, U+03A6 -- visually
-  //                          reads as a power button: vertical line
-  //                          through circle; universally available
-  //                          because Greek has been in Windows fonts
-  //                          since the 90s)
-  //   life buoy 🛟 ->  ☎   (black telephone, U+260E -- reads as
-  //                          "contact support" / help desk; BMP since
-  //                          Unicode 1.1, available everywhere)
+  // Mix of Set B (Refined Unicode) base + Set C (inline SVG) for six
+  // event types where the SVG read better per the preview review:
+  //   omsa_warning         -> triangle alert SVG (clearer than ⚠)
+  //   wsb_failure          -> database-x SVG (carries the "backup
+  //                           target failed" semantic better than a
+  //                           generic cross glyph)
+  //   client_deleted       -> trash can SVG (more direct than minus)
+  //   token_generated      -> key SVG (cleaner than 🗝 old-key emoji)
+  //   monitoring_disabled  -> eye-slash SVG (literally what it does)
+  //   monitoring_enabled   -> eye SVG
+  //
+  // Substitutions for two glyphs that rendered as tofu boxes on the
+  // operator's Win10 install (preserved from v0.14.112):
+  //   power     ⏻  ->  Φ   (Greek Phi, BMP)
+  //   life buoy 🛟 ->  ☎   (telephone, BMP since Unicode 1.1)
+  //
+  // Each value below is either a single BMP glyph (renders as text)
+  // OR an <svg> markup string (renders as inline SVG via .activity-icon
+  // svg CSS rule above). The template-string interpolation in the
+  // return statement injects them as HTML, so SVG just works.
+  const SVG_TRIANGLE_ALERT = `<svg viewBox="0 0 24 24"><path d="M12 3 L22 20 L2 20 Z"/><line x1="12" y1="10" x2="12" y2="14"/><circle cx="12" cy="17" r="0.6" fill="#fff"/></svg>`;
+  const SVG_DATABASE_X = `<svg viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/><path d="M4 12v6c0 1.7 3.6 3 8 3"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="21" y1="15" x2="15" y2="21"/></svg>`;
+  const SVG_TRASH = `<svg viewBox="0 0 24 24"><polyline points="3 6 21 6"/><path d="M5 6 L6 21 h12 L19 6"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>`;
+  const SVG_KEY = `<svg viewBox="0 0 24 24"><circle cx="7" cy="14" r="3"/><line x1="9.5" y1="11.5" x2="20" y2="3"/><line x1="14" y1="7" x2="17" y2="10"/><line x1="17" y1="4" x2="20" y2="7"/></svg>`;
+  const SVG_EYE_SLASH = `<svg viewBox="0 0 24 24"><path d="M2 12 s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/><line x1="3" y1="3" x2="21" y2="21"/></svg>`;
+  const SVG_EYE = `<svg viewBox="0 0 24 24"><path d="M2 12 s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>`;
+
   const iconLetter = ({
-    host_first_seen: "✦",        // sparkle -- new arrival
-    ip_change: "⇄",              // paired arrows -- swap
-    omsa_warning: "⚠",           // warning sign
-    omsa_cleared: "✓",           // check
-    wsb_failure: "⛌",            // cross-saltire (failure)
-    backup_disk_aged: "⏳",      // hourglass with sand
-    host_reassigned: "⇉",        // double rightwards arrow
-    client_added: "＋",           // fullwidth plus (stands out vs hostname '+')
-    client_deleted: "−",          // minus sign (heavier than hyphen)
-    client_help_desk_url_set: "☎", // telephone (substitute for 🛟 life buoy)
-    token_generated: "🗝",        // old key
-    token_revoked: "⊘",          // no-entry / circled division
-    agent_decommissioned: "Φ",   // Greek Phi (substitute for ⏻ power)
-    agent_uninstalled: "⨯",      // vector cross
-    agent_reactivated: "↺",      // counterclockwise refresh
-    alerts_snoozed: "☾",         // crescent moon
-    alerts_unsnoozed: "🔔",      // bell
-    monitoring_disabled: "⊝",    // circled minus
-    monitoring_enabled: "⊕",     // circled plus
-    marked_false_positive: "⚐",  // flag
-    update_applied: "⬆",          // bold up arrow
-    force_update_requested: "⏩", // fast-forward
-    force_update_applied: "✔",   // heavy check
+    host_first_seen: "✦",            // sparkle -- new arrival
+    ip_change: "⇄",                  // paired arrows -- swap
+    omsa_warning: SVG_TRIANGLE_ALERT,// SVG triangle-alert
+    omsa_cleared: "✓",               // check
+    wsb_failure: SVG_DATABASE_X,     // SVG database-x
+    backup_disk_aged: "⏳",          // hourglass with sand
+    host_reassigned: "⇉",            // double rightwards arrow
+    client_added: "＋",               // fullwidth plus
+    client_deleted: SVG_TRASH,       // SVG trash can
+    client_help_desk_url_set: "☎",   // telephone
+    token_generated: SVG_KEY,        // SVG key
+    token_revoked: "⊘",              // no-entry / circled division
+    agent_decommissioned: "Φ",       // Greek Phi (visually a power button)
+    agent_uninstalled: "⨯",          // vector cross
+    agent_reactivated: "↺",          // counterclockwise refresh
+    alerts_snoozed: "☾",             // crescent moon
+    alerts_unsnoozed: "🔔",          // bell
+    monitoring_disabled: SVG_EYE_SLASH, // SVG eye-slash
+    monitoring_enabled: SVG_EYE,     // SVG eye
+    marked_false_positive: "⚐",      // flag
+    update_applied: "⬆",              // bold up arrow
+    force_update_requested: "⏩",     // fast-forward
+    force_update_applied: "✔",       // heavy check
   })[e.type] || "·";
 
   const ago = fmtAge(e.ts);
