@@ -1908,7 +1908,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.121";
+const APP_VERSION = "0.14.122";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -1939,6 +1939,9 @@ if (_versionChip) {
 // fixes). Patch-level no-op bumps don't need entries -- only stuff a
 // human reader would want to know about.
 const CHANGELOG = [
+  { version: "0.14.122", date: "2026-05-25", changes: [
+    "Stats tab: Connectivity card moved to the top of the panel grid (was below OS / hardware / virt-state / etc). It's the most time-sensitive view -- 'is the fleet healthy right now?' -- so it belongs first.",
+  ]},
   { version: "0.14.121", date: "2026-05-25", changes: [
     "FIX: data wipe on partial check-ins. A host whose probes hadn't fully re-initialized after an agent auto-update was sending a check-in with no system / network / storage data, and the worker was overwriting the existing rich data with nulls -- Internal IP, OS, Service Tag, Model, C: free all blanked out. Worker now uses merge semantics: fields whose source probe didn't run on this check-in keep their previous values instead of being wiped. (Worker already deployed.)",
     "Dark mode badge contrast: the .badge.ok / .warn / .bad / .muted classes were baking dark text colors directly into the rule, which landed dark-on-dark in dark mode. Now uses the bright accent colors (var(--ok)/--warn/--danger) for text in dark mode while keeping the deep-tinted backgrounds. Product pills (Veeam / WSB / Carb / IBack / LMI / iDRAC) also got dark-mode variants with saturated backgrounds + light text instead of staying as washed-out light boxes.",
@@ -5063,7 +5066,12 @@ function renderStats() {
       <span><span class="conn-swatch" style="background:#b91c1c;"></span>Major outage on some host (&ge;30m)</span>
     </div>
   `;
-  cards.push(_statCard("Connectivity",
+  // unshift (not push) so the Connectivity card sits at the TOP of the
+  // Stats tab regardless of where this computation block lives in the
+  // function. Per-host outage visibility is the operator's most
+  // time-sensitive Stats view ("is the fleet healthy right now?") so
+  // it should be the first thing seen.
+  cards.unshift(_statCard("Connectivity",
     fleetConnChart,
     "Click any amber / red day for the list of affected endpoints",
     "span-2"
