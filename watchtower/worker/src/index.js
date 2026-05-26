@@ -2941,7 +2941,7 @@ async function sendIpChangeEmail(env, { pcId, hostname, client, previousIp, newI
 // Resend email — first-time host intake (one per pcId, on firstSeen)
 // ─────────────────────────────────────────────────────────────────────
 async function sendIntakeEmail(env, { pcId, hostname, client, agentVersion, when, externalIp, report }) {
-  const subject = `[Watchtower] New Host Onboarded — ${hostname} (${client})`;
+  const subject = `[Watchtower] New Host Onboarded: ${hostname} (${client})`;
   const r = report || {};
   const sys = r.system || {};
   const os = sys.os || {};
@@ -2971,7 +2971,7 @@ async function sendIntakeEmail(env, { pcId, hostname, client, agentVersion, when
     for (const p of (r.veeam.products || [])) {
       const label = p.edition === 'br' ? `Veeam B&R ${escapeHtml(p.version || '?')}` : `Veeam Agent ${escapeHtml(p.version || '?')}`;
       productChips.push(label);
-      if (p.lastJob && p.lastJob.result) productDetails.push(`${label} &mdash; last job <b style="color:${p.lastJob.result === 'Success' ? '#16a34a' : '#b91c1c'};">${escapeHtml(p.lastJob.result)}</b>`);
+      if (p.lastJob && p.lastJob.result) productDetails.push(`${label}: last job <b style="color:${p.lastJob.result === 'Success' ? '#16a34a' : '#b91c1c'};">${escapeHtml(p.lastJob.result)}</b>`);
     }
   }
   if (r.wsb && r.wsb.installed) {
@@ -3001,13 +3001,13 @@ async function sendIntakeEmail(env, { pcId, hostname, client, agentVersion, when
 
   const chipPills = productChips.map(c => `<span style="display:inline-block;padding:3px 10px;background:#e6f4f4;color:#074a4a;border-radius:999px;font-size:11.5px;font-weight:600;margin:2px 4px 2px 0;">${c}</span>`).join('');
 
-  const volumes = (stor.volumes || []).slice(0, 6).map(v => `<li>${escapeHtml(v.letter)} (${escapeHtml(v.filesystem || '?')}) &mdash; ${v.sizeGB || 0} GB total, ${v.freeGB || 0} GB free</li>`).join('');
+  const volumes = (stor.volumes || []).slice(0, 6).map(v => `<li>${escapeHtml(v.letter)} (${escapeHtml(v.filesystem || '?')}): ${v.sizeGB || 0} GB total, ${v.freeGB || 0} GB free</li>`).join('');
 
   const subtitleHtml = `<b style="color:#ffffff;">${escapeHtml(hostname || '?')}</b> &middot; joined ${escapeHtml(fmtWhen(when))}`;
 
   const bodyHtml = `
     <p style="font-size:15px;color:#1a1f2b;line-height:1.55;margin:0 0 18px;">
-      This is the one-time intake summary captured at the host's first check-in. Future check-ins won't send this email &mdash; they flow into the dashboard quietly.
+      This is the one-time intake summary for a newly onboarded host. Future check-ins won't send this email; they flow into the dashboard quietly.
     </p>
 
     <!-- Identity card -->
@@ -3296,7 +3296,7 @@ async function sendBackupFailureEmail(env, { pcId, hostname, client, result, det
             <tr>
               <td style="padding:6px 10px 6px 0;vertical-align:top;color:#475063;border-bottom:1px solid #fee2e2;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11.5px;white-space:nowrap;">${escapeHtml(fmtWhen(f.attemptedAt) || '?')}</td>
               <td style="padding:6px 10px 6px 0;vertical-align:top;color:#b91c1c;border-bottom:1px solid #fee2e2;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11.5px;font-weight:700;">${escapeHtml(f.result || '?')}</td>
-              <td style="padding:6px 0 6px 0;vertical-align:top;color:#7f1d1d;border-bottom:1px solid #fee2e2;font-size:12px;">${f.detail ? escapeHtml(f.detail) : '<span style="color:#8892a4;">&mdash;</span>'}</td>
+              <td style="padding:6px 0 6px 0;vertical-align:top;color:#7f1d1d;border-bottom:1px solid #fee2e2;font-size:12px;">${f.detail ? escapeHtml(f.detail) : '<span style="color:#8892a4;">-</span>'}</td>
             </tr>
           `).join('')}
         </tbody>
@@ -3361,7 +3361,7 @@ async function sendBackupDiskAgedEmail(env, { pcId, hostname, client, target, ag
   const newestShort = newestBackup ? escapeHtml(String(newestBackup).slice(0, 10)) : '?';
   const bodyHtml = `
     <p style="font-size:15px;color:#1a1f2b;line-height:1.55;margin:0 0 22px;">
-      The primary backup target on this host has been in continuous rotation for longer than the configured threshold. Backup disks are a wear item &mdash; rotating to a fresh unit now keeps you ahead of the failure curve rather than scrambling after one.
+      The primary backup target on this host has been in continuous rotation for longer than the configured threshold. Backup disks are a wear item. Rotating to a fresh unit now keeps you ahead of the failure curve rather than scrambling after one.
     </p>
     <table cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:18px;"><tr>
       <td style="background:#fef3c7;border:1px solid #fcd34d;border-radius:10px;padding:14px 18px;width:32%;vertical-align:top;text-align:center;">
@@ -3388,7 +3388,7 @@ async function sendBackupDiskAgedEmail(env, { pcId, hostname, client, target, ag
     <div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;padding:14px 18px;margin-bottom:0;">
       <div style="font-size:10.5px;color:#92400e;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">Suggested next steps</div>
       <ul style="margin:0;padding-left:18px;font-size:13.5px;color:#78350f;line-height:1.7;">
-        <li>Pull SMART data &mdash; if reallocated sectors or pending sectors are non-zero, swap immediately.</li>
+        <li>Pull SMART data. If reallocated sectors or pending sectors are non-zero, swap immediately.</li>
         <li>Order a replacement disk in the same capacity tier and confirm WSB picks it up via <code style="font-family:ui-monospace,Menlo,Consolas,monospace;background:#fffbeb;padding:1px 5px;border-radius:3px;">wbadmin enable backup -addtarget</code>.</li>
         <li>Adjust the threshold under <b>Settings &middot; Backup disk age alert</b> if ${escapeHtml(thresholdLabel || 'the default')} is too aggressive for this customer.</li>
       </ul>
