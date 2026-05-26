@@ -1517,7 +1517,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.113";
+const APP_VERSION = "0.14.114";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -4806,26 +4806,29 @@ function renderActivity() {
 }
 
 function renderActivityRow(e) {
-  // Mix of Set B (Refined Unicode) base + Set C (inline SVG) for six
+  // Mix of Set B (Refined Unicode) base + Set C (inline SVG) for seven
   // event types where the SVG read better per the preview review:
-  //   omsa_warning         -> triangle alert SVG (clearer than ⚠)
-  //   wsb_failure          -> database-x SVG (carries the "backup
-  //                           target failed" semantic better than a
-  //                           generic cross glyph)
-  //   client_deleted       -> trash can SVG (more direct than minus)
-  //   token_generated      -> key SVG (cleaner than 🗝 old-key emoji)
-  //   monitoring_disabled  -> eye-slash SVG (literally what it does)
-  //   monitoring_enabled   -> eye SVG
+  //   omsa_warning            -> triangle alert SVG (clearer than ⚠)
+  //   wsb_failure             -> database-x SVG (carries the "backup
+  //                              target failed" semantic better than a
+  //                              generic cross glyph)
+  //   client_deleted          -> trash can SVG (more direct than minus)
+  //   client_help_desk_url_set -> chain-link SVG (reads as "URL", and
+  //                               replaces the original Set B 🛟 RING
+  //                               BUOY glyph that rendered as tofu on
+  //                               the operator's Win10 install)
+  //   token_generated         -> key SVG (cleaner than 🗝 old-key emoji)
+  //   monitoring_disabled     -> eye-slash SVG (literally what it does)
+  //   monitoring_enabled      -> eye SVG
   //
-  // Substitutions for two glyphs that rendered as tofu boxes on the
-  // operator's Win10 install (preserved from v0.14.112):
-  //   power     ⏻  ->  Φ   (Greek Phi, BMP)
-  //   life buoy 🛟 ->  ☎   (telephone, BMP since Unicode 1.1)
+  // One Unicode substitution remains for the other tofu glyph:
+  //   power ⏻ -> Φ (Greek Phi, BMP, visually a power button)
   //
   // Each value below is either a single BMP glyph (renders as text)
   // OR an <svg> markup string (renders as inline SVG via .activity-icon
   // svg CSS rule above). The template-string interpolation in the
   // return statement injects them as HTML, so SVG just works.
+  const SVG_LINK = `<svg viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 1 0-5 l3 -3 a4 4 0 0 1 5 5 l-2 2"/><path d="M14 10a4 4 0 0 1 0 5 l-3 3 a4 4 0 0 1 -5 -5 l2 -2"/></svg>`;
   const SVG_TRIANGLE_ALERT = `<svg viewBox="0 0 24 24"><path d="M12 3 L22 20 L2 20 Z"/><line x1="12" y1="10" x2="12" y2="14"/><circle cx="12" cy="17" r="0.6" fill="#fff"/></svg>`;
   const SVG_DATABASE_X = `<svg viewBox="0 0 24 24"><ellipse cx="12" cy="6" rx="8" ry="3"/><path d="M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6"/><path d="M4 12v6c0 1.7 3.6 3 8 3"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="21" y1="15" x2="15" y2="21"/></svg>`;
   const SVG_TRASH = `<svg viewBox="0 0 24 24"><polyline points="3 6 21 6"/><path d="M5 6 L6 21 h12 L19 6"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>`;
@@ -4843,7 +4846,7 @@ function renderActivityRow(e) {
     host_reassigned: "⇉",            // double rightwards arrow
     client_added: "＋",               // fullwidth plus
     client_deleted: SVG_TRASH,       // SVG trash can
-    client_help_desk_url_set: "☎",   // telephone
+    client_help_desk_url_set: SVG_LINK, // SVG chain-link
     token_generated: SVG_KEY,        // SVG key
     token_revoked: "⊘",              // no-entry / circled division
     agent_decommissioned: "Φ",       // Greek Phi (visually a power button)
