@@ -132,7 +132,7 @@
       </svg>
       <div>
         <div class="meta">Umbrella Automation</div>
-        <h1>Watchtower &middot; Docs <span class="version-chip">v0.14.131</span></h1>
+        <h1>Watchtower &middot; Docs <span class="version-chip">v0.14.132</span></h1>
       </div>
     </a>
     <a class="btn brand-link" href="index.html">&larr; Back to dashboard</a>
@@ -712,9 +712,12 @@ Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" 
 
 <h3 id="intake-when">When it fires</h3>
 <ul>
-  <li><b>Once per host.</b> Triggered inside the <code>/checkin</code> handler when there's no previous <code>/agents/{pcId}</code> doc in Firestore (the <code>firstSeen</code> flag in <code>history</code>). Subsequent check-ins from the same host don't re-fire it.</li>
+  <li><b>Once per host, on the SECOND check-in.</b> Triggered by the <code>/checkin</code> handler when the host has a previous <code>/agents/{pcId}</code> doc AND <code>intakeEmailSent</code> is not yet true. The first check-in just records <code>intakeFirstSeenAt</code> + creates the agent doc. The intake email then fires on the next successful check-in (typically ~24h later, after the agent's default cadence kicks in).</li>
+  <li><b>Why deferred?</b> Several probes (Dell OMSA, Windows Server Backup's <code>lastBackupResult</code>, Windows Update enumeration, Veeam <code>lastJob</code>) often haven't fully populated by the time the very first check-in completes. Waiting one cycle lets them settle so the email reports a complete picture instead of an "OMSA card missing" / "no backup data" gap.</li>
+  <li><b>Safety cap</b> &mdash; if the second check-in hasn't happened within 14 days (host kept going offline, network issues, etc.) the email fires anyway on the next available check-in. Better late than never.</li>
   <li><b>Per-PC kill switches apply.</b> The same <code>config.enabled</code> and <code>config.emailEnabled</code> flags that gate the IP-change and backup-failure emails also gate this one. (Defaults are <code>true</code>, so a fresh agent that's never had its config touched WILL get an intake email.)</li>
-  <li><b>Honored across reinstalls</b> &mdash; the installer preserves <code>pcId</code> when re-running over an existing install, so a re-install of the same agent on the same machine does NOT generate a second intake email.</li>
+  <li><b>Honored across reinstalls</b> &mdash; the installer preserves <code>pcId</code> when re-running over an existing install, so a re-install of the same agent on the same machine does NOT generate a second intake email. Both <code>intakeFirstSeenAt</code> and <code>intakeEmailSent</code> survive the reinstall.</li>
+  <li><b>Activity-log entry for 'host first seen'</b> still fires immediately on the first check-in &mdash; only the email is deferred. The dashboard's Activity feed shows the host onboarding event in real time.</li>
 </ul>
 
 <h3 id="intake-contents">What's in it</h3>

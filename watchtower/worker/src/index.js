@@ -1981,6 +1981,14 @@ async function handleCheckin(request, env, ctx) {
     cDriveLowLastNotifiedAt,
     wsbLastNotifiedAt,
     backupDiskAgeLastNotifiedAt,
+    // Intake-email defer tracking (see "INTAKE EMAIL TIMING" comment
+    // in the notify block below). intakeFirstSeenAt is set on the
+    // first check-in; intakeEmailSent flips to true once the digest
+    // has gone out. Together they guarantee one-and-only-one intake
+    // email per pcId, sent on the SECOND check-in so probes have had
+    // a settle cycle.
+    intakeFirstSeenAt,
+    intakeEmailSent,
     // Pending WSB failures awaiting the next digest send. Worker
     // appends to this on every new failed attempt while the 7-day
     // throttle blocks the email; clears when a digest gets sent OR
@@ -2112,9 +2120,51 @@ async function handleCheckin(request, env, ctx) {
   // email is the comprehensive HTML report; the webhook gets a compact
   // structured payload so chat channels (Teams / Slack / Google Chat)
   // get the "new endpoint joined" ping at the same time the email lands.
-  // Both fire exactly once per pcId — firstSeen only triggers before the
-  // first setDoc above.
-  if (firstSeen && config.enabled && !isRetired) {
+  //
+  // INTAKE EMAIL TIMING: deferred to the SECOND successful check-in,
+  // not the first. Rationale: certain probes need a settle pass before
+  // they return useful data on a freshly-installed agent --
+  //   - Dell OMSA: first probe often returns empty if the controller
+  //     hasn't fully responded yet
+  //   - WSB: lastBackupResult might not be populated until 24h after
+  //     the agent starts
+  //   - Windows Updates: COM API enumeration is slow + timeout-prone
+  //     on first run, fast on subsequent (cached) runs
+  //   - Veeam: lastJob can lag the first probe by a cycle
+  // Sending on first check-in produced "incomplete inventory" emails
+  // missing the most-valuable sections. Waiting one cycle (typically
+  // 24h since first check-in succeeded means next is 24h later)
+  // produces a complete picture. The webhook ALSO defers so all
+  // channels get the same complete payload.
+  //
+  // Tracking fields (top-level on agent doc):
+  //   intakeFirstSeenAt -- iso of first check-in
+  //   intakeEmailSent   -- true once the intake digest has been sent
+  // On every check-in we check: !intakeEmailSent && intakeFirstSeenAt
+  // is set && this is not the first check-in. If all true, send + mark.
+  const intakeAlreadySent = existing?.fields?.intakeEmailSent?.booleanValue === true;
+  const intakeFirstSeenAtPrev = existing?.fields?.intakeFirstSeenAt?.stringValue || null;
+  // Safety cap: if a host's first check-in was more than 14 days ago
+  // and we STILL haven't sent (host kept going offline, e.g.) just
+  // send on the next check-in regardless -- better late than never.
+  const intakeStaleMs = intakeFirstSeenAtPrev
+    ? (nowMs - Date.parse(intakeFirstSeenAtPrev))
+    : 0;
+  const intakeOverdue = intakeStaleMs > 14 * 24 * 60 * 60 * 1000;
+  // Send when: NOT first check-in (so probes had a chance to settle)
+  // AND first check-in WAS recorded AND we haven't sent yet.
+  // OR: overdue safety case.
+  const shouldSendIntake = !intakeAlreadySent && (
+    (!firstSeen && intakeFirstSeenAtPrev) || intakeOverdue
+  );
+  // What to write back for the tracking fields:
+  //   - firstSeen=true   -> set intakeFirstSeenAt to nowIso (start timer)
+  //   - shouldSendIntake -> set intakeEmailSent=true (don't fire again)
+  //   - else             -> preserve existing
+  const intakeFirstSeenAt = firstSeen ? nowIso : intakeFirstSeenAtPrev;
+  const intakeEmailSent = shouldSendIntake ? true : intakeAlreadySent;
+
+  if (shouldSendIntake && config.enabled && !isRetired) {
     if (config.emailEnabled && env.RESEND_API_KEY && notifPrefs.intake) {
       ctx.waitUntil(
         sendIntakeEmail(env, {
@@ -2819,7 +2869,14 @@ function renderEmailShell({ client, hostname, headline, subtitleHtml, severity, 
       <div style="background:#fafbfc;padding:16px 30px;border-top:1px solid #e3e6ec;">
         <table cellpadding="0" cellspacing="0" border="0" width="100%"><tr>
           <td style="font-size:11.5px;color:#8892a4;"><b style="color:#475063;">Watchtower</b> &middot; Umbrella Automation</td>
-          <td align="right" style="font-size:11.5px;"><a href="${dashUrl}" style="color:#8892a4;text-decoration:none;">Silence this host</a></td>
+          <!-- "Manage alerts" deep-links to the host's drawer where the
+               operator can mute the WSB/OMSA/disk subsystem badges or
+               apply a snooze. Previously labeled "Silence this host"
+               which implied the link itself muted alerts; actually it
+               just opens the dashboard. Honest label now -- behavior
+               unchanged. A true one-click silence would require a
+               signed URL + worker endpoint (deferred). -->
+          <td align="right" style="font-size:11.5px;"><a href="${dashUrl}" style="color:#8892a4;text-decoration:none;">Manage alerts for this host &rarr;</a></td>
         </tr></table>
       </div>
     </div>
