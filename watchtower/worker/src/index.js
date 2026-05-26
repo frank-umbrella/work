@@ -1802,6 +1802,19 @@ async function handleCheckin(request, env, ctx) {
   const hadSystemProbe = report?.system && typeof report.system === 'object'
     && Object.keys(report.system).length > 0;
 
+  // ReportCollectedAt: distinct from lastCheckin -- the timestamp at
+  // which the displayed report fields (system / network / storage /
+  // omsa / etc.) were actually probed. Diverges from lastCheckin when
+  // partial check-ins arrive and the worker preserves the previous
+  // report. Operator-visible signal: "this host has been checking in
+  // fine but its data hasn't refreshed in 3 days -- something on the
+  // host is stuck." Falls back to nowIso if the agent didn't ship a
+  // collectedAt in the report (older agents pre-0.14.x).
+  const incomingCollectedAt = report?.collectedAt || null;
+  const newReportCollectedAt = incomingReportLooksComplete
+    ? (incomingCollectedAt || nowIso)
+    : undefined;  // preserve existing via updateMask omit
+
   // ----- 4d. Connectivity history (v0.14.27+ agents) -----
   // The agent now tracks offline periods locally and ships the closed
   // periods up on each successful check-in. We merge them into a
@@ -1935,6 +1948,14 @@ async function handleCheckin(request, env, ctx) {
     // check-in. The drawer rightly trusts whatever report is in the
     // doc, so a partial overwrite would blank entire panels.
     ...(incomingReportLooksComplete ? { report } : {}),
+    // Promoted to top-level so the dashboard can render it without
+    // descending into report.collectedAt on every row, AND can detect
+    // a "data stale" condition (reportCollectedAt much older than
+    // lastCheckin = host is checking in but probes aren't refreshing
+    // data). Same merge semantics as the report field: only written
+    // when the incoming report is complete; preserves the previous
+    // value via updateMask omit when the payload is thin.
+    ...(newReportCollectedAt !== undefined ? { reportCollectedAt: newReportCollectedAt } : {}),
   };
   // ALWAYS use partial-update (updateMask) semantics on the check-in
   // write. This way fields we've intentionally omitted (because their
