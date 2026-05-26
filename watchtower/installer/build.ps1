@@ -181,6 +181,7 @@ if (-not $SkipPyInstaller) {
             --hidden-import probes.hotfixes `
             --hidden-import probes.windows_updates `
             --hidden-import probes.usb `
+            --hidden-import probes.speed `
             --hidden-import updater `
             --hidden-import logger `
             --hidden-import win32timezone `

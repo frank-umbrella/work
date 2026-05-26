@@ -52,6 +52,7 @@ PROBES = [
     ("hotfixes",     "hotfixes"),
     ("windows_updates", "windowsUpdates"),
     ("usb",          "usb"),
+    ("speed",        "speed"),
 ]
 
 
