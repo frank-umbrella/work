@@ -1923,7 +1923,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.128";
+const APP_VERSION = "0.14.129";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -1954,6 +1954,9 @@ if (_versionChip) {
 // fixes). Patch-level no-op bumps don't need entries -- only stuff a
 // human reader would want to know about.
 const CHANGELOG = [
+  { version: "0.14.129", date: "2026-05-25", changes: [
+    "Speed probe now captures ISP + ASN + Cloudflare colo + public-IP geo via the speed.cloudflare.com/meta endpoint (agent v0.14.51). Drawer Status panel gains two new rows: 'ISP' (e.g. 'Comcast · AS7922 · via CF ATL') and 'Public IP geo' (e.g. 'Austin, Texas, US'). ISP name is cleaned to strip the trailing AS-number suffix Cloudflare appends (COMCAST-7922 → Comcast).",
+  ]},
   { version: "0.14.128", date: "2026-05-25", changes: [
     "Endpoints table: clicking the VM or HYP chip next to a hostname now filters the table to just virtual machines / just hypervisors. Sets the Filter-by property to Virtualization automatically and scrolls the table into view.",
     "Agent v0.14.50: tray now shows a Windows balloon notification when an auto-update completes ('Watchtower agent updated from vX.Y.Z to vA.B.C'). Detects the version change by watching state.json between polls.",
@@ -8246,7 +8249,7 @@ function renderDrawer(pcId) {
         // yet on a new install).
         (() => {
           const sp = r && r.speed;
-          if (!sp || (!sp.downloadMbps && !sp.error)) return null;
+          if (!sp || (!sp.downloadMbps && !sp.error && !sp.isp)) return null;
           const tested = sp.tested_at
             ? `<span class="meta">(tested ${fmtAge(sp.tested_at)})</span>`
             : "";
@@ -8257,6 +8260,28 @@ function renderDrawer(pcId) {
           const u = sp.uploadMbps != null ? sp.uploadMbps.toFixed(1) : "?";
           const lat = sp.latencyMs != null ? ` &middot; ${sp.latencyMs.toFixed(0)} ms latency` : "";
           return ["Internet speed", `<b>${d} Mbps</b> down &middot; <b>${u} Mbps</b> up${lat} ${tested}`];
+        })(),
+        // ISP / network metadata (agent v0.14.51+, populated by the
+        // /meta call inside speed.py). Omitted when the host's first
+        // post-v0.14.51 speed test hasn't landed yet -- nothing to
+        // show. ASN gets a small muted suffix so power users can see
+        // it without dominating the row.
+        (() => {
+          const sp = r && r.speed;
+          if (!sp || !sp.isp) return null;
+          const asnSuffix = sp.asn ? ` <span class="meta">&middot; AS${esc(sp.asn)}</span>` : "";
+          const coloSuffix = sp.cfColo ? ` <span class="meta">&middot; via CF ${esc(sp.cfColo)}</span>` : "";
+          return ["ISP", `${esc(sp.isp)}${asnSuffix}${coloSuffix}`,
+            "Internet service provider reported by Cloudflare's /meta endpoint during the weekly speed test. The cleaned name strips the trailing AS number (e.g. \"COMCAST-7922\" displays as \"Comcast\"). ASN is the autonomous system number; CF colo is which Cloudflare data center the request hit -- useful when an ISP routing change makes the host suddenly take a longer path to the internet."];
+        })(),
+        // Approximate geolocation reported by Cloudflare based on the
+        // public IP -- NOT the host's actual location. Useful for
+        // detecting unexpected VPN egress or ISP routing changes.
+        (() => {
+          const sp = r && r.speed;
+          if (!sp || !sp.geo) return null;
+          return ["Public IP geo", `<span class="meta">${esc(sp.geo)}</span>`,
+            "Approximate location of this host's public IP as reported by Cloudflare's geo-IP database. This is where the IP geolocates, NOT necessarily where the host physically is -- a host on a corporate VPN with egress in another city will show the egress city here."];
         })(),
         ["Last check-in", esc(tsToStr(a.lastCheckin)) + ` <span class="meta">(${fmtAge(a.lastCheckin)})</span>`],
         // Data freshness row -- distinct from "Last check-in" so a host

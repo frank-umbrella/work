@@ -125,6 +125,7 @@ def _run_speed_test():
     # 3.11+ but PyInstaller bundles can be quirky) records the error
     # instead of failing the import of the whole probe module.
     try:
+        import json as _json
         import urllib.request
         import urllib.error
     except Exception as e:
@@ -133,6 +134,66 @@ def _run_speed_test():
 
     result = {"tested_at": _now_iso()}
     try:
+        # ----- ISP / network metadata -----
+        # speed.cloudflare.com/meta returns JSON with the requesting
+        # client's view from CF's edge: asn, asOrganization (the
+        # actual ISP name), clientIp, colo (CF data center), city,
+        # region, country. We capture the human-useful fields. Non-
+        # fatal -- a failure here doesn't block the speed test, we
+        # just skip ISP enrichment for this run.
+        try:
+            meta_req = urllib.request.Request(
+                f"https://{_CF_HOST}/meta",
+                headers={"User-Agent": "Watchtower-Agent/speed-probe"},
+            )
+            with urllib.request.urlopen(meta_req, timeout=15) as resp:
+                meta = _json.loads(resp.read().decode("utf-8", errors="replace"))
+            # asOrganization is the network operator's name (e.g.
+            # "COMCAST-7922", "FRONTIER", "VERIZON-WIRELESS"). Light
+            # cleanup: strip a trailing "-<digits>" suffix (the ASN
+            # number that CF appends to some operator names) so the
+            # display reads "Comcast" instead of "COMCAST-7922". We
+            # also expose the raw value separately in case the
+            # cleaned version loses information.
+            as_org_raw = meta.get("asOrganization") or ""
+            as_org_clean = as_org_raw
+            if as_org_clean:
+                # Strip "-NNNN" trailing ASN suffix; title-case the
+                # rest if it's all-caps so it doesn't shout.
+                import re as _re
+                as_org_clean = _re.sub(r"-\d+$", "", as_org_clean)
+                if as_org_clean.isupper():
+                    as_org_clean = " ".join(w.capitalize() for w in as_org_clean.split())
+            result["isp"] = as_org_clean or None
+            result["ispRaw"] = as_org_raw or None
+            asn = meta.get("asn")
+            if isinstance(asn, (int, float)) and asn > 0:
+                result["asn"] = int(asn)
+            # Cloudflare datacenter the request hit (3-letter IATA-ish
+            # code like ATL, ORD, SJC). Useful for debugging unusual
+            # routing -- a Texas host hitting CF Tokyo means something
+            # interesting in the ISP's BGP path.
+            if meta.get("colo"):
+                result["cfColo"] = meta["colo"]
+            # Approximate location reported by CF's geo-IP (their
+            # view of where the public IP geolocates, NOT the actual
+            # host location).
+            city = (meta.get("city") or "").strip()
+            region = (meta.get("region") or "").strip()
+            country = (meta.get("country") or "").strip()
+            loc_parts = [p for p in (city, region, country) if p]
+            if loc_parts:
+                result["geo"] = ", ".join(loc_parts)
+            _logger.log(
+                f"speed: meta ok -- isp={result.get('isp')!r} "
+                f"asn={result.get('asn')} colo={result.get('cfColo')} "
+                f"geo={result.get('geo')!r}"
+            )
+        except Exception as e:
+            # Metadata is best-effort -- don't fail the whole test
+            # for it. Log + continue with the bandwidth probes below.
+            _logger.log(f"speed: meta fetch failed (non-fatal) -- {e}")
+
         # ----- Latency probe -----
         # Single HEAD to /__down catches TCP+TLS round-trip + first byte.
         # Not as precise as a true ping (we measure HTTP overhead too)
@@ -266,6 +327,11 @@ def collect():
         "downloadMbps": cached.get("downloadMbps"),
         "uploadMbps": cached.get("uploadMbps"),
         "latencyMs": cached.get("latencyMs"),
+        "isp": cached.get("isp"),
+        "ispRaw": cached.get("ispRaw"),
+        "asn": cached.get("asn"),
+        "cfColo": cached.get("cfColo"),
+        "geo": cached.get("geo"),
         "tested_at": cached.get("tested_at"),
         "error": cached.get("error"),
     }
