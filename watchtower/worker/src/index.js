@@ -26,6 +26,31 @@ const RESEND_BASE = 'https://api.resend.com';
 const DELL_API_BASE = 'https://apigtwb2c.us.dell.com';
 const FIREBASE_PROJECT_ID = 'watchtower-6fbe1';
 
+// Recurring-error notification throttle. For alerts that fire repeatedly
+// while a condition persists (OMSA still warning, disk still low, WSB
+// still failing nightly, backup disk still aged), we want to remind the
+// operator at most once a week so a single chronic host doesn't bury
+// their inbox.
+//
+// Per alert type we track <type>LastNotifiedAt on the agent doc. Each
+// check-in:
+//   - If the condition is true AND (never notified OR >= 7 days since
+//     last notification), fire + update lastNotifiedAt to now.
+//   - Otherwise stay silent.
+//   - On recovery (condition becomes false definitively), clear
+//     lastNotifiedAt so the next occurrence re-arms immediately.
+//
+// Activity-log entries still fire on every state transition (e.g. each
+// new failed WSB attempt logs one activity row) so the audit trail
+// stays complete -- only the email/webhook is throttled.
+const RECURRING_ALERT_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
+function shouldSendRecurringAlert(lastNotifiedIso, nowMs) {
+  if (!lastNotifiedIso) return true;
+  const last = Date.parse(lastNotifiedIso);
+  if (!Number.isFinite(last)) return true;
+  return (nowMs - last) >= RECURRING_ALERT_INTERVAL_MS;
+}
+
 // JWKS for verifying Firebase ID tokens. createRemoteJWKSet handles
 // caching + key rotation across requests automatically; this lives at
 // module scope so a single worker instance reuses one JWKS across many
@@ -1499,6 +1524,24 @@ async function handleCheckin(request, env, ctx) {
     omsaFirstWarnAt = omsaPrevWarnAt;
   }
 
+  // Recurring-error 7-day throttle for OMSA. Was previously "fire once
+  // on OK->warn transition then silent forever", which meant operators
+  // could forget about a chronic warning. Now: fire on transition AND
+  // re-fire weekly while still bad as a reminder. Recovery (back to OK)
+  // clears the timestamp so the next occurrence re-arms immediately.
+  const omsaPrevLastNotifiedAt = existing?.fields?.omsaLastNotifiedAt?.stringValue || null;
+  const nowMs = Date.now();
+  const omsaShouldNotify = omsaIsNonOk
+    && shouldSendRecurringAlert(omsaPrevLastNotifiedAt, nowMs);
+  let omsaLastNotifiedAt;
+  if (omsaShouldNotify) {
+    omsaLastNotifiedAt = nowIso;                  // firing this check-in
+  } else if (omsaIsDefinitivelyOk || !omsaInstalled) {
+    omsaLastNotifiedAt = null;                    // recovery, re-arm
+  } else {
+    omsaLastNotifiedAt = omsaPrevLastNotifiedAt;  // preserve (still bad, throttled)
+  }
+
   // ----- 3e. Track low C: drive capacity -----
   // Walks report.storage.volumes looking for the system drive (C:) and
   // emits cDriveFreeGB / cDriveFreePct as top-level fields so the
@@ -1552,6 +1595,20 @@ async function handleCheckin(request, env, ctx) {
   // "New warning" = the same OK->low transition we use for emails.
   const cDriveNewWarning = cDriveIsLow && !cDrivePrevWarnAt;
 
+  // 7-day recurring throttle for C: drive low. Fires on OK->low transition
+  // AND weekly while still low. Same recovery semantics as OMSA.
+  const cDriveLowPrevLastNotifiedAt = existing?.fields?.cDriveLowLastNotifiedAt?.stringValue || null;
+  const cDriveLowShouldNotify = cDriveIsLow
+    && shouldSendRecurringAlert(cDriveLowPrevLastNotifiedAt, nowMs);
+  let cDriveLowLastNotifiedAt;
+  if (cDriveLowShouldNotify) {
+    cDriveLowLastNotifiedAt = nowIso;
+  } else if (cDriveDefinitivelyOk) {
+    cDriveLowLastNotifiedAt = null;                   // recovered, re-arm
+  } else {
+    cDriveLowLastNotifiedAt = cDriveLowPrevLastNotifiedAt;
+  }
+
   // ----- 3b. Detect new WSB backup failure -----
   // Dedupe on lastBackupTime: a host with a failing daily backup will
   // produce one alert per failed attempt (since each attempt advances
@@ -1570,6 +1627,30 @@ async function handleCheckin(request, env, ctx) {
     && wsbCurrentTime
     && wsbCurrentTime !== wsbPrevTime  // new attempt since last check-in (or never seen)
   );
+
+  // 7-day recurring throttle for WSB failure email/webhook. Previously
+  // we fired one notification per failed attempt -- a host failing
+  // nightly for 14 days would email the operator 14 times. Now: fire on
+  // first failure transition AND at most once per 7 days thereafter
+  // while still failing. Successful backup clears the gate so the next
+  // failure re-arms immediately. (Activity-log entries still fire per
+  // failed attempt so the audit feed shows every event.)
+  const wsbCurrentlyFailing = wsbInstalled
+    && wsbCurrentResult
+    && wsbCurrentResult !== 'Success'
+    && wsbCurrentTime;
+  const wsbRecovered = wsbInstalled && wsbCurrentResult === 'Success';
+  const wsbPrevLastNotifiedAt = existing?.fields?.wsbLastNotifiedAt?.stringValue || null;
+  const wsbShouldNotify = wsbCurrentlyFailing
+    && shouldSendRecurringAlert(wsbPrevLastNotifiedAt, nowMs);
+  let wsbLastNotifiedAt;
+  if (wsbShouldNotify) {
+    wsbLastNotifiedAt = nowIso;
+  } else if (wsbRecovered || !wsbInstalled) {
+    wsbLastNotifiedAt = null;
+  } else {
+    wsbLastNotifiedAt = wsbPrevLastNotifiedAt;
+  }
 
   // ----- 3f. Detect aged primary backup disk (warn-level advisory) -----
   // Picks the target whose newestBackup is the latest -- that's the disk
@@ -1621,6 +1702,21 @@ async function handleCheckin(request, env, ctx) {
     backupDiskAgeFirstWarnAt = backupDiskAgePrevWarnAt;
   }
   const backupDiskAgedNewWarning = backupDiskAged && !backupDiskAgePrevWarnAt;
+
+  // 7-day recurring throttle for backup-disk-aged. Fires on transition
+  // AND weekly reminder while still aged. Recovery (disk swapped or
+  // threshold bumped past current age) clears the gate.
+  const backupDiskAgePrevLastNotifiedAt = existing?.fields?.backupDiskAgeLastNotifiedAt?.stringValue || null;
+  const backupDiskAgeShouldNotify = backupDiskAged
+    && shouldSendRecurringAlert(backupDiskAgePrevLastNotifiedAt, nowMs);
+  let backupDiskAgeLastNotifiedAt;
+  if (backupDiskAgeShouldNotify) {
+    backupDiskAgeLastNotifiedAt = nowIso;
+  } else if (backupDiskDefinitivelyOk || wsbNoLongerInstalled) {
+    backupDiskAgeLastNotifiedAt = null;
+  } else {
+    backupDiskAgeLastNotifiedAt = backupDiskAgePrevLastNotifiedAt;
+  }
 
   // ----- 4. Read per-PC config (kill switches) — but treat absence as defaults -----
   const configDoc = await firestoreGetDoc(env, accessToken, `agents/${pcId}/config/current`);
@@ -1743,6 +1839,16 @@ async function handleCheckin(request, env, ctx) {
     // when the operator swaps the disk (oldestBackup drops, ageDays
     // falls under threshold) or bumps the threshold past current age.
     backupDiskAgeFirstWarnAt,
+    // Per-alert lastNotifiedAt timestamps for the 7-day recurring-error
+    // throttle. Email/webhook notifications fire at most once per week
+    // for each of these recurring conditions; activity-log entries are
+    // unaffected (still fire per state transition). null = no
+    // notification currently outstanding (issue recovered or never
+    // happened). See RECURRING_ALERT_INTERVAL_MS at top of file.
+    omsaLastNotifiedAt,
+    cDriveLowLastNotifiedAt,
+    wsbLastNotifiedAt,
+    backupDiskAgeLastNotifiedAt,
     // Mirror the per-subsystem monitoring flags + snooze timestamp
     // from the agent's config doc into the status doc. The dashboard's
     // fleet listener has the agent doc but doesn't (cheaply) have the
@@ -1932,9 +2038,11 @@ async function handleCheckin(request, env, ctx) {
   // Re-fires only after the warning clears (back to OK) and reappears.
   const omsaNewWarning = omsaIsNonOk && !omsaPrevWarnAt;
   const omsaCleared = !omsaIsNonOk && omsaPrevWarnAt;
+  // Activity log fires only on fresh transitions (kept separate from
+  // the 7-day email/webhook throttle so the audit feed doesn't get
+  // cluttered with weekly-reminder entries).
   if (omsaNewWarning && config.enabled && config.monitorOmsa !== false && !isAlertsSnoozed(config)) {
     const issues = extractOmsaIssues(omsaCurrent);
-    // Activity entry for the warning start
     ctx.waitUntil(logActivity(env, accessToken, {
       type: 'omsa_warning',
       actor: { type: 'agent', id: pcId },
@@ -1942,6 +2050,10 @@ async function handleCheckin(request, env, ctx) {
       client: resolvedClient,
       details: { rollup: omsaRollup, issues, omsaVersion: omsaCurrent?.version || null },
     }));
+  }
+  // Email/webhook fires on transition OR 7-day reminder while still bad.
+  if (omsaShouldNotify && config.enabled && config.monitorOmsa !== false && !isAlertsSnoozed(config)) {
+    const issues = extractOmsaIssues(omsaCurrent);
     if (config.emailEnabled && env.RESEND_API_KEY && notifPrefs.omsaWarning) {
       ctx.waitUntil(
         sendOmsaWarningEmail(env, {
@@ -1982,6 +2094,7 @@ async function handleCheckin(request, env, ctx) {
   // or 5 GB) gets a different subject line + severity but uses the
   // same transition trigger -- we don't want to double-fire if a
   // host drops from 8% -> 4% in a single check-in.
+  // Activity log on fresh transition only (audit feed stays clean).
   if (cDriveNewWarning && config.enabled && config.monitorDisk !== false && !isAlertsSnoozed(config)) {
     ctx.waitUntil(logActivity(env, accessToken, {
       type: 'disk_low',
@@ -1996,6 +2109,9 @@ async function handleCheckin(request, env, ctx) {
         severity: cDriveIsCritical ? 'critical' : 'warning',
       },
     }));
+  }
+  // Email/webhook fires on transition OR 7-day reminder while still low.
+  if (cDriveLowShouldNotify && config.enabled && config.monitorDisk !== false && !isAlertsSnoozed(config)) {
     if (config.emailEnabled && env.RESEND_API_KEY && notifPrefs.diskLow) {
       ctx.waitUntil(
         sendDiskLowEmail(env, {
@@ -2036,9 +2152,8 @@ async function handleCheckin(request, env, ctx) {
   // silent on subsequent check-ins while still aged. Auto-clears when
   // the operator swaps the disk (oldestBackup drops) or bumps the
   // threshold past current age, then re-arms.
+  // Activity log on fresh transition only.
   if (backupDiskAgedNewWarning && config.enabled && config.monitorWsb !== false && !isAlertsSnoozed(config)) {
-    const ageLabel = _fmtAgeDays(backupAgedFinding.ageDays);
-    const thresholdLabel = _fmtAgeDays(backupAgedFinding.thresholdDays);
     ctx.waitUntil(logActivity(env, accessToken, {
       type: 'backup_disk_aged',
       actor: { type: 'agent', id: pcId },
@@ -2052,6 +2167,11 @@ async function handleCheckin(request, env, ctx) {
         newestBackup: backupAgedFinding.newestBackup,
       },
     }));
+  }
+  // Email/webhook fires on transition OR 7-day reminder while still aged.
+  if (backupDiskAgeShouldNotify && config.enabled && config.monitorWsb !== false && !isAlertsSnoozed(config)) {
+    const ageLabel = _fmtAgeDays(backupAgedFinding.ageDays);
+    const thresholdLabel = _fmtAgeDays(backupAgedFinding.thresholdDays);
     if (config.emailEnabled && env.RESEND_API_KEY && notifPrefs.backupDiskAged) {
       ctx.waitUntil(
         sendBackupDiskAgedEmail(env, {
@@ -2090,13 +2210,16 @@ async function handleCheckin(request, env, ctx) {
   }
 
   // ----- 7b. Notify on new WSB backup failure -----
+  // Activity log fires on every new failed attempt (audit feed shows
+  // each occurrence). Email/webhook fires on first failure transition
+  // AND at most once per 7 days while still failing -- so a host that
+  // fails nightly doesn't flood the inbox.
   if (wsbNewFailure && config.enabled && config.monitorWsb !== false && !isAlertsSnoozed(config)) {
     const lastSuccess = wsbCurrent?.lastSuccessfulBackup || null;
     const daysSinceSuccess = lastSuccess
       ? Math.floor((Date.now() - new Date(lastSuccess).getTime()) / 86400000)
       : null;
 
-    // Activity entry for the new failed attempt
     ctx.waitUntil(logActivity(env, accessToken, {
       type: 'wsb_failure',
       actor: { type: 'agent', id: pcId },
@@ -2110,6 +2233,12 @@ async function handleCheckin(request, env, ctx) {
         detail: wsbCurrent?.detail || null,
       },
     }));
+  }
+  if (wsbShouldNotify && config.enabled && config.monitorWsb !== false && !isAlertsSnoozed(config)) {
+    const lastSuccess = wsbCurrent?.lastSuccessfulBackup || null;
+    const daysSinceSuccess = lastSuccess
+      ? Math.floor((Date.now() - new Date(lastSuccess).getTime()) / 86400000)
+      : null;
 
     if (config.emailEnabled && env.RESEND_API_KEY && notifPrefs.backupFailure) {
       ctx.waitUntil(
