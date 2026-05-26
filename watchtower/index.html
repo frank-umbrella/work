@@ -847,6 +847,17 @@
   .badge.muted { background: #e5e7eb; color: #4b5563; }
   .badge-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 
+  /* Dark mode badge overrides. The light-mode rules above bake dark
+     text colors (#166534, #854d0e, #7f1d1d) directly into the class --
+     in dark mode those land on top of the dark-tinted *-soft bg
+     and the pill becomes unreadable (dark green text on dark green
+     background, etc.). Re-route to the bright accent colors so the
+     same severity tone reads cleanly on a dark surface. */
+  html[data-theme="dark"] .badge.ok    { color: var(--ok); }
+  html[data-theme="dark"] .badge.warn  { color: var(--warn); }
+  html[data-theme="dark"] .badge.bad   { color: var(--danger); }
+  html[data-theme="dark"] .badge.muted { background: var(--surface-2); color: var(--ink-soft); }
+
   /* detail drawer */
   #drawer { position: fixed; top: 0; right: 0; bottom: 0; width: 600px; max-width: 100vw; background: var(--surface); border-left: 1px solid var(--line); box-shadow: -10px 0 30px rgba(0,0,0,0.08); transform: translateX(100%); transition: transform .2s ease; overflow-y: auto; z-index: 60; }
   #drawer.open { transform: translateX(0); }
@@ -1103,6 +1114,19 @@
   .pill-ibackup    { background: #e0f2fe; border-color: #7dd3fc; color: #075985; }
   .pill-lmi        { background: #fae8ff; border-color: #d8b4fe; color: #581c87; }
   .pill-idrac      { background: #e0e7ff; border-color: #a5b4fc; color: #312e81; }
+
+  /* Dark mode product-pill overrides. The light variants have very
+     light backgrounds (#ecfdf5, #eff6ff, etc.) which look like white
+     boxes on a dark page. Re-tint to deep, saturated shades of the
+     same hue family + bright text so each product stays visually
+     distinct (Veeam green, WSB blue, Carbonite gold, IBackup sky,
+     LogMeIn purple, iDRAC indigo) without blasting white. */
+  html[data-theme="dark"] .pill-veeam     { background: #06291f; border-color: #047857; color: #6ee7b7; }
+  html[data-theme="dark"] .pill-wsb       { background: #0c1e3a; border-color: #1d4ed8; color: #93c5fd; }
+  html[data-theme="dark"] .pill-carbonite { background: #2c1f08; border-color: #b45309; color: #fcd34d; }
+  html[data-theme="dark"] .pill-ibackup   { background: #08263a; border-color: #0369a1; color: #7dd3fc; }
+  html[data-theme="dark"] .pill-lmi       { background: #2a1a3a; border-color: #7c3aed; color: #d8b4fe; }
+  html[data-theme="dark"] .pill-idrac     { background: #1a2240; border-color: #4338ca; color: #a5b4fc; }
 
   @media (max-width: 760px) {
     table.fleet .col-client, table.fleet .col-os, table.fleet .col-intip, table.fleet .col-products { display: none; }
@@ -1884,7 +1908,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.120";
+const APP_VERSION = "0.14.121";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -1915,6 +1939,10 @@ if (_versionChip) {
 // fixes). Patch-level no-op bumps don't need entries -- only stuff a
 // human reader would want to know about.
 const CHANGELOG = [
+  { version: "0.14.121", date: "2026-05-25", changes: [
+    "FIX: data wipe on partial check-ins. A host whose probes hadn't fully re-initialized after an agent auto-update was sending a check-in with no system / network / storage data, and the worker was overwriting the existing rich data with nulls -- Internal IP, OS, Service Tag, Model, C: free all blanked out. Worker now uses merge semantics: fields whose source probe didn't run on this check-in keep their previous values instead of being wiped. (Worker already deployed.)",
+    "Dark mode badge contrast: the .badge.ok / .warn / .bad / .muted classes were baking dark text colors directly into the rule, which landed dark-on-dark in dark mode. Now uses the bright accent colors (var(--ok)/--warn/--danger) for text in dark mode while keeping the deep-tinted backgrounds. Product pills (Veeam / WSB / Carb / IBack / LMI / iDRAC) also got dark-mode variants with saturated backgrounds + light text instead of staying as washed-out light boxes.",
+  ]},
   { version: "0.14.120", date: "2026-05-25", changes: [
     "Weekly internet speed test on each endpoint (agent v0.14.47+). HTTP-based test against speed.cloudflare.com once per 7 days per host (~15 MB total per host per week). Result surfaces in a new optional 'Speed' column in the Endpoints table (off by default — opt in via the column chooser) and in the drawer's Status panel as 'Internet speed: 87 Mbps down · 12 Mbps up · 18 ms latency'. Test runs in a background thread so check-ins are never delayed.",
   ]},

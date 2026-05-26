@@ -1770,6 +1770,38 @@ async function handleCheckin(request, env, ctx) {
   // exposed it (see system.py _hyperv_parent_host).
   const newPhysicalHost = report?.system?.physicalHost?.name || null;
 
+  // ──────────────────────────────────────────────────────────────────
+  // Partial-collection detection -- protect against data wipes.
+  // ──────────────────────────────────────────────────────────────────
+  // Scenario: agent just auto-updated, post-restart first check-in
+  // happens before all probes have re-initialized (or one of the
+  // probe threads timed out). The agent ships a check-in with
+  // `report: { collectedAt, ... }` but missing the actual system /
+  // network / storage sub-keys. Without the guard below, the worker
+  // would happily write those nulls back to Firestore -- wiping the
+  // host's Internal IP, OS, Service Tag, Model, C: free, etc. and
+  // making the row look like a brand-new install with no data.
+  //
+  // Fix: detect when the incoming report is "obviously partial" (no
+  // system probe data) and switch the per-field writes to merge
+  // semantics. Fields whose source data is missing get OMITTED from
+  // the statusUpdate object entirely; Firestore's updateMask then
+  // preserves the previous value for those fields. Fields with
+  // explicit transitions (lastCheckin, agentVersion, omsaFirstWarnAt
+  // recovery, etc.) still get written normally.
+  const incomingReportLooksComplete =
+    report && report.system && typeof report.system === 'object'
+    && Object.keys(report.system).length > 0;
+  // When the incoming network probe didn't return NICs, the computed
+  // internalIp is null -- but we shouldn't wipe the previously-known
+  // IP just because one probe blip. Same logic applies for the other
+  // computed-from-report top-level fields.
+  const hadNetworkProbe = report?.network && typeof report.network === 'object'
+    && (Array.isArray(report.network.nics) || report.network.externalIp);
+  const hadStorageProbe = report?.storage && Array.isArray(report.storage.volumes);
+  const hadSystemProbe = report?.system && typeof report.system === 'object'
+    && Object.keys(report.system).length > 0;
+
   // ----- 4d. Connectivity history (v0.14.27+ agents) -----
   // The agent now tracks offline periods locally and ships the closed
   // periods up on each successful check-in. We merge them into a
@@ -1819,19 +1851,33 @@ async function handleCheckin(request, env, ctx) {
     tokenLegacy: auth.legacy === true,
     agentVersion: agentVersion || 'unknown',
     lastCheckin: nowIso,
-    externalIp: newExternalIp,
+    // externalIp is special: even without report.network it can come
+    // from the worker's cf-connecting-ip header (set by Cloudflare),
+    // so it's almost always a real value. Only preserve when truly
+    // unknown.
+    ...(newExternalIp != null ? { externalIp: newExternalIp } : {}),
     ...(firstSeen ? { installedAt: nowIso } : {}),
     ...(ipChanged || firstSeen ? { externalIpChangedAt: nowIso } : {}),
-    internalIp: newInternalIp,
-    physicalHost: newPhysicalHost,
+    // Internal IP / physicalHost / C-drive metrics: only overwrite
+    // when the corresponding probe ran successfully. If the probe
+    // didn't ship data on this check-in (partial-collection scenario
+    // -- common right after an agent auto-update), OMIT the field
+    // entirely so Firestore preserves the previous value. Without
+    // this guard, a single hiccupy check-in would wipe Internal IP,
+    // Model, Service Tag, C: free, etc. from the Endpoints table.
+    ...(hadNetworkProbe ? { internalIp: newInternalIp } : {}),
+    ...(hadSystemProbe ? { physicalHost: newPhysicalHost } : {}),
     omsaFirstWarnAt,
     // C: drive free space promoted to top-level so the Endpoints table
     // can render a "Disk low" badge without inflating renderFleet by
-    // descending into report.storage.volumes for every row. Null when
-    // the storage probe didn't return a usable C: volume.
-    cDriveSizeGB,
-    cDriveFreeGB,
-    cDriveFreePct,
+    // descending into report.storage.volumes for every row. Only
+    // included when the storage probe actually returned data; missing
+    // probes preserve the previous values via updateMask.
+    ...(hadStorageProbe ? {
+      cDriveSizeGB,
+      cDriveFreeGB,
+      cDriveFreePct,
+    } : {}),
     cDriveLowFirstWarnAt,
     // First-detection timestamp for an aged primary WSB target. Tracked
     // for the same reason as omsaFirstWarnAt -- so we email/webhook once
@@ -1882,9 +1928,25 @@ async function handleCheckin(request, env, ctx) {
       decommissionedByEmail: null,
       decommissionedReason: null,
     } : {}),
-    report,
+    // Report field: only write the incoming report when it looks
+    // complete (has system probe data). Otherwise preserve the
+    // previous report so the drawer's Probes panel doesn't lose all
+    // the rich Veeam/WSB/OMSA/etc. data because of a single hiccupy
+    // check-in. The drawer rightly trusts whatever report is in the
+    // doc, so a partial overwrite would blank entire panels.
+    ...(incomingReportLooksComplete ? { report } : {}),
   };
-  await firestoreSetDoc(env, accessToken, `agents/${pcId}`, statusUpdate);
+  // ALWAYS use partial-update (updateMask) semantics on the check-in
+  // write. This way fields we've intentionally omitted (because their
+  // probe data was missing) keep their previous values in Firestore
+  // instead of being deleted. Fields we DO include get overwritten
+  // normally. Recovery transitions that set fields to null (e.g.
+  // omsaLastNotifiedAt = null after a recovery) still work because
+  // null is a distinct value from "omitted" in the updateMask path.
+  await firestoreSetDoc(env, accessToken, `agents/${pcId}`, statusUpdate, /* partial */ true);
+  if (!incomingReportLooksComplete) {
+    console.log(`[checkin] ${pcId}: partial report detected, preserving previous data`);
+  }
 
   // ----- 6. Append history doc -----
   // Doc id is a sortable timestamp prefix + short random suffix to avoid
