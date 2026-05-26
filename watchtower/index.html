@@ -769,6 +769,15 @@
   }
   /* VM chip -- purple, matches the "Virtual machine" badge in the drawer. */
   .host-tag.vm-chip { background: #fae8ff; color: #581c87; }
+  /* VM + HYP chips are clickable -- they jump the table to a
+     filtered view of just VMs or just hypervisors. Pointer cursor +
+     subtle hover ring so the affordance is visible without
+     overwhelming the row. Click handler in renderFleet reads
+     data-vmfilter to know which value to set. */
+  .host-tag.vm-chip[data-vmfilter],
+  .host-tag.hyp-chip[data-vmfilter] { cursor: pointer; transition: box-shadow 0.12s; }
+  .host-tag.vm-chip[data-vmfilter]:hover  { box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.35); }
+  .host-tag.hyp-chip[data-vmfilter]:hover { box-shadow: 0 0 0 2px rgba(17, 94, 89, 0.35); }
   /* HYP chip -- teal, mirrors the brand color so hypervisor parents read
      as "control plane" at a glance versus their purple guests. */
   .host-tag.hyp-chip { background: #ccfbf1; color: #115e59; }
@@ -1489,7 +1498,7 @@
             <option value="backup">Backup tool</option>
             <option value="os">Operating system</option>
             <option value="manufacturer">Hardware manufacturer</option>
-            <option value="virt">Physical / virtual</option>
+            <option value="virt">Virtualization</option>
             <option value="hypervisor">Hypervisor</option>
             <option value="domain">Domain membership</option>
             <option value="ram">RAM tier</option>
@@ -1914,7 +1923,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.127";
+const APP_VERSION = "0.14.128";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -1945,6 +1954,11 @@ if (_versionChip) {
 // fixes). Patch-level no-op bumps don't need entries -- only stuff a
 // human reader would want to know about.
 const CHANGELOG = [
+  { version: "0.14.128", date: "2026-05-25", changes: [
+    "Endpoints table: clicking the VM or HYP chip next to a hostname now filters the table to just virtual machines / just hypervisors. Sets the Filter-by property to Virtualization automatically and scrolls the table into view.",
+    "Agent v0.14.50: tray now shows a Windows balloon notification when an auto-update completes ('Watchtower agent updated from vX.Y.Z to vA.B.C'). Detects the version change by watching state.json between polls.",
+    "Installer: registers a tray-watchdog scheduled task (logon + hourly) that re-launches watchtower-tray.exe if it isn't already running. Belt-and-suspenders against tray death from failed updates, accidental kills, or transient pystray init failures. The service + check-ins are unaffected -- this only protects the on-host status icon. The watchdog is removed on uninstall.",
+  ]},
   { version: "0.14.127", date: "2026-05-25", changes: [
     "Lifecycle states: each endpoint now has an 'active' (default) or 'retired' lifecycle, set via the drawer's new Lifecycle dropdown. Retired hosts: check in every 14 days instead of 24 hours; intake / IP change / disk-low / WSB / backup-disk-aged alerts are suppressed (OMSA hardware alerts still fire so a dying disk doesn't go silent); row gets a grey RETIRED chip + dimmed styling; exempt from the stale-data divergence warning (being stale is expected); don't contribute to the alert chip or favicon-blink count. All host data stays visible in the dashboard. Use this for PCs you want to keep around for historical reference but no longer actively monitor.",
   ]},
@@ -3402,8 +3416,10 @@ function renderFleet() {
     // ones where guests are actively checking in to Watchtower too.
     let hostTag;
     if (sysRow.isVirtual) {
-      const tip = `Virtual machine${sysRow.hypervisor ? ` &middot; ${sysRow.hypervisor}` : ""}${sysRow.physicalHost ? ` &middot; hosted on ${sysRow.physicalHost.name}` : ""}`;
-      hostTag = `<span class="host-tag vm-chip" title="${tip}">VM</span>`;
+      const tip = `Virtual machine${sysRow.hypervisor ? ` &middot; ${sysRow.hypervisor}` : ""}${sysRow.physicalHost ? ` &middot; hosted on ${sysRow.physicalHost.name}` : ""} &middot; click to filter to just VMs`;
+      // data-vmfilter triggers the click handler in renderFleet that
+      // applies state.filter.propKey="virt" + propValue="Virtual machine".
+      hostTag = `<span class="host-tag vm-chip" data-vmfilter="Virtual machine" role="button" tabindex="0" title="${tip}">VM</span>`;
     } else if (sysRow.isHypervisor || findGuestVms(a).length > 0) {
       // Two paths to a HYP badge:
       //   1. The agent's system probe detected the vmms service on this
@@ -3417,10 +3433,11 @@ function renderFleet() {
       // for the lonely-hypervisor case.
       const guests = findGuestVms(a);
       const guestCount = guests.length;
-      const tip = guestCount > 0
+      const tipBase = guestCount > 0
         ? `Hypervisor &middot; hosting ${guestCount} guest${guestCount === 1 ? "" : "s"} reporting to Watchtower`
         : 'Hyper-V role installed (no guests reporting to Watchtower)';
-      hostTag = `<span class="host-tag hyp-chip" title="${tip}">HYP</span>`;
+      const tip = `${tipBase} &middot; click to filter to just hypervisors`;
+      hostTag = `<span class="host-tag hyp-chip" data-vmfilter="Hypervisor" role="button" tabindex="0" title="${tip}">HYP</span>`;
     } else {
       hostTag = `<span class="host-tag none" aria-hidden="true"></span>`;
     }
@@ -3458,6 +3475,27 @@ function renderFleet() {
       if (action) {
         e.stopPropagation();
         openBadgePopover(action);
+        return;
+      }
+      // VM / HYP chip click -> filter the table to just those hosts.
+      // Sets the property filter to "virt" + the chip's data-vmfilter
+      // value (e.g. "Virtual machine" or "Hypervisor"), syncs the
+      // dropdown values, then re-renders. Doesn't open the drawer.
+      const vmChip = e.target.closest && e.target.closest("[data-vmfilter]");
+      if (vmChip) {
+        e.stopPropagation();
+        state.filter.propKey = "virt";
+        state.filter.propValue = vmChip.dataset.vmfilter;
+        const propSel = $("#propFilter");
+        if (propSel) propSel.value = "virt";
+        _refreshPropValueFilter();
+        const valSel = $("#propValueFilter");
+        if (valSel) valSel.value = state.filter.propValue;
+        renderFleet();
+        // Scroll filter bar into view so the operator sees what they
+        // just activated.
+        const wrap = $("#fleetWrap");
+        if (wrap && wrap.scrollIntoView) wrap.scrollIntoView({ behavior: "smooth", block: "nearest" });
         return;
       }
       openDrawer(tr.dataset.id);
@@ -3530,14 +3568,23 @@ const FLEET_PROP_FILTERS = {
     },
   },
   virt: {
-    label: "Physical/Virtual",
+    label: "Virtualization",
+    // 4-bucket classification: Virtual machine / Hypervisor / Physical
+    // / Unknown. Matches what the VM + HYP host-tag chips display, so
+    // clicking those chips applies this filter cleanly. A host can in
+    // principle be both a VM AND a hypervisor (nested virtualization);
+    // VM precedence first because the operator typically cares more
+    // about the VM-ness in that case.
     value: (a) => {
-      const v = a.report && a.report.system && a.report.system.isVirtual;
-      if (v === true) return "Virtual";
-      if (v === false) return "Physical";
+      const s = (a.report && a.report.system) || {};
+      if (s.isVirtual === true) return "Virtual machine";
+      if (s.isHypervisor === true || (typeof findGuestVms === "function" && findGuestVms(a).length > 0)) {
+        return "Hypervisor";
+      }
+      if (s.isVirtual === false) return "Physical";
       return "Unknown";
     },
-    options: ["Physical", "Virtual", "Unknown"],
+    options: ["Virtual machine", "Hypervisor", "Physical", "Unknown"],
   },
   hypervisor: {
     label: "Hypervisor",

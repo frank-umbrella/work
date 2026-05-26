@@ -503,10 +503,35 @@ def _poll_loop(icon):
             so the tray catches the operator's eye even at-a-glance
     """
     blink_phase = 0  # 0 = alert variant, 1 = OK variant (the flip frame)
+    # Track the most recent agentVersion we've seen so we can show a
+    # balloon notification when an auto-update lands. The service does
+    # the actual upgrade; the tray only watches state.json. When
+    # agentVersion changes between polls, the upgrade just completed --
+    # surface a "Watchtower updated to vX.Y.Z" toast so the operator on
+    # the host knows it happened. AGENT_VERSION at startup gives us the
+    # baseline (matches whatever the just-launched tray binary is).
+    last_seen_version = AGENT_VERSION
     while getattr(icon, "_keep_polling", True):
         state = cfg_mod.load_state()
         kind = _host_health_state(state)
         icon.title = _tooltip(state)
+
+        # Update-detection: if the reported agentVersion differs from
+        # what we've been seeing AND it parses as a higher semver, fire
+        # a balloon. Skip on the first tick after startup (the value
+        # has just been initialized from AGENT_VERSION and any
+        # mismatch is data-race noise rather than a real upgrade).
+        reported = (state or {}).get("agentVersion")
+        if reported and reported != last_seen_version:
+            try:
+                icon.notify(
+                    f"Watchtower agent updated from v{last_seen_version} to v{reported}.",
+                    "Watchtower update complete",
+                )
+                _log_tray_startup(f"update_detected v{last_seen_version}->v{reported}")
+            except Exception as e:
+                _log_tray_startup(f"update_notify_failed {e}")
+            last_seen_version = reported
 
         if kind == "crit":
             # Blink loop. Flips between the crit icon and the OK icon

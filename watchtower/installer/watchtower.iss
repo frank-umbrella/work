@@ -149,6 +149,13 @@ Source: "build\watchtower-tray.exe"; DestDir: "{app}"; Flags: ignoreversion
 ; copy-paste loop entirely -- operator just attaches the .txt to email.
 Source: "..\agent\scripts\diagnostic.ps1"; DestDir: "{app}\scripts"; Flags: ignoreversion
 Source: "..\agent\scripts\Save Diagnostic Report.cmd"; DestDir: "{app}\scripts"; Flags: ignoreversion
+; Tray-watchdog script -- a scheduled task (registered below) calls this
+; hourly + at logon. The .cmd checks if watchtower-tray.exe is in the
+; task list; if not, it starts it. Belt-and-suspenders against tray
+; death from any cause (failed installer mid-update, transient pystray
+; init failure, user accidentally killing the process). Check-ins
+; keep working without the tray -- this only restores the UI.
+Source: "..\agent\scripts\ensure-tray-running.cmd"; DestDir: "{app}\scripts"; Flags: ignoreversion
 #ifdef LogMeInMsi
 ; LogMeIn MSI extracted to {tmp} during install, renamed to a stable filename
 ; so the [Run] entry can hardcode the path. deleteafterinstall cleans it up
@@ -261,6 +268,25 @@ Filename: "{app}\watchtower-tray.exe"; \
     Check: not IsSystemContext; \
     StatusMsg: "Starting Watchtower tray..."
 
+; Tray-watchdog scheduled task. Belt-and-suspenders for any scenario
+; where the tray dies but the service doesn't notice (failed mid-update
+; install, user accidentally killed the process, pystray init crashed
+; on logon). Task triggers: ONLOGON (re-create the tray every time the
+; user signs in) + HOURLY (catch deaths during a long session). Runs
+; as the interactive user in their session so the spawned tray lands
+; on their desktop. /F overwrites any task from a previous install so
+; re-running the installer doesn't accumulate duplicates.
+;
+; Action: ensure-tray-running.cmd checks tasklist before launching, so
+; the hourly trigger is a no-op when the tray is already up.
+Filename: "{sys}\schtasks.exe"; \
+    Parameters: "/Create /F /SC ONLOGON /RL LIMITED /TN ""Watchtower Tray Watchdog"" /TR ""\""{app}\scripts\ensure-tray-running.cmd\""""" ; \
+    Flags: runhidden; \
+    StatusMsg: "Registering tray watchdog..."
+Filename: "{sys}\schtasks.exe"; \
+    Parameters: "/Create /F /SC HOURLY /RL LIMITED /TN ""Watchtower Tray Watchdog Hourly"" /TR ""\""{app}\scripts\ensure-tray-running.cmd\""""" ; \
+    Flags: runhidden
+
 #ifdef LogMeInMsi
 ; LogMeIn install -- only when the operator left the Tasks checkbox on.
 ; runhidden + msiexec /quiet means no LogMeIn UI flashes up. The MSI is
@@ -289,6 +315,11 @@ Filename: "{sys}\msiexec.exe"; \
 Filename: "{sys}\sc.exe"; Parameters: "stop {#ServiceName}";   Flags: runhidden; RunOnceId: "StopWatchtower"
 Filename: "{sys}\sc.exe"; Parameters: "delete {#ServiceName}"; Flags: runhidden; RunOnceId: "DeleteWatchtower"
 Filename: "{cmd}";        Parameters: "/c taskkill /im watchtower-tray.exe /f"; Flags: runhidden; RunOnceId: "KillTray"
+; Remove the tray-watchdog scheduled tasks. /F to skip the confirmation
+; prompt. Failure is non-fatal (the tasks might not exist if this is
+; an upgrade from a pre-watchdog version uninstalling cleanly).
+Filename: "{sys}\schtasks.exe"; Parameters: "/Delete /F /TN ""Watchtower Tray Watchdog"""; Flags: runhidden; RunOnceId: "DeleteTrayWatchdog"
+Filename: "{sys}\schtasks.exe"; Parameters: "/Delete /F /TN ""Watchtower Tray Watchdog Hourly"""; Flags: runhidden; RunOnceId: "DeleteTrayWatchdogHourly"
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{commonappdata}\Watchtower"
