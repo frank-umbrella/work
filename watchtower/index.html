@@ -1923,7 +1923,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.130";
+const APP_VERSION = "0.14.131";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -1954,6 +1954,9 @@ if (_versionChip) {
 // fixes). Patch-level no-op bumps don't need entries -- only stuff a
 // human reader would want to know about.
 const CHANGELOG = [
+  { version: "0.14.131", date: "2026-05-25", changes: [
+    "Endpoints table OS column: the literal word 'Windows' is now replaced by a small Windows-flag icon (every host is Windows anyway). 'Windows Server 2022 STD' becomes [⊞] Server 2022 STD -- saves ~50px of horizontal width per row so the OS no longer wraps to a second line just to fit three letters. The drawer + PDF + CSV/XLSX export still use the full un-abbreviated 'Windows Server 2022 Standard' caption.",
+  ]},
   { version: "0.14.130", date: "2026-05-25", changes: [
     "WSB failure emails now aggregate. Worker tracks every failed attempt in a pending-failures list on the agent doc, accumulating them while the 7-day throttle blocks the email. When the digest finally fires, the email lists ALL failures from the window in a table (timestamp + result + detail), with the count in the subject. Recovery (successful backup) or send clears the list.",
     "Stats tab: new 'ISP locations' map card. Pins on an OpenStreetMap world map at each public-IP geo, clustered by approximate coords. Click a pin for the host list + ISP at that location. Agent v0.14.52 ships latitude/longitude from Cloudflare's /meta endpoint so the map can plot them; older agents just don't appear yet. Leaflet is lazy-loaded the first time the Stats tab paints.",
@@ -2794,7 +2797,10 @@ const FLEET_COLUMNS = [
   { key: "externalIp", label: "External IP",  default: true,  sortKey: "externalIp",    thClass: "",             tdClass: "ip",
     render: (a) => esc(a.externalIp || "—") },
   { key: "os",         label: "OS",           default: true,  sortKey: "os",            thClass: "col-os",       tdClass: "col-os client",
-    render: (a, ctx) => esc(ctx.os) },
+    // ctx.osCellHtml is icon-prefixed + already escaped (it includes
+    // an inline Windows-flag SVG followed by the escaped OS text).
+    // Falls back to ctx.os if an older code path didn't set it.
+    render: (a, ctx) => ctx.osCellHtml || esc(ctx.os) },
   { key: "backup",     label: "Backup",       default: true,  sortKey: null,            thClass: "col-products", tdClass: "col-products",
     render: (a, ctx) => ctx.backupCell },
   { key: "remote",     label: "Remote",       default: true,  sortKey: null,            thClass: "col-products", tdClass: "col-products",
@@ -3288,19 +3294,32 @@ function renderFleet() {
     // pushes the more useful edition/version info off-screen on narrow
     // table widths. Drawer + PDF still show the full Caption.
     const _osRaw = (a.report && a.report.system && a.report.system.os && a.report.system.os.name) || "";
-    // Two-step compaction for the Endpoints column:
-    //   - Drop "Microsoft " brand prefix (every host is Windows-based, the
-    //     prefix is dead weight).
-    //   - Abbreviate the edition suffix "Standard" to "STD" so
-    //     "Windows Server 2022 Standard" reads as "Windows Server 2022 STD"
-    //     and stops pushing the rest of the row off-screen on narrow widths.
-    //     Only matches "Standard" as a trailing word (\bStandard\b at end
-    //     of string) so we don't accidentally rewrite something like
-    //     "Windows 10 Enterprise Standard Edition" mid-string. Drawer +
-    //     PDF + CSV/XLSX export use the un-abbreviated Caption.
+    // Three-step compaction for the Endpoints column:
+    //   - Drop "Microsoft " brand prefix.
+    //   - Drop the literal word "Windows " too -- every host is Windows;
+    //     a small Windows-flag SVG icon replaces it in the column render
+    //     (saves ~50px of horizontal width per row, lets "Server 2022 STD"
+    //     stay on one line where "Windows Server 2022 STD" was wrapping).
+    //   - Abbreviate the edition suffix "Standard" to "STD".
+    // Only matches "Standard" as a trailing word so we don't rewrite
+    // "Standard Edition" mid-string. The drawer + PDF + CSV/XLSX export
+    // use the un-abbreviated Caption (including the "Windows" word).
+    //
+    // os = the text portion (e.g. "Server 2022 STD"). The full <td>
+    // cell render is the icon + text together (see osCellHtml below).
     const os = _osRaw
-      ? _osRaw.replace(/^Microsoft\s+/i, "").replace(/\bStandard\b\s*$/i, "STD")
+      ? _osRaw
+          .replace(/^Microsoft\s+/i, "")
+          .replace(/^Windows\s+/i, "")
+          .replace(/\bStandard\b\s*$/i, "STD")
       : "—";
+    // Inline Windows-flag SVG -- four trapezoidal panes in the classic
+    // Win10/11 mark. currentColor so it inherits the cell's text color
+    // (which adapts to dark mode via the surrounding td styling).
+    // 12px square is just enough to be recognizable at the row's
+    // 13.5px font size without dominating the cell.
+    const _winFlag = `<svg viewBox="0 0 88 88" width="12" height="12" style="vertical-align:-1px;margin-right:5px;flex-shrink:0;" aria-hidden="true"><path fill="currentColor" d="M0 12.4L36 7.4v34.2H0zM0 46.4h36v34.2L0 75.6zM40 6.8L88 0v41.6H40zM40 46.4h48V88l-48-6.8z"/></svg>`;
+    const osCellHtml = _osRaw ? `${_winFlag}${esc(os)}` : `<span class="meta">—</span>`;
     const isDecom = a.decommissioned === true;
     // Retired chip appears next to the status badge for hosts marked
     // lifecycle:"retired" in their config. Grey muted treatment so it
@@ -3448,7 +3467,7 @@ function renderFleet() {
     } else {
       hostTag = `<span class="host-tag none" aria-hidden="true"></span>`;
     }
-    const ctx = { st, bh, oh, os, isDecom, stBadge, bhBadge, ohBadge, wuBadge, diskBadge, staleBadge, snoozeBadge, offBadge, backupCell, remoteCell, hostTag };
+    const ctx = { st, bh, oh, os, osCellHtml, isDecom, stBadge, bhBadge, ohBadge, wuBadge, diskBadge, staleBadge, snoozeBadge, offBadge, backupCell, remoteCell, hostTag };
 
     const isRetired = a.lifecycle === 'retired';
     const rowClasses = [
