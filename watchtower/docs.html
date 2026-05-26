@@ -132,7 +132,7 @@
       </svg>
       <div>
         <div class="meta">Umbrella Automation</div>
-        <h1>Watchtower &middot; Docs <span class="version-chip">v0.14.114</span></h1>
+        <h1>Watchtower &middot; Docs <span class="version-chip">v0.14.115</span></h1>
       </div>
     </a>
     <a class="btn brand-link" href="index.html">&larr; Back to dashboard</a>
@@ -169,6 +169,7 @@
   <a href="#clients-mgmt" class="section">Managing clients</a>
   <a href="#clients-rename">Rename a client</a>
   <a href="#settings" class="section">Settings</a>
+  <a href="#settings-appearance">Appearance (dark mode + text size)</a>
   <a href="#settings-webhook">Master webhook URL</a>
   <a href="#updates" class="section">Agent auto-update</a>
   <a href="#updates-safety">Safety guarantees</a>
@@ -618,6 +619,14 @@ Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" 
 
 <h2 id="settings">Settings</h2>
 <p>The <b>Settings</b> tab on the dashboard holds configuration that applies to every endpoint. Currently:</p>
+
+<h3 id="settings-appearance">Appearance (dark mode + text size)</h3>
+<p>Two personal preferences, saved to your user profile so they follow you across devices and browsers.</p>
+<ul>
+  <li><b>Theme</b> &mdash; Light (default) or Dark. Switch via the sun/moon button in the header or the Light/Dark buttons in Settings.</li>
+  <li><b>Text size</b> &mdash; Small / Medium (default) / Large. Switch via the <code>A&minus;</code> / <code>A&plus;</code> buttons in the header or the three-button row in Settings. Implemented via CSS <code>zoom</code> on <code>&lt;body&gt;</code>, so every element scales proportionally (text, padding, badges, icons).</li>
+</ul>
+<p>Choices write to <code>localStorage</code> immediately (so reloads paint the right theme before sign-in completes) and to <code>/users/&lt;uid&gt;</code> after auth so they sync across devices. <b>Reset to defaults</b> restores Light + Medium.</p>
 
 <h3 id="settings-webhook">Master webhook URL</h3>
 <p>A single URL that all per-agent webhook events POST to. Set once here; whether each agent fires events to it is controlled by the per-PC <b>Webhook on IP change &amp; backup failure</b> toggle in that host's drawer.</p>

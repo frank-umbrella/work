@@ -30,6 +30,28 @@
 <meta name="twitter:title" content="Watchtower &middot; Umbrella Automation">
 <meta name="twitter:description" content="Endpoint monitoring &middot; always watching.">
 <meta name="twitter:image" content="https://frank-umbrella.github.io/work/watchtower/og-image.png">
+<!-- Pre-paint appearance bootstrap. Runs synchronously before <style>
+     so the saved theme/text-size is applied to the <html> root before
+     the first paint -- no flash-of-wrong-theme when an operator reloads
+     on a dark-mode device. localStorage is the synchronous fast path;
+     after sign-in the dashboard merges any fresher value from
+     /users/{uid} (loadAppearancePrefs in the main module). -->
+<script>
+  (function () {
+    try {
+      var t = localStorage.getItem("wt.theme");
+      if (t === "dark" || t === "light") document.documentElement.setAttribute("data-theme", t);
+    } catch (e) {}
+    try {
+      var s = localStorage.getItem("wt.textSize");
+      if (s === "small" || s === "large" || s === "medium") {
+        // body isn't parsed yet -- stash on <html> and let the main
+        // script move it to <body> once the DOM is alive.
+        document.documentElement.setAttribute("data-text-size-pending", s);
+      }
+    } catch (e) {}
+  })();
+</script>
 <style>
   :root {
     --bg: #f6f7f9;
@@ -57,6 +79,66 @@
     --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     --mono: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", monospace;
   }
+  /* Dark mode -- activated by setting data-theme="dark" on <html>.
+     Variable-level swap means every selector using var(--<token>)
+     flips automatically. Inline-styled callouts with hardcoded hex
+     (a small minority of elements -- VM badges, some kv lookalikes)
+     need their own dark-mode overrides further down in this stylesheet. */
+  html[data-theme="dark"] {
+    --bg: #0f1419;
+    --surface: #181f2a;
+    --surface-2: #20283a;
+    --ink: #e8ebef;
+    --ink-soft: #b0b7c3;
+    --ink-faint: #6c7689;
+    --line: #2a3344;
+    --line-strong: #3a4658;
+    --accent: #2dd4d4;
+    --accent-soft: #0f2a2a;
+    --accent-ink: #5fe5e5;
+    --danger: #f87171;
+    --danger-soft: #3a1f24;
+    --warn: #fbbf24;
+    --warn-soft: #3a3017;
+    --ok: #34d399;
+    --ok-soft: #1a3328;
+    --info: #38bdf8;
+    --info-soft: #15273a;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 14px rgba(0, 0, 0, 0.45);
+    --shadow-lift: 0 4px 8px rgba(0, 0, 0, 0.5), 0 14px 28px rgba(0, 0, 0, 0.55);
+    color-scheme: dark;
+  }
+  /* Hardcoded-color overrides for dark mode -- these are spots where
+     inline styles use #f8fafc / #fff5f5 / etc. for callout backgrounds
+     and stop reading right against a dark canvas. Limited to the most
+     prominent surfaces; very small one-off backgrounds we can patch as
+     we notice them visually. */
+  html[data-theme="dark"] code {
+    background: #20283a;
+    color: #e8ebef;
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+  html[data-theme="dark"] details {
+    background: var(--surface-2);
+    color: var(--ink);
+    border-radius: 6px;
+  }
+  html[data-theme="dark"] img.avatar {
+    /* Sometimes user avatars have white surrounds -- fade them slightly
+       so they don't pop too hard against the dark surface. */
+    filter: brightness(0.92);
+  }
+
+  /* Text-size scaling -- "small" / "medium" (default) / "large".
+     Uses CSS zoom on the body, which scales every descendant uniformly
+     (text, padding, badges, icons all grow/shrink in proportion).
+     Default zoom is implicit 1.0 = medium; explicit class for the
+     other two. The zoom on body also scales position:fixed elements
+     (drawer, modal, toasts) in Chromium/Edge/Safari/Firefox 126+. */
+  body[data-text-size="small"]  { zoom: 0.9; }
+  body[data-text-size="large"]  { zoom: 1.12; }
+
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
   body { background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 14.5px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
@@ -96,6 +178,28 @@
   .btn-danger:hover { background: var(--danger-soft); border-color: var(--danger); }
   .btn:disabled { opacity: 0.5; cursor: not-allowed; }
   .btn-sm { padding: 4px 9px; font-size: 12px; border-radius: 6px; }
+  /* Appearance toggles in the header userbar -- compact, glyph-only.
+     Sun/moon for theme, A-/A+ for text size. The text-size pair is
+     hugged together (no gap between the two buttons, shared rounding
+     on the outer corners) so it reads as one control. The icon-only
+     sun/moon needs an explicit width to keep its sizing stable when
+     the glyph swaps between &#9728; and &#9789;. */
+  .appearance-btn { padding: 4px 8px; font-size: 13px; line-height: 1; min-width: 30px; text-align: center; }
+  #themeToggleIcon { font-size: 14px; }
+  .appearance-text-group { display: inline-flex; }
+  .appearance-text-group .appearance-text-btn { border-radius: 0; margin-left: -1px; }
+  .appearance-text-group .appearance-text-btn:first-child { border-top-left-radius: 6px; border-bottom-left-radius: 6px; margin-left: 0; }
+  .appearance-text-group .appearance-text-btn:last-child { border-top-right-radius: 6px; border-bottom-right-radius: 6px; }
+  .appearance-text-btn { font-weight: 700; font-variant-numeric: tabular-nums; }
+  /* Active state for the Settings tab's theme + text-size radio
+     buttons. Same accent-on-tint treatment as a selected pill, but
+     applied as a class (.is-active) so the JS that updates the
+     paint can flip it without depending on input state. */
+  .appearance-choice.is-active {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
   /* Refresh button click feedback: dim + soft accent pulse so the click
      registers even when nothing visibly changes in the table (live
      subscription means a healthy table looks identical before and after).
@@ -883,6 +987,10 @@
       line-height: 1;
     }
     header.bar .userbar #downloadInstallerLink .installer-ver { font-size: 10px; margin-left: 4px; line-height: 1; }
+    /* Appearance toggles stay visible on mobile but get a tighter
+       footprint -- text-size pair still hugs together as one chip. */
+    header.bar .userbar .appearance-btn { padding: 4px 7px; min-width: 26px; }
+    header.bar .userbar #themeToggleIcon { font-size: 13px; }
 
     /* ------- Footer wraps + centers ------- */
     .site-footer { padding: 14px 12px 22px; }
@@ -1060,6 +1168,19 @@
       <div class="userbar">
         <a class="btn btn-sm" href="#" id="downloadInstallerLink" title="Download Watchtower-Setup.exe (latest published version)">Download installer <span class="installer-ver" id="installerVerChip"></span></a>
         <a class="btn btn-sm" href="docs.html" target="_blank" rel="noopener">Docs</a>
+        <!-- Appearance quick-toggles. Sun/moon flips data-theme on
+             <html>; A-/A+ flips data-text-size on <body>. Both
+             persist to localStorage immediately + to /users/{uid}
+             after sign-in so the choice follows the operator
+             across devices. Full controls (with "Reset to system")
+             live in the Settings tab; these are just the shortcuts. -->
+        <button class="btn btn-sm appearance-btn" id="themeToggleBtn" title="Toggle dark mode" aria-label="Toggle dark mode">
+          <span id="themeToggleIcon">&#9728;</span>
+        </button>
+        <div class="appearance-text-group" role="group" aria-label="Text size">
+          <button class="btn btn-sm appearance-btn appearance-text-btn" id="textSizeDownBtn" title="Smaller text" aria-label="Smaller text">A&minus;</button>
+          <button class="btn btn-sm appearance-btn appearance-text-btn" id="textSizeUpBtn" title="Larger text" aria-label="Larger text">A&plus;</button>
+        </div>
         <div class="who"><span class="e" id="userEmail"></span><span class="r">MSP admin</span></div>
         <img class="avatar" id="userAvatar" alt="">
         <button class="btn btn-sm" id="signoutBtn">Sign out</button>
@@ -1260,6 +1381,33 @@
           <h2>Settings</h2>
         </div>
         <div class="panel-body">
+          <!-- Appearance: theme + text-size controls. Mirrors the
+               quick-toggles in the header but adds a "Reset to default"
+               and shows what's currently active for both axes. Persists
+               to localStorage immediately + /users/{uid} after sign-in so
+               settings follow the operator across devices/browsers. -->
+          <h3 style="margin:0 0 4px;font-size:14px;">Appearance</h3>
+          <p style="margin:0 0 10px;color:var(--ink-soft);font-size:13px;">Choose a color theme and text size. Saved to your user profile so the dashboard looks the same on every device you sign in from.</p>
+          <div style="display:grid;grid-template-columns:120px 1fr;gap:10px 12px;max-width:680px;align-items:center;">
+            <label style="font-size:12px;text-transform:uppercase;color:var(--ink-faint);font-weight:600;">Theme</label>
+            <div role="radiogroup" aria-label="Color theme" style="display:flex;gap:6px;flex-wrap:wrap;">
+              <button class="btn btn-sm appearance-choice" data-appearance-theme="light">Light</button>
+              <button class="btn btn-sm appearance-choice" data-appearance-theme="dark">Dark</button>
+            </div>
+            <label style="font-size:12px;text-transform:uppercase;color:var(--ink-faint);font-weight:600;">Text size</label>
+            <div role="radiogroup" aria-label="Text size" style="display:flex;gap:6px;flex-wrap:wrap;">
+              <button class="btn btn-sm appearance-choice" data-appearance-text-size="small">Small</button>
+              <button class="btn btn-sm appearance-choice" data-appearance-text-size="medium">Medium</button>
+              <button class="btn btn-sm appearance-choice" data-appearance-text-size="large">Large</button>
+            </div>
+          </div>
+          <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <button class="btn btn-sm" id="appearanceResetBtn" title="Reset theme to Light and text size to Medium">Reset to defaults</button>
+            <span class="meta" id="appearanceStatus" style="margin-left:6px;"></span>
+          </div>
+
+          <hr style="margin:24px 0;border:0;border-top:1px solid var(--line);">
+
           <h3 style="margin:0 0 4px;font-size:14px;">Master webhook URL</h3>
           <p style="margin:0 0 10px;color:var(--ink-soft);font-size:13px;">All per-agent webhook events (IP changes, backup failures) POST a JSON payload to this URL when their per-PC <code>webhookEnabled</code> toggle is on. Set once for every endpoint.</p>
           <input type="url" id="masterWebhookUrl" placeholder="https://your-webhook.example.com/" style="width:100%;max-width:560px;padding:7px 10px;border:1px solid var(--line-strong);border-radius:7px;font-size:13.5px;background:var(--surface);">
@@ -1517,7 +1665,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.114";
+const APP_VERSION = "0.14.115";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -1548,6 +1696,9 @@ if (_versionChip) {
 // fixes). Patch-level no-op bumps don't need entries -- only stuff a
 // human reader would want to know about.
 const CHANGELOG = [
+  { version: "0.14.115", date: "2026-05-25", changes: [
+    "Dark mode + text size: header gains a sun/moon theme toggle and an A−/A+ text-size pair. Full controls also live in Settings → Appearance. Choice is persisted to your user profile so it follows you across devices and browsers.",
+  ]},
   { version: "0.14.107", date: "2026-05-25", changes: [
     "Per-client help desk URL also shows in the endpoint drawer subhead (clickable Help desk ↗ link between client name and agent version) and as a small link beneath the client name in the collapsed Clients row.",
   ]},
@@ -1618,6 +1769,186 @@ function openChangelogModal() {
     foot: `<button class="btn" data-modal-close>Close</button>`,
   });
 }
+
+// ─────────────────────────────────────────────────────────────────────
+// Appearance: theme (light/dark) + text size (small/medium/large)
+// ─────────────────────────────────────────────────────────────────────
+//
+// Two axes. Theme flips `data-theme` on <html>; the CSS palette in the
+// stylesheet at the top of this file does the rest via CSS variable
+// overrides. Text size flips `data-text-size` on <body>; CSS `zoom`
+// scales every descendant proportionally.
+//
+// Persistence is two-layer:
+//   - localStorage (wt.theme, wt.textSize) for synchronous instant
+//     read. The pre-paint <script> block in <head> already consumed
+//     these to avoid a flash-of-wrong-theme on reload.
+//   - Firestore /users/{uid} (theme, textSize) for cross-device sync,
+//     written on every change and merged on sign-in.
+//
+// Defaults: theme=light, textSize=medium. No "system" option for now;
+// the operator's choice is explicit. Adding `prefers-color-scheme`
+// pick-up later would be a single line in applyTheme().
+
+const APPEARANCE_THEMES = ["light", "dark"];
+const APPEARANCE_TEXT_SIZES = ["small", "medium", "large"];
+
+function applyTheme(theme) {
+  if (!APPEARANCE_THEMES.includes(theme)) theme = "light";
+  if (theme === "light") {
+    document.documentElement.removeAttribute("data-theme");
+  } else {
+    document.documentElement.setAttribute("data-theme", theme);
+  }
+  // Update the sun/moon glyph in the header toggle. Sun (&#9728;) shown
+  // when light is active = "click me to go dark"; moon (&#9789;) shown
+  // when dark is active = "click me to go light".
+  const icon = document.getElementById("themeToggleIcon");
+  if (icon) icon.innerHTML = (theme === "dark") ? "&#9789;" : "&#9728;";
+  const btn = document.getElementById("themeToggleBtn");
+  if (btn) btn.title = (theme === "dark") ? "Switch to light mode" : "Switch to dark mode";
+  paintAppearanceChoices();
+}
+
+function applyTextSize(size) {
+  if (!APPEARANCE_TEXT_SIZES.includes(size)) size = "medium";
+  // Clear the pending stash from the pre-paint script (it lived on
+  // <html> because <body> wasn't parsed yet).
+  document.documentElement.removeAttribute("data-text-size-pending");
+  if (size === "medium") {
+    document.body.removeAttribute("data-text-size");
+  } else {
+    document.body.setAttribute("data-text-size", size);
+  }
+  paintAppearanceChoices();
+}
+
+// Reflect the current theme + text-size selections in the Settings
+// tab's button rows (.is-active class on the matching button) so the
+// operator can see at a glance what's currently applied.
+function paintAppearanceChoices() {
+  const curTheme = document.documentElement.getAttribute("data-theme") || "light";
+  const curSize  = document.body && document.body.getAttribute("data-text-size") || "medium";
+  document.querySelectorAll("[data-appearance-theme]").forEach(b => {
+    b.classList.toggle("is-active", b.getAttribute("data-appearance-theme") === curTheme);
+  });
+  document.querySelectorAll("[data-appearance-text-size]").forEach(b => {
+    b.classList.toggle("is-active", b.getAttribute("data-appearance-text-size") === curSize);
+  });
+}
+
+function setTheme(theme, opts) {
+  applyTheme(theme);
+  try { localStorage.setItem("wt.theme", theme); } catch {}
+  const uid = state && state.profile && state.profile.uid;
+  if (uid && !(opts && opts.skipFirestore)) {
+    setDoc(doc(db, "users", uid), { theme }, { merge: true }).catch(() => {});
+  }
+  flashAppearanceStatus();
+}
+
+function setTextSize(size, opts) {
+  applyTextSize(size);
+  try { localStorage.setItem("wt.textSize", size); } catch {}
+  const uid = state && state.profile && state.profile.uid;
+  if (uid && !(opts && opts.skipFirestore)) {
+    setDoc(doc(db, "users", uid), { textSize: size }, { merge: true }).catch(() => {});
+  }
+  flashAppearanceStatus();
+}
+
+function flashAppearanceStatus() {
+  const s = document.getElementById("appearanceStatus");
+  if (!s) return;
+  s.textContent = "Saved";
+  s.style.color = "var(--ok)";
+  clearTimeout(flashAppearanceStatus._t);
+  flashAppearanceStatus._t = setTimeout(() => { s.textContent = ""; }, 1400);
+}
+
+// Promote the pre-paint stash on <html> to <body> as soon as the DOM
+// is alive. Called once on DOMContentLoaded.
+function _hydratePendingTextSize() {
+  const pending = document.documentElement.getAttribute("data-text-size-pending");
+  if (pending) applyTextSize(pending);
+  else paintAppearanceChoices();
+}
+
+// Reads theme + textSize from /users/{uid} after sign-in. If the
+// Firestore values differ from what's currently applied (i.e. the
+// operator changed appearance on a different device since this
+// browser's last load), refresh localStorage + apply the new values.
+async function loadUserAppearancePrefs(uid) {
+  try {
+    const snap = await getDoc(doc(db, "users", uid));
+    if (!snap.exists()) return;
+    const prefs = snap.data() || {};
+    if (APPEARANCE_THEMES.includes(prefs.theme)) {
+      const curTheme = document.documentElement.getAttribute("data-theme") || "light";
+      if (prefs.theme !== curTheme) {
+        try { localStorage.setItem("wt.theme", prefs.theme); } catch {}
+        applyTheme(prefs.theme);
+      }
+    }
+    if (APPEARANCE_TEXT_SIZES.includes(prefs.textSize)) {
+      const curSize = document.body && document.body.getAttribute("data-text-size") || "medium";
+      if (prefs.textSize !== curSize) {
+        try { localStorage.setItem("wt.textSize", prefs.textSize); } catch {}
+        applyTextSize(prefs.textSize);
+      }
+    }
+  } catch {
+    // Permission / network error -- localStorage values stay in effect.
+  }
+}
+
+// Bootstrap: apply theme (already done by pre-paint script, but
+// re-apply so the sun/moon icon + active-button paint also get set)
+// and hydrate the deferred text-size attribute.
+applyTheme(localStorage.getItem("wt.theme") || "light");
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", _hydratePendingTextSize);
+} else {
+  _hydratePendingTextSize();
+}
+
+// Wire the header toggles + Settings tab buttons. Uses delegation
+// on the document so the buttons in the Settings tab (which may be
+// hidden until the panel is mounted) still respond.
+document.addEventListener("DOMContentLoaded", () => {
+  const themeBtn = document.getElementById("themeToggleBtn");
+  if (themeBtn) {
+    themeBtn.addEventListener("click", () => {
+      const cur = document.documentElement.getAttribute("data-theme") || "light";
+      setTheme(cur === "dark" ? "light" : "dark");
+    });
+  }
+  const sizeDown = document.getElementById("textSizeDownBtn");
+  const sizeUp   = document.getElementById("textSizeUpBtn");
+  function stepTextSize(dir) {
+    const cur = (document.body.getAttribute("data-text-size") || "medium");
+    const idx = APPEARANCE_TEXT_SIZES.indexOf(cur);
+    const next = Math.max(0, Math.min(APPEARANCE_TEXT_SIZES.length - 1, idx + dir));
+    setTextSize(APPEARANCE_TEXT_SIZES[next]);
+  }
+  if (sizeDown) sizeDown.addEventListener("click", () => stepTextSize(-1));
+  if (sizeUp)   sizeUp.addEventListener("click", () => stepTextSize(+1));
+
+  // Settings tab radio-style buttons.
+  document.querySelectorAll("[data-appearance-theme]").forEach(b => {
+    b.addEventListener("click", () => setTheme(b.getAttribute("data-appearance-theme")));
+  });
+  document.querySelectorAll("[data-appearance-text-size]").forEach(b => {
+    b.addEventListener("click", () => setTextSize(b.getAttribute("data-appearance-text-size")));
+  });
+  const resetBtn = document.getElementById("appearanceResetBtn");
+  if (resetBtn) {
+    resetBtn.addEventListener("click", () => {
+      setTheme("light");
+      setTextSize("medium");
+    });
+  }
+});
 
 const state = {
   user: null,
@@ -1963,6 +2294,11 @@ onAuthStateChanged(auth, async (user) => {
   // devices. Runs async after subscriptions start; the table renders
   // immediately from localStorage and re-renders when Firestore returns.
   loadUserColumnPrefs(user.uid);
+  // Refresh theme/text-size from /users/{uid} so a change made on
+  // another device propagates here on next sign-in. localStorage
+  // already painted the initial UI; this is a "fresher value wins"
+  // reconciliation step.
+  loadUserAppearancePrefs(user.uid);
 });
 
 // ============== /agents live subscription ==============
