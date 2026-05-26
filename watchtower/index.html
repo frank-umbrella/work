@@ -73,6 +73,7 @@
     --ok-soft: #dcfce7;
     --info: #0ea5e9;
     --info-soft: #e0f2fe;
+    --info-ink: #075985;
     --radius: 10px;
     --shadow: 0 1px 2px rgba(20, 25, 40, 0.04), 0 4px 14px rgba(20, 25, 40, 0.05);
     --shadow-lift: 0 4px 8px rgba(20, 25, 40, 0.06), 0 14px 28px rgba(20, 25, 40, 0.08);
@@ -85,25 +86,42 @@
      (a small minority of elements -- VM badges, some kv lookalikes)
      need their own dark-mode overrides further down in this stylesheet. */
   html[data-theme="dark"] {
-    --bg: #0f1419;
-    --surface: #181f2a;
-    --surface-2: #20283a;
-    --ink: #e8ebef;
-    --ink-soft: #b0b7c3;
-    --ink-faint: #6c7689;
-    --line: #2a3344;
-    --line-strong: #3a4658;
-    --accent: #2dd4d4;
-    --accent-soft: #0f2a2a;
-    --accent-ink: #5fe5e5;
-    --danger: #f87171;
-    --danger-soft: #3a1f24;
-    --warn: #fbbf24;
-    --warn-soft: #3a3017;
-    --ok: #34d399;
-    --ok-soft: #1a3328;
-    --info: #38bdf8;
-    --info-soft: #15273a;
+    /* Surfaces -- a bit more separation between bg and surface so the
+       panel edges read cleanly. Slate-blue with a hint of warmth so it
+       doesn't feel like a dead grey. */
+    --bg: #0b1018;
+    --surface: #161c28;
+    --surface-2: #1f2738;
+    /* Text -- significantly brighter than the previous values. The old
+       --ink-faint #6c7689 was barely readable on the surface and made
+       the "meta" labels feel like a wash; bumped to #94a3b8 which is
+       still secondary but clearly legible. --ink-soft also brightened
+       so secondary body copy doesn't fade out. */
+    --ink: #f1f5f9;
+    --ink-soft: #cbd5e1;
+    --ink-faint: #94a3b8;
+    /* Lines -- more visible so card / table edges have structure
+       instead of bleeding into the surface. */
+    --line: #334155;
+    --line-strong: #475569;
+    /* Accent (teal/cyan) -- brighter for visibility on dark surfaces.
+       --accent-soft is the badge / pill background; deeper teal so
+       --accent text pops cleanly against it. */
+    --accent: #5eead4;
+    --accent-soft: #134e4a;
+    --accent-ink: #99f6e4;
+    /* Status colors -- the *-soft variants are callout backgrounds,
+       the un-suffixed variants are foreground text. Tuned for ~7:1
+       contrast between the two so callouts read at a glance. */
+    --danger: #fda4af;
+    --danger-soft: #4c1d24;
+    --warn: #fcd34d;
+    --warn-soft: #422c0f;
+    --ok: #86efac;
+    --ok-soft: #14532d;
+    --info: #7dd3fc;
+    --info-soft: #0c2d3f;
+    --info-ink: #bae6fd;
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 14px rgba(0, 0, 0, 0.45);
     --shadow-lift: 0 4px 8px rgba(0, 0, 0, 0.5), 0 14px 28px rgba(0, 0, 0, 0.55);
     color-scheme: dark;
@@ -114,10 +132,15 @@
      prominent surfaces; very small one-off backgrounds we can patch as
      we notice them visually. */
   html[data-theme="dark"] code {
-    background: #20283a;
-    color: #e8ebef;
+    /* Code pills sit on top of surface/surface-2, so use a tinted
+       darker shade for separation rather than re-using surface-2
+       (which would blend). The blue cast keeps it feeling like
+       part of the same palette. */
+    background: #0f1929;
+    color: #e2e8f0;
     padding: 1px 5px;
     border-radius: 3px;
+    border: 1px solid #1e293b;
   }
   html[data-theme="dark"] details {
     background: var(--surface-2);
@@ -128,6 +151,64 @@
     /* Sometimes user avatars have white surrounds -- fade them slightly
        so they don't pop too hard against the dark surface. */
     filter: brightness(0.92);
+  }
+
+  /* Tables in dark mode -- header strip lifts off the body via a slight
+     surface-2 tint, hover row picks up the same lift. Defaults work
+     because table.fleet uses var(--surface-2) for th, but we bump zebra
+     contrast a touch since the new --ink is brighter and would otherwise
+     make rows feel "all the same." */
+  html[data-theme="dark"] table.fleet tr:hover td,
+  html[data-theme="dark"] table.clients tr:hover td {
+    background: rgba(94, 234, 212, 0.05);  /* faint accent tint on hover */
+  }
+  html[data-theme="dark"] table.fleet tr.selected td {
+    background: rgba(94, 234, 212, 0.12);
+  }
+
+  /* Inputs / selects / textareas in dark mode -- the .btn class already
+     uses var(--surface) which flips, but bare input/select/textarea
+     elements often have inline white backgrounds or rely on UA defaults.
+     Override defaults so form fields don't blast white on a dark page. */
+  html[data-theme="dark"] input[type="text"],
+  html[data-theme="dark"] input[type="url"],
+  html[data-theme="dark"] input[type="email"],
+  html[data-theme="dark"] input[type="number"],
+  html[data-theme="dark"] input[type="search"],
+  html[data-theme="dark"] input[type="password"],
+  html[data-theme="dark"] select,
+  html[data-theme="dark"] textarea {
+    background: var(--surface-2);
+    color: var(--ink);
+    border-color: var(--line-strong);
+  }
+  html[data-theme="dark"] input::placeholder,
+  html[data-theme="dark"] textarea::placeholder {
+    color: var(--ink-faint);
+    opacity: 1;
+  }
+
+  /* <pre> blocks (mostly drawer "Show sent payload" toggles) -- without
+     this they keep their light/inline background and become a bright
+     white box mid-panel. */
+  html[data-theme="dark"] pre {
+    background: #0a1a26 !important;
+    color: #c8e6e6 !important;
+    border: 1px solid #1e2a3a;
+  }
+
+  /* Active-tab indicator on the tab bar -- the default is an accent
+     underline which reads fine, but the active tab's TEXT was using a
+     dark ink that vanished in dark mode. Make it the ink color so the
+     selected tab is clearly the brightest one. */
+  html[data-theme="dark"] .tab.active {
+    color: var(--ink);
+  }
+
+  /* Modal scrim -- darker so the modal lifts cleanly off it. */
+  html[data-theme="dark"] #scrim,
+  html[data-theme="dark"] #modalScrim {
+    background: rgba(0, 0, 0, 0.7);
   }
 
   /* ──────────────────────────────────────────────────────────────────
@@ -1803,7 +1884,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.117";
+const APP_VERSION = "0.14.118";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -1834,6 +1915,9 @@ if (_versionChip) {
 // fixes). Patch-level no-op bumps don't need entries -- only stuff a
 // human reader would want to know about.
 const CHANGELOG = [
+  { version: "0.14.118", date: "2026-05-25", changes: [
+    "Dark mode readability pass: brighter ink/ink-soft/ink-faint text, more visible borders, richer 'soft' callout backgrounds for clean contrast with colored text. Form inputs (text/url/email/number/select/textarea) now flip to dark surfaces instead of staying white. Tab indicator + table hover + modal scrim also tuned for the new palette. Defines --info-ink so the alert chip text actually reads.",
+  ]},
   { version: "0.14.117", date: "2026-05-25", changes: [
     "Dark mode finally feels like dark mode: a CSS attribute-selector ruleset re-themes every callout, panel, badge, and inline-hex chip that was previously baked to light-mode colors. PDF reports still export with their original light-mode palette (they render in an isolated iframe).",
     "Settings: snooze row gains 3 days / 5 days / 1 week / 2 weeks options.",
