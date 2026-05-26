@@ -130,7 +130,22 @@ class WatchtowerService(win32serviceutil.ServiceFramework):
                     f"check-in failed (consecutive={cf}); next attempt in {next_wait_sec // 60} min"
                 )
             else:
-                next_wait_sec = CHECKIN_INTERVAL_SEC
+                # Default cadence is 24h, but a "retired" host receives
+                # checkInIntervalSec=1209600 (14 days) from the worker
+                # and run_checkin persists it as state.nextCheckinIntervalSec.
+                # Read it here so the next sleep honors the longer
+                # cadence. Active hosts have no override (pop'd in
+                # run_checkin) and fall through to CHECKIN_INTERVAL_SEC.
+                try:
+                    import config as cfg_mod
+                    cur_state = cfg_mod.load_state() or {}
+                    override = cur_state.get("nextCheckinIntervalSec")
+                    if isinstance(override, (int, float)) and override > 0:
+                        next_wait_sec = int(override)
+                    else:
+                        next_wait_sec = CHECKIN_INTERVAL_SEC
+                except Exception:
+                    next_wait_sec = CHECKIN_INTERVAL_SEC
 
             # Sleep until either next_wait_sec elapses or stop is signaled.
             wait = win32event.WaitForSingleObject(self.stop_event, next_wait_sec * 1000)

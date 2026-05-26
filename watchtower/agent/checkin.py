@@ -275,6 +275,18 @@ def run_checkin():
         # generic phrasing.
         if cfg_resp.get("client") or resp.get("client"):
             state["clientName"] = cfg_resp.get("client") or resp.get("client")
+        # Lifecycle + cadence override. When the worker classifies this
+        # host as "retired", it returns checkInIntervalSec=1209600 (14
+        # days). The service loop reads state["nextCheckinIntervalSec"]
+        # and uses it for the next sleep instead of the default 24h.
+        # Active hosts clear the override so changes back to "active"
+        # take effect on the next cycle.
+        state["lifecycle"] = cfg_resp.get("lifecycle") or "active"
+        next_interval = cfg_resp.get("checkInIntervalSec")
+        if isinstance(next_interval, (int, float)) and next_interval > 0:
+            state["nextCheckinIntervalSec"] = int(next_interval)
+        else:
+            state.pop("nextCheckinIntervalSec", None)
         cfg_mod.save_state(state)
         _logger.log(f"run_checkin: SUCCESS (worker ok={resp.get('ok')}, uninstall={resp.get('uninstall', False)})")
 

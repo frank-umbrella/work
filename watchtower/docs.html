@@ -132,7 +132,7 @@
       </svg>
       <div>
         <div class="meta">Umbrella Automation</div>
-        <h1>Watchtower &middot; Docs <span class="version-chip">v0.14.126</span></h1>
+        <h1>Watchtower &middot; Docs <span class="version-chip">v0.14.127</span></h1>
       </div>
     </a>
     <a class="btn brand-link" href="index.html">&larr; Back to dashboard</a>
@@ -168,6 +168,8 @@
   <a href="#endpoints-columns">Picking columns</a>
   <a href="#clients-mgmt" class="section">Managing clients</a>
   <a href="#clients-rename">Rename a client</a>
+  <a href="#lifecycle" class="section">Endpoint lifecycle</a>
+  <a href="#lifecycle-retired">Retired hosts (14-day cadence)</a>
   <a href="#settings" class="section">Settings</a>
   <a href="#settings-appearance">Appearance (dark mode + text size)</a>
   <a href="#settings-webhook">Master webhook URL</a>
@@ -618,6 +620,28 @@ Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" 
 }</code></pre>
 
 <div class="callout info"><b>Where this ends up:</b> the worker writes most of <code>report</code> into <code>/agents/&lt;pcId&gt;</code> in Firestore, with a small <code>/agents/&lt;pcId&gt;/history/&lt;ts&gt;</code> append per check-in tracking just the IP-change delta. Total size per host in Firestore is typically 40-80 KB.</div>
+
+<h2 id="lifecycle">Endpoint lifecycle</h2>
+<p>Every endpoint has a <b>lifecycle state</b> &mdash; <code>active</code> (default) or <code>retired</code>. Set it via the dropdown in the drawer's Config &amp; kill-switches panel.</p>
+
+<h3 id="lifecycle-retired">Retired hosts (14-day cadence)</h3>
+<p>Mark a host as <b>retired</b> when you want to keep it around for historical reference but no longer need active monitoring (decommissioned department PC kept around for 90 days for audit, old backup server you might bring back, etc.). What happens:</p>
+<table class="opts">
+  <tr><th>Behavior</th><th>Active</th><th>Retired</th></tr>
+  <tr><td>Check-in cadence</td><td>Every 24 hours</td><td>Every 14 days</td></tr>
+  <tr><td>Intake email (first check-in)</td><td>Fires</td><td>Suppressed</td></tr>
+  <tr><td>External IP change notifications</td><td>Fires</td><td>Suppressed</td></tr>
+  <tr><td>C: drive low-capacity alerts</td><td>Fires</td><td>Suppressed</td></tr>
+  <tr><td>WSB backup-failure alerts</td><td>Fires</td><td>Suppressed</td></tr>
+  <tr><td>Backup disk aged-out alerts</td><td>Fires</td><td>Suppressed</td></tr>
+  <tr><td><b>OMSA storage warning / SMART failure</b></td><td>Fires</td><td><b>Still fires</b> &mdash; dying disks shouldn't go silent</td></tr>
+  <tr><td>Alert chip / favicon contribution</td><td>Yes</td><td>No</td></tr>
+  <tr><td>Stale-data divergence warning</td><td>Shown if &ge; 3d</td><td>Exempt (staleness is expected)</td></tr>
+  <tr><td>Row appearance</td><td>Normal</td><td>Grey <code>RETIRED</code> chip + dimmed (72% opacity)</td></tr>
+  <tr><td>Data visibility in drawer</td><td>Full</td><td>Full &mdash; nothing is hidden, just slower-refreshing</td></tr>
+</table>
+<p>Lifecycle is distinct from <b>decommissioned</b>. Decommissioned means the agent has uninstalled itself (or you've explicitly marked the host as gone) and is hidden from the active view. Retired means the host is still alive + reporting, just on a slower cadence.</p>
+<div class="callout info"><b>Behavior change takes effect on the next check-in.</b> A host you just marked retired will continue its current schedule until its next contact with the worker, after which it picks up the 14-day cadence. To force the transition immediately, restart the WatchtowerAgent service on the host (see <a href="#operator-commands">Verified operator commands</a>) &mdash; the next check-in will pick up the retired interval.</div>
 
 <h2 id="settings">Settings</h2>
 <p>The <b>Settings</b> tab on the dashboard holds configuration that applies to every endpoint. Currently:</p>

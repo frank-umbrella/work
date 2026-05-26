@@ -1722,6 +1722,23 @@ async function handleCheckin(request, env, ctx) {
   const configDoc = await firestoreGetDoc(env, accessToken, `agents/${pcId}/config/current`);
   const config = readConfig(configDoc);
 
+  // Lifecycle gate. "retired" = host is kept around for historical
+  // data but no longer actively monitored. Per-feature behavior:
+  //   - Most alerts (intake / IP change / disk-low / WSB failure /
+  //     backup-disk-aged / Windows Updates) are suppressed for
+  //     retired hosts: the operator opted out of being bugged about
+  //     this PC.
+  //   - OMSA storage alerts STILL fire (dying disks shouldn't go
+  //     silent just because the host is retired -- critical
+  //     hardware only, per the v0.14.127 design pick).
+  //   - Check-in cadence drops from 24h to 14 days (the agent reads
+  //     this from response.config.checkInIntervalSec and uses it for
+  //     its next sleep).
+  //   - Dashboard freshness checks (stale-data badge) are exempt
+  //     since being stale is the expected steady state.
+  const isRetired = config.lifecycle === 'retired';
+  const RETIRED_CHECKIN_INTERVAL_SEC = 14 * 24 * 60 * 60;  // 14 days
+
   // ----- 4a. Apply clientIdOverride if the admin reassigned the host -----
   // ALSO pull the helpDeskUrl off the resolved client doc so we can ship
   // it down to the agent (state.json), letting the tray surface a
@@ -1920,6 +1937,11 @@ async function handleCheckin(request, env, ctx) {
     monitorOmsa: config.monitorOmsa !== false,
     monitorDisk: config.monitorDisk !== false,
     alertsSnoozeUntil: config.alertsSnoozeUntil || null,
+    // Mirror lifecycle from config doc to agent doc so the dashboard
+    // can read it cheaply without subscribing to a config doc per
+    // host. Drives the RETIRED row chip + dimmed styling + stale-data
+    // exemption. Default "active".
+    lifecycle: config.lifecycle || 'active',
     // Connectivity history. Read by the dashboard drawer to render the
     // 30-day powered-vs-online chart. Each entry:
     //   { startedAt, endedAt, durationSec, reason, attempts }
@@ -2029,7 +2051,7 @@ async function handleCheckin(request, env, ctx) {
   // get the "new endpoint joined" ping at the same time the email lands.
   // Both fire exactly once per pcId — firstSeen only triggers before the
   // first setDoc above.
-  if (firstSeen && config.enabled) {
+  if (firstSeen && config.enabled && !isRetired) {
     if (config.emailEnabled && env.RESEND_API_KEY && notifPrefs.intake) {
       ctx.waitUntil(
         sendIntakeEmail(env, {
@@ -2081,7 +2103,7 @@ async function handleCheckin(request, env, ctx) {
   // ctx.waitUntil lets the worker return to the agent quickly while
   // notifications fire in the background. If the agent's HTTP timeout is
   // short, this matters; we still observe failures via wrangler tail.
-  if (ipChanged && config.enabled) {
+  if (ipChanged && config.enabled && !isRetired) {
     if (config.emailEnabled && env.RESEND_API_KEY && notifPrefs.ipChange) {
       ctx.waitUntil(
         sendIpChangeEmail(env, {
@@ -2178,7 +2200,7 @@ async function handleCheckin(request, env, ctx) {
   // same transition trigger -- we don't want to double-fire if a
   // host drops from 8% -> 4% in a single check-in.
   // Activity log on fresh transition only (audit feed stays clean).
-  if (cDriveNewWarning && config.enabled && config.monitorDisk !== false && !isAlertsSnoozed(config)) {
+  if (cDriveNewWarning && config.enabled && config.monitorDisk !== false && !isAlertsSnoozed(config) && !isRetired) {
     ctx.waitUntil(logActivity(env, accessToken, {
       type: 'disk_low',
       actor: { type: 'agent', id: pcId },
@@ -2194,7 +2216,7 @@ async function handleCheckin(request, env, ctx) {
     }));
   }
   // Email/webhook fires on transition OR 7-day reminder while still low.
-  if (cDriveLowShouldNotify && config.enabled && config.monitorDisk !== false && !isAlertsSnoozed(config)) {
+  if (cDriveLowShouldNotify && config.enabled && config.monitorDisk !== false && !isAlertsSnoozed(config) && !isRetired) {
     if (config.emailEnabled && env.RESEND_API_KEY && notifPrefs.diskLow) {
       ctx.waitUntil(
         sendDiskLowEmail(env, {
@@ -2236,7 +2258,7 @@ async function handleCheckin(request, env, ctx) {
   // the operator swaps the disk (oldestBackup drops) or bumps the
   // threshold past current age, then re-arms.
   // Activity log on fresh transition only.
-  if (backupDiskAgedNewWarning && config.enabled && config.monitorWsb !== false && !isAlertsSnoozed(config)) {
+  if (backupDiskAgedNewWarning && config.enabled && config.monitorWsb !== false && !isAlertsSnoozed(config) && !isRetired) {
     ctx.waitUntil(logActivity(env, accessToken, {
       type: 'backup_disk_aged',
       actor: { type: 'agent', id: pcId },
@@ -2252,7 +2274,7 @@ async function handleCheckin(request, env, ctx) {
     }));
   }
   // Email/webhook fires on transition OR 7-day reminder while still aged.
-  if (backupDiskAgeShouldNotify && config.enabled && config.monitorWsb !== false && !isAlertsSnoozed(config)) {
+  if (backupDiskAgeShouldNotify && config.enabled && config.monitorWsb !== false && !isAlertsSnoozed(config) && !isRetired) {
     const ageLabel = _fmtAgeDays(backupAgedFinding.ageDays);
     const thresholdLabel = _fmtAgeDays(backupAgedFinding.thresholdDays);
     if (config.emailEnabled && env.RESEND_API_KEY && notifPrefs.backupDiskAged) {
@@ -2297,7 +2319,7 @@ async function handleCheckin(request, env, ctx) {
   // each occurrence). Email/webhook fires on first failure transition
   // AND at most once per 7 days while still failing -- so a host that
   // fails nightly doesn't flood the inbox.
-  if (wsbNewFailure && config.enabled && config.monitorWsb !== false && !isAlertsSnoozed(config)) {
+  if (wsbNewFailure && config.enabled && config.monitorWsb !== false && !isAlertsSnoozed(config) && !isRetired) {
     const lastSuccess = wsbCurrent?.lastSuccessfulBackup || null;
     const daysSinceSuccess = lastSuccess
       ? Math.floor((Date.now() - new Date(lastSuccess).getTime()) / 86400000)
@@ -2317,7 +2339,7 @@ async function handleCheckin(request, env, ctx) {
       },
     }));
   }
-  if (wsbShouldNotify && config.enabled && config.monitorWsb !== false && !isAlertsSnoozed(config)) {
+  if (wsbShouldNotify && config.enabled && config.monitorWsb !== false && !isAlertsSnoozed(config) && !isRetired) {
     const lastSuccess = wsbCurrent?.lastSuccessfulBackup || null;
     const daysSinceSuccess = lastSuccess
       ? Math.floor((Date.now() - new Date(lastSuccess).getTime()) / 86400000)
@@ -2415,6 +2437,12 @@ async function handleCheckin(request, env, ctx) {
       // the client doesn't have one set. checkin.py writes this into
       // state.json; the tray reads it on menu open.
       helpDeskUrl: resolvedHelpDeskUrl,
+      // Lifecycle + cadence override. When the host is "retired", we
+      // tell the agent to sleep 14 days between check-ins instead of
+      // the default 24h. Active hosts get null/omitted so the service
+      // uses its built-in 24h cadence.
+      lifecycle: isRetired ? 'retired' : 'active',
+      ...(isRetired ? { checkInIntervalSec: RETIRED_CHECKIN_INTERVAL_SEC } : {}),
     },
     uninstall: config.uninstall,
   }, 200);
@@ -2582,6 +2610,15 @@ function readConfig(doc) {
     // mid-maintenance without losing the underlying signal (the
     // dashboard still shows status). null / past = not snoozed.
     alertsSnoozeUntil: null,
+    // Lifecycle state: "active" (default) | "retired".
+    //   active   - daily check-ins, all alerts, all freshness checks
+    //   retired  - check-in every 14 days, suppress most alerts (keep
+    //              critical hardware = OMSA controller failure), keep
+    //              the row fully visible with a grey RETIRED chip,
+    //              exempt from the stale-data divergence warning.
+    // Set via the drawer's Config dropdown. Distinct from
+    // `decommissioned` (which removes the host from the active view).
+    lifecycle: 'active',
   };
   if (!doc || !doc.fields) return defaults;
   return {
@@ -2597,6 +2634,7 @@ function readConfig(doc) {
     monitorOmsa: fieldBool(doc.fields.monitorOmsa, defaults.monitorOmsa),
     monitorDisk: fieldBool(doc.fields.monitorDisk, defaults.monitorDisk),
     alertsSnoozeUntil: doc.fields.alertsSnoozeUntil?.stringValue || null,
+    lifecycle: doc.fields.lifecycle?.stringValue === 'retired' ? 'retired' : 'active',
   };
 }
 

@@ -738,6 +738,12 @@
      longer competes for attention with the live fleet. */
   table.fleet tr.decom td { opacity: 0.55; }
   table.fleet tr.decom td .badge.muted { opacity: 1; }
+  /* Retired rows -- same visual de-emphasis treatment as decom, but
+     less aggressive (the data is still actively maintained, just at
+     a slower cadence; we don't want it to look "dead"). 0.72 keeps
+     the row scannable while clearly secondary to active hosts. */
+  table.fleet tr.retired td { opacity: 0.72; }
+  table.fleet tr.retired td .badge.muted { opacity: 1; }
   table.fleet .host { font-weight: 600; color: var(--ink); }
   /* Host cell row: fixed-width badge slot on the LEFT so every hostname
      in the column starts at the same x-coordinate regardless of whether
@@ -1908,7 +1914,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.126";
+const APP_VERSION = "0.14.127";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -1939,6 +1945,9 @@ if (_versionChip) {
 // fixes). Patch-level no-op bumps don't need entries -- only stuff a
 // human reader would want to know about.
 const CHANGELOG = [
+  { version: "0.14.127", date: "2026-05-25", changes: [
+    "Lifecycle states: each endpoint now has an 'active' (default) or 'retired' lifecycle, set via the drawer's new Lifecycle dropdown. Retired hosts: check in every 14 days instead of 24 hours; intake / IP change / disk-low / WSB / backup-disk-aged alerts are suppressed (OMSA hardware alerts still fire so a dying disk doesn't go silent); row gets a grey RETIRED chip + dimmed styling; exempt from the stale-data divergence warning (being stale is expected); don't contribute to the alert chip or favicon-blink count. All host data stays visible in the dashboard. Use this for PCs you want to keep around for historical reference but no longer actively monitor.",
+  ]},
   { version: "0.14.126", date: "2026-05-25", changes: [
     "Stale-data threshold bumped from 1 day to 3 days. One or two missed check-in cycles is normal noise (single failed window, agent usually recovers next try). 3+ missed cycles indicates something stuck on the host and is worth surfacing as a real concern. Both the row chip and the drawer's 'stale' marker use the same threshold for consistency.",
   ]},
@@ -2634,6 +2643,7 @@ function computeFleetWorstState() {
   let worst = 'ok';
   for (const a of state.agents) {
     if (a.decommissioned === true) continue;
+    if (a.lifecycle === 'retired') continue;  // retired hosts don't drive the favicon
     // Honor per-subsystem monitor flags + whole-host snooze the same
     // way computeFleetAlerts does so the favicon colour matches the
     // alert chip. An admin who muted a subsystem doesn't want the
@@ -3271,9 +3281,15 @@ function renderFleet() {
       ? _osRaw.replace(/^Microsoft\s+/i, "").replace(/\bStandard\b\s*$/i, "STD")
       : "—";
     const isDecom = a.decommissioned === true;
+    // Retired chip appears next to the status badge for hosts marked
+    // lifecycle:"retired" in their config. Grey muted treatment so it
+    // visually de-emphasizes the row without screaming for attention.
+    const retiredChip = a.lifecycle === 'retired'
+      ? ` <span class="badge muted" title="Host is marked Retired -- check-ins every 14 days, most alerts suppressed (OMSA hardware alerts still fire). Set via the drawer's Lifecycle dropdown."><span class="badge-dot"></span>RETIRED</span>`
+      : "";
     const stBadge = isDecom
       ? `<span class="badge muted" title="${esc(a.decommissionedBy === 'agent-uninstall' ? 'Uninstalled at the host' : 'Marked decommissioned by admin')} on ${esc(tsToStr(a.decommissionedAt))}"><span class="badge-dot"></span>Decommissioned</span>`
-      : `<span class="badge ${st.kind === "ok" ? "ok" : st.kind === "warn" ? "warn" : st.kind === "bad" ? "bad" : "muted"}"><span class="badge-dot"></span>${esc(st.label)}</span>`;
+      : `<span class="badge ${st.kind === "ok" ? "ok" : st.kind === "warn" ? "warn" : st.kind === "bad" ? "bad" : "muted"}"><span class="badge-dot"></span>${esc(st.label)}</span>${retiredChip}`;
     // Suppress the WSB / OMSA / disk badges when the operator has
     // turned monitoring off for that subsystem on this host (via the
     // status-badge popover or the drawer's Config section). The flag
@@ -3339,7 +3355,11 @@ function renderFleet() {
     // stuck (WMI corruption, hung OMSA controller, probe in a tight
     // loop). Format always in days since the source cadence is daily.
     let staleBadge = "";
-    if (a.reportCollectedAt && a.lastCheckin) {
+    // Skip the stale-data check entirely for retired hosts: being
+    // stale is the EXPECTED state when you've explicitly slowed
+    // check-ins to every 14 days. Without this guard every retired
+    // host would constantly light up the chip.
+    if (a.reportCollectedAt && a.lastCheckin && a.lifecycle !== 'retired') {
       const collectedMs = Date.parse(dateToIso(a.reportCollectedAt));
       const checkedMs   = Date.parse(dateToIso(a.lastCheckin));
       if (Number.isFinite(collectedMs) && Number.isFinite(checkedMs)) {
@@ -3406,9 +3426,11 @@ function renderFleet() {
     }
     const ctx = { st, bh, oh, os, isDecom, stBadge, bhBadge, ohBadge, wuBadge, diskBadge, staleBadge, snoozeBadge, offBadge, backupCell, remoteCell, hostTag };
 
+    const isRetired = a.lifecycle === 'retired';
     const rowClasses = [
       state.openPcId === a.id ? 'selected' : '',
       isDecom ? 'decom' : '',
+      isRetired ? 'retired' : '',
     ].filter(Boolean).join(' ');
 
     const cells = cols.map(c => {
@@ -4074,6 +4096,7 @@ function computeFleetAlerts() {
   const warnHosts = [];
   for (const a of state.agents) {
     if (a.decommissioned === true) continue;
+    if (a.lifecycle === 'retired') continue;  // retired hosts don't contribute to the alert chip
 
     // Per-subsystem mute flags -- mirrored from the config doc into
     // the agent doc by the worker on every check-in. When false, the
@@ -8264,6 +8287,18 @@ function renderDrawer(pcId) {
         <div class="meta" id="dClientReassignStatus" style="margin-top:4px;"></div>
       </div>
 
+      <div style="margin:14px 0;">
+        <div style="font-size:13.5px;font-weight:600;margin-bottom:2px;">Lifecycle</div>
+        <div class="desc" style="margin-bottom:6px;">
+          <b>Active</b> &mdash; normal monitoring; daily check-ins; all alerts. <b>Retired</b> &mdash; host is kept around for historical data but no longer actively monitored. Check-in cadence drops to every 14 days; intake / IP change / disk / WSB / backup-disk-aged alerts are suppressed (OMSA controller failures still fire so a dying disk doesn't go silent); row gets a grey RETIRED chip + dimmed styling. The data already in the dashboard remains visible.
+        </div>
+        <select id="dLifecycle" data-cfg="lifecycle" style="width:100%;padding:7px 10px;border:1px solid var(--line-strong);border-radius:7px;font-size:13.5px;background:var(--surface);">
+          <option value="active"${(cfg.lifecycle || 'active') === 'active' ? ' selected' : ''}>Active &mdash; full monitoring</option>
+          <option value="retired"${cfg.lifecycle === 'retired' ? ' selected' : ''}>Retired &mdash; check every 14 days, suppress most alerts</option>
+        </select>
+        <div class="meta" id="dLifecycleStatus" style="margin-top:4px;"></div>
+      </div>
+
       <div class="toggle-row">
         <div>
           <div class="label">Agent enabled</div>
@@ -8646,6 +8681,38 @@ function renderDrawer(pcId) {
         // Revert the dropdown to the current value so it doesn't look like
         // the change took effect.
         reassignSelect.value = cfg.clientIdOverride || "";
+      }
+    });
+  }
+
+  // Lifecycle dropdown wire-up. Goes through writeConfig() so the new
+  // value lands in the config doc and the worker's next checkin reads
+  // it. Activity log entry on change so we have an audit trail of when
+  // a host was retired (or revived).
+  const lifecycleSelect = document.getElementById("dLifecycle");
+  if (lifecycleSelect) {
+    lifecycleSelect.addEventListener("change", async (e) => {
+      const newLifecycle = e.target.value;
+      const status = document.getElementById("dLifecycleStatus");
+      if (status) status.textContent = "Saving…";
+      try {
+        await writeConfig(pcId, "lifecycle", newLifecycle);
+        if (status) {
+          status.textContent = newLifecycle === "retired"
+            ? "Marked retired. Cadence drops to 14 days on the next check-in. Alerts suppressed (except OMSA hardware)."
+            : "Marked active. Normal cadence + alerts will resume on the next check-in.";
+        }
+        // Activity entry so it shows up in the Activity feed for audit.
+        logActivity({
+          type: newLifecycle === "retired" ? "host_retired" : "host_revived",
+          target: { type: "host", id: pcId, label: a.hostname || pcId },
+          client: a.client,
+          details: { from: cfg.lifecycle || "active", to: newLifecycle },
+        });
+        setTimeout(() => { if (status) status.textContent = ""; }, 5000);
+      } catch (err) {
+        if (status) status.textContent = `Failed: ${err.message || err}`;
+        lifecycleSelect.value = cfg.lifecycle || "active";
       }
     });
   }
