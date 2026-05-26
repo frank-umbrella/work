@@ -1908,7 +1908,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.125";
+const APP_VERSION = "0.14.126";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -1939,6 +1939,9 @@ if (_versionChip) {
 // fixes). Patch-level no-op bumps don't need entries -- only stuff a
 // human reader would want to know about.
 const CHANGELOG = [
+  { version: "0.14.126", date: "2026-05-25", changes: [
+    "Stale-data threshold bumped from 1 day to 3 days. One or two missed check-in cycles is normal noise (single failed window, agent usually recovers next try). 3+ missed cycles indicates something stuck on the host and is worth surfacing as a real concern. Both the row chip and the drawer's 'stale' marker use the same threshold for consistency.",
+  ]},
   { version: "0.14.125", date: "2026-05-25", changes: [
     "Stale-data chip format changed from hours to days. Since the agent check-in cadence is 24h-on-success, the smallest meaningful 'stale' divergence is one full missed cycle -- so showing '24h' or '36h' was misleading granularity. Now formats as 'stale 1d', 'stale 2d', etc. (matches the actual data refresh rate).",
   ]},
@@ -3328,22 +3331,22 @@ function renderFleet() {
       ? ` <span class="badge muted badge-action" role="button" tabindex="0" data-pcid="${esc(a.id)}" data-badge-kind="snooze" title="Alerts muted until ${esc(snoozedUntil)} -- click to unmute or extend">🔕 muted</span>`
       : "";
     // Stale-data chip -- displayed when the agent has been checking
-    // in fine but its probes haven't refreshed in at least one full
-    // check-in cycle (>= 24h). Data cadence is 24h-on-success, so
-    // ANY non-zero divergence at the day scale means at least one
-    // full cycle was missed. Format always in days (24-47h => "1d",
-    // 48-71h => "2d", etc.) since sub-day precision is misleading
-    // when the source cadence is daily. Operator action: investigate
-    // the host for stuck WMI / hung OMSA / probe-loop failures.
+    // in fine but its probes haven't refreshed in 3+ days. Data
+    // cadence is 24h-on-success, so 1-2 missed cycles is normal
+    // noise (single failed window, agent will likely recover on the
+    // next try). >= 3 missed cycles is a real concern: the host has
+    // been failing to refresh for multiple days, indicating something
+    // stuck (WMI corruption, hung OMSA controller, probe in a tight
+    // loop). Format always in days since the source cadence is daily.
     let staleBadge = "";
     if (a.reportCollectedAt && a.lastCheckin) {
       const collectedMs = Date.parse(dateToIso(a.reportCollectedAt));
       const checkedMs   = Date.parse(dateToIso(a.lastCheckin));
       if (Number.isFinite(collectedMs) && Number.isFinite(checkedMs)) {
         const ageH = (checkedMs - collectedMs) / (60 * 60 * 1000);
-        if (ageH >= 24) {
-          const days = Math.max(1, Math.floor(ageH / 24));
-          staleBadge = ` <span class="badge warn" title="Probe data is ${days} day${days === 1 ? '' : 's'} older than the last check-in. Agent is reaching the worker but its probes aren't returning fresh data. Investigate the host for stuck WMI / OMSA / probe loops.">stale ${days}d</span>`;
+        if (ageH >= 72) {
+          const days = Math.max(3, Math.floor(ageH / 24));
+          staleBadge = ` <span class="badge warn" title="Probe data is ${days} days older than the last check-in. Agent is reaching the worker but its probes aren't returning fresh data. Investigate the host for stuck WMI / OMSA / probe loops.">stale ${days}d</span>`;
         }
       }
     }
@@ -8203,15 +8206,15 @@ function renderDrawer(pcId) {
           if (!Number.isFinite(collected)) return null;
           const ageStr = fmtAge(a.reportCollectedAt);
           const divergenceMs = Number.isFinite(checked) ? (checked - collected) : 0;
-          // Stale = checked-in within the last hour BUT data is more
-          // than 24h older than the check-in. Catches the failure
-          // mode where the agent keeps phoning home but probes never
-          // refresh.
-          const isStale = divergenceMs > 24 * 60 * 60 * 1000;
+          // Stale = data is 3+ days older than the last check-in. Below
+          // that is normal noise (1-2 missed daily cycles; agent will
+          // likely recover on the next try). Matches the row badge
+          // threshold for consistency.
+          const isStale = divergenceMs >= 72 * 60 * 60 * 1000;
           const chip = isStale
-            ? ` <span class="badge warn" style="margin-left:6px;font-size:10.5px;padding:1px 7px;" title="Data is more than 24 hours older than the last check-in. The agent is reaching the worker but its probes aren't returning fresh data -- investigate the host (stuck WMI, dead OMSA controller, broken probe, etc).">stale</span>`
+            ? ` <span class="badge warn" style="margin-left:6px;font-size:10.5px;padding:1px 7px;" title="Data is 3+ days older than the last check-in. The agent is reaching the worker but its probes aren't returning fresh data -- investigate the host (stuck WMI, dead OMSA controller, broken probe, etc).">stale</span>`
             : "";
-          return ["Data collected", esc(tsToStr(a.reportCollectedAt)) + ` <span class="meta">(${esc(ageStr)})</span>${chip}`, "When the displayed system / network / storage / probe data was actually gathered on the host. Diverges from Last check-in when the agent is checking in successfully but its probes aren't returning fresh data -- e.g. WMI corruption, a hung OMSA controller, or probe timeouts. The worker preserves the previous good data in this case rather than wiping the row."];
+          return ["Data collected", esc(tsToStr(a.reportCollectedAt)) + ` <span class="meta">(${esc(ageStr)})</span>${chip}`, "When the displayed system / network / storage / probe data was actually gathered on the host. Diverges from Last check-in when the agent is checking in successfully but its probes aren't returning fresh data -- e.g. WMI corruption, a hung OMSA controller, or probe timeouts. The worker preserves the previous good data in this case rather than wiping the row. Flagged as 'stale' once the divergence is 3+ days."];
         })(),
         ["Installed at", esc(tsToStr(a.installedAt))],
         ["Collection time", r.collectionMs ? fmtMs(r.collectionMs) : "—", "Total time the agent spent running all probes during the last check-in (system inventory, network, storage, OMSA disk health, Veeam / WSB backup status, Defender / SentinelOne / LogMeIn detection, etc). Low = fast machine. Spikes typically mean slow disks, WMI bottlenecks, OMSA timing out on a degraded controller, or Get-WBJob waiting on a hung backup."],
