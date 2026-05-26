@@ -132,7 +132,7 @@
       </svg>
       <div>
         <div class="meta">Umbrella Automation</div>
-        <h1>Watchtower &middot; Docs <span class="version-chip">v0.14.122</span></h1>
+        <h1>Watchtower &middot; Docs <span class="version-chip">v0.14.123</span></h1>
       </div>
     </a>
     <a class="btn brand-link" href="index.html">&larr; Back to dashboard</a>
@@ -196,6 +196,7 @@
   <a href="#backup-alerts">Email alerts</a>
   <a href="#exports" class="section">Exports (PDF / CSV / Excel)</a>
   <a href="#troubleshooting" class="section">Troubleshooting</a>
+  <a href="#operator-commands">Verified operator commands</a>
   <a href="#recovery">Stuck install recovery</a>
   <a href="#layout" class="section">What gets installed</a>
 </nav>
@@ -850,6 +851,47 @@ Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run" 
 <p><b>SheetJS</b> (the library that writes the <code>.xlsx</code> bytes) is lazy-loaded from CDN on the first Excel click, so the initial dashboard load isn't slowed by ~1MB of unused code. PDF uses html2pdf (also lazy-loaded).</p>
 
 <h2 id="troubleshooting">Troubleshooting</h2>
+
+<h3 id="operator-commands">Verified operator commands</h3>
+<p>Run these on the target host (RDP / console / remote PSExec). Copy / paste exactly &mdash; quoting matters. <b>All of these have been smoke-tested live on Server 2012 R2 + Server 2019 + Server 2025</b>; the bad / broken variants are listed at the bottom so you don't waste time on them again.</p>
+
+<h4>Force an immediate check-in</h4>
+<p>Simplest path &mdash; restart the service. The agent waits 30 seconds for the network to settle, then fires a check-in. No visible output but reliable.</p>
+<pre><code>Restart-Service WatchtowerAgent</code></pre>
+<p>Or the cmd.exe equivalent:</p>
+<pre><code>sc stop WatchtowerAgent &amp;&amp; timeout /t 2 &gt;nul &amp;&amp; sc start WatchtowerAgent</code></pre>
+<p>To run ONE check-in inline with visible JSON output (faster + easier to diagnose than waiting for the service), in <b>PowerShell</b> use the call operator <code>&amp;</code>:</p>
+<pre><code>&amp; "C:\Program Files\Umbrella Watchtower\watchtower-svc.exe" --checkin-once</code></pre>
+<p>Or in <b>cmd.exe</b> (no <code>&amp;</code> needed):</p>
+<pre><code>"C:\Program Files\Umbrella Watchtower\watchtower-svc.exe" --checkin-once</code></pre>
+
+<h4>Check service state</h4>
+<pre><code>sc.exe query WatchtowerAgent</code></pre>
+<p>Look for <code>STATE: 4 RUNNING</code>. Anything else (stopped, paused, starting forever) means the service didn't start cleanly &mdash; see watchtower.log next.</p>
+
+<h4>Tail the agent log</h4>
+<p>PowerShell:</p>
+<pre><code>Get-Content C:\ProgramData\Watchtower\watchtower.log -Tail 50 -Wait</code></pre>
+<p>cmd.exe:</p>
+<pre><code>type C:\ProgramData\Watchtower\watchtower.log | more</code></pre>
+<p>Each check-in writes 3 lines: <code>starting</code>, <code>loaded config</code>, <code>collected N keys, posting to worker</code>, then <code>SUCCESS</code> or an error. A normal full collection shows <b>~18 keys</b>; anything under 14 is suspect (one or more probes failed to return data).</p>
+
+<h4>Confirm the install location + version</h4>
+<pre><code>Get-Item "C:\Program Files\Umbrella Watchtower\watchtower-svc.exe" | Select-Object FullName, VersionInfo</code></pre>
+<p>If the file doesn't exist there, the install dir might differ on this host (rare; the installer pins to <code>{autopf}\Umbrella Watchtower</code>). Find it with:</p>
+<pre><code>Get-ChildItem -Path C:\ -Filter watchtower-svc.exe -Recurse -ErrorAction SilentlyContinue | Select-Object FullName</code></pre>
+
+<h4>Read state.json (last successful check-in record)</h4>
+<pre><code>Get-Content C:\ProgramData\Watchtower\state.json | ConvertFrom-Json | Format-List</code></pre>
+<p>Shows the last <code>pcId</code>, client, check-in timestamp, last response from the worker, last failure kind (if any), connectivity offline-period history, etc.</p>
+
+<h4>Things that DON'T work (don't waste time on these)</h4>
+<table class="opts">
+  <tr><th>Command</th><th>Why it fails</th></tr>
+  <tr><td><code>"C:\Program Files\...\watchtower-svc.exe" --checkin-once</code> in PowerShell</td><td>PowerShell parses <code>"..."</code> as a string expression (just a value, not a command). Then <code>--</code> hits as the decrement operator. Always prefix the path with <code>&amp;</code> (call operator) in PowerShell.</td></tr>
+  <tr><td><code>cmd /c "" "C:\...\app.exe" --flag ""</code> from PowerShell</td><td>PowerShell mangles the nested quoting before cmd ever sees it. Run cmd.exe directly, or use the <code>&amp;</code>-prefixed PowerShell form above.</td></tr>
+  <tr><td>Editing <code>.ps1</code> profile scripts with Unicode chars (&rarr;, &mdash;, &#9888;)</td><td>Windows PowerShell 5.1 reads UTF-8-without-BOM files as Windows-1252 and mangles the multi-byte chars into parse errors. Stick to plain ASCII in <code>$PROFILE</code>, or save the file with a UTF-8 BOM.</td></tr>
+</table>
 
 <h3>Agent installed but not appearing in dashboard</h3>
 <ul>

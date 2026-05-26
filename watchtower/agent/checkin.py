@@ -154,6 +154,66 @@ def run_checkin():
         _logger.log(f"run_checkin: loaded config (pcId={config['pcId'][:8]}..., client={config.get('client')!r}, worker={config['workerUrl']})")
 
         report = collector.collect_all()
+
+        # ─── Defense against partial-collection data wipes (agent side) ───
+        # Belt-and-suspenders companion to the worker-side merge fix
+        # shipped in v0.14.121. If any of the three CRITICAL probes
+        # (system / network / storage) returned no usable data on this
+        # collection pass, the worker would see a payload missing the
+        # source data for top-level fields (Internal IP, OS, Service Tag,
+        # Model, C: free) -- which historically nuked them. Now: detect
+        # the thin payload, log loudly, retry collection once after a
+        # short settle delay, and if the second attempt is still partial,
+        # skip the worker post entirely. Skipping is safer than sending
+        # a half-formed payload that requires the worker to use merge
+        # semantics; the next scheduled check-in (or service restart)
+        # will pick up a fresh full collection.
+        def _is_thin_report(r):
+            # System probe is the most critical -- it's the source of
+            # hostname/model/serviceTag/OS/etc. Empty system = always thin.
+            sysData = r.get("system") or {}
+            if not sysData or len(sysData) == 0:
+                return True
+            # Network probe drives the Internal IP column. Storage probe
+            # drives the C: free column + WSB target detection. Either
+            # missing is also a meaningful gap.
+            netData = r.get("network") or {}
+            stoData = r.get("storage") or {}
+            if not netData and not stoData:
+                return True
+            return False
+
+        if _is_thin_report(report):
+            _logger.log(
+                f"run_checkin: WARN initial collection returned thin report "
+                f"({len(report)} keys, system={'yes' if report.get('system') else 'no'}, "
+                f"network={'yes' if report.get('network') else 'no'}, "
+                f"storage={'yes' if report.get('storage') else 'no'}) -- "
+                f"retrying after 10s settle delay"
+            )
+            time.sleep(10)
+            report = collector.collect_all()
+            if _is_thin_report(report):
+                _logger.log(
+                    f"run_checkin: ABORT second collection still thin "
+                    f"({len(report)} keys) -- SKIPPING worker post to "
+                    f"protect existing dashboard data. Next scheduled "
+                    f"check-in will retry with a fresh collection."
+                )
+                # Persist what we tried + bump consecutive failures so the
+                # service uses backoff for the next attempt. Mark this
+                # check-in as a soft-failure (ok=False) so the tray can
+                # show a yellow/warn state instead of green.
+                state["consecutiveFailures"] = (state.get("consecutiveFailures", 0) or 0) + 1
+                state["lastCheckinAttemptAt"] = _now_iso()
+                state["ok"] = False
+                state["lastError"] = "skipped: thin probe collection (system/network/storage missing)"
+                cfg_mod.save_state(state)
+                return {"ok": False, "error": state["lastError"], "skipped": True}
+            else:
+                _logger.log(f"run_checkin: retry succeeded, {len(report)} keys collected")
+        # ─── End partial-collection guard ───
+
         state["lastReport"] = {
             "externalIp": report.get("externalIp"),
             "collectionMs": report.get("collectionMs"),
