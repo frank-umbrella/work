@@ -1923,7 +1923,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.129";
+const APP_VERSION = "0.14.130";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -1954,6 +1954,10 @@ if (_versionChip) {
 // fixes). Patch-level no-op bumps don't need entries -- only stuff a
 // human reader would want to know about.
 const CHANGELOG = [
+  { version: "0.14.130", date: "2026-05-25", changes: [
+    "WSB failure emails now aggregate. Worker tracks every failed attempt in a pending-failures list on the agent doc, accumulating them while the 7-day throttle blocks the email. When the digest finally fires, the email lists ALL failures from the window in a table (timestamp + result + detail), with the count in the subject. Recovery (successful backup) or send clears the list.",
+    "Stats tab: new 'ISP locations' map card. Pins on an OpenStreetMap world map at each public-IP geo, clustered by approximate coords. Click a pin for the host list + ISP at that location. Agent v0.14.52 ships latitude/longitude from Cloudflare's /meta endpoint so the map can plot them; older agents just don't appear yet. Leaflet is lazy-loaded the first time the Stats tab paints.",
+  ]},
   { version: "0.14.129", date: "2026-05-25", changes: [
     "Speed probe now captures ISP + ASN + Cloudflare colo + public-IP geo via the speed.cloudflare.com/meta endpoint (agent v0.14.51). Drawer Status panel gains two new rows: 'ISP' (e.g. 'Comcast · AS7922 · via CF ATL') and 'Public IP geo' (e.g. 'Austin, Texas, US'). ISP name is cleaned to strip the trailing AS-number suffix Cloudflare appends (COMCAST-7922 → Comcast).",
   ]},
@@ -5221,7 +5225,62 @@ function renderStats() {
     "span-2"
   ));
 
+  // ---- ISP location map ----
+  // Aggregates report.speed.{lat,lng,isp,geo} across every active host
+  // and renders pins on a world map. Pin = one cluster of hosts whose
+  // public IP geolocates to the same approximate coords. Useful to see
+  // the fleet's geographic + carrier distribution at a glance + spot
+  // hosts on unexpected ISPs (a "should be on Comcast" PC showing AT&T
+  // because someone moved it or VPN egress changed).
+  //
+  // Map renderer = Leaflet.js loaded lazily from CDN the first time
+  // the card mounts (no API key, OpenStreetMap tiles). Card body is
+  // a placeholder div; _initIspMap() runs after innerHTML lands.
+  const ispClusters = (() => {
+    // Round to 1 decimal (~10km bucketing) so hosts whose IPs
+    // geolocate to slightly different coords in the same city still
+    // collapse to one marker. Stash the precise per-host data for
+    // the popup.
+    const buckets = new Map();
+    for (const a of active) {
+      const sp = (a.report && a.report.speed) || {};
+      const lat = (typeof sp.lat === "number") ? sp.lat : null;
+      const lng = (typeof sp.lng === "number") ? sp.lng : null;
+      if (lat === null || lng === null) continue;
+      const key = `${lat.toFixed(1)}|${lng.toFixed(1)}`;
+      if (!buckets.has(key)) {
+        buckets.set(key, { lat, lng, hosts: [], isps: new Set(), geos: new Set() });
+      }
+      const b = buckets.get(key);
+      b.hosts.push({ id: a.id, hostname: a.hostname || a.id, client: a.client || "Unassigned", isp: sp.isp || null });
+      if (sp.isp) b.isps.add(sp.isp);
+      if (sp.geo) b.geos.add(sp.geo);
+    }
+    return Array.from(buckets.values());
+  })();
+  const ispMapBody = ispClusters.length
+    ? `<div id="ispMap" style="height:420px;border-radius:8px;border:1px solid var(--line);background:var(--surface-2);"></div>
+       <div class="meta" style="margin-top:8px;">
+         ${ispClusters.length} location${ispClusters.length === 1 ? "" : "s"} across ${ispClusters.reduce((s, c) => s + c.hosts.length, 0)} endpoint${ispClusters.reduce((s, c) => s + c.hosts.length, 0) === 1 ? "" : "s"} with geo data. Click a pin for the host list.
+       </div>`
+    : `<div class="meta" style="padding:24px 0;">No public-IP geo data yet. Needs agent v0.14.51+ to capture ISP location via Cloudflare; the weekly speed probe populates this on the next cycle.</div>`;
+  cards.push(_statCard(
+    "ISP locations",
+    ispMapBody,
+    ispClusters.length ? "Pins are approximate -- based on Cloudflare's geo-IP, not the host's actual location" : null,
+    "span-2"
+  ));
+  // Stash the clusters where _initIspMap can find them after the
+  // cards innerHTML lands -- avoids serializing them into a data-*
+  // attribute on the placeholder div.
+  _ispMapClusters = ispClusters;
+
   body.innerHTML = cards.join("");
+
+  // Initialize the ISP location map (Leaflet) after the placeholder
+  // div lands in the DOM. Lazy-loads the library on first invocation.
+  // No-op when there's no geo data to show.
+  _initIspMap().catch(e => console.warn("[ispMap] init failed:", e));
 
   // Wire click handlers for the drill-down popovers. Delegated at the
   // body level so re-renders don't lose the bindings.
@@ -5413,6 +5472,99 @@ function _statBars(rows, total, max, opts) {
 // Cleared at the start of each renderStats() pass so stale entries
 // from previous renders don't leak in.
 const _statRowRegistry = new Map();
+// ISP location map state. _ispMapClusters is populated by
+// renderStats() with the bucketed host coords; _initIspMap() consumes
+// it after the cards land in the DOM. Leaflet is lazy-loaded once on
+// first render to keep the dashboard's initial JS payload lean
+// (Leaflet's ~140KB only matters if the operator visits the Stats tab).
+let _ispMapClusters = [];
+let _leafletPromise = null;
+function _loadLeaflet() {
+  if (_leafletPromise) return _leafletPromise;
+  _leafletPromise = new Promise((resolve, reject) => {
+    if (window.L && window.L.map) { resolve(window.L); return; }
+    // CSS first (synchronous-ish via <link>, browser caches it).
+    if (!document.querySelector('link[data-leaflet-css]')) {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+      link.setAttribute('data-leaflet-css', '1');
+      link.integrity = 'sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=';
+      link.crossOrigin = '';
+      document.head.appendChild(link);
+    }
+    const script = document.createElement('script');
+    script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+    script.integrity = 'sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=';
+    script.crossOrigin = '';
+    script.onload = () => resolve(window.L);
+    script.onerror = () => reject(new Error('Failed to load Leaflet from unpkg'));
+    document.head.appendChild(script);
+  });
+  return _leafletPromise;
+}
+async function _initIspMap() {
+  const el = document.getElementById('ispMap');
+  if (!el || !_ispMapClusters.length) return;
+  let L;
+  try {
+    L = await _loadLeaflet();
+  } catch (e) {
+    el.innerHTML = `<div class="meta" style="padding:20px;">Map renderer failed to load: ${esc(e.message || e)}</div>`;
+    return;
+  }
+  // Destroy any previous map instance on the same node (renderStats
+  // can re-run on snapshot ticks; Leaflet errors if you initialize
+  // twice on the same div without removing first).
+  if (el._leafletMap) {
+    try { el._leafletMap.remove(); } catch {}
+    el._leafletMap = null;
+  }
+  // Compute bounds across all clusters so the map fits the data on
+  // first paint. Single-cluster fleets get a wider zoom-out so the
+  // pin isn't isolated on a max-zoom tile (looks weird).
+  const bounds = _ispMapClusters.map(c => [c.lat, c.lng]);
+  const map = L.map(el, {
+    scrollWheelZoom: false,    // don't hijack page scroll
+    worldCopyJump: true,       // panning across the antimeridian wraps cleanly
+  });
+  el._leafletMap = map;
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 18,
+    attribution: '&copy; OpenStreetMap contributors',
+  }).addTo(map);
+  if (bounds.length === 1) {
+    map.setView(bounds[0], 8);
+  } else {
+    map.fitBounds(bounds, { padding: [30, 30], maxZoom: 10 });
+  }
+  // One marker per cluster. Popup shows the host list + dominant ISP
+  // for the bucket. Click on a popup row could deep-link to that host's
+  // drawer later; for now it's read-only.
+  for (const c of _ispMapClusters) {
+    const ispLabel = c.isps.size === 1
+      ? Array.from(c.isps)[0]
+      : c.isps.size > 1
+        ? Array.from(c.isps).join(", ")
+        : "(unknown ISP)";
+    const geoLabel = c.geos.size ? Array.from(c.geos)[0] : "";
+    const hostRows = c.hosts.map(h => `
+      <div style="padding:4px 0;border-bottom:1px solid var(--line);font-size:12.5px;">
+        <b>${esc(h.hostname)}</b>
+        ${h.client ? `<span style="color:var(--ink-faint);font-size:11px;"> &middot; ${esc(h.client)}</span>` : ""}
+      </div>
+    `).join("");
+    const popupHtml = `
+      <div style="min-width:220px;max-width:280px;font-family:var(--sans);color:var(--ink);">
+        <div style="font-weight:700;font-size:13px;margin-bottom:2px;">${esc(geoLabel || "Location")}</div>
+        <div style="font-size:11.5px;color:var(--ink-soft);margin-bottom:8px;">${esc(ispLabel)}</div>
+        <div style="font-size:10.5px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:0.06em;font-weight:700;margin-bottom:4px;">${c.hosts.length} endpoint${c.hosts.length === 1 ? "" : "s"}</div>
+        <div>${hostRows}</div>
+      </div>
+    `;
+    L.marker([c.lat, c.lng]).addTo(map).bindPopup(popupHtml);
+  }
+}
 
 // Open a drill-down popover anchored near a clicked stat row, listing
 // the endpoints in that bucket (hostname + client + last-check age,

@@ -1652,6 +1652,62 @@ async function handleCheckin(request, env, ctx) {
     wsbLastNotifiedAt = wsbPrevLastNotifiedAt;
   }
 
+  // ── WSB pending-failures accumulator ──────────────────────────────
+  // When the throttle blocks the email for an intermediate failure,
+  // we still want the eventual weekly digest to list ALL the failures
+  // that happened during that window -- not just the latest. Track
+  // them as an array on the agent doc, append each new failed attempt,
+  // and clear when either the operator gets notified (digest sent) or
+  // the host recovers.
+  //
+  // Cap at 20 entries to avoid runaway accumulation on a host that
+  // fails every 15 minutes for weeks; older ones drop off. The email
+  // shows "N total" so the count stays accurate even when the array
+  // is capped.
+  const wsbPendingPrev = (() => {
+    const arr = existing?.fields?.wsbPendingFailures?.arrayValue?.values || [];
+    return arr.map(v => {
+      const m = v.mapValue?.fields || {};
+      const out = {};
+      if (m.attemptedAt?.stringValue) out.attemptedAt = m.attemptedAt.stringValue;
+      if (m.result?.stringValue)      out.result      = m.result.stringValue;
+      if (m.detail?.stringValue)      out.detail      = m.detail.stringValue;
+      return out;
+    });
+  })();
+  let wsbPendingFailures = wsbPendingPrev.slice();
+  // Append the new failure (if any) -- dedup by attemptedAt so a
+  // re-checkin of the same attempt doesn't double-count.
+  if (wsbNewFailure) {
+    const alreadyIn = wsbPendingFailures.some(p => p.attemptedAt === wsbCurrentTime);
+    if (!alreadyIn) {
+      wsbPendingFailures.push({
+        attemptedAt: wsbCurrentTime,
+        result: wsbCurrentResult,
+        detail: (wsbCurrent && wsbCurrent.detail) || null,
+      });
+      // Hard cap to prevent runaway accumulation.
+      if (wsbPendingFailures.length > 20) {
+        wsbPendingFailures = wsbPendingFailures.slice(-20);
+      }
+    }
+  }
+  // Reset on send or recovery.
+  if (wsbShouldNotify) {
+    // We're about to send the digest with these failures -- snapshot
+    // them into a separate variable for the email and clear the
+    // accumulator so the next round starts fresh.
+    // (The send code below reads wsbPendingFailures BEFORE we reset.)
+  }
+  // Snapshot count for the email template -- used after wsbPendingFailures
+  // is potentially reset below.
+  const wsbDigestFailures = wsbPendingFailures.slice();
+  if (wsbShouldNotify) {
+    wsbPendingFailures = [];
+  } else if (wsbRecovered || !wsbInstalled) {
+    wsbPendingFailures = [];
+  }
+
   // ----- 3f. Detect aged primary backup disk (warn-level advisory) -----
   // Picks the target whose newestBackup is the latest -- that's the disk
   // currently being written to. Computes age as (now - that target's
@@ -1925,6 +1981,13 @@ async function handleCheckin(request, env, ctx) {
     cDriveLowLastNotifiedAt,
     wsbLastNotifiedAt,
     backupDiskAgeLastNotifiedAt,
+    // Pending WSB failures awaiting the next digest send. Worker
+    // appends to this on every new failed attempt while the 7-day
+    // throttle blocks the email; clears when a digest gets sent OR
+    // the host recovers. Read above; written back here. See the
+    // "WSB pending-failures accumulator" block earlier in this
+    // function for the bookkeeping logic.
+    wsbPendingFailures,
     // Mirror the per-subsystem monitoring flags + snooze timestamp
     // from the agent's config doc into the status doc. The dashboard's
     // fleet listener has the agent doc but doesn't (cheaply) have the
@@ -2358,6 +2421,12 @@ async function handleCheckin(request, env, ctx) {
           lastSuccess,
           daysSinceSuccess,
           when: nowIso,
+          // All failed attempts that accumulated during the throttle
+          // window (including the current one). Email template uses
+          // this to show "N failures since <date>" with a per-attempt
+          // table. Always non-empty here because wsbShouldNotify
+          // implies wsbCurrentlyFailing.
+          allFailures: wsbDigestFailures,
         }).catch((e) => console.error('WSB failure email failed:', e))
       );
     }
@@ -3127,19 +3196,62 @@ async function sendDiskLowEmail(env, { pcId, hostname, client, drive, freeGB, fr
 // added later, those callers can pass their own tool label and the
 // subject / headline / band / body all update consistently. Default
 // "Windows Server Backup" mirrors today's behavior.
-async function sendBackupFailureEmail(env, { pcId, hostname, client, result, detail, attemptedAt, lastSuccess, daysSinceSuccess, when, tool }) {
+async function sendBackupFailureEmail(env, { pcId, hostname, client, result, detail, attemptedAt, lastSuccess, daysSinceSuccess, when, tool, allFailures }) {
   const toolLabel = tool || 'Windows Server Backup';
   const daysLabel = daysSinceSuccess != null ? `${daysSinceSuccess} day${daysSinceSuccess === 1 ? '' : 's'} since last success` : 'no successful backup on record';
+  // Digest count: when more than one failure happened during the
+  // throttle window, surface that prominently. allFailures is the
+  // accumulated list (worker passes it from wsbPendingFailures); the
+  // current attempt is already included.
+  const failureList = Array.isArray(allFailures) ? allFailures.slice() : [];
+  const failureCount = failureList.length;
+  const isDigest = failureCount > 1;
   // Subject: prepend the tool name so the operator's inbox makes the
   // failing system unambiguous from the row preview alone -- previously
   // "Backup FAILED" left them wondering whether WSB, Veeam, or some
-  // other tool died.
-  const subject = `[Watchtower] ${hostname} · ${toolLabel} FAILED · ${daysLabel}`;
-  const subtitleHtml = `on <b style="color:#ffffff;">${escapeHtml(hostname || '?')}</b> &middot; <span style="color:#fca5a5;">${escapeHtml(daysLabel)}</span>`;
+  // other tool died. Digest subject mentions the count so a glance at
+  // the inbox conveys "this is one host failing repeatedly" vs "this
+  // is a one-off."
+  const subject = isDigest
+    ? `[Watchtower] ${hostname} · ${toolLabel} FAILED · ${failureCount} attempts in past week`
+    : `[Watchtower] ${hostname} · ${toolLabel} FAILED · ${daysLabel}`;
+  const subtitleHtml = `on <b style="color:#ffffff;">${escapeHtml(hostname || '?')}</b> &middot; <span style="color:#fca5a5;">${escapeHtml(daysLabel)}</span>${isDigest ? ` &middot; <span style="color:#fca5a5;">${failureCount} attempts since last alert</span>` : ''}`;
+  // Per-attempt rows for the digest table. Sorted oldest-first so the
+  // operator can scan the timeline of how the host degraded.
+  const sortedFailures = failureList.slice().sort((a, b) => {
+    const aT = Date.parse(a?.attemptedAt || '') || 0;
+    const bT = Date.parse(b?.attemptedAt || '') || 0;
+    return aT - bT;
+  });
+  const failureRowsHtml = isDigest ? `
+    <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:14px 18px;margin-bottom:18px;">
+      <div style="font-size:10.5px;color:#b91c1c;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px;">All ${failureCount} failed attempts since last alert</div>
+      <table cellpadding="0" cellspacing="0" border="0" width="100%" style="font-size:13px;">
+        <thead>
+          <tr>
+            <th style="text-align:left;padding:4px 10px 6px 0;color:#8892a4;font-weight:700;border-bottom:1px solid #fecaca;font-size:10.5px;text-transform:uppercase;letter-spacing:0.06em;">Attempted</th>
+            <th style="text-align:left;padding:4px 10px 6px 0;color:#8892a4;font-weight:700;border-bottom:1px solid #fecaca;font-size:10.5px;text-transform:uppercase;letter-spacing:0.06em;">Result</th>
+            <th style="text-align:left;padding:4px 0 6px 0;color:#8892a4;font-weight:700;border-bottom:1px solid #fecaca;font-size:10.5px;text-transform:uppercase;letter-spacing:0.06em;">Detail</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${sortedFailures.map(f => `
+            <tr>
+              <td style="padding:6px 10px 6px 0;vertical-align:top;color:#475063;border-bottom:1px solid #fee2e2;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11.5px;white-space:nowrap;">${escapeHtml(fmtWhen(f.attemptedAt) || '?')}</td>
+              <td style="padding:6px 10px 6px 0;vertical-align:top;color:#b91c1c;border-bottom:1px solid #fee2e2;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11.5px;font-weight:700;">${escapeHtml(f.result || '?')}</td>
+              <td style="padding:6px 0 6px 0;vertical-align:top;color:#7f1d1d;border-bottom:1px solid #fee2e2;font-size:12px;">${f.detail ? escapeHtml(f.detail) : '<span style="color:#8892a4;">&mdash;</span>'}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>` : '';
   const bodyHtml = `
     <p style="font-size:15px;color:#1a1f2b;line-height:1.55;margin:0 0 18px;">
-      The last scheduled <b>${escapeHtml(toolLabel)}</b> run did not complete. ${detail ? 'See the failure detail below.' : 'See the dashboard for the full job history.'}
+      ${isDigest
+        ? `The <b>${escapeHtml(toolLabel)}</b> backup on this host has failed <b>${failureCount} times</b> in the past week. Each attempt is listed below; the most recent failure detail is shown in the highlighted block.`
+        : `The last scheduled <b>${escapeHtml(toolLabel)}</b> run did not complete. ${detail ? 'See the failure detail below.' : 'See the dashboard for the full job history.'}`}
     </p>
+    ${failureRowsHtml}
     <!-- Backup-tool badge surfaces WHICH product failed front-and-center
          since "Backup FAILED" alone is ambiguous on hosts running
          multiple backup tools side-by-side. -->

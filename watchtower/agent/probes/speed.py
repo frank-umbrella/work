@@ -184,6 +184,18 @@ def _run_speed_test():
             loc_parts = [p for p in (city, region, country) if p]
             if loc_parts:
                 result["geo"] = ", ".join(loc_parts)
+            # Lat/lng for the Stats tab's ISP location map. Cloudflare
+            # returns these as strings; coerce to float. Bad values
+            # (missing, "0", non-numeric) get skipped so the map doesn't
+            # show a marker for "0,0" off the African coast.
+            try:
+                lat = float(meta.get("latitude")) if meta.get("latitude") else None
+                lng = float(meta.get("longitude")) if meta.get("longitude") else None
+                if lat is not None and lng is not None and (lat != 0 or lng != 0):
+                    result["lat"] = round(lat, 4)
+                    result["lng"] = round(lng, 4)
+            except (ValueError, TypeError):
+                pass
             _logger.log(
                 f"speed: meta ok -- isp={result.get('isp')!r} "
                 f"asn={result.get('asn')} colo={result.get('cfColo')} "
@@ -332,6 +344,8 @@ def collect():
         "asn": cached.get("asn"),
         "cfColo": cached.get("cfColo"),
         "geo": cached.get("geo"),
+        "lat": cached.get("lat"),
+        "lng": cached.get("lng"),
         "tested_at": cached.get("tested_at"),
         "error": cached.get("error"),
     }
