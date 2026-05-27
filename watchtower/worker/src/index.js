@@ -1933,6 +1933,40 @@ async function handleCheckin(request, env, ctx) {
     return isNaN(t) ? true : t >= cutoff;
   }).sort((a, b) => (a.startedAt || '').localeCompare(b.startedAt || ''));
 
+  // Intake-email tracking values are referenced inside statusUpdate below
+  // (intakeFirstSeenAt + intakeEmailSent), so the calculations MUST be
+  // hoisted above the object literal. Putting the `const` after the
+  // literal triggers a Temporal Dead Zone ReferenceError on every
+  // check-in -- and Cloudflare serves its branded HTML 500 page when
+  // a worker throws an uncaught exception, so the agent sees
+  // "HTTP 500: <!DOCTYPE html>..." instead of any useful diagnostic.
+  // The `shouldSendIntake` branch lower in this function still uses
+  // these values -- this just moves the declaration earlier.
+  //
+  // Field semantics:
+  //   intakeFirstSeenAt -- iso of first check-in (starts the defer timer)
+  //   intakeEmailSent   -- true once the intake digest has been sent
+  // On every check-in we check: !intakeEmailSent && intakeFirstSeenAt
+  // is set && this is not the first check-in. If all true, send + mark.
+  // Safety cap: if a host's first check-in was more than 14 days ago
+  // and we STILL haven't sent (host kept going offline, e.g.) just
+  // send on the next check-in regardless -- better late than never.
+  const intakeAlreadySent = existing?.fields?.intakeEmailSent?.booleanValue === true;
+  const intakeFirstSeenAtPrev = existing?.fields?.intakeFirstSeenAt?.stringValue || null;
+  const intakeStaleMs = intakeFirstSeenAtPrev
+    ? (nowMs - Date.parse(intakeFirstSeenAtPrev))
+    : 0;
+  const intakeOverdue = intakeStaleMs > 14 * 24 * 60 * 60 * 1000;
+  const shouldSendIntake = !intakeAlreadySent && (
+    (!firstSeen && intakeFirstSeenAtPrev) || intakeOverdue
+  );
+  // What to write back for the tracking fields:
+  //   - firstSeen=true   -> set intakeFirstSeenAt to nowIso (start timer)
+  //   - shouldSendIntake -> set intakeEmailSent=true (don't fire again)
+  //   - else             -> preserve existing
+  const intakeFirstSeenAt = firstSeen ? nowIso : intakeFirstSeenAtPrev;
+  const intakeEmailSent = shouldSendIntake ? true : intakeAlreadySent;
+
   const statusUpdate = {
     pcId,
     hostname,
@@ -2151,28 +2185,6 @@ async function handleCheckin(request, env, ctx) {
   //   intakeEmailSent   -- true once the intake digest has been sent
   // On every check-in we check: !intakeEmailSent && intakeFirstSeenAt
   // is set && this is not the first check-in. If all true, send + mark.
-  const intakeAlreadySent = existing?.fields?.intakeEmailSent?.booleanValue === true;
-  const intakeFirstSeenAtPrev = existing?.fields?.intakeFirstSeenAt?.stringValue || null;
-  // Safety cap: if a host's first check-in was more than 14 days ago
-  // and we STILL haven't sent (host kept going offline, e.g.) just
-  // send on the next check-in regardless -- better late than never.
-  const intakeStaleMs = intakeFirstSeenAtPrev
-    ? (nowMs - Date.parse(intakeFirstSeenAtPrev))
-    : 0;
-  const intakeOverdue = intakeStaleMs > 14 * 24 * 60 * 60 * 1000;
-  // Send when: NOT first check-in (so probes had a chance to settle)
-  // AND first check-in WAS recorded AND we haven't sent yet.
-  // OR: overdue safety case.
-  const shouldSendIntake = !intakeAlreadySent && (
-    (!firstSeen && intakeFirstSeenAtPrev) || intakeOverdue
-  );
-  // What to write back for the tracking fields:
-  //   - firstSeen=true   -> set intakeFirstSeenAt to nowIso (start timer)
-  //   - shouldSendIntake -> set intakeEmailSent=true (don't fire again)
-  //   - else             -> preserve existing
-  const intakeFirstSeenAt = firstSeen ? nowIso : intakeFirstSeenAtPrev;
-  const intakeEmailSent = shouldSendIntake ? true : intakeAlreadySent;
-
   if (shouldSendIntake && config.enabled && !isRetired) {
     if (config.emailEnabled && env.RESEND_API_KEY && notifPrefs.intake) {
       ctx.waitUntil(
