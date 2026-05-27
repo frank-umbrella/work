@@ -177,16 +177,52 @@ jobs:
           retention-days: 90
 
       - name: Upload resolved dep SBOM as workflow artifact
-        # Long retention (1 year) so a future "did this version ship
-        # CVE-XXXX?" audit can be answered from the artifact. resolved-deps.txt
-        # is just a `pip freeze` of what got installed -- tiny file.
+        # 90-day artifact retention is the "fast lookup" copy -- the
+        # authoritative archive is committed to the repo below so we
+        # have permanent git-history retention.
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: resolved-deps-${{ steps.version.outputs.version }}
           path: resolved-deps.txt
           if-no-files-found: warn
-          retention-days: 365
+          retention-days: 90
+
+      - name: Archive SBOM into the repo (indefinite retention)
+        # Commit the per-release SBOM into watchtower/sboms/ so git
+        # history is the audit trail -- compliance auditors that need
+        # 3-7 years of inventory don't care about GH Actions artifacts,
+        # they want it in source control. Free, tiny (~10KB per release),
+        # easy to grep ("did v0.14.52 ship vulnerable-pkg X.Y?").
+        #
+        # Path 'watchtower/sboms/**' is NOT in this workflow's `on.push.paths`
+        # filter so the push back to main here will NOT re-trigger the
+        # workflow. Belt-and-suspenders: '[skip ci]' is in the commit
+        # message anyway.
+        #
+        # Only runs on success -- a failed build's SBOM isn't useful and
+        # would clutter history. Skipped entirely on workflow_dispatch with
+        # no version bump (re-running the same version would just produce
+        # an empty commit).
+        if: success() && github.event_name == 'push'
+        shell: pwsh
+        run: |
+          $v = '${{ steps.version.outputs.version }}'
+          $sbomDir = 'watchtower/sboms'
+          New-Item -ItemType Directory -Force -Path $sbomDir | Out-Null
+          $dest = "$sbomDir/v$v.txt"
+          Copy-Item resolved-deps.txt -Destination $dest -Force
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git add $dest
+          $changes = git status --porcelain
+          if ($changes) {
+            git commit -m "watchtower: archive SBOM for v$v [skip ci]"
+            git push
+            Write-Host "Archived SBOM at $dest"
+          } else {
+            Write-Host "SBOM for v$v already archived (no diff); skipping commit."
+          }
 
       - name: Summary
         if: success()

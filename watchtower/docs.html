@@ -132,7 +132,7 @@
       </svg>
       <div>
         <div class="meta">Umbrella Automation</div>
-        <h1>Watchtower &middot; Docs <span class="version-chip">v0.14.148</span></h1>
+        <h1>Watchtower &middot; Docs <span class="version-chip">v0.14.149</span></h1>
       </div>
     </a>
     <a class="btn brand-link" href="index.html">&larr; Back to dashboard</a>
@@ -207,6 +207,13 @@
   <a href="#operator-commands">Verified operator commands</a>
   <a href="#recovery">Stuck install recovery</a>
   <a href="#layout" class="section">What gets installed</a>
+  <span class="staff-only" data-staff-only hidden>
+    <a href="#supply-chain" class="section">Build pipeline security <span class="staff-tag">staff</span></a>
+    <a href="#supply-chain-scanner">CVE scanner (pip-audit)</a>
+    <a href="#supply-chain-sbom">SBOM archive</a>
+    <a href="#supply-chain-dependabot">Dependabot watcher</a>
+    <a href="#supply-chain-roadmap">What's still left</a>
+  </span>
 </nav>
 
 <article>
@@ -1065,6 +1072,57 @@ Write-Host "Cleaned. Download a fresh installer and run it." -ForegroundColor Gr
 <h3>"Token revoked" by accident</h3>
 <p>You can't un-revoke (intentional &mdash; revocation is a one-way audit event). Generate a fresh token, rebuild the installer, and re-deploy. The pcId is preserved across reinstalls so the host stays the same dashboard row.</p>
 
+<section class="staff-only" data-staff-only hidden>
+<h2 id="supply-chain">Build pipeline security <span class="staff-tag-inline">internal &middot; MSP staff only</span></h2>
+<p>Watchtower ships from <code>frank-umbrella/work</code> via a GitHub Actions workflow that pulls third-party code (PyPI libraries, GitHub Actions, npm packages for the worker) on every build. The biggest realistic attack vector for a tool like this is a <b>supply-chain compromise</b> &mdash; a maintainer of one of our dependencies gets phished, pushes a malicious release, and that malicious code rides into our next installer. This section documents what's in place to catch that.</p>
+
+<h3 id="supply-chain-scanner">CVE scanner (pip-audit) on every build</h3>
+<p>The installer build workflow (<code>.github/workflows/watchtower-installer.yml</code>) runs <code>pip-audit</code> against the fully-installed dependency tree (direct <i>and</i> transitive) right after <code>pip install</code> completes. It cross-references every package + version against the PyPI advisory database and OSV. If a known CVE matches anything we're about to bake into the EXE, the step surfaces it in the workflow log.</p>
+<p>Currently runs in <code>continue-on-error: true</code> mode so the first few builds expose any baseline findings without blocking releases. Once we've reviewed the baseline (one quick pass), flip to <code>false</code> so any future CVE-flagged dep fails the build outright. That's the right end state &mdash; "build fails" is a clear, actionable signal; "warning buried in log" is not.</p>
+
+<h3 id="supply-chain-sbom">SBOM archive (forever via git)</h3>
+<p>Every successful release commits a <i>Software Bill of Materials</i> (literally <code>pip freeze</code> output &mdash; every package + exact version that got installed) to <code>watchtower/sboms/v&lt;version&gt;.txt</code> in the repo. Git history means retention is indefinite at zero cost.</p>
+<p><b>Audit usage:</b></p>
+<ul>
+  <li>"Did we ship CVE-2024-XXXXX-vulnerable-pkg in any released version?" &rarr; <code>grep "vulnerable-pkg==" watchtower/sboms/*.txt</code></li>
+  <li>"What was in v0.14.52?" &rarr; <code>cat watchtower/sboms/v0.14.52.txt</code></li>
+  <li>Compliance auditor wants 3-7 years of inventory &rarr; it's in source control, hand them a repo link.</li>
+</ul>
+<p>The workflow also uploads the same file as a GitHub Actions artifact (90-day retention) for fast lookup without cloning, but the git copy is the authoritative archive.</p>
+
+<h3 id="supply-chain-dependabot">Dependabot watcher</h3>
+<p><code>.github/dependabot.yml</code> watches three dependency manifests and opens PRs when a new version (security <i>or</i> feature) lands:</p>
+<ul>
+  <li><b>pip</b> at <code>watchtower/agent/requirements.txt</code> &mdash; deps PyInstaller bakes into the deployed EXE</li>
+  <li><b>github-actions</b> at root &mdash; the build pipeline itself (a compromised action would trojanize every build)</li>
+  <li><b>npm</b> at <code>watchtower/worker</code> &mdash; the Cloudflare Worker (jose for Firebase JWT verify, wrangler, etc.)</li>
+</ul>
+<p>Routine minor/patch bumps are grouped into one PR per ecosystem per week so you're not drowning. <b>Security advisories override that cap</b> &mdash; Dependabot opens individual PRs immediately when a CVE is filed against any pinned dep, regardless of the weekly schedule.</p>
+
+<h3 id="supply-chain-roadmap">What's still left (and why)</h3>
+<table class="opts">
+  <tr><th>Gap</th><th>Cost</th><th>Notes</th></tr>
+  <tr><td>Authenticode code-signing</td><td>$200&ndash;400/yr</td><td>Defeats the worst-case "stolen GitHub creds + malicious release" scenario, AND eliminates the SentinelOne / Defender quarantine dance on client machines. Real blocker for that scenario; defer until budget allows.</td></tr>
+  <tr><td>Hash-pinned <code>requirements.txt</code> (<code>pip install --require-hashes</code>)</td><td>Free, but needs regen tooling</td><td>Protects against PyPI account compromise re-uploading the same version with malicious content. Adds friction (re-generate hashes on every dep bump). Reasonable next step once Dependabot has trained the rhythm.</td></tr>
+  <tr><td>Pin GitHub Actions to commit SHA (vs <code>@v4</code> tag)</td><td>Free, mechanical (~10 min)</td><td>Tag rewrites are a real attack class. Dependabot can handle the renew cadence once they're SHA-pinned.</td></tr>
+  <tr><td>GitHub <code>actions/attest-build-provenance</code></td><td>Free, ~30 min setup</td><td>Generates a cryptographically signed attestation that "this binary came from this commit on this runner." Verifiable by the agent's updater before running. Decent partial substitute for code-signing on the auto-update channel specifically. Recommended next.</td></tr>
+  <tr><td>Branch protection on <code>main</code> + release-restriction</td><td>Free, GitHub setting</td><td>Belt-and-suspenders on top of MFA. Configure in repo Settings &rarr; Branches.</td></tr>
+</table>
+
+<p><b>Currently effective protections</b> (already in place, no action needed):</p>
+<ul>
+  <li>GitHub account MFA + secondary phone factor (your account)</li>
+  <li>Agent only opens <b>outbound</b> HTTPS &mdash; no inbound listening ports on any client machine</li>
+  <li>Updater verifies SHA256 of every downloaded EXE before running it, blocks downgrades</li>
+  <li>Per-client install tokens (revocable, scoped, SHA-hashed server-side)</li>
+  <li>pip-audit scans every build for known CVEs</li>
+  <li>SBOM committed to repo for every release</li>
+  <li>Dependabot opens individual PRs for security advisories</li>
+</ul>
+
+<p class="meta">Section gated to <code>@umbrellaautomation.com</code> signed-in viewers via the same Firebase auth check the dashboard uses. Anyone reaching this page without a verified MSP-staff session sees the docs minus this section.</p>
+</section>
+
 <h2 id="layout">What gets installed</h2>
 <table class="opts">
   <tr><th>Path</th><th>Contents</th></tr>
@@ -1101,7 +1159,74 @@ Write-Host "Cleaned. Download a fresh installer and run it." -ForegroundColor Gr
   .site-footer .spacer { flex: 1; }
   .site-footer a { color: #475063; text-decoration: none; }
   .site-footer a:hover { color: #0a6b6b; text-decoration: underline; }
+
+  /* Staff-only section + TOC link styling. Sections with [data-staff-only]
+     stay hidden=true until the Firebase auth check below reveals them
+     for verified @umbrellaautomation.com signed-in users. The little
+     amber "staff" pill makes it obvious this content is gated. */
+  .staff-tag, .staff-tag-inline {
+    display: inline-block;
+    background: #fef3c7;
+    color: #78350f;
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 1px 6px;
+    border-radius: 3px;
+    vertical-align: middle;
+    margin-left: 6px;
+  }
+  .staff-tag-inline {
+    font-size: 11px;
+    padding: 2px 8px;
+    margin-left: 10px;
+  }
 </style>
+
+<script type="module">
+// Staff-only section gate.
+//
+// docs.html is a publicly-readable page (operator's manual) but a small
+// "Build pipeline security" section is internal -- it documents our
+// supply-chain protections, which is useful context for MSP staff to
+// share with clients but NOT something we want indexed publicly or
+// surfaced to random visitors.
+//
+// Gate: load Firebase Auth (same project as the dashboard at
+// watchtower-6fbe1), check if a user is already signed in with a
+// verified @umbrellaautomation.com email, and reveal [data-staff-only]
+// sections if so. Auth state is shared across the dashboard + this
+// page because they're same-origin (watchtower.umbrellaautomation.com),
+// so a signed-in operator who clicks "Docs" from the dashboard sees
+// the gated sections automatically -- no second sign-in step.
+//
+// Anyone reaching this URL without an active dashboard session sees
+// the docs minus the gated sections. The page works fine without
+// auth -- gating is purely additive.
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js";
+
+const firebaseConfig = {
+  apiKey:            "AIzaSyDKWHa-nmIzFvnLqF92rmzIXiSKe2HywQw",
+  authDomain:        "watchtower-6fbe1.firebaseapp.com",
+  projectId:         "watchtower-6fbe1",
+  storageBucket:     "watchtower-6fbe1.firebasestorage.app",
+  messagingSenderId: "637038228926",
+  appId:             "1:637038228926:web:e8a793889c70162f0935ef"
+};
+const ALLOWED_DOMAIN = "umbrellaautomation.com";
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+
+onAuthStateChanged(auth, (user) => {
+  const isStaff = !!(user && user.emailVerified && (user.email || "").toLowerCase().endsWith("@" + ALLOWED_DOMAIN));
+  document.querySelectorAll("[data-staff-only]").forEach((el) => {
+    el.hidden = !isStaff;
+  });
+});
+</script>
 
 </body>
 </html>

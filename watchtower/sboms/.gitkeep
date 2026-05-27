@@ -1,0 +1,16 @@
+# Per-release SBOMs land here automatically via the watchtower-installer
+# GitHub Actions workflow on every successful build.
+#
+# Each file is the full `pip freeze` output captured AFTER all build
+# dependencies (PyInstaller + agent runtime + cairosvg + their transitive
+# closure) have been installed on the windows-latest runner. That's
+# everything that gets baked into the published Watchtower-Setup.exe.
+#
+# Filename: v<semver>.txt (e.g. v0.14.52.txt).
+#
+# Audit usage:
+#   - "Did we ship CVE-2024-XXXXX-vulnerable-pkg in any released version?"
+#     -> grep "vulnerable-pkg==" watchtower/sboms/*.txt
+#   - "What was in v0.14.52?" -> cat watchtower/sboms/v0.14.52.txt
+#
+# Don't edit these files manually -- they're written by the workflow.
