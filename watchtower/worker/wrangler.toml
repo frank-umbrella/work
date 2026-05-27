@@ -38,10 +38,13 @@ ALERT_TO = "frank@umbrellaautomation.com"
 
 # Comma-separated list of dashboard origins allowed to call worker
 # admin-facing endpoints (/warranty, /notify-*, /test-webhook).
-# Production is the GitHub Pages site; the localhost entries let
+# Production is the watchtower.umbrellaautomation.com custom domain
+# (served by Cloudflare Pages); the .pages.dev URL is the underlying
+# CF Pages project URL kept as a fallback; frank-umbrella.github.io
+# is the legacy GitHub Pages mirror; localhost entries let
 # `python -m http.server` style local dev hit the prod worker for
 # end-to-end testing without needing wrangler dev.
-ALLOWED_ORIGINS = "https://frank-umbrella.github.io,http://localhost:8096,http://127.0.0.1:8096"
+ALLOWED_ORIGINS = "https://watchtower.umbrellaautomation.com,https://watchtower-9ig.pages.dev,https://frank-umbrella.github.io,http://localhost:8096,http://127.0.0.1:8096"
 
 # Durable global cache for /latest-version's "last known good" payload.
 # Backs up the per-edge-POP Cache API entry so a GitHub rate-limit hit

@@ -2798,7 +2798,7 @@ function fieldBool(field, fallback) {
 // Helpers are intentionally inline-styled and table-heavy so Outlook /
 // Gmail / Apple Mail render them consistently without external CSS.
 
-const DASHBOARD_BASE = 'https://frank-umbrella.github.io/work/watchtower/';
+const DASHBOARD_BASE = 'https://watchtower.umbrellaautomation.com/';
 
 // Watchtower mark used in every email hero. Inline SVG works in browser
 // previews but Outlook / Gmail / Apple Mail strip or ignore it. Switched
