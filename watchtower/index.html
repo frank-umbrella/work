@@ -393,14 +393,25 @@
   .btn-danger:hover { background: var(--danger-soft); border-color: var(--danger); }
   .btn:disabled { opacity: 0.5; cursor: not-allowed; }
   .btn-sm { padding: 4px 9px; font-size: 12px; border-radius: 6px; }
+  /* Compact snooze chips for the Settings "Snooze endpoint alerts" row.
+     Bell-with-slash glyph + duration label, all on one line. The glyph
+     reuses the same min-width trick as the theme toggle so different
+     buttons in the row don't render at slightly different widths. */
+  .snooze-chip { display: inline-flex; align-items: center; gap: 4px; padding: 4px 9px; font-variant-numeric: tabular-nums; }
+  .snooze-chip .snooze-ico { font-size: 12px; line-height: 1; }
   /* Appearance toggles in the header userbar -- compact, glyph-only.
      Sun/moon for theme, A-/A+ for text size. The text-size pair is
      hugged together (no gap between the two buttons, shared rounding
      on the outer corners) so it reads as one control. The icon-only
      sun/moon needs an explicit width to keep its sizing stable when
      the glyph swaps between &#9728; and &#9789;. */
-  .appearance-btn { padding: 4px 8px; font-size: 13px; line-height: 1; min-width: 30px; text-align: center; }
-  #themeToggleIcon { font-size: 14px; }
+  .appearance-btn { padding: 4px 8px; font-size: 13px; line-height: 1; min-width: 30px; text-align: center; box-sizing: border-box; }
+  /* Lock the sun/moon glyph to a fixed render width so swapping the
+     character (Unicode "sun" ☀ is wider than "moon" ☽ in most fonts)
+     doesn't change the button's overall size and ripple a layout
+     shift through the userbar's flex row. */
+  #themeToggleIcon { font-size: 14px; display: inline-block; width: 16px; text-align: center; line-height: 1; }
+  #themeToggleBtn { min-width: 34px; }
   .appearance-text-group { display: inline-flex; }
   .appearance-text-group .appearance-text-btn { border-radius: 0; margin-left: -1px; }
   .appearance-text-group .appearance-text-btn:first-child { border-top-left-radius: 6px; border-bottom-left-radius: 6px; margin-left: 0; }
@@ -1192,6 +1203,22 @@
     table.fleet td[data-label="Host"] { font-size: 16px; margin-bottom: 4px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
     table.fleet td[data-label="Host"]::before { display: none; }
     table.fleet td[data-label="Host"] .host { font-weight: 700; }
+
+    /* OS row on mobile: the inline Windows-flag icon was rendering
+       glued to the right side of the cell with a huge gap from the
+       "OS" label. flex-direction: row-reverse swaps the order so the
+       value-with-icon hugs the LEFT side immediately after the label,
+       matching how operators expect to read "OS: [icon] Server 2022".
+       Actually simpler: justify-content: flex-end keeps both label
+       and value tight together with a small gap and the icon glued
+       right next to its text. */
+    table.fleet td[data-label="OS"] {
+      justify-content: flex-start;
+      gap: 8px;
+    }
+    table.fleet td[data-label="OS"]::before {
+      margin-right: 4px;
+    }
     /* Status / Backup / Remote cells can hold multiple badges or pills.
      * Let them wrap to a second line on the value side when there isn't
      * room for all of them on one row -- with .badge { white-space:
@@ -1224,10 +1251,27 @@
     header.bar { padding: 8px 12px; }
     header.bar .wrap { gap: 8px; }
     .brand .meta { display: none; }
-    .brand h1 { font-size: 15px; gap: 4px; }
-    .brand h1 .version-chip { font-size: 10px; padding: 0 4px; }
+    /* On mobile, version chip drops to its own line below "Watchtower"
+       so the brand title isn't competing with it horizontally and the
+       chip stays readable at the slightly larger size we want for
+       touch targets. flex-direction: column-stack on the h1. */
+    .brand h1 { font-size: 15px; gap: 2px; display: flex; flex-direction: column; align-items: flex-start; }
+    .brand h1 .version-chip { font-size: 10px; padding: 1px 5px; align-self: flex-start; }
     header.bar .userbar .who { display: none; }
     header.bar .userbar { gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+    /* Explicit ordering on mobile so items wrap into predictable rows
+       regardless of which buttons are present / sized. The theme +
+       text-size cluster wraps as a unit and stays together; avatar
+       always sits IMMEDIATELY left of Sign out, never separated by
+       a wrap point. Without these the userbar would re-shuffle every
+       time the theme button glyph swapped (sun <-> moon) or the
+       active-text-size class toggled. */
+    header.bar .userbar #downloadInstallerLink { order: 1; }
+    header.bar .userbar a[href="docs.html"]   { order: 2; }
+    header.bar .userbar #themeToggleBtn       { order: 3; }
+    header.bar .userbar .appearance-text-group { order: 4; }
+    header.bar .userbar img.avatar            { order: 5; }
+    header.bar .userbar #signoutBtn           { order: 6; }
     /* "Download installer" full label eats 130px on a 390px viewport. The
      * operator on a phone is unlikely to install on the device they're
      * holding -- shrink to a down-arrow icon + the installer version
@@ -1680,15 +1724,20 @@
           <!-- Alert snooze -->
           <h3 style="margin:28px 0 4px;font-size:14px;">Snooze endpoint alerts</h3>
           <p style="margin:0 0 10px;color:var(--ink-soft);font-size:13px;">Stops the browser-tab favicon from blinking on critical endpoint state until the snooze expires. Doesn't silence emails or webhooks (use the per-host Config toggles for that). Synced across devices for all admins.</p>
-          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-            <button class="btn btn-sm" data-snooze-mins="60">1 hour</button>
-            <button class="btn btn-sm" data-snooze-mins="240">4 hours</button>
-            <button class="btn btn-sm" data-snooze-mins="endOfDay">Until midnight</button>
-            <button class="btn btn-sm" data-snooze-mins="tomorrow8am">Until 8 AM tomorrow</button>
-            <button class="btn btn-sm" data-snooze-mins="4320">3 days</button>
-            <button class="btn btn-sm" data-snooze-mins="7200">5 days</button>
-            <button class="btn btn-sm" data-snooze-mins="10080">1 week</button>
-            <button class="btn btn-sm" data-snooze-mins="20160">2 weeks</button>
+          <!-- Compact icon-led snooze chips. Each button shows the bell-
+               with-slash icon + the duration label so the whole row fits
+               on one line. Hover tooltip explains the longer-form
+               meaning (e.g. "Mute alerts for 1 hour" instead of the
+               cramped "1h"). -->
+          <div class="snooze-chips" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+            <button class="btn btn-sm snooze-chip" data-snooze-mins="60" title="Mute alerts for 1 hour"><span class="snooze-ico">&#128277;</span>1h</button>
+            <button class="btn btn-sm snooze-chip" data-snooze-mins="240" title="Mute alerts for 4 hours"><span class="snooze-ico">&#128277;</span>4h</button>
+            <button class="btn btn-sm snooze-chip" data-snooze-mins="endOfDay" title="Mute alerts until midnight (end of today)"><span class="snooze-ico">&#128277;</span>EOD</button>
+            <button class="btn btn-sm snooze-chip" data-snooze-mins="tomorrow8am" title="Mute alerts until 8 AM tomorrow"><span class="snooze-ico">&#128277;</span>8AM</button>
+            <button class="btn btn-sm snooze-chip" data-snooze-mins="4320" title="Mute alerts for 3 days"><span class="snooze-ico">&#128277;</span>3d</button>
+            <button class="btn btn-sm snooze-chip" data-snooze-mins="7200" title="Mute alerts for 5 days"><span class="snooze-ico">&#128277;</span>5d</button>
+            <button class="btn btn-sm snooze-chip" data-snooze-mins="10080" title="Mute alerts for 1 week"><span class="snooze-ico">&#128277;</span>1w</button>
+            <button class="btn btn-sm snooze-chip" data-snooze-mins="20160" title="Mute alerts for 2 weeks"><span class="snooze-ico">&#128277;</span>2w</button>
             <button class="btn btn-sm btn-danger" id="snoozeClearSettingsBtn" hidden>Clear snooze</button>
             <span class="meta" id="snoozeStatusText" style="margin-left:6px;"></span>
           </div>
@@ -1923,7 +1972,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.133";
+const APP_VERSION = "0.14.134";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -1954,6 +2003,11 @@ if (_versionChip) {
 // fixes). Patch-level no-op bumps don't need entries -- only stuff a
 // human reader would want to know about.
 const CHANGELOG = [
+  { version: "0.14.134", date: "2026-05-27", changes: [
+    "Mobile UI polish: (1) OS row now left-aligned so the Windows-flag icon sits immediately next to the OS version text instead of being shoved to the middle of the card. (2) Version chip drops to its own line below 'Watchtower' in the brand title. (3) Userbar buttons get explicit ordering (download / docs / theme / A-/A+ / avatar / sign out) so the row no longer reshuffles when the theme glyph swaps. (4) Theme toggle button + glyph have locked widths so sun/moon swap doesn't ripple a layout shift.",
+    "Intake email follow-up cadence shortened from 24h to ~5 min. The worker now tells brand-new agents (firstSeen=true) to come back in 5 minutes instead of waiting the full 24h before their second check-in. Result: the intake email arrives within minutes of an install instead of next-day. Existing hosts and retired hosts are unaffected.",
+    "Settings 'Snooze endpoint alerts' row compressed to icon + duration chips (bell + 1h / 4h / EOD / 8AM / 3d / 5d / 1w / 2w) so all options fit on one line and read at a glance.",
+  ]},
   { version: "0.14.133", date: "2026-05-25", changes: [
     "Notification emails: stripped all em dashes (the typographical kind that scream 'an AI wrote this'). Replaced with colons, semicolons, periods, or hyphens as appropriate. Affected lines were in the intake email subject + body, the WSB digest, and the backup-disk-aged advisory. Functional content unchanged.",
   ]},

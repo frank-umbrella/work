@@ -1794,6 +1794,15 @@ async function handleCheckin(request, env, ctx) {
   //     since being stale is the expected steady state.
   const isRetired = config.lifecycle === 'retired';
   const RETIRED_CHECKIN_INTERVAL_SEC = 14 * 24 * 60 * 60;  // 14 days
+  // Intake follow-up cadence. On a brand-new host, the intake email is
+  // deferred to the SECOND check-in so probes (OMSA, WSB, Win updates,
+  // Veeam lastJob) have a settle pass and the email reports a complete
+  // inventory instead of an "OMSA card missing" gap. With default 24h
+  // cadence that would delay the email by a whole day -- too long for
+  // an "I just installed a new host, did it work?" signal. Tell the
+  // agent to come back in 5 min instead so the email lands within
+  // minutes of the install rather than the next day.
+  const INTAKE_FOLLOWUP_INTERVAL_SEC = 300;  // 5 minutes
 
   // ----- 4a. Apply clientIdOverride if the admin reassigned the host -----
   // ALSO pull the helpDeskUrl off the resolved client doc so we can ship
@@ -2556,12 +2565,18 @@ async function handleCheckin(request, env, ctx) {
       // the client doesn't have one set. checkin.py writes this into
       // state.json; the tray reads it on menu open.
       helpDeskUrl: resolvedHelpDeskUrl,
-      // Lifecycle + cadence override. When the host is "retired", we
-      // tell the agent to sleep 14 days between check-ins instead of
-      // the default 24h. Active hosts get null/omitted so the service
-      // uses its built-in 24h cadence.
+      // Lifecycle + cadence override. Three states:
+      //   - retired: sleep 14 days (slow follow-up)
+      //   - intake pending (firstSeen=true, intake email queued for
+      //     2nd check-in): sleep 5 min so the email fires quickly
+      //   - normal: omit checkInIntervalSec, agent uses its built-in
+      //     24h default
       lifecycle: isRetired ? 'retired' : 'active',
-      ...(isRetired ? { checkInIntervalSec: RETIRED_CHECKIN_INTERVAL_SEC } : {}),
+      ...(isRetired
+        ? { checkInIntervalSec: RETIRED_CHECKIN_INTERVAL_SEC }
+        : firstSeen
+          ? { checkInIntervalSec: INTAKE_FOLLOWUP_INTERVAL_SEC }
+          : {}),
     },
     uninstall: config.uninstall,
   }, 200);
