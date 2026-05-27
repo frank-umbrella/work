@@ -2041,7 +2041,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.139";
+const APP_VERSION = "0.14.140";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -2072,6 +2072,9 @@ if (_versionChip) {
 // fixes). Patch-level no-op bumps don't need entries -- only stuff a
 // human reader would want to know about.
 const CHANGELOG = [
+  { version: "0.14.140", date: "2026-05-27", changes: [
+    "Hotfix: v0.14.139 crashed the dashboard on load with a blank page. The new 'Backup status (latest run)' tile declared a const named backupByLabel that collided with an existing const of the same name in the older 'Backup tooling' tile -- both inside the same renderStats() function -- which is a JS SyntaxError at parse time and killed the entire module. Renamed the new tile's variables to backupStatusByLabel / backupStatusRows / backupStatusTotal / etc. Behavior unchanged from 0.14.139's intent.",
+  ]},
   { version: "0.14.139", date: "2026-05-27", changes: [
     "Stats tab: Network section now renders Connectivity + ISP locations as a fixed 50/50 split at the top of the page (stacks vertically on mobile). The other three sections (Fleet composition / Health / Tooling) switched from auto-fill to auto-fit so partial rows expand to fill the row instead of leaving dead space on the right. ISP map height tuned to match the Connectivity card height so the side-by-side row stays visually balanced.",
     "New tile: 'Backup status (latest run)' in the Health section. Rolls up every endpoint's most recent WSB run into Healthy / Failing recently / No backup 3+ days / No backup on record / Not configured, with a clickable bar chart for drill-down. Verdict logic mirrors the per-host backup badge in the Endpoints table so the rollup and the row badges always agree.",
@@ -5220,7 +5223,7 @@ function renderStats() {
   // separate "Not configured" row so the operator can see the gap
   // (e.g. a server pool where one box never got WSB enabled). Click
   // any row to drill into the affected hosts.
-  const backupByLabel = new Map([
+  const backupStatusByLabel = new Map([
     ["Healthy", []],
     ["Failing recently", []],
     ["No backup 3+ days", []],
@@ -5230,25 +5233,25 @@ function renderStats() {
   for (const a of active) {
     if (a.monitorWsb === false) continue;  // user opted out of WSB monitoring on this host
     const f = backupHealthOf(a);
-    if (!f) { backupByLabel.get("Not configured").push(a); continue; }
-    if (f.kind === "ok") backupByLabel.get("Healthy").push(a);
-    else if (f.kind === "warn") backupByLabel.get("Failing recently").push(a);
-    else if (/no backup on record/i.test(f.label)) backupByLabel.get("No backup on record").push(a);
-    else backupByLabel.get("No backup 3+ days").push(a);
+    if (!f) { backupStatusByLabel.get("Not configured").push(a); continue; }
+    if (f.kind === "ok") backupStatusByLabel.get("Healthy").push(a);
+    else if (f.kind === "warn") backupStatusByLabel.get("Failing recently").push(a);
+    else if (/no backup on record/i.test(f.label)) backupStatusByLabel.get("No backup on record").push(a);
+    else backupStatusByLabel.get("No backup 3+ days").push(a);
   }
-  const backupRows = Array.from(backupByLabel.entries())
+  const backupStatusRows = Array.from(backupStatusByLabel.entries())
     .map(([label, list]) => ({ label, count: list.length }))
     .filter(r => r.count > 0);
-  const backupTotal = backupRows.reduce((s, r) => s + r.count, 0);
-  const backupBad = (backupByLabel.get("No backup 3+ days").length)
-                  + (backupByLabel.get("No backup on record").length);
-  const backupWarn = backupByLabel.get("Failing recently").length;
+  const backupStatusTotal = backupStatusRows.reduce((s, r) => s + r.count, 0);
+  const backupStatusBad = (backupStatusByLabel.get("No backup 3+ days").length)
+                        + (backupStatusByLabel.get("No backup on record").length);
+  const backupStatusWarn = backupStatusByLabel.get("Failing recently").length;
   sections.health.push(_statCard("Backup status (latest run)",
-    backupTotal
+    backupStatusTotal
       ? `${_statHeadline(
-          `${backupBad > 0 ? `<span style="color:#b91c1c;">${backupBad}</span>` : backupBad}`,
-          `host${backupBad === 1 ? '' : 's'} with no recent backup` + (backupWarn ? ` &middot; ${backupWarn} failing` : '')
-        )}${_statBars(backupRows, backupTotal, 5, { statKey: "backupstatus", byLabel: backupByLabel })}`
+          `${backupStatusBad > 0 ? `<span style="color:#b91c1c;">${backupStatusBad}</span>` : backupStatusBad}`,
+          `host${backupStatusBad === 1 ? '' : 's'} with no recent backup` + (backupStatusWarn ? ` &middot; ${backupStatusWarn} failing` : '')
+        )}${_statBars(backupStatusRows, backupStatusTotal, 5, { statKey: "backupstatus", byLabel: backupStatusByLabel })}`
       : `<div class="meta">No endpoints reporting backup state yet.</div>`,
     "Click a row for the host list. Mirrors the per-host backup badge."
   ));
