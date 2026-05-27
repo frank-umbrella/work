@@ -1972,7 +1972,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.134";
+const APP_VERSION = "0.14.135";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -2007,9 +2007,6 @@ const CHANGELOG = [
     "Mobile UI polish: (1) OS row now left-aligned so the Windows-flag icon sits immediately next to the OS version text instead of being shoved to the middle of the card. (2) Version chip drops to its own line below 'Watchtower' in the brand title. (3) Userbar buttons get explicit ordering (download / docs / theme / A-/A+ / avatar / sign out) so the row no longer reshuffles when the theme glyph swaps. (4) Theme toggle button + glyph have locked widths so sun/moon swap doesn't ripple a layout shift.",
     "Intake email follow-up cadence shortened from 24h to ~5 min. The worker now tells brand-new agents (firstSeen=true) to come back in 5 minutes instead of waiting the full 24h before their second check-in. Result: the intake email arrives within minutes of an install instead of next-day. Existing hosts and retired hosts are unaffected.",
     "Settings 'Snooze endpoint alerts' row compressed to icon + duration chips (bell + 1h / 4h / EOD / 8AM / 3d / 5d / 1w / 2w) so all options fit on one line and read at a glance.",
-  ]},
-  { version: "0.14.133", date: "2026-05-25", changes: [
-    "Notification emails: stripped all em dashes (the typographical kind that scream 'an AI wrote this'). Replaced with colons, semicolons, periods, or hyphens as appropriate. Affected lines were in the intake email subject + body, the WSB digest, and the backup-disk-aged advisory. Functional content unchanged.",
   ]},
   { version: "0.14.132", date: "2026-05-25", changes: [
     "Intake email now defers to the host's SECOND check-in instead of the first. Several probes (Dell OMSA, WSB, Windows Updates, Veeam lastJob) often haven't fully populated by the first check-in, so the email was shipping incomplete inventories. One cycle later (typically 24h) those probes have settled and the email reports a complete picture. Safety cap: if the second check-in hasn't happened within 14 days, the email fires anyway. Activity-log entry for 'host first seen' still fires immediately on the first check-in so the audit trail isn't delayed.",
