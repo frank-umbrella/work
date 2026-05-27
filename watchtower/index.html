@@ -570,6 +570,15 @@
      Connectivity + ISP map) were scattered across the grid by
      declaration order. */
   .stats-section {
+    /* CRITICAL: the parent #statsBody is itself class="stats-grid", so
+       without forcing each section to span the full row it gets treated
+       as a single grid item and Network/Composition/Health/Tooling sit
+       side-by-side as four narrow columns instead of stacking. The
+       intended layout is: each section stacks vertically full-width,
+       then INSIDE each section the inner .stats-grid lays out its
+       cards. -1 ends at the last column line regardless of how many
+       tracks the auto-fit grid actually produced. */
+    grid-column: 1 / -1;
     padding: 14px 0 0;
   }
   .stats-section:first-child {
@@ -2041,7 +2050,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.140";
+const APP_VERSION = "0.14.141";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -2072,6 +2081,9 @@ if (_versionChip) {
 // fixes). Patch-level no-op bumps don't need entries -- only stuff a
 // human reader would want to know about.
 const CHANGELOG = [
+  { version: "0.14.141", date: "2026-05-27", changes: [
+    "Stats tab layout fix: the four sections (Network / Fleet composition / Health / Tooling) were rendering as four narrow columns side-by-side instead of stacked vertically full-width. Root cause: the parent container #statsBody already carries class='stats-grid', so each <section> I rendered became a grid item in that outer grid and got crammed into a 25%-wide track -- which also broke the Network 2-column 50/50 layout because the section never got the full row width it needed. Fix: forced .stats-section { grid-column: 1 / -1 } so every section spans the full row of the parent grid, then the inner per-section grids lay out cards as designed. Network now actually shows Connectivity + ISP locations as the full-width 50/50 row at the top.",
+  ]},
   { version: "0.14.140", date: "2026-05-27", changes: [
     "Hotfix: v0.14.139 crashed the dashboard on load with a blank page. The new 'Backup status (latest run)' tile declared a const named backupByLabel that collided with an existing const of the same name in the older 'Backup tooling' tile -- both inside the same renderStats() function -- which is a JS SyntaxError at parse time and killed the entire module. Renamed the new tile's variables to backupStatusByLabel / backupStatusRows / backupStatusTotal / etc. Behavior unchanged from 0.14.139's intent.",
   ]},
