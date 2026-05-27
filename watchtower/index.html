@@ -2074,7 +2074,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.146";
+const APP_VERSION = "0.14.147";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -2105,6 +2105,9 @@ if (_versionChip) {
 // fixes). Patch-level no-op bumps don't need entries -- only stuff a
 // human reader would want to know about.
 const CHANGELOG = [
+  { version: "0.14.147", date: "2026-05-27", changes: [
+    "Per-host PDF export: two fixes for the 'blank PDF' and 'content starts halfway down the page' bugs. (1) The iframe layout-wait was using the parent window's requestAnimationFrame, which doesn't wait for the iframe's own layout pipeline to finish. Switched to the iframe's own rAF (two cycles) plus a parent rAF tail tick + a height-sanity check that bails loudly if the report div somehow rendered with < 50px height. That covers the 'save() resolves but the file is empty' edge case. (2) Pagebreak mode dropped 'legacy' -- which treated every <tr> as un-splittable and pushed entire sections to the next page if they didn't fit in the remaining space (the 'halfway down' symptom on hosts with long tables). Now uses 'css' only, so tables flow across page boundaries naturally. The header block (logo + host identity) gets class='pdf-keep' + an explicit avoid rule so the title still stays together on page 1.",
+  ]},
   { version: "0.14.146", date: "2026-05-27", changes: [
     "HOTFIX: Endpoints table layout was busted in 0.14.143-145 -- chips (VM/HYP/PHY) rendered flush against the hostname text with no gap ('VMserver3' / 'HYPHYPERV' / 'PHYSERVER'), columns wrapped weirdly, the whole table looked broken. Root cause: when the fleet->endpoints rename in 0.14.143 swept through, the CSS selector form 'table.fleet' got renamed to 'table.endpoints' everywhere, but the actual <table> tag's class attribute was still 'fleet sortable' -- so every CSS rule scoped to the table (host-row gap, column min-widths, header sticky, zebra striping, all of it) silently stopped matching. Fixed by renaming the class attribute too. Lesson: replace_all on a CSS selector doesn't catch the HTML class attribute since 'class=\"fleet\"' has no leading 'table.' prefix to match against.",
   ]},
@@ -7069,7 +7072,32 @@ async function exportHostPdf(pcId) {
         : new Promise(r => { img.addEventListener("load", r, { once: true }); img.addEventListener("error", r, { once: true }); setTimeout(r, 2000); })
     ));
 
-    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    // Wait for the IFRAME's own layout pipeline to settle -- not the
+    // parent's. Layout inside an iframe runs on its own clock; parent
+    // rAF doesn't guarantee the child has computed dimensions yet.
+    // Two rAFs on the iframe's window + a tiny explicit fallback delay
+    // covers the "html2canvas captured before layout finished -> blank
+    // PDF" case that bit us before. Falls back to parent rAF if the
+    // iframe's contentWindow somehow went away (shouldn't happen but
+    // defensive against teardown races).
+    const fwin = frame.contentWindow;
+    if (fwin && typeof fwin.requestAnimationFrame === "function") {
+      await new Promise(r => fwin.requestAnimationFrame(() => fwin.requestAnimationFrame(r)));
+    } else {
+      await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    }
+    // One more tick of parent rAF so the canvas worker can pick up the
+    // settled iframe layout.
+    await new Promise(r => requestAnimationFrame(r));
+
+    // Diagnostic: refuse to ship a zero-height capture. Catches the
+    // edge case where the iframe somehow ended up with no rendered
+    // content (CSP block, srcdoc race, etc) so we error loud instead
+    // of silently producing a blank PDF.
+    const rectAfter = reportDiv.getBoundingClientRect();
+    if (!rectAfter.height || rectAfter.height < 50) {
+      throw new Error(`Report layout failed -- reportDiv rendered with height=${rectAfter.height}px. Try clicking PDF again; if it persists, screenshot the browser console.`);
+    }
 
     // Filename: <Client>_<Host>_<YYYY-MM-DD_HH-MM-SS>.pdf, sanitized.
     const ts = new Date();
@@ -7090,7 +7118,18 @@ async function exportHostPdf(pcId) {
         logging: true,
       },
       jsPDF: { unit: "pt", format: "letter", orientation: "portrait" },
-      pagebreak: { mode: ["css", "legacy"] },
+      // Pagebreak: 'css' only -- honor explicit page-break-* CSS properties,
+      // and let tables / rows split freely across pages instead of being
+      // pushed whole. The previous `['css','legacy']` setting treated each
+      // <tr> as un-splittable, which meant any moderately tall section
+      // (OMSA disks, lots of volumes, long install list) that didn't fit
+      // in the remaining space of the current page got punted to the next
+      // page -- leaving the bottom 30-50% of the previous page blank.
+      // Anything we really want kept together gets class="pdf-keep" and
+      // is listed in `avoid` below. Right now just the header block
+      // (logo + host identity) is marked keep-together so it never splits
+      // across a page boundary -- that'd look broken in print.
+      pagebreak: { mode: "css", avoid: ".pdf-keep" },
     };
 
     console.log("[PDF] starting html2pdf...");
@@ -7161,21 +7200,26 @@ function buildReportDom(a, logoPngDataUrl) {
     : `<div style="flex:0 0 180px;font-weight:900;color:#0c5e9c;font-size:18px;letter-spacing:0.02em;line-height:1.1;">UMBRELLA<br><span style="color:#6e6e6e;">AUTOMATION</span></div>`;
 
   div.innerHTML = `
-    <!-- HEADER (compact, single-row, logo + metadata aligned baseline) -->
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:20px;border-bottom:1.5px solid #0a6b6b;padding-bottom:10px;margin-bottom:12px;">
-      ${logoBlock}
-      <div style="flex:0 0 auto;text-align:right;font-size:9.5px;color:#8892a4;line-height:1.45;">
-        <div style="font-size:11px;color:#0a6b6b;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;">Watchtower &middot; Per-host report</div>
-        <div>Generated ${new Date().toLocaleString()} &middot; Dashboard v${APP_VERSION}</div>
+    <!-- HEADER + HOST IDENTITY block. Wrapped in class="pdf-keep" so
+         the pagebreak engine treats it as un-splittable -- the logo
+         and the host name should always sit together on page 1. -->
+    <div class="pdf-keep" style="page-break-inside:avoid;">
+      <!-- HEADER (compact, single-row, logo + metadata aligned baseline) -->
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:20px;border-bottom:1.5px solid #0a6b6b;padding-bottom:10px;margin-bottom:12px;">
+        ${logoBlock}
+        <div style="flex:0 0 auto;text-align:right;font-size:9.5px;color:#8892a4;line-height:1.45;">
+          <div style="font-size:11px;color:#0a6b6b;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;">Watchtower &middot; Per-host report</div>
+          <div>Generated ${new Date().toLocaleString()} &middot; Dashboard v${APP_VERSION}</div>
+        </div>
       </div>
-    </div>
 
-    <!-- HOST IDENTITY -- promoted, since it's the headline of the report -->
-    <h2 style="margin:0 0 3px;font-size:20px;color:#1a1f2b;letter-spacing:-0.01em;">${esc(a.hostname || a.id)}</h2>
-    <div style="font-size:11.5px;color:#475063;margin-bottom:14px;">
-      Client: <b>${esc(a.client || "unknown")}</b>
-      &middot; pcId <code style="font-size:10.5px;">${esc(a.id)}</code>
-      &middot; Agent <code style="font-size:10.5px;">v${esc(a.agentVersion || "?")}</code>
+      <!-- HOST IDENTITY -- promoted, since it's the headline of the report -->
+      <h2 style="margin:0 0 3px;font-size:20px;color:#1a1f2b;letter-spacing:-0.01em;">${esc(a.hostname || a.id)}</h2>
+      <div style="font-size:11.5px;color:#475063;margin-bottom:14px;">
+        Client: <b>${esc(a.client || "unknown")}</b>
+        &middot; pcId <code style="font-size:10.5px;">${esc(a.id)}</code>
+        &middot; Agent <code style="font-size:10.5px;">v${esc(a.agentVersion || "?")}</code>
+      </div>
     </div>
 
     ${sectionHdr("Status")}
