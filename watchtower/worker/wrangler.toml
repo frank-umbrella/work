@@ -18,22 +18,19 @@ account_id = "87034c82986d2aacbc4d52e8de0fa2fd"
 # Not a secret; it's already in the public dashboard SPA.
 FIREBASE_PROJECT_ID = "watchtower-6fbe1"
 
-# Sender for IP-change alert emails. Resend's sandbox sender works for now
-# because the recipient is always the MSP (Resend account owner), and the
-# sandbox sender is allowed to deliver only to the account owner's email.
-# Graduate to a verified alerts.umbrellaautomation.com (or similar) when
-# we want proper branding.
-SENDER_FROM = "Watchtower <onboarding@resend.dev>"
+# Sender for alert emails. alerts.umbrellaautomation.com is the verified
+# Resend subdomain (SPF + DKIM + MX records added at GoDaddy 2026-05-27).
+# Local part "watchtower" identifies this product specifically -- other
+# projects on the same shared domain use their own local parts
+# (e.g. linklock@alerts.umbrellaautomation.com, onboarding@alerts...).
+# Display name "Watchtower" is what shows in the recipient's inbox.
+SENDER_FROM = "Watchtower <watchtower@alerts.umbrellaautomation.com>"
 
-# Default recipient for IP-change alerts. The agent's per-PC config doc
-# may override this with a custom recipient or webhook URL.
-#
-# Until we verify a domain on Resend (e.g. umbrellaautomation.com), the
-# sandbox sender (onboarding@resend.dev) can only deliver to the email
-# that the Resend account is verified with — so this must match. When
-# moving to a distro group later, verify a domain on Resend, swap
-# SENDER_FROM to alerts@umbrellaautomation.com (or similar), then
-# ALERT_TO can be any address including a distribution list.
+# Default recipient for alert emails. With alerts.umbrellaautomation.com
+# now verified as a Resend sending domain (SENDER_FROM above), this can
+# be ANY recipient -- not constrained to the Resend account owner like
+# the old sandbox setup was. Swap to a distribution list / shared MSP
+# inbox / per-client address whenever desired.
 ALERT_TO = "frank@umbrellaautomation.com"
 
 # Comma-separated list of dashboard origins allowed to call worker
