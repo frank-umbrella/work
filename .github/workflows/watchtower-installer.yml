@@ -94,6 +94,38 @@ jobs:
           # / GTK install needed, the pip wheel is self-contained.
           pip install cairosvg
 
+      - name: Capture resolved dependency lock + SBOM
+        # Save the FULL transitive dep tree (every package + version pip
+        # actually installed, not just our top-level requirements). This
+        # is the inventory we need for after-the-fact audits when a CVE
+        # drops -- "did this build pull in vulnerable-pkg 1.2.3?" becomes
+        # a grep instead of guesswork. Uploaded as a workflow artifact
+        # with 1y retention so we can cross-reference any release.
+        shell: pwsh
+        run: |
+          pip freeze | Out-File -FilePath resolved-deps.txt -Encoding utf8
+          Write-Host "Resolved dep tree:"
+          Get-Content resolved-deps.txt
+
+      - name: Audit installed deps for known CVEs (pip-audit)
+        # Runs pip-audit against the installed venv (catches direct +
+        # transitive deps) using the PyPI advisory database + OSV.
+        # Fails the build on any vulnerability -- intentional: better
+        # to block a release than ship a known-bad binary. If a false
+        # positive ever lands, the override is `pip-audit --ignore-vuln`
+        # with the specific GHSA / PYSEC id, NOT removing this step.
+        # Free, ~20s, runs every build.
+        shell: pwsh
+        continue-on-error: true  # surface findings without blocking the FIRST few builds; flip to false once we've shaken out the baseline
+        run: |
+          pip install pip-audit
+          pip-audit --strict
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "::warning::pip-audit found vulnerabilities -- review the SBOM artifact and bump deps." -ForegroundColor Yellow
+          } else {
+            Write-Host "pip-audit: no known vulnerabilities in installed deps." -ForegroundColor Green
+          }
+
       - name: Install Inno Setup 6
         # chocolatey is preinstalled on windows-latest runners. innosetup
         # package installs ISCC.exe to C:\Program Files (x86)\Inno Setup 6\
@@ -143,6 +175,18 @@ jobs:
             watchtower/installer/dist/Watchtower-Setup-LogMeIn.exe
           if-no-files-found: warn
           retention-days: 90
+
+      - name: Upload resolved dep SBOM as workflow artifact
+        # Long retention (1 year) so a future "did this version ship
+        # CVE-XXXX?" audit can be answered from the artifact. resolved-deps.txt
+        # is just a `pip freeze` of what got installed -- tiny file.
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: resolved-deps-${{ steps.version.outputs.version }}
+          path: resolved-deps.txt
+          if-no-files-found: warn
+          retention-days: 365
 
       - name: Summary
         if: success()

@@ -1,0 +1,82 @@
+# Dependabot configuration.
+#
+# Watches our dependency manifests + opens PRs when a new version (security
+# OR feature) lands. The big win for Watchtower is the SECURITY advisories
+# -- when a CVE is filed against requests / Pillow / pywin32 / etc, we get
+# a PR within a day or two instead of finding out months later from an
+# auditor.
+#
+# All three ecosystems are tied to the same project under frank-umbrella/work:
+#   - pip:            watchtower/agent/requirements.txt (deps PyInstaller
+#                     bakes into the deployed agent EXE)
+#   - github-actions: .github/workflows/*.yml (the installer-build pipeline
+#                     itself -- a compromised action could trojanize every
+#                     build)
+#   - npm:            watchtower/worker/package.json (Cloudflare Worker deps;
+#                     wrangler, jose for Firebase JWT verify)
+#
+# Schedule weekly. Cap PRs so an avalanche of dep bumps doesn't drown the
+# real work. Security advisories override the cap -- Dependabot opens those
+# regardless of open-pull-requests-limit. (That's intentional in Dependabot;
+# the cap is for routine version bumps only.)
+
+version: 2
+updates:
+  - package-ecosystem: "pip"
+    directory: "/watchtower/agent"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "agent"
+    commit-message:
+      prefix: "deps(agent)"
+    # Group routine patch / minor bumps into a single PR so the operator
+    # only deals with one PR per week for the bulk of churn. Security
+    # advisories still get individual PRs (Dependabot's default behavior
+    # when a CVE is involved).
+    groups:
+      agent-deps:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "ci"
+    commit-message:
+      prefix: "deps(ci)"
+
+  - package-ecosystem: "npm"
+    directory: "/watchtower/worker"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "worker"
+    commit-message:
+      prefix: "deps(worker)"
+    # Wrangler itself updates frequently with non-security changes; group
+    # those. Security advisories on jose / undici still come through as
+    # individual PRs.
+    groups:
+      worker-deps:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
