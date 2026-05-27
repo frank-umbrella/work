@@ -132,7 +132,7 @@
       </svg>
       <div>
         <div class="meta">Umbrella Automation</div>
-        <h1>Watchtower &middot; Docs <span class="version-chip">v0.14.144</span></h1>
+        <h1>Watchtower &middot; Docs <span class="version-chip">v0.14.145</span></h1>
       </div>
     </a>
     <a class="btn brand-link" href="index.html">&larr; Back to dashboard</a>
@@ -242,7 +242,7 @@
     Open the <a href="index.html">dashboard</a> &rarr; <b>Clients</b> tab &rarr; <b>+ New client</b> (if needed) &rarr; click <b>+ Token</b> on the client's row. Copy the token (you only get to see it once).
   </li>
   <li>
-    Run <code>Watchtower-Setup.exe</code> as admin on the target PC. Paste the token into the wizard when prompted; the installer pings Watchtower to verify the token before continuing.
+    On the target PC, <b>right-click <code>Watchtower-Setup.exe</code> &rarr; Run as administrator</b>. Paste the token into the wizard when prompted; the installer pings Watchtower to verify the token before continuing. (The plain double-click path also works on clean Windows boxes, but right-click is the supported route &mdash; some AV / EDR products silently swallow the UAC prompt on unsigned binaries, and the right-click path bypasses that quirk.)
   </li>
   <li>
     Wait ~60 seconds for the first check-in. The host appears in the dashboard's <b>Endpoints</b> tab.
@@ -303,7 +303,7 @@
     <b>Get the EXE to the target PC.</b> Push <code>Watchtower-Setup.exe</code> however you normally distribute software (LogMeIn, RMM, copy-paste, email, file share &mdash; it's a self-contained EXE).
   </li>
   <li>
-    <b>Run it as admin.</b> Double-click works (UAC will prompt). For unattended deploys see <a href="#customize-silent">silent install</a> below.
+    <b>Right-click &rarr; Run as administrator.</b> This is the supported install method on every machine, not just AV-heavy ones. The installer's manifest sets <code>PrivilegesRequired=admin</code> so a plain double-click will normally pop the UAC prompt on a clean Windows box &mdash; but some AV / EDR products (SentinelOne is the one we hit in the wild; CrowdStrike + Sophos behave the same way) silently swallow the elevation request on unsigned binaries, and the only visible symptom is "I clicked the EXE and nothing happened." Right-click &rarr; Run as administrator side-steps that entirely. For unattended deploys see <a href="#customize-silent">silent install</a> below &mdash; the RMM / GPO paths already run under SYSTEM and don't need this dance.
   </li>
   <li>
     <b>Paste the token at the wizard prompt.</b> The installer makes a quick call to the Watchtower worker to verify the token. If the token is wrong, revoked, or unreachable the wizard refuses to advance &mdash; nothing is written to the PC. On success it proceeds and writes <code>%ProgramData%\Watchtower\config.json</code> with the token + worker-resolved client name + a fresh per-install pcId.
