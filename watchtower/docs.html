@@ -132,7 +132,7 @@
       </svg>
       <div>
         <div class="meta">Umbrella Automation</div>
-        <h1>Watchtower &middot; Docs <span class="version-chip">v0.14.137</span></h1>
+        <h1>Watchtower &middot; Docs <span class="version-chip">v0.14.138</span></h1>
       </div>
     </a>
     <a class="btn brand-link" href="index.html">&larr; Back to dashboard</a>
@@ -151,6 +151,12 @@
   <a href="#install-flow">Deploy to a client PC</a>
   <a href="#install-verify">Verify check-in</a>
   <a href="#install-reinstall">Re-installing</a>
+  <a href="#av-exclusions" class="section">Antivirus / EDR exclusions</a>
+  <a href="#av-why">Why it gets flagged</a>
+  <a href="#av-exclusions-needed">Exclusions to add</a>
+  <a href="#av-sentinelone">SentinelOne &mdash; specific steps</a>
+  <a href="#av-defender">Microsoft Defender &mdash; specific steps</a>
+  <a href="#av-other-vendors">Other EDR vendors</a>
   <a href="#customize" class="section">Customize install</a>
   <a href="#customize-silent">Silent / RMM install</a>
   <a href="#customize-build">build.ps1 parameters</a>
@@ -322,6 +328,64 @@
   <li><b>Silent re-installs work without <code>/TOKEN=</code>.</b> Same precedence applies: command-line override &gt; wizard input &gt; existing config.json. RMM scripts can just push <code>Watchtower-Setup.exe /VERYSILENT /SUPPRESSMSGBOXES</code> and the existing token gets re-validated and re-used.</li>
   <li><b>To rotate to a different token</b> (e.g. you're migrating the host to a new client): pass <code>/TOKEN=wt_new...</code> on the command line, or delete <code>%ProgramData%\Watchtower\config.json</code> first to force the wizard prompt.</li>
 </ul>
+
+<h2 id="av-exclusions">Antivirus / EDR exclusions</h2>
+<p>Watchtower's agent will look suspicious to most EDR/AV products on first install. Symptoms range from a one-off "suspicious file detected" alert (SentinelOne) to outright quarantine of <code>watchtower-svc.exe</code> mid-install. This isn't a bug in the agent or in your EDR &mdash; it's pattern matching against legitimate behavior that <i>also</i> shows up in malware.</p>
+
+<h3 id="av-why">Why it gets flagged</h3>
+<ul>
+  <li><b>Unsigned PE binaries</b> &mdash; the agent's <code>watchtower-svc.exe</code> + <code>watchtower-tray.exe</code> are PyInstaller-bundled Python interpreters. Without an Authenticode signature, EDR vendors apply extra heuristic scrutiny.</li>
+  <li><b>PyInstaller signature</b> &mdash; many real malware families also use PyInstaller (cheap way to ship Python payloads). Generic detections like "Trojan.Generic.PyInstaller" or SentinelOne's "Static-AI" engine flag the PE structure regardless of what the binary actually does.</li>
+  <li><b>Service installation via <code>sc.exe</code></b> &mdash; the installer runs <code>sc create WatchtowerAgent binPath=...</code> with <code>obj=LocalSystem</code>. This is normal for Windows services but matches the persistence pattern used by malware that wants to survive reboots.</li>
+  <li><b>Scheduled task creation</b> &mdash; the installer registers two tasks via <code>schtasks /Create</code> (tray watchdog at logon + hourly). Also persistence-like behavior.</li>
+  <li><b>Outbound HTTPS to a non-standard origin</b> &mdash; check-ins go to <code>watchtower-worker.umbrelladev.workers.dev</code>, which isn't a well-known cloud service. EDR network reputation lookups may flag it as unknown.</li>
+  <li><b>SYSTEM-level Python process</b> &mdash; the service runs as <code>LocalSystem</code> with full Python's stdlib available (subprocess, requests, registry access). That capability surface is what attackers also want.</li>
+</ul>
+
+<h3 id="av-exclusions-needed">Exclusions to add</h3>
+<p>The safest + simplest approach is <b>path-based exclusions</b> on the install + state directories. This whitelists everything Watchtower legitimately touches without exempting your whole drive.</p>
+
+<table class="opts">
+  <tr><th>Type</th><th>Value</th><th>Purpose</th></tr>
+  <tr><td><b>Folder</b></td><td><code>C:\Program Files\Umbrella Watchtower\</code></td><td>Install directory. Contains the service + tray binaries, scripts, and the auto-updater download cache.</td></tr>
+  <tr><td><b>Folder</b></td><td><code>C:\ProgramData\Watchtower\</code></td><td>State directory. Holds <code>config.json</code>, <code>state.json</code>, <code>watchtower.log</code>, <code>speedtest.json</code>, <code>install.log</code>. The service writes here on every check-in.</td></tr>
+  <tr><td><b>Process</b></td><td><code>watchtower-svc.exe</code></td><td>The Windows service that does check-ins. Runs as SYSTEM, makes outbound HTTPS, spawns probe sub-processes (PowerShell, WMI queries, omreport.exe for OMSA, Get-WBJob for WSB).</td></tr>
+  <tr><td><b>Process</b></td><td><code>watchtower-tray.exe</code></td><td>The system-tray UI. Runs in the user's interactive session, reads <code>state.json</code> on a poll.</td></tr>
+  <tr><td><b>Process</b></td><td><code>Watchtower-Setup.exe</code></td><td>The Inno Setup installer itself. Some EDR products quarantine the installer before it gets a chance to create the install dir; excluding the EXE name prevents that.</td></tr>
+  <tr><td><b>URL / domain</b></td><td><code>watchtower-worker.umbrelladev.workers.dev</code></td><td>The Cloudflare Worker that handles check-ins. Outbound HTTPS only, no inbound.</td></tr>
+  <tr><td><b>URL / domain</b></td><td><code>speed.cloudflare.com</code></td><td>Weekly speed test endpoint (~15 MB / week per host). Skip this exclusion if your EDR doesn't filter outbound URLs &mdash; it'll just allow it normally.</td></tr>
+  <tr><td><b>URL / domain</b></td><td><code>github.com</code> + <code>api.github.com</code></td><td>Auto-update checks + binary downloads (the latest <code>Watchtower-Setup.exe</code> lives on GitHub Releases). Most fleets already allow GitHub for general dev/ops reasons.</td></tr>
+</table>
+
+<h3 id="av-sentinelone">SentinelOne — specific steps</h3>
+<p>S1's "suspicious file detected" alert on <code>watchtower-svc.exe</code> or the installer is the most common report. Here's the cleanest way to handle it in the S1 console:</p>
+<ol>
+  <li><b>S1 Console</b> &rarr; <b>Sentinels</b> &rarr; <b>Exclusions</b></li>
+  <li>Click <b>New Exclusion</b></li>
+  <li>Choose <b>Type: Path</b></li>
+  <li>Set <b>OS: Windows</b>, <b>Mode: All file types</b></li>
+  <li>Paste the path: <code>C:\Program Files\Umbrella Watchtower\</code> (with the trailing slash to scope to the folder + subfolders)</li>
+  <li>Set <b>Scope</b> to <b>Account</b> (applies to all clients on the account) or to a specific <b>Site</b> / <b>Group</b> as needed</li>
+  <li>For <b>Performance focus</b> pick <code>Interoperability</code> (allows the path to run unmonitored) rather than <code>Performance</code> (just speeds up scans on it). Interoperability is what you want for a legitimate tool the EDR is over-flagging.</li>
+  <li>Repeat steps 2-7 for <code>C:\ProgramData\Watchtower\</code></li>
+  <li>If S1 has already quarantined <code>watchtower-svc.exe</code> on the host, head to <b>Incidents</b> or <b>Threat Hub</b>, find the detection, and choose <b>Mark as Benign</b> + <b>Restore from Quarantine</b>. The path exclusion alone won't recover an already-quarantined file.</li>
+</ol>
+<p><b>Optional hardening</b>: instead of a folder-wide exclusion, you can do <b>per-binary hash exclusion</b> (S1 calls these "Hash Exclusions"). More secure (only THAT exact binary version is whitelisted) but you have to re-add the exclusion every time the agent auto-updates. Not worth the maintenance overhead for most teams &mdash; the path exclusion is fine because nothing else lives in <code>C:\Program Files\Umbrella Watchtower\</code>.</p>
+
+<h3 id="av-defender">Microsoft Defender — specific steps</h3>
+<p>Add the same two path exclusions via:</p>
+<ul>
+  <li><b>GUI</b>: Windows Security &rarr; Virus &amp; threat protection &rarr; Manage settings &rarr; Add or remove exclusions &rarr; Add a folder</li>
+  <li><b>PowerShell</b> (admin): <pre><code>Add-MpPreference -ExclusionPath "C:\Program Files\Umbrella Watchtower\"
+Add-MpPreference -ExclusionPath "C:\ProgramData\Watchtower\"
+Add-MpPreference -ExclusionProcess "watchtower-svc.exe"
+Add-MpPreference -ExclusionProcess "watchtower-tray.exe"</code></pre></li>
+  <li><b>Group Policy</b>: Computer Configuration &rarr; Administrative Templates &rarr; Windows Components &rarr; Microsoft Defender Antivirus &rarr; Exclusions &rarr; Path Exclusions</li>
+</ul>
+
+<h3 id="av-other-vendors">Other EDR vendors</h3>
+<p>The same two folder paths + two process names cover the common case for: CrowdStrike Falcon, Sophos Intercept X, ESET Endpoint, Bitdefender GravityZone, Symantec/Broadcom Endpoint Protection, Trend Micro Apex One, and Webroot. Each has its own console workflow but the underlying exclusion data is identical to the table above.</p>
+<div class="callout info"><b>Sign the binaries to reduce future flagging.</b> The current agent EXEs are unsigned, which is the single biggest contributor to AV/EDR scrutiny. If you have an Authenticode code-signing cert (Sectigo / DigiCert / SSL.com / etc.), wire it into <code>installer\build.ps1</code> via <code>signtool sign</code> on both <code>watchtower-svc.exe</code> and <code>watchtower-tray.exe</code>. Signed binaries get vastly less attention from heuristic engines and many EDR products will skip them entirely on the strength of the publisher reputation.</div>
 
 <h2 id="customize">Customize install</h2>
 

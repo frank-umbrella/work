@@ -2012,7 +2012,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.137";
+const APP_VERSION = "0.14.138";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -2043,6 +2043,9 @@ if (_versionChip) {
 // fixes). Patch-level no-op bumps don't need entries -- only stuff a
 // human reader would want to know about.
 const CHANGELOG = [
+  { version: "0.14.138", date: "2026-05-27", changes: [
+    "Docs: new 'Antivirus / EDR exclusions' section covering why the agent looks suspicious to AV (unsigned PyInstaller binaries, service install via sc.exe, scheduled tasks, outbound HTTPS) plus the path / process / URL exclusions to add. Specific step-by-step instructions for SentinelOne (the 'suspicious file detected' case the user just hit) and Microsoft Defender; the same data covers CrowdStrike / Sophos / ESET / etc. Includes a callout recommending Authenticode code-signing as the long-term fix.",
+  ]},
   { version: "0.14.137", date: "2026-05-27", changes: [
     "Stats tab reorganized into four labeled sections (Network / Fleet composition / Health / Tooling) instead of one undifferentiated wall of cards. Each section gets a small uppercase header with a subtle accent underline so related cards are visually grouped. Network section now leads with Connectivity + ISP locations map side-by-side at the top -- both are about how the fleet is reaching the internet, so they belong together.",
   ]},
