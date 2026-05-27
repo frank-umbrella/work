@@ -2875,7 +2875,7 @@ function readConfig(doc) {
     webhookEnabled: null,
     webhookUrl: null,
     uninstall: false,
-    autoUpdate: false,  // safety default — opt-in per host
+    autoUpdate: true,  // default ON (v0.14.143+) -- treat undefined as enabled, only explicit `false` disables
     forceUpdate: false, // one-shot push, self-clears after success
     clientIdOverride: null,
     // Per-subsystem monitoring flags. Default true so existing hosts
