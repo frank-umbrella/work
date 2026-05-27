@@ -155,14 +155,14 @@
 
   /* Tables in dark mode -- header strip lifts off the body via a slight
      surface-2 tint, hover row picks up the same lift. Defaults work
-     because table.fleet uses var(--surface-2) for th, but we bump zebra
+     because table.endpoints uses var(--surface-2) for th, but we bump zebra
      contrast a touch since the new --ink is brighter and would otherwise
      make rows feel "all the same." */
-  html[data-theme="dark"] table.fleet tr:hover td,
+  html[data-theme="dark"] table.endpoints tr:hover td,
   html[data-theme="dark"] table.clients tr:hover td {
     background: rgba(94, 234, 212, 0.05);  /* faint accent tint on hover */
   }
-  html[data-theme="dark"] table.fleet tr.selected td {
+  html[data-theme="dark"] table.endpoints tr.selected td {
     background: rgba(94, 234, 212, 0.12);
   }
 
@@ -430,7 +430,7 @@
      registers even when nothing visibly changes in the table (live
      subscription means a healthy table looks identical before and after).
      Disable pointer events for the animation window to swallow double-clicks. */
-  #fleetRefresh.refreshing {
+  #endpointsRefresh.refreshing {
     pointer-events: none;
     animation: wt-refresh-pulse 600ms ease-out;
   }
@@ -799,11 +799,11 @@
      identical visually but lets sticky work reliably. Borders that
      used to live on <td>s now live on the cells themselves -- we add
      row borders via td border-bottom in the row CSS below. */
-  table.fleet { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13.5px; }
-  /* No overflow-x on #fleetWrap any more. v0.14.58 had it as auto to
+  table.endpoints { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 13.5px; }
+  /* No overflow-x on #endpointsWrap any more. v0.14.58 had it as auto to
      contain a too-wide table inside the panel, but that created a
      new scroll context that BROKE the sticky thead -- the header
-     stuck relative to #fleetWrap (which never scrolls vertically)
+     stuck relative to #endpointsWrap (which never scrolls vertically)
      instead of the viewport, so on scroll the header rendered in
      random mid-table positions instead of staying at the top.
      Now: main is 1760 px wide (v0.14.62), the table fits without
@@ -813,7 +813,7 @@
      mobile/narrow viewports never see a too-wide grid. The narrow
      desktop window edge case (1100-1400 px wide) does get a tiny
      amount of cell wrapping but no broken sticky header. */
-  #fleetWrap { width: 100%; }
+  #endpointsWrap { width: 100%; }
   /* Sticky table header -- single layer (<th> only). The previous
      two-layer attempt (sticky on both <thead> and <th>) was
      overengineered; with border-collapse: separate above + an
@@ -821,7 +821,7 @@
      in Chrome / Edge / Firefox / Safari. top:56 = just below the
      sticky page header (header.bar at top:0, ~56px tall). z-index:
      above row content (default 0), below the page header (50). */
-  table.fleet th { text-align: left; padding: 10px 14px; font-size: 11px; text-transform: uppercase; color: var(--ink-faint); letter-spacing: 0.06em; font-weight: 700; border-bottom: 1px solid var(--line); background: var(--surface-2); position: sticky; top: 56px; z-index: 30; }
+  table.endpoints th { text-align: left; padding: 10px 14px; font-size: 11px; text-transform: uppercase; color: var(--ink-faint); letter-spacing: 0.06em; font-weight: 700; border-bottom: 1px solid var(--line); background: var(--surface-2); position: sticky; top: 56px; z-index: 30; }
   /* Sortable-header polish: clickable cursor + hover state + chevron
      marker on the active column. The chevron uses simple CSS unicode
      so we don't need an icon font or SVG sprite.
@@ -838,31 +838,31 @@
   table.sortable th[data-sort]::after { content: "\2195"; position: absolute; right: 8px; top: 50%; transform: translateY(-50%); opacity: 0.3; font-size: 10px; }
   table.sortable th.sorted-asc::after  { content: "\25B2"; opacity: 1; color: var(--accent); }
   table.sortable th.sorted-desc::after { content: "\25BC"; opacity: 1; color: var(--accent); }
-  table.fleet td { padding: 11px 14px; border-bottom: 1px solid var(--line); vertical-align: middle; }
-  table.fleet tr:hover td { background: var(--surface-2); cursor: pointer; }
-  table.fleet tr.selected td { background: var(--accent-soft); }
+  table.endpoints td { padding: 11px 14px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  table.endpoints tr:hover td { background: var(--surface-2); cursor: pointer; }
+  table.endpoints tr.selected td { background: var(--accent-soft); }
   /* Decommissioned rows: dim everything so they read as "still here but
      retired" — operator can still click in for history but the row no
      longer competes for attention with the live fleet. */
-  table.fleet tr.decom td { opacity: 0.55; }
-  table.fleet tr.decom td .badge.muted { opacity: 1; }
+  table.endpoints tr.decom td { opacity: 0.55; }
+  table.endpoints tr.decom td .badge.muted { opacity: 1; }
   /* Retired rows -- same visual de-emphasis treatment as decom, but
      less aggressive (the data is still actively maintained, just at
      a slower cadence; we don't want it to look "dead"). 0.72 keeps
      the row scannable while clearly secondary to active hosts. */
-  table.fleet tr.retired td { opacity: 0.72; }
-  table.fleet tr.retired td .badge.muted { opacity: 1; }
-  table.fleet .host { font-weight: 600; color: var(--ink); }
+  table.endpoints tr.retired td { opacity: 0.72; }
+  table.endpoints tr.retired td .badge.muted { opacity: 1; }
+  table.endpoints .host { font-weight: 600; color: var(--ink); }
   /* Host cell row: fixed-width badge slot on the LEFT so every hostname
      in the column starts at the same x-coordinate regardless of whether
      a VM / HYP / (none) marker is present. Without the reserved slot the
      names would step in and out as you scrolled the list. */
-  table.fleet .host-row {
+  table.endpoints .host-row {
     display: inline-flex;
     align-items: center;
     gap: 8px;
   }
-  table.fleet .host-tag {
+  table.endpoints .host-tag {
     display: inline-flex;
     justify-content: center;
     align-items: center;
@@ -880,7 +880,7 @@
   /* VM + HYP chips are clickable -- they jump the table to a
      filtered view of just VMs or just hypervisors. Pointer cursor +
      subtle hover ring so the affordance is visible without
-     overwhelming the row. Click handler in renderFleet reads
+     overwhelming the row. Click handler in renderEndpoints reads
      data-vmfilter to know which value to set. */
   .host-tag.vm-chip[data-vmfilter],
   .host-tag.hyp-chip[data-vmfilter] { cursor: pointer; transition: box-shadow 0.12s; }
@@ -892,16 +892,16 @@
   /* Empty slot for plain physical hosts -- invisible but takes up the
      same width so name columns align. */
   .host-tag.none { background: transparent; color: transparent; }
-  table.fleet .ip { font-family: var(--mono); font-size: 12.5px; color: var(--ink-soft); }
-  table.fleet .client { font-size: 12.5px; color: var(--ink-soft); }
+  table.endpoints .ip { font-family: var(--mono); font-size: 12.5px; color: var(--ink-soft); }
+  table.endpoints .client { font-size: 12.5px; color: var(--ink-soft); }
   /* Client + OS columns get a min-width so longer names ("Frank's
      Construction LLC", "Celtic Properties Management Group") stop
      wrapping awkwardly when other columns soak up the table's
      auto-layout space. Doesn't apply on mobile -- the cards stack
      vertically so width constraints don't make sense there. */
-  table.fleet th.col-client, table.fleet td.col-client { min-width: 150px; }
-  table.fleet th.col-os, table.fleet td.col-os { min-width: 130px; }
-  table.fleet .age { font-size: 12px; color: var(--ink-faint); }
+  table.endpoints th.col-client, table.endpoints td.col-client { min-width: 150px; }
+  table.endpoints th.col-os, table.endpoints td.col-os { min-width: 130px; }
+  table.endpoints .age { font-size: 12px; color: var(--ink-faint); }
 
   /* status badge */
   /* white-space: nowrap keeps multi-word labels ("OMSA warn new",
@@ -1252,7 +1252,7 @@
   html[data-theme="dark"] .pill-idrac     { background: #1a2240; border-color: #4338ca; color: #a5b4fc; }
 
   @media (max-width: 760px) {
-    table.fleet .col-client, table.fleet .col-os, table.fleet .col-intip, table.fleet .col-products { display: none; }
+    table.endpoints .col-client, table.endpoints .col-os, table.endpoints .col-intip, table.endpoints .col-products { display: none; }
     #drawer { width: 100vw; }
   }
 
@@ -1261,12 +1261,12 @@
      Triggered below 600px since iPhone 15/16 portrait is ~390 / 430px. */
   @media (max-width: 600px) {
     /* ------- Fleet table as cards ------- */
-    table.fleet, table.fleet thead, table.fleet tbody, table.fleet tr, table.fleet td, table.fleet th { display: block; }
-    table.fleet thead { display: none; }
-    table.fleet tr { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; margin: 0 12px 10px; }
-    table.fleet tr:hover td { background: transparent; }
-    table.fleet td { padding: 4px 0; border: 0; display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 13.5px; }
-    table.fleet td::before {
+    table.endpoints, table.endpoints thead, table.endpoints tbody, table.endpoints tr, table.endpoints td, table.endpoints th { display: block; }
+    table.endpoints thead { display: none; }
+    table.endpoints tr { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; margin: 0 12px 10px; }
+    table.endpoints tr:hover td { background: transparent; }
+    table.endpoints td { padding: 4px 0; border: 0; display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 13.5px; }
+    table.endpoints td::before {
       content: attr(data-label);
       font-size: 10.5px;
       font-weight: 700;
@@ -1281,7 +1281,7 @@
      * and tints with the brand accent-soft so the eye lands on WHICH
      * client this host belongs to before scanning the row's data. The
      * Host row sits immediately below as the bigger identifier. */
-    table.fleet td[data-label="Client"] {
+    table.endpoints td[data-label="Client"] {
       display: block;
       background: var(--accent-soft);
       color: var(--accent-ink);
@@ -1294,12 +1294,12 @@
       text-transform: uppercase;
       letter-spacing: 0.05em;
     }
-    table.fleet td[data-label="Client"]::before { display: none; }
+    table.endpoints td[data-label="Client"]::before { display: none; }
 
     /* Host row gets prominent treatment as the card "title" */
-    table.fleet td[data-label="Host"] { font-size: 16px; margin-bottom: 4px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
-    table.fleet td[data-label="Host"]::before { display: none; }
-    table.fleet td[data-label="Host"] .host { font-weight: 700; }
+    table.endpoints td[data-label="Host"] { font-size: 16px; margin-bottom: 4px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+    table.endpoints td[data-label="Host"]::before { display: none; }
+    table.endpoints td[data-label="Host"] .host { font-weight: 700; }
 
     /* OS row on mobile: the inline Windows-flag icon was rendering
        glued to the right side of the cell with a huge gap from the
@@ -1309,37 +1309,37 @@
        Actually simpler: justify-content: flex-end keeps both label
        and value tight together with a small gap and the icon glued
        right next to its text. */
-    table.fleet td[data-label="OS"] {
+    table.endpoints td[data-label="OS"] {
       justify-content: flex-start;
       gap: 8px;
     }
-    table.fleet td[data-label="OS"]::before {
+    table.endpoints td[data-label="OS"]::before {
       margin-right: 4px;
     }
     /* Status / Backup / Remote cells can hold multiple badges or pills.
      * Let them wrap to a second line on the value side when there isn't
      * room for all of them on one row -- with .badge { white-space:
      * nowrap } each individual badge keeps its text intact. */
-    table.fleet td[data-label="Status"],
-    table.fleet td[data-label="Backup"],
-    table.fleet td[data-label="Remote"] {
+    table.endpoints td[data-label="Status"],
+    table.endpoints td[data-label="Backup"],
+    table.endpoints td[data-label="Remote"] {
       flex-wrap: wrap;
       justify-content: flex-start;
       align-items: flex-start;
       row-gap: 4px;
     }
-    table.fleet td[data-label="Status"]::before,
-    table.fleet td[data-label="Backup"]::before,
-    table.fleet td[data-label="Remote"]::before {
+    table.endpoints td[data-label="Status"]::before,
+    table.endpoints td[data-label="Backup"]::before,
+    table.endpoints td[data-label="Remote"]::before {
       align-self: center;
       margin-right: auto;   /* push label left, badges flow to the right */
     }
     /* Show ALL columns in card mode — col-* hides from the original
        responsive rule don't apply here, but we re-show them explicitly. */
-    table.fleet .col-client, table.fleet .col-os, table.fleet .col-intip, table.fleet .col-products { display: flex; }
+    table.endpoints .col-client, table.endpoints .col-os, table.endpoints .col-intip, table.endpoints .col-products { display: flex; }
     /* Hide rows with no useful info ("—") in card mode to keep cards tight */
-    table.fleet td.client[data-label="OS"]:empty,
-    table.fleet td.col-intip:has(.meta:only-child) { display: none; }
+    table.endpoints td.client[data-label="OS"]:empty,
+    table.endpoints td.col-intip:has(.meta:only-child) { display: none; }
 
     /* ------- Top header / brand row ------- */
     /* "Umbrella Automation" eyebrow is dead weight in 390px; the brand
@@ -1592,7 +1592,7 @@
          width when the chip is absent. -->
     <div class="tabs-row" style="display:flex;align-items:center;gap:12px;margin:0 12px 12px;">
       <div class="tabs" style="margin:0;flex:1 1 auto;">
-        <button class="tab active" data-tab="fleet">Endpoints</button>
+        <button class="tab active" data-tab="endpoints">Endpoints</button>
         <button class="tab" data-tab="clients">Clients</button>
         <button class="tab" data-tab="stats">Stats</button>
         <button class="tab" data-tab="activity">Activity</button>
@@ -1603,7 +1603,7 @@
       </div>
     </div>
 
-    <div class="tab-pane" data-tab="fleet">
+    <div class="tab-pane" data-tab="endpoints">
       <div class="panel">
         <div class="filters">
           <input type="search" id="search" placeholder="Search hostname, IP, client...">
@@ -1653,21 +1653,21 @@
             <option value="">All</option>
           </select>
           <span class="spacer"></span>
-          <span class="count" id="fleetCount"></span>
+          <span class="count" id="endpointsCount"></span>
           <div class="filter-actions">
-            <button class="btn btn-sm" id="fleetRefresh" title="Re-paint the table. Live Firestore subscription keeps host data current automatically, so this is just an escape hatch -- click it if a row looks stale or the 'Last check' relative timestamps haven't updated.">&#x21bb; Refresh</button>
-            <button class="btn btn-sm" id="fleetColumns" title="Pick which columns are visible in this table. Your selection is remembered in this browser.">Columns</button>
-            <button class="btn btn-sm" id="fleetExportCsv" title="Download the visible endpoint rows as CSV">CSV</button>
-            <button class="btn btn-sm" id="fleetExportXlsx" title="Download the visible endpoint rows as an Excel workbook">Excel</button>
+            <button class="btn btn-sm" id="endpointsRefresh" title="Re-paint the table. Live Firestore subscription keeps host data current automatically, so this is just an escape hatch -- click it if a row looks stale or the 'Last check' relative timestamps haven't updated.">&#x21bb; Refresh</button>
+            <button class="btn btn-sm" id="endpointsColumns" title="Pick which columns are visible in this table. Your selection is remembered in this browser.">Columns</button>
+            <button class="btn btn-sm" id="endpointsExportCsv" title="Download the visible endpoint rows as CSV">CSV</button>
+            <button class="btn btn-sm" id="endpointsExportXlsx" title="Download the visible endpoint rows as an Excel workbook">Excel</button>
           </div>
         </div>
-        <div id="fleetWrap">
-          <table class="fleet sortable" data-sort-table="fleet">
-            <thead id="fleetHead"></thead>
-            <tbody id="fleetBody"></tbody>
+        <div id="endpointsWrap">
+          <table class="fleet sortable" data-sort-table="endpoints">
+            <thead id="endpointsHead"></thead>
+            <tbody id="endpointsBody"></tbody>
           </table>
         </div>
-        <div id="fleetEmpty" class="empty" hidden>
+        <div id="endpointsEmpty" class="empty" hidden>
           <h3>No agents reporting yet</h3>
           <p>Build an installer with <code>installer\build.ps1</code> and deploy it on a client PC.</p>
         </div>
@@ -2069,7 +2069,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.142";
+const APP_VERSION = "0.14.143";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -2100,6 +2100,9 @@ if (_versionChip) {
 // fixes). Patch-level no-op bumps don't need entries -- only stuff a
 // human reader would want to know about.
 const CHANGELOG = [
+  { version: "0.14.143", date: "2026-05-27", changes: [
+    "Internal rename: every 'fleet' identifier in the dashboard SPA is now 'endpoints' to match what the operator-facing UI calls these things, and to keep the F-word from sneaking into user-visible copy via shared symbol names. Touched: renderFleet -> renderEndpoints, renderFleetHead -> renderEndpointsHead, computeFleetAlerts -> computeEndpointAlerts, computeFleetWorstState -> computeEndpointsWorstState, updateFaviconForFleetState -> updateFaviconForEndpointsState, buildFleetRows -> buildEndpointRows, exportFleetCsv/Xlsx -> exportEndpointsCsv/Xlsx, getSelected/setSelected/activeFleetColumns -> *EndpointsColumns, the table.fleet CSS class -> table.endpoints, all #fleet* ids (fleetWrap/Body/Head/Empty/Count/Refresh/Columns/ExportCsv/Xlsx) -> #endpoints*, the activeTab id 'fleet' -> 'endpoints', state.sort.fleet -> state.sort.endpoints, data-sort-table='fleet' -> data-sort-table='endpoints', data-fleet-conn-day -> data-endpoints-conn-day, and the per-render local vars (fleetDays/fleetDayStartMs/fleetWindowStart/fleetOutageCount/fleetTotalOfflineSec/fleetLongestSec/fleetHostsImpacted/fleetDayCells/fleetConnChart). One-time side effect: anyone with a saved sort preference on the Endpoints table will see the default order on first reload (sort state localStorage key changed). New: 'Resend intake email' button in each host's drawer Configuration section -- re-fires the host-onboarded email to ALERT_TO using the most recent stored report.",
+  ]},
   { version: "0.14.142", date: "2026-05-27", changes: [
     "Stats tab composition section: renamed 'Fleet composition' header to 'Endpoint composition' (one more place the F-word slipped through). Card grid in that section is now a fixed 3-column layout instead of auto-fit, so the six tiles (Operating systems / Hardware manufacturer / Physical vs Virtual / Domain membership / Installed RAM / Agent version distribution) split cleanly into two rows of three at desktop widths and each card stretches to fill its share of the row. Drops to 2 columns under 1100px and 1 column under 760px so mobile still works.",
   ]},
@@ -2184,7 +2187,7 @@ const CHANGELOG = [
     "Endpoints table: 'Standard' in the OS column is abbreviated to 'STD' (e.g. 'Windows Server 2022 STD') to save horizontal space. Drawer + PDF + CSV/Excel export keep the un-abbreviated edition name.",
   ]},
   { version: "0.14.116", date: "2026-05-25", changes: [
-    "Stop using the word 'fleet' in user-visible copy: Settings 'Snooze fleet alerts' is now 'Snooze endpoint alerts', Stats connectivity chart row label is 'All endpoints' instead of 'Fleet', and the rollback-clear confirmation says 'every endpoint' instead of 'the fleet'. (Internal variable / function / CSS names like renderFleet() still use 'fleet' since they're not user-visible.)",
+    "Stop using the word 'fleet' in user-visible copy: Settings 'Snooze fleet alerts' is now 'Snooze endpoint alerts', Stats connectivity chart row label is 'All endpoints' instead of 'Fleet', and the rollback-clear confirmation says 'every endpoint' instead of 'the fleet'. (Internal variable / function / CSS names like renderEndpoints() still use 'fleet' since they're not user-visible.)",
   ]},
   { version: "0.14.115", date: "2026-05-25", changes: [
     "Dark mode + text size: header gains a sun/moon theme toggle and an A−/A+ text-size pair. Full controls also live in Settings → Appearance. Choice is persisted to your user profile so it follows you across devices and browsers.",
@@ -2457,7 +2460,7 @@ const state = {
   // default order. Persists across re-renders within the session so
   // sorting an open table doesn't reset on each onSnapshot tick.
   sort: {
-    fleet:   { key: null, dir: "asc" },
+    endpoints: { key: null, dir: "asc" },
     clients: { key: null, dir: "asc" },
   },
   activityFilter: { type: "" },
@@ -2503,7 +2506,7 @@ function _cmpValues(a, b, dir) {
   return String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: "base" }) * mult;
 }
 
-// Apply current sort + paint header chevrons. Called from renderFleet
+// Apply current sort + paint header chevrons. Called from renderEndpoints
 // / renderClients after their existing filter pipeline runs.
 function applySort(rows, sortState, valueGetter) {
   if (!sortState.key) return rows;
@@ -2768,7 +2771,7 @@ onAuthStateChanged(auth, async (user) => {
   // Wire sortable headers once per sign-in. Idempotent if called more than
   // once (handlers don't accumulate because the tables are static; we'd
   // re-bind on the same elements).
-  wireSortableHeaders("table.fleet", "fleet", renderFleet);
+  wireSortableHeaders("table.endpoints", "endpoints", renderEndpoints);
   wireSortableHeaders("table.clients", "clients", renderClients);
 
   subscribeAgents();
@@ -2818,7 +2821,7 @@ const FAVICON_CRIT_SVG = '<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000
 
 const FAVICON_BLINK_MS = 800;
 let _faviconBlinkTimer = null;
-let _lastFleetWorstState = null;
+let _lastEndpointsWorstState = null;
 
 function _setFaviconSvg(svgString) {
   let link = document.querySelector('link[rel="icon"]');
@@ -2831,7 +2834,7 @@ function _setFaviconSvg(svgString) {
   link.href = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
 }
 
-function computeFleetWorstState() {
+function computeEndpointsWorstState() {
   // Snooze check: if any admin has snoozed alerts via the Settings tab
   // and the snooze hasn't expired yet, suppress alerting entirely.
   // The fleet may still be in a non-OK state -- we just don't blink the
@@ -2846,7 +2849,7 @@ function computeFleetWorstState() {
     if (a.decommissioned === true) continue;
     if (a.lifecycle === 'retired') continue;  // retired hosts don't drive the favicon
     // Honor per-subsystem monitor flags + whole-host snooze the same
-    // way computeFleetAlerts does so the favicon colour matches the
+    // way computeEndpointAlerts does so the favicon colour matches the
     // alert chip. An admin who muted a subsystem doesn't want the
     // browser tab still glowing red because of it.
     const wsbMuted  = a.monitorWsb  === false;
@@ -2874,10 +2877,10 @@ function computeFleetWorstState() {
   return worst;
 }
 
-function updateFaviconForFleetState() {
-  const next = computeFleetWorstState();
-  if (next === _lastFleetWorstState) return;            // no-op when nothing changed
-  _lastFleetWorstState = next;
+function updateFaviconForEndpointsState() {
+  const next = computeEndpointsWorstState();
+  if (next === _lastEndpointsWorstState) return;            // no-op when nothing changed
+  _lastEndpointsWorstState = next;
 
   // Tear down any running blink so we can rebuild cleanly.
   if (_faviconBlinkTimer) {
@@ -2913,8 +2916,8 @@ function subscribeAgents() {
   state.unsub.agents = onSnapshot(q, snap => {
     state.agents = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     rebuildClientFilter();
-    renderFleet();
-    updateFaviconForFleetState();
+    renderEndpoints();
+    updateFaviconForEndpointsState();
     renderAlertChip();
     // Stats tab is open? Re-render so the charts move with new check-ins
     // without forcing the operator to re-click the tab. Cheap because
@@ -2942,7 +2945,7 @@ function rebuildClientFilter() {
     // only host was just reassigned to another client). Programmatic
     // sel.value = '' doesn't fire a 'change' event, so without this
     // reset state.filter.client stays pointing at the old name and
-    // renderFleet filters out EVERY remaining host -- the bug that made
+    // renderEndpoints filters out EVERY remaining host -- the bug that made
     // a reassigned host look like it disappeared from the table.
     sel.value = "";
     if (state.filter.client !== "") {
@@ -3084,7 +3087,7 @@ const FLEET_COLUMNS = [
     } },
 ];
 
-function getSelectedFleetColumns() {
+function getSelectedEndpointsColumns() {
   try {
     const raw = localStorage.getItem("wt.endpointColumns");
     if (!raw) return FLEET_COLUMNS.filter(c => c.default).map(c => c.key);
@@ -3109,7 +3112,7 @@ function getSelectedFleetColumns() {
   }
 }
 
-function setSelectedFleetColumns(keys) {
+function setSelectedEndpointsColumns(keys) {
   try { localStorage.setItem("wt.endpointColumns", JSON.stringify(keys)); } catch {}
   // Persist to Firestore so preferences sync across devices and browsers.
   // Fire-and-forget: if the user isn't signed in yet (shouldn't happen in
@@ -3137,14 +3140,14 @@ async function loadUserColumnPrefs(uid) {
     const valid = prefs.endpointColumns.filter(k => FLEET_COLUMNS.some(c => c.key === k));
     if (!valid.length) return;
     try { localStorage.setItem("wt.endpointColumns", JSON.stringify(valid)); } catch {}
-    renderFleetHead();
-    renderFleet();
+    renderEndpointsHead();
+    renderEndpoints();
   } catch {
     // Network or permission error -- silently fall back to localStorage.
   }
 }
 
-function activeFleetColumns() {
+function activeEndpointsColumns() {
   // The saved array IS order-significant as of v0.14.104 (drag-and-
   // drop in the column chooser). Walk the saved key order; each
   // matching FLEET_COLUMNS entry contributes a column. Then append
@@ -3152,7 +3155,7 @@ function activeFleetColumns() {
   // (e.g. a future version adds a column nobody has dragged into
   // their preferences yet) at the end so they appear without
   // requiring a "Reset to defaults" click.
-  const savedKeys = getSelectedFleetColumns();
+  const savedKeys = getSelectedEndpointsColumns();
   const seen = new Set();
   const out = [];
   for (const k of savedKeys) {
@@ -3173,9 +3176,9 @@ function activeFleetColumns() {
   return out;
 }
 
-function renderFleetHead() {
-  const cols = activeFleetColumns();
-  const head = $("#fleetHead");
+function renderEndpointsHead() {
+  const cols = activeEndpointsColumns();
+  const head = $("#endpointsHead");
   if (!head) return;
   head.innerHTML = `<tr>${cols.map(c => {
     const cls = c.thClass ? ` class="${c.thClass}"` : "";
@@ -3183,9 +3186,9 @@ function renderFleetHead() {
     return `<th${cls}${sort}>${esc(c.label)}</th>`;
   }).join("")}</tr>`;
   // Re-wire sort handlers since thead was rebuilt.
-  wireSortableHeaders("table.fleet", "fleet", renderFleet);
+  wireSortableHeaders("table.endpoints", "endpoints", renderEndpoints);
   // Repaint chevron for currently active sort.
-  paintSortHeaders("table.fleet", state.sort.fleet);
+  paintSortHeaders("table.endpoints", state.sort.endpoints);
 }
 
 function openColumnChooser() {
@@ -3197,7 +3200,7 @@ function openColumnChooser() {
   // Drag a row to reorder. Checkbox toggles visibility. On Apply we
   // capture the ticked rows in their displayed order -- so the user
   // gets exactly what they see.
-  const savedKeys = getSelectedFleetColumns();
+  const savedKeys = getSelectedEndpointsColumns();
   const selectedSet = new Set(savedKeys);
   const orderedKeys = [];
   // Selected first, in saved order
@@ -3315,18 +3318,18 @@ function openColumnChooser() {
     // Always require Host so the table isn't useless. Put it first if
     // the user unticked it (won't happen unless they tried hard).
     if (!ordered.includes("hostname")) ordered.unshift("hostname");
-    setSelectedFleetColumns(ordered);
-    renderFleetHead();
-    renderFleet();
+    setSelectedEndpointsColumns(ordered);
+    renderEndpointsHead();
+    renderEndpoints();
     closeModal();
   });
 }
 
-function renderFleet() {
+function renderEndpoints() {
   // Make sure the thead matches the saved column set on every paint -- the
-  // first render after sign-in needs this since renderFleetHead isn't
+  // first render after sign-in needs this since renderEndpointsHead isn't
   // called from anywhere else on initial load.
-  if (!$("#fleetHead").children.length) renderFleetHead();
+  if (!$("#endpointsHead").children.length) renderEndpointsHead();
 
   // Keep the property-filter value dropdown in sync with state.agents.
   // Matters for dynamic-options properties (OS, agent version, etc.)
@@ -3415,7 +3418,7 @@ function renderFleet() {
 
   // Apply click-to-sort, falling through to the natural lastCheckin-desc
   // order from the Firestore query when no header is active.
-  const sortedRows = applySort(rows, state.sort.fleet, (a, key) => {
+  const sortedRows = applySort(rows, state.sort.endpoints, (a, key) => {
     switch (key) {
       case "hostname":     return a.hostname;
       case "client":       return a.client;
@@ -3442,21 +3445,21 @@ function renderFleet() {
       default: return null;
     }
   });
-  paintSortHeaders("table.fleet", state.sort.fleet);
+  paintSortHeaders("table.endpoints", state.sort.endpoints);
 
-  $("#fleetCount").textContent = sortedRows.length === state.agents.length
+  $("#endpointsCount").textContent = sortedRows.length === state.agents.length
     ? `${sortedRows.length} host${sortedRows.length === 1 ? "" : "s"}`
     : `${sortedRows.length} of ${state.agents.length}`;
 
-  const tbody = $("#fleetBody");
+  const tbody = $("#endpointsBody");
   if (!sortedRows.length) {
     tbody.innerHTML = "";
-    $("#fleetEmpty").hidden = state.agents.length > 0;  // show only if nothing exists at all
+    $("#endpointsEmpty").hidden = state.agents.length > 0;  // show only if nothing exists at all
     return;
   }
-  $("#fleetEmpty").hidden = true;
+  $("#endpointsEmpty").hidden = true;
 
-  const cols = activeFleetColumns();
+  const cols = activeEndpointsColumns();
   tbody.innerHTML = sortedRows.map(a => {
     // Pre-compute everything any column might need so the per-column
     // renderers stay tiny. Most of this used to live inline in the row
@@ -3620,7 +3623,7 @@ function renderFleet() {
     let hostTag;
     if (sysRow.isVirtual) {
       const tip = `Virtual machine${sysRow.hypervisor ? ` &middot; ${sysRow.hypervisor}` : ""}${sysRow.physicalHost ? ` &middot; hosted on ${sysRow.physicalHost.name}` : ""} &middot; click to filter to just VMs`;
-      // data-vmfilter triggers the click handler in renderFleet that
+      // data-vmfilter triggers the click handler in renderEndpoints that
       // applies state.filter.propKey="virt" + propValue="Virtual machine".
       hostTag = `<span class="host-tag vm-chip" data-vmfilter="Virtual machine" role="button" tabindex="0" title="${tip}">VM</span>`;
     } else if (sysRow.isHypervisor || findGuestVms(a).length > 0) {
@@ -3658,7 +3661,7 @@ function renderFleet() {
       const label = ` data-label="${esc(c.label)}"`;
       let html;
       try { html = c.render(a, ctx); } catch (err) {
-        console.error("[renderFleet] column", c.key, "failed for", a.id, err);
+        console.error("[renderEndpoints] column", c.key, "failed for", a.id, err);
         html = `<span class="meta" title="${esc(String(err && err.message ? err.message : err))}">—</span>`;
       }
       return `<td${cls}${label}>${html}</td>`;
@@ -3667,7 +3670,7 @@ function renderFleet() {
     return `<tr data-id="${esc(a.id)}" class="${rowClasses}">${cells}</tr>`;
   }).join("");
 
-  $$("#fleetBody tr").forEach(tr => {
+  $$("#endpointsBody tr").forEach(tr => {
     tr.addEventListener("click", (e) => {
       // Click on a clickable badge opens the per-badge action popover
       // instead of falling through to openDrawer -- otherwise every
@@ -3694,10 +3697,10 @@ function renderFleet() {
         _refreshPropValueFilter();
         const valSel = $("#propValueFilter");
         if (valSel) valSel.value = state.filter.propValue;
-        renderFleet();
+        renderEndpoints();
         // Scroll filter bar into view so the operator sees what they
         // just activated.
-        const wrap = $("#fleetWrap");
+        const wrap = $("#endpointsWrap");
         if (wrap && wrap.scrollIntoView) wrap.scrollIntoView({ behavior: "smooth", block: "nearest" });
         return;
       }
@@ -3707,9 +3710,9 @@ function renderFleet() {
 }
 
 // filter wire-up
-$("#search").addEventListener("input", e => { state.filter.search = e.target.value; renderFleet(); });
-$("#clientFilter").addEventListener("change", e => { state.filter.client = e.target.value; renderFleet(); });
-$("#statusFilter").addEventListener("change", e => { state.filter.status = e.target.value; renderFleet(); });
+$("#search").addEventListener("input", e => { state.filter.search = e.target.value; renderEndpoints(); });
+$("#clientFilter").addEventListener("change", e => { state.filter.client = e.target.value; renderEndpoints(); });
+$("#statusFilter").addEventListener("change", e => { state.filter.status = e.target.value; renderEndpoints(); });
 
 // ============== Property filter ==============
 // Two-step "pick the attribute, then pick the value" filter for the
@@ -3915,16 +3918,16 @@ $("#propFilter").addEventListener("change", e => {
   state.filter.propKey = e.target.value;
   state.filter.propValue = "";  // reset value when property changes
   _refreshPropValueFilter();
-  renderFleet();
+  renderEndpoints();
 });
 $("#propValueFilter").addEventListener("change", e => {
   state.filter.propValue = e.target.value;
-  renderFleet();
+  renderEndpoints();
 });
 
 // Column chooser -- opens a modal with checkboxes for every column defined
 // in FLEET_COLUMNS. Selection persists in localStorage per browser.
-$("#fleetColumns").addEventListener("click", openColumnChooser);
+$("#endpointsColumns").addEventListener("click", openColumnChooser);
 
 // ============== tabs ==============
 function activateTab(target) {
@@ -3948,7 +3951,7 @@ $$(".tab").forEach(btn => {
 // started" UX so the operator never feels stuck in a deep view.
 $("#brandHome").addEventListener("click", (e) => {
   e.preventDefault();
-  activateTab("fleet");
+  activateTab("endpoints");
   // Reset filters too so the operator really lands on a fresh view.
   state.filter.search = "";
   state.filter.client = "";
@@ -3960,7 +3963,7 @@ $("#brandHome").addEventListener("click", (e) => {
   const sf = $("#statusFilter"); if (sf) sf.value = "";
   const pf = $("#propFilter"); if (pf) pf.value = "";
   const pvf = $("#propValueFilter"); if (pvf) { pvf.value = ""; pvf.hidden = true; }
-  renderFleet();
+  renderEndpoints();
   closeDrawer();
 });
 
@@ -4314,8 +4317,8 @@ function subscribeAlertSnooze() {
     renderAlertChip();
     // Force re-evaluation of fleet state so the favicon flips
     // immediately when a snooze is set/cleared.
-    _lastFleetWorstState = null;
-    updateFaviconForFleetState();
+    _lastEndpointsWorstState = null;
+    updateFaviconForEndpointsState();
     paintSnoozeSettingsUi();
   }, err => {
     console.error("Failed to subscribe to alertSnooze:", err);
@@ -4340,7 +4343,7 @@ function _computeSnoozeUntilIso(spec) {
 // for the inline alert chip. Iterates non-decommissioned hosts using the
 // same statusOf/backupHealthOf/omsaHealthOf helpers the fleet table and
 // favicon use, so the chip stays consistent with what's visible.
-function computeFleetAlerts() {
+function computeEndpointAlerts() {
   let crit = 0, warn = 0;
   const critHosts = [];
   const warnHosts = [];
@@ -4422,7 +4425,7 @@ function renderAlertChip() {
   const snooze = state.alertSnooze;
   const until = snooze && snooze.snoozedUntil ? new Date(snooze.snoozedUntil) : null;
   const isSnoozed = until && until.getTime() > Date.now();
-  const alerts = computeFleetAlerts();
+  const alerts = computeEndpointAlerts();
   const hasAlerts = (alerts.crit + alerts.warn) > 0;
 
   if (!hasAlerts && !isSnoozed) {
@@ -4504,7 +4507,7 @@ function _openAlertChipPopover() {
   const snooze = state.alertSnooze;
   const until = snooze && snooze.snoozedUntil ? new Date(snooze.snoozedUntil) : null;
   const isSnoozed = until && until.getTime() > Date.now();
-  const alerts = computeFleetAlerts();
+  const alerts = computeEndpointAlerts();
   const allHosts = alerts.critHosts.concat(alerts.warnHosts);
 
   const headerLine = isSnoozed
@@ -4680,8 +4683,8 @@ function startSnoozeAutoTick() {
       // Firestore doc here (another admin's tab will too, race), the
       // doc just becomes stale and the next set replaces it.
       renderAlertChip();
-      _lastFleetWorstState = null;
-      updateFaviconForFleetState();
+      _lastEndpointsWorstState = null;
+      updateFaviconForEndpointsState();
       paintSnoozeSettingsUi();
     }
   }, 60_000);
@@ -4707,8 +4710,8 @@ function subscribeBackupDiskAge() {
     state.backupDiskAgeThresholdDays = (v && v > 0) ? v : null;   // null = use default
     // Refresh anything that depends on the threshold.
     paintBackupDiskAgeSettingsUi();
-    _lastFleetWorstState = null;          // force favicon re-evaluate
-    updateFaviconForFleetState();
+    _lastEndpointsWorstState = null;          // force favicon re-evaluate
+    updateFaviconForEndpointsState();
     renderAlertChip();
     // If a drawer is open, re-render so the "aged" chip appears /
     // disappears immediately.
@@ -4797,7 +4800,7 @@ function subscribeLatestAgent() {
               source: data.source || "github",
             };
             paintInstallerVerChip();
-            renderFleet();
+            renderEndpoints();
             if (state.openPcId) renderDrawer(state.openPcId);
           }
         })
@@ -4825,7 +4828,7 @@ function subscribeLatestAgent() {
         ? fromSettings.skipVersions : [];
       skipInput.value = arr.join(", ");
     }
-    renderFleet();
+    renderEndpoints();
     if (state.openPcId) renderDrawer(state.openPcId);
   }, err => {
     toast("Failed to load latest agent version: " + (err.message || err), true);
@@ -5356,10 +5359,10 @@ function renderStats() {
   //   - crit  any host had an outage >= 30 min
   // Clicking a non-green cell opens a popover listing the affected
   // hosts + their outage durations + reasons.
-  const fleetDayStartMs = new Date().setHours(0, 0, 0, 0);
-  const fleetDays = [];
+  const endpointsDayStartMs = new Date().setHours(0, 0, 0, 0);
+  const endpointsDays = [];
   for (let i = 29; i >= 0; i--) {
-    const ds = fleetDayStartMs - i * 86400000;
+    const ds = endpointsDayStartMs - i * 86400000;
     const de = ds + 86400000;
     // Per-day collection of {host, offlineMs, reasons}.
     const hostsAffected = [];
@@ -5396,33 +5399,33 @@ function renderStats() {
     let state = 'ok';
     if (worstOfflineMs >= 30 * 60 * 1000) state = 'crit';
     else if (worstOfflineMs > 0) state = 'warn';
-    fleetDays.push({ ds, state, hostsAffected, worstOfflineMs });
+    endpointsDays.push({ ds, state, hostsAffected, worstOfflineMs });
   }
   // Stash the day buckets in a module map so the click handler can
   // look them up by ds without re-running the aggregation.
-  _statRowRegistry.set('connectivity', new Map(fleetDays.map(d => [String(d.ds), d.hostsAffected])));
+  _statRowRegistry.set('connectivity', new Map(endpointsDays.map(d => [String(d.ds), d.hostsAffected])));
   // Aggregate stats over the same 30-day window for the conn-stats row.
-  const fleetWindowStart = fleetDayStartMs - 30 * 86400000;
-  let fleetOutageCount = 0;
-  let fleetTotalOfflineSec = 0;
-  let fleetLongestSec = 0;
-  let fleetHostsImpacted = new Set();
+  const endpointsWindowStart = endpointsDayStartMs - 30 * 86400000;
+  let endpointsOutageCount = 0;
+  let endpointsTotalOfflineSec = 0;
+  let endpointsLongestSec = 0;
+  let endpointsHostsImpacted = new Set();
   for (const a of active) {
     const periods = Array.isArray(a.offlinePeriods) ? a.offlinePeriods : [];
     let impacted = false;
     for (const p of periods) {
       if (!p.startedAt) continue;
       const ps = Date.parse(p.startedAt);
-      if (!isFinite(ps) || ps < fleetWindowStart) continue;
-      fleetOutageCount++;
+      if (!isFinite(ps) || ps < endpointsWindowStart) continue;
+      endpointsOutageCount++;
       const d = Number(p.durationSec) || 0;
-      fleetTotalOfflineSec += d;
-      if (d > fleetLongestSec) fleetLongestSec = d;
+      endpointsTotalOfflineSec += d;
+      if (d > endpointsLongestSec) endpointsLongestSec = d;
       impacted = true;
     }
-    if (impacted) fleetHostsImpacted.add(a.id);
+    if (impacted) endpointsHostsImpacted.add(a.id);
   }
-  const fleetDayCells = fleetDays.map((d, i) => {
+  const endpointsDayCells = endpointsDays.map((d, i) => {
     const cls = d.state === 'crit' ? 'crit' : d.state === 'warn' ? 'warn' : '';
     const date = new Date(d.ds);
     const dateStr = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
@@ -5430,18 +5433,18 @@ function renderStats() {
       ? `${d.hostsAffected.length} host${d.hostsAffected.length === 1 ? '' : 's'} affected · worst ${Math.round(d.worstOfflineMs / 60000)}m`
       : 'all hosts online';
     const clickable = d.hostsAffected.length > 0;
-    return `<div class="conn-cell ${cls}" data-fleet-conn-day="${d.ds}" ${clickable ? 'role="button" tabindex="0" style="cursor:pointer;"' : ''} title="${esc(dateStr)} — ${esc(summary)}${clickable ? ' (click for details)' : ''}"></div>`;
+    return `<div class="conn-cell ${cls}" data-endpoints-conn-day="${d.ds}" ${clickable ? 'role="button" tabindex="0" style="cursor:pointer;"' : ''} title="${esc(dateStr)} — ${esc(summary)}${clickable ? ' (click for details)' : ''}"></div>`;
   }).join('');
-  const fleetConnChart = `
+  const endpointsConnChart = `
     <div class="conn-stats" style="margin:6px 0 10px;">
-      <div class="stat"><div class="val">${fleetOutageCount}</div><div class="lbl">Outage events</div></div>
-      <div class="stat"><div class="val">${fleetHostsImpacted.size}</div><div class="lbl">Hosts impacted</div></div>
-      <div class="stat"><div class="val">${esc(fmtDurationSec(fleetTotalOfflineSec))}</div><div class="lbl">Cumulative offline</div></div>
-      <div class="stat"><div class="val">${esc(fmtDurationSec(fleetLongestSec))}</div><div class="lbl">Longest single outage</div></div>
+      <div class="stat"><div class="val">${endpointsOutageCount}</div><div class="lbl">Outage events</div></div>
+      <div class="stat"><div class="val">${endpointsHostsImpacted.size}</div><div class="lbl">Hosts impacted</div></div>
+      <div class="stat"><div class="val">${esc(fmtDurationSec(endpointsTotalOfflineSec))}</div><div class="lbl">Cumulative offline</div></div>
+      <div class="stat"><div class="val">${esc(fmtDurationSec(endpointsLongestSec))}</div><div class="lbl">Longest single outage</div></div>
     </div>
     <div class="conn-chart">
       <div class="conn-label">All endpoints</div>
-      <div class="conn-lane">${fleetDayCells}</div>
+      <div class="conn-lane">${endpointsDayCells}</div>
     </div>
     <div class="conn-axis"><span>30d ago</span><span>15d ago</span><span>Today</span></div>
     <div class="conn-legend">
@@ -5456,7 +5459,7 @@ function renderStats() {
   // time-sensitive Stats view ("is the fleet healthy right now?") so
   // it should be the first thing seen.
   sections.network.push(_statCard("Connectivity",
-    fleetConnChart,
+    endpointsConnChart,
     "Click any amber / red day for the list of affected endpoints",
     "span-2"
   ));
@@ -5590,10 +5593,10 @@ function renderStats() {
   });
   // Fleet-wide connectivity day cells -- non-green cells are clickable
   // and open a popover listing the hosts affected that day.
-  body.querySelectorAll(".conn-cell[data-fleet-conn-day]").forEach(cell => {
+  body.querySelectorAll(".conn-cell[data-endpoints-conn-day]").forEach(cell => {
     cell.addEventListener("click", (e) => {
       e.stopPropagation();
-      _openConnectivityDayDrilldown(cell.dataset.fleetConnDay, cell);
+      _openConnectivityDayDrilldown(cell.dataset.endpointsConnDay, cell);
     });
   });
 }
@@ -5666,7 +5669,7 @@ function _openConnectivityDayDrilldown(dsKey, anchorEl) {
       e.stopPropagation();
       const pcId = btn.dataset.statPcid;
       _closeBadgePopover();
-      activateTab('fleet');
+      activateTab('endpoints');
       openDrawer(pcId);
     });
   });
@@ -5949,7 +5952,7 @@ function _openStatDrilldown(statKey, label, anchorEl) {
       e.stopPropagation();
       const pcId = btn.dataset.statPcid;
       _closeBadgePopover();
-      activateTab("fleet");
+      activateTab("endpoints");
       openDrawer(pcId);
     });
   });
@@ -6482,7 +6485,7 @@ function renderClients() {
       // Switch to Endpoints tab, then open the host's drawer. Same flow as
       // clicking a hostlink in the Activity tab.
       const pcId = row.dataset.pcid;
-      activateTab("fleet");
+      activateTab("endpoints");
       openDrawer(pcId);
     });
   });
@@ -6840,7 +6843,7 @@ function openDrawer(pcId) {
     if (agent) {
       agent.config = snap.exists() ? snap.data() : null;
       renderDrawer(pcId);
-      renderFleet();  // status badge may flip when enabled toggles
+      renderEndpoints();  // status badge may flip when enabled toggles
     }
   });
 }
@@ -6866,25 +6869,25 @@ $("#exportCsvBtn").addEventListener("click", () => {
 $("#exportXlsxBtn").addEventListener("click", () => {
   if (state.openPcId) exportHostXlsx(state.openPcId);
 });
-$("#fleetExportCsv").addEventListener("click", () => exportFleetCsv());
-$("#fleetExportXlsx").addEventListener("click", () => exportFleetXlsx());
+$("#endpointsExportCsv").addEventListener("click", () => exportEndpointsCsv());
+$("#endpointsExportXlsx").addEventListener("click", () => exportEndpointsXlsx());
 
 // Manual refresh of the Endpoints table.
 //
 // Firestore's onSnapshot keeps state.agents live in real time, so the
 // underlying data is always current -- this button does NOT poll the
-// server. What it DOES do is re-run renderFleet() so the rendered
+// server. What it DOES do is re-run renderEndpoints() so the rendered
 // relative-time labels ("Last check: 6h ago") recompute against `now`
 // in case a host row didn't paint as expected. Operator escape hatch,
 // nothing more.
-$("#fleetRefresh").addEventListener("click", () => {
+$("#endpointsRefresh").addEventListener("click", () => {
   // Brief animation on the button so the click feels acknowledged --
   // otherwise nothing visibly changes for a healthy table and the
   // operator can't tell if the click registered.
-  const btn = $("#fleetRefresh");
+  const btn = $("#endpointsRefresh");
   btn.classList.add("refreshing");
   setTimeout(() => btn.classList.remove("refreshing"), 600);
-  renderFleet();
+  renderEndpoints();
   if (state.openPcId) renderDrawer(state.openPcId);
   toast("Refreshed.");
 });
@@ -8038,9 +8041,9 @@ async function exportHostXlsx(pcId) {
 // Builds the rows currently visible in the Endpoints table — respects
 // the active search / client / status filters so the export matches
 // what the operator sees.
-function buildFleetRows() {
-  const visible = $$("#fleetBody tr").length
-    ? $$("#fleetBody tr").map(tr => tr.dataset.id)
+function buildEndpointRows() {
+  const visible = $$("#endpointsBody tr").length
+    ? $$("#endpointsBody tr").map(tr => tr.dataset.id)
     : state.agents.map(a => a.id);
   const set = new Set(visible);
   const agents = state.agents.filter(a => set.has(a.id));
@@ -8099,8 +8102,8 @@ function buildFleetRows() {
   return { headers, rows, count: agents.length };
 }
 
-function exportFleetCsv() {
-  const { headers, rows, count } = buildFleetRows();
+function exportEndpointsCsv() {
+  const { headers, rows, count } = buildEndpointRows();
   if (!count) { toast("No hosts in the current view.", true); return; }
   const csv = rowsToCsv([headers, ...rows]);
   const filename = exportFilename("Umbrella", "Endpoints", "csv");
@@ -8108,8 +8111,8 @@ function exportFleetCsv() {
   toast(`Saved ${filename} (${count} host${count === 1 ? "" : "s"})`);
 }
 
-async function exportFleetXlsx() {
-  const { headers, rows, count } = buildFleetRows();
+async function exportEndpointsXlsx() {
+  const { headers, rows, count } = buildEndpointRows();
   if (!count) { toast("No hosts in the current view.", true); return; }
   toast("Building workbook…");
   try {
@@ -8874,6 +8877,9 @@ function renderDrawer(pcId) {
           : `<span class="meta">${updateAvailableFor(a) ? `v${esc(state.latestAgent.version)} available` : "Host is on latest version"}</span>`}
       </div>
       <div class="config-actions" style="margin-top:14px;">
+        <button class="btn btn-sm" id="dResendIntake" title="Re-send the host-onboarded intake email to ALERT_TO. Uses this host's most recent stored report -- not a stale first-check-in snapshot. Useful when forwarding to a client contact after the initial admin-only send, or when the original recipient was wrong / missed.">Resend intake email</button>
+      </div>
+      <div class="config-actions" style="margin-top:14px;">
         ${isDecom
           ? `<span class="meta">Already decommissioned. Use <b>Delete row</b> in the banner above to remove this entry entirely.</span>`
           : `<button class="btn btn-sm btn-danger" id="dDecommission" title="Mark this host decommissioned in the dashboard AND schedule the agent to self-uninstall on its next check-in.">Decommission</button>`}
@@ -9155,6 +9161,8 @@ function renderDrawer(pcId) {
   if (delBtn) delBtn.addEventListener("click", () => deleteAgentRow(pcId, a.hostname));
   const forceBtn = document.getElementById("dForceUpdate");
   if (forceBtn) forceBtn.addEventListener("click", () => forceUpdate(pcId, a.hostname));
+  const resendIntakeBtn = $("#dResendIntake");
+  if (resendIntakeBtn) resendIntakeBtn.addEventListener("click", () => resendIntakeEmail(pcId, a.hostname));
 
   // Client reassignment dropdown — calls the worker, which atomically
   // updates /agents/{pcId} (so the table refreshes now) AND the config
@@ -9192,7 +9200,7 @@ function renderDrawer(pcId) {
           const sel = document.getElementById("clientFilter");
           if (sel) sel.value = "";
           toast(`${a.hostname || a.id} reassigned to ${data.client}. Client filter cleared so the host stays visible.`);
-          renderFleet();
+          renderEndpoints();
         } else {
           toast(`${a.hostname || a.id} reassigned to ${data.client}.`);
         }
@@ -10492,16 +10500,16 @@ async function _handleBadgeAction(pcId, hostname, kind, action, reason) {
   const optimisticUpdate = (patch) => {
     if (!agent) return;
     Object.assign(agent, patch);
-    if (typeof renderFleet === 'function') renderFleet();
+    if (typeof renderEndpoints === 'function') renderEndpoints();
     // Also recompute the alert chip + favicon -- a "stop monitoring
     // WSB" click should remove the host from the "2 critical, 2
     // warnings" count + un-tint the browser tab favicon instantly,
     // not wait for the next worker check-in to mirror the config
     // back into the agent doc.
     if (typeof renderAlertChip === 'function') renderAlertChip();
-    if (typeof updateFaviconForFleetState === 'function') {
-      _lastFleetWorstState = null;   // force re-evaluation
-      updateFaviconForFleetState();
+    if (typeof updateFaviconForEndpointsState === 'function') {
+      _lastEndpointsWorstState = null;   // force re-evaluation
+      updateFaviconForEndpointsState();
     }
     if (state.openPcId === pcId && typeof renderDrawer === 'function') renderDrawer(pcId);
   };
@@ -10650,6 +10658,42 @@ async function forceUpdate(pcId, hostname) {
     // logActivity call here, otherwise we'd get a duplicate event.
   } catch (e) {
     toast(`Force update failed: ${e.message || e}`, true);
+  }
+}
+
+async function resendIntakeEmail(pcId, hostname) {
+  // Asks the worker to re-fire the host-onboarded intake email for
+  // this host. Uses the stored report (most recent successful
+  // check-in) so the recipient sees what the dashboard shows right
+  // now, not stale first-cycle data. Recipient is whatever ALERT_TO
+  // is set to in the worker env (currently it@umbrellaautomation.com
+  // / frank@umbrellaautomation.com depending on environment).
+  if (!confirm(
+    `Re-send the onboarding intake email for ${hostname || pcId}?\n\n` +
+    `• Uses the most recent stored report (matches what the dashboard shows)\n` +
+    `• Goes to the current ALERT_TO recipient\n` +
+    `• Logged in the Activity tab as an admin action\n` +
+    `• No effect on the agent itself`
+  )) return;
+
+  try {
+    const idToken = await state.user.getIdToken();
+    const resp = await fetch(`${WORKER_URL}/resend-intake`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${idToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ pcId }),
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ error: `HTTP ${resp.status}` }));
+      throw new Error(err.error || `HTTP ${resp.status}`);
+    }
+    const result = await resp.json();
+    toast(`Intake email sent for ${hostname || pcId} -> ${result.sentTo || "ALERT_TO"}`);
+  } catch (e) {
+    toast(`Resend intake email failed: ${e.message || e}`, true);
   }
 }
 

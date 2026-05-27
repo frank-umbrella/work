@@ -136,6 +136,16 @@ export default {
       return withCors(await handleForceUpdate(request, env, ctx), env, request);
     }
 
+    // POST /resend-intake -- re-fire the host-onboarded intake email for
+    // a specific host on demand. Useful when the recipient was wrong /
+    // missing the first time, or to forward to a client contact after
+    // the initial admin-only send. Uses the host's most recent stored
+    // report payload so the email matches what the dashboard shows
+    // right now (not stale first-check-in data).
+    if (url.pathname === '/resend-intake' && request.method === 'POST') {
+      return withCors(await handleResendIntake(request, env, ctx), env, request);
+    }
+
     return jsonResponse({ error: 'Not found', path: url.pathname }, 404);
   },
 };
@@ -261,6 +271,134 @@ async function handleReassignClient(request, env, ctx) {
     clientId: newClientId,
     cleared: !clientId,
   }, 200);
+}
+
+// ═════════════════════════════════════════════════════════════════════
+// Firestore field decoder -- recursively convert a Firestore REST-API
+// field tree (stringValue / integerValue / mapValue / arrayValue / ...)
+// back into a plain JS object. Used by /resend-intake to pull the
+// stored report off the agent doc and feed it to sendIntakeEmail()
+// which expects the original-shape plain-object payload.
+// ═════════════════════════════════════════════════════════════════════
+function fsDecodeField(field) {
+  if (!field || typeof field !== 'object') return null;
+  if ('stringValue'    in field) return field.stringValue;
+  if ('integerValue'   in field) return parseInt(field.integerValue, 10);
+  if ('doubleValue'    in field) return field.doubleValue;
+  if ('booleanValue'   in field) return field.booleanValue;
+  if ('nullValue'      in field) return null;
+  if ('timestampValue' in field) return field.timestampValue;
+  if ('arrayValue'     in field) {
+    const vs = field.arrayValue?.values || [];
+    return vs.map(fsDecodeField);
+  }
+  if ('mapValue'       in field) {
+    const out = {};
+    const fields = field.mapValue?.fields || {};
+    for (const [k, v] of Object.entries(fields)) out[k] = fsDecodeField(v);
+    return out;
+  }
+  return null;
+}
+
+// ═════════════════════════════════════════════════════════════════════
+// POST /resend-intake -- re-fire the host-onboarded intake email for a
+// specific host on demand. Recipient is the standard ALERT_TO. Uses the
+// most-recent stored report from the agent doc so the email content
+// matches what the dashboard renders right now (not a stale snapshot).
+//
+// Body: { pcId } OR { hostname }. If hostname given but pcId isn't, we
+// scan /agents for the first match (hostnames aren't strictly unique
+// across clients in our data model but realistically are -- if you've
+// got two hosts with the same name on different clients you'll need
+// to pass pcId explicitly).
+//
+// Auth: Bearer Firebase ID token, @umbrellaautomation.com (same gate
+// as /reassign-client / /rename-client / /decommission).
+// ═════════════════════════════════════════════════════════════════════
+async function handleResendIntake(request, env, ctx) {
+  const authHeader = request.headers.get('Authorization') || '';
+  const idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+  if (!idToken) return jsonResponse({ error: 'Missing sign-in token' }, 401);
+  let claims;
+  try {
+    claims = await verifyFirebaseIdToken(idToken);
+  } catch (e) {
+    return jsonResponse({ error: 'Invalid or expired sign-in token' }, 401);
+  }
+  const email = (claims.email || '').toLowerCase();
+  if (!claims.email_verified || !email.endsWith('@umbrellaautomation.com')) {
+    return jsonResponse({ error: 'Not authorized -- domain mismatch' }, 403);
+  }
+
+  let body;
+  try {
+    body = await request.json();
+  } catch (e) {
+    return jsonResponse({ error: 'Body must be JSON' }, 400);
+  }
+  let { pcId, hostname } = body || {};
+  if (!pcId && !hostname) {
+    return jsonResponse({ error: 'pcId or hostname required' }, 400);
+  }
+
+  const accessToken = await getServiceAccountToken(env);
+
+  // hostname lookup fallback: use the existing structured-query helper
+  // so we don't have to list/scan the whole agents collection.
+  if (!pcId && hostname) {
+    const ids = await firestoreQueryDocIds(env, accessToken, 'agents', 'hostname', hostname);
+    if (!ids || ids.length === 0) {
+      // Try case-insensitive match -- some hosts report uppercase, some
+      // lowercase; the Firestore query is case-sensitive. Fall back to
+      // trying both common casings.
+      const tryLower = hostname.toLowerCase();
+      const tryUpper = hostname.toUpperCase();
+      let alt = [];
+      if (tryLower !== hostname) alt = await firestoreQueryDocIds(env, accessToken, 'agents', 'hostname', tryLower);
+      if ((!alt || alt.length === 0) && tryUpper !== hostname) {
+        alt = await firestoreQueryDocIds(env, accessToken, 'agents', 'hostname', tryUpper);
+      }
+      if (!alt || alt.length === 0) {
+        return jsonResponse({ error: `No host matching hostname='${hostname}'` }, 404);
+      }
+      ids.push(...alt);
+    }
+    if (ids.length > 1) return jsonResponse({ error: `Multiple hosts match hostname='${hostname}' -- pass pcId instead`, matches: ids.length }, 409);
+    pcId = ids[0];
+  }
+
+  const agentDoc = await firestoreGetDoc(env, accessToken, `agents/${pcId}`);
+  if (!agentDoc || !agentDoc.fields) {
+    return jsonResponse({ error: 'Agent not found' }, 404);
+  }
+  const f = agentDoc.fields;
+  const decodedReport = fsDecodeField(f.report) || {};
+  const out = {
+    pcId,
+    hostname: f.hostname?.stringValue || pcId,
+    client: f.client?.stringValue || 'unknown',
+    agentVersion: f.agentVersion?.stringValue || 'unknown',
+    when: new Date().toISOString(),
+    externalIp: f.externalIp?.stringValue || null,
+    report: decodedReport,
+  };
+
+  try {
+    await sendIntakeEmail(env, out);
+  } catch (e) {
+    return jsonResponse({ error: 'sendIntakeEmail failed', detail: String(e?.message || e) }, 500);
+  }
+
+  ctx.waitUntil(logActivity(env, accessToken, {
+    type: 'intake_email_resent',
+    actor: { type: 'admin', id: email },
+    target: { type: 'host', id: pcId, label: out.hostname },
+    client: out.client,
+    details: { triggeredBy: email },
+  }));
+
+  return jsonResponse({ ok: true, pcId, hostname: out.hostname, client: out.client, sentTo: env.ALERT_TO }, 200);
 }
 
 // ═════════════════════════════════════════════════════════════════════
