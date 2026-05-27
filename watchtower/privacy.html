@@ -93,15 +93,15 @@
 </header>
 
 <p class="lede">Watchtower is an internal monitoring tool Umbrella Automation runs on the Windows endpoints we manage for our clients. This page describes what the agent reports back, where that data is stored, who can read it, and how long we keep it.</p>
-<p class="updated">Last updated: 2026-05-24</p>
+<p class="updated">Last updated: 2026-05-27</p>
 
 <div class="callout">
-  <b>Watchtower is operational telemetry for an existing managed-services relationship.</b> It is not a consumer product. We only install it on endpoints owned by our MSP clients under a signed service agreement, and the data it collects only goes to Umbrella Automation staff &mdash; not sold, not shared with third parties for marketing, not used for any purpose outside of supporting and securing your IT environment.
+  <b>Watchtower is operational telemetry for an existing managed-services relationship.</b> It is not a consumer product. We only install it on endpoints owned by our MSP clients under a signed service agreement, and the data it collects only goes to Umbrella Automation staff: not sold, not shared with third parties for marketing, not used for any purpose outside of supporting and securing your IT environment.
 </div>
 
 <h2 id="what">1. What we collect</h2>
 
-<p>The agent runs once per day on each monitored endpoint and reports a single check-in payload to our Cloudflare Worker, which writes it to our Firestore database. The categories below are the complete list of fields the agent can populate &mdash; nothing else is collected, recorded, or transmitted.</p>
+<p>The agent runs once per day on each monitored endpoint and reports a single check-in payload to our Cloudflare Worker, which writes it to our Firestore database. The categories below are the complete list of fields the agent can populate. Nothing else is collected, recorded, or transmitted.</p>
 
 <h3>Identity &amp; system</h3>
 <table class="collect">
@@ -133,7 +133,7 @@
   <tbody>
     <tr><td>Backup products</td><td>Veeam (Backup &amp; Replication + Agent), Windows Server Backup, Carbonite: install state, version, last backup result, last successful backup date, recent job history, target destinations, retention policy.</td></tr>
     <tr><td>Microsoft Defender</td><td>Enabled state, real-time protection state, definition version + age, last scan timestamps.</td></tr>
-    <tr><td>SentinelOne</td><td>Install state + agent version + service state. <b>No telemetry from the SentinelOne agent itself</b> &mdash; just whether it's installed and running.</td></tr>
+    <tr><td>SentinelOne</td><td>Install state + agent version + service state. <b>No telemetry from the SentinelOne agent itself</b>: just whether it's installed and running.</td></tr>
     <tr><td>Dell OMSA / iDRAC</td><td>On Dell hardware: RAID controller info, virtual disk (array) health, physical disk health with vendor + serial + SMART predictive-failure flag.</td></tr>
     <tr><td>LogMeIn</td><td>Install state, version, service state, Central computer description (the friendly host label set by the technician).</td></tr>
   </tbody>
@@ -170,9 +170,9 @@
   <thead><tr><th>Vendor</th><th>What they hold</th><th>Region</th></tr></thead>
   <tbody>
     <tr><td>Google Cloud (Firebase Firestore + Authentication)</td><td>The endpoint check-in records, client list, install token hashes, activity log. Admin sign-in (Google OAuth) for the dashboard.</td><td>us-central1 (US)</td></tr>
-    <tr><td>Cloudflare Workers</td><td>The HTTP API that receives agent check-ins and serves the dashboard's admin actions. Stateless &mdash; no agent data persisted at Cloudflare; the worker writes through to Firestore.</td><td>Global edge (request routes to nearest)</td></tr>
+    <tr><td>Cloudflare Workers</td><td>The HTTP API that receives agent check-ins and serves the dashboard's admin actions. Stateless: no agent data persisted at Cloudflare; the worker writes through to Firestore.</td><td>Global edge (request routes to nearest)</td></tr>
     <tr><td>Resend</td><td>Outbound email for new-endpoint intake reports, backup failure alerts, OMSA storage warnings. Recipient is Umbrella Automation staff only.</td><td>US</td></tr>
-    <tr><td>GitHub</td><td>Source code + the installer EXE releases. Does NOT receive agent telemetry &mdash; only used to deliver the installer + the dashboard static site.</td><td>US</td></tr>
+    <tr><td>GitHub</td><td>Source code + the installer EXE releases. Does NOT receive agent telemetry; only used to deliver the installer + the dashboard static site.</td><td>US</td></tr>
     <tr><td>Dell TechDirect API</td><td>For Dell hosts only: the worker sends the service tag to Dell to look up warranty status. No other host data is shared. Cached for 24h server-side.</td><td>US</td></tr>
   </tbody>
 </table>
@@ -196,10 +196,10 @@
 
 <h2 id="security">6. Security</h2>
 <ul>
-  <li>Every agent-to-worker request authenticates with a per-client install token (43 bytes of base64url entropy; SHA-256 hashed server-side &mdash; the raw token is shown to the operator <i>once</i> at generation, never stored).</li>
+  <li>Every agent-to-worker request authenticates with a per-client install token (43 bytes of base64url entropy; SHA-256 hashed server-side. The raw token is shown to the operator <i>once</i> at generation, never stored).</li>
   <li>All transport is TLS 1.2+ to <code>*.workers.dev</code>, <code>*.googleapis.com</code>, and <code>api.resend.com</code>.</li>
   <li>Firestore writes are scoped to a service account; raw firewall is closed via <a href="https://github.com/frank-umbrella/work/blob/main/watchtower/firestore.rules" target="_blank" rel="noopener">declarative rules</a> that only the worker (via service account) and verified MSP-admin browsers can read.</li>
-  <li>Dashboard sign-in requires Google's verified <code>@umbrellaautomation.com</code> account &mdash; no shared passwords, no API keys in the browser.</li>
+  <li>Dashboard sign-in requires Google's verified <code>@umbrellaautomation.com</code> account: no shared passwords, no API keys in the browser.</li>
   <li>The agent runs as <code>LocalSystem</code> on the endpoint. It does not open inbound network ports; all communication is agent-initiated, outbound HTTPS only.</li>
 </ul>
 
@@ -207,16 +207,12 @@
 <p>If you're an Umbrella Automation client whose endpoints are monitored:</p>
 <ul>
   <li><b>Uninstall the agent at any time.</b> Add/Remove Programs &rarr; "Umbrella Watchtower" &rarr; Uninstall. The agent phones home one last time to mark the endpoint decommissioned in our dashboard, then removes itself.</li>
-  <li><b>Request a copy of what we have on a specific endpoint.</b> Email us (address below) with the hostname and we'll export the full record.</li>
-  <li><b>Request deletion.</b> Same path: email with the hostname or client name. Records are removed within 30 days of confirmation.</li>
+  <li><b>Request a copy of what we have on a specific endpoint.</b> Email <a href="mailto:it@umbrellaautomation.com">it@umbrellaautomation.com</a> with the hostname and we'll export the full record.</li>
+  <li><b>Request deletion.</b> Same address with the hostname or client name. Records are removed within 30 days of confirmation.</li>
   <li><b>Audit what we've changed recently.</b> The Activity log inside the dashboard records every admin action (host reassign, client rename, decommission, force-update, token generate / revoke). We can share an excerpt scoped to your endpoints on request.</li>
 </ul>
 
-<h2 id="contact">8. Contact</h2>
-<p>Questions, deletion requests, audit excerpts, or anything else privacy-related:</p>
-<p><a href="mailto:frank@umbrellaautomation.com">frank@umbrellaautomation.com</a></p>
-
-<h2 id="changes">9. Changes to this policy</h2>
+<h2 id="changes">8. Changes to this policy</h2>
 <p>If we change what Watchtower collects, where it's stored, or who can read it, this page will be updated and the "Last updated" date at the top will change. Material changes (new categories of collected data, new vendors, new sharing) will also be communicated directly to active clients.</p>
 
 </main>
