@@ -530,9 +530,38 @@
      --------------------------------------------------------------- */
   .stats-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    /* auto-fit (not auto-fill): empty tracks collapse so cards always
+       expand to fill the row instead of leaving dead space on the right.
+       Min 280px keeps cards readable; the 1fr max lets them stretch as
+       wide as needed when the section has just a few cards. */
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 14px;
     padding: 0 18px 4px;
+  }
+  /* Network section: fixed 2-column layout. Connectivity (30-day
+     timeline) + ISP location map sit side-by-side at half-width each,
+     equal heights. Both cards span exactly 1 column (overriding their
+     own .span-2 class which is meaningful only in auto-fit sections).
+     Equal min-height keeps the row visually balanced even though the
+     two cards have very different natural heights. */
+  .stats-section[data-section-key="network"] .stats-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .stats-section[data-section-key="network"] .stat-card,
+  .stats-section[data-section-key="network"] .stat-card.span-2 {
+    grid-column: span 1;
+    min-height: 360px;
+  }
+  /* On narrow viewports, stack the Network row vertically. The map
+     drops to 240px so the stacked layout doesn't push everything below
+     the fold. */
+  @media (max-width: 760px) {
+    .stats-section[data-section-key="network"] .stats-grid {
+      grid-template-columns: 1fr;
+    }
+    .stats-section[data-section-key="network"] #ispMap {
+      height: 240px !important;
+    }
   }
   /* Stats sections -- visual grouping for the dozen+ cards on the
      Stats tab. Each section gets a small uppercase header with a
@@ -2012,7 +2041,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.138";
+const APP_VERSION = "0.14.139";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -2043,6 +2072,10 @@ if (_versionChip) {
 // fixes). Patch-level no-op bumps don't need entries -- only stuff a
 // human reader would want to know about.
 const CHANGELOG = [
+  { version: "0.14.139", date: "2026-05-27", changes: [
+    "Stats tab: Network section now renders Connectivity + ISP locations as a fixed 50/50 split at the top of the page (stacks vertically on mobile). The other three sections (Fleet composition / Health / Tooling) switched from auto-fill to auto-fit so partial rows expand to fill the row instead of leaving dead space on the right. ISP map height tuned to match the Connectivity card height so the side-by-side row stays visually balanced.",
+    "New tile: 'Backup status (latest run)' in the Health section. Rolls up every endpoint's most recent WSB run into Healthy / Failing recently / No backup 3+ days / No backup on record / Not configured, with a clickable bar chart for drill-down. Verdict logic mirrors the per-host backup badge in the Endpoints table so the rollup and the row badges always agree.",
+  ]},
   { version: "0.14.138", date: "2026-05-27", changes: [
     "Docs: new 'Antivirus / EDR exclusions' section covering why the agent looks suspicious to AV (unsigned PyInstaller binaries, service install via sc.exe, scheduled tasks, outbound HTTPS) plus the path / process / URL exclusions to add. Specific step-by-step instructions for SentinelOne (the 'suspicious file detected' case the user just hit) and Microsoft Defender; the same data covers CrowdStrike / Sophos / ESET / etc. Includes a callout recommending Authenticode code-signing as the long-term fix.",
   ]},
@@ -5180,6 +5213,46 @@ function renderStats() {
       : (wsbAgeTotal ? `${wsbAgeTotal} WSB host${wsbAgeTotal === 1 ? '' : 's'} with backup history` : null)
   ));
 
+  // ---- Backup status rollup (last reported run, fleet-wide) ----
+  // Reuses backupHealthOf() so this tile's verdict stays consistent
+  // with the per-host badges in the Endpoints table. Skips hosts
+  // without WSB installed (returns null) by surfacing them as a
+  // separate "Not configured" row so the operator can see the gap
+  // (e.g. a server pool where one box never got WSB enabled). Click
+  // any row to drill into the affected hosts.
+  const backupByLabel = new Map([
+    ["Healthy", []],
+    ["Failing recently", []],
+    ["No backup 3+ days", []],
+    ["No backup on record", []],
+    ["Not configured", []],
+  ]);
+  for (const a of active) {
+    if (a.monitorWsb === false) continue;  // user opted out of WSB monitoring on this host
+    const f = backupHealthOf(a);
+    if (!f) { backupByLabel.get("Not configured").push(a); continue; }
+    if (f.kind === "ok") backupByLabel.get("Healthy").push(a);
+    else if (f.kind === "warn") backupByLabel.get("Failing recently").push(a);
+    else if (/no backup on record/i.test(f.label)) backupByLabel.get("No backup on record").push(a);
+    else backupByLabel.get("No backup 3+ days").push(a);
+  }
+  const backupRows = Array.from(backupByLabel.entries())
+    .map(([label, list]) => ({ label, count: list.length }))
+    .filter(r => r.count > 0);
+  const backupTotal = backupRows.reduce((s, r) => s + r.count, 0);
+  const backupBad = (backupByLabel.get("No backup 3+ days").length)
+                  + (backupByLabel.get("No backup on record").length);
+  const backupWarn = backupByLabel.get("Failing recently").length;
+  sections.health.push(_statCard("Backup status (latest run)",
+    backupTotal
+      ? `${_statHeadline(
+          `${backupBad > 0 ? `<span style="color:#b91c1c;">${backupBad}</span>` : backupBad}`,
+          `host${backupBad === 1 ? '' : 's'} with no recent backup` + (backupWarn ? ` &middot; ${backupWarn} failing` : '')
+        )}${_statBars(backupRows, backupTotal, 5, { statKey: "backupstatus", byLabel: backupByLabel })}`
+      : `<div class="meta">No endpoints reporting backup state yet.</div>`,
+    "Click a row for the host list. Mirrors the per-host backup badge."
+  ));
+
   // ---- Remote access tooling ----
   const remoteByLabel = new Map();
   remoteByLabel.set("LogMeIn", active.filter(a => a.report && a.report.logmein && a.report.logmein.installed));
@@ -5423,7 +5496,7 @@ function renderStats() {
     return Array.from(buckets.values());
   })();
   const ispMapBody = ispClusters.length
-    ? `<div id="ispMap" style="height:420px;border-radius:8px;border:1px solid var(--line);background:var(--surface-2);"></div>
+    ? `<div id="ispMap" style="height:280px;border-radius:8px;border:1px solid var(--line);background:var(--surface-2);"></div>
        <div class="meta" style="margin-top:8px;">
          ${ispClusters.length} location${ispClusters.length === 1 ? "" : "s"} across ${ispClusters.reduce((s, c) => s + c.hosts.length, 0)} endpoint${ispClusters.reduce((s, c) => s + c.hosts.length, 0) === 1 ? "" : "s"} with geo data. Click a pin for the host list.
        </div>`
@@ -5455,12 +5528,12 @@ function renderStats() {
   body.innerHTML = SECTION_ORDER
     .filter(s => sections[s.key].length)
     .map(s => `
-      <section class="stats-section">
+      <section class="stats-section" data-section-key="${s.key}">
         <h3 class="stats-section-header"><span class="icon">${s.icon}</span>${s.label}</h3>
         <div class="stats-grid">${sections[s.key].join("")}</div>
       </section>
     `).join("") + (cards.length ? `
-      <section class="stats-section">
+      <section class="stats-section" data-section-key="orphan">
         <div class="stats-grid">${cards.join("")}</div>
       </section>
     ` : "");
