@@ -2074,7 +2074,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.147";
+const APP_VERSION = "0.14.148";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -2105,6 +2105,9 @@ if (_versionChip) {
 // fixes). Patch-level no-op bumps don't need entries -- only stuff a
 // human reader would want to know about.
 const CHANGELOG = [
+  { version: "0.14.148", date: "2026-05-27", changes: [
+    "PDF page 1 layout: removed the 'pdf-keep' wrapper + the pagebreak.avoid rule that v0.14.147 added around the header (logo + hostname). Intent was to keep the header together on page 1, but the side effect was page 1 starting ~30% blank above the header because html2pdf was mis-positioning the avoid'd block. Pages 2+ from the v0.14.147 fix were fine -- the problem was specific to page 1's first element. Solution: trust the natural flow. The header is the first DOM element after the report root, so it lands at the top of page 1 on its own without any 'keep together' rule needed. Now: pagebreak mode is bare 'css' (no avoid rule), and the header is just a normal div.",
+  ]},
   { version: "0.14.147", date: "2026-05-27", changes: [
     "Per-host PDF export: two fixes for the 'blank PDF' and 'content starts halfway down the page' bugs. (1) The iframe layout-wait was using the parent window's requestAnimationFrame, which doesn't wait for the iframe's own layout pipeline to finish. Switched to the iframe's own rAF (two cycles) plus a parent rAF tail tick + a height-sanity check that bails loudly if the report div somehow rendered with < 50px height. That covers the 'save() resolves but the file is empty' edge case. (2) Pagebreak mode dropped 'legacy' -- which treated every <tr> as un-splittable and pushed entire sections to the next page if they didn't fit in the remaining space (the 'halfway down' symptom on hosts with long tables). Now uses 'css' only, so tables flow across page boundaries naturally. The header block (logo + host identity) gets class='pdf-keep' + an explicit avoid rule so the title still stays together on page 1.",
   ]},
@@ -7118,18 +7121,19 @@ async function exportHostPdf(pcId) {
         logging: true,
       },
       jsPDF: { unit: "pt", format: "letter", orientation: "portrait" },
-      // Pagebreak: 'css' only -- honor explicit page-break-* CSS properties,
-      // and let tables / rows split freely across pages instead of being
-      // pushed whole. The previous `['css','legacy']` setting treated each
-      // <tr> as un-splittable, which meant any moderately tall section
-      // (OMSA disks, lots of volumes, long install list) that didn't fit
-      // in the remaining space of the current page got punted to the next
-      // page -- leaving the bottom 30-50% of the previous page blank.
-      // Anything we really want kept together gets class="pdf-keep" and
-      // is listed in `avoid` below. Right now just the header block
-      // (logo + host identity) is marked keep-together so it never splits
-      // across a page boundary -- that'd look broken in print.
-      pagebreak: { mode: "css", avoid: ".pdf-keep" },
+      // Pagebreak: 'css' mode only, NO `avoid` rule. We tried
+      // `avoid: '.pdf-keep'` on the header block in v0.14.147 to keep
+      // the logo + hostname together on page 1 -- but it ended up
+      // mis-positioning the header itself, leaving ~30% of page 1
+      // blank above the title (page 2+ were fine). Turns out html2pdf
+      // doesn't need any help here: the header is the first thing in
+      // the DOM, so it lands at the top of page 1 naturally. Tables
+      // and sections after it split freely across pages without any
+      // legacy-mode awkwardness. If we ever need to force a break
+      // (e.g. "start a new page before Backups"), add the relevant
+      // CSS `page-break-before: always` on that specific section --
+      // don't reintroduce the `avoid` rule.
+      pagebreak: { mode: "css" },
     };
 
     console.log("[PDF] starting html2pdf...");
@@ -7200,26 +7204,24 @@ function buildReportDom(a, logoPngDataUrl) {
     : `<div style="flex:0 0 180px;font-weight:900;color:#0c5e9c;font-size:18px;letter-spacing:0.02em;line-height:1.1;">UMBRELLA<br><span style="color:#6e6e6e;">AUTOMATION</span></div>`;
 
   div.innerHTML = `
-    <!-- HEADER + HOST IDENTITY block. Wrapped in class="pdf-keep" so
-         the pagebreak engine treats it as un-splittable -- the logo
-         and the host name should always sit together on page 1. -->
-    <div class="pdf-keep" style="page-break-inside:avoid;">
-      <!-- HEADER (compact, single-row, logo + metadata aligned baseline) -->
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:20px;border-bottom:1.5px solid #0a6b6b;padding-bottom:10px;margin-bottom:12px;">
-        ${logoBlock}
-        <div style="flex:0 0 auto;text-align:right;font-size:9.5px;color:#8892a4;line-height:1.45;">
-          <div style="font-size:11px;color:#0a6b6b;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;">Watchtower &middot; Per-host report</div>
-          <div>Generated ${new Date().toLocaleString()} &middot; Dashboard v${APP_VERSION}</div>
-        </div>
+    <!-- HEADER (compact, single-row, logo + metadata aligned baseline)
+         No page-break-inside:avoid wrapper here -- see exportHostPdf opts
+         for the regression that caused on page 1. The header is the
+         first element so it lands at the top of page 1 naturally. -->
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:20px;border-bottom:1.5px solid #0a6b6b;padding-bottom:10px;margin-bottom:12px;">
+      ${logoBlock}
+      <div style="flex:0 0 auto;text-align:right;font-size:9.5px;color:#8892a4;line-height:1.45;">
+        <div style="font-size:11px;color:#0a6b6b;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;">Watchtower &middot; Per-host report</div>
+        <div>Generated ${new Date().toLocaleString()} &middot; Dashboard v${APP_VERSION}</div>
       </div>
+    </div>
 
-      <!-- HOST IDENTITY -- promoted, since it's the headline of the report -->
-      <h2 style="margin:0 0 3px;font-size:20px;color:#1a1f2b;letter-spacing:-0.01em;">${esc(a.hostname || a.id)}</h2>
-      <div style="font-size:11.5px;color:#475063;margin-bottom:14px;">
-        Client: <b>${esc(a.client || "unknown")}</b>
-        &middot; pcId <code style="font-size:10.5px;">${esc(a.id)}</code>
-        &middot; Agent <code style="font-size:10.5px;">v${esc(a.agentVersion || "?")}</code>
-      </div>
+    <!-- HOST IDENTITY -- promoted, since it's the headline of the report -->
+    <h2 style="margin:0 0 3px;font-size:20px;color:#1a1f2b;letter-spacing:-0.01em;">${esc(a.hostname || a.id)}</h2>
+    <div style="font-size:11.5px;color:#475063;margin-bottom:14px;">
+      Client: <b>${esc(a.client || "unknown")}</b>
+      &middot; pcId <code style="font-size:10.5px;">${esc(a.id)}</code>
+      &middot; Agent <code style="font-size:10.5px;">v${esc(a.agentVersion || "?")}</code>
     </div>
 
     ${sectionHdr("Status")}
