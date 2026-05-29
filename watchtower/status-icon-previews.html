@@ -143,6 +143,81 @@
     margin: 8px 0 24px;
   }
   .verdict-note b { color: var(--accent); }
+
+  /* Option 11 -- pure CSS-only icons. No SVG, no font, no Unicode.
+     Each shape is built from borders + pseudo-elements + transforms
+     on a single <span>. Color inherits from the pill's color so dark
+     mode + each severity tone "just work" with no extra rules. */
+  .css-icon {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    position: relative;
+    margin-right: 4px;
+  }
+  /* Check: rotated L using two borders */
+  .css-icon.css-check {
+    transform: rotate(45deg);
+  }
+  .css-icon.css-check::before {
+    content: "";
+    position: absolute;
+    left: 3px;
+    top: 1px;
+    width: 5px;
+    height: 10px;
+    border-right: 2.5px solid currentColor;
+    border-bottom: 2.5px solid currentColor;
+  }
+  /* Warning: equilateral triangle with a dot inside */
+  .css-icon.css-warn::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 1px;
+    width: 0;
+    height: 0;
+    border-left: 7px solid transparent;
+    border-right: 7px solid transparent;
+    border-bottom: 12px solid currentColor;
+  }
+  .css-icon.css-warn::after {
+    content: "";
+    position: absolute;
+    left: 6px;
+    top: 9px;
+    width: 2px;
+    height: 2px;
+    background: var(--surface);
+    border-radius: 50%;
+    box-shadow: 0 -3px 0 0 var(--surface);
+  }
+  html[data-theme="dark"] .css-icon.css-warn::after { background: #0e1620; box-shadow: 0 -3px 0 0 #0e1620; }
+  .dark-shadow .css-icon.css-warn::after { background: #0e1620; box-shadow: 0 -3px 0 0 #0e1620; }
+  /* X: two diagonal lines */
+  .css-icon.css-x::before, .css-icon.css-x::after {
+    content: "";
+    position: absolute;
+    left: 6px;
+    top: 0;
+    width: 2.5px;
+    height: 14px;
+    background: currentColor;
+    border-radius: 1px;
+  }
+  .css-icon.css-x::before { transform: rotate(45deg); }
+  .css-icon.css-x::after  { transform: rotate(-45deg); }
+  /* Horizontal dash for muted */
+  .css-icon.css-dash::before {
+    content: "";
+    position: absolute;
+    left: 1px;
+    top: 6px;
+    width: 12px;
+    height: 2.5px;
+    background: currentColor;
+    border-radius: 1px;
+  }
 </style>
 </head>
 <body>
@@ -152,7 +227,11 @@
 <p class="lede">Six options for the consolidated health pill in the Endpoints table Status column. Each option shows all four states (Healthy / Warning / Critical / Muted) in both light and dark backgrounds, and each pill is rendered with the exact same CSS that ships in production -- this is what you'll see in the dashboard. Pick by number and reply with the choice; I'll wire it in.</p>
 
 <div class="verdict-note">
-  <b>What we ship today (v0.14.153):</b> Option 1 -- raw Unicode glyphs. They work but render slightly differently per OS / browser / font (the <code>&amp;#9883;</code> trident on Mac vs Windows is the worst offender). The SVG options below render pixel-identically everywhere.
+  <b>What we ship today (v0.14.153):</b> Option 1 -- raw Unicode glyphs. They work but render slightly differently per OS / browser / font (the <code>&amp;#9883;</code> trident on Mac vs Windows is the worst offender). Options 3 through 11 are all <b>non-Unicode</b> -- inline SVG paths or pure CSS shapes that render pixel-identically on every browser, OS, and font setting.
+</div>
+
+<div style="background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px 18px;margin-bottom:24px;font-size:13px;color:var(--ink-soft);line-height:1.55;">
+  <b style="color:var(--ink);">Non-Unicode = no glyph dependency.</b> Each icon below is either (a) inline SVG embedded in the HTML so the browser draws the path itself with no font involvement, or (b) CSS-only shapes built from borders / pseudo-elements / clip-path. Neither path can be affected by OS font fallback, system emoji style, font-substitution from corporate group policy, or a missing font on a fresh Windows Server install. Options 1 and 2 use Unicode codepoints and are subject to all of those variances; everything from option 3 onward is non-Unicode by construction.
 </div>
 
 <!-- Option 1: current Unicode -->
@@ -293,6 +372,121 @@
   </div>
 </div>
 
+<!-- Option 7: Material Symbols rounded (solid) -->
+<div class="option-card">
+  <div class="option-meta">
+    <h2>7. Material Symbols rounded</h2>
+    <p>Google's flagship icon family, rounded variant. Friendly + readable. Used in Gmail, Google Cloud Console. Filled at this size for clarity.</p>
+  </div>
+  <div>
+    <div class="option-pills">
+      <span class="pill ok"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>Healthy</span>
+      <span class="pill warn"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 5.99L19.53 19H4.47L12 5.99M12 2L1 21h22L12 2zm1 14h-2v2h2v-2zm0-6h-2v5h2v-5z" fill="currentColor"/><path d="M13 16h-2v2h2v-2zm0-6h-2v5h2v-5zM12 5.99L19.53 19H4.47L12 5.99zM12 2L1 21h22L12 2z"/></svg>2 warnings</span>
+      <span class="pill bad"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm5 13.59L15.59 17 12 13.41 8.41 17 7 15.59 10.59 12 7 8.41 8.41 7 12 10.59 15.59 7 17 8.41 13.41 12 17 15.59z"/></svg>1 critical</span>
+      <span class="pill muted"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm5 11H7v-2h10v2z"/></svg>Decommissioned</span>
+    </div>
+    <div class="dark-shadow">
+      <span class="dark-shadow-label">Dark</span>
+      <span class="pill ok"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>Healthy</span>
+      <span class="pill warn"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M13 16h-2v2h2v-2zm0-6h-2v5h2v-5zM12 5.99L19.53 19H4.47L12 5.99zM12 2L1 21h22L12 2z"/></svg>2 warnings</span>
+      <span class="pill bad"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm5 13.59L15.59 17 12 13.41 8.41 17 7 15.59 10.59 12 7 8.41 8.41 7 12 10.59 15.59 7 17 8.41 13.41 12 17 15.59z"/></svg>1 critical</span>
+      <span class="pill muted"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm5 11H7v-2h10v2z"/></svg>Decommissioned</span>
+    </div>
+  </div>
+</div>
+
+<!-- Option 8: Phosphor Bold -->
+<div class="option-card">
+  <div class="option-meta">
+    <h2>8. Phosphor Bold</h2>
+    <p>Geometric, warm rounded corners, slightly thicker stroke. Distinctive house style -- you can spot a Phosphor icon. Used in Notion, Linear sub-products.</p>
+  </div>
+  <div>
+    <div class="option-pills">
+      <span class="pill ok"><svg width="14" height="14" viewBox="0 0 256 256" fill="currentColor"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm49.53,85.66-58.67,56a8,8,0,0,1-11,0L84.47,141a8,8,0,0,1,11-11.62L113.33,146.31l52.86-50.43a8,8,0,1,1,11,11.78Z"/></svg>Healthy</span>
+      <span class="pill warn"><svg width="14" height="14" viewBox="0 0 256 256" fill="currentColor"><path d="M236.8,188.09,149.35,36.22a24.76,24.76,0,0,0-42.7,0L19.2,188.09a23.51,23.51,0,0,0,0,23.72A24.35,24.35,0,0,0,40.55,224h174.9a24.35,24.35,0,0,0,21.33-12.19A23.51,23.51,0,0,0,236.8,188.09ZM120,104a8,8,0,0,1,16,0v40a8,8,0,0,1-16,0Zm8,88a12,12,0,1,1,12-12A12,12,0,0,1,128,192Z"/></svg>2 warnings</span>
+      <span class="pill bad"><svg width="14" height="14" viewBox="0 0 256 256" fill="currentColor"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm37.66,130.34a8,8,0,0,1-11.32,11.32L128,139.31l-26.34,26.35a8,8,0,0,1-11.32-11.32L116.69,128,90.34,101.66a8,8,0,0,1,11.32-11.32L128,116.69l26.34-26.35a8,8,0,0,1,11.32,11.32L139.31,128Z"/></svg>1 critical</span>
+      <span class="pill muted"><svg width="14" height="14" viewBox="0 0 256 256" fill="currentColor"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm40,112H88a8,8,0,0,1,0-16h80a8,8,0,0,1,0,16Z"/></svg>Decommissioned</span>
+    </div>
+    <div class="dark-shadow">
+      <span class="dark-shadow-label">Dark</span>
+      <span class="pill ok"><svg width="14" height="14" viewBox="0 0 256 256" fill="currentColor"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm49.53,85.66-58.67,56a8,8,0,0,1-11,0L84.47,141a8,8,0,0,1,11-11.62L113.33,146.31l52.86-50.43a8,8,0,1,1,11,11.78Z"/></svg>Healthy</span>
+      <span class="pill warn"><svg width="14" height="14" viewBox="0 0 256 256" fill="currentColor"><path d="M236.8,188.09,149.35,36.22a24.76,24.76,0,0,0-42.7,0L19.2,188.09a23.51,23.51,0,0,0,0,23.72A24.35,24.35,0,0,0,40.55,224h174.9a24.35,24.35,0,0,0,21.33-12.19A23.51,23.51,0,0,0,236.8,188.09ZM120,104a8,8,0,0,1,16,0v40a8,8,0,0,1-16,0Zm8,88a12,12,0,1,1,12-12A12,12,0,0,1,128,192Z"/></svg>2 warnings</span>
+      <span class="pill bad"><svg width="14" height="14" viewBox="0 0 256 256" fill="currentColor"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm37.66,130.34a8,8,0,0,1-11.32,11.32L128,139.31l-26.34,26.35a8,8,0,0,1-11.32-11.32L116.69,128,90.34,101.66a8,8,0,0,1,11.32-11.32L128,116.69l26.34-26.35a8,8,0,0,1,11.32,11.32L139.31,128Z"/></svg>1 critical</span>
+      <span class="pill muted"><svg width="14" height="14" viewBox="0 0 256 256" fill="currentColor"><path d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm40,112H88a8,8,0,0,1,0-16h80a8,8,0,0,1,0,16Z"/></svg>Decommissioned</span>
+    </div>
+  </div>
+</div>
+
+<!-- Option 9: Tabler Icons (clean stroke) -->
+<div class="option-card">
+  <div class="option-meta">
+    <h2>9. Tabler Icons (stroke 2)</h2>
+    <p>Open-source, consistent 24px grid, clean balanced stroke. Lots of admin / SaaS products use Tabler. Mid-weight between Heroicons and Phosphor.</p>
+  </div>
+  <div>
+    <div class="option-pills">
+      <span class="pill ok"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="12" r="9"/><path d="M9 12l2 2l4 -4"/></svg>Healthy</span>
+      <span class="pill warn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 9v4"/><path d="M10.363 3.591l-8.106 13.534a1.914 1.914 0 0 0 1.636 2.871h16.214a1.914 1.914 0 0 0 1.636 -2.87l-8.106 -13.536a1.914 1.914 0 0 0 -3.274 0z"/><path d="M12 16h.01"/></svg>2 warnings</span>
+      <span class="pill bad"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="12" r="9"/><path d="M10 10l4 4m0 -4l-4 4"/></svg>1 critical</span>
+      <span class="pill muted"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><circle cx="12" cy="12" r="9"/><path d="M9 12l6 0"/></svg>Decommissioned</span>
+    </div>
+    <div class="dark-shadow">
+      <span class="dark-shadow-label">Dark</span>
+      <span class="pill ok"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9 12l2 2l4 -4"/></svg>Healthy</span>
+      <span class="pill warn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M10.363 3.591l-8.106 13.534a1.914 1.914 0 0 0 1.636 2.871h16.214a1.914 1.914 0 0 0 1.636 -2.87l-8.106 -13.536a1.914 1.914 0 0 0 -3.274 0z"/><path d="M12 16h.01"/></svg>2 warnings</span>
+      <span class="pill bad"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M10 10l4 4m0 -4l-4 4"/></svg>1 critical</span>
+      <span class="pill muted"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9 12l6 0"/></svg>Decommissioned</span>
+    </div>
+  </div>
+</div>
+
+<!-- Option 10: Bootstrap Icons (filled) -->
+<div class="option-card">
+  <div class="option-meta">
+    <h2>10. Bootstrap Icons (filled)</h2>
+    <p>Distinct from Heroicons -- more compact, slightly chunkier proportions. Built-in to the Bootstrap design system; commonly seen in MSP tooling (ConnectWise, Datto). Filled at this size reads well at 14px.</p>
+  </div>
+  <div>
+    <div class="option-pills">
+      <span class="pill ok"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zm-3.97-3.03a.75.75 0 0 0-1.08.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-.01-1.05z"/></svg>Healthy</span>
+      <span class="pill warn"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767L8.982 1.566zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5zm.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2z"/></svg>2 warnings</span>
+      <span class="pill bad"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM5.354 4.646a.5.5 0 1 0-.708.708L7.293 8l-2.647 2.646a.5.5 0 0 0 .708.708L8 8.707l2.646 2.647a.5.5 0 0 0 .708-.708L8.707 8l2.647-2.646a.5.5 0 0 0-.708-.708L8 7.293 5.354 4.646z"/></svg>1 critical</span>
+      <span class="pill muted"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM4 7.5a.5.5 0 0 0 0 1h8a.5.5 0 0 0 0-1H4z"/></svg>Decommissioned</span>
+    </div>
+    <div class="dark-shadow">
+      <span class="dark-shadow-label">Dark</span>
+      <span class="pill ok"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zm-3.97-3.03a.75.75 0 0 0-1.08.022L7.477 9.417 5.384 7.323a.75.75 0 0 0-1.06 1.06L6.97 11.03a.75.75 0 0 0 1.079-.02l3.992-4.99a.75.75 0 0 0-.01-1.05z"/></svg>Healthy</span>
+      <span class="pill warn"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767L8.982 1.566zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5zm.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2z"/></svg>2 warnings</span>
+      <span class="pill bad"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM5.354 4.646a.5.5 0 1 0-.708.708L7.293 8l-2.647 2.646a.5.5 0 0 0 .708.708L8 8.707l2.646 2.647a.5.5 0 0 0 .708-.708L8.707 8l2.647-2.646a.5.5 0 0 0-.708-.708L8 7.293 5.354 4.646z"/></svg>1 critical</span>
+      <span class="pill muted"><svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM4 7.5a.5.5 0 0 0 0 1h8a.5.5 0 0 0 0-1H4z"/></svg>Decommissioned</span>
+    </div>
+  </div>
+</div>
+
+<!-- Option 11: Pure CSS-only (no SVG, no font, no Unicode) -->
+<div class="option-card">
+  <div class="option-meta">
+    <h2>11. Pure CSS-only shapes</h2>
+    <p>Zero bytes per icon -- built from CSS borders + pseudo-elements + transforms. No SVG markup, no font, no Unicode codepoint. Maximally portable; cannot be affected by anything outside our own stylesheet. Visual variety is limited (the icon vocabulary is small).</p>
+  </div>
+  <div>
+    <div class="option-pills">
+      <span class="pill ok"><span class="css-icon css-check"></span>Healthy</span>
+      <span class="pill warn"><span class="css-icon css-warn"></span>2 warnings</span>
+      <span class="pill bad"><span class="css-icon css-x"></span>1 critical</span>
+      <span class="pill muted"><span class="css-icon css-dash"></span>Decommissioned</span>
+    </div>
+    <div class="dark-shadow">
+      <span class="dark-shadow-label">Dark</span>
+      <span class="pill ok"><span class="css-icon css-check"></span>Healthy</span>
+      <span class="pill warn"><span class="css-icon css-warn"></span>2 warnings</span>
+      <span class="pill bad"><span class="css-icon css-x"></span>1 critical</span>
+      <span class="pill muted"><span class="css-icon css-dash"></span>Decommissioned</span>
+    </div>
+  </div>
+</div>
+
 <!-- Reference: how a row of 6 pills looks together in a table -->
 <h2 style="font-size:15px;margin:32px 0 4px;color:var(--ink);">In-context preview (rough table row vibe)</h2>
 <p class="lede" style="margin-bottom:14px;font-size:13px;">Three rows of options side by side so you can see how dense a real table view would look with each set. Hostnames + columns left/right of the pill are intentionally rough -- this is just for spacing.</p>
@@ -324,7 +518,7 @@
 
 <div style="margin-top:40px;padding:18px 22px;background:var(--surface);border:1px solid var(--line);border-radius:10px;">
   <h2 style="margin:0 0 6px;font-size:14px;">My recommendation</h2>
-  <p style="margin:0;font-size:13px;color:var(--ink-soft);line-height:1.55;"><b>Option 3 (Heroicons solid).</b> Reasons: pixel-identical rendering on every OS / browser, clear at the 14px size we use, polished without being playful, matches the visual language of every other modern MSP / DevOps tool. Filled glyphs read better than outlines at small sizes. Option 5 (the ops shield set) is a strong second if you want a more "this is serious infrastructure" feel.</p>
+  <p style="margin:0;font-size:13px;color:var(--ink-soft);line-height:1.55;"><b>Option 3 (Heroicons solid) or option 7 (Material Symbols rounded).</b> Both are well-tested at small sizes, render pixel-identically on every browser / OS / corporate Windows policy, and pair nicely with our typography. Heroicons reads as "modern SaaS dashboard" -- Material Symbols reads as "Google-adjacent, slightly friendlier." Bootstrap (option 10) is a strong third if you want an icon family more commonly found in MSP-vertical tools like ConnectWise / Datto. The pure-CSS option (11) is the most portable but the visual language is narrow -- a check, a triangle, an X, a dash, and that's about it; if we ever add a fifth state we'd have to invent a new shape.</p>
 </div>
 
 </main>
