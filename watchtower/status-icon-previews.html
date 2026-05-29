@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Status Icon Previews - Watchtower</title>
+<meta name="robots" content="noindex">
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --surface: #ffffff;
+    --surface-2: #fafbfc;
+    --ink: #1a1f2b;
+    --ink-soft: #475063;
+    --ink-faint: #8892a4;
+    --line: #e3e6ec;
+    --accent: #0a6b6b;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { background: var(--bg); color: var(--ink); font-family: var(--sans); margin: 0; padding: 0; min-height: 100vh; }
+  main { max-width: 1080px; margin: 0 auto; padding: 32px 24px 80px; }
+
+  h1 { font-size: 22px; margin: 0 0 6px; color: var(--ink); }
+  .lede { color: var(--ink-soft); font-size: 14px; line-height: 1.5; margin: 0 0 32px; }
+
+  .option-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin-bottom: 16px;
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    gap: 24px;
+    align-items: center;
+  }
+  .option-meta h2 {
+    margin: 0 0 4px;
+    font-size: 14px;
+    color: var(--ink);
+    font-weight: 700;
+  }
+  .option-meta p {
+    margin: 0;
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    line-height: 1.5;
+  }
+  .option-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+  }
+
+  /* Pill -- mirrors the Endpoints table .health-pill exactly so what
+     you see here is what ships if you pick that option. */
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 12.5px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    line-height: 1.55;
+    cursor: default;
+  }
+  .pill.ok    { background: #d1fae5; color: #065f46; }
+  .pill.warn  { background: #fef3c7; color: #78350f; }
+  .pill.bad   { background: #fee2e2; color: #7f1d1d; }
+  .pill.muted { background: #f1f5f9; color: #475569; }
+  .pill svg { flex-shrink: 0; }
+  .pill-icon-text { font-size: 13px; line-height: 1; font-weight: 900; }
+
+  /* Single-symbol mini cell (for the "all icons side by side" reference row at the top) */
+  .symbol-cell {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface);
+    color: var(--ink);
+    font-size: 18px;
+    font-weight: 700;
+  }
+  .ref-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 28px;
+    padding: 16px;
+    background: var(--surface);
+    border: 1px dashed var(--line);
+    border-radius: 8px;
+    align-items: center;
+  }
+  .ref-row strong {
+    font-size: 12px;
+    color: var(--ink-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-right: 12px;
+  }
+
+  /* Dark-mode preview right alongside light for parity check */
+  .dark-shadow {
+    background: #0e1620;
+    color: #e2e8f0;
+    padding: 12px 14px;
+    border-radius: 8px;
+    border: 1px solid #1e293b;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 12px;
+    align-items: center;
+  }
+  .dark-shadow .pill.ok    { background: #064e3b; color: #6ee7b7; }
+  .dark-shadow .pill.warn  { background: #422006; color: #fde68a; }
+  .dark-shadow .pill.bad   { background: #450a0a; color: #fca5a5; }
+  .dark-shadow .pill.muted { background: #1e293b; color: #94a3b8; }
+  .dark-shadow-label {
+    font-size: 11px;
+    color: #94a3b8;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .verdict-note {
+    background: #e6f4f4;
+    border-left: 3px solid var(--accent);
+    border-radius: 6px;
+    padding: 12px 16px;
+    font-size: 13px;
+    color: var(--ink);
+    margin: 8px 0 24px;
+  }
+  .verdict-note b { color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+
+<h1>Status icon previews</h1>
+<p class="lede">Six options for the consolidated health pill in the Endpoints table Status column. Each option shows all four states (Healthy / Warning / Critical / Muted) in both light and dark backgrounds, and each pill is rendered with the exact same CSS that ships in production -- this is what you'll see in the dashboard. Pick by number and reply with the choice; I'll wire it in.</p>
+
+<div class="verdict-note">
+  <b>What we ship today (v0.14.153):</b> Option 1 -- raw Unicode glyphs. They work but render slightly differently per OS / browser / font (the <code>&amp;#9883;</code> trident on Mac vs Windows is the worst offender). The SVG options below render pixel-identically everywhere.
+</div>
+
+<!-- Option 1: current Unicode -->
+<div class="option-card">
+  <div class="option-meta">
+    <h2>1. Current (Unicode glyphs)</h2>
+    <p>What v0.14.153 ships. Works, but Windows / Mac / Linux render the trident differently. Free, zero new bytes.</p>
+  </div>
+  <div>
+    <div class="option-pills">
+      <span class="pill ok"><span class="pill-icon-text">&#10003;</span>Healthy</span>
+      <span class="pill warn"><span class="pill-icon-text">&#9888;</span>2 warnings</span>
+      <span class="pill bad"><span class="pill-icon-text">&#9883;</span>1 critical</span>
+      <span class="pill muted"><span class="pill-icon-text">&#8854;</span>Decommissioned</span>
+    </div>
+    <div class="dark-shadow">
+      <span class="dark-shadow-label">Dark</span>
+      <span class="pill ok"><span class="pill-icon-text">&#10003;</span>Healthy</span>
+      <span class="pill warn"><span class="pill-icon-text">&#9888;</span>2 warnings</span>
+      <span class="pill bad"><span class="pill-icon-text">&#9883;</span>1 critical</span>
+      <span class="pill muted"><span class="pill-icon-text">&#8854;</span>Decommissioned</span>
+    </div>
+  </div>
+</div>
+
+<!-- Option 2: Unicode emoji (color, rendered by OS) -->
+<div class="option-card">
+  <div class="option-meta">
+    <h2>2. Unicode emoji</h2>
+    <p>Native OS color emoji. Pretty on Mac, fine on Win 11, dated on older systems. No SVG fetch.</p>
+  </div>
+  <div>
+    <div class="option-pills">
+      <span class="pill ok">&#9989; Healthy</span>
+      <span class="pill warn">&#9888;&#65039; 2 warnings</span>
+      <span class="pill bad">&#9940; 1 critical</span>
+      <span class="pill muted">&#9898; Decommissioned</span>
+    </div>
+    <div class="dark-shadow">
+      <span class="dark-shadow-label">Dark</span>
+      <span class="pill ok">&#9989; Healthy</span>
+      <span class="pill warn">&#9888;&#65039; 2 warnings</span>
+      <span class="pill bad">&#9940; 1 critical</span>
+      <span class="pill muted">&#9898; Decommissioned</span>
+    </div>
+  </div>
+</div>
+
+<!-- Option 3: Heroicons-style SVG (solid, modern) -->
+<div class="option-card">
+  <div class="option-meta">
+    <h2>3. Heroicons-style (solid)</h2>
+    <p>Modern, polished, common across web dashboards (Tailwind UI, Vercel, Linear). Filled glyphs read cleanly at 14px. ~80 bytes per icon inline.</p>
+  </div>
+  <div>
+    <div class="option-pills">
+      <span class="pill ok"><svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd"/></svg>Healthy</span>
+      <span class="pill warn"><svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"/></svg>2 warnings</span>
+      <span class="pill bad"><svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd"/></svg>1 critical</span>
+      <span class="pill muted"><svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9.75a.75.75 0 000 1.5h6a.75.75 0 000-1.5H7z" clip-rule="evenodd"/></svg>Decommissioned</span>
+    </div>
+    <div class="dark-shadow">
+      <span class="dark-shadow-label">Dark</span>
+      <span class="pill ok"><svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd"/></svg>Healthy</span>
+      <span class="pill warn"><svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"/></svg>2 warnings</span>
+      <span class="pill bad"><svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd"/></svg>1 critical</span>
+      <span class="pill muted"><svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9.75a.75.75 0 000 1.5h6a.75.75 0 000-1.5H7z" clip-rule="evenodd"/></svg>Decommissioned</span>
+    </div>
+  </div>
+</div>
+
+<!-- Option 4: Heroicons-style SVG (outline, lighter) -->
+<div class="option-card">
+  <div class="option-meta">
+    <h2>4. Heroicons-style (outline)</h2>
+    <p>Same icon family as #3 but the outline variant -- softer, less chunky. Pairs nicely if you want the pill to read as "label first, icon supporting" rather than icon-led.</p>
+  </div>
+  <div>
+    <div class="option-pills">
+      <span class="pill ok"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>Healthy</span>
+      <span class="pill warn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/></svg>2 warnings</span>
+      <span class="pill bad"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>1 critical</span>
+      <span class="pill muted"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 15.75L8.25 8.25M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>Decommissioned</span>
+    </div>
+    <div class="dark-shadow">
+      <span class="dark-shadow-label">Dark</span>
+      <span class="pill ok"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>Healthy</span>
+      <span class="pill warn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/></svg>2 warnings</span>
+      <span class="pill bad"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>1 critical</span>
+      <span class="pill muted"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 15.75L8.25 8.25M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>Decommissioned</span>
+    </div>
+  </div>
+</div>
+
+<!-- Option 5: Octagon / shield set (the "operations dashboard" classic) -->
+<div class="option-card">
+  <div class="option-meta">
+    <h2>5. Ops shield set (filled)</h2>
+    <p>Shield-check / triangle-bang / octagon-bang. This is the "NOC dashboard" classic -- reads as serious infrastructure tooling at a glance. Octagon-bang for critical mirrors stop-sign semantics universally.</p>
+  </div>
+  <div>
+    <div class="option-pills">
+      <span class="pill ok"><svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.061 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd"/></svg>Healthy</span>
+      <span class="pill warn"><svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"/></svg>2 warnings</span>
+      <span class="pill bad"><svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6.701 2.25c.577-1 2.02-1 2.598 0l5.196 9a1.5 1.5 0 01-1.299 2.25H2.804a1.5 1.5 0 01-1.299-2.25L6.701 2.25zM8 5a.75.75 0 01.75.75v3a.75.75 0 01-1.5 0v-3A.75.75 0 018 5zm0 7a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" transform="translate(2 2)"/><path fill-rule="evenodd" d="M6.328 2.328a.75.75 0 011.06 0L10 4.94l2.612-2.612a.75.75 0 011.06 1.06L11.06 6l2.612 2.612a.75.75 0 11-1.06 1.06L10 7.06 7.388 9.672a.75.75 0 01-1.06-1.06L8.94 6 6.328 3.388a.75.75 0 010-1.06z" clip-rule="evenodd" transform="translate(0 4)" style="display:none;"/></svg>1 critical</span>
+      <span class="pill muted"><svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.25 2A2.25 2.25 0 002 4.25v2a.75.75 0 001.5 0v-2a.75.75 0 01.75-.75h2a.75.75 0 000-1.5h-2zM13.75 2a.75.75 0 000 1.5h2a.75.75 0 01.75.75v2a.75.75 0 001.5 0v-2A2.25 2.25 0 0015.75 2h-2zM3.5 13.75a.75.75 0 00-1.5 0v2A2.25 2.25 0 004.25 18h2a.75.75 0 000-1.5h-2a.75.75 0 01-.75-.75v-2zM18 13.75a.75.75 0 00-1.5 0v2a.75.75 0 01-.75.75h-2a.75.75 0 000 1.5h2A2.25 2.25 0 0018 15.75v-2z" clip-rule="evenodd"/></svg>Decommissioned</span>
+    </div>
+    <div class="dark-shadow">
+      <span class="dark-shadow-label">Dark</span>
+      <span class="pill ok"><svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.061 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd"/></svg>Healthy</span>
+      <span class="pill warn"><svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"/></svg>2 warnings</span>
+      <span class="pill bad"><svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.625 1.5a1.5 1.5 0 00-1.06.44L1.94 7.564a1.5 1.5 0 000 2.122l5.624 5.624a1.5 1.5 0 002.122 0l5.624-5.624a1.5 1.5 0 000-2.122L9.685 1.94a1.5 1.5 0 00-1.06-.44H8.625zM8.75 5.5a.75.75 0 011.5 0v3.5a.75.75 0 01-1.5 0v-3.5zm.75 7a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"/></svg>1 critical</span>
+      <span class="pill muted"><svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4.25 2A2.25 2.25 0 002 4.25v2a.75.75 0 001.5 0v-2a.75.75 0 01.75-.75h2a.75.75 0 000-1.5h-2zM13.75 2a.75.75 0 000 1.5h2a.75.75 0 01.75.75v2a.75.75 0 001.5 0v-2A2.25 2.25 0 0015.75 2h-2zM3.5 13.75a.75.75 0 00-1.5 0v2A2.25 2.25 0 004.25 18h2a.75.75 0 000-1.5h-2a.75.75 0 01-.75-.75v-2zM18 13.75a.75.75 0 00-1.5 0v2a.75.75 0 01-.75.75h-2a.75.75 0 000 1.5h2A2.25 2.25 0 0018 15.75v-2z" clip-rule="evenodd"/></svg>Decommissioned</span>
+    </div>
+  </div>
+</div>
+
+<!-- Option 6: Dot indicator (minimal) -->
+<div class="option-card">
+  <div class="option-meta">
+    <h2>6. Minimal dot</h2>
+    <p>Coloured circle, no glyph. Cleanest look -- closest to GitHub's CI status dots. Relies on color + label for meaning (color-blind operators get the label too). Smallest visual weight per row.</p>
+  </div>
+  <div>
+    <div class="option-pills">
+      <span class="pill ok"><svg width="9" height="9" viewBox="0 0 8 8"><circle cx="4" cy="4" r="3.5" fill="currentColor"/></svg>Healthy</span>
+      <span class="pill warn"><svg width="9" height="9" viewBox="0 0 8 8"><circle cx="4" cy="4" r="3.5" fill="currentColor"/></svg>2 warnings</span>
+      <span class="pill bad"><svg width="9" height="9" viewBox="0 0 8 8"><circle cx="4" cy="4" r="3.5" fill="currentColor"/></svg>1 critical</span>
+      <span class="pill muted"><svg width="9" height="9" viewBox="0 0 8 8"><circle cx="4" cy="4" r="3.5" fill="currentColor"/></svg>Decommissioned</span>
+    </div>
+    <div class="dark-shadow">
+      <span class="dark-shadow-label">Dark</span>
+      <span class="pill ok"><svg width="9" height="9" viewBox="0 0 8 8"><circle cx="4" cy="4" r="3.5" fill="currentColor"/></svg>Healthy</span>
+      <span class="pill warn"><svg width="9" height="9" viewBox="0 0 8 8"><circle cx="4" cy="4" r="3.5" fill="currentColor"/></svg>2 warnings</span>
+      <span class="pill bad"><svg width="9" height="9" viewBox="0 0 8 8"><circle cx="4" cy="4" r="3.5" fill="currentColor"/></svg>1 critical</span>
+      <span class="pill muted"><svg width="9" height="9" viewBox="0 0 8 8"><circle cx="4" cy="4" r="3.5" fill="currentColor"/></svg>Decommissioned</span>
+    </div>
+  </div>
+</div>
+
+<!-- Reference: how a row of 6 pills looks together in a table -->
+<h2 style="font-size:15px;margin:32px 0 4px;color:var(--ink);">In-context preview (rough table row vibe)</h2>
+<p class="lede" style="margin-bottom:14px;font-size:13px;">Three rows of options side by side so you can see how dense a real table view would look with each set. Hostnames + columns left/right of the pill are intentionally rough -- this is just for spacing.</p>
+
+<div style="background:var(--surface);border:1px solid var(--line);border-radius:10px;overflow:hidden;">
+  <div style="display:grid;grid-template-columns:1fr 220px 1fr;gap:0;font-size:13px;">
+    <div style="padding:10px 16px;border-bottom:1px solid var(--line);background:var(--surface-2);font-weight:700;color:var(--ink-faint);font-size:11px;text-transform:uppercase;letter-spacing:0.06em;">Hostname</div>
+    <div style="padding:10px 16px;border-bottom:1px solid var(--line);background:var(--surface-2);font-weight:700;color:var(--ink-faint);font-size:11px;text-transform:uppercase;letter-spacing:0.06em;">Status</div>
+    <div style="padding:10px 16px;border-bottom:1px solid var(--line);background:var(--surface-2);font-weight:700;color:var(--ink-faint);font-size:11px;text-transform:uppercase;letter-spacing:0.06em;">Last check</div>
+
+    <div style="padding:11px 16px;border-bottom:1px solid var(--line);font-weight:600;">DRSERVER1</div>
+    <div style="padding:11px 16px;border-bottom:1px solid var(--line);"><span class="pill ok"><svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd"/></svg>Healthy</span></div>
+    <div style="padding:11px 16px;border-bottom:1px solid var(--line);color:var(--ink-faint);">3m ago</div>
+
+    <div style="padding:11px 16px;border-bottom:1px solid var(--line);font-weight:600;">HALEDDS-T330</div>
+    <div style="padding:11px 16px;border-bottom:1px solid var(--line);"><span class="pill warn"><svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"/></svg>2 warnings</span></div>
+    <div style="padding:11px 16px;border-bottom:1px solid var(--line);color:var(--ink-faint);">7m ago</div>
+
+    <div style="padding:11px 16px;border-bottom:1px solid var(--line);font-weight:600;">GBDA-HYPERV</div>
+    <div style="padding:11px 16px;border-bottom:1px solid var(--line);"><span class="pill bad"><svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd"/></svg>1 critical</span></div>
+    <div style="padding:11px 16px;border-bottom:1px solid var(--line);color:var(--ink-faint);">2h ago</div>
+
+    <div style="padding:11px 16px;font-weight:600;">OPFD-RETIRED</div>
+    <div style="padding:11px 16px;"><span class="pill muted"><svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9.75a.75.75 0 000 1.5h6a.75.75 0 000-1.5H7z" clip-rule="evenodd"/></svg>Decommissioned</span></div>
+    <div style="padding:11px 16px;color:var(--ink-faint);">8h ago</div>
+  </div>
+</div>
+<p class="lede" style="margin-top:8px;font-size:12px;">(rendering with option 3 above for the in-context row. Swap to whichever you prefer.)</p>
+
+<div style="margin-top:40px;padding:18px 22px;background:var(--surface);border:1px solid var(--line);border-radius:10px;">
+  <h2 style="margin:0 0 6px;font-size:14px;">My recommendation</h2>
+  <p style="margin:0;font-size:13px;color:var(--ink-soft);line-height:1.55;"><b>Option 3 (Heroicons solid).</b> Reasons: pixel-identical rendering on every OS / browser, clear at the 14px size we use, polished without being playful, matches the visual language of every other modern MSP / DevOps tool. Filled glyphs read better than outlines at small sizes. Option 5 (the ops shield set) is a strong second if you want a more "this is serious infrastructure" feel.</p>
+</div>
+
+</main>
+</body>
+</html>
