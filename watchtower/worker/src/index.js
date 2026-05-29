@@ -3035,6 +3035,29 @@ function dashboardUrl(pcId) {
   return pcId ? `${DASHBOARD_BASE}?pc=${encodeURIComponent(pcId)}` : DASHBOARD_BASE;
 }
 
+// Deep-link straight to a specific event card in the host's drawer.
+// Dashboard reads ?pc + ?event from the URL on load and auto-opens the
+// drawer, switches to the Events tab, and scrolls to / highlights the
+// matching event card so the operator can comment or snooze with one
+// click. Used by every alert email's per-event CTA.
+//   eventKind: 'omsa' | 'wsb' | 'disk' | 'backupDiskAge'
+function eventCardUrl(pcId, eventKind) {
+  if (!pcId) return DASHBOARD_BASE;
+  const base = `${DASHBOARD_BASE}?pc=${encodeURIComponent(pcId)}&tab=events`;
+  return eventKind ? `${base}&event=${encodeURIComponent(eventKind)}` : base;
+}
+
+// Friendly label for the event kind that shows in emails and in the
+// snooze-warning callout. Mirrors the dashboard's per-event card label
+// so an operator reading the email recognizes the same name they see
+// in the UI.
+const EVENT_KIND_LABEL = {
+  omsa:          'Dell OMSA storage',
+  wsb:           'WSB backup',
+  disk:          'C: drive low',
+  backupDiskAge: 'WSB backup disk age',
+};
+
 // Wrap an email's body content with the standard branded chrome.
 //   client       -- client name (renders in the white pill chip)
 //   hostname     -- host display name (renders in the hero subtitle)
@@ -3046,9 +3069,11 @@ function dashboardUrl(pcId) {
 //   bandText     -- short label in the severity band
 //   bodyHtml     -- per-email body content (rendered before the CTA)
 //   pcId         -- used to deep-link the "Open host in dashboard" CTA
-function renderEmailShell({ client, hostname, headline, subtitleHtml, severity, bandText, bodyHtml, pcId }) {
+function renderEmailShell({ client, hostname, headline, subtitleHtml, severity, bandText, bodyHtml, pcId, eventKind }) {
   const pal = SEVERITY_PALETTE[severity] || SEVERITY_PALETTE.info;
   const dashUrl = dashboardUrl(pcId);
+  const evtUrl  = eventKind ? eventCardUrl(pcId, eventKind) : null;
+  const evtLabel = eventKind ? (EVENT_KIND_LABEL[eventKind] || eventKind) : null;
   const clientLabel = client && client.trim() ? client : 'Unassigned';
   const subtitle = subtitleHtml || `on <b style="color:#ffffff;">${escapeHtml(hostname || '?')}</b>`;
   return `
@@ -3075,6 +3100,18 @@ function renderEmailShell({ client, hostname, headline, subtitleHtml, severity, 
       <div style="padding:24px 30px;">
         ${bodyHtml}
         <a href="${dashUrl}" style="display:block;text-align:center;background:#0a6b6b;color:#ffffff;text-decoration:none;padding:14px 22px;border-radius:10px;font-weight:700;font-size:14.5px;box-shadow:0 2px 4px rgba(10,107,107,0.25);margin-top:20px;">Open host in dashboard &rarr;</a>
+        ${evtUrl ? `
+        <!-- Per-event CTA + snooze-scope callout. The link deep-links
+             straight to the event card in the Events tab so the
+             operator can comment + snooze without manually navigating.
+             The callout below makes clear that any snooze applied is
+             shared across every MSP admin -- this is intentional
+             (one source of truth for triage decisions) but worth
+             stating in plain language so nobody is surprised. -->
+        <a href="${evtUrl}" style="display:block;text-align:center;background:#ffffff;color:#0a6b6b;text-decoration:none;padding:12px 20px;border:1.5px solid #0a6b6b;border-radius:10px;font-weight:600;font-size:13.5px;margin-top:10px;">Comment or snooze this ${escapeHtml(evtLabel)} event &rarr;</a>
+        <div style="margin-top:14px;padding:11px 14px;background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;color:#78350f;font-size:12px;line-height:1.55;">
+          <b>Heads up:</b> Notes and snoozes you apply here are <b>shared across every signed-in Umbrella Automation admin</b>. A snooze you set silences this event's email + webhook fires for the whole team until the duration expires, and any note you add is visible to anyone else who opens this host. The dashboard badges keep showing the host's actual state regardless, so nothing is hidden -- only the recurring notifications are paused.
+        </div>` : ''}
       </div>
       <!-- Footer -->
       <div style="background:#fafbfc;padding:16px 30px;border-top:1px solid #e3e6ec;">
@@ -3411,6 +3448,7 @@ async function sendOmsaWarningEmail(env, { pcId, hostname, client, rollup, versi
     severity: 'critical',
     bandText: `Dell OMSA · ${sevLabel.toLowerCase()}`,
     bodyHtml,
+    eventKind: 'omsa',
   });
   await postResendEmail(env, { subject, html });
 }
@@ -3451,6 +3489,7 @@ async function sendDiskLowEmail(env, { pcId, hostname, client, drive, freeGB, fr
     severity: 'critical',
     bandText: `Disk capacity · ${sevLabel.toLowerCase()}`,
     bodyHtml,
+    eventKind: 'disk',
   });
   await postResendEmail(env, { subject, html });
 }
@@ -3551,6 +3590,7 @@ async function sendBackupFailureEmail(env, { pcId, hostname, client, result, det
     severity: 'critical',
     bandText: `${toolLabel} · critical`,
     bodyHtml,
+    eventKind: 'wsb',
   });
   await postResendEmail(env, { subject, html });
 }
@@ -3612,6 +3652,7 @@ async function sendBackupDiskAgedEmail(env, { pcId, hostname, client, target, ag
     severity: 'warn',
     bandText: 'Windows Server Backup · advisory',
     bodyHtml,
+    eventKind: 'backupDiskAge',
   });
   await postResendEmail(env, { subject, html });
 }

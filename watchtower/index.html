@@ -2361,7 +2361,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.151";
+const APP_VERSION = "0.14.152";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -2392,6 +2392,11 @@ if (_versionChip) {
 // fixes). Patch-level no-op bumps don't need entries -- only stuff a
 // human reader would want to know about.
 const CHANGELOG = [
+  { version: "0.14.152", date: "2026-05-27", changes: [
+    "Notification emails now deep-link straight to the event card in the dashboard. OMSA / WSB failure / C: drive low / WSB backup-disk-age emails each get a 'Comment or snooze this <event> event' secondary CTA below the existing 'Open host in dashboard' button. The link is /?pc=<pcId>&tab=events&event=<kind>; the dashboard handles those params on sign-in -- auto-opens the drawer, switches to the Events tab, scrolls to the matching event card, and briefly highlights it with an accent ring so the operator's eye lands in the right place.",
+    "Email callout: every per-event email now includes a plain-language note that 'Notes and snoozes you apply are shared across every signed-in Umbrella Automation admin.' Makes the team-scope explicit so nobody is surprised when their snooze silences the alert for everyone, not just their own inbox. The dashboard badges keep showing the host's actual state regardless -- only the recurring notifications are paused.",
+    "URL params are stripped from the address bar after they're applied so a refresh doesn't keep re-opening the drawer, and the URL stays clean for bookmarking.",
+  ]},
   { version: "0.14.151", date: "2026-05-27", changes: [
     "Drawer tabs: split the endpoint detail panel into Overview (system / network / probes / inventory / everything that was in the original wall-of-scroll) and Events (per-event timeline cards with their own comment threads + snooze controls). Default tab when opening a drawer: Events if the host has any unsnoozed active alerts, otherwise Overview. Tab choice persists across re-renders so onSnapshot updates don't reset triage mid-flow.",
     "Per-event cards in the Events tab: one card per event KIND (Dell OMSA storage / WSB backup / C: drive low / WSB backup disk age). Each card shows state (Active / Snoozed / Recovered), the first-seen timestamp, the threaded notes scoped to that event, plus an inline form to add a note + apply a snooze (1d / 3d / 7d / 14d / 30d / 60d / 90d) in one save. Active snoozes get a 'Clear snooze now' button inside the card. General (untagged) notes have their own subsection at the bottom of the Events tab.",
@@ -3097,6 +3102,28 @@ onAuthStateChanged(auth, async (user) => {
   wireSortableHeaders("table.endpoints", "endpoints", renderEndpoints);
   wireSortableHeaders("table.clients", "clients", renderClients);
 
+  // Deep-link from notification emails. The worker's email shell
+  // includes a "Comment or snooze this <event> event" CTA whose URL
+  // is `?pc=<pcId>&tab=events&event=<kind>`. We stash the parsed
+  // params here; subscribeAgents() applies them once the agent list
+  // has loaded (we need state.agents populated to find the host).
+  // Cleared after one application so a re-render doesn't keep
+  // re-opening the drawer.
+  const _urlParams = new URLSearchParams(window.location.search);
+  const _urlPc    = _urlParams.get("pc")    || null;
+  const _urlTab   = _urlParams.get("tab")   || null;
+  const _urlEvent = _urlParams.get("event") || null;
+  if (_urlPc) {
+    _pendingUrlNav = { pc: _urlPc, tab: _urlTab, event: _urlEvent };
+    // Strip the params from the address bar so a refresh doesn't
+    // re-trigger -- and so the URL stays clean if the operator
+    // bookmarks it.
+    try {
+      const cleanUrl = window.location.origin + window.location.pathname;
+      window.history.replaceState({}, '', cleanUrl);
+    } catch {}
+  }
+
   subscribeAgents();
   subscribeClients();
   subscribeTokens();
@@ -3251,6 +3278,49 @@ function subscribeAgents() {
     }
     // If a drawer is open, refresh its content too.
     if (state.openPcId) renderDrawer(state.openPcId);
+    // Handle URL-deep-link navigation now that we have the agent list.
+    // One-shot: clear after first application so re-renders don't keep
+    // re-opening the drawer. If the host id from the URL isn't in the
+    // list (deleted? wrong client?) we toast a clear message instead
+    // of failing silently.
+    if (_pendingUrlNav && _pendingUrlNav.pc) {
+      const nav = _pendingUrlNav;
+      _pendingUrlNav = null;
+      const target = state.agents.find(a => a.id === nav.pc);
+      if (!target) {
+        toast(`Host ${nav.pc.slice(0, 8)}... not found in current dashboard view.`, true);
+      } else {
+        // Pre-set the drawer tab so openDrawer's renderer picks it up
+        // on first paint (no flash of Overview tab).
+        if (nav.tab === "events" || nav.event) state.drawerTab = "events";
+        openDrawer(nav.pc);
+        // Scroll to + briefly highlight the event card after the
+        // drawer has rendered. requestAnimationFrame so the markup is
+        // in the DOM; setTimeout because the per-event card may not
+        // appear until _drawerNotes loads (a few hundred ms later).
+        if (nav.event) {
+          const findAndFlash = () => {
+            const card = document.querySelector(`#dBody .event-card[data-event-kind="${nav.event}"]`);
+            if (card) {
+              card.scrollIntoView({ behavior: "smooth", block: "center" });
+              card.style.transition = "box-shadow 0.3s";
+              card.style.boxShadow = "0 0 0 3px var(--accent)";
+              setTimeout(() => { card.style.boxShadow = ""; }, 2400);
+              return true;
+            }
+            return false;
+          };
+          // Try immediately, then retry a few times as the notes
+          // listener populates _drawerNotes and the cards re-render.
+          if (!findAndFlash()) {
+            let tries = 0;
+            const iv = setInterval(() => {
+              if (findAndFlash() || ++tries >= 10) clearInterval(iv);
+            }, 200);
+          }
+        }
+      }
+    }
   }, err => {
     toast("Failed to load endpoints: " + (err.message || err), true);
   });
@@ -8971,6 +9041,14 @@ function renderLocalAdmins(a) {
     </div>
   `;
 }
+
+// Module-level: pending deep-link navigation parsed from the URL on
+// sign-in (set in the onAuthStateChanged success path when the page
+// was opened via a Watchtower email's deep link). Cleared after one
+// application by subscribeAgents() once state.agents is populated --
+// before then we can't openDrawer() because the host isn't in the
+// in-memory list yet.
+let _pendingUrlNav = null;
 
 // Module-level: which drawer tab is currently active. Tab strip click
 // handler in renderDrawer's post-binding section updates this. Read by
