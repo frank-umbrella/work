@@ -2418,7 +2418,7 @@ async function handleCheckin(request, env, ctx) {
   // Activity log fires only on fresh transitions (kept separate from
   // the 7-day email/webhook throttle so the audit feed doesn't get
   // cluttered with weekly-reminder entries).
-  if (omsaNewWarning && config.enabled && config.monitorOmsa !== false && !isAlertsSnoozed(config)) {
+  if (omsaNewWarning && config.enabled && config.monitorOmsa !== false && !isAlertsSnoozed(config) && !isEventSnoozed(config, 'omsa')) {
     const issues = extractOmsaIssues(omsaCurrent);
     ctx.waitUntil(logActivity(env, accessToken, {
       type: 'omsa_warning',
@@ -2429,7 +2429,7 @@ async function handleCheckin(request, env, ctx) {
     }));
   }
   // Email/webhook fires on transition OR 7-day reminder while still bad.
-  if (omsaShouldNotify && config.enabled && config.monitorOmsa !== false && !isAlertsSnoozed(config)) {
+  if (omsaShouldNotify && config.enabled && config.monitorOmsa !== false && !isAlertsSnoozed(config) && !isEventSnoozed(config, 'omsa')) {
     const issues = extractOmsaIssues(omsaCurrent);
     if (config.emailEnabled && env.RESEND_API_KEY && notifPrefs.omsaWarning) {
       ctx.waitUntil(
@@ -2472,7 +2472,7 @@ async function handleCheckin(request, env, ctx) {
   // same transition trigger -- we don't want to double-fire if a
   // host drops from 8% -> 4% in a single check-in.
   // Activity log on fresh transition only (audit feed stays clean).
-  if (cDriveNewWarning && config.enabled && config.monitorDisk !== false && !isAlertsSnoozed(config) && !isRetired) {
+  if (cDriveNewWarning && config.enabled && config.monitorDisk !== false && !isAlertsSnoozed(config) && !isEventSnoozed(config, 'disk') && !isRetired) {
     ctx.waitUntil(logActivity(env, accessToken, {
       type: 'disk_low',
       actor: { type: 'agent', id: pcId },
@@ -2488,7 +2488,7 @@ async function handleCheckin(request, env, ctx) {
     }));
   }
   // Email/webhook fires on transition OR 7-day reminder while still low.
-  if (cDriveLowShouldNotify && config.enabled && config.monitorDisk !== false && !isAlertsSnoozed(config) && !isRetired) {
+  if (cDriveLowShouldNotify && config.enabled && config.monitorDisk !== false && !isAlertsSnoozed(config) && !isEventSnoozed(config, 'disk') && !isRetired) {
     if (config.emailEnabled && env.RESEND_API_KEY && notifPrefs.diskLow) {
       ctx.waitUntil(
         sendDiskLowEmail(env, {
@@ -2530,7 +2530,7 @@ async function handleCheckin(request, env, ctx) {
   // the operator swaps the disk (oldestBackup drops) or bumps the
   // threshold past current age, then re-arms.
   // Activity log on fresh transition only.
-  if (backupDiskAgedNewWarning && config.enabled && config.monitorWsb !== false && !isAlertsSnoozed(config) && !isRetired) {
+  if (backupDiskAgedNewWarning && config.enabled && config.monitorWsb !== false && !isAlertsSnoozed(config) && !isEventSnoozed(config, 'backupDiskAge') && !isRetired) {
     ctx.waitUntil(logActivity(env, accessToken, {
       type: 'backup_disk_aged',
       actor: { type: 'agent', id: pcId },
@@ -2546,7 +2546,7 @@ async function handleCheckin(request, env, ctx) {
     }));
   }
   // Email/webhook fires on transition OR 7-day reminder while still aged.
-  if (backupDiskAgeShouldNotify && config.enabled && config.monitorWsb !== false && !isAlertsSnoozed(config) && !isRetired) {
+  if (backupDiskAgeShouldNotify && config.enabled && config.monitorWsb !== false && !isAlertsSnoozed(config) && !isEventSnoozed(config, 'backupDiskAge') && !isRetired) {
     const ageLabel = _fmtAgeDays(backupAgedFinding.ageDays);
     const thresholdLabel = _fmtAgeDays(backupAgedFinding.thresholdDays);
     if (config.emailEnabled && env.RESEND_API_KEY && notifPrefs.backupDiskAged) {
@@ -2591,7 +2591,7 @@ async function handleCheckin(request, env, ctx) {
   // each occurrence). Email/webhook fires on first failure transition
   // AND at most once per 7 days while still failing -- so a host that
   // fails nightly doesn't flood the inbox.
-  if (wsbNewFailure && config.enabled && config.monitorWsb !== false && !isAlertsSnoozed(config) && !isRetired) {
+  if (wsbNewFailure && config.enabled && config.monitorWsb !== false && !isAlertsSnoozed(config) && !isEventSnoozed(config, 'wsb') && !isRetired) {
     const lastSuccess = wsbCurrent?.lastSuccessfulBackup || null;
     const daysSinceSuccess = lastSuccess
       ? Math.floor((Date.now() - new Date(lastSuccess).getTime()) / 86400000)
@@ -2611,7 +2611,7 @@ async function handleCheckin(request, env, ctx) {
       },
     }));
   }
-  if (wsbShouldNotify && config.enabled && config.monitorWsb !== false && !isAlertsSnoozed(config) && !isRetired) {
+  if (wsbShouldNotify && config.enabled && config.monitorWsb !== false && !isAlertsSnoozed(config) && !isEventSnoozed(config, 'wsb') && !isRetired) {
     const lastSuccess = wsbCurrent?.lastSuccessfulBackup || null;
     const daysSinceSuccess = lastSuccess
       ? Math.floor((Date.now() - new Date(lastSuccess).getTime()) / 86400000)
@@ -2903,6 +2903,21 @@ function readConfig(doc) {
     // Set via the drawer's Config dropdown. Distinct from
     // `decommissioned` (which removes the host from the active view).
     lifecycle: 'active',
+    // Per-event snoozes -- like alertsSnoozeUntil but scoped to a
+    // single event kind so the operator can mute only the OMSA
+    // chatter while still hearing about WSB failures. Drawer's
+    // Notes panel writes here when the operator picks "Snooze
+    // related-event alerts for N days" alongside a comment.
+    //
+    // Shape:
+    //   eventSnoozes: {
+    //     omsa: { until, by, reason },
+    //     wsb:  { until, by, reason },
+    //     disk: { until, by, reason },
+    //     backupDiskAge: { until, by, reason },
+    //   }
+    // Any key may be missing; missing or past `until` = not snoozed.
+    eventSnoozes: {},
   };
   if (!doc || !doc.fields) return defaults;
   return {
@@ -2919,6 +2934,22 @@ function readConfig(doc) {
     monitorDisk: fieldBool(doc.fields.monitorDisk, defaults.monitorDisk),
     alertsSnoozeUntil: doc.fields.alertsSnoozeUntil?.stringValue || null,
     lifecycle: doc.fields.lifecycle?.stringValue === 'retired' ? 'retired' : 'active',
+    eventSnoozes: (() => {
+      // Parse the eventSnoozes map from Firestore's verbose mapValue
+      // representation back into a plain JS object the notify branches
+      // can index. Missing field / no snoozes = empty object.
+      const m = doc.fields.eventSnoozes?.mapValue?.fields || {};
+      const out = {};
+      for (const [kind, v] of Object.entries(m)) {
+        const inner = v?.mapValue?.fields || {};
+        out[kind] = {
+          until:  inner.until?.stringValue || null,
+          by:     inner.by?.stringValue || null,
+          reason: inner.reason?.stringValue || null,
+        };
+      }
+      return out;
+    })(),
   };
 }
 
@@ -2929,6 +2960,21 @@ function readConfig(doc) {
 function isAlertsSnoozed(config) {
   if (!config?.alertsSnoozeUntil) return false;
   const until = Date.parse(config.alertsSnoozeUntil);
+  if (!isFinite(until)) return false;
+  return until > Date.now();
+}
+
+// Per-event snooze check. eventKind is one of: 'omsa' | 'wsb' | 'disk'
+// | 'backupDiskAge'. Returns true when the operator added a Notes
+// entry with an explicit "snooze related-event alerts" duration that
+// hasn't expired yet. Stacks WITH isAlertsSnoozed (either being true
+// suppresses the notification) -- a host-wide snooze covers everything,
+// a per-event snooze covers just that one signal so other categories
+// still alert. Missing key / past `until` = not snoozed.
+function isEventSnoozed(config, eventKind) {
+  const s = config?.eventSnoozes?.[eventKind];
+  if (!s?.until) return false;
+  const until = Date.parse(s.until);
   if (!isFinite(until)) return false;
   return until > Date.now();
 }

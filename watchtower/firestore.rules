@@ -156,6 +156,32 @@ service cloud.firestore {
         allow get, list: if isMSPAdmin();
         allow create, update, delete: if false;
       }
+
+      // -------- /agents/{pcId}/notes/{noteId} --------
+      // Operator notes attached to a specific endpoint. Shared across
+      // all signed-in MSP staff so anyone looking at the host can see
+      // why an alert was muted ("client is dragging the replacement,
+      // checking back 6/10"). Each note can optionally tag a related
+      // event kind (omsa / wsb / disk / backupDiskAge) so the timeline
+      // around a specific alert is reconstructible.
+      //
+      // Doc shape:
+      //   body            (string, required, 1-2000 chars)
+      //   eventKind       (string|null: omsa / wsb / disk / backupDiskAge)
+      //   snoozeApplied   ({until, reason}|null -- metadata only; the
+      //                    actual snooze lives on the config doc so the
+      //                    worker can read it during checkin without
+      //                    needing the notes subcollection)
+      //   createdBy       (string: email)
+      //   createdByName   (string: display name)
+      //   createdAt       (timestamp -- serverTimestamp from client)
+      //
+      // Edits: allow update + delete by any admin so typos can be
+      // corrected. Activity log captures the create/edit/delete actions.
+      match /notes/{noteId} {
+        allow get, list: if isMSPAdmin();
+        allow create, update, delete: if isMSPAdmin();
+      }
     }
   }
 }
