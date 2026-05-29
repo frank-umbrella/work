@@ -998,6 +998,165 @@
   #drawer .section h3 { font-size: 12px; text-transform: uppercase; color: var(--ink-faint); letter-spacing: 0.06em; margin: 0 0 8px; font-weight: 700; }
 
   /* ============================================================
+     Drawer tab strip. Splits the host detail panel into Overview
+     (system / network / probes / inventory / everything that was
+     in the original wall-of-scroll) vs Events (per-event timeline
+     with comment + snooze per event kind). Config + kill-switches
+     sit ABOVE the tabs so they're always one click away regardless
+     of which tab is active.
+     ============================================================ */
+  .drawer-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1.5px solid var(--line);
+    margin-bottom: 18px;
+  }
+  .drawer-tab {
+    background: transparent;
+    border: 0;
+    color: var(--ink-soft);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 10px 16px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1.5px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: inherit;
+  }
+  .drawer-tab:hover { color: var(--ink); }
+  .drawer-tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+  .drawer-tab-count {
+    background: #b91c1c;
+    color: white;
+    font-size: 10.5px;
+    font-weight: 700;
+    padding: 1px 7px;
+    border-radius: 10px;
+    line-height: 1.4;
+    min-width: 18px;
+    text-align: center;
+  }
+  .drawer-tab-pane { display: none; }
+  .drawer-tab-pane.active { display: block; }
+
+  /* ============================================================
+     Per-event card (used inside the Events tab). One card per
+     active/historical event kind for this host. Card body holds
+     the threaded notes filtered to this event + an inline Add
+     note form pre-tagged to this event.
+     ============================================================ */
+  .event-card {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-bottom: 12px;
+    background: var(--surface);
+  }
+  .event-card.event-active {
+    border-color: #fcd34d;
+    background: linear-gradient(180deg, rgba(254, 243, 199, 0.35), var(--surface) 40%);
+  }
+  .event-card.event-recovered {
+    border-color: var(--line);
+    background: var(--surface);
+    opacity: 0.92;
+  }
+  .event-card.event-active.event-snoozed {
+    border-color: #cbd5e1;
+    background: var(--surface);
+  }
+  .event-card-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+  }
+  .event-card-icon {
+    width: 26px;
+    height: 26px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+  .event-card.event-active .event-card-icon {
+    background: #fef3c7;
+    color: #b45309;
+  }
+  .event-card-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .event-card-meta {
+    font-size: 11.5px;
+    color: var(--ink-faint);
+    margin-left: auto;
+  }
+  .event-card-statebadge {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 4px;
+  }
+  .event-card-statebadge.active { background: #fef3c7; color: #78350f; }
+  .event-card-statebadge.snoozed { background: #e0e7ff; color: #3730a3; }
+  .event-card-statebadge.recovered { background: #d1fae5; color: #065f46; }
+  .event-card-thread { margin-top: 8px; }
+  .event-card-empty { font-size: 12.5px; color: var(--ink-faint); padding: 6px 0; }
+  .event-add-form { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line); }
+  .event-add-form textarea {
+    width: 100%;
+    padding: 8px 10px;
+    font-family: inherit;
+    font-size: 13px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--surface);
+    color: var(--ink);
+    resize: vertical;
+    min-height: 50px;
+  }
+  .event-add-form-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: end;
+    margin-top: 8px;
+  }
+  .event-add-form-row label {
+    display: flex;
+    flex-direction: column;
+    font-size: 11.5px;
+    color: var(--ink-soft);
+    gap: 4px;
+  }
+  .event-add-form-row select {
+    padding: 6px 8px;
+    font-size: 13px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--surface);
+    color: var(--ink);
+  }
+  html[data-theme="dark"] .event-card.event-active {
+    background: linear-gradient(180deg, rgba(120, 53, 15, 0.25), var(--surface) 40%);
+    border-color: #b45309;
+  }
+
+  /* ============================================================
      Notes section (per-endpoint operator comments + per-event snoozes).
      Lives between Configuration and System in the drawer. Shared
      across all signed-in MSP admins so anyone looking at the host
@@ -2202,7 +2361,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.150";
+const APP_VERSION = "0.14.151";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -2233,6 +2392,12 @@ if (_versionChip) {
 // fixes). Patch-level no-op bumps don't need entries -- only stuff a
 // human reader would want to know about.
 const CHANGELOG = [
+  { version: "0.14.151", date: "2026-05-27", changes: [
+    "Drawer tabs: split the endpoint detail panel into Overview (system / network / probes / inventory / everything that was in the original wall-of-scroll) and Events (per-event timeline cards with their own comment threads + snooze controls). Default tab when opening a drawer: Events if the host has any unsnoozed active alerts, otherwise Overview. Tab choice persists across re-renders so onSnapshot updates don't reset triage mid-flow.",
+    "Per-event cards in the Events tab: one card per event KIND (Dell OMSA storage / WSB backup / C: drive low / WSB backup disk age). Each card shows state (Active / Snoozed / Recovered), the first-seen timestamp, the threaded notes scoped to that event, plus an inline form to add a note + apply a snooze (1d / 3d / 7d / 14d / 30d / 60d / 90d) in one save. Active snoozes get a 'Clear snooze now' button inside the card. General (untagged) notes have their own subsection at the bottom of the Events tab.",
+    "Replaces the v0.14.150 flat Notes section. Existing notes carry over -- those with eventKind set show under their event card, those without show as general notes. No data migration needed.",
+    "Coming next (TODO not in this build): move Configuration + kill-switches to the very top of the drawer above the tab strip, so they're always one click away regardless of which tab is active. Tracked as a follow-up so this drop stays stable.",
+  ]},
   { version: "0.14.150", date: "2026-05-27", changes: [
     "New: per-endpoint Notes + per-event snooze. Each host's drawer now has a Notes section (between Configuration and System) where any signed-in MSP staff member can add a comment with optional related event (Dell OMSA storage / WSB backup / C: drive low / WSB disk age) AND optional snooze duration (1d / 3d / 7d / 14d / 30d / 60d / 90d). Saving with a duration silences just that one event's emails + webhooks for that host until expiry -- the dashboard badge still shows so the underlying state stays visible. Notes are shared across all admins so when someone else picks up the host they see why the alert was muted ('Spoke to client, ordering replacement next week'). Active snoozes show as amber chips at the top of the Notes section with a one-click clear. All add / delete / clear actions are recorded in the Activity log.",
     "Worker: handleCheckin now respects per-event snoozes alongside the existing host-wide snooze. The OMSA new-warning / OMSA 7d-recurring / C: drive low / C: drive 7d-recurring / WSB disk age / WSB disk age 7d-recurring / WSB failure / WSB failure 7d-recurring branches all check isEventSnoozed(config, kind) and skip the email + webhook if a per-event snooze is active. Activity log entries still fire (audit trail is never silenced).",
@@ -7037,6 +7202,10 @@ function closeDrawer() {
   // doesn't auto-expand it just because you happened to leave it open
   // on the previous one.
   state.configPanelOpen = false;
+  // Reset drawer tab so the next host's default-tab heuristic runs
+  // fresh (Events if it has active alerts, else Overview).
+  state.drawerTab = null;
+  _drawerTabActive = null;
   $("#drawer").classList.remove("open");
   $("#scrim").classList.remove("show");
   if (state.unsub.config) { state.unsub.config(); state.unsub.config = null; }
@@ -8803,6 +8972,217 @@ function renderLocalAdmins(a) {
   `;
 }
 
+// Module-level: which drawer tab is currently active. Tab strip click
+// handler in renderDrawer's post-binding section updates this. Read by
+// the tab-strip IIFE in the renderDrawer template so re-renders (from
+// onSnapshot fires) preserve the operator's tab choice. Also gets set
+// to null on closeDrawer so the NEXT host opens with the default-tab
+// heuristic (Events when something's firing, Overview otherwise).
+let _drawerTabActive = null;
+
+// Compute the per-event timeline for a host. Returns an array of card
+// objects ready to render. Each card represents one event KIND (OMSA /
+// WSB / disk / WSB disk age) regardless of how many specific transitions
+// have happened -- the thread under it accumulates the operator's
+// notes for that recurring problem.
+function computeEndpointEventCards(agent, notes, cfg) {
+  const r = agent.report || {};
+  const eventSnoozes = (cfg && cfg.eventSnoozes) || {};
+  const fmtSnoozeUntil = (until) => {
+    if (!until) return "";
+    const ms = Date.parse(until); if (!isFinite(ms)) return "";
+    const days = Math.ceil((ms - Date.now()) / 86400000);
+    return days > 0 ? `${days}d remaining` : "expired";
+  };
+  const findActiveSnooze = (k) => {
+    const s = eventSnoozes[k];
+    if (!s?.until) return null;
+    const ms = Date.parse(s.until); if (!isFinite(ms) || ms <= Date.now()) return null;
+    return { until: s.until, by: s.by || null, reason: s.reason || null, fmt: fmtSnoozeUntil(s.until) };
+  };
+  const filterNotes = (k) => notes.filter(n => (n.eventKind || "") === k);
+
+  const cards = [];
+
+  // ---- OMSA storage ----
+  const omsaH = omsaHealthOf(agent);
+  const omsaActive = !!(omsaH && (omsaH.kind === "warn" || omsaH.kind === "bad"));
+  const omsaHasHistory = !!agent.omsaFirstWarnAt || filterNotes("omsa").length > 0;
+  if (omsaActive || omsaHasHistory) {
+    cards.push({
+      kind: "omsa",
+      label: "Dell OMSA storage",
+      icon: "&#9889;",  // lightning
+      isActive: omsaActive,
+      firstSeenAt: agent.omsaFirstWarnAt || null,
+      currentStateLabel: omsaActive ? (omsaH.label || "warn") : "Recovered",
+      snooze: findActiveSnooze("omsa"),
+      notes: filterNotes("omsa"),
+    });
+  }
+
+  // ---- WSB backup ----
+  const backupH = backupHealthOf(agent);
+  const wsbActive = !!(backupH && (backupH.kind === "warn" || backupH.kind === "bad"));
+  const wsbHasHistory = !!agent.wsbLastNotifiedAt || (agent.wsbPendingFailures && agent.wsbPendingFailures.length > 0) || filterNotes("wsb").length > 0;
+  if (wsbActive || wsbHasHistory) {
+    cards.push({
+      kind: "wsb",
+      label: "WSB backup",
+      icon: "&#128190;",  // floppy
+      isActive: wsbActive,
+      firstSeenAt: agent.wsbLastNotifiedAt || null,
+      currentStateLabel: wsbActive ? (backupH.label || "warn") : "Recovered",
+      snooze: findActiveSnooze("wsb"),
+      notes: filterNotes("wsb"),
+    });
+  }
+
+  // ---- C: drive low ----
+  const cFreePct = typeof agent.cDriveFreePct === "number" ? agent.cDriveFreePct : null;
+  const diskActive = cFreePct != null && cFreePct < 10;
+  const diskHasHistory = !!agent.cDriveLowFirstWarnAt || filterNotes("disk").length > 0;
+  if (diskActive || diskHasHistory) {
+    cards.push({
+      kind: "disk",
+      label: "C: drive low",
+      icon: "&#128190;",  // disk
+      isActive: diskActive,
+      firstSeenAt: agent.cDriveLowFirstWarnAt || null,
+      currentStateLabel: diskActive ? `${cFreePct}% free` : "Recovered",
+      snooze: findActiveSnooze("disk"),
+      notes: filterNotes("disk"),
+    });
+  }
+
+  // ---- WSB backup disk age ----
+  const ageF = backupDiskAgeFinding(agent);
+  const ageActive = !!(ageF && ageF.kind === "warn");
+  const ageHasHistory = !!agent.backupDiskAgeFirstWarnAt || filterNotes("backupDiskAge").length > 0;
+  if (ageActive || ageHasHistory) {
+    cards.push({
+      kind: "backupDiskAge",
+      label: "WSB backup disk age",
+      icon: "&#9203;",  // hourglass
+      isActive: ageActive,
+      firstSeenAt: agent.backupDiskAgeFirstWarnAt || null,
+      currentStateLabel: ageActive ? (ageF.label || "Aged") : "Recovered",
+      snooze: findActiveSnooze("backupDiskAge"),
+      notes: filterNotes("backupDiskAge"),
+    });
+  }
+
+  // Sort: active first, then by firstSeenAt desc
+  cards.sort((x, y) => {
+    if (x.isActive !== y.isActive) return x.isActive ? -1 : 1;
+    const xt = x.firstSeenAt ? Date.parse(x.firstSeenAt) : 0;
+    const yt = y.firstSeenAt ? Date.parse(y.firstSeenAt) : 0;
+    return yt - xt;
+  });
+
+  return cards;
+}
+
+// Render the per-event card list for the Events tab. Each card has
+// its own threaded notes + inline Add-note form pre-tagged to that
+// event kind. Also surfaces untagged notes ("general notes") at the
+// bottom under their own heading.
+function renderEndpointEventsTab(pcId, agent, notes, cfg) {
+  const cards = computeEndpointEventCards(agent, notes, cfg);
+  const generalNotes = notes.filter(n => !n.eventKind);
+
+  const renderCard = (c) => {
+    const stateBadge = c.snooze
+      ? `<span class="event-card-statebadge snoozed" title="Snoozed by ${esc(c.snooze.by || '?')} -- ${esc(c.snooze.fmt)}">Snoozed &middot; ${esc(c.snooze.fmt)}</span>`
+      : c.isActive
+        ? `<span class="event-card-statebadge active">Active</span>`
+        : `<span class="event-card-statebadge recovered">Recovered</span>`;
+    const ageStr = c.firstSeenAt ? `started ${fmtAge(c.firstSeenAt)}` : "no first-seen timestamp";
+    const cardClass = `event-card ${c.isActive ? 'event-active' : 'event-recovered'} ${c.snooze ? 'event-snoozed' : ''}`;
+    const noteRows = c.notes.length ? c.notes.map(n => {
+      const when = n.createdAt && typeof n.createdAt.toDate === "function" ? n.createdAt.toDate() : null;
+      const whenStr = when ? fmtAge(when.toISOString()) : "just now";
+      const whenAbs = when ? esc(when.toLocaleString()) : "";
+      return `
+        <div class="note-card" data-note-id="${esc(n.id)}">
+          <div class="note-meta">
+            <b>${esc(n.createdByName || n.createdBy || "Unknown")}</b>
+            <span class="meta" title="${whenAbs}">${esc(whenStr)}</span>
+            <button class="note-delete" title="Delete this note" data-note-id="${esc(n.id)}">&times;</button>
+          </div>
+          <div class="note-body">${esc(n.body || "").replace(/\n/g, "<br>")}</div>
+        </div>`;
+    }).join("") : `<div class="event-card-empty">No notes yet for this event.</div>`;
+
+    const snoozeClearBtn = c.snooze
+      ? `<button class="btn btn-sm" data-snooze-clear="${esc(c.kind)}" style="margin-top:8px;" title="Clear snooze immediately -- emails resume on next check-in">Clear ${esc(c.label)} snooze now</button>`
+      : "";
+
+    return `
+      <div class="${cardClass}" data-event-kind="${esc(c.kind)}">
+        <div class="event-card-head">
+          <span class="event-card-icon">${c.icon}</span>
+          <span class="event-card-title">${esc(c.label)}</span>
+          ${stateBadge}
+          <span class="event-card-meta">${esc(c.currentStateLabel)} &middot; ${esc(ageStr)}</span>
+        </div>
+        <div class="event-card-thread">${noteRows}</div>
+        ${snoozeClearBtn}
+        <div class="event-add-form">
+          <textarea id="evtNoteBody_${esc(c.kind)}" placeholder="What's the context? (Spoke to client, replacement ordered, scheduled for next maintenance window, etc.)" rows="2" maxlength="2000"></textarea>
+          <div class="event-add-form-row">
+            <label>Snooze ${esc(c.label)} alerts:
+              <select id="evtNoteDays_${esc(c.kind)}">
+                <option value="0">Don't snooze (just add comment)</option>
+                <option value="1">1 day</option>
+                <option value="3">3 days</option>
+                <option value="7">7 days</option>
+                <option value="14">14 days</option>
+                <option value="30">30 days</option>
+                <option value="60">60 days</option>
+                <option value="90">90 days</option>
+              </select>
+            </label>
+            <button class="btn btn-sm btn-primary" data-event-add-submit="${esc(c.kind)}">Save</button>
+          </div>
+        </div>
+      </div>`;
+  };
+
+  const cardsHtml = cards.length
+    ? cards.map(renderCard).join("")
+    : `<div class="meta" style="padding:20px 0;text-align:center;">No alert events recorded for this endpoint yet. When OMSA storage, WSB backup, C: drive, or backup-disk-age conditions fire, they'll show up here with their own comment + snooze thread.</div>`;
+
+  const genNotesRows = generalNotes.length ? generalNotes.map(n => {
+    const when = n.createdAt && typeof n.createdAt.toDate === "function" ? n.createdAt.toDate() : null;
+    const whenStr = when ? fmtAge(when.toISOString()) : "just now";
+    return `
+      <div class="note-card" data-note-id="${esc(n.id)}">
+        <div class="note-meta">
+          <b>${esc(n.createdByName || n.createdBy || "Unknown")}</b>
+          <span class="meta">${esc(whenStr)}</span>
+          <button class="note-delete" title="Delete this note" data-note-id="${esc(n.id)}">&times;</button>
+        </div>
+        <div class="note-body">${esc(n.body || "").replace(/\n/g, "<br>")}</div>
+      </div>`;
+  }).join("") : "";
+
+  const genNotesBlock = `
+    <div class="section" style="margin-top:24px;">
+      <h3>General notes <span class="meta" style="font-weight:400;font-size:12px;margin-left:6px;">untagged comments visible to all staff</span></h3>
+      <div class="notes-list">${genNotesRows || `<div class="meta" style="padding:6px 0;">No general notes yet.</div>`}</div>
+      <details class="note-add">
+        <summary>+ Add a general note</summary>
+        <textarea id="genNoteBody" placeholder="A note about this host that isn't tied to a specific event (client moving offices, hardware refresh planned, etc.)" rows="2" maxlength="2000"></textarea>
+        <div class="event-add-form-row">
+          <button class="btn btn-sm btn-primary" id="genNoteSubmit">Save general note</button>
+        </div>
+      </details>
+    </div>`;
+
+  return cardsHtml + genNotesBlock;
+}
+
 function renderDrawer(pcId) {
   const a = state.agents.find(x => x.id === pcId);
   if (!a) {
@@ -9116,14 +9496,42 @@ function renderDrawer(pcId) {
     })()}
 
     ${(() => {
-      // Notes section. Shared comment thread + per-event snooze. Each
-      // entry can tag a related event kind (OMSA / WSB / Disk / Backup
-      // disk age) so the operator can mute that one signal while still
-      // hearing the others. Visible to every signed-in MSP admin --
-      // intentional: when someone else picks the host up they see why
-      // the alert was muted ("client is dragging the replacement,
-      // checking back 6/10").
-      const evtSnoozes = (cfg && cfg.eventSnoozes) || {};
+      // Drawer tab strip. Splits the host detail panel into:
+      //   - Overview: system / network / probes / inventory / etc
+      //     (the original wall of scroll)
+      //   - Events: per-event timeline cards with their own
+      //     comment threads + snooze controls
+      // Config + kill switches sit ABOVE the tabs so they're always
+      // one click away regardless of which tab is active.
+      const evtCards = computeEndpointEventCards(a, _drawerNotes, cfg);
+      const activeCount = evtCards.filter(c => c.isActive && !c.snooze).length;
+      // Default to Events tab when something is firing -- the operator
+      // opened the drawer to triage. Otherwise Overview, which is the
+      // historical 'show me the inventory' default. state.drawerTab
+      // overrides if the operator manually picked one this session.
+      const defaultTab = state.drawerTab || (activeCount > 0 ? "events" : "overview");
+      _drawerTabActive = defaultTab;
+      return `
+        <div class="drawer-tabs" role="tablist">
+          <button class="drawer-tab ${defaultTab === 'overview' ? 'active' : ''}" data-drawer-tab-id="overview">Overview</button>
+          <button class="drawer-tab ${defaultTab === 'events' ? 'active' : ''}" data-drawer-tab-id="events">Events${activeCount ? ` <span class="drawer-tab-count">${activeCount}</span>` : ""}</button>
+        </div>
+        <div data-drawer-tab="events" class="drawer-tab-pane ${defaultTab === 'events' ? 'active' : ''}">
+          ${renderEndpointEventsTab(pcId, a, _drawerNotes, cfg)}
+        </div>
+        <div data-drawer-tab="overview" class="drawer-tab-pane ${defaultTab === 'overview' ? 'active' : ''}">`;
+    })()}
+    ${'' /* (notes section moved into the Events tab above) */}
+    ${(() => {
+      // LEGACY: dead-code tail of the old inline Notes IIFE (v0.14.150).
+      // Rendering is now handled by renderEndpointEventsTab() above.
+      // Returns empty so the existing markup tail keeps flowing.
+      // The old code that followed referenced _drawerNotes/cfg via
+      // closures, all of which are still in scope -- safe to keep
+      // as unreachable. (Will get garbage-collected on the next
+      // structural pass.)
+      return "";
+      const _evtSnoozes_legacy = (cfg && cfg.eventSnoozes) || {};
       const evtLabel = (k) => ({
         omsa: "Dell OMSA storage",
         wsb:  "WSB backup",
@@ -9388,6 +9796,7 @@ function renderDrawer(pcId) {
     ${errs.length ? `<div class="section"><h3>Probe errors</h3>
       <div class="list">${errs.map(e => `<div class="row"><div class="name">${esc(e.probe)}</div><div class="meta">${esc(e.error)}</div></div>`).join("")}</div>
     </div>` : ""}
+        </div><!-- /[data-drawer-tab=overview] -->
   `;
   } catch (err) {
     // Surface the actual render error in the drawer + the browser
@@ -9487,9 +9896,25 @@ function renderDrawer(pcId) {
   const resendIntakeBtn = $("#dResendIntake");
   if (resendIntakeBtn) resendIntakeBtn.addEventListener("click", () => resendIntakeEmail(pcId, a.hostname));
 
-  // Notes section -- add / delete / clear-snooze handlers.
-  const noteSubmit = document.getElementById("noteSubmit");
-  if (noteSubmit) noteSubmit.addEventListener("click", () => addEndpointNote(pcId, a.hostname, a.client));
+  // Notes / Events tab handlers. Per-event cards each have their own
+  // submit button (data-event-add-submit) + Clear-snooze button
+  // (data-snooze-clear). General notes have a separate submit. Delete
+  // works on every note-card regardless of which tab it's in.
+  document.querySelectorAll("[data-event-add-submit]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const kind = btn.dataset.eventAddSubmit;
+      const bodyEl = document.getElementById("evtNoteBody_" + kind);
+      const daysEl = document.getElementById("evtNoteDays_" + kind);
+      const body = (bodyEl?.value || "").trim();
+      const days = daysEl ? parseInt(daysEl.value, 10) : 0;
+      addEventNote(pcId, a.hostname, a.client, kind, body, days);
+    });
+  });
+  const genSubmit = document.getElementById("genNoteSubmit");
+  if (genSubmit) genSubmit.addEventListener("click", () => {
+    const body = (document.getElementById("genNoteBody")?.value || "").trim();
+    addEventNote(pcId, a.hostname, a.client, "", body, 0);
+  });
   document.querySelectorAll(".note-delete").forEach(btn => {
     btn.addEventListener("click", (e) => {
       e.preventDefault(); e.stopPropagation();
@@ -9497,11 +9922,25 @@ function renderDrawer(pcId) {
       if (id) deleteEndpointNote(pcId, a.hostname, id);
     });
   });
-  document.querySelectorAll(".snooze-clear").forEach(btn => {
+  document.querySelectorAll("[data-snooze-clear]").forEach(btn => {
     btn.addEventListener("click", (e) => {
       e.preventDefault(); e.stopPropagation();
       const kind = btn.dataset.snoozeClear;
       if (kind) clearEventSnooze(pcId, a.hostname, kind);
+    });
+  });
+  // Drawer tab switching. Updates state + toggles .active on both
+  // the tab button and its matching pane. Persists across re-renders
+  // via state.drawerTab so onSnapshot fires don't reset the user's
+  // tab choice mid-triage.
+  document.querySelectorAll("#dBody .drawer-tab").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const id = btn.dataset.drawerTabId;
+      if (!id) return;
+      state.drawerTab = id;
+      _drawerTabActive = id;
+      document.querySelectorAll("#dBody .drawer-tab").forEach(b => b.classList.toggle("active", b.dataset.drawerTabId === id));
+      document.querySelectorAll("#dBody [data-drawer-tab]").forEach(p => p.classList.toggle("active", p.dataset.drawerTab === id));
     });
   });
 
@@ -11045,18 +11484,13 @@ async function resendIntakeEmail(pcId, hostname) {
 // eventSnoozes map so the worker can read it during the next check-in
 // and suppress the email/webhook for that one signal until expiry.
 
-async function addEndpointNote(pcId, hostname, client) {
-  const bodyEl   = document.getElementById("noteBody");
-  const kindEl   = document.getElementById("noteEventKind");
-  const daysEl   = document.getElementById("noteSnoozeDays");
-  if (!bodyEl) return;
-  const body  = (bodyEl.value || "").trim();
-  const kind  = kindEl ? kindEl.value : "";
-  const days  = daysEl ? parseInt(daysEl.value, 10) : 0;
+// Add a note. kind = "" for general, or one of omsa/wsb/disk/backupDiskAge.
+// days = 0 for no snooze, else number of days to snooze the event kind.
+async function addEventNote(pcId, hostname, client, kind, body, days) {
   if (!body) { toast("Add a note body before saving.", true); return; }
   if (body.length > 2000) { toast("Note body too long (2000 char max).", true); return; }
   if (days > 0 && !kind) {
-    toast("Pick a related event to snooze, or set duration to 'Don\\'t snooze'.", true);
+    toast("Pick a related event to snooze, or set duration to 0.", true);
     return;
   }
 
@@ -11113,11 +11547,13 @@ async function addEndpointNote(pcId, hostname, client) {
       },
     });
 
-    bodyEl.value = "";
-    if (kindEl)  kindEl.value = "";
-    if (daysEl)  daysEl.value = "0";
-    const details = document.getElementById("noteAddDetails");
-    if (details) details.open = false;
+    // Clear the per-event card's body + duration if the form is on
+    // the page. (Form is one of the per-kind textareas in the Events
+    // tab, or the general-note textarea at the bottom of that tab.)
+    const evtBody = kind ? document.getElementById("evtNoteBody_" + kind) : document.getElementById("genNoteBody");
+    if (evtBody) evtBody.value = "";
+    const evtDays = kind ? document.getElementById("evtNoteDays_" + kind) : null;
+    if (evtDays) evtDays.value = "0";
     toast(snoozeUntilIso ? `Note saved and ${kind} alerts snoozed for ${days}d.` : "Note saved.");
   } catch (e) {
     toast(`Save note failed: ${e.message || e}`, true);
