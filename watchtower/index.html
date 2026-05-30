@@ -956,6 +956,92 @@
   /* Legacy class kept in case any other call site still emits the
      wrapper span. New code inlines the SVG directly into the pill. */
   .health-pill-icon { display: inline-flex; align-items: center; }
+
+  /* ============================================================
+     Pure-CSS status icons (v0.14.157+). Built from borders +
+     pseudo-elements -- no SVG, no font, no Unicode. Color inherits
+     from the parent's text color via currentColor, so dark mode +
+     each severity tone "just work" without per-state overrides.
+     Used by the Status pill (warn / bad / muted) and the per-issue
+     rows in its popover. The ok icon stays as an SVG (shield-check)
+     since the operator picked that one specifically.
+     ============================================================ */
+  .css-icon {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    position: relative;
+    flex-shrink: 0;
+    vertical-align: middle;
+  }
+  /* WARN: equilateral triangle with an exclamation mark cut out of
+     it. The exclamation has to be the same color as whatever's
+     directly behind the triangle -- inside a pill that's the pill
+     background. Per-context overrides below set the cut-out color
+     correctly so the exclamation never reads as a black blob. */
+  .css-icon.css-warn::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 1px;
+    width: 0;
+    height: 0;
+    border-left: 7px solid transparent;
+    border-right: 7px solid transparent;
+    border-bottom: 12px solid currentColor;
+  }
+  .css-icon.css-warn::after {
+    content: "";
+    position: absolute;
+    left: 6px;
+    top: 9px;
+    width: 2px;
+    height: 2px;
+    background: var(--surface);
+    border-radius: 50%;
+    box-shadow: 0 -3px 0 0 var(--surface);
+  }
+  /* BAD: two crossing diagonal lines */
+  .css-icon.css-x::before, .css-icon.css-x::after {
+    content: "";
+    position: absolute;
+    left: 6px;
+    top: 0;
+    width: 2.5px;
+    height: 14px;
+    background: currentColor;
+    border-radius: 1px;
+  }
+  .css-icon.css-x::before { transform: rotate(45deg); }
+  .css-icon.css-x::after  { transform: rotate(-45deg); }
+  /* MUTED: horizontal dash */
+  .css-icon.css-dash::before {
+    content: "";
+    position: absolute;
+    left: 1px;
+    top: 6px;
+    width: 12px;
+    height: 2.5px;
+    background: currentColor;
+    border-radius: 1px;
+  }
+
+  /* Per-pill-context cut-out color for the warn exclamation. The
+     dot + box-shadow inside .css-warn::after needs to MATCH the
+     pill's background, not var(--surface) (which would only be
+     correct on a white-card backdrop, not inside a colored pill).
+     Light mode: pill bg is #fef3c7 (warn) / #fef3c7 (rollup-warn
+     in the popover) / etc. Dark mode: pill bg is #422006. */
+  .health-pill.health-warn .css-icon.css-warn::after,
+  .rollup-issue-icon.rollup-warn .css-icon.css-warn::after {
+    background: #fef3c7;
+    box-shadow: 0 -3px 0 0 #fef3c7;
+  }
+  html[data-theme="dark"] .health-pill.health-warn .css-icon.css-warn::after,
+  html[data-theme="dark"] .rollup-issue-icon.rollup-warn .css-icon.css-warn::after {
+    background: #422006;
+    box-shadow: 0 -3px 0 0 #422006;
+  }
   .health-pill.health-ok    { background: #d1fae5; color: #065f46; }
   .health-pill.health-warn  { background: #fef3c7; color: #78350f; }
   .health-pill.health-bad   { background: #fee2e2; color: #7f1d1d; }
@@ -2440,7 +2526,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.156";
+const APP_VERSION = "0.14.157";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -2471,6 +2557,9 @@ if (_versionChip) {
 // fixes). Patch-level no-op bumps don't need entries -- only stuff a
 // human reader would want to know about.
 const CHANGELOG = [
+  { version: "0.14.157", date: "2026-05-27", changes: [
+    "Status pill icons: per operator pick from status-icon-previews.html, OK is now a Heroicons-solid shield-check SVG (option 5) and warn / bad / muted are pure-CSS shapes (option 11) drawn from borders + pseudo-elements -- no SVG, no font, no Unicode. The CSS approach renders pixel-identically on every browser, OS, and font policy because nothing is being substituted. Severity color inherits from the pill's text color via currentColor so dark mode + each tone work without per-state overrides. Per-issue rows in the click-through popover got the same treatment; info + snooze stay as SVG since pure CSS doesn't draw them as cleanly at 14px.",
+  ]},
   { version: "0.14.156", date: "2026-05-27", changes: [
     "Endpoints table Status pill: swapped the Unicode glyphs (the previous green check / yellow caution / red trident) for Heroicons-solid inline SVG icons. Same five-icon vocabulary (check-circle / triangle-bang / x-circle / minus-circle / info-circle / bell-slash), but now they render pixel-identically on every browser, OS, and corporate-Windows font policy -- no more 'the trident looks weird on this Server 2012 box.' Per-issue rows in the click-through popover got the same SVG treatment. Per option 3 of the status-icon-previews.html comparison page.",
   ]},
@@ -3081,25 +3170,34 @@ function statusOf(agent) {
   return { kind: "ok", label: "Healthy" };
 }
 
-// Inline Heroicons solid SVG paths (v0.14.156+). Used by the
-// consolidated Status pill + the per-issue rows in its popover.
-// Pixel-identical on every browser / OS regardless of font policy --
-// the previous Unicode glyphs (v0.14.153-155) rendered differently
-// per OS (the trident glyph on macOS vs Windows was the worst case).
-const HEROICON_SVG = {
-  // Check-circle (ok / healthy)
-  ok:    '<svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd"/></svg>',
-  // Triangle-exclamation (warn)
-  warn:  '<svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"/></svg>',
-  // X-circle (bad / critical)
-  bad:   '<svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd"/></svg>',
-  // Minus-circle (muted / decommissioned)
-  muted: '<svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9.75a.75.75 0 000 1.5h6a.75.75 0 000-1.5H7z" clip-rule="evenodd"/></svg>',
-  // Info-circle (per-issue informational rows in the popover)
-  info:  '<svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clip-rule="evenodd"/></svg>',
-  // Bell-slash (snooze)
-  snooze:'<svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M4.755 10.059a7.5 7.5 0 0112.548-5.43.75.75 0 01-1.061 1.06A6 6 0 006.273 9.226 .75.75 0 014.755 10.06zm-.255 4.024a.75.75 0 011.06 0c.55.55 1.213.985 1.946 1.275a.75.75 0 11-.541 1.4 7.5 7.5 0 01-2.464-1.614.75.75 0 010-1.061zM3 3.75a.75.75 0 011.5 0v12.5a.75.75 0 01-1.5 0V3.75z" clip-rule="evenodd"/></svg>',
+// Status pill icon set (v0.14.157+). Mixed family:
+//   - ok      -> Heroicons-solid "shield-check" SVG (operator picked
+//                this one from option 5 of status-icon-previews.html
+//                because the shield reads as "protected / verified"
+//                better than a plain check-circle on a fleet view).
+//   - warn / bad / muted -> pure-CSS shapes drawn with borders +
+//                pseudo-elements (option 11). No SVG, no Unicode --
+//                rendering literally bypasses fonts AND vector
+//                rasterization differences across browsers / OSes.
+//                Severity color inherits from the pill's text color
+//                via currentColor so dark mode and each severity
+//                tone "just work" with no extra rules per state.
+//   - info / snooze -> Heroicons-solid SVG, only used by the per-
+//                issue rows in the popover (info-circle and bell-
+//                slash). Pure CSS could express both but the SVG
+//                paths read better at the 14px size we use.
+const STATUS_ICON = {
+  ok:     '<svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.061 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd"/></svg>',
+  warn:   '<span class="css-icon css-warn" aria-hidden="true"></span>',
+  bad:    '<span class="css-icon css-x"    aria-hidden="true"></span>',
+  muted:  '<span class="css-icon css-dash" aria-hidden="true"></span>',
+  info:   '<svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clip-rule="evenodd"/></svg>',
+  snooze: '<svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M4.755 10.059a7.5 7.5 0 0112.548-5.43.75.75 0 01-1.061 1.06A6 6 0 006.273 9.226 .75.75 0 014.755 10.06zm-.255 4.024a.75.75 0 011.06 0c.55.55 1.213.985 1.946 1.275a.75.75 0 11-.541 1.4 7.5 7.5 0 01-2.464-1.614.75.75 0 010-1.061zM3 3.75a.75.75 0 011.5 0v12.5a.75.75 0 01-1.5 0V3.75z" clip-rule="evenodd"/></svg>',
 };
+// Back-compat alias: existing computeEndpointHealth() and a few
+// other call sites still reference HEROICON_SVG by name. Point both
+// at the same object so old call sites continue working.
+const HEROICON_SVG = STATUS_ICON;
 
 // Aggregate every signal that contributes to a host's health into a
 // single rollup: { kind: 'ok'|'warn'|'bad'|'muted', issues: [...] }.
