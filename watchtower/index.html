@@ -944,11 +944,18 @@
   }
   .health-pill:hover { box-shadow: 0 0 0 2px rgba(15, 23, 42, 0.12); }
   .health-pill:active { transform: scale(0.96); }
-  .health-pill-icon {
-    font-size: 13px;
-    line-height: 1;
-    font-weight: 900;
+  /* Inline Heroicons-solid SVG inside the pill. flex-shrink: 0 keeps
+     the icon from compressing when the pill label gets long
+     ("4 warnings" vs "Healthy"). Color is inherited from the parent
+     via currentColor in the SVG paths -- so we don't need separate
+     rules per severity for the icon, only for the pill background. */
+  .health-pill svg {
+    flex-shrink: 0;
+    display: inline-block;
   }
+  /* Legacy class kept in case any other call site still emits the
+     wrapper span. New code inlines the SVG directly into the pill. */
+  .health-pill-icon { display: inline-flex; align-items: center; }
   .health-pill.health-ok    { background: #d1fae5; color: #065f46; }
   .health-pill.health-warn  { background: #fef3c7; color: #78350f; }
   .health-pill.health-bad   { background: #fee2e2; color: #7f1d1d; }
@@ -971,15 +978,19 @@
   }
   .rollup-issue:last-child { border-bottom: 0; }
   .rollup-issue-icon {
-    flex: 0 0 22px;
-    height: 22px;
+    flex: 0 0 24px;
+    height: 24px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 12px;
-    font-weight: 700;
     margin-top: 1px;
+  }
+  /* Heroicons-solid SVG centered in the colored circle. 14px keeps
+     the icon proportional to the 24px container. */
+  .rollup-issue-icon svg {
+    width: 14px;
+    height: 14px;
   }
   .rollup-issue-icon.rollup-bad  { background: #fee2e2; color: #7f1d1d; }
   .rollup-issue-icon.rollup-warn { background: #fef3c7; color: #78350f; }
@@ -2429,7 +2440,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.155";
+const APP_VERSION = "0.14.156";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -2460,6 +2471,9 @@ if (_versionChip) {
 // fixes). Patch-level no-op bumps don't need entries -- only stuff a
 // human reader would want to know about.
 const CHANGELOG = [
+  { version: "0.14.156", date: "2026-05-27", changes: [
+    "Endpoints table Status pill: swapped the Unicode glyphs (the previous green check / yellow caution / red trident) for Heroicons-solid inline SVG icons. Same five-icon vocabulary (check-circle / triangle-bang / x-circle / minus-circle / info-circle / bell-slash), but now they render pixel-identically on every browser, OS, and corporate-Windows font policy -- no more 'the trident looks weird on this Server 2012 box.' Per-issue rows in the click-through popover got the same SVG treatment. Per option 3 of the status-icon-previews.html comparison page.",
+  ]},
   { version: "0.14.155", date: "2026-05-27", changes: [
     "Endpoints table Model column: Dell PowerEdge models are now abbreviated to 'PE <model>' to save column width ('PowerEdge R240' -> 'PE R240', 'PowerEdge T330' -> 'PE T330'). Hover the cell to see the full un-abbreviated model in a tooltip. The drawer's System section, the per-host PDF, and the CSV / Excel exports all keep the un-abbreviated 'PowerEdge ...' so anything you send to a client or print stays clearly labeled. Only the table view is compressed since it's the place where column width matters most.",
   ]},
@@ -3067,12 +3081,32 @@ function statusOf(agent) {
   return { kind: "ok", label: "Healthy" };
 }
 
+// Inline Heroicons solid SVG paths (v0.14.156+). Used by the
+// consolidated Status pill + the per-issue rows in its popover.
+// Pixel-identical on every browser / OS regardless of font policy --
+// the previous Unicode glyphs (v0.14.153-155) rendered differently
+// per OS (the trident glyph on macOS vs Windows was the worst case).
+const HEROICON_SVG = {
+  // Check-circle (ok / healthy)
+  ok:    '<svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd"/></svg>',
+  // Triangle-exclamation (warn)
+  warn:  '<svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"/></svg>',
+  // X-circle (bad / critical)
+  bad:   '<svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd"/></svg>',
+  // Minus-circle (muted / decommissioned)
+  muted: '<svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9.75a.75.75 0 000 1.5h6a.75.75 0 000-1.5H7z" clip-rule="evenodd"/></svg>',
+  // Info-circle (per-issue informational rows in the popover)
+  info:  '<svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clip-rule="evenodd"/></svg>',
+  // Bell-slash (snooze)
+  snooze:'<svg width="14" height="14" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M4.755 10.059a7.5 7.5 0 0112.548-5.43.75.75 0 01-1.061 1.06A6 6 0 006.273 9.226 .75.75 0 014.755 10.06zm-.255 4.024a.75.75 0 011.06 0c.55.55 1.213.985 1.946 1.275a.75.75 0 11-.541 1.4 7.5 7.5 0 01-2.464-1.614.75.75 0 010-1.061zM3 3.75a.75.75 0 011.5 0v12.5a.75.75 0 01-1.5 0V3.75z" clip-rule="evenodd"/></svg>',
+};
+
 // Aggregate every signal that contributes to a host's health into a
 // single rollup: { kind: 'ok'|'warn'|'bad'|'muted', issues: [...] }.
 // Drives the consolidated Status pill in the Endpoints table -- one
-// green ✓ / yellow ⚠ / red ⛛ pill per row, click to expand the full
-// list of contributing reasons. Mirrors what statusOf + backupHealthOf
-// + omsaHealthOf + Windows-Updates + C: drive + stale-data + snooze
+// green / yellow / red pill per row, click to expand the full list of
+// contributing reasons. Mirrors what statusOf + backupHealthOf +
+// omsaHealthOf + Windows-Updates + C: drive + stale-data + snooze
 // each produce individually; the pill just rolls them up to one
 // state for the row + keeps the underlying detail one click away.
 function computeEndpointHealth(agent) {
@@ -3084,42 +3118,42 @@ function computeEndpointHealth(agent) {
   // Lifecycle: decommissioned + retired are "ok-ish" muted states.
   // Don't roll them into warn/bad; surface as info-only chips.
   if (agent.decommissioned === true) {
-    return { kind: 'muted', label: 'Decommissioned', icon: '⊝', issues: [{
-      kind: 'info', icon: 'i', label: 'Decommissioned',
+    return { kind: 'muted', label: 'Decommissioned', icon: HEROICON_SVG.muted, issues: [{
+      kind: 'info', icon: HEROICON_SVG.info, label: 'Decommissioned',
       detail: `Marked decommissioned ${agent.decommissionedBy === 'agent-uninstall' ? 'when the agent was uninstalled' : 'by an admin'} on ${tsToStr(agent.decommissionedAt)}.`,
     }] };
   }
 
   const st = statusOf(agent);
   if (st.kind === 'disabled') {
-    issues.push({ kind: 'info', icon: 'i', label: 'Agent disabled', detail: 'Master kill-switch is off in this host\'s config. Re-enable via the drawer\'s Config & kill-switches panel.' });
+    issues.push({ kind: 'info', icon: HEROICON_SVG.info, label: 'Agent disabled', detail: 'Master kill-switch is off in this host\'s config. Re-enable via the drawer\'s Config & kill-switches panel.' });
   } else if (st.kind === 'bad') {
-    issues.push({ kind: 'bad', icon: '⛛', label: 'Host dead', detail: `Last check-in was over 7 days ago (${fmtAge(agent.lastCheckin || agent.installedAt)}).` });
+    issues.push({ kind: 'bad', icon: HEROICON_SVG.bad, label: 'Host dead', detail: `Last check-in was over 7 days ago (${fmtAge(agent.lastCheckin || agent.installedAt)}).` });
   } else if (st.kind === 'warn') {
-    issues.push({ kind: 'warn', icon: '⚠', label: 'Check-in stale', detail: `Last check-in is overdue -- ${fmtAge(agent.lastCheckin)} (threshold: 30h).` });
+    issues.push({ kind: 'warn', icon: HEROICON_SVG.warn, label: 'Check-in stale', detail: `Last check-in is overdue -- ${fmtAge(agent.lastCheckin)} (threshold: 30h).` });
   } else if (st.kind === 'muted') {
-    issues.push({ kind: 'info', icon: 'i', label: 'Never checked in', detail: 'This host has been registered but has never reported. Until it does, nothing else is monitored.' });
+    issues.push({ kind: 'info', icon: HEROICON_SVG.info, label: 'Never checked in', detail: 'This host has been registered but has never reported. Until it does, nothing else is monitored.' });
   }
 
   const bh = backupHealthOf(agent);
   if (bh && (bh.kind === 'warn' || bh.kind === 'bad') && !wsbMuted) {
-    issues.push({ kind: bh.kind, icon: bh.kind === 'bad' ? '⛛' : '⚠', label: `Backup: ${bh.label}`, detail: 'Windows Server Backup most recent run did not complete cleanly. Open the host drawer for the run history + targets.', actionKind: 'wsb' });
+    issues.push({ kind: bh.kind, icon: bh.kind === 'bad' ? HEROICON_SVG.bad : HEROICON_SVG.warn, label: `Backup: ${bh.label}`, detail: 'Windows Server Backup most recent run did not complete cleanly. Open the host drawer for the run history + targets.', actionKind: 'wsb' });
   }
 
   const oh = omsaHealthOf(agent);
   if (oh && oh.kind !== 'info' && !omsaMuted) {
-    issues.push({ kind: oh.kind, icon: oh.kind === 'bad' ? '⛛' : '⚠', label: `Storage: ${oh.label}`, detail: 'Dell OMSA reports a non-OK rollup. Open the drawer\'s OMSA section for the per-disk + per-array breakdown.', actionKind: 'omsa' });
+    issues.push({ kind: oh.kind, icon: oh.kind === 'bad' ? HEROICON_SVG.bad : HEROICON_SVG.warn, label: `Storage: ${oh.label}`, detail: 'Dell OMSA reports a non-OK rollup. Open the drawer\'s OMSA section for the per-disk + per-array breakdown.', actionKind: 'omsa' });
   } else if (oh && oh.kind === 'info' && !omsaMuted) {
-    issues.push({ kind: 'info', icon: 'i', label: 'OMSA blind', detail: 'OMSA is installed but reports zero controllers / RAID / disks. Disk health on this host needs to come from somewhere other than OMSA.' });
+    issues.push({ kind: 'info', icon: HEROICON_SVG.info, label: 'OMSA blind', detail: 'OMSA is installed but reports zero controllers / RAID / disks. Disk health on this host needs to come from somewhere other than OMSA.' });
   }
 
   const wuRow = agent.report && agent.report.windowsUpdates;
   if (wuRow) {
     const crit = (wuRow.severityBreakdown && wuRow.severityBreakdown.Critical) || 0;
     if (crit > 0) {
-      issues.push({ kind: 'bad', icon: '⛛', label: `${crit} critical Windows Update${crit === 1 ? '' : 's'} pending`, detail: 'One or more updates flagged Critical severity are queued. Open the drawer for the KB list.', actionKind: 'wu-critical' });
+      issues.push({ kind: 'bad', icon: HEROICON_SVG.bad, label: `${crit} critical Windows Update${crit === 1 ? '' : 's'} pending`, detail: 'One or more updates flagged Critical severity are queued. Open the drawer for the KB list.', actionKind: 'wu-critical' });
     } else if (wuRow.rebootRequired === true) {
-      issues.push({ kind: 'warn', icon: '⚠', label: 'Reboot pending', detail: 'A prior update finished installing but the host hasn\'t rebooted yet. Schedule the reboot to complete the patch cycle.' });
+      issues.push({ kind: 'warn', icon: HEROICON_SVG.warn, label: 'Reboot pending', detail: 'A prior update finished installing but the host hasn\'t rebooted yet. Schedule the reboot to complete the patch cycle.' });
     }
   }
 
@@ -3128,37 +3162,37 @@ function computeEndpointHealth(agent) {
     const gb  = agent.cDriveFreeGB;
     const isCritical = (pct != null && pct < 5)  || (gb != null && gb < 5);
     const isWarn     = (pct != null && pct < 10) || (gb != null && gb < 10);
-    if (isCritical) issues.push({ kind: 'bad',  icon: '⛛', label: `C: drive ${pct}% free`, detail: `${gb} GB free of ${agent.cDriveSizeGB} GB. Critical threshold (<5%) exceeded.`, actionKind: 'disk' });
-    else if (isWarn) issues.push({ kind: 'warn', icon: '⚠', label: `C: drive ${pct}% free`, detail: `${gb} GB free of ${agent.cDriveSizeGB} GB. Low-capacity threshold (<10%).`, actionKind: 'disk' });
+    if (isCritical) issues.push({ kind: 'bad',  icon: HEROICON_SVG.bad,  label: `C: drive ${pct}% free`, detail: `${gb} GB free of ${agent.cDriveSizeGB} GB. Critical threshold (<5%) exceeded.`, actionKind: 'disk' });
+    else if (isWarn) issues.push({ kind: 'warn', icon: HEROICON_SVG.warn, label: `C: drive ${pct}% free`, detail: `${gb} GB free of ${agent.cDriveSizeGB} GB. Low-capacity threshold (<10%).`, actionKind: 'disk' });
   }
 
   // Backup-disk-age finding (the same one the worker emails about).
   const diskAgeF = (typeof backupDiskAgeFinding === 'function') ? backupDiskAgeFinding(agent) : null;
   if (diskAgeF && diskAgeF.kind === 'warn' && !wsbMuted) {
-    issues.push({ kind: 'warn', icon: '⚠', label: `WSB disk aged (${Math.round((diskAgeF.ageDays || 0) / 365.25 * 10) / 10}y)`, detail: 'Primary Windows Server Backup target disk is past its swap threshold. Plan the rotation.' });
+    issues.push({ kind: 'warn', icon: HEROICON_SVG.warn, label: `WSB disk aged (${Math.round((diskAgeF.ageDays || 0) / 365.25 * 10) / 10}y)`, detail: 'Primary Windows Server Backup target disk is past its swap threshold. Plan the rotation.' });
   }
 
   // Stale-data (probes aren't returning fresh data even though check-ins succeed)
   if (agent.lastCheckin && agent.reportCollectedAt) {
     const divergenceMs = Math.max(0, new Date(agent.lastCheckin).getTime() - new Date(agent.reportCollectedAt).getTime());
     if (divergenceMs >= 72 * 60 * 60 * 1000) {
-      issues.push({ kind: 'warn', icon: '⚠', label: 'Data stale', detail: 'Agent is checking in but its probes haven\'t returned fresh data in 3+ days. Investigate the host (stuck WMI, hung probe, dead OMSA controller, etc).' });
+      issues.push({ kind: 'warn', icon: HEROICON_SVG.warn, label: 'Data stale', detail: 'Agent is checking in but its probes haven\'t returned fresh data in 3+ days. Investigate the host (stuck WMI, hung probe, dead OMSA controller, etc).' });
     }
   }
 
   // Snooze: shows as info-only since the host's underlying state may
   // be anything; the snooze just silences notifications.
   if (agent.alertsSnoozeUntil && Date.parse(agent.alertsSnoozeUntil) > Date.now()) {
-    issues.push({ kind: 'info', icon: '🔕', label: 'Alerts muted', detail: `Host-wide alerts snoozed until ${tsToStr(agent.alertsSnoozeUntil)}. Per-event snoozes (from the drawer's Events tab) can also silence individual signals.`, actionKind: 'snooze' });
+    issues.push({ kind: 'info', icon: HEROICON_SVG.snooze, label: 'Alerts muted', detail: `Host-wide alerts snoozed until ${tsToStr(agent.alertsSnoozeUntil)}. Per-event snoozes (from the drawer's Events tab) can also silence individual signals.`, actionKind: 'snooze' });
   }
 
   // Aggregate. Any 'bad' -> bad. Else any 'warn' -> warn. Else any
   // 'info' but agent is otherwise OK -> ok-with-notes. Else ok.
   const hasBad  = issues.some(i => i.kind === 'bad');
   const hasWarn = issues.some(i => i.kind === 'warn');
-  if (hasBad)  return { kind: 'bad',  label: `${issues.filter(i => i.kind === 'bad').length} critical`, icon: '⛛', issues };
-  if (hasWarn) return { kind: 'warn', label: `${issues.filter(i => i.kind === 'warn').length} warning${issues.filter(i => i.kind === 'warn').length === 1 ? '' : 's'}`, icon: '⚠', issues };
-  return { kind: 'ok', label: 'Healthy', icon: '✓', issues };
+  if (hasBad)  return { kind: 'bad',  label: `${issues.filter(i => i.kind === 'bad').length} critical`, icon: HEROICON_SVG.bad, issues };
+  if (hasWarn) return { kind: 'warn', label: `${issues.filter(i => i.kind === 'warn').length} warning${issues.filter(i => i.kind === 'warn').length === 1 ? '' : 's'}`, icon: HEROICON_SVG.warn, issues };
+  return { kind: 'ok', label: 'Healthy', icon: HEROICON_SVG.ok, issues };
 }
 
 function omsaHealthOf(agent) {
@@ -4096,13 +4130,15 @@ function renderEndpoints() {
       ? `<span class="badge muted" title="${esc(a.decommissionedBy === 'agent-uninstall' ? 'Uninstalled at the host' : 'Marked decommissioned by admin')} on ${esc(tsToStr(a.decommissionedAt))}"><span class="badge-dot"></span>Decommissioned</span>`
       : `<span class="badge ${st.kind === "ok" ? "ok" : st.kind === "warn" ? "warn" : st.kind === "bad" ? "bad" : "muted"}"><span class="badge-dot"></span>${esc(st.label)}</span>${retiredChip}`;
 
-    // Consolidated rollup pill -- one green ✓ / yellow ⚠ / red ⛛ per
-    // row. Click opens a popover listing every contributing issue.
-    // computeEndpointHealth() returns { kind, label, icon, issues[] }.
+    // Consolidated rollup pill -- one green / yellow / red per row.
+    // Click opens a popover listing every contributing issue.
+    // computeEndpointHealth() returns { kind, label, icon (Heroicons
+    // solid SVG markup), issues[] }. Inline SVG renders pixel-
+    // identically on every browser / OS regardless of font policy.
     const rollup = computeEndpointHealth(a);
     const healthPill = isDecom
       ? `<span class="badge muted" title="${esc(a.decommissionedBy === 'agent-uninstall' ? 'Uninstalled at the host' : 'Marked decommissioned by admin')} on ${esc(tsToStr(a.decommissionedAt))}"><span class="badge-dot"></span>Decommissioned</span>`
-      : `<span class="health-pill health-${rollup.kind} badge-action" role="button" tabindex="0" data-pcid="${esc(a.id)}" data-badge-kind="rollup" title="${esc(rollup.kind === 'ok' ? 'All signals OK -- click for the contributing checks' : rollup.label + ' -- click to see each issue and snooze / open drawer / mute monitoring')}"><span class="health-pill-icon">${rollup.icon}</span>${esc(rollup.label)}</span>`;
+      : `<span class="health-pill health-${rollup.kind} badge-action" role="button" tabindex="0" data-pcid="${esc(a.id)}" data-badge-kind="rollup" title="${esc(rollup.kind === 'ok' ? 'All signals OK -- click for the contributing checks' : rollup.label + ' -- click to see each issue and snooze / open drawer / mute monitoring')}">${rollup.icon}${esc(rollup.label)}</span>`;
     // Suppress the WSB / OMSA / disk badges when the operator has
     // turned monitoring off for that subsystem on this host (via the
     // status-badge popover or the drawer's Config section). The flag
@@ -11606,8 +11642,13 @@ function _renderRollupPopover(pcId, hostname, agent) {
   const issues = rollup.issues || [];
   const list = issues.length ? issues.map(i => {
     const sevClass = i.kind === 'bad' ? 'rollup-bad' : i.kind === 'warn' ? 'rollup-warn' : 'rollup-info';
+    // i.icon is the raw Heroicons-solid SVG markup from HEROICON_SVG.
+    // Emit unescaped so the browser renders it as a real element
+    // (not visible angle brackets). Falls back to a centered dot
+    // glyph if for some reason no icon was assigned upstream.
+    const iconHtml = i.icon || '&middot;';
     return `<div class="rollup-issue">
-      <div class="rollup-issue-icon ${sevClass}">${esc(i.icon || '·')}</div>
+      <div class="rollup-issue-icon ${sevClass}">${iconHtml}</div>
       <div class="rollup-issue-body">
         <div class="rollup-issue-label">${esc(i.label || '')}</div>
         ${i.detail ? `<div class="rollup-issue-detail">${esc(i.detail)}</div>` : ''}
