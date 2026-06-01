@@ -227,6 +227,34 @@
     border: 1px solid var(--uacn-brand); border-radius: 6px; padding: 2px 8px; margin-left: 10px;
   }
 
+  /* Windows hero "name" card + buttons + spec header */
+  .uacn-win-hero {
+    display: flex; justify-content: space-between; align-items: center; gap: 12px;
+    padding: 13px 14px; border: 1px solid var(--uacn-line); border-radius: 9px;
+    margin-bottom: 10px; background: #fff;
+  }
+  .uacn-win-hero.uacn-hl {
+    background: var(--uacn-brand-soft); border-color: var(--uacn-brand);
+    box-shadow: 0 0 0 3px rgba(26,155,232,.14);
+  }
+  .uacn-win-hero .uacn-nm { font-weight: 600; font-size: 15px; color: var(--uacn-brand-deep); line-height: 1.25; }
+  .uacn-win-hero .uacn-mdl { font-size: 12px; color: var(--uacn-ink-faint); margin-top: 2px; }
+  .uacn-btn-win {
+    flex-shrink: 0; font-size: 12px; font-weight: 500; color: var(--uacn-ink);
+    background: #fbfcfe; border: 1px solid var(--uacn-line-strong); border-radius: 5px;
+    padding: 6px 12px; white-space: nowrap;
+  }
+  .uacn-spec-head {
+    display: flex; align-items: center; gap: 9px;
+    padding: 8px 2px 12px; font-weight: 600; font-size: 13.5px; color: var(--uacn-ink);
+  }
+  .uacn-spec-head .uacn-ic {
+    width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid var(--uacn-ink-soft);
+    color: var(--uacn-ink-soft); font-size: 11px; font-style: italic; font-weight: 700;
+    display: grid; place-items: center; line-height: 1;
+  }
+  .uacn-spec-head .uacn-btn-win { margin-left: auto; }
+
   .uacn-term {
     background: #0d1320; color: #d6e2f0; font-family: var(--uacn-mono);
     font-size: 12.5px; line-height: 1.7; padding: 14px 16px;
@@ -346,12 +374,17 @@
         <li>
           <div class="uacn-st-title">Read your Device name</div>
           <div class="uacn-st-desc">At the top of the About page you'll see <strong>Device name</strong>. That's your computer name. Click <strong>Copy</strong> to grab it exactly.</div>
-          <div class="uacn-shot" role="img" aria-label="Windows 11 Settings About page showing Device name DESKTOP-7K2QX9P">
+          <div class="uacn-shot" role="img" aria-label="Windows 11 Settings About page: the highlighted card at the top shows the PC name DESKTOP-7K2QX9P with a Rename this PC button">
             <div class="uacn-bar"><span class="uacn-dot r"></span><span class="uacn-dot y"></span><span class="uacn-dot g"></span><span class="uacn-t">Settings &mdash; About</span></div>
             <div class="uacn-shotbody">
               <div class="uacn-crumb"><b>System</b> &rsaquo; <b>About</b></div>
-              <div class="uacn-kv uacn-hl"><span class="uacn-k">Device name</span><span><span class="uacn-v">DESKTOP-7K2QX9P</span><span class="uacn-copy-pill">Copy</span></span></div>
-              <div class="uacn-kv"><span class="uacn-k">Processor</span><span class="uacn-v">Intel Core i7</span></div>
+              <div class="uacn-win-hero uacn-hl">
+                <div><div class="uacn-nm">DESKTOP-7K2QX9P</div><div class="uacn-mdl">HP ZBook Firefly 14 G8</div></div>
+                <span class="uacn-btn-win">Rename this PC</span>
+              </div>
+              <div class="uacn-spec-head"><span class="uacn-ic">i</span> Device specifications <span class="uacn-btn-win">Copy</span></div>
+              <div class="uacn-kv"><span class="uacn-k">Device name</span><span class="uacn-v">DESKTOP-7K2QX9P</span></div>
+              <div class="uacn-kv"><span class="uacn-k">Processor</span><span class="uacn-v">Intel Core i7-1165G7</span></div>
               <div class="uacn-kv"><span class="uacn-k">Installed RAM</span><span class="uacn-v">16.0 GB</span></div>
             </div>
           </div>
@@ -396,13 +429,15 @@
         <li>
           <div class="uacn-st-title">Find Device name</div>
           <div class="uacn-st-desc">Under the <strong>Device specifications</strong> heading, the first line is <strong>Device name</strong> &mdash; that's your computer name.</div>
-          <div class="uacn-shot" role="img" aria-label="Windows 10 Settings About page showing Device name under Device specifications">
+          <div class="uacn-shot" role="img" aria-label="Windows 10 Settings About page showing the highlighted Device name OFFICE-PC-04 under Device specifications">
             <div class="uacn-bar"><span class="uacn-dot r"></span><span class="uacn-dot y"></span><span class="uacn-dot g"></span><span class="uacn-t">Settings &mdash; About</span></div>
             <div class="uacn-shotbody">
-              <div class="uacn-crumb">Device specifications</div>
+              <div class="uacn-spec-head"><span class="uacn-ic">i</span> Device specifications <span class="uacn-btn-win">Copy</span></div>
               <div class="uacn-kv uacn-hl"><span class="uacn-k">Device name</span><span class="uacn-v">OFFICE-PC-04</span></div>
               <div class="uacn-kv"><span class="uacn-k">Full device name</span><span class="uacn-v">OFFICE-PC-04</span></div>
-              <div class="uacn-kv"><span class="uacn-k">Processor</span><span class="uacn-v">Intel Core i5</span></div>
+              <div class="uacn-kv"><span class="uacn-k">Processor</span><span class="uacn-v">Intel Core i5-8250U</span></div>
+              <div class="uacn-kv"><span class="uacn-k">Installed RAM</span><span class="uacn-v">8.00 GB</span></div>
+              <div style="margin-top:12px"><span class="uacn-btn-win">Rename this PC</span></div>
             </div>
           </div>
           <p class="uacn-annot">Yours might read <span class="uacn-code">OFFICE-PC-04</span>, <span class="uacn-code">DESKTOP-AB12CDE</span>, or a custom name your IT team set.</p>
@@ -455,13 +490,15 @@
         <li>
           <div class="uacn-st-title">Read the Name</div>
           <div class="uacn-st-desc">The very first row, <strong>Name</strong>, is your computer's name.</div>
-          <div class="uacn-shot" role="img" aria-label="macOS System Settings General About page showing Name Reception-MacBook-Pro">
+          <div class="uacn-shot" role="img" aria-label="macOS System Settings General About page showing the highlighted Name Reception-MacBook-Pro">
             <div class="uacn-bar"><span class="uacn-dot r"></span><span class="uacn-dot y"></span><span class="uacn-dot g"></span><span class="uacn-t">System Settings &mdash; About</span></div>
             <div class="uacn-shotbody">
               <div class="uacn-crumb"><b>General</b> &rsaquo; <b>About</b></div>
               <div class="uacn-kv uacn-hl"><span class="uacn-k">Name</span><span class="uacn-v">Reception-MacBook-Pro</span></div>
               <div class="uacn-kv"><span class="uacn-k">macOS</span><span class="uacn-v">Sequoia 15.5</span></div>
               <div class="uacn-kv"><span class="uacn-k">Chip</span><span class="uacn-v">Apple M3</span></div>
+              <div class="uacn-kv"><span class="uacn-k">Memory</span><span class="uacn-v">16 GB</span></div>
+              <div class="uacn-kv"><span class="uacn-k">Serial number</span><span class="uacn-v">C02&middot;&middot;&middot;&middot;&middot;&middot;&middot;Q</span></div>
             </div>
           </div>
           <p class="uacn-annot">Yours will look like <span class="uacn-code">Reception-MacBook-Pro</span> or <span class="uacn-code">Johns-iMac</span>.</p>

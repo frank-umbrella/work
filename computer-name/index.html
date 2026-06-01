@@ -333,6 +333,34 @@
     margin-left: 10px;
   }
 
+  /* Windows 11 hero "name" card + buttons + spec header */
+  .win-hero {
+    display: flex; justify-content: space-between; align-items: center; gap: 12px;
+    padding: 13px 14px; border: 1px solid var(--line); border-radius: 9px;
+    margin-bottom: 10px; background: #fff;
+  }
+  .win-hero.hl {
+    background: var(--brand-soft); border-color: var(--brand);
+    box-shadow: 0 0 0 3px rgba(26,155,232,.14);
+  }
+  .win-hero .nm { font-weight: 600; font-size: 15px; color: var(--brand-deep); line-height: 1.25; }
+  .win-hero .mdl { font-size: 12px; color: var(--ink-faint); margin-top: 2px; }
+  .btn-win {
+    flex-shrink: 0; font-size: 12px; font-weight: 500; color: var(--ink);
+    background: #fbfcfe; border: 1px solid var(--line-strong); border-radius: 5px;
+    padding: 6px 12px; white-space: nowrap;
+  }
+  .spec-head {
+    display: flex; align-items: center; gap: 9px;
+    padding: 8px 2px 12px; font-weight: 600; font-size: 13.5px; color: var(--ink);
+  }
+  .spec-head .ic {
+    width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid var(--ink-soft);
+    color: var(--ink-soft); font-size: 11px; font-style: italic; font-weight: 700;
+    display: grid; place-items: center; line-height: 1;
+  }
+  .spec-head .btn-win { margin-left: auto; }
+
   /* terminal mock */
   .term {
     background: #0d1320;
@@ -484,15 +512,17 @@
       <li>
         <div class="st-title">Read your Device name</div>
         <div class="st-desc">At the top of the About page you'll see <strong>Device name</strong>. That's your computer name. Click <strong>Copy</strong> to grab it exactly.</div>
-        <div class="shot" role="img" aria-label="Windows 11 Settings About page showing Device name DESKTOP-7K2QX9P">
+        <div class="shot" role="img" aria-label="Windows 11 Settings About page: the highlighted card at the top shows the PC name DESKTOP-7K2QX9P with a Rename this PC button">
           <div class="titlebar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="t">Settings &mdash; About</span></div>
           <div class="body">
             <div class="crumb"><b>System</b> &rsaquo; <b>About</b></div>
-            <div class="kv hl">
-              <span class="k">Device name</span>
-              <span><span class="v">DESKTOP-7K2QX9P</span><span class="copy-pill">Copy</span></span>
+            <div class="win-hero hl">
+              <div><div class="nm">DESKTOP-7K2QX9P</div><div class="mdl">HP ZBook Firefly 14 G8</div></div>
+              <span class="btn-win">Rename this PC</span>
             </div>
-            <div class="kv"><span class="k">Processor</span><span class="v">Intel Core i7</span></div>
+            <div class="spec-head"><span class="ic">i</span> Device specifications <span class="btn-win">Copy</span></div>
+            <div class="kv"><span class="k">Device name</span><span class="v">DESKTOP-7K2QX9P</span></div>
+            <div class="kv"><span class="k">Processor</span><span class="v">Intel Core i7-1165G7</span></div>
             <div class="kv"><span class="k">Installed RAM</span><span class="v">16.0 GB</span></div>
           </div>
         </div>
@@ -542,16 +572,18 @@
       <li>
         <div class="st-title">Find Device name</div>
         <div class="st-desc">Under the <strong>Device specifications</strong> heading, the first line is <strong>Device name</strong> &mdash; that's your computer name.</div>
-        <div class="shot" role="img" aria-label="Windows 10 Settings About page showing Device name under Device specifications">
+        <div class="shot" role="img" aria-label="Windows 10 Settings About page showing the highlighted Device name OFFICE-PC-04 under Device specifications">
           <div class="titlebar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="t">Settings &mdash; About</span></div>
           <div class="body">
-            <div class="crumb">Device specifications</div>
+            <div class="spec-head"><span class="ic">i</span> Device specifications <span class="btn-win">Copy</span></div>
             <div class="kv hl">
               <span class="k">Device name</span>
               <span class="v">OFFICE-PC-04</span>
             </div>
             <div class="kv"><span class="k">Full device name</span><span class="v">OFFICE-PC-04</span></div>
-            <div class="kv"><span class="k">Processor</span><span class="v">Intel Core i5</span></div>
+            <div class="kv"><span class="k">Processor</span><span class="v">Intel Core i5-8250U</span></div>
+            <div class="kv"><span class="k">Installed RAM</span><span class="v">8.00 GB</span></div>
+            <div style="margin-top:12px"><span class="btn-win">Rename this PC</span></div>
           </div>
         </div>
         <p class="annot">Yours might read <code>OFFICE-PC-04</code>, <code>DESKTOP-AB12CDE</code>, or a custom name your IT team set.</p>
@@ -610,7 +642,7 @@
       <li>
         <div class="st-title">Read the Name</div>
         <div class="st-desc">The very first row, <strong>Name</strong>, is your computer's name.</div>
-        <div class="shot" role="img" aria-label="macOS System Settings General About page showing Name Franks-MacBook-Pro">
+        <div class="shot" role="img" aria-label="macOS System Settings General About page showing the highlighted Name Reception-MacBook-Pro">
           <div class="titlebar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="t">System Settings &mdash; About</span></div>
           <div class="body">
             <div class="crumb"><b>General</b> &rsaquo; <b>About</b></div>
@@ -620,6 +652,8 @@
             </div>
             <div class="kv"><span class="k">macOS</span><span class="v">Sequoia 15.5</span></div>
             <div class="kv"><span class="k">Chip</span><span class="v">Apple M3</span></div>
+            <div class="kv"><span class="k">Memory</span><span class="v">16 GB</span></div>
+            <div class="kv"><span class="k">Serial number</span><span class="v">C02&middot;&middot;&middot;&middot;&middot;&middot;&middot;Q</span></div>
           </div>
         </div>
         <p class="annot">Yours will look like <code>Reception-MacBook-Pro</code> or <code>Johns-iMac</code>.</p>
