@@ -216,12 +216,35 @@ jobs:
           git config user.email 'github-actions[bot]@users.noreply.github.com'
           git add $dest
           $changes = git status --porcelain
-          if ($changes) {
-            git commit -m "watchtower: archive SBOM for v$v [skip ci]"
-            git push
-            Write-Host "Archived SBOM at $dest"
-          } else {
+          if (-not $changes) {
             Write-Host "SBOM for v$v already archived (no diff); skipping commit."
+            exit 0
+          }
+          git commit -m "watchtower: archive SBOM for v$v [skip ci]"
+          # Push-with-rebase retry loop. Resolves the race where main
+          # has moved on between the build starting and this step
+          # reaching `git push` (e.g. operator pushed v0.14.161 + 162
+          # while v0.14.160's build was still running -- main has the
+          # new commits but the build worktree doesn't). Pull --rebase
+          # picks them up; the SBOM commit replays on top. Cap at 5
+          # retries so a permanently-stuck repo doesn't hang the job.
+          $maxAttempts = 5
+          for ($i = 1; $i -le $maxAttempts; $i++) {
+            git push 2>&1 | Tee-Object -Variable pushOut
+            if ($LASTEXITCODE -eq 0) {
+              Write-Host "Archived SBOM at $dest (push attempt $i)"
+              exit 0
+            }
+            if ($i -eq $maxAttempts) {
+              Write-Host "::warning::SBOM push failed after $maxAttempts attempts. The release was published; SBOM only failed to archive. Re-running the workflow_dispatch on this same version will retry."
+              exit 1
+            }
+            Write-Host "Push attempt $i rejected. Rebasing onto latest main and retrying."
+            git pull --rebase --autostash origin main 2>&1
+            if ($LASTEXITCODE -ne 0) {
+              Write-Host "::warning::git pull --rebase failed -- aborting SBOM archive. Re-run via workflow_dispatch to retry."
+              exit 1
+            }
           }
 
       - name: Summary
