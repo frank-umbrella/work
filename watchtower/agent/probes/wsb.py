@@ -95,6 +95,26 @@ try {
     # Backup targets — where the backup is being written. BackupTargets is
     # an array of WBBackupTarget objects; each has Label + TargetType +
     # one of (Path / Volume / UncPath) depending on type.
+    #
+    # PER-TARGET FORMAT DATE (v0.14.160+): read the NTFS volume root's
+    # CreationTime via Get-Item. This is the moment the disk was last
+    # formatted (NTFS creates $Volume's root directory during format and
+    # never modifies it after), which proxies for "when did this physical
+    # disk go into rotation for backups." More accurate than the
+    # oldest-backup-version timestamp because format date predates the
+    # first backup -- often by months (drive arrives → formatted → sits
+    # → first backup runs).
+    #
+    # STRICTLY READ-ONLY. Get-Item is the PowerShell equivalent of stat();
+    # the -Force flag suppresses the "are you sure" prompt for paths with
+    # the system attribute set (volume roots), it does NOT grant write
+    # permission. We never call Format-Volume, format.com, Initialize-Disk,
+    # Clear-Disk, or any other write cmdlet anywhere in this probe.
+    #
+    # UNC targets get formatDate = $null since "when was the remote share
+    # created" isn't meaningful for disk rotation planning. Disconnected
+    # local targets (drive went offline since policy was set) also yield
+    # null with no error -- Test-Path short-circuits.
     $targets = @()
     if ($policy -and $policy.BackupTargets) {
         $targets = @($policy.BackupTargets | ForEach-Object {
@@ -102,10 +122,30 @@ try {
             try { if ($_.Path)    { $path = "$($_.Path)" } } catch {}
             try { if (-not $path -and $_.UncPath) { $path = "$($_.UncPath)" } } catch {}
             try { if (-not $path -and $_.Source)  { $path = "$($_.Source)"  } } catch {}
+
+            # Per-target NTFS volume format date. Read-only Get-Item on
+            # the volume root. Skip UNC paths (\\server\share) -- those
+            # match '^\\\\[^?]' (two backslashes followed by a non-?
+            # character) and aren't physical disks. Volume GUID paths
+            # like '\\?\Volume{guid}\' (common when WSB takes a disk
+            # exclusively and Windows drops the drive letter) DO match
+            # the negated pattern and get the lookup.
+            $formatDate = $null
+            try {
+                if ($path -and $path -notmatch '^\\\\[^?]' -and (Test-Path $path)) {
+                    $rootItem = Get-Item $path -Force -ErrorAction Stop
+                    $formatDate = _DateOrNull $rootItem.CreationTime
+                }
+            } catch {
+                # Quiet -- a missing / offline / inaccessible target
+                # shouldn't fail the whole probe. formatDate stays $null.
+            }
+
             [PSCustomObject]@{
-                label = "$($_.Label)"
-                type  = "$($_.TargetType)"
-                path  = $path
+                label      = "$($_.Label)"
+                type       = "$($_.TargetType)"
+                path       = $path
+                formatDate = $formatDate
             }
         })
     }

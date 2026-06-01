@@ -2553,7 +2553,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.159";
+const APP_VERSION = "0.14.160";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -2584,6 +2584,10 @@ if (_versionChip) {
 // fixes). Patch-level no-op bumps don't need entries -- only stuff a
 // human reader would want to know about.
 const CHANGELOG = [
+  { version: "0.14.160", date: "2026-05-27", changes: [
+    "Agent v0.14.53: WSB probe now captures the NTFS volume format date for each backup target via a strictly read-only Get-Item .CreationTime lookup. Surfaces in the drawer's Windows Server Backup section as 'in rotation Xy (formatted YYYY-MM-DD)' next to each destination. NTFS volume root CreationTime equals the format moment, so this is a more accurate 'when did this physical disk start being used' signal than the existing oldest-backup-version timestamp (which lags by weeks or months while the disk sits between format and first backup). UNC targets and offline / inaccessible local targets emit null with no error -- the probe never touches anything destructive (no Format-Volume, no Initialize-Disk, no Clear-Disk, all writes excluded by design).",
+    "Backup column pill: a host with only the WSB feature installed (no policy, no jobs, no past backups) no longer shows the WSB pill. The check now requires either at least one BackupTarget OR at least one past backup version OR a lastBackupTime -- 'feature is on the machine but never set up' bucket goes back to showing as not configured. Same fix in backupHealthOf() so the per-host status badge + the Backup status rollup in Stats put these into 'Not configured' instead of 'No backup on record' (which sounded like a failure).",
+  ]},
   { version: "0.14.159", date: "2026-05-27", changes: [
     "Per-event snooze duration picker (in each Events-tab card) gains an 'Indefinite -- mute until manually cleared' option. Useful for cases like WSB backup or WSB Backup disk age where the underlying condition is a long-running operational decision (client refusing to swap an old drive, backups intentionally disabled for a host being retired, etc) and a 90-day cap would just produce a re-firing alert in 3 months. Stored as a year-9999 sentinel timestamp so the worker's isEventSnoozed check stays a simple `until > now` comparison. The event card's status badge reads 'indefinite' instead of an obnoxious day count when the snooze runs long. Clear-snooze button on the card still works to end the snooze immediately whenever the operator's ready.",
   ]},
@@ -3375,6 +3379,15 @@ function backupHealthOf(agent) {
   // single badge.
   const wsb = agent.report && agent.report.wsb;
   if (!wsb || !wsb.installed) return null;
+  // Feature-installed-but-never-set-up case: WSB is on the box (some
+  // installers / role wizards turn it on by default on Server SKUs)
+  // but no policy, no jobs, no past backups. That's not a configured
+  // backup -- it's an idle feature. Return null so backup-health
+  // rollups bucket these as "Not configured" rather than "No backup
+  // on record" (which sounds like a failure).
+  const hasPolicy = Array.isArray(wsb.targets) && wsb.targets.length > 0;
+  const hasHistory = (typeof wsb.numberOfVersions === "number" && wsb.numberOfVersions > 0) || wsb.lastBackupTime;
+  if (!hasPolicy && !hasHistory) return null;
   if (wsb.lastBackupResult === "Success") return { kind: "ok", label: "Backup OK" };
   // Compute days-since-success to differentiate a one-day blip from
   // an ongoing problem.
@@ -4365,7 +4378,21 @@ function renderEndpoints() {
     const r = a.report || {};
     const backupPills = [];
     if (r.veeam && r.veeam.installed) backupPills.push(`<span class="pill pill-veeam" title="Veeam">Veeam</span>`);
-    if (r.wsb && r.wsb.installed) backupPills.push(`<span class="pill pill-wsb" title="Windows Server Backup">WSB</span>`);
+    // WSB pill: only show when the feature is installed AND there's
+    // actually a backup policy configured. A bare "WSB feature
+    // installed via Add Roles wizard but never set up" host should
+    // NOT count as a backup tool -- those hosts have no jobs, no
+    // schedules, no targets, and no past backups, so claiming the
+    // pill in the Backup column gives a false sense of coverage.
+    // Signal "actually configured": at least one BackupTarget OR
+    // at least one past backup version. Older agents that didn't
+    // ship the targets array fall through to numberOfVersions /
+    // lastBackupTime so they still display correctly.
+    if (r.wsb && r.wsb.installed && (
+      (Array.isArray(r.wsb.targets) && r.wsb.targets.length > 0) ||
+      (typeof r.wsb.numberOfVersions === "number" && r.wsb.numberOfVersions > 0) ||
+      r.wsb.lastBackupTime
+    )) backupPills.push(`<span class="pill pill-wsb" title="Windows Server Backup">WSB</span>`);
     if (r.carbonite && r.carbonite.installed) backupPills.push(`<span class="pill pill-carbonite" title="Carbonite">Carb</span>`);
     if (r.ibackup && r.ibackup.installed) backupPills.push(`<span class="pill pill-ibackup" title="IBackup (Pro Softnet)">IBack</span>`);
     const backupCell = backupPills.length ? backupPills.join(" ") : `<span class="meta">—</span>`;
@@ -11064,7 +11091,22 @@ function renderWsb(w) {
         <div class="v">${w.targets.map(t => {
           const where = t.path || t.label || "?";
           const kind = t.type ? ` <span class="meta">(${esc(t.type)})</span>` : "";
-          return `<div><code>${esc(where)}</code>${kind}${t.label && t.path ? ` <span class="meta">${esc(t.label)}</span>` : ""}</div>`;
+          // NTFS volume format date (v0.14.160+). Tells the operator
+          // "this physical disk has been in rotation since X" -- a
+          // more useful planning signal than the oldest-backup timestamp
+          // since the format date predates the first backup, often by
+          // months. Skipped for UNC targets (formatDate is null there).
+          let formatPart = "";
+          if (t.formatDate) {
+            const fd = new Date(t.formatDate);
+            if (!isNaN(fd.getTime())) {
+              const ageDays = Math.floor((Date.now() - fd.getTime()) / 86400000);
+              const ageYears = Math.round(ageDays / 365.25 * 10) / 10;
+              const ageStr = ageDays >= 365 ? `${ageYears}y` : `${ageDays}d`;
+              formatPart = ` <span class="meta" title="NTFS volume root CreationTime -- when this disk was last formatted, which is typically when it went into the backup rotation. Read-only Get-Item lookup on every check-in.">&middot; in rotation ${esc(ageStr)} (formatted ${esc(fd.toLocaleDateString())})</span>`;
+            }
+          }
+          return `<div><code>${esc(where)}</code>${kind}${t.label && t.path ? ` <span class="meta">${esc(t.label)}</span>` : ""}${formatPart}</div>`;
         }).join("")}</div>
       ` : ""}
       ${Array.isArray(w.sources) && w.sources.length ? `
