@@ -1,0 +1,543 @@
+<!--
+  ===========================================================================
+  COMPUTER NAME GUIDE  -  WordPress paste-in version  (v0.1.0)
+  ===========================================================================
+  HOW TO USE IN WORDPRESS
+  -----------------------------------------------------------------------
+  1. Edit the page/post with the Block editor.
+  2. Add a block  ->  "Custom HTML"  (search "html").
+     (Or, in the Classic editor, switch to the "Text"/Code tab.)
+  3. Paste EVERYTHING below this comment block (from the opening
+     <div class="uacn"> down to the end). Click "Preview" / Update.
+
+  That's it - no file upload needed. Everything (styles + script) is
+  self-contained and namespaced under ".uacn" so it will NOT clash with,
+  or leak into, your theme.
+
+  OPTIONAL POLISH (set in WordPress, not in this block):
+   - Social / OG image + title  -> set the page's Featured Image and SEO
+     title in your SEO plugin (Yoast / Rank Math / SEOPress).
+   - "Hide from Google"         -> mark the page noindex in that same SEO
+     plugin (this matches the standalone page's noindex setting).
+   - Favicon                    -> Appearance > Customize > Site Identity.
+  ===========================================================================
+-->
+<div class="uacn">
+<style>
+  .uacn {
+    --uacn-bg: #f4f6f9;
+    --uacn-surface: #ffffff;
+    --uacn-surface-soft: #f0f3f7;
+    --uacn-ink: #11151d;
+    --uacn-ink-soft: #4a5260;
+    --uacn-ink-faint: #8a93a3;
+    --uacn-line: #e3e6ec;
+    --uacn-line-strong: #cdd3dd;
+    --uacn-brand: #1A9BE8;
+    --uacn-brand-deep: #0C5E9C;
+    --uacn-brand-soft: #e8f4fc;
+    --uacn-good: #128a4f;
+    --uacn-good-soft: #e7f5ee;
+    --uacn-radius: 14px;
+    --uacn-radius-sm: 9px;
+    --uacn-shadow: 0 1px 2px rgba(20,25,40,.04), 0 6px 18px rgba(20,25,40,.06);
+    --uacn-shadow-lift: 0 8px 26px rgba(20,25,40,.10);
+    --uacn-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --uacn-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --uacn-display: "Saira", "Eurostile", "Microgramma D", "Aldrich", system-ui, sans-serif;
+
+    max-width: 860px;
+    margin: 0 auto;
+    background: var(--uacn-surface);
+    border: 1px solid var(--uacn-line);
+    border-radius: var(--uacn-radius);
+    overflow: hidden;
+    box-shadow: var(--uacn-shadow);
+    font-family: var(--uacn-sans);
+    color: var(--uacn-ink);
+    font-size: 16px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    text-align: left;
+  }
+  .uacn *, .uacn *::before, .uacn *::after { box-sizing: border-box; }
+  .uacn a { color: var(--uacn-brand-deep); }
+
+  /* ---------- Header ---------- */
+  .uacn-header {
+    background: var(--uacn-surface);
+    border-bottom: 1px solid var(--uacn-line);
+    padding: 22px 24px 24px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18px;
+  }
+  .uacn-title {
+    font-family: var(--uacn-display);
+    font-size: 30px;
+    line-height: 1.1;
+    margin: 0 0 6px;
+    letter-spacing: -0.01em;
+    color: var(--uacn-ink);
+    font-weight: 800;
+  }
+  .uacn-sub { margin: 0; color: var(--uacn-ink-soft); font-size: 15px; max-width: 52ch; }
+  .uacn-ver {
+    display: inline-block;
+    margin-top: 10px;
+    font-family: var(--uacn-mono);
+    font-size: 11.5px;
+    color: var(--uacn-ink-soft);
+    background: var(--uacn-surface-soft);
+    padding: 3px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--uacn-line);
+  }
+
+  /* ---------- Corner logo ---------- */
+  .uacn-brand { display: flex; align-items: center; gap: 11px; flex-shrink: 0; text-decoration: none; }
+  .uacn-brand svg.uacn-mark { width: 44px; height: 44px; display: block; }
+  .uacn-wm { display: flex; flex-direction: column; line-height: 1; }
+  .uacn-wm b, .uacn-wm span {
+    font-family: var(--uacn-display); font-weight: 800; font-size: 14px;
+    letter-spacing: 0.06em; text-align: left;
+  }
+  .uacn-wm b { color: var(--uacn-brand); }
+  .uacn-wm span { color: var(--uacn-ink-faint); font-weight: 700; }
+
+  /* ---------- Body ---------- */
+  .uacn-main { padding: 26px 24px 32px; }
+
+  .uacn-intro {
+    background: linear-gradient(135deg, #ffffff, var(--uacn-brand-soft));
+    border: 1px solid #d4e9f8;
+    border-radius: var(--uacn-radius);
+    padding: 18px 20px;
+    box-shadow: var(--uacn-shadow);
+    display: flex; gap: 14px; align-items: flex-start;
+  }
+  .uacn-intro-ic {
+    flex-shrink: 0; width: 38px; height: 38px; border-radius: 10px;
+    background: var(--uacn-brand); display: grid; place-items: center;
+    color: #fff; font-size: 20px;
+  }
+  .uacn-intro p { margin: 0; font-size: 14.5px; color: var(--uacn-ink-soft); }
+  .uacn-intro p strong { color: var(--uacn-ink); }
+
+  /* ---------- Tabs ---------- */
+  .uacn-tabs { display: flex; gap: 8px; margin: 26px 0 0; flex-wrap: wrap; }
+  .uacn-tab {
+    appearance: none; cursor: pointer; font: inherit; font-weight: 600; font-size: 14.5px;
+    color: var(--uacn-ink-soft); background: var(--uacn-surface);
+    border: 1px solid var(--uacn-line-strong); border-radius: 999px;
+    padding: 9px 18px; margin: 0; display: inline-flex; align-items: center; gap: 8px;
+    transition: all .14s ease; line-height: 1.2;
+  }
+  .uacn-tab:hover { border-color: var(--uacn-brand); color: var(--uacn-brand-deep); }
+  .uacn-tab[aria-selected="true"] {
+    background: var(--uacn-brand); border-color: var(--uacn-brand); color: #fff;
+    box-shadow: 0 4px 12px rgba(26,155,232,.28);
+  }
+  .uacn-os-ic { width: 16px; height: 16px; }
+
+  .uacn-panel { display: none; margin-top: 20px; }
+  .uacn-panel.uacn-active { display: block; animation: uacn-fade .2s ease; }
+  @keyframes uacn-fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+  /* ---------- Fastest callout ---------- */
+  .uacn-fast {
+    display: flex; gap: 12px; align-items: flex-start;
+    background: var(--uacn-good-soft); border: 1px solid #c4e6d3;
+    border-radius: var(--uacn-radius); padding: 14px 16px; margin-bottom: 22px;
+  }
+  .uacn-badge {
+    flex-shrink: 0; font-size: 11px; font-weight: 800; letter-spacing: .07em;
+    text-transform: uppercase; color: #fff; background: var(--uacn-good);
+    padding: 4px 9px; border-radius: 6px; margin-top: 2px;
+  }
+  .uacn-fast p { margin: 0; font-size: 14.5px; color: #1f3b2c; }
+  .uacn-fast .uacn-code { background: #d8efe1; }
+  .uacn-apple { width: 13px; height: 13px; display: inline-block; vertical-align: -1px; fill: currentColor; }
+
+  /* ---------- Steps ---------- */
+  .uacn-steps { list-style: none; counter-reset: uacn-step; margin: 0; padding: 0; }
+  .uacn-steps > li {
+    position: relative; padding: 0 0 8px 52px; margin-bottom: 22px; list-style: none;
+  }
+  .uacn-steps > li::before {
+    counter-increment: uacn-step; content: counter(uacn-step);
+    position: absolute; left: 0; top: -2px; width: 34px; height: 34px;
+    border-radius: 50%; background: var(--uacn-brand); color: #fff;
+    font-weight: 700; font-size: 15px; display: grid; place-items: center;
+    box-shadow: 0 3px 8px rgba(26,155,232,.3);
+  }
+  .uacn-steps > li:not(:last-child)::after {
+    content: ""; position: absolute; left: 16px; top: 36px; bottom: -18px;
+    width: 2px; background: var(--uacn-line-strong);
+  }
+  .uacn-st-title { font-weight: 600; font-size: 15.5px; color: var(--uacn-ink); }
+  .uacn-st-desc { color: var(--uacn-ink-soft); font-size: 14.5px; margin-top: 2px; }
+
+  .uacn-kbd {
+    font-family: var(--uacn-sans); font-size: 12.5px; font-weight: 600;
+    background: #fff; border: 1px solid var(--uacn-line-strong); border-bottom-width: 2px;
+    border-radius: 6px; padding: 2px 8px; color: var(--uacn-ink); white-space: nowrap;
+    box-shadow: 0 1px 0 rgba(0,0,0,.02);
+  }
+  .uacn-code {
+    font-family: var(--uacn-mono); font-size: 13px;
+    background: var(--uacn-surface-soft); border: 1px solid var(--uacn-line);
+    border-radius: 5px; padding: 1px 6px; color: var(--uacn-ink);
+  }
+
+  /* ---------- Mock screenshots ---------- */
+  .uacn-shot {
+    margin: 12px 0 4px; border-radius: 12px; overflow: hidden;
+    border: 1px solid var(--uacn-line-strong); box-shadow: var(--uacn-shadow-lift);
+    background: #fff; max-width: 460px;
+  }
+  .uacn-bar {
+    display: flex; align-items: center; gap: 7px; padding: 9px 12px;
+    background: #e9edf2; border-bottom: 1px solid var(--uacn-line);
+  }
+  .uacn-dot { width: 11px; height: 11px; border-radius: 50%; }
+  .uacn-dot.r { background: #ff5f57; }
+  .uacn-dot.y { background: #febc2e; }
+  .uacn-dot.g { background: #28c840; }
+  .uacn-bar .uacn-t { margin-left: 6px; font-size: 12px; color: var(--uacn-ink-faint); font-weight: 600; }
+  .uacn-shotbody { padding: 16px 18px; font-size: 13.5px; }
+  .uacn-crumb { color: var(--uacn-ink-faint); font-size: 12px; margin-bottom: 12px; }
+  .uacn-crumb b { color: var(--uacn-ink-soft); }
+
+  .uacn-kv {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 11px 13px; border: 1px solid var(--uacn-line); border-radius: 9px;
+    margin-bottom: 8px; background: #fff;
+  }
+  .uacn-kv .uacn-k { color: var(--uacn-ink-soft); font-size: 13px; }
+  .uacn-kv .uacn-v { font-weight: 600; font-size: 13.5px; color: var(--uacn-ink); }
+  .uacn-kv.uacn-hl {
+    background: var(--uacn-brand-soft); border-color: var(--uacn-brand);
+    box-shadow: 0 0 0 3px rgba(26,155,232,.14);
+  }
+  .uacn-kv.uacn-hl .uacn-v { color: var(--uacn-brand-deep); }
+  .uacn-copy-pill {
+    font-size: 11px; font-weight: 700; color: var(--uacn-brand-deep);
+    border: 1px solid var(--uacn-brand); border-radius: 6px; padding: 2px 8px; margin-left: 10px;
+  }
+
+  .uacn-term {
+    background: #0d1320; color: #d6e2f0; font-family: var(--uacn-mono);
+    font-size: 12.5px; line-height: 1.7; padding: 14px 16px;
+  }
+  .uacn-term .uacn-prompt { color: #5fc1ec; }
+  .uacn-term .uacn-out { color: #8de08d; }
+  .uacn-term .uacn-cmd { color: #fff; }
+
+  .uacn-annot { font-size: 12.5px; color: var(--uacn-ink-faint); margin: 4px 0 0; font-style: italic; }
+
+  /* ---------- Alternatives ---------- */
+  .uacn-alt {
+    margin-top: 18px; border: 1px solid var(--uacn-line);
+    border-radius: var(--uacn-radius-sm); background: var(--uacn-surface); overflow: hidden;
+  }
+  .uacn-alt summary {
+    cursor: pointer; list-style: none; padding: 13px 16px; font-weight: 600;
+    font-size: 14px; color: var(--uacn-ink); display: flex; align-items: center; gap: 9px; user-select: none;
+  }
+  .uacn-alt summary::-webkit-details-marker { display: none; }
+  .uacn-alt summary .uacn-chev { margin-left: auto; transition: transform .18s ease; color: var(--uacn-ink-faint); }
+  .uacn-alt[open] summary .uacn-chev { transform: rotate(90deg); }
+  .uacn-alt summary .uacn-tag {
+    font-size: 10.5px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase;
+    color: var(--uacn-ink-soft); background: var(--uacn-surface-soft);
+    padding: 2px 7px; border-radius: 5px; border: 1px solid var(--uacn-line);
+  }
+  .uacn-alt-body { padding: 0 16px 16px; border-top: 1px solid var(--uacn-line); }
+  .uacn-alt-body ol { margin: 14px 0 0; padding-left: 20px; }
+  .uacn-alt-body li { margin-bottom: 7px; font-size: 14px; color: var(--uacn-ink-soft); }
+  .uacn-alt-body li strong { color: var(--uacn-ink); }
+
+  /* ---------- Universal box ---------- */
+  .uacn-universal {
+    margin-top: 30px; border: 1px dashed var(--uacn-line-strong);
+    border-radius: var(--uacn-radius); background: var(--uacn-surface); padding: 18px 20px;
+  }
+  .uacn-universal h3 { margin: 0 0 6px; font-size: 16px; color: var(--uacn-ink); }
+  .uacn-universal p { margin: 0 0 12px; color: var(--uacn-ink-soft); font-size: 14.5px; }
+
+  .uacn-footer {
+    padding: 18px 24px 22px; color: var(--uacn-ink-faint); font-size: 12.5px;
+    text-align: center; border-top: 1px solid var(--uacn-line);
+  }
+
+  @media (max-width: 560px) {
+    .uacn-header { flex-direction: column; align-items: stretch; }
+    .uacn-brand { align-self: flex-end; order: -1; }
+    .uacn-title { font-size: 26px; }
+    .uacn-shot { max-width: 100%; }
+  }
+</style>
+
+  <!-- Header -->
+  <div class="uacn-header">
+    <div>
+      <h2 class="uacn-title">Find Your Computer Name</h2>
+      <p class="uacn-sub">A quick, illustrated guide to locating your computer's name &mdash; the bit of info our team often needs when setting up or troubleshooting your device.</p>
+      <span class="uacn-ver">v0.1.0</span>
+    </div>
+    <span class="uacn-brand" aria-label="Umbrella Automation">
+      <svg class="uacn-mark" xmlns="http://www.w3.org/2000/svg" viewBox="70 92 116 102" aria-hidden="true">
+        <g>
+          <path d="M 126.48 98.88 C 127.20 98.96 127.92 99.04 128.64 99.12 C 145.99 114.08 163.36 129.04 180.72 144.00 C 180.72 146.32 180.72 148.64 180.72 150.96 C 162.88 135.68 145.04 120.40 127.20 105.12 C 127.04 105.12 126.88 105.12 126.72 105.12 C 109.84 119.28 92.96 133.44 76.08 147.60 C 76.08 145.20 76.08 142.80 76.08 140.40 C 93.77 127.76 108.93 111.87 126.48 98.88 Z" fill="#9ea4ab"/>
+          <path d="M 91.68 183.60 C 115.28 183.60 138.88 183.60 162.48 183.60 C 162.48 170.48 162.48 157.36 162.48 144.24 C 164.32 146.08 166.16 147.92 168.00 149.76 C 168.00 159.52 168.00 169.28 168.00 179.04 C 168.00 181.41 168.81 187.66 167.28 188.64 C 165.78 189.94 150.75 189.12 147.36 189.12 C 133.36 189.12 119.36 189.12 105.36 189.12 C 99.28 189.12 91.39 189.95 86.16 188.64 C 86.08 179.04 86.00 169.44 85.92 159.84 C 87.84 157.92 89.76 156.00 91.68 154.08 C 91.68 163.92 91.68 173.76 91.68 183.60 Z" fill="#9ea4ab"/>
+          <g stroke="#1A9BE8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none">
+            <path d="M 130 142 L 137 149 L 161 149"/>
+            <line x1="93" y1="163" x2="120" y2="163"/>
+            <line x1="132" y1="174" x2="161" y2="174"/>
+          </g>
+          <circle cx="128" cy="140" r="5" fill="#1A9BE8"/>
+          <circle cx="118" cy="163" r="5" fill="#1A9BE8"/>
+          <circle cx="134" cy="174" r="5" fill="#1A9BE8"/>
+        </g>
+      </svg>
+      <span class="uacn-wm"><b>UMBRELLA</b><span>AUTOMATION</span></span>
+    </span>
+  </div>
+
+  <!-- Body -->
+  <div class="uacn-main">
+
+    <div class="uacn-intro">
+      <div class="uacn-intro-ic">&#128187;</div>
+      <p><strong>Why are we asking for this?</strong> Every computer has a unique name (sometimes called the &ldquo;device name&rdquo; or &ldquo;hostname&rdquo;). It helps us find <em>your exact machine</em> when we set up software, fix an issue, or add you to the network. Pick your operating system below and follow the steps &mdash; it only takes a few seconds.</p>
+    </div>
+
+    <div class="uacn-tabs" role="tablist" aria-label="Choose your operating system">
+      <button class="uacn-tab" type="button" role="tab" id="uacn-tab-win11" aria-controls="uacn-panel-win11" aria-selected="true">
+        <svg class="uacn-os-ic" viewBox="0 0 24 24" aria-hidden="true"><path fill="#1A9BE8" d="M3 5.5 10.5 4.4v7.1H3zM11.5 4.3 21 3v8.5h-9.5zM3 12.5h7.5v7.1L3 18.5zM11.5 12.5H21V21l-9.5-1.3z"/></svg>
+        Windows 11
+      </button>
+      <button class="uacn-tab" type="button" role="tab" id="uacn-tab-win10" aria-controls="uacn-panel-win10" aria-selected="false">
+        <svg class="uacn-os-ic" viewBox="0 0 24 24" aria-hidden="true"><path fill="#1A9BE8" d="M3 5.5 10.5 4.4v7.1H3zM11.5 4.3 21 3v8.5h-9.5zM3 12.5h7.5v7.1L3 18.5zM11.5 12.5H21V21l-9.5-1.3z"/></svg>
+        Windows 10
+      </button>
+      <button class="uacn-tab" type="button" role="tab" id="uacn-tab-mac" aria-controls="uacn-panel-mac" aria-selected="false">
+        <svg class="uacn-os-ic" viewBox="0 0 24 24" aria-hidden="true"><path fill="#1A9BE8" d="M16 1.5c.1 1.1-.3 2.1-1 2.9-.7.8-1.8 1.4-2.8 1.3-.1-1 .4-2.1 1-2.8.7-.8 1.9-1.4 2.8-1.4zm3.4 16.1c-.5 1.2-.8 1.7-1.5 2.7-.9 1.4-2.2 3.1-3.8 3.2-1.4 0-1.8-.9-3.7-.9s-2.3.9-3.7.9c-1.6 0-2.8-1.6-3.7-3-2.6-3.9-2.9-8.5-1.3-11 1.1-1.7 2.9-2.7 4.6-2.7 1.7 0 2.8 1 4.2 1 1.4 0 2.2-1 4.2-1 1.5 0 3.1.8 4.2 2.3-3.7 2-3.1 7.3.2 8.5z"/></svg>
+        macOS
+      </button>
+    </div>
+
+    <!-- WINDOWS 11 -->
+    <section class="uacn-panel uacn-active" id="uacn-panel-win11" role="tabpanel" aria-labelledby="uacn-tab-win11">
+      <div class="uacn-fast">
+        <span class="uacn-badge">Fastest</span>
+        <p>Press <span class="uacn-kbd">&#8862; Windows</span> + <span class="uacn-kbd">I</span> to open <strong>Settings</strong> &rarr; <strong>System</strong> &rarr; <strong>About</strong>. Your name is at the top under <strong>Device name</strong>.</p>
+      </div>
+      <ol class="uacn-steps">
+        <li>
+          <div class="uacn-st-title">Open Settings</div>
+          <div class="uacn-st-desc">Press <span class="uacn-kbd">&#8862; Windows</span> + <span class="uacn-kbd">I</span> together, or click the <strong>Start</strong> button and choose the <strong>Settings</strong> gear.</div>
+        </li>
+        <li>
+          <div class="uacn-st-title">Go to System &rarr; About</div>
+          <div class="uacn-st-desc"><strong>System</strong> is usually selected at the top of the left sidebar. Scroll to the bottom of the System list and click <strong>About</strong>.</div>
+        </li>
+        <li>
+          <div class="uacn-st-title">Read your Device name</div>
+          <div class="uacn-st-desc">At the top of the About page you'll see <strong>Device name</strong>. That's your computer name. Click <strong>Copy</strong> to grab it exactly.</div>
+          <div class="uacn-shot" role="img" aria-label="Windows 11 Settings About page showing Device name DESKTOP-7K2QX9P">
+            <div class="uacn-bar"><span class="uacn-dot r"></span><span class="uacn-dot y"></span><span class="uacn-dot g"></span><span class="uacn-t">Settings &mdash; About</span></div>
+            <div class="uacn-shotbody">
+              <div class="uacn-crumb"><b>System</b> &rsaquo; <b>About</b></div>
+              <div class="uacn-kv uacn-hl"><span class="uacn-k">Device name</span><span><span class="uacn-v">DESKTOP-7K2QX9P</span><span class="uacn-copy-pill">Copy</span></span></div>
+              <div class="uacn-kv"><span class="uacn-k">Processor</span><span class="uacn-v">Intel Core i7</span></div>
+              <div class="uacn-kv"><span class="uacn-k">Installed RAM</span><span class="uacn-v">16.0 GB</span></div>
+            </div>
+          </div>
+          <p class="uacn-annot">Your name will look different &mdash; e.g. <span class="uacn-code">DESKTOP-7K2QX9P</span>, <span class="uacn-code">FRONT-DESK-PC</span>, or <span class="uacn-code">LAPTOP-J3</span>.</p>
+        </li>
+      </ol>
+      <details class="uacn-alt">
+        <summary><span class="uacn-tag">Alt</span> Prefer a quick command? <span class="uacn-chev">&rsaquo;</span></summary>
+        <div class="uacn-alt-body">
+          <ol>
+            <li>Press <span class="uacn-kbd">&#8862; Windows</span> + <span class="uacn-kbd">R</span>, type <span class="uacn-code">cmd</span>, and press <span class="uacn-kbd">Enter</span>.</li>
+            <li>Type <span class="uacn-code">hostname</span> and press <span class="uacn-kbd">Enter</span>.</li>
+            <li>The single word printed is your computer name.</li>
+          </ol>
+          <div class="uacn-shot" style="margin-top:14px" role="img" aria-label="Command Prompt showing hostname command output">
+            <div class="uacn-bar"><span class="uacn-dot r"></span><span class="uacn-dot y"></span><span class="uacn-dot g"></span><span class="uacn-t">Command Prompt</span></div>
+            <div class="uacn-term"><div><span class="uacn-prompt">C:\Users\You&gt;</span> <span class="uacn-cmd">hostname</span></div><div class="uacn-out">DESKTOP-7K2QX9P</div></div>
+          </div>
+        </div>
+      </details>
+    </section>
+
+    <!-- WINDOWS 10 -->
+    <section class="uacn-panel" id="uacn-panel-win10" role="tabpanel" aria-labelledby="uacn-tab-win10">
+      <div class="uacn-fast">
+        <span class="uacn-badge">Fastest</span>
+        <p>Press <span class="uacn-kbd">&#8862; Windows</span> + <span class="uacn-kbd">I</span> to open <strong>Settings</strong> &rarr; <strong>System</strong> &rarr; <strong>About</strong>. Look for <strong>Device name</strong> under &ldquo;Device specifications.&rdquo;</p>
+      </div>
+      <ol class="uacn-steps">
+        <li>
+          <div class="uacn-st-title">Open Settings</div>
+          <div class="uacn-st-desc">Press <span class="uacn-kbd">&#8862; Windows</span> + <span class="uacn-kbd">I</span>, or click <strong>Start</strong> &rarr; the <strong>Settings</strong> gear.</div>
+        </li>
+        <li>
+          <div class="uacn-st-title">Click System</div>
+          <div class="uacn-st-desc">In the Settings window, click <strong>System</strong> (the laptop-and-display icon).</div>
+        </li>
+        <li>
+          <div class="uacn-st-title">Scroll down to About</div>
+          <div class="uacn-st-desc">In the left sidebar, scroll all the way down and click <strong>About</strong>.</div>
+        </li>
+        <li>
+          <div class="uacn-st-title">Find Device name</div>
+          <div class="uacn-st-desc">Under the <strong>Device specifications</strong> heading, the first line is <strong>Device name</strong> &mdash; that's your computer name.</div>
+          <div class="uacn-shot" role="img" aria-label="Windows 10 Settings About page showing Device name under Device specifications">
+            <div class="uacn-bar"><span class="uacn-dot r"></span><span class="uacn-dot y"></span><span class="uacn-dot g"></span><span class="uacn-t">Settings &mdash; About</span></div>
+            <div class="uacn-shotbody">
+              <div class="uacn-crumb">Device specifications</div>
+              <div class="uacn-kv uacn-hl"><span class="uacn-k">Device name</span><span class="uacn-v">OFFICE-PC-04</span></div>
+              <div class="uacn-kv"><span class="uacn-k">Full device name</span><span class="uacn-v">OFFICE-PC-04</span></div>
+              <div class="uacn-kv"><span class="uacn-k">Processor</span><span class="uacn-v">Intel Core i5</span></div>
+            </div>
+          </div>
+          <p class="uacn-annot">Yours might read <span class="uacn-code">OFFICE-PC-04</span>, <span class="uacn-code">DESKTOP-AB12CDE</span>, or a custom name your IT team set.</p>
+        </li>
+      </ol>
+      <details class="uacn-alt">
+        <summary><span class="uacn-tag">Alt</span> Right-click method <span class="uacn-chev">&rsaquo;</span></summary>
+        <div class="uacn-alt-body">
+          <ol>
+            <li>Right-click the <strong>Start</strong> button (bottom-left corner).</li>
+            <li>Click <strong>System</strong> in the menu that appears.</li>
+            <li>The About page opens &mdash; read <strong>Device name</strong>.</li>
+          </ol>
+        </div>
+      </details>
+      <details class="uacn-alt">
+        <summary><span class="uacn-tag">Alt</span> Quick command <span class="uacn-chev">&rsaquo;</span></summary>
+        <div class="uacn-alt-body">
+          <ol>
+            <li>Press <span class="uacn-kbd">&#8862; Windows</span> + <span class="uacn-kbd">R</span>, type <span class="uacn-code">cmd</span>, press <span class="uacn-kbd">Enter</span>.</li>
+            <li>Type <span class="uacn-code">hostname</span> and press <span class="uacn-kbd">Enter</span> &mdash; the word shown is your computer name.</li>
+          </ol>
+          <div class="uacn-shot" style="margin-top:14px" role="img" aria-label="Command Prompt showing hostname command output">
+            <div class="uacn-bar"><span class="uacn-dot r"></span><span class="uacn-dot y"></span><span class="uacn-dot g"></span><span class="uacn-t">Command Prompt</span></div>
+            <div class="uacn-term"><div><span class="uacn-prompt">C:\Users\You&gt;</span> <span class="uacn-cmd">hostname</span></div><div class="uacn-out">OFFICE-PC-04</div></div>
+          </div>
+        </div>
+      </details>
+    </section>
+
+    <!-- macOS -->
+    <section class="uacn-panel" id="uacn-panel-mac" role="tabpanel" aria-labelledby="uacn-tab-mac">
+      <div class="uacn-fast">
+        <span class="uacn-badge">Fastest</span>
+        <p>Click the <strong>Apple menu</strong> (<svg class="uacn-apple" viewBox="0 0 24 24" aria-label="Apple menu"><path d="M16 1.5c.1 1.1-.3 2.1-1 2.9-.7.8-1.8 1.4-2.8 1.3-.1-1 .4-2.1 1-2.8.7-.8 1.9-1.4 2.8-1.4zm3.4 16.1c-.5 1.2-.8 1.7-1.5 2.7-.9 1.4-2.2 3.1-3.8 3.2-1.4 0-1.8-.9-3.7-.9s-2.3.9-3.7.9c-1.6 0-2.8-1.6-3.7-3-2.6-3.9-2.9-8.5-1.3-11 1.1-1.7 2.9-2.7 4.6-2.7 1.7 0 2.8 1 4.2 1 1.4 0 2.2-1 4.2-1 1.5 0 3.1.8 4.2 2.3-3.7 2-3.1 7.3.2 8.5z"/></svg>) &rarr; <strong>System Settings</strong> &rarr; <strong>General</strong> &rarr; <strong>About</strong>. Your computer name is the <strong>Name</strong> at the top.</p>
+      </div>
+      <ol class="uacn-steps">
+        <li>
+          <div class="uacn-st-title">Open the Apple menu</div>
+          <div class="uacn-st-desc">Click the <strong>Apple logo</strong> (<svg class="uacn-apple" viewBox="0 0 24 24" aria-label="Apple logo"><path d="M16 1.5c.1 1.1-.3 2.1-1 2.9-.7.8-1.8 1.4-2.8 1.3-.1-1 .4-2.1 1-2.8.7-.8 1.9-1.4 2.8-1.4zm3.4 16.1c-.5 1.2-.8 1.7-1.5 2.7-.9 1.4-2.2 3.1-3.8 3.2-1.4 0-1.8-.9-3.7-.9s-2.3.9-3.7.9c-1.6 0-2.8-1.6-3.7-3-2.6-3.9-2.9-8.5-1.3-11 1.1-1.7 2.9-2.7 4.6-2.7 1.7 0 2.8 1 4.2 1 1.4 0 2.2-1 4.2-1 1.5 0 3.1.8 4.2 2.3-3.7 2-3.1 7.3.2 8.5z"/></svg>) in the very top-left corner of your screen.</div>
+        </li>
+        <li>
+          <div class="uacn-st-title">Choose System Settings</div>
+          <div class="uacn-st-desc">Click <strong>System Settings&hellip;</strong> (on macOS Monterey and earlier this is called <strong>System Preferences</strong>).</div>
+        </li>
+        <li>
+          <div class="uacn-st-title">Go to General &rarr; About</div>
+          <div class="uacn-st-desc">In the sidebar click <strong>General</strong>, then click <strong>About</strong>.</div>
+        </li>
+        <li>
+          <div class="uacn-st-title">Read the Name</div>
+          <div class="uacn-st-desc">The very first row, <strong>Name</strong>, is your computer's name.</div>
+          <div class="uacn-shot" role="img" aria-label="macOS System Settings General About page showing Name Reception-MacBook-Pro">
+            <div class="uacn-bar"><span class="uacn-dot r"></span><span class="uacn-dot y"></span><span class="uacn-dot g"></span><span class="uacn-t">System Settings &mdash; About</span></div>
+            <div class="uacn-shotbody">
+              <div class="uacn-crumb"><b>General</b> &rsaquo; <b>About</b></div>
+              <div class="uacn-kv uacn-hl"><span class="uacn-k">Name</span><span class="uacn-v">Reception-MacBook-Pro</span></div>
+              <div class="uacn-kv"><span class="uacn-k">macOS</span><span class="uacn-v">Sequoia 15.5</span></div>
+              <div class="uacn-kv"><span class="uacn-k">Chip</span><span class="uacn-v">Apple M3</span></div>
+            </div>
+          </div>
+          <p class="uacn-annot">Yours will look like <span class="uacn-code">Reception-MacBook-Pro</span> or <span class="uacn-code">Johns-iMac</span>.</p>
+        </li>
+      </ol>
+      <details class="uacn-alt">
+        <summary><span class="uacn-tag">Alt</span> Using the Terminal <span class="uacn-chev">&rsaquo;</span></summary>
+        <div class="uacn-alt-body">
+          <ol>
+            <li>Open <strong>Terminal</strong> (press <span class="uacn-kbd">&#8984; Cmd</span> + <span class="uacn-kbd">Space</span>, type <em>Terminal</em>, press <span class="uacn-kbd">Return</span>).</li>
+            <li>Type <span class="uacn-code">scutil --get ComputerName</span> and press <span class="uacn-kbd">Return</span>.</li>
+            <li>The line printed is your computer name. (<span class="uacn-code">hostname</span> also works on any Mac version.)</li>
+          </ol>
+          <div class="uacn-shot" style="margin-top:14px" role="img" aria-label="macOS Terminal showing scutil get ComputerName output">
+            <div class="uacn-bar"><span class="uacn-dot r"></span><span class="uacn-dot y"></span><span class="uacn-dot g"></span><span class="uacn-t">Terminal &mdash; zsh</span></div>
+            <div class="uacn-term"><div><span class="uacn-prompt">you@mac ~ %</span> <span class="uacn-cmd">scutil --get ComputerName</span></div><div class="uacn-out">Reception-MacBook-Pro</div></div>
+          </div>
+        </div>
+      </details>
+    </section>
+
+    <!-- Universal -->
+    <div class="uacn-universal">
+      <h3>&#9889; Works on any version</h3>
+      <p>No matter which Windows or Mac you have, you can always open the command line and type one short word:</p>
+      <div class="uacn-shot" role="img" aria-label="Terminal showing the hostname command returning a computer name">
+        <div class="uacn-bar"><span class="uacn-dot r"></span><span class="uacn-dot y"></span><span class="uacn-dot g"></span><span class="uacn-t">hostname</span></div>
+        <div class="uacn-term"><div><span class="uacn-prompt">&gt;</span> <span class="uacn-cmd">hostname</span></div><div class="uacn-out">YOUR-COMPUTER-NAME</div></div>
+      </div>
+      <p style="margin-top:12px">On Windows that's <strong>Command Prompt</strong> (<span class="uacn-kbd">&#8862; Win</span> + <span class="uacn-kbd">R</span> &rarr; <span class="uacn-code">cmd</span>). On Mac it's <strong>Terminal</strong>. Type <span class="uacn-code">hostname</span>, press Enter, and copy the result.</p>
+    </div>
+
+  </div>
+
+  <div class="uacn-footer">Umbrella Automation &middot; Computer Name guide v0.1.0</div>
+</div>
+
+<script>
+(function () {
+  var roots = document.querySelectorAll('.uacn');
+  for (var n = 0; n < roots.length; n++) {
+    var root = roots[n];
+    if (root.getAttribute('data-uacn-ready')) continue;
+    root.setAttribute('data-uacn-ready', '1');
+    (function (root) {
+      var tabs = Array.prototype.slice.call(root.querySelectorAll('.uacn-tab'));
+      function select(tab) {
+        tabs.forEach(function (t) {
+          var on = t === tab;
+          t.setAttribute('aria-selected', on ? 'true' : 'false');
+          var panel = root.querySelector('#' + t.getAttribute('aria-controls'));
+          if (panel) panel.classList.toggle('uacn-active', on);
+        });
+      }
+      tabs.forEach(function (tab, i) {
+        tab.addEventListener('click', function () { select(tab); });
+        tab.addEventListener('keydown', function (e) {
+          if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+            e.preventDefault();
+            var dir = e.key === 'ArrowRight' ? 1 : -1;
+            var next = tabs[(i + dir + tabs.length) % tabs.length];
+            next.focus(); select(next);
+          }
+        });
+      });
+      try {
+        var ua = navigator.userAgent;
+        var plat = (navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '';
+        if (/Mac/i.test(plat) || /Mac OS X/i.test(ua)) {
+          select(root.querySelector('#uacn-tab-mac'));
+        } else if (/Windows NT 10/i.test(ua)) {
+          select(root.querySelector('#uacn-tab-win11'));
+        }
+      } catch (e) {}
+    })(root);
+  }
+})();
+</script>
