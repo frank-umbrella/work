@@ -2553,7 +2553,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.161";
+const APP_VERSION = "0.14.162";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -2584,6 +2584,10 @@ if (_versionChip) {
 // fixes). Patch-level no-op bumps don't need entries -- only stuff a
 // human reader would want to know about.
 const CHANGELOG = [
+  { version: "0.14.162", date: "2026-05-27", changes: [
+    "Agent v0.14.54: WSB probe also captures Capacity + FreeSpace per backup target via a read-only Win32_Volume CIM query (pre-fetched once outside the loop so a host with multiple targets stays fast). Drawer's WSB Destinations row now reads e.g. '\\\\?\\Volume{...} (Disk) CCD-HYP_DISK_01 · 1.86 TB, 412 GB free · 78% used · in rotation 4.7y'. UNC paths and offline drives stay null with no error.",
+    "Per-host CSV + Excel export 'WSB destinations' sheet gains four columns: Capacity (1.86 TB), Capacity (bytes) for numeric pivots, Free, Free (bytes). The friendly capacity strings answer 'is this disk almost full?' at a glance; the raw-bytes columns let downstream spreadsheets sort + filter numerically across multiple hosts.",
+  ]},
   { version: "0.14.161", date: "2026-05-27", changes: [
     "Per-host CSV + Excel export: new 'WSB backups per disk' sheet with one row per disk WSB has written to. Columns: friendly disk name (e.g. 'CCD-HYP 2026_01_21 13:35 DISK_01'), backups retained on that disk, oldest backup date, newest backup date. Mirrors the drawer's 'Backups per disk' block so the planning data is now in the exports for downstream filtering. The existing 'WSB destinations' sheet also gains a 'Format date (NTFS volume root)' column from the v0.14.160 probe addition -- one stop for 'when did this physical disk go into rotation' across all targets.",
   ]},
@@ -8797,13 +8801,27 @@ function buildHostSections(a) {
   // CreationTime (when the disk was last formatted, i.e. when it went
   // into the backup rotation). Null on UNC targets and offline disks.
   if (wsb && wsb.installed && Array.isArray(wsb.targets) && wsb.targets.length) {
+    // Bytes -> friendly "1.86 TB" / "488 GB" string. Excel cells get
+    // both the formatted string (for human reading) AND a raw-bytes
+    // column so admins can pivot / sort / filter numerically.
+    const fmtBytes = (b) => {
+      if (b == null || isNaN(b)) return "";
+      const tb = b / 1099511627776;
+      if (tb >= 1) return `${(Math.round(tb * 100) / 100)} TB`;
+      const gb = b / 1073741824;
+      return `${Math.round(gb)} GB`;
+    };
     sections.push({
       title: "WSB destinations",
-      headers: ["Label", "Type", "Path / Drive", "Format date (NTFS volume root)"],
+      headers: ["Label", "Type", "Path / Drive", "Capacity", "Capacity (bytes)", "Free", "Free (bytes)", "Format date (NTFS volume root)"],
       rows: wsb.targets.map(t => [
         t.label || "",
         t.type || "",
         t.path || "",
+        fmtBytes(t.sizeBytes),
+        t.sizeBytes != null ? t.sizeBytes : "",
+        fmtBytes(t.freeBytes),
+        t.freeBytes != null ? t.freeBytes : "",
         t.formatDate || "",
       ]),
     });
@@ -11118,6 +11136,27 @@ function renderWsb(w) {
         <div class="v">${w.targets.map(t => {
           const where = t.path || t.label || "?";
           const kind = t.type ? ` <span class="meta">(${esc(t.type)})</span>` : "";
+          // Capacity (v0.14.162+). Read from Win32_Volume in the probe.
+          // Surface 'capacity · free' in a meta span next to the path
+          // so the planning view answers 'is this disk almost full?'
+          // at a glance. Null for UNC targets and offline drives.
+          let sizePart = "";
+          const fmtBytes = (b) => {
+            if (b == null || isNaN(b)) return "";
+            const tb = b / 1099511627776;
+            if (tb >= 1) return `${(Math.round(tb * 100) / 100)} TB`;
+            const gb = b / 1073741824;
+            return `${Math.round(gb)} GB`;
+          };
+          if (t.sizeBytes != null) {
+            const cap = fmtBytes(t.sizeBytes);
+            const free = t.freeBytes != null ? fmtBytes(t.freeBytes) : null;
+            const usedPct = (t.sizeBytes && t.freeBytes != null)
+              ? Math.round((1 - t.freeBytes / t.sizeBytes) * 100)
+              : null;
+            const pctSuffix = usedPct != null ? ` &middot; ${usedPct}% used` : '';
+            sizePart = ` <span class="meta" title="Win32_Volume Capacity + FreeSpace -- read-only CIM query on every check-in.">&middot; ${esc(cap)}${free ? `, ${esc(free)} free` : ''}${pctSuffix}</span>`;
+          }
           // NTFS volume format date (v0.14.160+). Tells the operator
           // "this physical disk has been in rotation since X" -- a
           // more useful planning signal than the oldest-backup timestamp
@@ -11133,7 +11172,7 @@ function renderWsb(w) {
               formatPart = ` <span class="meta" title="NTFS volume root CreationTime -- when this disk was last formatted, which is typically when it went into the backup rotation. Read-only Get-Item lookup on every check-in.">&middot; in rotation ${esc(ageStr)} (formatted ${esc(fd.toLocaleDateString())})</span>`;
             }
           }
-          return `<div><code>${esc(where)}</code>${kind}${t.label && t.path ? ` <span class="meta">${esc(t.label)}</span>` : ""}${formatPart}</div>`;
+          return `<div><code>${esc(where)}</code>${kind}${t.label && t.path ? ` <span class="meta">${esc(t.label)}</span>` : ""}${sizePart}${formatPart}</div>`;
         }).join("")}</div>
       ` : ""}
       ${Array.isArray(w.sources) && w.sources.length ? `

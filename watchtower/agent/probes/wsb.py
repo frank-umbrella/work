@@ -100,21 +100,28 @@ try {
     # CreationTime via Get-Item. This is the moment the disk was last
     # formatted (NTFS creates $Volume's root directory during format and
     # never modifies it after), which proxies for "when did this physical
-    # disk go into rotation for backups." More accurate than the
-    # oldest-backup-version timestamp because format date predates the
-    # first backup -- often by months (drive arrives → formatted → sits
-    # → first backup runs).
+    # disk go into rotation for backups."
+    #
+    # PER-TARGET CAPACITY + FREE (v0.14.161+): read each target volume's
+    # Capacity and FreeSpace from Win32_Volume. Read-only CIM query.
+    # Pre-fetched outside the ForEach so we hit WMI once, not once-per-
+    # target. UNC paths and offline disks emit null with no error.
     #
     # STRICTLY READ-ONLY. Get-Item is the PowerShell equivalent of stat();
-    # the -Force flag suppresses the "are you sure" prompt for paths with
-    # the system attribute set (volume roots), it does NOT grant write
-    # permission. We never call Format-Volume, format.com, Initialize-Disk,
-    # Clear-Disk, or any other write cmdlet anywhere in this probe.
-    #
-    # UNC targets get formatDate = $null since "when was the remote share
-    # created" isn't meaningful for disk rotation planning. Disconnected
-    # local targets (drive went offline since policy was set) also yield
-    # null with no error -- Test-Path short-circuits.
+    # Get-CimInstance is a pure WMI read. -Force on Get-Item suppresses
+    # the system-attribute prompt on volume roots, it does NOT grant
+    # write permission. We never call Format-Volume, format.com,
+    # Initialize-Disk, Clear-Disk, or any other write cmdlet anywhere
+    # in this probe.
+
+    # Pre-fetch every mounted volume once so per-target lookups don't
+    # each spawn their own CIM query. Falls back to $null on any error
+    # (very old Server SKUs missing the Volume class, WMI repository
+    # corruption, etc); the per-target loop just skips the size lookup
+    # in that case.
+    $allVolumes = $null
+    try { $allVolumes = @(Get-CimInstance -ClassName Win32_Volume -ErrorAction Stop) } catch {}
+
     $targets = @()
     if ($policy -and $policy.BackupTargets) {
         $targets = @($policy.BackupTargets | ForEach-Object {
@@ -141,11 +148,36 @@ try {
                 # shouldn't fail the whole probe. formatDate stays $null.
             }
 
+            # Per-target capacity + free space via Win32_Volume lookup.
+            # Win32_Volume.DeviceID exposes the canonical path -- for a
+            # drive-letter mount it's "E:\", for a no-letter volume it's
+            # "\\?\Volume{guid}\". Both match exactly against the path
+            # WSB stored in the policy. UNC paths can't be matched so
+            # they fall through to $null. JSON-safe ints (uint64
+            # capacities up to ~9 PB stay within JS Number range).
+            $sizeBytes = $null
+            $freeBytes = $null
+            try {
+                if ($path -and $allVolumes -and $path -notmatch '^\\\\[^?]') {
+                    $vol = $allVolumes | Where-Object {
+                        $_.DeviceID -eq $path -or $_.Name -eq $path
+                    } | Select-Object -First 1
+                    if ($vol) {
+                        if ($vol.Capacity)  { $sizeBytes = [int64]$vol.Capacity }
+                        if ($vol.FreeSpace) { $freeBytes = [int64]$vol.FreeSpace }
+                    }
+                }
+            } catch {
+                # Quiet -- offline / inaccessible target. Stays $null.
+            }
+
             [PSCustomObject]@{
                 label      = "$($_.Label)"
                 type       = "$($_.TargetType)"
                 path       = $path
                 formatDate = $formatDate
+                sizeBytes  = $sizeBytes
+                freeBytes  = $freeBytes
             }
         })
     }
