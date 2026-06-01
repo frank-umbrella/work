@@ -2553,7 +2553,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.158";
+const APP_VERSION = "0.14.159";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -2584,6 +2584,9 @@ if (_versionChip) {
 // fixes). Patch-level no-op bumps don't need entries -- only stuff a
 // human reader would want to know about.
 const CHANGELOG = [
+  { version: "0.14.159", date: "2026-05-27", changes: [
+    "Per-event snooze duration picker (in each Events-tab card) gains an 'Indefinite -- mute until manually cleared' option. Useful for cases like WSB backup or WSB Backup disk age where the underlying condition is a long-running operational decision (client refusing to swap an old drive, backups intentionally disabled for a host being retired, etc) and a 90-day cap would just produce a re-firing alert in 3 months. Stored as a year-9999 sentinel timestamp so the worker's isEventSnoozed check stays a simple `until > now` comparison. The event card's status badge reads 'indefinite' instead of an obnoxious day count when the snooze runs long. Clear-snooze button on the card still works to end the snooze immediately whenever the operator's ready.",
+  ]},
   { version: "0.14.158", date: "2026-05-27", changes: [
     "VM endpoints can now manually claim their Hyper-V parent host. New 'Hyper-V parent host' dropdown in the drawer Config panel (visible only when the host is a VM) lists every other endpoint under the same client, HYP-detected boxes pinned to the top. Saving writes to the agent's config doc as physicalHostManual = { hostname, setAt, setBy }. Useful for new deployments where the guest reports in before the parent has Watchtower installed yet, or when Integration Services KVP exchange isn't working (older Integration Services, hardened VM, KVP service disabled).",
     "When the agent's next check-in reports a Hyper-V parent via Integration Services KVP that matches the manual pick, the drawer's System -> 'Hosted on' row shows a small green 'verified' chip with a check icon. If the agent reports a different parent than the manual pick, the row surfaces an amber mismatch warning showing both values so the operator can investigate. If only the manual pick is set (no auto-detected value yet), the row shows 'Awaiting agent confirmation' until KVP catches up. All three states reuse the CSS-icon vocabulary from v0.14.157.",
@@ -9498,6 +9501,11 @@ function computeEndpointEventCards(agent, notes, cfg) {
     if (!until) return "";
     const ms = Date.parse(until); if (!isFinite(ms)) return "";
     const days = Math.ceil((ms - Date.now()) / 86400000);
+    // Indefinite snooze: stored as a sentinel year-9999 timestamp.
+    // Anything > 25 years out is treated as "forever" so the display
+    // doesn't read "9131234d remaining". Operator can still clear it
+    // with the Clear-snooze button on the card.
+    if (days > 25 * 365) return "indefinite";
     return days > 0 ? `${days}d remaining` : "expired";
   };
   const findActiveSnooze = (k) => {
@@ -9647,6 +9655,7 @@ function renderEndpointEventsTab(pcId, agent, notes, cfg) {
                 <option value="30">30 days</option>
                 <option value="60">60 days</option>
                 <option value="90">90 days</option>
+                <option value="-1">Indefinite -- mute until manually cleared</option>
               </select>
             </label>
             <button class="btn btn-sm btn-primary" data-event-add-submit="${esc(c.kind)}">Save</button>
@@ -12293,18 +12302,25 @@ async function resendIntakeEmail(pcId, hostname) {
 // and suppress the email/webhook for that one signal until expiry.
 
 // Add a note. kind = "" for general, or one of omsa/wsb/disk/backupDiskAge.
-// days = 0 for no snooze, else number of days to snooze the event kind.
+// days = 0 for no snooze, positive number of days, or -1 for indefinite.
 async function addEventNote(pcId, hostname, client, kind, body, days) {
   if (!body) { toast("Add a note body before saving.", true); return; }
   if (body.length > 2000) { toast("Note body too long (2000 char max).", true); return; }
-  if (days > 0 && !kind) {
+  // Snooze requires picking a related event. Treat both positive
+  // durations AND -1 (indefinite) as "wants to snooze".
+  if ((days > 0 || days === -1) && !kind) {
     toast("Pick a related event to snooze, or set duration to 0.", true);
     return;
   }
 
-  const snoozeUntilIso = days > 0
-    ? new Date(Date.now() + days * 86400000).toISOString()
-    : null;
+  // Indefinite = sentinel year-9999 timestamp. The worker's
+  // isEventSnoozed() check is `until > Date.now()` so this stays
+  // active forever until an admin clicks Clear-snooze. The display
+  // helper (fmtSnoozeUntil) catches anything > 25y out and shows
+  // "indefinite" instead of an obnoxious day count.
+  const snoozeUntilIso = days === -1
+    ? "9999-12-31T23:59:59.000Z"
+    : (days > 0 ? new Date(Date.now() + days * 86400000).toISOString() : null);
 
   try {
     // Write the note doc first so it's visible immediately via the
@@ -12362,7 +12378,13 @@ async function addEventNote(pcId, hostname, client, kind, body, days) {
     if (evtBody) evtBody.value = "";
     const evtDays = kind ? document.getElementById("evtNoteDays_" + kind) : null;
     if (evtDays) evtDays.value = "0";
-    toast(snoozeUntilIso ? `Note saved and ${kind} alerts snoozed for ${days}d.` : "Note saved.");
+    toast(
+      !snoozeUntilIso
+        ? "Note saved."
+        : days === -1
+          ? `Note saved and ${kind} alerts muted indefinitely (clear via the card's Clear-snooze button when ready).`
+          : `Note saved and ${kind} alerts snoozed for ${days}d.`
+    );
   } catch (e) {
     toast(`Save note failed: ${e.message || e}`, true);
     console.error("[notes] addEndpointNote:", e);
