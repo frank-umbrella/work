@@ -2553,7 +2553,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.162";
+const APP_VERSION = "0.14.163";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -2584,6 +2584,9 @@ if (_versionChip) {
 // fixes). Patch-level no-op bumps don't need entries -- only stuff a
 // human reader would want to know about.
 const CHANGELOG = [
+  { version: "0.14.163", date: "2026-05-27", changes: [
+    "Endpoints table CSV + Excel export: seven new WSB columns to match what the per-host export added in v0.14.162. New columns: 'WSB drive name(s)' (semicolon-joined list of every disk WSB has written to on this host), then a primary-target block -- 'WSB primary drive name', 'WSB primary capacity' (friendly TB / GB), 'WSB primary capacity (bytes)' (raw int for numeric pivots), 'WSB primary free', 'WSB primary free (bytes)', 'WSB primary format date'. 'Primary' = the disk with the most recent backup, matching the drawer's purple primary chip. Lets you sort + filter a fleet-wide spreadsheet by which clients have aged backup disks, which primaries are running out of space, etc.",
+  ]},
   { version: "0.14.162", date: "2026-05-27", changes: [
     "Agent v0.14.54: WSB probe also captures Capacity + FreeSpace per backup target via a read-only Win32_Volume CIM query (pre-fetched once outside the loop so a host with multiple targets stays fast). Drawer's WSB Destinations row now reads e.g. '\\\\?\\Volume{...} (Disk) CCD-HYP_DISK_01 · 1.86 TB, 412 GB free · 78% used · in rotation 4.7y'. UNC paths and offline drives stay null with no error.",
     "Per-host CSV + Excel export 'WSB destinations' sheet gains four columns: Capacity (1.86 TB), Capacity (bytes) for numeric pivots, Free, Free (bytes). The friendly capacity strings answer 'is this disk almost full?' at a glance; the raw-bytes columns let downstream spreadsheets sort + filter numerically across multiple hosts.",
@@ -9014,13 +9017,26 @@ function buildEndpointRows() {
     : state.agents.map(a => a.id);
   const set = new Set(visible);
   const agents = state.agents.filter(a => set.has(a.id));
+  // Friendly bytes for the WSB capacity columns. Returns "" on null
+  // so empty cells stay empty in the spreadsheet.
+  const fmtBytes = (b) => {
+    if (b == null || isNaN(b)) return "";
+    const tb = b / 1099511627776;
+    if (tb >= 1) return `${(Math.round(tb * 100) / 100)} TB`;
+    const gb = b / 1073741824;
+    return `${Math.round(gb)} GB`;
+  };
   const headers = [
     "Hostname", "Client", "Internal IP", "External IP",
     "OS", "Manufacturer", "Model", "Service tag",
     "RAM (GB)", "CPU", "Agent version",
     "Last check-in", "Status",
     "Decommissioned", "Decommissioned by", "Decommissioned at",
-    "OMSA rollup", "WSB last result", "WSB last success", "WSB destination(s)", "WSB schedule", "WSB sources",
+    "OMSA rollup", "WSB last result", "WSB last success", "WSB destination(s)",
+    "WSB drive name(s)",
+    "WSB primary drive name", "WSB primary capacity", "WSB primary capacity (bytes)",
+    "WSB primary free", "WSB primary free (bytes)", "WSB primary format date",
+    "WSB schedule", "WSB sources",
     "LogMeIn description", "Defender realtime",
     "pcId",
   ];
@@ -9033,6 +9049,36 @@ function buildEndpointRows() {
     const lmi = r.logmein;
     const def = r.defender;
     const st = statusOf(a);
+    // WSB primary-target resolution. "Primary" = the target with the
+    // most recent backup (matches the drawer's purple "primary" pill).
+    // We then look up that target in wsb.targets by label match so
+    // we get capacity / free / formatDate from the policy info. If
+    // backupsByTarget is missing (older agents, no backups yet), the
+    // primary columns stay blank.
+    let primaryTarget = null;       // backupsByTarget entry
+    let primaryTargetMeta = null;   // matching wsb.targets entry (size info)
+    let driveNamesCombined = "";
+    if (wsb && wsb.installed && Array.isArray(wsb.backupsByTarget) && wsb.backupsByTarget.length) {
+      driveNamesCombined = wsb.backupsByTarget.map(t => t.target || "").filter(Boolean).join("; ");
+      let latestMs = -Infinity;
+      for (const t of wsb.backupsByTarget) {
+        const iso = t.newestBackup ? (typeof dateToIso === "function" ? dateToIso(t.newestBackup) : t.newestBackup) : null;
+        if (iso) {
+          const ms = new Date(iso).getTime();
+          if (isFinite(ms) && ms > latestMs) {
+            latestMs = ms;
+            primaryTarget = t;
+          }
+        }
+      }
+      if (primaryTarget && Array.isArray(wsb.targets) && wsb.targets.length) {
+        const needle = (primaryTarget.target || "").toLowerCase();
+        primaryTargetMeta = wsb.targets.find(t =>
+          (t.label || "").toLowerCase() === needle ||
+          (t.path || "").toLowerCase() === needle
+        ) || null;
+      }
+    }
     return [
       a.hostname || a.id, a.client || "",
       a.internalIp || "", a.externalIp || "",
@@ -9055,6 +9101,13 @@ function buildEndpointRows() {
             return t.type ? `${p} (${t.type})` : p;
           }).join("; ")
         : "",
+      driveNamesCombined,
+      primaryTarget ? (primaryTarget.target || "") : "",
+      primaryTargetMeta ? fmtBytes(primaryTargetMeta.sizeBytes) : "",
+      primaryTargetMeta && primaryTargetMeta.sizeBytes != null ? primaryTargetMeta.sizeBytes : "",
+      primaryTargetMeta ? fmtBytes(primaryTargetMeta.freeBytes) : "",
+      primaryTargetMeta && primaryTargetMeta.freeBytes != null ? primaryTargetMeta.freeBytes : "",
+      primaryTargetMeta ? (primaryTargetMeta.formatDate || "") : "",
       (wsb && wsb.installed && Array.isArray(wsb.schedule) && wsb.schedule.length)
         ? wsb.schedule.join(" · ") + " daily"
         : "",
