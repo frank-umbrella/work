@@ -1042,6 +1042,33 @@
     background: #422006;
     box-shadow: 0 -3px 0 0 #422006;
   }
+
+  /* Hyper-V parent verification badge -- shown next to "Hosted on"
+     in the drawer System section when the operator's manual pick
+     matches the agent's auto-detected value. Small green pill,
+     check-icon + label. Sister state: phy-parent-awaiting (set
+     but unconfirmed) renders as plain muted text since it has
+     less weight than a positive verify. */
+  .phy-verified-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: 6px;
+    padding: 1px 7px;
+    background: #d1fae5;
+    color: #065f46;
+    border-radius: 999px;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  html[data-theme="dark"] .phy-verified-chip { background: #064e3b; color: #6ee7b7; }
+  .phy-verified-chip .css-icon { margin-right: 0; }
+  .phy-parent-verified { color: #065f46; }
+  html[data-theme="dark"] .phy-parent-verified { color: #6ee7b7; }
+  .phy-parent-mismatch { color: #b45309; }
+  html[data-theme="dark"] .phy-parent-mismatch { color: #fcd34d; }
   .health-pill.health-ok    { background: #d1fae5; color: #065f46; }
   .health-pill.health-warn  { background: #fef3c7; color: #78350f; }
   .health-pill.health-bad   { background: #fee2e2; color: #7f1d1d; }
@@ -2526,7 +2553,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.157";
+const APP_VERSION = "0.14.158";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -2557,6 +2584,10 @@ if (_versionChip) {
 // fixes). Patch-level no-op bumps don't need entries -- only stuff a
 // human reader would want to know about.
 const CHANGELOG = [
+  { version: "0.14.158", date: "2026-05-27", changes: [
+    "VM endpoints can now manually claim their Hyper-V parent host. New 'Hyper-V parent host' dropdown in the drawer Config panel (visible only when the host is a VM) lists every other endpoint under the same client, HYP-detected boxes pinned to the top. Saving writes to the agent's config doc as physicalHostManual = { hostname, setAt, setBy }. Useful for new deployments where the guest reports in before the parent has Watchtower installed yet, or when Integration Services KVP exchange isn't working (older Integration Services, hardened VM, KVP service disabled).",
+    "When the agent's next check-in reports a Hyper-V parent via Integration Services KVP that matches the manual pick, the drawer's System -> 'Hosted on' row shows a small green 'verified' chip with a check icon. If the agent reports a different parent than the manual pick, the row surfaces an amber mismatch warning showing both values so the operator can investigate. If only the manual pick is set (no auto-detected value yet), the row shows 'Awaiting agent confirmation' until KVP catches up. All three states reuse the CSS-icon vocabulary from v0.14.157.",
+  ]},
   { version: "0.14.157", date: "2026-05-27", changes: [
     "Status pill icons: per operator pick from status-icon-previews.html, OK is now a Heroicons-solid shield-check SVG (option 5) and warn / bad / muted are pure-CSS shapes (option 11) drawn from borders + pseudo-elements -- no SVG, no font, no Unicode. The CSS approach renders pixel-identically on every browser, OS, and font policy because nothing is being substituted. Severity color inherits from the pill's text color via currentColor so dark mode + each tone work without per-state overrides. Per-issue rows in the click-through popover got the same treatment; info + snooze stay as SVG since pure CSS doesn't draw them as cleanly at 14px.",
   ]},
@@ -8034,7 +8065,35 @@ function buildReportDom(a, logoPngDataUrl) {
       // Hyper-V parent host (only on guests where Integration Services
       // exposed the parent name). Doesn't link in the PDF (static doc)
       // but the name is enough to tie this VM back to its physical box.
-      (sys.physicalHost && sys.physicalHost.name) ? ["Hosted on", `<b>${esc(sys.physicalHost.name)}</b>${sys.physicalHost.fqdn ? ` <span style="color:#888;">&middot; ${esc(sys.physicalHost.fqdn)}</span>` : ""}`] : null,
+      (() => {
+        // Display the parent host with a verified badge when the
+        // operator's manual pick (cfg.physicalHostManual.hostname)
+        // matches the agent's Integration Services KVP report
+        // (sys.physicalHost.name). Three states:
+        //   - manual + auto agree     -> green ✓ verified
+        //   - manual set, auto missing -> "awaiting agent" muted note
+        //   - manual + auto differ    -> amber mismatch warning
+        // Falls back to the original auto-only render when there's
+        // no manual pick.
+        const cfgRef = (a && a.config) || {};
+        const manual = cfgRef.physicalHostManual || null;
+        const manualName = manual && manual.hostname ? String(manual.hostname) : "";
+        const autoName = sys.physicalHost && sys.physicalHost.name ? sys.physicalHost.name : "";
+        if (!manualName && !autoName) return null;
+        const fqdnSuffix = sys.physicalHost && sys.physicalHost.fqdn
+          ? ` <span style="color:#888;">&middot; ${esc(sys.physicalHost.fqdn)}</span>`
+          : "";
+        if (manualName && autoName) {
+          if (manualName.toLowerCase() === autoName.toLowerCase()) {
+            return ["Hosted on", `<b>${esc(autoName)}</b>${fqdnSuffix} <span class="phy-verified-chip" title="Manual pick matches the agent's auto-detected parent"><span class="css-icon css-check" style="color:#065f46;"></span> verified</span>`];
+          }
+          return ["Hosted on", `<b>${esc(manualName)}</b> <span style="color:#b45309;">(manual)</span>${fqdnSuffix}<div class="meta" style="color:#b45309;margin-top:2px;">&#9888; agent reports <code>${esc(autoName)}</code>, doesn't match the manual pick</div>`];
+        }
+        if (manualName) {
+          return ["Hosted on", `<b>${esc(manualName)}</b> <span class="meta">(manual)</span><div class="meta" style="margin-top:2px;">Awaiting agent confirmation -- next check-in will compare its Integration Services KVP report.</div>`];
+        }
+        return ["Hosted on", `<b>${esc(autoName)}</b>${fqdnSuffix}`];
+      })(),
       // Suppress service tag for VMs -- hypervisor-assigned BIOS serial
       // isn't a real hardware tag (no warranty / no Dell lookup).
       sys.isVirtual ? null : ["Service tag", sys.serviceTag ? `<code>${esc(sys.serviceTag)}</code>` : null],
@@ -9777,6 +9836,58 @@ function renderDrawer(pcId) {
         <div class="meta" id="dClientReassignStatus" style="margin-top:4px;"></div>
       </div>
 
+      ${(() => {
+        // Hyper-V parent host (manual override). VM-only. Lets the
+        // operator pick the parent host from a dropdown of other
+        // endpoints under the same client BEFORE the agent's
+        // auto-detection (Integration Services KVP) has confirmed
+        // it -- useful for new deployments where the guest reports
+        // in before the parent has Watchtower installed yet, or
+        // when KVP exchange isn't working (older IS, hardened VM).
+        //
+        // Display logic:
+        //   manual matches auto       -> green "verified" badge
+        //   manual set, no auto yet   -> "awaiting agent confirmation"
+        //   manual + auto differ      -> amber "mismatch" warning
+        //   no manual, auto set       -> shown in System section only
+        const sysRow = (a.report && a.report.system) || {};
+        if (!sysRow.isVirtual) return '';
+        const autoName = sysRow.physicalHost && sysRow.physicalHost.name ? sysRow.physicalHost.name : '';
+        const manual = (cfg && cfg.physicalHostManual) || null;
+        const manualName = manual && manual.hostname ? manual.hostname : '';
+        const candidates = state.agents
+          .filter(x => x.id !== a.id)
+          .filter(x => !x.decommissioned)
+          .filter(x => (x.client || '') === (a.client || ''))
+          .map(x => {
+            const xsr = (x.report && x.report.system) || {};
+            const isHyp = !!(xsr.isHypervisor || (typeof findGuestVms === 'function' && findGuestVms(x).length > 0));
+            return { id: x.id, hostname: x.hostname || x.id, isHyp };
+          })
+          .sort((p, q) => (q.isHyp - p.isHyp) || p.hostname.localeCompare(q.hostname));
+        const verified = manualName && autoName && manualName.toLowerCase() === autoName.toLowerCase();
+        const mismatch = manualName && autoName && manualName.toLowerCase() !== autoName.toLowerCase();
+        const awaiting = manualName && !autoName;
+        let statusHtml = '';
+        if (verified) {
+          statusHtml = `<span class="phy-parent-verified" title="Agent's automatic detection matches the manual selection above"><span class="css-icon css-check" style="color:#065f46;"></span> <b>Verified</b> &middot; agent's automatic detection matches.</span>`;
+        } else if (awaiting) {
+          statusHtml = `<span class="phy-parent-awaiting" title="Agent hasn't confirmed this parent yet. The next check-in (within 24h) will compare its Integration Services KVP report to your selection.">Awaiting agent confirmation. The next check-in compares Integration Services KVP to your selection.</span>`;
+        } else if (mismatch) {
+          statusHtml = `<span class="phy-parent-mismatch" title="Manual selection doesn't match what the agent's Integration Services KVP reports">&#9888; <b>Mismatch.</b> Agent reports <code>${esc(autoName)}</code>; manual is <code>${esc(manualName)}</code>. Re-check the dropdown or investigate the host.</span>`;
+        }
+        return `
+      <div style="margin:14px 0;" data-vm-parent-block>
+        <div style="font-size:13.5px;font-weight:600;margin-bottom:2px;">Hyper-V parent host <span class="meta" style="font-weight:400;font-size:12px;margin-left:6px;">VM only</span></div>
+        <div class="desc" style="margin-bottom:6px;">Manually pick the physical host that runs this VM. Only endpoints under the same client (<b>${esc(a.client || 'unknown')}</b>) are listed; the agent's own Integration Services KVP auto-detection still runs on the next check-in and a <b>verified</b> badge appears here when the two agree.</div>
+        <select id="dPhyParent" style="width:100%;padding:7px 10px;border:1px solid var(--line-strong);border-radius:7px;font-size:13.5px;background:var(--surface);">
+          <option value="">(not set${autoName ? ` -- agent auto-detected ${esc(autoName)}` : ''})</option>
+          ${candidates.map(p => `<option value="${esc(p.hostname)}"${manualName.toLowerCase() === p.hostname.toLowerCase() ? ' selected' : ''}>${esc(p.hostname)}${p.isHyp ? ' (HYP)' : ''}</option>`).join('')}
+        </select>
+        <div class="meta phy-parent-status" id="dPhyParentStatus" style="margin-top:6px;">${statusHtml}</div>
+      </div>`;
+      })()}
+
       <div style="margin:14px 0;">
         <div style="font-size:13.5px;font-weight:600;margin-bottom:2px;">Lifecycle</div>
         <div class="desc" style="margin-bottom:6px;">
@@ -9983,6 +10094,58 @@ function renderDrawer(pcId) {
         </select>
         <div class="meta" id="dClientReassignStatus" style="margin-top:4px;"></div>
       </div>
+
+      ${(() => {
+        // Hyper-V parent host (manual override). VM-only. Lets the
+        // operator pick the parent host from a dropdown of other
+        // endpoints under the same client BEFORE the agent's
+        // auto-detection (Integration Services KVP) has confirmed
+        // it -- useful for new deployments where the guest reports
+        // in before the parent has Watchtower installed yet, or
+        // when KVP exchange isn't working (older IS, hardened VM).
+        //
+        // Display logic:
+        //   manual matches auto       -> green "verified" badge
+        //   manual set, no auto yet   -> "awaiting agent confirmation"
+        //   manual + auto differ      -> amber "mismatch" warning
+        //   no manual, auto set       -> shown in System section only
+        const sysRow = (a.report && a.report.system) || {};
+        if (!sysRow.isVirtual) return '';
+        const autoName = sysRow.physicalHost && sysRow.physicalHost.name ? sysRow.physicalHost.name : '';
+        const manual = (cfg && cfg.physicalHostManual) || null;
+        const manualName = manual && manual.hostname ? manual.hostname : '';
+        const candidates = state.agents
+          .filter(x => x.id !== a.id)
+          .filter(x => !x.decommissioned)
+          .filter(x => (x.client || '') === (a.client || ''))
+          .map(x => {
+            const xsr = (x.report && x.report.system) || {};
+            const isHyp = !!(xsr.isHypervisor || (typeof findGuestVms === 'function' && findGuestVms(x).length > 0));
+            return { id: x.id, hostname: x.hostname || x.id, isHyp };
+          })
+          .sort((p, q) => (q.isHyp - p.isHyp) || p.hostname.localeCompare(q.hostname));
+        const verified = manualName && autoName && manualName.toLowerCase() === autoName.toLowerCase();
+        const mismatch = manualName && autoName && manualName.toLowerCase() !== autoName.toLowerCase();
+        const awaiting = manualName && !autoName;
+        let statusHtml = '';
+        if (verified) {
+          statusHtml = `<span class="phy-parent-verified" title="Agent's automatic detection matches the manual selection above"><span class="css-icon css-check" style="color:#065f46;"></span> <b>Verified</b> &middot; agent's automatic detection matches.</span>`;
+        } else if (awaiting) {
+          statusHtml = `<span class="phy-parent-awaiting" title="Agent hasn't confirmed this parent yet. The next check-in (within 24h) will compare its Integration Services KVP report to your selection.">Awaiting agent confirmation. The next check-in compares Integration Services KVP to your selection.</span>`;
+        } else if (mismatch) {
+          statusHtml = `<span class="phy-parent-mismatch" title="Manual selection doesn't match what the agent's Integration Services KVP reports">&#9888; <b>Mismatch.</b> Agent reports <code>${esc(autoName)}</code>; manual is <code>${esc(manualName)}</code>. Re-check the dropdown or investigate the host.</span>`;
+        }
+        return `
+      <div style="margin:14px 0;" data-vm-parent-block>
+        <div style="font-size:13.5px;font-weight:600;margin-bottom:2px;">Hyper-V parent host <span class="meta" style="font-weight:400;font-size:12px;margin-left:6px;">VM only</span></div>
+        <div class="desc" style="margin-bottom:6px;">Manually pick the physical host that runs this VM. Only endpoints under the same client (<b>${esc(a.client || 'unknown')}</b>) are listed; the agent's own Integration Services KVP auto-detection still runs on the next check-in and a <b>verified</b> badge appears here when the two agree.</div>
+        <select id="dPhyParent" style="width:100%;padding:7px 10px;border:1px solid var(--line-strong);border-radius:7px;font-size:13.5px;background:var(--surface);">
+          <option value="">(not set${autoName ? ` -- agent auto-detected ${esc(autoName)}` : ''})</option>
+          ${candidates.map(p => `<option value="${esc(p.hostname)}"${manualName.toLowerCase() === p.hostname.toLowerCase() ? ' selected' : ''}>${esc(p.hostname)}${p.isHyp ? ' (HYP)' : ''}</option>`).join('')}
+        </select>
+        <div class="meta phy-parent-status" id="dPhyParentStatus" style="margin-top:6px;">${statusHtml}</div>
+      </div>`;
+      })()}
 
       <div style="margin:14px 0;">
         <div style="font-size:13.5px;font-weight:600;margin-bottom:2px;">Lifecycle</div>
@@ -10555,6 +10718,38 @@ function renderDrawer(pcId) {
         // Revert the dropdown to the current value so it doesn't look like
         // the change took effect.
         reassignSelect.value = cfg.clientIdOverride || "";
+      }
+    });
+  }
+
+  // Hyper-V parent host dropdown (VM-only). Saves the manual pick
+  // to the config doc as { hostname, setAt, setBy }. The verified
+  // badge is computed on render by comparing this to the agent's
+  // own Integration Services KVP value (sys.physicalHost.name) --
+  // when they agree, the operator sees a green checkmark.
+  const phyParentSelect = document.getElementById("dPhyParent");
+  if (phyParentSelect) {
+    phyParentSelect.addEventListener("change", async (e) => {
+      const newHost = (e.target.value || "").trim();
+      const status = document.getElementById("dPhyParentStatus");
+      if (status) status.textContent = "Saving…";
+      try {
+        const value = newHost
+          ? { hostname: newHost, setAt: new Date().toISOString(), setBy: state.user.email }
+          : null;
+        await writeConfig(pcId, "physicalHostManual", value);
+        logActivity({
+          type: "hyperv_parent_set",
+          target: { type: "host", id: pcId, label: a.hostname || pcId },
+          details: { hostname: newHost || null },
+        }).catch(() => {});
+        // Don't manually mutate state.text -- the onSnapshot listener
+        // re-renders the drawer with the new value, which recomputes
+        // the verified/awaiting/mismatch badge for free.
+        toast(newHost ? `Hyper-V parent set to ${newHost}.` : "Hyper-V parent cleared.");
+      } catch (err) {
+        if (status) status.textContent = `Save failed: ${err.message || err}`;
+        toast(`Save failed: ${err.message || err}`, true);
       }
     });
   }
