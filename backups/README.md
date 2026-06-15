@@ -67,6 +67,11 @@ Pages. Two server-side pieces are deployed separately:
 
 ## Changelog
 
+### v0.6.1 — 2026-06-15
+Fixed the detail-drawer Export menu showing as an empty white box: it was
+anchored right and opened off the drawer's left edge, where the drawer's
+overflow clipped the text. It now anchors left and opens within the drawer.
+
 ### v0.6.0 — 2026-06-15
 - **"VM - N/A" / "Workstation - N/A" cells** now show a compact **VM / WS bubble**
   instead of the repeated text.

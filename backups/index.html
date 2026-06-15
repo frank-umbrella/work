@@ -269,7 +269,10 @@
     background: var(--panel); border: 1px solid var(--border-2); border-radius: 10px; box-shadow: var(--shadow); padding: 10px;
   }
   .menu[hidden] { display: none; }
-  .menu.up { top: auto; bottom: calc(100% + 6px); }
+  /* Detail-drawer export menu: anchor LEFT and open upward so it stays inside
+     the drawer (the drawer has overflow:auto and would clip a right-anchored,
+     leftward-opening menu — that showed as an empty white sliver). */
+  .menu.up { top: auto; bottom: calc(100% + 6px); left: 0; right: auto; width: 220px; }
   .menu .grp { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--text-faint); margin: 8px 4px 4px; }
   .menu label { display: flex; align-items: center; gap: 8px; padding: 5px 6px; border-radius: 6px; cursor: pointer; font-size: 13px; }
   .menu label:hover { background: var(--panel-2); }
@@ -582,7 +585,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION    = "0.6.0";
+const APP_VERSION    = "0.6.1";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const OWNER_EMAIL    = "frank@umbrellaautomation.com";
 
