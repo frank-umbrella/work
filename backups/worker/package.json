@@ -1,0 +1,16 @@
+{
+  "name": "backups-worker",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Cloudflare Worker that emails an end-of-day digest of Backup Audit changes (reads /backup_activity from Firestore via service account, sends via Resend). Shares the watchtower-6fbe1 Firebase project and Resend setup.",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail"
+  },
+  "devDependencies": {
+    "wrangler": "^4.94.0"
+  }
+}

@@ -1,0 +1,39 @@
+name = "backups-worker"
+main = "src/index.js"
+compatibility_date = "2026-05-22"
+compatibility_flags = ["nodejs_compat"]
+
+# Pin to the Umbrella MSP Cloudflare account (same one watchtower-worker
+# deploys to) so `wrangler deploy` targets the right account even when
+# logged into multiple. The personal account on sevendwarfs.workers.dev
+# is intentionally separate.
+account_id = "87034c82986d2aacbc4d52e8de0fa2fd"
+
+# End-of-day digest. Fires once daily; the handler emails a summary of
+# every backup-audit change (create / edit / delete) logged in the last
+# 24 hours. 23:00 UTC ~= 6pm US Eastern (EST) / 7pm (EDT) -- end of the
+# work day, one rollup, not per-change spam.
+[triggers]
+crons = ["0 23 * * *"]
+
+[vars]
+# Firebase project ID -- the SAME project the dashboard + watchtower use.
+# Not a secret. The worker reads /backup_activity here via service account.
+FIREBASE_PROJECT_ID = "watchtower-6fbe1"
+
+# Sender on the verified Resend subdomain (alerts.umbrellaautomation.com,
+# already verified for watchtower-worker). Local part "backups" identifies
+# this product. Display name shows in the inbox.
+SENDER_FROM = "Backup Audits <backups@alerts.umbrellaautomation.com>"
+
+# Digest recipient. With alerts.umbrellaautomation.com verified, this can
+# be any address; defaults to the owner. Swap to a distribution list later.
+DIGEST_TO = "frank@umbrellaautomation.com"
+
+# Dashboard URL used in the email's "Open the dashboard" link.
+DASHBOARD_URL = "https://frank-umbrella.github.io/work/backups/"
+
+# Secrets -- set with `wrangler secret put <NAME>`, never in this file:
+#   wrangler secret put FIREBASE_SERVICE_ACCOUNT_JSON  # SAME service-account JSON as watchtower-worker (project watchtower-6fbe1)
+#   wrangler secret put RESEND_API_KEY                  # SAME Resend key as watchtower-worker
+#   wrangler secret put DIGEST_TRIGGER_KEY              # Optional: shared secret to allow manual POST /run?key=... for testing
