@@ -67,6 +67,19 @@ Pages. Two server-side pieces are deployed separately:
 
 ## Changelog
 
+### v0.3.0 — 2026-06-15
+- **Per-audit export** from the detail drawer: branded **PDF** (Umbrella
+  Automation logo), **Excel**, **CSV**, and a **screenshot** (PNG). Passwords
+  are masked in the PDF/screenshot.
+- **Column layout + theme now save to your profile** (`/backup_users/{uid}`),
+  so they follow your account across devices (localStorage still paints first).
+- **Colour-coded backup-solution tags** (Veeam Cloud, Veeam USB, Carbonite,
+  Windows Server Backup, None).
+- Imported the **Client ID** column from the sheet and turned it on by default.
+- Disambiguated the backup dates: **"Last backup (Veeam)"** (Veeam Cloud) vs
+  **"Last local backup [Disk 1]"** (Windows Server Backup) — both shown by
+  default — matching the sheet's grouped headers.
+
 ### v0.2.1 — 2026-06-15
 Dropped the spreadsheet-only "Focus / needs attention" data column. In its
 place, every row has a checkbox in a leading column that **highlights the row**

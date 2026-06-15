@@ -216,7 +216,13 @@
   .pill.medium { color: var(--warn); border-color: #5a4a2c; background: #2a2414; }
   .pill.low { color: var(--text-dim); }
   .pill.focus { color: var(--warn); border-color: #5a4a2c; background: #2a2414; }
-  .tag { display: inline-block; font-size: 11px; color: var(--accent-2); background: var(--accent-dim); border-radius: 5px; padding: 1px 6px; margin: 1px 3px 1px 0; }
+  .tag { display: inline-block; font-size: 11px; font-weight: 600; color: var(--accent-2); background: var(--accent-dim); border-radius: 5px; padding: 1px 7px; margin: 1px 3px 1px 0; border: 1px solid transparent; }
+  /* Backup-solution colour coding (distinct, tasteful, both themes) */
+  .tag.sol-veeam-cloud { color: #34d07f; background: rgba(52,208,127,.14); border-color: rgba(52,208,127,.35); }
+  .tag.sol-veeam-usb   { color: #2bc4d6; background: rgba(43,196,214,.14); border-color: rgba(43,196,214,.35); }
+  .tag.sol-carbonite   { color: #f0973f; background: rgba(240,151,63,.14); border-color: rgba(240,151,63,.35); }
+  .tag.sol-wsb         { color: #5aa9f0; background: rgba(90,169,240,.14); border-color: rgba(90,169,240,.35); }
+  .tag.sol-none        { color: var(--text-faint); background: var(--panel-2); border-color: var(--border-2); }
 
   /* ---------- column chooser ---------- */
   .menu-wrap { position: relative; }
@@ -225,6 +231,7 @@
     background: var(--panel); border: 1px solid var(--border-2); border-radius: 10px; box-shadow: var(--shadow); padding: 10px;
   }
   .menu[hidden] { display: none; }
+  .menu.up { top: auto; bottom: calc(100% + 6px); }
   .menu .grp { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--text-faint); margin: 8px 4px 4px; }
   .menu label { display: flex; align-items: center; gap: 8px; padding: 5px 6px; border-radius: 6px; cursor: pointer; font-size: 13px; }
   .menu label:hover { background: var(--panel-2); }
@@ -481,6 +488,15 @@
     </div>
     <div class="drawer-body" id="detailBody"></div>
     <div class="modal-foot">
+      <div class="menu-wrap">
+        <button class="btn" id="detailExportBtn">Export ▾</button>
+        <div class="menu up" id="detailExportMenu" hidden>
+          <label data-dexport="pdf">PDF (branded)</label>
+          <label data-dexport="xlsx">Excel (.xlsx)</label>
+          <label data-dexport="csv">CSV (.csv)</label>
+          <label data-dexport="png">Screenshot (.png)</label>
+        </div>
+      </div>
       <div style="flex:1"></div>
       <button class="btn" id="detailEdit">Edit</button>
     </div>
@@ -514,7 +530,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION    = "0.2.1";
+const APP_VERSION    = "0.3.0";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const OWNER_EMAIL    = "frank@umbrellaautomation.com";
 
@@ -553,13 +569,14 @@ const SEED_CLIENTS = [
 // ---------------------------------------------------------------
 const FIELDS = [
   // ---- core ----
+  { k: "clientId",             g: "core", t: "text",   label: "Client ID", hint: "Internal client number from the audit sheet", table: true },
   { k: "client",               g: "core", t: "client", label: "Client", required: true, table: true },
   { k: "server",               g: "core", t: "text",   label: "Server / Workstation name", hint: "VM name in Hyper-V if a VM", required: true, table: true },
   { k: "priority",             g: "core", t: "select", opts: PRIORITIES, label: "Client priority", table: true },
   { k: "auditor",              g: "core", t: "select", opts: AUDITORS, label: "Auditor", table: true },
   { k: "auditDate",            g: "core", t: "date",   label: "Audit date", table: true },
   { k: "backupSolutions",      g: "core", t: "multi",  opts: BACKUP_SOLUTIONS, label: "Backup solutions installed", table: true },
-  { k: "lastBackup",           g: "core", t: "date",   label: "Last backup", table: true },
+  { k: "lastBackup",           g: "core", t: "date",   label: "Last backup (Veeam)", hint: "Veeam Cloud agent last backup", table: true },
   { k: "daysSinceLocal",       g: "core", t: "number", label: "Days since local backup [Disk 1]", table: true },
   { k: "driveState",           g: "core", t: "text",   label: "Current state of drives", table: true },
   { k: "recoveryMediaCreated", g: "core", t: "status", label: "Recovery media created / GDrive" },
@@ -606,7 +623,7 @@ const FIELDS = [
   { k: "disk1Dest",      g: "advanced", t: "text", label: "Disk 1 — storage type / destination" },
   { k: "totalBackups",   g: "advanced", t: "number", label: "All backups total [Local]" },
   { k: "backupsAvailable", g: "advanced", t: "number", label: "Backups available [Disk 1]" },
-  { k: "disk1Latest",    g: "advanced", t: "date", label: "Disk 1 — latest copy" },
+  { k: "disk1Latest",    g: "advanced", t: "date", label: "Last local backup [Disk 1]", hint: "Windows Server Backup / local — Disk 1 latest copy", table: true },
   { k: "disk2Dest",      g: "advanced", t: "text", label: "Rotation Disk 2 — destination" },
   { k: "disk2Latest",    g: "advanced", t: "date", label: "Rotation Disk 2 — latest copy" },
   { k: "disk3Dest",      g: "advanced", t: "text", label: "Rotation Disk 3 — destination" },
@@ -632,7 +649,7 @@ const FIELD_BY_KEY = Object.fromEntries(FIELDS.map(f => [f.k, f]));
 // Default table columns — a curated set that reads cleanly at full width
 // without crowding. Everything else is one click away (detail drawer) or
 // can be toggled on via the column chooser.
-const DEFAULT_COLS = ["client", "server", "auditor", "auditDate", "backupSolutions", "lastBackup", "driveState", "errors"];
+const DEFAULT_COLS = ["clientId", "client", "server", "auditor", "auditDate", "backupSolutions", "lastBackup", "disk1Latest", "errors"];
 
 // Per-field column-width class (drives the <colgroup>) so short fixed-shape
 // values don't hog width under the fixed table layout.
@@ -694,6 +711,17 @@ function statusClass(v) {
   if (v === "❗") return "warn";
   return "na";
 }
+// Backup-solution -> colour class for its pill.
+function solClass(name) {
+  const s = String(name).toLowerCase();
+  if (s.includes("veeam") && s.includes("usb")) return "sol-veeam-usb";
+  if (s.includes("veeam")) return "sol-veeam-cloud";
+  if (s.includes("carbonite")) return "sol-carbonite";
+  if (s.includes("windows server") || s === "wsb") return "sol-wsb";
+  if (s === "none") return "sol-none";
+  return "";
+}
+const solTag = x => `<span class="tag ${solClass(x)}">${esc(x)}</span>`;
 function displayValue(f, v) {
   if (v == null || v === "") return "";
   if (f.t === "multi") return Array.isArray(v) ? v.join(", ") : String(v);
@@ -743,13 +771,41 @@ onAuthStateChanged(auth, async (user) => {
 
   $("#tabSettings").hidden = !state.isOwner;   // only owner manages viewers
 
-  loadCols();
+  loadCols();           // localStorage first (instant paint)
   buildColsMenu();
   buildClientFilter();
   buildAuditorFilter();
   subscribeAudits();
   subscribeViewers();   // determines Activity visibility (+ subscribes activity if allowed)
+  loadUserPrefs(user.uid);  // then reconcile from the signed-in profile (cross-device)
 });
+
+// Per-user preferences saved to /backup_users/{uid}: visible columns + theme.
+// localStorage paints instantly on load; this overrides with the account's
+// saved values so prefs follow you across devices. "Fresher value wins".
+async function loadUserPrefs(uid) {
+  try {
+    const snap = await getDoc(doc(db, "backup_users", uid));
+    if (!snap.exists()) { saveUserPrefs(); return; }   // seed from current local state
+    const d = snap.data();
+    if (Array.isArray(d.columns) && d.columns.length) {
+      state.cols = d.columns.filter(k => FIELD_BY_KEY[k]);
+      localStorage.setItem("backups:cols", JSON.stringify(state.cols));
+      buildColsMenu(); renderTable();
+    }
+    if (d.theme === "light" || d.theme === "dark") {
+      localStorage.setItem("backups:theme", d.theme);
+      applyTheme(d.theme);
+    }
+  } catch (e) { console.warn("loadUserPrefs failed:", e); }
+}
+function saveUserPrefs() {
+  if (!state.user) return;
+  const theme = document.body.classList.contains("light") ? "light" : "dark";
+  setDoc(doc(db, "backup_users", state.user.uid),
+    { columns: state.cols, theme, updatedAt: serverTimestamp() }, { merge: true })
+    .catch(e => console.warn("saveUserPrefs failed:", e));
+}
 
 function teardown() {
   unsubAudits && unsubAudits(); unsubAudits = null;
@@ -837,7 +893,7 @@ function loadCols() {
     state.cols = Array.isArray(saved) && saved.length ? saved.filter(k => FIELD_BY_KEY[k]) : DEFAULT_COLS.slice();
   } catch { state.cols = DEFAULT_COLS.slice(); }
 }
-function saveCols() { localStorage.setItem("backups:cols", JSON.stringify(state.cols)); }
+function saveCols() { localStorage.setItem("backups:cols", JSON.stringify(state.cols)); saveUserPrefs(); }
 
 function buildColsMenu() {
   const menu = $("#colsMenu");
@@ -859,7 +915,7 @@ function buildColsMenu() {
 }
 $("#colsBtn").addEventListener("click", e => { e.stopPropagation(); $("#colsMenu").hidden = !$("#colsMenu").hidden; });
 document.addEventListener("click", e => {
-  if (!e.target.closest(".menu-wrap")) { $("#colsMenu").hidden = true; $("#exportMenu").hidden = true; }
+  if (!e.target.closest(".menu-wrap")) { $("#colsMenu").hidden = true; $("#exportMenu").hidden = true; $("#detailExportMenu").hidden = true; }
 });
 
 // ---------------------------------------------------------------
@@ -881,6 +937,7 @@ $("#themeToggle").addEventListener("click", () => {
   const next = document.body.classList.contains("light") ? "dark" : "light";
   localStorage.setItem("backups:theme", next);
   applyTheme(next);
+  saveUserPrefs();   // remember the choice on the signed-in profile
 });
 initTheme();
 
@@ -975,7 +1032,7 @@ function cellHtml(r, k) {
   }
   if (f.t === "bool") return td(v ? '<span class="pill focus">FOCUS</span>' : "");
   if (k === "priority" && v) return td(`<span class="pill ${v.toLowerCase()}">${esc(v)}</span>`);
-  if (f.t === "multi") return td((v || []).map(x => `<span class="tag">${esc(x)}</span>`).join(""));
+  if (f.t === "multi") return td((v || []).map(x => f.k === "backupSolutions" ? solTag(x) : `<span class="tag">${esc(x)}</span>`).join(""));
   if (f.t === "date") return td(fmtDate(v));
   if (f.sensitive && v) return td('<span class="secret">••••••</span>');
   return td(esc(displayValue(f, v)));
@@ -1345,6 +1402,17 @@ function normForDiff(v) {
 // ---------------------------------------------------------------
 // DETAIL drawer
 // ---------------------------------------------------------------
+const DETAIL_GROUPS = [
+  ["Summary", ["clientId", "client", "server", "priority", "auditor", "auditDate", "backupSolutions", "lastBackup", "daysSinceLocal", "driveState", "recoveryMediaCreated", "recoveryMediaTested", "errors", "notes"]],
+  ["Veeam", ["agentCreated", "agentInstalled", "veeamLocalUsbJob", "veeamUsername"]],
+  ["System / remote", ["updatesPending", "lmiLock", "logmeinName", "vmGen"]],
+  ["Dell / hardware", ["openManage", "dateChecked", "idracIp", "idracLogin", "serialNumber", "driveStateOme", "systemState", "lastWindowsUpdate"]],
+  ["Credentials", ["username", "password", "localDomain"]],
+  ["Carbonite", ["carbonite", "filesProtected", "deviceProtected"]],
+  ["Local / Windows Server Backup", ["localType", "vssSettings", "localFrequency", "disk1Dest", "totalBackups", "backupsAvailable", "disk1Latest", "disk2Dest", "disk2Latest", "disk3Dest", "disk3Latest", "hddInstall"]],
+  ["Important paths", ["path1Name", "path1", "path2Name", "path2", "path3Name", "path3", "path4Name", "path4", "path5Name", "path5", "path6Name", "path6"]],
+];
+
 let detailId = null;
 function openDetail(id) {
   const r = state.audits.find(a => a.id === id); if (!r) return;
@@ -1352,16 +1420,7 @@ function openDetail(id) {
   $("#detailTitle").textContent = `${r.client || ""} — ${r.server || ""}`;
   const who = r.updatedByName || r.createdByName || "";
   $("#detailSub").textContent = `${r.auditor ? "Audited by " + r.auditor + " · " : ""}${who ? "last edit " + who : ""}`;
-  const groups = [
-    ["Summary", ["client", "server", "priority", "auditor", "auditDate", "backupSolutions", "lastBackup", "daysSinceLocal", "driveState", "recoveryMediaCreated", "recoveryMediaTested", "errors", "notes"]],
-    ["Veeam", ["agentCreated", "agentInstalled", "veeamLocalUsbJob", "veeamUsername"]],
-    ["System / remote", ["updatesPending", "lmiLock", "logmeinName", "vmGen"]],
-    ["Dell / hardware", ["openManage", "dateChecked", "idracIp", "idracLogin", "serialNumber", "driveStateOme", "systemState", "lastWindowsUpdate"]],
-    ["Credentials", ["username", "password", "localDomain"]],
-    ["Carbonite", ["carbonite", "filesProtected", "deviceProtected"]],
-    ["Local / Windows Server Backup", ["localType", "vssSettings", "localFrequency", "disk1Dest", "totalBackups", "backupsAvailable", "disk1Latest", "disk2Dest", "disk2Latest", "disk3Dest", "disk3Latest", "hddInstall"]],
-    ["Important paths", ["path1Name", "path1", "path2Name", "path2", "path3Name", "path3", "path4Name", "path4", "path5Name", "path5", "path6Name", "path6"]],
-  ];
+  const groups = DETAIL_GROUPS;
   let html = "";
   for (const [title, keys] of groups) {
     const rows = keys.map(k => {
@@ -1370,7 +1429,7 @@ function openDetail(id) {
       let vh;
       if (f.sensitive) vh = `<span class="secret" data-secret="${esc(v)}">••••••</span><span class="reveal" data-reveal>reveal</span>`;
       else if (f.t === "status") vh = `<span class="status ${statusClass(v)}">${esc(v)}</span>`;
-      else if (f.t === "multi") vh = (v || []).map(x => `<span class="tag">${esc(x)}</span>`).join("");
+      else if (f.t === "multi") vh = (v || []).map(x => f.k === "backupSolutions" ? solTag(x) : `<span class="tag">${esc(x)}</span>`).join("");
       else if (f.t === "bool") vh = "Yes";
       else if (f.t === "date") vh = fmtDate(v);
       else vh = esc(displayValue(f, v));
@@ -1391,6 +1450,130 @@ $("#detailEdit").addEventListener("click", () => {
   $("#detailOverlay").hidden = true;
   if (r) openForm(r);
 });
+
+// ---------------------------------------------------------------
+// PER-AUDIT EXPORT (detail drawer) — PDF / Excel / CSV / screenshot
+// ---------------------------------------------------------------
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    if ([...document.scripts].some(s => s.src === src)) return resolve();
+    const s = document.createElement("script");
+    s.src = src; s.onload = resolve; s.onerror = () => reject(new Error("Failed to load " + src));
+    document.head.appendChild(s);
+  });
+}
+const fileBase = r => `backup-audit-${(r.client || "audit")}-${(r.server || "")}`.replace(/[^a-z0-9]+/gi, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").toLowerCase();
+
+// Ordered [group, label, value] triples for a record. mask=true hides
+// sensitive values (password) — used for shareable PDF / screenshot.
+function auditTriples(r, mask) {
+  const out = [];
+  for (const [title, keys] of DETAIL_GROUPS) {
+    for (const k of keys) {
+      const f = FIELD_BY_KEY[k]; let v = r[k];
+      if (v == null || v === "" || (Array.isArray(v) && !v.length) || (f.t === "bool" && !v)) continue;
+      let s;
+      if (f.sensitive && mask) s = "••••••";
+      else if (Array.isArray(v)) s = v.join(", ");
+      else if (f.t === "bool") s = "Yes";
+      else if (f.t === "date") s = fmtDate(v);
+      else s = String(v);
+      out.push([title, f.label, s]);
+    }
+  }
+  return out;
+}
+
+// Rasterize the vendored Umbrella Automation logo (SVG) to a PNG data URL.
+async function logoPng() {
+  const svg = await (await fetch("ua-logo.svg")).text();
+  const img = new Image();
+  await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg); });
+  // Modest raster (~600px wide) — jsPDF embeds PNG uncompressed, so a huge
+  // canvas would balloon the file. 600px is crisp at the printed size.
+  const ratio = 1300 / 280, W = 600, H = Math.round(W / ratio);
+  const c = document.createElement("canvas"); c.width = W; c.height = H;
+  c.getContext("2d").drawImage(img, 0, 0, W, H);
+  return { url: c.toDataURL("image/png"), ratio };
+}
+
+async function exportAuditPDF(r) {
+  await loadScript("https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js");
+  await loadScript("https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js");
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ unit: "pt", format: "letter" });
+  const pageW = pdf.internal.pageSize.getWidth();
+  const M = 48;
+  // Branded header
+  try {
+    const logo = await logoPng();
+    const lw = 168, lh = lw / logo.ratio;
+    pdf.addImage(logo.url, "PNG", M, 40, lw, lh, undefined, "FAST");
+  } catch (e) { console.warn("logo render failed:", e); }
+  pdf.setFontSize(9); pdf.setTextColor(120);
+  pdf.text("Backup Audit", pageW - M, 52, { align: "right" });
+  pdf.setFontSize(16); pdf.setTextColor(20);
+  pdf.text(`${r.client || ""}${r.server ? "  —  " + r.server : ""}`, M, 110);
+  pdf.setFontSize(10); pdf.setTextColor(110);
+  const meta = [r.clientId ? "Client ID " + r.clientId : "", r.auditor ? "Auditor: " + r.auditor : "", r.auditDate ? "Audited " + fmtDate(r.auditDate) : ""].filter(Boolean).join("   ·   ");
+  pdf.text(meta, M, 128);
+
+  // Grouped body via autotable; group title becomes a styled spanning row.
+  const body = [];
+  let lastGroup = null;
+  for (const [grp, label, val] of auditTriples(r, true)) {
+    if (grp !== lastGroup) { body.push([{ content: grp, colSpan: 2, styles: { fillColor: [31, 157, 143], textColor: 255, fontStyle: "bold" } }]); lastGroup = grp; }
+    body.push([label, val]);
+  }
+  pdf.autoTable({
+    startY: 146, margin: { left: M, right: M },
+    head: [], body,
+    styles: { fontSize: 9, cellPadding: 4, overflow: "linebreak", lineColor: [225, 228, 233], lineWidth: 0.5 },
+    columnStyles: { 0: { cellWidth: 190, textColor: [86, 97, 110] }, 1: { textColor: [27, 37, 48] } },
+    theme: "grid",
+  });
+  const gen = new Date().toLocaleString();
+  pdf.setFontSize(8); pdf.setTextColor(150);
+  pdf.text(`Generated ${gen} by ${state.user.email} · Umbrella Automation`, M, pdf.internal.pageSize.getHeight() - 28);
+  pdf.save(fileBase(r) + ".pdf");
+}
+
+async function exportAuditXLSX(r) {
+  const XLSX = await ensureXLSX();
+  const aoa = [["Field", "Value"], ...auditTriples(r, false).map(([, label, val]) => [label, val])];
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws["!cols"] = [{ wch: 34 }, { wch: 60 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Audit");
+  XLSX.writeFile(wb, fileBase(r) + ".xlsx");
+}
+
+function exportAuditCSV(r) {
+  const rows = [["Field", "Value"], ...auditTriples(r, false).map(([, label, val]) => [label, val])];
+  const csv = rows.map(row => row.map(c => /[",\n]/.test(c) ? `"${String(c).replace(/"/g, '""')}"` : c).join(",")).join("\r\n");
+  downloadBlob(csv, fileBase(r) + ".csv", "text/csv");
+}
+
+async function exportAuditPNG(r) {
+  await loadScript("https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js");
+  const node = $("#detailBody");
+  const bg = getComputedStyle(document.querySelector(".drawer")).backgroundColor;
+  const canvas = await window.html2canvas(node, { backgroundColor: bg, scale: 2 });
+  canvas.toBlob(b => downloadBlob(b, fileBase(r) + ".png", "image/png"));
+}
+
+$("#detailExportBtn").addEventListener("click", e => { e.stopPropagation(); $("#detailExportMenu").hidden = !$("#detailExportMenu").hidden; });
+$$("#detailExportMenu label").forEach(l => l.addEventListener("click", async () => {
+  $("#detailExportMenu").hidden = true;
+  const r = state.audits.find(a => a.id === detailId); if (!r) return;
+  try {
+    const w = l.dataset.dexport;
+    if (w === "pdf") await exportAuditPDF(r);
+    else if (w === "xlsx") await exportAuditXLSX(r);
+    else if (w === "csv") exportAuditCSV(r);
+    else if (w === "png") await exportAuditPNG(r);
+  } catch (err) { console.error(err); toast("Export failed: " + (err.message || err), true); }
+}));
 
 // ---------------------------------------------------------------
 // ACTIVITY view
