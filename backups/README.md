@@ -67,6 +67,12 @@ Pages. Two server-side pieces are deployed separately:
 
 ## Changelog
 
+### v0.2.1 — 2026-06-15
+Dropped the spreadsheet-only "Focus / needs attention" data column. In its
+place, every row has a checkbox in a leading column that **highlights the row**
+(amber tint + left bar) when ticked — toggled inline without opening the record.
+The "Highlighted only" filter and stat still work off the same flag.
+
 ### v0.2.0 — 2026-06-15
 Spreadsheet round-trip and polish. Added Excel/CSV import, Excel/CSV export,
 and a downloadable blank template (with a "How to fill" sheet) so the tool can

@@ -197,6 +197,15 @@
   table.audits col.col-date   { width: 92px; }
   table.audits td.col-narrow, table.audits th.col-narrow,
   table.audits td.col-status, table.audits th.col-status { text-align: center; }
+  /* Leading row-highlight checkbox column */
+  table.audits col.col-flag { width: 40px; }
+  table.audits th.col-flag, table.audits td.col-flag { text-align: center; padding-left: 8px; padding-right: 8px; }
+  table.audits th.col-flag { color: var(--text-faint); cursor: default; }
+  .rowflag { width: 16px; height: 16px; accent-color: var(--warn); cursor: pointer; vertical-align: middle; }
+  /* Highlighted (flagged) rows — amber tint + left bar, works in both themes */
+  table.audits tbody tr.flagged td { background: rgba(240,185,85,.12); }
+  table.audits tbody tr.flagged:hover td { background: rgba(240,185,85,.18); }
+  table.audits tbody tr.flagged td.col-flag { box-shadow: inset 3px 0 0 var(--warn); }
   .empty { padding: 40px; text-align: center; color: var(--text-faint); }
 
   .status { font-weight: 700; }
@@ -378,7 +387,7 @@
         <span class="filter-pill">Priority
           <select id="fPriority"><option value="">All</option><option>High</option><option>Medium</option><option>Low</option></select>
         </span>
-        <label class="chk"><input type="checkbox" id="fFocus" /> Focus only</label>
+        <label class="chk"><input type="checkbox" id="fFocus" /> Highlighted only</label>
         <div class="grow"></div>
         <button class="btn sm" id="importBtn">Import</button>
         <input type="file" id="importFile" accept=".xlsx,.xls,.csv" hidden />
@@ -505,7 +514,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION    = "0.2.0";
+const APP_VERSION    = "0.2.1";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const OWNER_EMAIL    = "frank@umbrellaautomation.com";
 
@@ -544,7 +553,6 @@ const SEED_CLIENTS = [
 // ---------------------------------------------------------------
 const FIELDS = [
   // ---- core ----
-  { k: "focus",                g: "core", t: "bool",   label: "Focus — needs attention", table: true },
   { k: "client",               g: "core", t: "client", label: "Client", required: true, table: true },
   { k: "server",               g: "core", t: "text",   label: "Server / Workstation name", hint: "VM name in Hyper-V if a VM", required: true, table: true },
   { k: "priority",             g: "core", t: "select", opts: PRIORITIES, label: "Client priority", table: true },
@@ -624,7 +632,7 @@ const FIELD_BY_KEY = Object.fromEntries(FIELDS.map(f => [f.k, f]));
 // Default table columns — a curated set that reads cleanly at full width
 // without crowding. Everything else is one click away (detail drawer) or
 // can be toggled on via the column chooser.
-const DEFAULT_COLS = ["focus", "client", "server", "auditor", "auditDate", "backupSolutions", "lastBackup", "driveState", "errors"];
+const DEFAULT_COLS = ["client", "server", "auditor", "auditDate", "backupSolutions", "lastBackup", "driveState", "errors"];
 
 // Per-field column-width class (drives the <colgroup>) so short fixed-shape
 // values don't hog width under the fixed table layout.
@@ -811,7 +819,7 @@ function renderStats() {
   const cards = [
     { n: a.length, l: "Audited servers" },
     { n: clients.size, l: "Clients" },
-    { n: focus, l: "Flagged (Focus)", cls: focus ? "warn" : "" },
+    { n: focus, l: "Highlighted", cls: focus ? "warn" : "" },
     { n: errors, l: "With errors logged", cls: errors ? "bad" : "" },
     { n: stale, l: "Local backup ≥ 30d", cls: stale ? "warn" : "" },
     { n: recTested, l: "Recovery media tested", cls: "ok" },
@@ -907,19 +915,21 @@ function filteredSorted() {
 
 function renderTable() {
   const cols = state.cols;
-  // colgroup drives per-column widths under table-layout:fixed
-  $("#colgroup").innerHTML = cols.map(k => {
+  // Leading fixed "flag" column (the row-highlight checkbox) is always first
+  // and is not part of the user-chosen columns. colgroup drives widths under
+  // table-layout:fixed.
+  $("#colgroup").innerHTML = `<col class="col-flag">` + cols.map(k => {
     const c = colClass(FIELD_BY_KEY[k]);
     return `<col${c ? ` class="${c}"` : ""}>`;
   }).join("");
   const thead = $("#theadRow");
-  thead.innerHTML = cols.map(k => {
+  thead.innerHTML = `<th class="col-flag" title="Tick to highlight a row that needs attention">★</th>` + cols.map(k => {
     const f = FIELD_BY_KEY[k];
     const c = colClass(f);
     const arrow = state.sortKey === k ? `<span class="arrow">${state.sortDir < 0 ? "▼" : "▲"}</span>` : "";
     return `<th data-k="${k}"${c ? ` class="${c}"` : ""}>${esc(f.label)}${arrow}</th>`;
   }).join("");
-  $$("th", thead).forEach(th => th.addEventListener("click", () => {
+  $$("th[data-k]", thead).forEach(th => th.addEventListener("click", () => {
     const k = th.dataset.k;
     if (state.sortKey === k) state.sortDir *= -1; else { state.sortKey = k; state.sortDir = 1; }
     renderTable();
@@ -928,14 +938,26 @@ function renderTable() {
   const rows = filteredSorted();
   const tb = $("#tbody");
   if (!rows.length) {
-    tb.innerHTML = `<tr><td class="empty" colspan="${cols.length}">No audits match. Click “+ New Audit” to add one.</td></tr>`;
+    tb.innerHTML = `<tr><td class="empty" colspan="${cols.length + 1}">No audits match. Click “+ New Audit” to add one.</td></tr>`;
     return;
   }
   tb.innerHTML = rows.map(r => {
+    const flag = `<td class="col-flag"><input type="checkbox" class="rowflag" data-id="${r.id}"${r.focus ? " checked" : ""} title="Highlight this row"></td>`;
     const tds = cols.map(k => cellHtml(r, k)).join("");
-    return `<tr data-id="${r.id}">${tds}</tr>`;
+    return `<tr data-id="${r.id}"${r.focus ? ' class="flagged"' : ""}>${flag}${tds}</tr>`;
   }).join("");
+  // Row click opens the detail drawer...
   $$("tr[data-id]", tb).forEach(tr => tr.addEventListener("click", () => openDetail(tr.dataset.id)));
+  // ...but the flag checkbox toggles highlight without opening it.
+  $$(".rowflag", tb).forEach(cb => cb.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    const id = cb.dataset.id, on = cb.checked;
+    cb.closest("tr").classList.toggle("flagged", on);
+    const rec = state.audits.find(a => a.id === id);
+    if (rec) rec.focus = on;
+    try { await updateDoc(doc(db, "backup_audits", id), { focus: on, updatedAt: serverTimestamp(), updatedBy: state.user.email, updatedByName: state.user.name }); }
+    catch (err) { toast("Couldn't save highlight: " + (err.message || err), true); cb.checked = !on; cb.closest("tr").classList.toggle("flagged", !on); }
+  }));
 }
 
 function cellHtml(r, k) {
@@ -1331,7 +1353,7 @@ function openDetail(id) {
   const who = r.updatedByName || r.createdByName || "";
   $("#detailSub").textContent = `${r.auditor ? "Audited by " + r.auditor + " · " : ""}${who ? "last edit " + who : ""}`;
   const groups = [
-    ["Summary", ["focus", "client", "server", "priority", "auditor", "auditDate", "backupSolutions", "lastBackup", "daysSinceLocal", "driveState", "recoveryMediaCreated", "recoveryMediaTested", "errors", "notes"]],
+    ["Summary", ["client", "server", "priority", "auditor", "auditDate", "backupSolutions", "lastBackup", "daysSinceLocal", "driveState", "recoveryMediaCreated", "recoveryMediaTested", "errors", "notes"]],
     ["Veeam", ["agentCreated", "agentInstalled", "veeamLocalUsbJob", "veeamUsername"]],
     ["System / remote", ["updatesPending", "lmiLock", "logmeinName", "vmGen"]],
     ["Dell / hardware", ["openManage", "dateChecked", "idracIp", "idracLogin", "serialNumber", "driveStateOme", "systemState", "lastWindowsUpdate"]],
