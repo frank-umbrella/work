@@ -133,9 +133,15 @@
   .stat.ok .n { color: var(--ok); }
 
   /* ---------- table ---------- */
-  .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); background: var(--panel); }
-  table.audits { border-collapse: collapse; width: 100%; font-size: 13px; white-space: nowrap; }
-  table.audits th, table.audits td { padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+  /* table-layout:fixed + width:100% makes columns share the available width
+     and wrap their text, so the dashboard never scrolls sideways no matter
+     how many columns are toggled on. */
+  .table-wrap { overflow-x: hidden; border: 1px solid var(--border); border-radius: var(--radius); background: var(--panel); }
+  table.audits { border-collapse: collapse; width: 100%; font-size: 13px; table-layout: fixed; }
+  table.audits th, table.audits td {
+    padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--border);
+    vertical-align: top; white-space: normal; overflow-wrap: anywhere; word-break: break-word;
+  }
   table.audits th {
     position: sticky; top: 0; background: var(--panel-2); color: var(--text-dim);
     font-weight: 600; font-size: 11.5px; text-transform: uppercase; letter-spacing: .4px; cursor: pointer; z-index: 1;
@@ -144,7 +150,13 @@
   table.audits th .arrow { color: var(--accent); margin-left: 4px; }
   table.audits tbody tr { cursor: pointer; }
   table.audits tbody tr:hover { background: var(--panel-2); }
-  table.audits td.wrap { white-space: normal; max-width: 320px; }
+  /* Per-type column widths so short fixed-shape values (flags, dates, status)
+     stay compact and the text columns get the room. Assigned in JS via data-col. */
+  table.audits col.col-narrow { width: 56px; }
+  table.audits col.col-status { width: 78px; }
+  table.audits col.col-date   { width: 92px; }
+  table.audits td.col-narrow, table.audits th.col-narrow,
+  table.audits td.col-status, table.audits th.col-status { text-align: center; }
   .empty { padding: 40px; text-align: center; color: var(--text-faint); }
 
   .status { font-weight: 700; }
@@ -336,6 +348,7 @@
 
       <div class="table-wrap">
         <table class="audits">
+          <colgroup id="colgroup"></colgroup>
           <thead><tr id="theadRow"></tr></thead>
           <tbody id="tbody"></tbody>
         </table>
@@ -558,8 +571,20 @@ const FIELDS = [
 ];
 const FIELD_BY_KEY = Object.fromEntries(FIELDS.map(f => [f.k, f]));
 
-// default table columns
-const DEFAULT_COLS = FIELDS.filter(f => f.table).map(f => f.k);
+// Default table columns — a curated set that reads cleanly at full width
+// without crowding. Everything else is one click away (detail drawer) or
+// can be toggled on via the column chooser.
+const DEFAULT_COLS = ["focus", "client", "server", "auditor", "auditDate", "backupSolutions", "lastBackup", "driveState", "errors"];
+
+// Per-field column-width class (drives the <colgroup>) so short fixed-shape
+// values don't hog width under the fixed table layout.
+function colClass(f) {
+  if (!f) return "";
+  if (f.t === "bool") return "col-narrow";
+  if (f.t === "status" || f.t === "yesno") return "col-status";
+  if (f.t === "date") return "col-date";
+  return "";
+}
 
 // ---------------------------------------------------------------
 // State
@@ -808,11 +833,17 @@ function filteredSorted() {
 
 function renderTable() {
   const cols = state.cols;
+  // colgroup drives per-column widths under table-layout:fixed
+  $("#colgroup").innerHTML = cols.map(k => {
+    const c = colClass(FIELD_BY_KEY[k]);
+    return `<col${c ? ` class="${c}"` : ""}>`;
+  }).join("");
   const thead = $("#theadRow");
   thead.innerHTML = cols.map(k => {
     const f = FIELD_BY_KEY[k];
+    const c = colClass(f);
     const arrow = state.sortKey === k ? `<span class="arrow">${state.sortDir < 0 ? "▼" : "▲"}</span>` : "";
-    return `<th data-k="${k}">${esc(f.label)}${arrow}</th>`;
+    return `<th data-k="${k}"${c ? ` class="${c}"` : ""}>${esc(f.label)}${arrow}</th>`;
   }).join("");
   $$("th", thead).forEach(th => th.addEventListener("click", () => {
     const k = th.dataset.k;
@@ -836,18 +867,22 @@ function renderTable() {
 function cellHtml(r, k) {
   const f = FIELD_BY_KEY[k];
   const v = r[k];
-  if (f.t === "status" || f.t === "yesno") {
-    if (f.t === "status") return `<td><span class="status ${statusClass(v)}">${esc(v || "")}</span></td>`;
-    const cls = v === "Yes" ? "ok" : v === "No" ? "na" : "na";
-    return `<td><span class="status ${cls}">${esc(v || "")}</span></td>`;
+  const c = colClass(f);                       // col-narrow / col-status / col-date / ""
+  const td = (inner, extra = "") => {
+    const cls = [c, extra].filter(Boolean).join(" ");
+    return `<td${cls ? ` class="${cls}"` : ""}>${inner}</td>`;
+  };
+  if (f.t === "status") return td(`<span class="status ${statusClass(v)}">${esc(v || "")}</span>`);
+  if (f.t === "yesno") {
+    const cls = v === "Yes" ? "ok" : "na";
+    return td(`<span class="status ${cls}">${esc(v || "")}</span>`);
   }
-  if (f.t === "bool") return `<td>${v ? '<span class="pill focus">FOCUS</span>' : ""}</td>`;
-  if (k === "priority" && v) return `<td><span class="pill ${v.toLowerCase()}">${esc(v)}</span></td>`;
-  if (f.t === "multi") return `<td>${(v || []).map(x => `<span class="tag">${esc(x)}</span>`).join("")}</td>`;
-  if (f.t === "date") return `<td>${fmtDate(v)}</td>`;
-  if (f.sensitive && v) return `<td class="secret">••••••</td>`;
-  if (k === "errors" || k === "notes" || k === "driveState") return `<td class="wrap">${esc(v || "")}</td>`;
-  return `<td>${esc(displayValue(f, v))}</td>`;
+  if (f.t === "bool") return td(v ? '<span class="pill focus">FOCUS</span>' : "");
+  if (k === "priority" && v) return td(`<span class="pill ${v.toLowerCase()}">${esc(v)}</span>`);
+  if (f.t === "multi") return td((v || []).map(x => `<span class="tag">${esc(x)}</span>`).join(""));
+  if (f.t === "date") return td(fmtDate(v));
+  if (f.sensitive && v) return td('<span class="secret">••••••</span>');
+  return td(esc(displayValue(f, v)));
 }
 
 // filters
