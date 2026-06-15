@@ -33,8 +33,11 @@ export default {
     }
 
     if (request.method === 'POST' && url.pathname === '/run') {
-      const key = url.searchParams.get('key') || '';
-      if (!env.DIGEST_TRIGGER_KEY || key !== env.DIGEST_TRIGGER_KEY) {
+      // Trim both sides: secrets piped in via `wrangler secret put` on
+      // PowerShell pick up a trailing newline, so a raw === would never match.
+      const key = (url.searchParams.get('key') || '').trim();
+      const expected = (env.DIGEST_TRIGGER_KEY || '').trim();
+      if (!expected || key !== expected) {
         return json({ error: 'forbidden' }, 403);
       }
       try {
@@ -179,7 +182,7 @@ async function postResendEmail(env, { subject, html }) {
   const resp = await fetch(`${RESEND_BASE}/emails`, {
     method: 'POST',
     headers: {
-      Authorization: `Bearer ${env.RESEND_API_KEY}`,
+      Authorization: `Bearer ${(env.RESEND_API_KEY || '').trim()}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
@@ -225,7 +228,9 @@ async function getServiceAccountToken(env) {
   if (_accessTokenCache && _accessTokenCache.expiresAt > Date.now() + 60_000) {
     return _accessTokenCache.token;
   }
-  const sa = JSON.parse(env.FIREBASE_SERVICE_ACCOUNT_JSON);
+  // Strip a leading UTF-8 BOM — service-account JSON files saved on Windows
+  // (and piped in via `wrangler secret put`) often carry one, which breaks JSON.parse.
+  const sa = JSON.parse((env.FIREBASE_SERVICE_ACCOUNT_JSON || '').replace(/^﻿/, ''));
   const now = Math.floor(Date.now() / 1000);
   const claim = {
     iss: sa.client_email,
