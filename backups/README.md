@@ -67,6 +67,19 @@ Pages. Two server-side pieces are deployed separately:
 
 ## Changelog
 
+### v0.5.0 — 2026-06-15
+- **Clients editor** in Settings: rename a client or set its ID; the change
+  applies to every audit for that client (and is logged to Activity).
+- **30-day staleness highlight**: the WSB "Last local backup", the Veeam "Last
+  backup", the rotation-disk copies, and the OMSA/iDRAC "Drive health last
+  checked" date cells turn amber when older than 30 days.
+- **Health highlight**: drive-state / OME-state / system-state cells turn red
+  when the value reads as a problem (failure, non-critical, predicted, etc.)
+  and green when healthy.
+- **Windows icon** marks every Windows Server Backup / local column (the sheet's
+  "LOCAL" section) in the table headers and detail drawer.
+- (Last WSB backup was already a default column.)
+
 ### v0.4.1 — 2026-06-15
 Columns now size to their content (auto layout): short columns like Client ID,
 dates, and status shrink to fit, while wide columns (backup-solution tags, long

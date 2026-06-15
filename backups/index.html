@@ -207,6 +207,15 @@
   /* Capped wrapping columns: tags + long free text wrap within a max width. */
   table.audits td.col-tags, table.audits th.col-tags { max-width: 230px; }
   table.audits td.col-text, table.audits th.col-text { max-width: 320px; }
+  /* Conditional cell highlighting: stale dates (amber), bad/good health */
+  table.audits td.cell-stale { background: rgba(240,185,85,.18); }
+  table.audits td.cell-bad   { background: rgba(240,101,93,.16); color: var(--bad); font-weight: 600; }
+  table.audits td.cell-ok    { background: rgba(62,207,142,.13); }
+  .drow.cell-stale .v { color: var(--warn); font-weight: 600; }
+  .drow.cell-bad .v   { color: var(--bad); font-weight: 600; }
+  .drow.cell-ok .v    { color: var(--ok); }
+  /* Windows mark before WSB / local columns */
+  .winico { vertical-align: -1px; margin-right: 1px; }
   /* Leading row-highlight checkbox column */
   table.audits th.col-flag, table.audits td.col-flag {
     width: 1%; white-space: nowrap; text-align: center; padding-left: 8px; padding-right: 8px;
@@ -313,6 +322,12 @@
   .drow .v { color: var(--text); white-space: pre-wrap; word-break: break-word; }
   .secret { font-family: var(--mono); }
   .reveal { cursor: pointer; color: var(--accent-2); font-size: 11px; margin-left: 8px; }
+
+  /* ---------- client editor ---------- */
+  .client-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  .client-row .cname { flex: 1; min-width: 180px; }
+  .client-row .cid { width: 90px; }
+  .client-row .ccount { font-size: 11.5px; color: var(--text-faint); white-space: nowrap; }
 
   /* ---------- activity ---------- */
   .activity-item { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
@@ -459,6 +474,12 @@
           <button class="btn primary" id="addViewerBtn">Add</button>
         </div>
       </div>
+
+      <div class="card">
+        <h3>Clients</h3>
+        <div class="desc">Rename a client or set its ID. Changes apply to every audit for that client. (Clients come from the audits themselves — there's no separate client list.)</div>
+        <div id="clientList"></div>
+      </div>
     </section>
   </main>
 </div>
@@ -548,7 +569,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION    = "0.4.1";
+const APP_VERSION    = "0.5.0";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const OWNER_EMAIL    = "frank@umbrellaautomation.com";
 
@@ -594,9 +615,9 @@ const FIELDS = [
   { k: "auditor",              g: "core", t: "select", opts: AUDITORS, label: "Auditor", table: true },
   { k: "auditDate",            g: "core", t: "date",   label: "Audit date", table: true },
   { k: "backupSolutions",      g: "core", t: "multi",  opts: BACKUP_SOLUTIONS, label: "Backup solutions installed", table: true },
-  { k: "lastBackup",           g: "core", t: "date",   label: "Last backup (Veeam)", hint: "Veeam Cloud agent last backup", table: true },
-  { k: "daysSinceLocal",       g: "core", t: "number", label: "Days since local backup [Disk 1]", table: true },
-  { k: "driveState",           g: "core", t: "text",   label: "Current state of drives", table: true },
+  { k: "lastBackup",           g: "core", t: "date",   label: "Last backup (Veeam)", hint: "Veeam Cloud agent last backup", table: true, stale: 30 },
+  { k: "daysSinceLocal",       g: "core", t: "number", label: "Days since local backup [Disk 1]", table: true, wsb: true },
+  { k: "driveState",           g: "core", t: "text",   label: "Current state of drives", table: true, health: true },
   { k: "recoveryMediaCreated", g: "core", t: "status", label: "Recovery media created / GDrive" },
   { k: "recoveryMediaTested",  g: "core", t: "status", label: "Recovery media tested", table: true },
   { k: "errors",               g: "core", t: "textarea", label: "Errors", table: true },
@@ -616,12 +637,12 @@ const FIELDS = [
 
   // ---- advanced: Dell / hardware ----
   { k: "openManage",     g: "advanced", t: "select", opts: OPENMANAGE, label: "OpenManage installed" },
-  { k: "dateChecked",    g: "advanced", t: "date",   label: "Date checked" },
+  { k: "dateChecked",    g: "advanced", t: "date",   label: "Drive health last checked", hint: "OMSA / iDRAC drive state last checked", stale: 30 },
   { k: "idracIp",        g: "advanced", t: "text",   label: "iDRAC IP" },
   { k: "idracLogin",     g: "advanced", t: "text",   label: "iDRAC current login" },
   { k: "serialNumber",   g: "advanced", t: "text",   label: "Serial number / Service Tag" },
-  { k: "driveStateOme",  g: "advanced", t: "text",   label: "Current state of drives via OME" },
-  { k: "systemState",    g: "advanced", t: "text",   label: "System state" },
+  { k: "driveStateOme",  g: "advanced", t: "text",   label: "Current state of drives via OME", health: true },
+  { k: "systemState",    g: "advanced", t: "text",   label: "System state", health: true },
   { k: "lastWindowsUpdate", g: "advanced", t: "date", label: "Last Windows update" },
 
   // ---- advanced: credentials (sensitive) ----
@@ -635,18 +656,18 @@ const FIELDS = [
   { k: "deviceProtected", g: "advanced", t: "yesno",  label: "Device protected" },
 
   // ---- advanced: Windows Server Backup / local ----
-  { k: "localType",      g: "advanced", t: "text", label: "Local type [program name]" },
-  { k: "vssSettings",    g: "advanced", t: "text", label: "VSS settings (default: Full)" },
-  { k: "localFrequency", g: "advanced", t: "text", label: "Local backup frequency" },
-  { k: "disk1Dest",      g: "advanced", t: "text", label: "Disk 1 — storage type / destination" },
-  { k: "totalBackups",   g: "advanced", t: "number", label: "All backups total [Local]" },
-  { k: "backupsAvailable", g: "advanced", t: "number", label: "Backups available [Disk 1]" },
-  { k: "disk1Latest",    g: "advanced", t: "date", label: "Last local backup [Disk 1]", hint: "Windows Server Backup / local — Disk 1 latest copy", table: true },
-  { k: "disk2Dest",      g: "advanced", t: "text", label: "Rotation Disk 2 — destination" },
-  { k: "disk2Latest",    g: "advanced", t: "date", label: "Rotation Disk 2 — latest copy" },
-  { k: "disk3Dest",      g: "advanced", t: "text", label: "Rotation Disk 3 — destination" },
-  { k: "disk3Latest",    g: "advanced", t: "date", label: "Rotation Disk 3 — latest copy" },
-  { k: "hddInstall",     g: "advanced", t: "date", label: "HDD install date" },
+  { k: "localType",      g: "advanced", t: "text", label: "Local type [program name]", wsb: true },
+  { k: "vssSettings",    g: "advanced", t: "text", label: "VSS settings (default: Full)", wsb: true },
+  { k: "localFrequency", g: "advanced", t: "text", label: "Local backup frequency", wsb: true },
+  { k: "disk1Dest",      g: "advanced", t: "text", label: "Disk 1 — storage type / destination", wsb: true },
+  { k: "totalBackups",   g: "advanced", t: "number", label: "All backups total [Local]", wsb: true },
+  { k: "backupsAvailable", g: "advanced", t: "number", label: "Backups available [Disk 1]", wsb: true },
+  { k: "disk1Latest",    g: "advanced", t: "date", label: "Last local backup [Disk 1]", hint: "Windows Server Backup / local — Disk 1 latest copy", table: true, wsb: true, stale: 30 },
+  { k: "disk2Dest",      g: "advanced", t: "text", label: "Rotation Disk 2 — destination", wsb: true },
+  { k: "disk2Latest",    g: "advanced", t: "date", label: "Rotation Disk 2 — latest copy", wsb: true, stale: 30 },
+  { k: "disk3Dest",      g: "advanced", t: "text", label: "Rotation Disk 3 — destination", wsb: true },
+  { k: "disk3Latest",    g: "advanced", t: "date", label: "Rotation Disk 3 — latest copy", wsb: true, stale: 30 },
+  { k: "hddInstall",     g: "advanced", t: "date", label: "HDD install date", wsb: true },
 
   // ---- advanced: important paths ----
   { k: "path1Name", g: "advanced", t: "text", label: "Path 1 — program name" },
@@ -744,6 +765,27 @@ function solClass(name) {
   return "";
 }
 const solTag = x => `<span class="tag ${solClass(x)}">${esc(x)}</span>`;
+
+// Small Windows mark shown before Windows Server Backup / local columns.
+const WIN_ICON = '<svg class="winico" viewBox="0 0 24 24" width="11" height="11" aria-hidden="true"><path fill="#3b9eff" d="M3 5.4 11 4.2v7.1H3zM12 4.05 21 2.9v8.4h-9zM3 12.7h8v7.1L3 18.6zM12 12.7h9V21l-9-1.15z"/></svg>';
+
+// Conditional cell highlighting:
+//  - date fields with .stale -> amber if older than that many days
+//  - health fields -> red when the value reads as a problem, green when OK
+function isStaleDate(v, days) { const d = new Date(v); return !isNaN(d) && (Date.now() - d.getTime()) > days * 86400000; }
+function healthClass(v) {
+  const s = String(v).toLowerCase();
+  if (/fail|failed|failure|non-?critical|predict|issue|missing|error|unable|offline|degrad|warn|no storage controller|not activated/.test(s)) return "cell-bad";
+  if (/\bfine\b|online|healthy|scheduled|\bok\b|normal/.test(s)) return "cell-ok";
+  return "";
+}
+function cellState(f, v) {
+  if (!f || v == null || v === "") return { cls: "", title: "" };
+  if (f.stale && f.t === "date" && isStaleDate(v, f.stale)) return { cls: "cell-stale", title: `Over ${f.stale} days ago` };
+  if (f.health) { const c = healthClass(v); return { cls: c, title: c === "cell-bad" ? "Health issue flagged" : "" }; }
+  return { cls: "", title: "" };
+}
+
 function displayValue(f, v) {
   if (v == null || v === "") return "";
   if (f.t === "multi") return Array.isArray(v) ? v.join(", ") : String(v);
@@ -845,12 +887,13 @@ function subscribeAudits() {
     state.audits = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     renderStats();
     renderTable();
+    renderClients();
   }, err => {
     // orderBy may fail on docs missing auditDate; fall back to unordered.
     console.warn("audits ordered subscribe failed, falling back:", err);
     unsubAudits = onSnapshot(collection(db, "backup_audits"), s => {
       state.audits = s.docs.map(d => ({ id: d.id, ...d.data() }));
-      renderStats(); renderTable();
+      renderStats(); renderTable(); renderClients();
     });
   });
 }
@@ -1038,7 +1081,8 @@ function renderTable() {
     const f = FIELD_BY_KEY[k];
     const c = colClass(f);
     const arrow = (!state.unlocked && state.sortKey === k) ? `<span class="arrow">${state.sortDir < 0 ? "▼" : "▲"}</span>` : "";
-    return `<th data-k="${k}"${c ? ` class="${c}"` : ""}${state.unlocked ? " draggable=\"true\"" : ""}>${esc(f.label)}${arrow}</th>`;
+    const ico = f.wsb ? WIN_ICON + " " : "";
+    return `<th data-k="${k}"${c ? ` class="${c}"` : ""}${state.unlocked ? " draggable=\"true\"" : ""}>${ico}${esc(f.label)}${arrow}</th>`;
   }).join("");
   $("table.audits").classList.toggle("reordering", state.unlocked);
   $$("th[data-k]", thead).forEach(th => {
@@ -1078,10 +1122,11 @@ function renderTable() {
 function cellHtml(r, k) {
   const f = FIELD_BY_KEY[k];
   const v = r[k];
-  const c = colClass(f);                       // col-narrow / col-status / col-date / ""
+  const c = colClass(f);                       // col-id / col-status / col-date / col-tags / ...
+  const st = cellState(f, v);                  // {cls,title} for stale-date / health highlighting
   const td = (inner, extra = "") => {
-    const cls = [c, extra].filter(Boolean).join(" ");
-    return `<td${cls ? ` class="${cls}"` : ""}>${inner}</td>`;
+    const cls = [c, extra, st.cls].filter(Boolean).join(" ");
+    return `<td${cls ? ` class="${cls}"` : ""}${st.title ? ` title="${esc(st.title)}"` : ""}>${inner}</td>`;
   };
   if (f.t === "status") return td(`<span class="status ${statusClass(v)}">${esc(v || "")}</span>`);
   if (f.t === "yesno") {
@@ -1491,7 +1536,9 @@ function openDetail(id) {
       else if (f.t === "bool") vh = "Yes";
       else if (f.t === "date") vh = fmtDate(v);
       else vh = esc(displayValue(f, v));
-      return `<div class="drow"><div class="k">${esc(f.label)}</div><div class="v">${vh}</div></div>`;
+      const st = cellState(f, v);
+      const ico = f.wsb ? WIN_ICON + " " : "";
+      return `<div class="drow${st.cls ? " " + st.cls : ""}"${st.title ? ` title="${esc(st.title)}"` : ""}><div class="k">${ico}${esc(f.label)}</div><div class="v">${vh}</div></div>`;
     }).filter(Boolean).join("");
     if (rows) html += `<div class="detail-grp"><h3>${esc(title)}</h3>${rows}</div>`;
   }
@@ -1688,6 +1735,64 @@ $("#addViewerBtn").addEventListener("click", async () => {
 async function removeViewer(em) {
   try { await saveViewers(state.viewers.filter(e => e !== em)); toast("Removed."); }
   catch (e) { toast("Failed: " + (e.message || e), true); }
+}
+
+// ---------------------------------------------------------------
+// CLIENTS editor (Settings) — rename a client / set its ID across all
+// of its audits. Clients are derived from the audit docs themselves.
+// ---------------------------------------------------------------
+function clientGroups() {
+  const map = new Map();
+  for (const a of state.audits) {
+    const name = (a.client || "").trim();
+    if (!name) continue;
+    if (!map.has(name)) map.set(name, { name, id: "", ids: [] });
+    const g = map.get(name);
+    g.ids.push(a.id);
+    if (!g.id && a.clientId) g.id = String(a.clientId);
+  }
+  return [...map.values()].sort((x, y) => x.name.localeCompare(y.name));
+}
+function renderClients() {
+  const wrap = $("#clientList"); if (!wrap) return;
+  const groups = clientGroups();
+  if (!groups.length) { wrap.innerHTML = '<div class="notice">No clients yet.</div>'; return; }
+  wrap.innerHTML = groups.map((g, i) =>
+    `<div class="client-row" data-i="${i}">
+      <input class="cid" value="${esc(g.id)}" placeholder="ID" />
+      <input class="cname" value="${esc(g.name)}" />
+      <span class="ccount">${g.ids.length} audit${g.ids.length === 1 ? "" : "s"}</span>
+      <button class="btn primary sm" data-save="${i}">Save</button>
+    </div>`).join("");
+  $$("[data-save]", wrap).forEach(b => b.addEventListener("click", () => {
+    const row = b.closest(".client-row");
+    saveClient(groups[+b.dataset.save], row.querySelector(".cname").value.trim(), row.querySelector(".cid").value.trim());
+  }));
+}
+async function saveClient(g, newName, newId) {
+  if (!newName) { toast("Client name can't be empty.", true); return; }
+  if (newName === g.name && newId === g.id) { toast("No changes."); return; }
+  if (!confirm(`Update ${g.ids.length} audit${g.ids.length === 1 ? "" : "s"} for "${g.name}"` +
+      (newName !== g.name ? ` → "${newName}"` : "") + "?")) return;
+  let ok = 0;
+  for (const id of g.ids) {
+    try {
+      await updateDoc(doc(db, "backup_audits", id),
+        { client: newName, clientId: newId, updatedAt: serverTimestamp(), updatedBy: state.user.email, updatedByName: state.user.name });
+      ok++;
+    } catch (e) { console.error("client update failed:", e); }
+  }
+  try {
+    await addDoc(collection(db, "backup_activity"), {
+      action: "update", auditId: "", client: newName, server: `${ok} audit${ok === 1 ? "" : "s"} updated`,
+      byEmail: state.user.email, byName: state.user.name, at: serverTimestamp(),
+      changes: [
+        ...(newName !== g.name ? [{ field: "Client", from: g.name, to: newName }] : []),
+        ...(newId !== g.id ? [{ field: "Client ID", from: g.id || "—", to: newId || "—" }] : []),
+      ],
+    });
+  } catch {}
+  toast(`Updated ${ok} audit${ok === 1 ? "" : "s"}.`);
 }
 
 // ---------------------------------------------------------------
