@@ -131,8 +131,9 @@ function buildDigest(env, events, sinceMs) {
   const subject = `Backup Audits — ${events.length} change${events.length === 1 ? '' : 's'} today (${summaryLine})`;
 
   const rows = events.map(ev => {
-    const verb = ev.action === 'create' ? 'Created' : ev.action === 'delete' ? 'Deleted' : 'Edited';
-    const color = ev.action === 'create' ? '#3ecf8e' : ev.action === 'delete' ? '#f0655d' : '#f0b955';
+    const verb = ev.action === 'create' ? 'Created' : ev.action === 'delete' ? 'Deleted'
+               : ev.action === 'import' ? 'Imported' : 'Edited';
+    const color = ev.action === 'create' || ev.action === 'import' ? '#3ecf8e' : ev.action === 'delete' ? '#f0655d' : '#f0b955';
     const when = ev.at ? new Date(ev.at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' }) : '';
     const who = esc(ev.byName || ev.byEmail || '');
     const target = esc([ev.client, ev.server].filter(Boolean).join(' — '));

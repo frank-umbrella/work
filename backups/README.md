@@ -18,10 +18,17 @@ Live: <https://frank-umbrella.github.io/work/backups/>
   Carbonite, Windows Server Backup disks + rotation, iDRAC / OpenManage,
   credentials, system state, and the important backup paths.
 - **Dashboard** with summary stats, search, client / auditor / priority
-  filters, a "Focus only" toggle, a column chooser, sortable columns, and CSV
-  export. Click any row for the full detail drawer.
-- **Activity log** — every create / edit / delete, with a per-field diff.
-  Visible only to an owner-managed allowlist (Settings tab).
+  filters, a "Focus only" toggle, a column chooser, and sortable columns. The
+  table wraps to fit the screen — no horizontal scrolling. Click any row for
+  the full detail drawer.
+- **Import / export** — pull rows in from a filled `.xlsx` or `.csv`, export
+  the current view to Excel or CSV, and download a **blank template** (`.xlsx`
+  with a "How to fill" sheet listing the allowed values). Powered by SheetJS,
+  lazy-loaded only when used.
+- **Light / dark theme** toggle (remembers your choice; defaults to your OS
+  preference).
+- **Activity log** — every create / edit / delete / import, with a per-field
+  diff. Visible only to an owner-managed allowlist (Settings tab).
 - **End-of-day email digest** of all changes, sent to
   `frank@umbrellaautomation.com` by `backups-worker` (see `worker/`).
 
@@ -59,6 +66,14 @@ Pages. Two server-side pieces are deployed separately:
 2. **Digest worker**: see `worker/README.md`.
 
 ## Changelog
+
+### v0.2.0 — 2026-06-15
+Spreadsheet round-trip and polish. Added Excel/CSV import, Excel/CSV export,
+and a downloadable blank template (with a "How to fill" sheet) so the tool can
+fully replace passing the `.xlsx` around — people can still work in Excel when
+they want and load it back in. Added a light/dark theme toggle. Fixed the
+dashboard's horizontal scrollbar (the table now wraps to fit any width).
+Added a proper favicon set, an Open Graph share image, and theme-color meta.
 
 ### v0.1.0 — 2026-06-15
 Initial release. Replaces the `Backup Audits.xlsx` "Data" sheet with a

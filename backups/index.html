@@ -6,7 +6,24 @@
 <title>Backup Audits — Umbrella Automation</title>
 <meta name="robots" content="noindex, nofollow" />
 <meta name="description" content="Internal backup-audit dashboard for Umbrella Automation. Restricted to @umbrellaautomation.com accounts." />
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231f9d8f'/%3E%3Cpath d='M16 6l8 3v6c0 5-3.4 8.6-8 11-4.6-2.4-8-6-8-11V9z' fill='none' stroke='%23eafffb' stroke-width='2' stroke-linejoin='round'/%3E%3Cpath d='M12 16l3 3 5-6' fill='none' stroke='%23eafffb' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
+<meta name="theme-color" content="#1f9d8f" />
+
+<!-- Icons -->
+<link rel="icon" type="image/svg+xml" href="favicon.svg" />
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
+<link rel="apple-touch-icon" href="apple-touch-icon.png" />
+
+<!-- Open Graph / Twitter (for when the link is shared in chat) -->
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="Umbrella Automation" />
+<meta property="og:title" content="Backup Audits — Umbrella Automation" />
+<meta property="og:description" content="Internal backup-audit dashboard. Restricted to @umbrellaautomation.com accounts." />
+<meta property="og:image" content="https://frank-umbrella.github.io/work/backups/og-image.png" />
+<meta property="og:url" content="https://frank-umbrella.github.io/work/backups/" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Backup Audits — Umbrella Automation" />
+<meta name="twitter:description" content="Internal backup-audit dashboard. Restricted to @umbrellaautomation.com accounts." />
+<meta name="twitter:image" content="https://frank-umbrella.github.io/work/backups/og-image.png" />
 <style>
   :root {
     --bg: #0e1116;
@@ -29,12 +46,34 @@
     --radius: 10px;
     --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
     --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --bg-grad: radial-gradient(1200px 600px at 70% -10%, #16202b 0%, var(--bg) 55%);
+  }
+  /* Light theme — overrides the vars for everything below body.light. */
+  body.light {
+    --bg: #f4f6f9;
+    --bg-2: #ffffff;
+    --panel: #ffffff;
+    --panel-2: #eef1f5;
+    --border: #dde3ea;
+    --border-2: #c7d0da;
+    --text: #1b2530;
+    --text-dim: #56616e;
+    --text-faint: #8a95a2;
+    --accent: #128577;
+    --accent-2: #0f9d8c;
+    --accent-dim: #d6f1ec;
+    --ok: #1c9d63;
+    --warn: #b9791a;
+    --bad: #cc3b33;
+    --na: #98a2af;
+    --shadow: 0 6px 22px rgba(40,55,75,.14);
+    --bg-grad: radial-gradient(1100px 560px at 70% -10%, #e9eef4 0%, var(--bg) 55%);
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; }
   body {
     font-family: var(--sans);
-    background: radial-gradient(1200px 600px at 70% -10%, #16202b 0%, var(--bg) 55%);
+    background: var(--bg-grad);
     color: var(--text);
     font-size: 14px;
     line-height: 1.45;
@@ -104,6 +143,7 @@
   .btn.danger:hover { background: #2a1414; }
   .btn.ghost { background: none; }
   .btn.sm { padding: 4px 9px; font-size: 12px; }
+  .icon-btn { font-size: 15px; line-height: 1; padding: 5px 9px; }
 
   main { padding: 20px; max-width: 1700px; margin: 0 auto; }
   .view[hidden] { display: none; }
@@ -313,6 +353,7 @@
       <button data-tab="settings" id="tabSettings" hidden>Settings</button>
     </nav>
     <div class="spacer"></div>
+    <button class="btn ghost sm icon-btn" id="themeToggle" title="Toggle light / dark" aria-label="Toggle light or dark theme">🌙</button>
     <button class="btn primary" id="newBtn">+ New Audit</button>
     <div class="who">
       <img id="userAvatar" alt="" />
@@ -339,7 +380,16 @@
         </span>
         <label class="chk"><input type="checkbox" id="fFocus" /> Focus only</label>
         <div class="grow"></div>
-        <button class="btn sm" id="exportBtn">Export CSV</button>
+        <button class="btn sm" id="importBtn">Import</button>
+        <input type="file" id="importFile" accept=".xlsx,.xls,.csv" hidden />
+        <div class="menu-wrap">
+          <button class="btn sm" id="exportBtn">Export ▾</button>
+          <div class="menu" id="exportMenu" hidden>
+            <label data-export="xlsx">Excel (.xlsx)</label>
+            <label data-export="csv">CSV (.csv)</label>
+            <label data-export="template">Blank template (.xlsx)</label>
+          </div>
+        </div>
         <div class="menu-wrap">
           <button class="btn sm" id="colsBtn">Columns ▾</button>
           <div class="menu" id="colsMenu" hidden></div>
@@ -455,7 +505,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION    = "0.1.0";
+const APP_VERSION    = "0.2.0";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const OWNER_EMAIL    = "frank@umbrellaautomation.com";
 
@@ -800,7 +850,31 @@ function buildColsMenu() {
   }));
 }
 $("#colsBtn").addEventListener("click", e => { e.stopPropagation(); $("#colsMenu").hidden = !$("#colsMenu").hidden; });
-document.addEventListener("click", e => { if (!e.target.closest(".menu-wrap")) $("#colsMenu").hidden = true; });
+document.addEventListener("click", e => {
+  if (!e.target.closest(".menu-wrap")) { $("#colsMenu").hidden = true; $("#exportMenu").hidden = true; }
+});
+
+// ---------------------------------------------------------------
+// THEME (light / dark)
+// ---------------------------------------------------------------
+function applyTheme(t) {
+  const light = t === "light";
+  document.body.classList.toggle("light", light);
+  $("#themeToggle").textContent = light ? "☀️" : "🌙";
+  $("#themeToggle").title = light ? "Switch to dark" : "Switch to light";
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", light ? "#ffffff" : "#1f9d8f");
+}
+function initTheme() {
+  let t = localStorage.getItem("backups:theme");
+  if (!t) t = window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+  applyTheme(t);
+}
+$("#themeToggle").addEventListener("click", () => {
+  const next = document.body.classList.contains("light") ? "dark" : "light";
+  localStorage.setItem("backups:theme", next);
+  applyTheme(next);
+});
+initTheme();
 
 function filteredSorted() {
   const term = $("#search").value.trim().toLowerCase();
@@ -899,26 +973,180 @@ function buildAuditorFilter() {
 }
 
 // ---------------------------------------------------------------
-// CSV export
+// IMPORT / EXPORT / TEMPLATE
 // ---------------------------------------------------------------
-$("#exportBtn").addEventListener("click", () => {
-  const rows = filteredSorted();
-  const cols = FIELDS.map(f => f.k);
+// SheetJS handles both .xlsx and .csv read/write; lazy-loaded on first use
+// so it never weighs down the initial page load.
+let _xlsxPromise = null;
+function ensureXLSX() {
+  if (window.XLSX) return Promise.resolve(window.XLSX);
+  if (_xlsxPromise) return _xlsxPromise;
+  _xlsxPromise = new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";
+    s.onload = () => resolve(window.XLSX);
+    s.onerror = () => reject(new Error("Could not load the spreadsheet library."));
+    document.head.appendChild(s);
+  });
+  return _xlsxPromise;
+}
+
+const EXPORT_KEYS = FIELDS.map(f => f.k);
+const LABEL_TO_KEY = Object.fromEntries(FIELDS.map(f => [f.label.toLowerCase(), f.k]));
+
+// One export/template row as an object keyed by column label.
+function rowToExportObj(r) {
+  const o = {};
+  for (const f of FIELDS) {
+    let v = r[f.k];
+    if (Array.isArray(v)) v = v.join("; ");
+    else if (typeof v === "boolean") v = v ? "Yes" : "";
+    o[f.label] = v == null ? "" : v;
+  }
+  return o;
+}
+function downloadBlob(data, filename, type) {
+  const blob = new Blob([data], { type });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+const stamp = () => new Date().toISOString().slice(0, 10);
+
+function exportCSV() {
   const head = FIELDS.map(f => f.label);
-  const csv = [head, ...rows.map(r => cols.map(k => {
+  const rows = filteredSorted().map(r => EXPORT_KEYS.map(k => {
     const f = FIELD_BY_KEY[k]; let v = r[k];
     if (Array.isArray(v)) v = v.join("; ");
     if (typeof v === "boolean") v = v ? "Yes" : "";
     v = v == null ? "" : String(v);
     return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
-  }))].map(r => r.join(",")).join("\r\n");
-  const blob = new Blob([csv], { type: "text/csv" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = `backup-audits-${new Date().toISOString().slice(0, 10)}.csv`;
-  a.click();
-  URL.revokeObjectURL(a.href);
+  }));
+  downloadBlob([head, ...rows].map(r => r.join(",")).join("\r\n"), `backup-audits-${stamp()}.csv`, "text/csv");
+}
+async function exportXLSX() {
+  const XLSX = await ensureXLSX();
+  const aoa = filteredSorted().map(rowToExportObj);
+  const ws = XLSX.utils.json_to_sheet(aoa, { header: FIELDS.map(f => f.label) });
+  ws["!cols"] = FIELDS.map(f => ({ wch: Math.min(40, Math.max(12, f.label.length + 2)) }));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Backup Audits");
+  XLSX.writeFile(wb, `backup-audits-${stamp()}.xlsx`);
+}
+async function downloadTemplate() {
+  const XLSX = await ensureXLSX();
+  // Header row + one example row so users see the expected shape.
+  const example = {};
+  for (const f of FIELDS) {
+    example[f.label] =
+      f.k === "client" ? "Example Client" :
+      f.k === "server" ? "SERVER1" :
+      f.k === "auditor" ? AUDITORS[0] :
+      f.k === "priority" ? "Medium" :
+      f.t === "date" ? stamp() :
+      f.t === "status" ? "✔" :
+      f.t === "yesno" ? "Yes" :
+      f.t === "bool" ? "No" :
+      f.k === "backupSolutions" ? "Veeam (Cloud); Windows Server Backup" :
+      f.t === "number" ? 0 : "";
+  }
+  const ws = XLSX.utils.json_to_sheet([example], { header: FIELDS.map(f => f.label) });
+  ws["!cols"] = FIELDS.map(f => ({ wch: Math.min(40, Math.max(12, f.label.length + 2)) }));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Backup Audits");
+  // Second sheet documents the allowed dropdown values.
+  const hints = [
+    ["Field", "Allowed values / format"],
+    ["Status fields (Recovery media, agents, LMI…)", STATUS_OPTS.join("  ")],
+    ["Yes/No fields (Carbonite, Device protected)", YESNO.join("  ")],
+    ["Focus", "Yes / No (or true/false)"],
+    ["Client priority", PRIORITIES.join("  ")],
+    ["Auditor", AUDITORS.join("  ")],
+    ["Backup solutions installed", BACKUP_SOLUTIONS.join("  ") + "  (separate multiple with ; )"],
+    ["Dates", "YYYY-MM-DD (e.g. " + stamp() + ")"],
+    ["Gen of VM", VM_GEN.join("  ")],
+  ];
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(hints), "How to fill");
+  XLSX.writeFile(wb, "backup-audit-template.xlsx");
+}
+
+// Coerce one imported cell to the right shape for its field type.
+function coerceImport(f, raw) {
+  if (raw == null || raw === "") return f.t === "multi" ? [] : (f.t === "bool" ? false : "");
+  if (f.t === "bool") return /^(yes|true|1|y|✔)$/i.test(String(raw).trim());
+  if (f.t === "number") { const n = Number(raw); return Number.isFinite(n) ? n : null; }
+  if (f.t === "multi") return String(raw).split(/[;,]/).map(s => s.trim()).filter(Boolean);
+  if (f.t === "date") {
+    if (raw instanceof Date) return raw.toISOString().slice(0, 10);
+    const d = new Date(raw); return isNaN(d) ? String(raw).trim() : d.toISOString().slice(0, 10);
+  }
+  return String(raw).trim();
+}
+
+$("#importBtn").addEventListener("click", () => $("#importFile").click());
+$("#importFile").addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  e.target.value = "";               // allow re-importing the same file
+  if (!file) return;
+  try {
+    const XLSX = await ensureXLSX();
+    const buf = await file.arrayBuffer();
+    const wb = XLSX.read(buf, { type: "array" });
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    const rawRows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+    if (!rawRows.length) { toast("That file has no data rows.", true); return; }
+
+    // Build docs by matching column headers to field labels (or keys).
+    const docs = [];
+    for (const rr of rawRows) {
+      const doc = {};
+      for (const [header, val] of Object.entries(rr)) {
+        const key = LABEL_TO_KEY[String(header).trim().toLowerCase()] || (FIELD_BY_KEY[header] ? header : null);
+        if (!key) continue;
+        doc[key] = coerceImport(FIELD_BY_KEY[key], val);
+      }
+      if ((doc.client && String(doc.client).trim()) || (doc.server && String(doc.server).trim())) docs.push(doc);
+    }
+    if (!docs.length) { toast("No rows with a Client or Server were found. Use the template's column headers.", true); return; }
+    if (!confirm(`Import ${docs.length} audit${docs.length === 1 ? "" : "s"} from “${file.name}”? They'll be added as new records.`)) return;
+
+    let ok = 0;
+    for (const d of docs) {
+      try {
+        await addDoc(collection(db, "backup_audits"), {
+          ...d, source: "import",
+          createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
+          createdBy: state.user.email, updatedBy: state.user.email,
+          createdByName: state.user.name, updatedByName: state.user.name,
+        });
+        ok++;
+      } catch (err) { console.error("import row failed:", err); }
+    }
+    // One activity entry for the whole import, not N.
+    try {
+      await addDoc(collection(db, "backup_activity"), {
+        action: "import", auditId: "", client: `${ok} audit${ok === 1 ? "" : "s"}`, server: file.name,
+        byEmail: state.user.email, byName: state.user.name, at: serverTimestamp(), changes: [],
+      });
+    } catch {}
+    toast(`Imported ${ok} of ${docs.length} audit${docs.length === 1 ? "" : "s"}.`);
+  } catch (err) {
+    console.error(err);
+    toast("Import failed: " + (err.message || err), true);
+  }
 });
+
+// Export dropdown
+$("#exportBtn").addEventListener("click", e => { e.stopPropagation(); $("#exportMenu").hidden = !$("#exportMenu").hidden; });
+$$("#exportMenu label").forEach(l => l.addEventListener("click", () => {
+  $("#exportMenu").hidden = true;
+  const what = l.dataset.export;
+  if (what === "csv") exportCSV();
+  else if (what === "xlsx") exportXLSX().catch(err => toast(err.message || err, true));
+  else if (what === "template") downloadTemplate().catch(err => toast(err.message || err, true));
+}));
 
 // ---------------------------------------------------------------
 // FORM (new / edit)
@@ -1149,13 +1377,18 @@ function renderActivity() {
   const list = $("#activityList");
   if (!state.activity.length) { list.innerHTML = '<div class="notice">No activity recorded yet.</div>'; return; }
   list.innerHTML = state.activity.map(ev => {
-    const verb = ev.action === "create" ? "created" : ev.action === "delete" ? "deleted" : "edited";
+    const verb = ev.action === "create" ? "created" : ev.action === "delete" ? "deleted"
+               : ev.action === "import" ? "imported" : "edited";
+    const dot = ev.action === "import" ? "create" : ev.action;
+    const target = ev.action === "import"
+      ? `${esc(ev.client)}${ev.server ? ` from ${esc(ev.server)}` : ""}`
+      : `${esc(ev.client)} — ${esc(ev.server)}`;
     const changes = (ev.changes || []).map(c =>
       `<div class="chg"><b>${esc(c.field)}</b>: ${esc(c.from || "—")} → ${esc(c.to || "—")}</div>`).join("");
     return `<div class="activity-item">
-      <div class="dot ${ev.action}"></div>
+      <div class="dot ${dot}"></div>
       <div class="body">
-        <div><b>${esc(ev.byName || ev.byEmail)}</b> ${verb} <b>${esc(ev.client)} — ${esc(ev.server)}</b></div>
+        <div><b>${esc(ev.byName || ev.byEmail)}</b> ${verb} <b>${target}</b></div>
         <div class="meta">${fmtTs(ev.at)} · ${esc(ev.byEmail)}</div>
         ${changes ? `<div class="changes">${changes}</div>` : ""}
       </div>
