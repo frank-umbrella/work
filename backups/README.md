@@ -67,6 +67,13 @@ Pages. Two server-side pieces are deployed separately:
 
 ## Changelog
 
+### v0.4.0 — 2026-06-15
+- **Reorder columns by drag-and-drop.** A "Reorder" button unlocks the table
+  headers so you can drag them into the order you want; click "Done" to lock.
+  The order saves to your profile. While locked, headers sort as before.
+- Fixed the **light theme** not recoloring the top bar / active tab (they used
+  hardcoded dark values; now themed).
+
 ### v0.3.0 — 2026-06-15
 - **Per-audit export** from the detail drawer: branded **PDF** (Umbrella
   Automation logo), **Excel**, **CSV**, and a **screenshot** (PNG). Passwords

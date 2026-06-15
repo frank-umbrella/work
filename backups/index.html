@@ -47,6 +47,8 @@
     --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
     --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     --bg-grad: radial-gradient(1200px 600px at 70% -10%, #16202b 0%, var(--bg) 55%);
+    --topbar-bg: rgba(20,26,34,.85);
+    --tab-active-fg: #ffffff;
   }
   /* Light theme — overrides the vars for everything below body.light. */
   body.light {
@@ -68,6 +70,8 @@
     --na: #98a2af;
     --shadow: 0 6px 22px rgba(40,55,75,.14);
     --bg-grad: radial-gradient(1100px 560px at 70% -10%, #e9eef4 0%, var(--bg) 55%);
+    --topbar-bg: rgba(255,255,255,.88);
+    --tab-active-fg: #0b4f47;
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; }
@@ -110,7 +114,7 @@
   #app[hidden] { display: none; }
   header.topbar {
     display: flex; align-items: center; gap: 14px; padding: 12px 20px;
-    border-bottom: 1px solid var(--border); background: rgba(20,26,34,.85);
+    border-bottom: 1px solid var(--border); background: var(--topbar-bg);
     backdrop-filter: blur(8px); position: sticky; top: 0; z-index: 20;
   }
   .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; letter-spacing: .2px; }
@@ -127,7 +131,7 @@
     border-radius: 8px; cursor: pointer; font-size: 13.5px; font-weight: 600;
   }
   nav.tabs button:hover { color: var(--text); background: var(--panel-2); }
-  nav.tabs button.active { color: #fff; background: var(--accent-dim); }
+  nav.tabs button.active { color: var(--tab-active-fg); background: var(--accent-dim); }
   .spacer { flex: 1; }
   .who { display: flex; align-items: center; gap: 9px; }
   .who img { width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--border-2); }
@@ -206,6 +210,12 @@
   table.audits tbody tr.flagged td { background: rgba(240,185,85,.12); }
   table.audits tbody tr.flagged:hover td { background: rgba(240,185,85,.18); }
   table.audits tbody tr.flagged td.col-flag { box-shadow: inset 3px 0 0 var(--warn); }
+  /* Column reorder mode */
+  table.audits.reordering th[data-k] { cursor: grab; user-select: none; }
+  table.audits.reordering th[data-k]:active { cursor: grabbing; }
+  table.audits th.dragging { opacity: .4; }
+  table.audits th.drop-target { outline: 2px dashed var(--accent); outline-offset: -2px; }
+  #reorderBtn.on { color: var(--accent); border-color: var(--accent); background: var(--accent-dim); }
   .empty { padding: 40px; text-align: center; color: var(--text-faint); }
 
   .status { font-weight: 700; }
@@ -410,6 +420,7 @@
           <button class="btn sm" id="colsBtn">Columns ▾</button>
           <div class="menu" id="colsMenu" hidden></div>
         </div>
+        <button class="btn sm" id="reorderBtn" title="Unlock to drag column headers into a new order">↔ Reorder</button>
       </div>
 
       <div class="table-wrap">
@@ -530,7 +541,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION    = "0.3.0";
+const APP_VERSION    = "0.4.0";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const OWNER_EMAIL    = "frank@umbrellaautomation.com";
 
@@ -671,7 +682,8 @@ const state = {
   audits: [],
   activity: [],
   viewers: [],          // emails (lowercased) allowed to see Activity
-  cols: null,           // visible column keys (array)
+  cols: null,           // visible column keys (array, ordered)
+  unlocked: false,      // column-reorder (drag) mode
   sortKey: "auditDate",
   sortDir: -1,
   editingId: null,
@@ -919,6 +931,37 @@ document.addEventListener("click", e => {
 });
 
 // ---------------------------------------------------------------
+// COLUMN REORDER (drag headers when unlocked)
+// ---------------------------------------------------------------
+let _dragCol = null;
+function wireHeaderDrag(th) {
+  th.addEventListener("dragstart", e => { _dragCol = th.dataset.k; th.classList.add("dragging"); e.dataTransfer.effectAllowed = "move"; try { e.dataTransfer.setData("text/plain", _dragCol); } catch {} });
+  th.addEventListener("dragend", () => { th.classList.remove("dragging"); $$("th.drop-target").forEach(x => x.classList.remove("drop-target")); });
+  th.addEventListener("dragover", e => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; th.classList.add("drop-target"); });
+  th.addEventListener("dragleave", () => th.classList.remove("drop-target"));
+  th.addEventListener("drop", e => {
+    e.preventDefault();
+    const from = _dragCol, to = th.dataset.k;
+    if (!from || from === to) return;
+    const cols = state.cols.slice();
+    cols.splice(cols.indexOf(from), 1);
+    cols.splice(cols.indexOf(to), 0, from);   // drop before the target
+    state.cols = cols;
+    saveCols();          // persists order to profile + localStorage
+    renderTable();
+  });
+}
+$("#reorderBtn").addEventListener("click", () => {
+  state.unlocked = !state.unlocked;
+  const btn = $("#reorderBtn");
+  btn.classList.toggle("on", state.unlocked);
+  btn.textContent = state.unlocked ? "🔒 Done" : "↔ Reorder";
+  btn.title = state.unlocked ? "Drag headers to reorder; click to lock" : "Unlock to drag column headers into a new order";
+  if (state.unlocked) toast("Drag column headers to reorder. Click Done when finished.");
+  renderTable();
+});
+
+// ---------------------------------------------------------------
 // THEME (light / dark)
 // ---------------------------------------------------------------
 function applyTheme(t) {
@@ -972,6 +1015,7 @@ function filteredSorted() {
 
 function renderTable() {
   const cols = state.cols;
+  if (!cols) return;   // not signed in / prefs not loaded yet
   // Leading fixed "flag" column (the row-highlight checkbox) is always first
   // and is not part of the user-chosen columns. colgroup drives widths under
   // table-layout:fixed.
@@ -983,14 +1027,18 @@ function renderTable() {
   thead.innerHTML = `<th class="col-flag" title="Tick to highlight a row that needs attention">★</th>` + cols.map(k => {
     const f = FIELD_BY_KEY[k];
     const c = colClass(f);
-    const arrow = state.sortKey === k ? `<span class="arrow">${state.sortDir < 0 ? "▼" : "▲"}</span>` : "";
-    return `<th data-k="${k}"${c ? ` class="${c}"` : ""}>${esc(f.label)}${arrow}</th>`;
+    const arrow = (!state.unlocked && state.sortKey === k) ? `<span class="arrow">${state.sortDir < 0 ? "▼" : "▲"}</span>` : "";
+    return `<th data-k="${k}"${c ? ` class="${c}"` : ""}${state.unlocked ? " draggable=\"true\"" : ""}>${esc(f.label)}${arrow}</th>`;
   }).join("");
-  $$("th[data-k]", thead).forEach(th => th.addEventListener("click", () => {
-    const k = th.dataset.k;
-    if (state.sortKey === k) state.sortDir *= -1; else { state.sortKey = k; state.sortDir = 1; }
-    renderTable();
-  }));
+  $("table.audits").classList.toggle("reordering", state.unlocked);
+  $$("th[data-k]", thead).forEach(th => {
+    if (state.unlocked) wireHeaderDrag(th);
+    else th.addEventListener("click", () => {
+      const k = th.dataset.k;
+      if (state.sortKey === k) state.sortDir *= -1; else { state.sortKey = k; state.sortDir = 1; }
+      renderTable();
+    });
+  });
 
   const rows = filteredSorted();
   const tb = $("#tbody");
