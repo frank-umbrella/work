@@ -67,6 +67,12 @@ Pages. Two server-side pieces are deployed separately:
 
 ## Changelog
 
+### v0.4.1 — 2026-06-15
+Columns now size to their content (auto layout): short columns like Client ID,
+dates, and status shrink to fit, while wide columns (backup-solution tags, long
+free text) are capped so their content wraps instead of stretching the table.
+Still fits the width without a horizontal scrollbar.
+
 ### v0.4.0 — 2026-06-15
 - **Reorder columns by drag-and-drop.** A "Reorder" button unlocks the table
   headers so you can drag them into the order you want; click "Done" to lock.

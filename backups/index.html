@@ -177,11 +177,12 @@
   .stat.ok .n { color: var(--ok); }
 
   /* ---------- table ---------- */
-  /* table-layout:fixed + width:100% makes columns share the available width
-     and wrap their text, so the dashboard never scrolls sideways no matter
-     how many columns are toggled on. */
-  .table-wrap { overflow-x: hidden; border: 1px solid var(--border); border-radius: var(--radius); background: var(--panel); }
-  table.audits { border-collapse: collapse; width: 100%; font-size: 13px; table-layout: fixed; }
+  /* Content-based auto sizing (table-layout:auto + width:100%): short columns
+     (ID, dates, status) shrink to their content; wide columns are capped with
+     max-width so their text/tags WRAP instead of stretching the table. With
+     overflow-wrap on every cell the table still compresses to fit. */
+  .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); background: var(--panel); }
+  table.audits { border-collapse: collapse; width: 100%; font-size: 13px; table-layout: auto; }
   table.audits th, table.audits td {
     padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--border);
     vertical-align: top; white-space: normal; overflow-wrap: anywhere; word-break: break-word;
@@ -194,16 +195,22 @@
   table.audits th .arrow { color: var(--accent); margin-left: 4px; }
   table.audits tbody tr { cursor: pointer; }
   table.audits tbody tr:hover { background: var(--panel-2); }
-  /* Per-type column widths so short fixed-shape values (flags, dates, status)
-     stay compact and the text columns get the room. Assigned in JS via data-col. */
-  table.audits col.col-narrow { width: 56px; }
-  table.audits col.col-status { width: 78px; }
-  table.audits col.col-date   { width: 92px; }
-  table.audits td.col-narrow, table.audits th.col-narrow,
-  table.audits td.col-status, table.audits th.col-status { text-align: center; }
+  /* Shrink-to-content columns: width:1% + nowrap collapses them to just what
+     their value needs (a number, a date, a status glyph). */
+  table.audits th.col-id, table.audits td.col-id,
+  table.audits th.col-narrow, table.audits td.col-narrow,
+  table.audits th.col-status, table.audits td.col-status,
+  table.audits th.col-date, table.audits td.col-date {
+    width: 1%; white-space: nowrap; text-align: center;
+  }
+  table.audits th.col-id, table.audits td.col-id { text-align: left; }
+  /* Capped wrapping columns: tags + long free text wrap within a max width. */
+  table.audits td.col-tags, table.audits th.col-tags { max-width: 230px; }
+  table.audits td.col-text, table.audits th.col-text { max-width: 320px; }
   /* Leading row-highlight checkbox column */
-  table.audits col.col-flag { width: 40px; }
-  table.audits th.col-flag, table.audits td.col-flag { text-align: center; padding-left: 8px; padding-right: 8px; }
+  table.audits th.col-flag, table.audits td.col-flag {
+    width: 1%; white-space: nowrap; text-align: center; padding-left: 8px; padding-right: 8px;
+  }
   table.audits th.col-flag { color: var(--text-faint); cursor: default; }
   .rowflag { width: 16px; height: 16px; accent-color: var(--warn); cursor: pointer; vertical-align: middle; }
   /* Highlighted (flagged) rows — amber tint + left bar, works in both themes */
@@ -541,7 +548,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION    = "0.4.0";
+const APP_VERSION    = "0.4.1";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const OWNER_EMAIL    = "frank@umbrellaautomation.com";
 
@@ -666,9 +673,12 @@ const DEFAULT_COLS = ["clientId", "client", "server", "auditor", "auditDate", "b
 // values don't hog width under the fixed table layout.
 function colClass(f) {
   if (!f) return "";
+  if (f.k === "clientId") return "col-id";          // short number -> shrink to content
   if (f.t === "bool") return "col-narrow";
   if (f.t === "status" || f.t === "yesno") return "col-status";
   if (f.t === "date") return "col-date";
+  if (f.t === "multi") return "col-tags";           // tags wrap within a cap
+  if (f.t === "textarea") return "col-text";        // long free text wraps within a cap
   return "";
 }
 
