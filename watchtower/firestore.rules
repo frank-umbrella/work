@@ -46,6 +46,29 @@ service cloud.firestore {
         && request.auth.token.email.matches('.*@umbrellaautomation[.]com');
     }
 
+    // -------- Backup Audits (work/backups) helpers --------
+    // The Backup Audits tool shares THIS project's login (watchtower-6fbe1)
+    // and keeps its data in /backup_* collections below. Every signed-in
+    // @umbrellaautomation.com employee can read and submit audits, but the
+    // Activity log is restricted to an owner-managed allowlist.
+    function backupsOwner() {
+      // Hardwired super-admin: manages the activity-viewer allowlist and is
+      // always able to read Activity even if the settings doc is missing.
+      return isMSPAdmin()
+        && request.auth.token.email.lower() == 'frank@umbrellaautomation.com';
+    }
+    function backupsViewerEmails() {
+      // Lowercased emails permitted to read the Activity log. Stored on
+      // /backup_settings/activity_viewers by the owner via the Settings tab.
+      return exists(/databases/$(database)/documents/backup_settings/activity_viewers)
+        ? get(/databases/$(database)/documents/backup_settings/activity_viewers).data.get('emails', [])
+        : [];
+    }
+    function isBackupsActivityViewer() {
+      return backupsOwner()
+        || (isMSPAdmin() && request.auth.token.email.lower() in backupsViewerEmails());
+    }
+
     // -------- /users/{uid} --------
     // Per-user preferences stored by the dashboard (e.g. saved Endpoints
     // column layout). Each MSP admin reads and writes ONLY their own doc;
@@ -182,6 +205,49 @@ service cloud.firestore {
         allow get, list: if isMSPAdmin();
         allow create, update, delete: if isMSPAdmin();
       }
+    }
+
+    // ===================================================================
+    // BACKUP AUDITS (work/backups) — shares this project's auth.
+    // ===================================================================
+
+    // -------- /backup_audits/{auditId} --------
+    // One doc per audited server/workstation. Mirrors the Excel "Data"
+    // sheet. Any signed-in @umbrellaautomation.com employee can read every
+    // audit and create/edit/delete them (the tool is collaborative; edits
+    // are captured in /backup_activity below).
+    match /backup_audits/{auditId} {
+      allow get, list: if isMSPAdmin();
+      allow create, update, delete: if isMSPAdmin();
+    }
+
+    // -------- /backup_activity/{eventId} --------
+    // Append-only audit log: who created/edited/deleted which audit, with
+    // a per-field diff. READ is restricted to the owner + allowlisted
+    // viewers (the Activity tab). CREATE is allowed for any admin so the
+    // dashboard can log its own actions on save/delete. Update/delete is
+    // owner-only (cleanup). The digest worker reads via service account,
+    // which bypasses these rules.
+    match /backup_activity/{eventId} {
+      allow get, list: if isBackupsActivityViewer();
+      allow create: if isMSPAdmin();
+      allow update, delete: if backupsOwner();
+    }
+
+    // -------- /backup_settings/{key} --------
+    // Currently only /backup_settings/activity_viewers = { emails: [...] }.
+    // Readable by any admin (the dashboard needs the list to know whether
+    // to show the Activity tab), but only the owner can change it.
+    match /backup_settings/{key} {
+      allow get, list: if isMSPAdmin();
+      allow create, update, delete: if backupsOwner();
+    }
+
+    // -------- /backup_users/{uid} --------
+    // Reserved for per-user Backups preferences (e.g. saved column layout).
+    // Each user reads/writes only their own doc.
+    match /backup_users/{uid} {
+      allow get, create, update, delete: if isMSPAdmin() && request.auth.uid == uid;
     }
   }
 }

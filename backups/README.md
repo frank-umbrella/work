@@ -1,0 +1,69 @@
+# Backup Audits
+
+Internal tool for Umbrella Automation employees to submit and track **backup
+audits** for client servers — the digital replacement for the
+`Backup Audits.xlsx` spreadsheet.
+
+Live: <https://frank-umbrella.github.io/work/backups/>
+
+## What it does
+
+- **Google sign-in, restricted to `@umbrellaautomation.com`.** It shares
+  Watchtower's login — the **same Firebase project** (`watchtower-6fbe1`), so
+  a signed-in employee is signed into both. Nobody else can see anything.
+- **Submit / edit audits** per server or workstation. A short **Core** form
+  (client, server, auditor, date, priority, backup solutions, last backup,
+  drive state, recovery media, errors, notes) plus an expandable **Advanced**
+  section covering everything the spreadsheet tracked: Veeam agent state,
+  Carbonite, Windows Server Backup disks + rotation, iDRAC / OpenManage,
+  credentials, system state, and the important backup paths.
+- **Dashboard** with summary stats, search, client / auditor / priority
+  filters, a "Focus only" toggle, a column chooser, sortable columns, and CSV
+  export. Click any row for the full detail drawer.
+- **Activity log** — every create / edit / delete, with a per-field diff.
+  Visible only to an owner-managed allowlist (Settings tab).
+- **End-of-day email digest** of all changes, sent to
+  `frank@umbrellaautomation.com` by `backups-worker` (see `worker/`).
+
+## Architecture
+
+- `index.html` — single-file SPA. Firebase Auth (Google) + Firestore.
+  No build step.
+- Firestore collections (in `watchtower-6fbe1`): `/backup_audits`,
+  `/backup_activity`, `/backup_settings/activity_viewers`, `/backup_users`.
+- Security rules live in **`../watchtower/firestore.rules`** (a Firebase
+  project has one ruleset; Backups' rules were appended there). Deploy from
+  `work/watchtower` with the account that owns `watchtower-6fbe1`.
+- `worker/` — `backups-worker`, a Cloudflare Worker on the Umbrella account
+  that emails the daily digest. See `worker/README.md`.
+
+## Access control
+
+- Any verified `@umbrellaautomation.com` user can read and submit audits.
+- The **Activity** tab is gated: `frank@umbrellaautomation.com` (owner) always
+  sees it and is the only one who can add/remove other viewers via **Settings**.
+- Passwords entered in the Advanced section are masked in the table and detail
+  drawer (click "reveal" to show), and never displayed in the digest email.
+
+## Deploying
+
+The SPA is static — pushing to `frank-umbrella/work` publishes it via GitHub
+Pages. Two server-side pieces are deployed separately:
+
+1. **Firestore rules** (required before reads/writes work):
+   ```sh
+   cd work/watchtower
+   firebase deploy --only firestore:rules --project watchtower-6fbe1
+   ```
+   Must be run by the Google account that owns `watchtower-6fbe1`.
+2. **Digest worker**: see `worker/README.md`.
+
+## Changelog
+
+### v0.1.0 — 2026-06-15
+Initial release. Replaces the `Backup Audits.xlsx` "Data" sheet with a
+collaborative web tool so any employee can submit audits and everyone sees a
+live dashboard instead of passing a spreadsheet around. Built on Watchtower's
+existing Google login so there's nothing new to authorize. Adds a
+viewer-restricted Activity log and an end-of-day digest email — the two things
+a shared spreadsheet couldn't do.

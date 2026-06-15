@@ -1,0 +1,1178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Backup Audits — Umbrella Automation</title>
+<meta name="robots" content="noindex, nofollow" />
+<meta name="description" content="Internal backup-audit dashboard for Umbrella Automation. Restricted to @umbrellaautomation.com accounts." />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231f9d8f'/%3E%3Cpath d='M16 6l8 3v6c0 5-3.4 8.6-8 11-4.6-2.4-8-6-8-11V9z' fill='none' stroke='%23eafffb' stroke-width='2' stroke-linejoin='round'/%3E%3Cpath d='M12 16l3 3 5-6' fill='none' stroke='%23eafffb' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
+<style>
+  :root {
+    --bg: #0e1116;
+    --bg-2: #151a22;
+    --panel: #181e27;
+    --panel-2: #1d2530;
+    --border: #2a3340;
+    --border-2: #36424f;
+    --text: #e6ebf2;
+    --text-dim: #9aa6b5;
+    --text-faint: #6b7787;
+    --accent: #1f9d8f;
+    --accent-2: #28c2af;
+    --accent-dim: #15463f;
+    --ok: #3ecf8e;
+    --warn: #f0b955;
+    --bad: #f0655d;
+    --na: #5b6675;
+    --shadow: 0 6px 24px rgba(0,0,0,.45);
+    --radius: 10px;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font-family: var(--sans);
+    background: radial-gradient(1200px 600px at 70% -10%, #16202b 0%, var(--bg) 55%);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent-2); }
+  button { font-family: inherit; }
+
+  /* ---------- sign-in ---------- */
+  #signin {
+    display: none; position: fixed; inset: 0; z-index: 50;
+    align-items: center; justify-content: center; padding: 24px;
+    background: radial-gradient(900px 500px at 50% -10%, #16202b, var(--bg));
+  }
+  .signin-card {
+    width: 100%; max-width: 420px; background: var(--panel);
+    border: 1px solid var(--border); border-radius: 16px; padding: 34px 30px;
+    box-shadow: var(--shadow); text-align: center;
+  }
+  .signin-card .mark { width: 56px; height: 56px; margin: 0 auto 14px; display: block; }
+  .signin-card h1 { font-size: 20px; margin: 0 0 4px; letter-spacing: .2px; }
+  .signin-card .sub { color: var(--text-dim); font-size: 13px; margin: 0 0 22px; }
+  .gbtn {
+    display: inline-flex; align-items: center; gap: 10px; justify-content: center;
+    width: 100%; padding: 11px 16px; border-radius: 9px; cursor: pointer;
+    background: #fff; color: #1f1f1f; border: none; font-size: 14.5px; font-weight: 600;
+  }
+  .gbtn:hover { background: #f1f1f1; }
+  .domain { margin-top: 16px; font-size: 12px; color: var(--text-faint); }
+  .domain code { color: var(--accent-2); background: var(--accent-dim); padding: 1px 6px; border-radius: 5px; }
+  .err { color: var(--bad); font-size: 13px; margin-top: 14px; }
+
+  /* ---------- app shell ---------- */
+  #app[hidden] { display: none; }
+  header.topbar {
+    display: flex; align-items: center; gap: 14px; padding: 12px 20px;
+    border-bottom: 1px solid var(--border); background: rgba(20,26,34,.85);
+    backdrop-filter: blur(8px); position: sticky; top: 0; z-index: 20;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; letter-spacing: .2px; }
+  .brand .mark { width: 28px; height: 28px; }
+  .brand .name { font-size: 15.5px; }
+  .brand .name small { display: block; font-size: 10.5px; font-weight: 600; color: var(--text-faint); letter-spacing: .8px; text-transform: uppercase; }
+  .version-chip {
+    font-family: var(--mono); font-size: 11px; color: var(--text-dim);
+    border: 1px solid var(--border-2); padding: 2px 7px; border-radius: 20px; cursor: default;
+  }
+  nav.tabs { display: flex; gap: 4px; margin-left: 8px; }
+  nav.tabs button {
+    background: none; border: none; color: var(--text-dim); padding: 7px 13px;
+    border-radius: 8px; cursor: pointer; font-size: 13.5px; font-weight: 600;
+  }
+  nav.tabs button:hover { color: var(--text); background: var(--panel-2); }
+  nav.tabs button.active { color: #fff; background: var(--accent-dim); }
+  .spacer { flex: 1; }
+  .who { display: flex; align-items: center; gap: 9px; }
+  .who img { width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--border-2); }
+  .who .email { font-size: 12.5px; color: var(--text-dim); }
+  .btn {
+    background: var(--panel-2); color: var(--text); border: 1px solid var(--border-2);
+    padding: 7px 13px; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 600;
+  }
+  .btn:hover { border-color: var(--accent); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #04221e; }
+  .btn.primary:hover { background: var(--accent-2); }
+  .btn.danger { color: var(--bad); border-color: #5a2c2c; }
+  .btn.danger:hover { background: #2a1414; }
+  .btn.ghost { background: none; }
+  .btn.sm { padding: 4px 9px; font-size: 12px; }
+
+  main { padding: 20px; max-width: 1700px; margin: 0 auto; }
+  .view[hidden] { display: none; }
+
+  /* ---------- toolbar / filters ---------- */
+  .toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 16px; }
+  .toolbar .grow { flex: 1; }
+  input, select, textarea {
+    background: var(--bg-2); color: var(--text); border: 1px solid var(--border-2);
+    border-radius: 8px; padding: 8px 10px; font-size: 13.5px; font-family: inherit;
+  }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); }
+  input::placeholder { color: var(--text-faint); }
+  .search { min-width: 220px; }
+  .filter-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--text-dim); }
+  .filter-pill select, .filter-pill input { padding: 6px 8px; }
+  .chk { display: inline-flex; align-items: center; gap: 7px; cursor: pointer; font-size: 13px; color: var(--text-dim); user-select: none; }
+  .chk input { width: 15px; height: 15px; accent-color: var(--accent); }
+
+  /* ---------- stats ---------- */
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 18px; }
+  .stat { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
+  .stat .n { font-size: 26px; font-weight: 700; line-height: 1; }
+  .stat .l { font-size: 12px; color: var(--text-dim); margin-top: 6px; }
+  .stat.bad .n { color: var(--bad); }
+  .stat.warn .n { color: var(--warn); }
+  .stat.ok .n { color: var(--ok); }
+
+  /* ---------- table ---------- */
+  .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); background: var(--panel); }
+  table.audits { border-collapse: collapse; width: 100%; font-size: 13px; white-space: nowrap; }
+  table.audits th, table.audits td { padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+  table.audits th {
+    position: sticky; top: 0; background: var(--panel-2); color: var(--text-dim);
+    font-weight: 600; font-size: 11.5px; text-transform: uppercase; letter-spacing: .4px; cursor: pointer; z-index: 1;
+  }
+  table.audits th:hover { color: var(--text); }
+  table.audits th .arrow { color: var(--accent); margin-left: 4px; }
+  table.audits tbody tr { cursor: pointer; }
+  table.audits tbody tr:hover { background: var(--panel-2); }
+  table.audits td.wrap { white-space: normal; max-width: 320px; }
+  .empty { padding: 40px; text-align: center; color: var(--text-faint); }
+
+  .status { font-weight: 700; }
+  .status.ok { color: var(--ok); } .status.bad { color: var(--bad); }
+  .status.warn { color: var(--warn); } .status.na { color: var(--na); }
+  .pill { display: inline-block; padding: 1px 8px; border-radius: 20px; font-size: 11.5px; font-weight: 600; border: 1px solid var(--border-2); }
+  .pill.high { color: var(--bad); border-color: #5a2c2c; background: #2a1414; }
+  .pill.medium { color: var(--warn); border-color: #5a4a2c; background: #2a2414; }
+  .pill.low { color: var(--text-dim); }
+  .pill.focus { color: var(--warn); border-color: #5a4a2c; background: #2a2414; }
+  .tag { display: inline-block; font-size: 11px; color: var(--accent-2); background: var(--accent-dim); border-radius: 5px; padding: 1px 6px; margin: 1px 3px 1px 0; }
+
+  /* ---------- column chooser ---------- */
+  .menu-wrap { position: relative; }
+  .menu {
+    position: absolute; right: 0; top: calc(100% + 6px); z-index: 30; width: 300px; max-height: 60vh; overflow: auto;
+    background: var(--panel); border: 1px solid var(--border-2); border-radius: 10px; box-shadow: var(--shadow); padding: 10px;
+  }
+  .menu[hidden] { display: none; }
+  .menu .grp { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--text-faint); margin: 8px 4px 4px; }
+  .menu label { display: flex; align-items: center; gap: 8px; padding: 5px 6px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+  .menu label:hover { background: var(--panel-2); }
+
+  /* ---------- modal / drawer ---------- */
+  .overlay { position: fixed; inset: 0; background: rgba(4,7,11,.66); z-index: 40; display: flex; }
+  .overlay[hidden] { display: none; }
+  .modal {
+    margin: auto; width: 100%; max-width: 920px; max-height: 92vh; overflow: auto;
+    background: var(--panel); border: 1px solid var(--border-2); border-radius: 14px; box-shadow: var(--shadow);
+  }
+  .drawer {
+    margin-left: auto; width: 100%; max-width: 560px; height: 100%; overflow: auto;
+    background: var(--panel); border-left: 1px solid var(--border-2); box-shadow: var(--shadow);
+  }
+  .modal-head, .drawer-head {
+    display: flex; align-items: center; gap: 12px; padding: 16px 20px;
+    border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--panel); z-index: 2;
+  }
+  .modal-head h2, .drawer-head h2 { margin: 0; font-size: 16px; }
+  .modal-head .sub, .drawer-head .sub { color: var(--text-dim); font-size: 12.5px; }
+  .x { margin-left: auto; background: none; border: none; color: var(--text-dim); font-size: 22px; cursor: pointer; line-height: 1; }
+  .x:hover { color: var(--text); }
+  .modal-body, .drawer-body { padding: 18px 20px; }
+  .modal-foot {
+    display: flex; gap: 10px; justify-content: flex-end; padding: 14px 20px;
+    border-top: 1px solid var(--border); position: sticky; bottom: 0; background: var(--panel);
+  }
+
+  /* ---------- form ---------- */
+  fieldset { border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px 4px; margin: 0 0 16px; }
+  legend { font-size: 12px; text-transform: uppercase; letter-spacing: .6px; color: var(--accent-2); padding: 0 6px; }
+  .form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px 16px; }
+  .field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; }
+  .field.full { grid-column: 1 / -1; }
+  .field label { font-size: 12px; color: var(--text-dim); font-weight: 600; }
+  .field .hint { font-size: 11px; color: var(--text-faint); }
+  .field textarea { min-height: 58px; resize: vertical; }
+  .seg { display: flex; gap: 6px; flex-wrap: wrap; }
+  .seg button {
+    border: 1px solid var(--border-2); background: var(--bg-2); color: var(--text-dim);
+    border-radius: 7px; padding: 6px 12px; cursor: pointer; font-size: 14px; font-weight: 700; min-width: 40px;
+  }
+  .seg button.sel { color: #fff; border-color: var(--accent); background: var(--accent-dim); }
+  .multi { display: flex; flex-wrap: wrap; gap: 7px; }
+  .multi label { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border-2); border-radius: 7px; padding: 5px 10px; cursor: pointer; font-size: 12.5px; }
+  .multi label.sel { border-color: var(--accent); background: var(--accent-dim); color: #fff; }
+  .multi input { display: none; }
+  .adv-toggle { margin: 4px 0 16px; }
+  details.adv { border: 1px solid var(--border); border-radius: 10px; margin-bottom: 16px; }
+  details.adv > summary { cursor: pointer; padding: 12px 16px; font-weight: 600; color: var(--text); list-style: none; }
+  details.adv > summary::-webkit-details-marker { display: none; }
+  details.adv > summary::before { content: "▸ "; color: var(--accent); }
+  details.adv[open] > summary::before { content: "▾ "; }
+  details.adv .inner { padding: 0 16px; }
+
+  /* ---------- detail drawer rows ---------- */
+  .detail-grp { margin-bottom: 16px; }
+  .detail-grp h3 { font-size: 11.5px; text-transform: uppercase; letter-spacing: .5px; color: var(--accent-2); margin: 0 0 8px; }
+  .drow { display: grid; grid-template-columns: 200px 1fr; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .drow .k { color: var(--text-dim); }
+  .drow .v { color: var(--text); white-space: pre-wrap; word-break: break-word; }
+  .secret { font-family: var(--mono); }
+  .reveal { cursor: pointer; color: var(--accent-2); font-size: 11px; margin-left: 8px; }
+
+  /* ---------- activity ---------- */
+  .activity-item { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .activity-item .dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+  .dot.create { background: var(--ok); } .dot.update { background: var(--warn); } .dot.delete { background: var(--bad); }
+  .activity-item .body { flex: 1; }
+  .activity-item .meta { font-size: 12px; color: var(--text-faint); margin-top: 3px; }
+  .activity-item .changes { margin-top: 6px; font-size: 12.5px; color: var(--text-dim); }
+  .activity-item .changes .chg { padding: 1px 0; }
+  .activity-item .changes b { color: var(--text); font-weight: 600; }
+
+  .notice { padding: 30px; text-align: center; color: var(--text-faint); }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; margin-bottom: 16px; }
+  .card h3 { margin: 0 0 4px; font-size: 15px; }
+  .card .desc { color: var(--text-dim); font-size: 13px; margin-bottom: 14px; }
+  .viewer-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .viewer-row .em { flex: 1; font-family: var(--mono); font-size: 13px; }
+  .viewer-row .you { font-size: 11px; color: var(--accent-2); }
+  .toast {
+    position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); z-index: 80;
+    background: var(--panel-2); border: 1px solid var(--border-2); color: var(--text);
+    padding: 11px 18px; border-radius: 10px; box-shadow: var(--shadow); font-size: 13.5px; opacity: 0; transition: opacity .2s, transform .2s;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(-4px); }
+  .toast.bad { border-color: #5a2c2c; }
+
+  @media (max-width: 720px) {
+    .form-grid { grid-template-columns: 1fr; }
+    .who .email { display: none; }
+    nav.tabs button { padding: 7px 9px; }
+    main { padding: 14px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ SIGN IN ============ -->
+<div id="signin">
+  <div class="signin-card">
+    <svg class="mark" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+      <rect width="32" height="32" rx="7" fill="#1f9d8f"/>
+      <path d="M16 6l8 3v6c0 5-3.4 8.6-8 11-4.6-2.4-8-6-8-11V9z" fill="none" stroke="#eafffb" stroke-width="2" stroke-linejoin="round"/>
+      <path d="M12 16l3 3 5-6" fill="none" stroke="#eafffb" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <h1>Backup Audits</h1>
+    <p class="sub">Umbrella Automation — internal tool</p>
+    <button id="signinBtn" class="gbtn">
+      <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.7-6.7C35.6 2.7 30.2 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.8 6.1C12.3 13.2 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.5 3-2.2 5.5-4.7 7.2l7.3 5.7c4.3-4 6.7-9.9 6.7-17.4z"/><path fill="#FBBC05" d="M10.4 28.3c-.5-1.5-.8-3.1-.8-4.8s.3-3.3.8-4.8l-7.8-6.1C1 16 0 19.9 0 24s1 8 2.6 11.4l7.8-6.1z"/><path fill="#34A853" d="M24 48c6.2 0 11.5-2 15.3-5.5l-7.3-5.7c-2 1.4-4.7 2.3-8 2.3-6.3 0-11.7-3.7-13.6-9.8l-7.8 6.1C6.5 42.6 14.6 48 24 48z"/></svg>
+      Sign in with Google
+    </button>
+    <div class="domain">Restricted to <code>@umbrellaautomation.com</code> accounts.</div>
+    <div id="signinErr" class="err" hidden></div>
+  </div>
+</div>
+
+<!-- ============ APP ============ -->
+<div id="app" hidden>
+  <header class="topbar">
+    <div class="brand">
+      <svg class="mark" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+        <rect width="32" height="32" rx="7" fill="#1f9d8f"/>
+        <path d="M16 6l8 3v6c0 5-3.4 8.6-8 11-4.6-2.4-8-6-8-11V9z" fill="none" stroke="#eafffb" stroke-width="2" stroke-linejoin="round"/>
+        <path d="M12 16l3 3 5-6" fill="none" stroke="#eafffb" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <div class="name">Backup Audits<small>Umbrella Automation</small></div>
+    </div>
+    <span class="version-chip" id="versionChip"></span>
+    <nav class="tabs">
+      <button data-tab="dashboard" class="active">Dashboard</button>
+      <button data-tab="activity" id="tabActivity" hidden>Activity</button>
+      <button data-tab="settings" id="tabSettings" hidden>Settings</button>
+    </nav>
+    <div class="spacer"></div>
+    <button class="btn primary" id="newBtn">+ New Audit</button>
+    <div class="who">
+      <img id="userAvatar" alt="" />
+      <span class="email" id="userEmail"></span>
+      <button class="btn ghost sm" id="signoutBtn">Sign out</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- ===== DASHBOARD ===== -->
+    <section class="view" id="view-dashboard">
+      <div class="stats" id="stats"></div>
+
+      <div class="toolbar">
+        <input class="search" id="search" type="search" placeholder="Search client, server, notes…" />
+        <span class="filter-pill">Client
+          <select id="fClient"><option value="">All</option></select>
+        </span>
+        <span class="filter-pill">Auditor
+          <select id="fAuditor"><option value="">All</option></select>
+        </span>
+        <span class="filter-pill">Priority
+          <select id="fPriority"><option value="">All</option><option>High</option><option>Medium</option><option>Low</option></select>
+        </span>
+        <label class="chk"><input type="checkbox" id="fFocus" /> Focus only</label>
+        <div class="grow"></div>
+        <button class="btn sm" id="exportBtn">Export CSV</button>
+        <div class="menu-wrap">
+          <button class="btn sm" id="colsBtn">Columns ▾</button>
+          <div class="menu" id="colsMenu" hidden></div>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="audits">
+          <thead><tr id="theadRow"></tr></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ===== ACTIVITY ===== -->
+    <section class="view" id="view-activity" hidden>
+      <div class="card">
+        <h3>Activity log</h3>
+        <div class="desc">Every audit created, edited, or deleted. Visible only to selected users. A digest of each day's changes is emailed to frank@umbrellaautomation.com.</div>
+        <div id="activityList"></div>
+      </div>
+    </section>
+
+    <!-- ===== SETTINGS ===== -->
+    <section class="view" id="view-settings" hidden>
+      <div class="card">
+        <h3>Activity access</h3>
+        <div class="desc">Choose which @umbrellaautomation.com users can see the Activity tab. You (frank@umbrellaautomation.com) always have access and are the only one who can manage this list.</div>
+        <div id="viewerList"></div>
+        <div style="display:flex; gap:10px; margin-top:14px;">
+          <input id="newViewer" type="email" placeholder="name@umbrellaautomation.com" style="flex:1;" />
+          <button class="btn primary" id="addViewerBtn">Add</button>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- ============ EDIT / NEW MODAL ============ -->
+<div class="overlay" id="formOverlay" hidden>
+  <div class="modal">
+    <div class="modal-head">
+      <div>
+        <h2 id="formTitle">New backup audit</h2>
+        <div class="sub" id="formSub">Fill in what you checked. Advanced fields are optional.</div>
+      </div>
+      <button class="x" id="formClose">&times;</button>
+    </div>
+    <div class="modal-body">
+      <form id="auditForm" autocomplete="off">
+        <fieldset>
+          <legend>Core</legend>
+          <div class="form-grid" id="coreFields"></div>
+        </fieldset>
+        <details class="adv" id="advBlock">
+          <summary>Advanced fields (Veeam, Carbonite, iDRAC, drives, paths…)</summary>
+          <div class="inner"><div class="form-grid" id="advFields"></div></div>
+        </details>
+      </form>
+    </div>
+    <div class="modal-foot">
+      <button class="btn danger" id="deleteBtn" hidden>Delete</button>
+      <div class="grow" style="flex:1"></div>
+      <button class="btn ghost" id="cancelBtn">Cancel</button>
+      <button class="btn primary" id="saveBtn">Save audit</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ DETAIL DRAWER ============ -->
+<div class="overlay" id="detailOverlay" hidden>
+  <div class="drawer">
+    <div class="drawer-head">
+      <div>
+        <h2 id="detailTitle"></h2>
+        <div class="sub" id="detailSub"></div>
+      </div>
+      <button class="x" id="detailClose">&times;</button>
+    </div>
+    <div class="drawer-body" id="detailBody"></div>
+    <div class="modal-foot">
+      <div style="flex:1"></div>
+      <button class="btn" id="detailEdit">Edit</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js";
+import {
+  getFirestore, collection, doc, onSnapshot, query, orderBy, limit,
+  addDoc, setDoc, updateDoc, deleteDoc, getDoc, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js";
+
+// ---------------------------------------------------------------
+// Shared login with Watchtower: SAME Firebase project (watchtower-6fbe1),
+// SAME Google provider + @umbrellaautomation.com domain gate. A user
+// signed into Watchtower is signed into Backups (same origin would even
+// share the session). The apiKey is NOT a secret; safe to commit.
+// Backups data lives in dedicated /backup_* collections; rules live in
+// watchtower/firestore.rules (single ruleset per project).
+// ---------------------------------------------------------------
+const firebaseConfig = {
+  apiKey:            "AIzaSyDKWHa-nmIzFvnLqF92rmzIXiSKe2HywQw",
+  authDomain:        "watchtower-6fbe1.firebaseapp.com",
+  projectId:         "watchtower-6fbe1",
+  storageBucket:     "watchtower-6fbe1.firebasestorage.app",
+  messagingSenderId: "637038228926",
+  appId:             "1:637038228926:web:e8a793889c70162f0935ef"
+};
+
+const APP_VERSION    = "0.1.0";
+const ALLOWED_DOMAIN = "umbrellaautomation.com";
+const OWNER_EMAIL    = "frank@umbrellaautomation.com";
+
+const app  = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db   = getFirestore(app);
+
+const $  = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+$("#versionChip").textContent = "v" + APP_VERSION;
+
+// ---------------------------------------------------------------
+// Dropdown / seed data lifted from the spreadsheet.
+// ---------------------------------------------------------------
+const AUDITORS        = ["Frank", "Ronny", "Nate", "Joe", "Joe V."];
+const PRIORITIES      = ["High", "Medium", "Low"];
+const BACKUP_SOLUTIONS = ["Carbonite", "Veeam (Cloud)", "Veeam (Local USB)", "Windows Server Backup", "None"];
+const STATUS_OPTS     = ["✔", "❌", "❗", "--"];
+const YESNO           = ["Yes", "No", "--"];
+const OPENMANAGE      = ["Installed", "VM - Not Installed", "No storage controller located", "iDrac", "--"];
+const LOCAL_DOMAIN    = ["Local", "Domain"];
+const VM_GEN          = ["1", "2", "VM", "--"];
+const SEED_CLIENTS = [
+  "AWC","Boyd Electric","BW","Cambridge","Caro","Celtic CP","Damas","Face2Face",
+  "Grabavoy TMJ","Growing Smiles","Gycor","Hale","Inland","JT Family Dental",
+  "NeedHam and Levi","Nicorata DDS","Saint Christina","Signature Smiles",
+  "Tentler","Tentler LP","WDC","Willowbrook Ford","Windy City"
+];
+
+// ---------------------------------------------------------------
+// Field schema. Drives the form, the table columns, the detail
+// drawer, and CSV export — one source of truth, mirrors the Excel
+// "Data" sheet. group: core | advanced. type: text | textarea |
+// date | number | select | multi | status | yesno | bool.
+// table: shown in the table by default. sensitive: masked in views.
+// ---------------------------------------------------------------
+const FIELDS = [
+  // ---- core ----
+  { k: "focus",                g: "core", t: "bool",   label: "Focus — needs attention", table: true },
+  { k: "client",               g: "core", t: "client", label: "Client", required: true, table: true },
+  { k: "server",               g: "core", t: "text",   label: "Server / Workstation name", hint: "VM name in Hyper-V if a VM", required: true, table: true },
+  { k: "priority",             g: "core", t: "select", opts: PRIORITIES, label: "Client priority", table: true },
+  { k: "auditor",              g: "core", t: "select", opts: AUDITORS, label: "Auditor", table: true },
+  { k: "auditDate",            g: "core", t: "date",   label: "Audit date", table: true },
+  { k: "backupSolutions",      g: "core", t: "multi",  opts: BACKUP_SOLUTIONS, label: "Backup solutions installed", table: true },
+  { k: "lastBackup",           g: "core", t: "date",   label: "Last backup", table: true },
+  { k: "daysSinceLocal",       g: "core", t: "number", label: "Days since local backup [Disk 1]", table: true },
+  { k: "driveState",           g: "core", t: "text",   label: "Current state of drives", table: true },
+  { k: "recoveryMediaCreated", g: "core", t: "status", label: "Recovery media created / GDrive" },
+  { k: "recoveryMediaTested",  g: "core", t: "status", label: "Recovery media tested", table: true },
+  { k: "errors",               g: "core", t: "textarea", label: "Errors", table: true },
+  { k: "notes",                g: "core", t: "textarea", label: "Comments / notes" },
+
+  // ---- advanced: Veeam ----
+  { k: "agentCreated",   g: "advanced", t: "status", label: "Veeam agent created" },
+  { k: "agentInstalled", g: "advanced", t: "status", label: "Veeam agent installed" },
+  { k: "veeamLocalUsbJob", g: "advanced", t: "status", label: "Veeam local USB backup job" },
+  { k: "veeamUsername",  g: "advanced", t: "text",   label: "Veeam username" },
+
+  // ---- advanced: system / remote ----
+  { k: "updatesPending", g: "advanced", t: "text",   label: "Updates pending" },
+  { k: "lmiLock",        g: "advanced", t: "status", label: 'LMI "Always lock host after Remote Control"' },
+  { k: "logmeinName",    g: "advanced", t: "text",   label: "LogMeIn name" },
+  { k: "vmGen",          g: "advanced", t: "select", opts: VM_GEN, label: "Gen of VM (1 or 2)" },
+
+  // ---- advanced: Dell / hardware ----
+  { k: "openManage",     g: "advanced", t: "select", opts: OPENMANAGE, label: "OpenManage installed" },
+  { k: "dateChecked",    g: "advanced", t: "date",   label: "Date checked" },
+  { k: "idracIp",        g: "advanced", t: "text",   label: "iDRAC IP" },
+  { k: "idracLogin",     g: "advanced", t: "text",   label: "iDRAC current login" },
+  { k: "serialNumber",   g: "advanced", t: "text",   label: "Serial number / Service Tag" },
+  { k: "driveStateOme",  g: "advanced", t: "text",   label: "Current state of drives via OME" },
+  { k: "systemState",    g: "advanced", t: "text",   label: "System state" },
+  { k: "lastWindowsUpdate", g: "advanced", t: "date", label: "Last Windows update" },
+
+  // ---- advanced: credentials (sensitive) ----
+  { k: "username",    g: "advanced", t: "text", label: "Username" },
+  { k: "password",    g: "advanced", t: "text", label: "Password", sensitive: true },
+  { k: "localDomain", g: "advanced", t: "select", opts: LOCAL_DOMAIN, label: "Local / Domain" },
+
+  // ---- advanced: Carbonite ----
+  { k: "carbonite",       g: "advanced", t: "yesno",  label: "Carbonite" },
+  { k: "filesProtected",  g: "advanced", t: "number", label: "Files protected" },
+  { k: "deviceProtected", g: "advanced", t: "yesno",  label: "Device protected" },
+
+  // ---- advanced: Windows Server Backup / local ----
+  { k: "localType",      g: "advanced", t: "text", label: "Local type [program name]" },
+  { k: "vssSettings",    g: "advanced", t: "text", label: "VSS settings (default: Full)" },
+  { k: "localFrequency", g: "advanced", t: "text", label: "Local backup frequency" },
+  { k: "disk1Dest",      g: "advanced", t: "text", label: "Disk 1 — storage type / destination" },
+  { k: "totalBackups",   g: "advanced", t: "number", label: "All backups total [Local]" },
+  { k: "backupsAvailable", g: "advanced", t: "number", label: "Backups available [Disk 1]" },
+  { k: "disk1Latest",    g: "advanced", t: "date", label: "Disk 1 — latest copy" },
+  { k: "disk2Dest",      g: "advanced", t: "text", label: "Rotation Disk 2 — destination" },
+  { k: "disk2Latest",    g: "advanced", t: "date", label: "Rotation Disk 2 — latest copy" },
+  { k: "disk3Dest",      g: "advanced", t: "text", label: "Rotation Disk 3 — destination" },
+  { k: "disk3Latest",    g: "advanced", t: "date", label: "Rotation Disk 3 — latest copy" },
+  { k: "hddInstall",     g: "advanced", t: "date", label: "HDD install date" },
+
+  // ---- advanced: important paths ----
+  { k: "path1Name", g: "advanced", t: "text", label: "Path 1 — program name" },
+  { k: "path1",     g: "advanced", t: "text", label: "Path 1" },
+  { k: "path2Name", g: "advanced", t: "text", label: "Path 2 — program name" },
+  { k: "path2",     g: "advanced", t: "text", label: "Path 2" },
+  { k: "path3Name", g: "advanced", t: "text", label: "Path 3 — program name" },
+  { k: "path3",     g: "advanced", t: "text", label: "Path 3" },
+  { k: "path4Name", g: "advanced", t: "text", label: "Path 4 — program name" },
+  { k: "path4",     g: "advanced", t: "text", label: "Path 4" },
+  { k: "path5Name", g: "advanced", t: "text", label: "Path 5 — program name" },
+  { k: "path5",     g: "advanced", t: "text", label: "Path 5" },
+  { k: "path6Name", g: "advanced", t: "text", label: "Path 6 — program name" },
+  { k: "path6",     g: "advanced", t: "text", label: "Path 6" },
+];
+const FIELD_BY_KEY = Object.fromEntries(FIELDS.map(f => [f.k, f]));
+
+// default table columns
+const DEFAULT_COLS = FIELDS.filter(f => f.table).map(f => f.k);
+
+// ---------------------------------------------------------------
+// State
+// ---------------------------------------------------------------
+const state = {
+  user: null,
+  isOwner: false,
+  isViewer: false,
+  audits: [],
+  activity: [],
+  viewers: [],          // emails (lowercased) allowed to see Activity
+  cols: null,           // visible column keys (array)
+  sortKey: "auditDate",
+  sortDir: -1,
+  editingId: null,
+  formValues: {},
+};
+let unsubAudits = null, unsubActivity = null, unsubViewers = null;
+
+// ---------------------------------------------------------------
+// helpers
+// ---------------------------------------------------------------
+function toast(msg, bad = false) {
+  const t = $("#toast");
+  t.textContent = msg;
+  t.classList.toggle("bad", bad);
+  t.classList.add("show");
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => t.classList.remove("show"), 2600);
+}
+function fmtDate(v) {
+  if (!v) return "";
+  // stored as YYYY-MM-DD string
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(v);
+  if (m) return `${m[2]}/${m[3]}/${m[1]}`;
+  return String(v);
+}
+function fmtTs(ts) {
+  if (!ts) return "";
+  const d = ts.toDate ? ts.toDate() : new Date(ts);
+  return d.toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+}
+function esc(s) {
+  return String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+function statusClass(v) {
+  if (v === "✔") return "ok";
+  if (v === "❌") return "bad";
+  if (v === "❗") return "warn";
+  return "na";
+}
+function displayValue(f, v) {
+  if (v == null || v === "") return "";
+  if (f.t === "multi") return Array.isArray(v) ? v.join(", ") : String(v);
+  if (f.t === "bool") return v ? "Yes" : "";
+  if (f.t === "date") return fmtDate(v);
+  return String(v);
+}
+
+// ---------------------------------------------------------------
+// AUTH
+// ---------------------------------------------------------------
+$("#signinBtn").addEventListener("click", async () => {
+  $("#signinErr").hidden = true;
+  try {
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ hd: ALLOWED_DOMAIN, prompt: "select_account" });
+    await signInWithPopup(auth, provider);
+  } catch (e) {
+    $("#signinErr").textContent = "Sign-in failed: " + (e.message || e);
+    $("#signinErr").hidden = false;
+  }
+});
+$("#signoutBtn").addEventListener("click", () => signOut(auth));
+
+onAuthStateChanged(auth, async (user) => {
+  if (!user) {
+    state.user = null;
+    teardown();
+    $("#signin").style.display = "flex";
+    $("#app").hidden = true;
+    return;
+  }
+  const email = (user.email || "").toLowerCase();
+  if (!email.endsWith("@" + ALLOWED_DOMAIN)) {
+    await signOut(auth);
+    $("#signinErr").textContent = `Sign-in must be a @${ALLOWED_DOMAIN} account.`;
+    $("#signinErr").hidden = false;
+    return;
+  }
+  state.user = { uid: user.uid, email, name: user.displayName || email };
+  state.isOwner = email === OWNER_EMAIL;
+
+  $("#signin").style.display = "none";
+  $("#app").hidden = false;
+  $("#userEmail").textContent = email;
+  if (user.photoURL) $("#userAvatar").src = user.photoURL; else $("#userAvatar").style.display = "none";
+
+  $("#tabSettings").hidden = !state.isOwner;   // only owner manages viewers
+
+  loadCols();
+  buildColsMenu();
+  buildClientFilter();
+  buildAuditorFilter();
+  subscribeAudits();
+  subscribeViewers();   // determines Activity visibility (+ subscribes activity if allowed)
+});
+
+function teardown() {
+  unsubAudits && unsubAudits(); unsubAudits = null;
+  unsubActivity && unsubActivity(); unsubActivity = null;
+  unsubViewers && unsubViewers(); unsubViewers = null;
+}
+
+// ---------------------------------------------------------------
+// Firestore subscriptions
+// ---------------------------------------------------------------
+function subscribeAudits() {
+  unsubAudits && unsubAudits();
+  const qy = query(collection(db, "backup_audits"), orderBy("auditDate", "desc"));
+  unsubAudits = onSnapshot(qy, snap => {
+    state.audits = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderStats();
+    renderTable();
+  }, err => {
+    // orderBy may fail on docs missing auditDate; fall back to unordered.
+    console.warn("audits ordered subscribe failed, falling back:", err);
+    unsubAudits = onSnapshot(collection(db, "backup_audits"), s => {
+      state.audits = s.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderStats(); renderTable();
+    });
+  });
+}
+
+function subscribeViewers() {
+  unsubViewers && unsubViewers();
+  unsubViewers = onSnapshot(doc(db, "backup_settings", "activity_viewers"), snap => {
+    const emails = (snap.exists() ? (snap.data().emails || []) : []).map(e => String(e).toLowerCase());
+    state.viewers = emails;
+    state.isViewer = state.isOwner || emails.includes(state.user.email);
+    $("#tabActivity").hidden = !state.isViewer;
+    if (state.isViewer) subscribeActivity(); else { unsubActivity && unsubActivity(); state.activity = []; }
+    renderViewers();
+    // if current tab is now hidden, bounce to dashboard
+    if (!state.isViewer && currentTab === "activity") switchTab("dashboard");
+    if (!state.isOwner && currentTab === "settings") switchTab("dashboard");
+  }, err => {
+    console.warn("viewers subscribe failed:", err);
+    state.isViewer = state.isOwner;
+    $("#tabActivity").hidden = !state.isViewer;
+    if (state.isViewer) subscribeActivity();
+  });
+}
+
+function subscribeActivity() {
+  unsubActivity && unsubActivity();
+  const qy = query(collection(db, "backup_activity"), orderBy("at", "desc"), limit(300));
+  unsubActivity = onSnapshot(qy, snap => {
+    state.activity = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderActivity();
+  }, err => console.warn("activity subscribe failed:", err));
+}
+
+// ---------------------------------------------------------------
+// STATS
+// ---------------------------------------------------------------
+function renderStats() {
+  const a = state.audits;
+  const clients = new Set(a.map(x => x.client).filter(Boolean));
+  const focus = a.filter(x => x.focus).length;
+  const errors = a.filter(x => (x.errors || "").trim()).length;
+  const recTested = a.filter(x => x.recoveryMediaTested === "✔").length;
+  const stale = a.filter(x => typeof x.daysSinceLocal === "number" && x.daysSinceLocal >= 30).length;
+  const cards = [
+    { n: a.length, l: "Audited servers" },
+    { n: clients.size, l: "Clients" },
+    { n: focus, l: "Flagged (Focus)", cls: focus ? "warn" : "" },
+    { n: errors, l: "With errors logged", cls: errors ? "bad" : "" },
+    { n: stale, l: "Local backup ≥ 30d", cls: stale ? "warn" : "" },
+    { n: recTested, l: "Recovery media tested", cls: "ok" },
+  ];
+  $("#stats").innerHTML = cards.map(c =>
+    `<div class="stat ${c.cls || ""}"><div class="n">${c.n}</div><div class="l">${esc(c.l)}</div></div>`).join("");
+}
+
+// ---------------------------------------------------------------
+// TABLE
+// ---------------------------------------------------------------
+function loadCols() {
+  try {
+    const saved = JSON.parse(localStorage.getItem("backups:cols") || "null");
+    state.cols = Array.isArray(saved) && saved.length ? saved.filter(k => FIELD_BY_KEY[k]) : DEFAULT_COLS.slice();
+  } catch { state.cols = DEFAULT_COLS.slice(); }
+}
+function saveCols() { localStorage.setItem("backups:cols", JSON.stringify(state.cols)); }
+
+function buildColsMenu() {
+  const menu = $("#colsMenu");
+  const groups = { core: [], advanced: [] };
+  FIELDS.forEach(f => groups[f.g].push(f));
+  let html = "";
+  for (const [g, list] of Object.entries(groups)) {
+    html += `<div class="grp">${g}</div>`;
+    html += list.map(f =>
+      `<label><input type="checkbox" data-col="${f.k}" ${state.cols.includes(f.k) ? "checked" : ""}/> ${esc(f.label)}</label>`).join("");
+  }
+  menu.innerHTML = html;
+  $$("input[data-col]", menu).forEach(cb => cb.addEventListener("change", () => {
+    const k = cb.dataset.col;
+    if (cb.checked) { if (!state.cols.includes(k)) state.cols.push(k); }
+    else state.cols = state.cols.filter(c => c !== k);
+    saveCols(); renderTable();
+  }));
+}
+$("#colsBtn").addEventListener("click", e => { e.stopPropagation(); $("#colsMenu").hidden = !$("#colsMenu").hidden; });
+document.addEventListener("click", e => { if (!e.target.closest(".menu-wrap")) $("#colsMenu").hidden = true; });
+
+function filteredSorted() {
+  const term = $("#search").value.trim().toLowerCase();
+  const fc = $("#fClient").value, fa = $("#fAuditor").value, fp = $("#fPriority").value, ff = $("#fFocus").checked;
+  let rows = state.audits.filter(r => {
+    if (fc && r.client !== fc) return false;
+    if (fa && r.auditor !== fa) return false;
+    if (fp && r.priority !== fp) return false;
+    if (ff && !r.focus) return false;
+    if (term) {
+      const hay = [r.client, r.server, r.notes, r.errors, r.auditor, r.driveState, (r.backupSolutions || []).join(" ")].join(" ").toLowerCase();
+      if (!hay.includes(term)) return false;
+    }
+    return true;
+  });
+  const k = state.sortKey, dir = state.sortDir;
+  rows.sort((a, b) => {
+    let va = a[k], vb = b[k];
+    if (Array.isArray(va)) va = va.join(",");
+    if (Array.isArray(vb)) vb = vb.join(",");
+    va = va ?? ""; vb = vb ?? "";
+    if (typeof va === "boolean") va = va ? 1 : 0;
+    if (typeof vb === "boolean") vb = vb ? 1 : 0;
+    if (va < vb) return -1 * dir;
+    if (va > vb) return 1 * dir;
+    return 0;
+  });
+  return rows;
+}
+
+function renderTable() {
+  const cols = state.cols;
+  const thead = $("#theadRow");
+  thead.innerHTML = cols.map(k => {
+    const f = FIELD_BY_KEY[k];
+    const arrow = state.sortKey === k ? `<span class="arrow">${state.sortDir < 0 ? "▼" : "▲"}</span>` : "";
+    return `<th data-k="${k}">${esc(f.label)}${arrow}</th>`;
+  }).join("");
+  $$("th", thead).forEach(th => th.addEventListener("click", () => {
+    const k = th.dataset.k;
+    if (state.sortKey === k) state.sortDir *= -1; else { state.sortKey = k; state.sortDir = 1; }
+    renderTable();
+  }));
+
+  const rows = filteredSorted();
+  const tb = $("#tbody");
+  if (!rows.length) {
+    tb.innerHTML = `<tr><td class="empty" colspan="${cols.length}">No audits match. Click “+ New Audit” to add one.</td></tr>`;
+    return;
+  }
+  tb.innerHTML = rows.map(r => {
+    const tds = cols.map(k => cellHtml(r, k)).join("");
+    return `<tr data-id="${r.id}">${tds}</tr>`;
+  }).join("");
+  $$("tr[data-id]", tb).forEach(tr => tr.addEventListener("click", () => openDetail(tr.dataset.id)));
+}
+
+function cellHtml(r, k) {
+  const f = FIELD_BY_KEY[k];
+  const v = r[k];
+  if (f.t === "status" || f.t === "yesno") {
+    if (f.t === "status") return `<td><span class="status ${statusClass(v)}">${esc(v || "")}</span></td>`;
+    const cls = v === "Yes" ? "ok" : v === "No" ? "na" : "na";
+    return `<td><span class="status ${cls}">${esc(v || "")}</span></td>`;
+  }
+  if (f.t === "bool") return `<td>${v ? '<span class="pill focus">FOCUS</span>' : ""}</td>`;
+  if (k === "priority" && v) return `<td><span class="pill ${v.toLowerCase()}">${esc(v)}</span></td>`;
+  if (f.t === "multi") return `<td>${(v || []).map(x => `<span class="tag">${esc(x)}</span>`).join("")}</td>`;
+  if (f.t === "date") return `<td>${fmtDate(v)}</td>`;
+  if (f.sensitive && v) return `<td class="secret">••••••</td>`;
+  if (k === "errors" || k === "notes" || k === "driveState") return `<td class="wrap">${esc(v || "")}</td>`;
+  return `<td>${esc(displayValue(f, v))}</td>`;
+}
+
+// filters
+["search", "fClient", "fAuditor", "fPriority"].forEach(id => $("#" + id).addEventListener("input", renderTable));
+$("#fFocus").addEventListener("change", renderTable);
+
+function buildClientFilter() {
+  const sel = $("#fClient");
+  const clients = Array.from(new Set([...SEED_CLIENTS, ...state.audits.map(a => a.client).filter(Boolean)])).sort();
+  sel.innerHTML = '<option value="">All</option>' + clients.map(c => `<option>${esc(c)}</option>`).join("");
+}
+function buildAuditorFilter() {
+  $("#fAuditor").innerHTML = '<option value="">All</option>' + AUDITORS.map(a => `<option>${esc(a)}</option>`).join("");
+}
+
+// ---------------------------------------------------------------
+// CSV export
+// ---------------------------------------------------------------
+$("#exportBtn").addEventListener("click", () => {
+  const rows = filteredSorted();
+  const cols = FIELDS.map(f => f.k);
+  const head = FIELDS.map(f => f.label);
+  const csv = [head, ...rows.map(r => cols.map(k => {
+    const f = FIELD_BY_KEY[k]; let v = r[k];
+    if (Array.isArray(v)) v = v.join("; ");
+    if (typeof v === "boolean") v = v ? "Yes" : "";
+    v = v == null ? "" : String(v);
+    return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+  }))].map(r => r.join(",")).join("\r\n");
+  const blob = new Blob([csv], { type: "text/csv" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `backup-audits-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+
+// ---------------------------------------------------------------
+// FORM (new / edit)
+// ---------------------------------------------------------------
+function fieldControl(f, val) {
+  const id = "f_" + f.k;
+  if (f.t === "textarea")
+    return `<textarea id="${id}" data-k="${f.k}">${esc(val || "")}</textarea>`;
+  if (f.t === "number")
+    return `<input id="${id}" data-k="${f.k}" type="number" value="${val ?? ""}" />`;
+  if (f.t === "date")
+    return `<input id="${id}" data-k="${f.k}" type="date" value="${val ? String(val).slice(0,10) : ""}" />`;
+  if (f.t === "bool")
+    return `<label class="chk"><input id="${id}" data-k="${f.k}" type="checkbox" ${val ? "checked" : ""}/> Flag this server for attention</label>`;
+  if (f.t === "select") {
+    const opts = ['<option value=""></option>', ...f.opts.map(o => `<option ${val === o ? "selected" : ""}>${esc(o)}</option>`)].join("");
+    return `<select id="${id}" data-k="${f.k}">${opts}</select>`;
+  }
+  if (f.t === "yesno") {
+    const opts = ['<option value=""></option>', ...YESNO.map(o => `<option ${val === o ? "selected" : ""}>${esc(o)}</option>`)].join("");
+    return `<select id="${id}" data-k="${f.k}">${opts}</select>`;
+  }
+  if (f.t === "status")
+    return `<div class="seg" data-k="${f.k}">${STATUS_OPTS.map(o => `<button type="button" data-v="${o}" class="${val === o ? "sel" : ""}">${o}</button>`).join("")}</div>`;
+  if (f.t === "multi") {
+    const sel = Array.isArray(val) ? val : [];
+    return `<div class="multi" data-k="${f.k}">${f.opts.map(o => `<label class="${sel.includes(o) ? "sel" : ""}"><input type="checkbox" value="${esc(o)}" ${sel.includes(o) ? "checked" : ""}/> ${esc(o)}</label>`).join("")}</div>`;
+  }
+  if (f.t === "client") {
+    const clients = Array.from(new Set([...SEED_CLIENTS, ...state.audits.map(a => a.client).filter(Boolean)])).sort();
+    return `<input id="${id}" data-k="${f.k}" list="clientList" value="${esc(val || "")}" placeholder="Type or pick a client" />
+      <datalist id="clientList">${clients.map(c => `<option value="${esc(c)}"></option>`).join("")}</datalist>`;
+  }
+  return `<input id="${id}" data-k="${f.k}" type="text" value="${esc(val || "")}" ${f.sensitive ? 'autocomplete="new-password"' : ""}/>`;
+}
+
+function fieldBlock(f, val) {
+  if (f.t === "bool") return `<div class="field full">${fieldControl(f, val)}</div>`;
+  const full = (f.t === "textarea" || f.t === "multi" || f.k === "server") ? " full" : "";
+  return `<div class="field${full}">
+    <label for="f_${f.k}">${esc(f.label)}${f.required ? " *" : ""}</label>
+    ${fieldControl(f, val)}
+    ${f.hint ? `<span class="hint">${esc(f.hint)}</span>` : ""}
+  </div>`;
+}
+
+function openForm(record) {
+  state.editingId = record ? record.id : null;
+  const data = record || {};
+  $("#formTitle").textContent = record ? "Edit backup audit" : "New backup audit";
+  $("#formSub").textContent = record ? `${data.client || ""} — ${data.server || ""}` : "Fill in what you checked. Advanced fields are optional.";
+  $("#coreFields").innerHTML = FIELDS.filter(f => f.g === "core").map(f => fieldBlock(f, data[f.k])).join("");
+  $("#advFields").innerHTML  = FIELDS.filter(f => f.g === "advanced").map(f => fieldBlock(f, data[f.k])).join("");
+  $("#advBlock").open = false;
+  $("#deleteBtn").hidden = !record;
+  // default audit date to today on new
+  if (!record) { const d = $("#f_auditDate"); if (d && !d.value) d.value = new Date().toISOString().slice(0, 10); }
+  // wire status segments
+  $$(".seg").forEach(seg => seg.addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    const cur = seg.querySelector(".sel");
+    if (cur === b) b.classList.remove("sel");        // toggle off
+    else { cur && cur.classList.remove("sel"); b.classList.add("sel"); }
+  }));
+  $$(".multi label").forEach(l => l.addEventListener("click", () => setTimeout(() => l.classList.toggle("sel", l.querySelector("input").checked), 0)));
+  $("#formOverlay").hidden = false;
+}
+
+function collectForm() {
+  const out = {};
+  for (const f of FIELDS) {
+    if (f.t === "status") {
+      const sel = document.querySelector(`.seg[data-k="${f.k}"] .sel`);
+      out[f.k] = sel ? sel.dataset.v : "";
+    } else if (f.t === "multi") {
+      out[f.k] = $$(`.multi[data-k="${f.k}"] input:checked`).map(i => i.value);
+    } else if (f.t === "bool") {
+      out[f.k] = !!$("#f_" + f.k)?.checked;
+    } else if (f.t === "number") {
+      const v = $("#f_" + f.k).value;
+      out[f.k] = v === "" ? null : Number(v);
+    } else {
+      out[f.k] = ($("#f_" + f.k)?.value || "").trim();
+    }
+  }
+  return out;
+}
+
+$("#newBtn").addEventListener("click", () => openForm(null));
+$("#formClose").addEventListener("click", () => $("#formOverlay").hidden = true);
+$("#cancelBtn").addEventListener("click", () => $("#formOverlay").hidden = true);
+
+$("#saveBtn").addEventListener("click", async () => {
+  const data = collectForm();
+  if (!data.client) { toast("Client is required.", true); return; }
+  if (!data.server) { toast("Server / workstation name is required.", true); return; }
+  $("#saveBtn").disabled = true;
+  try {
+    const meta = {
+      updatedAt: serverTimestamp(),
+      updatedBy: state.user.email,
+      updatedByName: state.user.name,
+    };
+    if (state.editingId) {
+      const prev = state.audits.find(a => a.id === state.editingId) || {};
+      await updateDoc(doc(db, "backup_audits", state.editingId), { ...data, ...meta });
+      await logActivity("update", state.editingId, data, prev);
+      toast("Audit updated.");
+    } else {
+      const ref = await addDoc(collection(db, "backup_audits"), {
+        ...data, ...meta, createdAt: serverTimestamp(), createdBy: state.user.email, createdByName: state.user.name,
+      });
+      await logActivity("create", ref.id, data, {});
+      toast("Audit saved.");
+    }
+    $("#formOverlay").hidden = true;
+  } catch (e) {
+    console.error(e);
+    toast("Save failed: " + (e.message || e), true);
+  } finally {
+    $("#saveBtn").disabled = false;
+  }
+});
+
+$("#deleteBtn").addEventListener("click", async () => {
+  if (!state.editingId) return;
+  const rec = state.audits.find(a => a.id === state.editingId) || {};
+  if (!confirm(`Delete the audit for ${rec.client || ""} — ${rec.server || ""}? This cannot be undone.`)) return;
+  try {
+    await logActivity("delete", state.editingId, {}, rec);
+    await deleteDoc(doc(db, "backup_audits", state.editingId));
+    $("#formOverlay").hidden = true;
+    toast("Audit deleted.");
+  } catch (e) {
+    console.error(e); toast("Delete failed: " + (e.message || e), true);
+  }
+});
+
+// ---------------------------------------------------------------
+// ACTIVITY logging — diff core+advanced fields, write append-only doc
+// ---------------------------------------------------------------
+async function logActivity(action, auditId, next, prev) {
+  const changes = [];
+  if (action === "update") {
+    for (const f of FIELDS) {
+      const a = normForDiff(prev[f.k]), b = normForDiff(next[f.k]);
+      if (a !== b) changes.push({ field: f.label, from: a, to: b });
+    }
+    if (!changes.length) return; // nothing actually changed
+  }
+  const base = action === "delete" ? prev : next;
+  try {
+    await addDoc(collection(db, "backup_activity"), {
+      action, auditId,
+      client: base.client || "",
+      server: base.server || "",
+      byEmail: state.user.email,
+      byName: state.user.name,
+      at: serverTimestamp(),
+      changes: changes.slice(0, 40),
+    });
+  } catch (e) {
+    // Non-fatal: the audit write already succeeded.
+    console.warn("activity log failed:", e);
+  }
+}
+function normForDiff(v) {
+  if (v == null) return "";
+  if (Array.isArray(v)) return v.join(", ");
+  if (typeof v === "boolean") return v ? "Yes" : "";
+  return String(v);
+}
+
+// ---------------------------------------------------------------
+// DETAIL drawer
+// ---------------------------------------------------------------
+let detailId = null;
+function openDetail(id) {
+  const r = state.audits.find(a => a.id === id); if (!r) return;
+  detailId = id;
+  $("#detailTitle").textContent = `${r.client || ""} — ${r.server || ""}`;
+  const who = r.updatedByName || r.createdByName || "";
+  $("#detailSub").textContent = `${r.auditor ? "Audited by " + r.auditor + " · " : ""}${who ? "last edit " + who : ""}`;
+  const groups = [
+    ["Summary", ["focus", "client", "server", "priority", "auditor", "auditDate", "backupSolutions", "lastBackup", "daysSinceLocal", "driveState", "recoveryMediaCreated", "recoveryMediaTested", "errors", "notes"]],
+    ["Veeam", ["agentCreated", "agentInstalled", "veeamLocalUsbJob", "veeamUsername"]],
+    ["System / remote", ["updatesPending", "lmiLock", "logmeinName", "vmGen"]],
+    ["Dell / hardware", ["openManage", "dateChecked", "idracIp", "idracLogin", "serialNumber", "driveStateOme", "systemState", "lastWindowsUpdate"]],
+    ["Credentials", ["username", "password", "localDomain"]],
+    ["Carbonite", ["carbonite", "filesProtected", "deviceProtected"]],
+    ["Local / Windows Server Backup", ["localType", "vssSettings", "localFrequency", "disk1Dest", "totalBackups", "backupsAvailable", "disk1Latest", "disk2Dest", "disk2Latest", "disk3Dest", "disk3Latest", "hddInstall"]],
+    ["Important paths", ["path1Name", "path1", "path2Name", "path2", "path3Name", "path3", "path4Name", "path4", "path5Name", "path5", "path6Name", "path6"]],
+  ];
+  let html = "";
+  for (const [title, keys] of groups) {
+    const rows = keys.map(k => {
+      const f = FIELD_BY_KEY[k]; let v = r[k];
+      if (v == null || v === "" || (Array.isArray(v) && !v.length) || (f.t === "bool" && !v)) return "";
+      let vh;
+      if (f.sensitive) vh = `<span class="secret" data-secret="${esc(v)}">••••••</span><span class="reveal" data-reveal>reveal</span>`;
+      else if (f.t === "status") vh = `<span class="status ${statusClass(v)}">${esc(v)}</span>`;
+      else if (f.t === "multi") vh = (v || []).map(x => `<span class="tag">${esc(x)}</span>`).join("");
+      else if (f.t === "bool") vh = "Yes";
+      else if (f.t === "date") vh = fmtDate(v);
+      else vh = esc(displayValue(f, v));
+      return `<div class="drow"><div class="k">${esc(f.label)}</div><div class="v">${vh}</div></div>`;
+    }).filter(Boolean).join("");
+    if (rows) html += `<div class="detail-grp"><h3>${esc(title)}</h3>${rows}</div>`;
+  }
+  $("#detailBody").innerHTML = html || '<div class="notice">No data.</div>';
+  $$("[data-reveal]", $("#detailBody")).forEach(el => el.addEventListener("click", () => {
+    const s = el.previousElementSibling;
+    s.textContent = s.dataset.secret; el.remove();
+  }));
+  $("#detailOverlay").hidden = false;
+}
+$("#detailClose").addEventListener("click", () => $("#detailOverlay").hidden = true);
+$("#detailEdit").addEventListener("click", () => {
+  const r = state.audits.find(a => a.id === detailId);
+  $("#detailOverlay").hidden = true;
+  if (r) openForm(r);
+});
+
+// ---------------------------------------------------------------
+// ACTIVITY view
+// ---------------------------------------------------------------
+function renderActivity() {
+  const list = $("#activityList");
+  if (!state.activity.length) { list.innerHTML = '<div class="notice">No activity recorded yet.</div>'; return; }
+  list.innerHTML = state.activity.map(ev => {
+    const verb = ev.action === "create" ? "created" : ev.action === "delete" ? "deleted" : "edited";
+    const changes = (ev.changes || []).map(c =>
+      `<div class="chg"><b>${esc(c.field)}</b>: ${esc(c.from || "—")} → ${esc(c.to || "—")}</div>`).join("");
+    return `<div class="activity-item">
+      <div class="dot ${ev.action}"></div>
+      <div class="body">
+        <div><b>${esc(ev.byName || ev.byEmail)}</b> ${verb} <b>${esc(ev.client)} — ${esc(ev.server)}</b></div>
+        <div class="meta">${fmtTs(ev.at)} · ${esc(ev.byEmail)}</div>
+        ${changes ? `<div class="changes">${changes}</div>` : ""}
+      </div>
+    </div>`;
+  }).join("");
+}
+
+// ---------------------------------------------------------------
+// SETTINGS — manage activity viewers (owner only)
+// ---------------------------------------------------------------
+function renderViewers() {
+  const wrap = $("#viewerList");
+  const rows = [OWNER_EMAIL, ...state.viewers.filter(e => e !== OWNER_EMAIL)];
+  wrap.innerHTML = rows.map(em => {
+    const isOwner = em === OWNER_EMAIL;
+    const you = em === state.user.email ? '<span class="you">(you)</span>' : "";
+    const rm = isOwner ? "" : `<button class="btn danger sm" data-rm="${esc(em)}">Remove</button>`;
+    return `<div class="viewer-row"><span class="em">${esc(em)}</span>${you}${isOwner ? '<span class="you">(owner)</span>' : ""}${rm}</div>`;
+  }).join("");
+  $$("[data-rm]", wrap).forEach(b => b.addEventListener("click", () => removeViewer(b.dataset.rm)));
+}
+async function saveViewers(emails) {
+  await setDoc(doc(db, "backup_settings", "activity_viewers"),
+    { emails, updatedAt: serverTimestamp(), updatedBy: state.user.email }, { merge: true });
+}
+$("#addViewerBtn").addEventListener("click", async () => {
+  const em = $("#newViewer").value.trim().toLowerCase();
+  if (!em) return;
+  if (!em.endsWith("@" + ALLOWED_DOMAIN)) { toast("Must be a @umbrellaautomation.com address.", true); return; }
+  if (em === OWNER_EMAIL || state.viewers.includes(em)) { toast("Already has access."); $("#newViewer").value = ""; return; }
+  try { await saveViewers([...state.viewers, em]); $("#newViewer").value = ""; toast("Added."); }
+  catch (e) { toast("Failed: " + (e.message || e), true); }
+});
+async function removeViewer(em) {
+  try { await saveViewers(state.viewers.filter(e => e !== em)); toast("Removed."); }
+  catch (e) { toast("Failed: " + (e.message || e), true); }
+}
+
+// ---------------------------------------------------------------
+// TABS
+// ---------------------------------------------------------------
+let currentTab = "dashboard";
+function switchTab(tab) {
+  currentTab = tab;
+  $$("nav.tabs button").forEach(b => b.classList.toggle("active", b.dataset.tab === tab));
+  $$(".view").forEach(v => v.hidden = v.id !== "view-" + tab);
+}
+$$("nav.tabs button").forEach(b => b.addEventListener("click", () => switchTab(b.dataset.tab)));
+
+// close overlays on backdrop click / Esc
+$$(".overlay").forEach(o => o.addEventListener("click", e => { if (e.target === o) o.hidden = true; }));
+document.addEventListener("keydown", e => { if (e.key === "Escape") $$(".overlay").forEach(o => o.hidden = true); });
+</script>
+</body>
+</html>
