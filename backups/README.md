@@ -67,6 +67,17 @@ Pages. Two server-side pieces are deployed separately:
 
 ## Changelog
 
+### v0.6.0 — 2026-06-15
+- **"VM - N/A" / "Workstation - N/A" cells** now show a compact **VM / WS bubble**
+  instead of the repeated text.
+- **"Last backup" with a Veeam icon** (dropped the "(Veeam)" suffix). Column
+  headers may now wrap to two lines so date columns stay narrow.
+- **Click a backup-solution tag** (Veeam / Carbonite / Windows Server Backup …)
+  to filter the dashboard to that solution; a chip shows the active filter,
+  click it (or the tag again) to clear.
+- **"Days since local backup"** turns amber when over 30 days, matching the
+  WSB date rule.
+
 ### v0.5.0 — 2026-06-15
 - **Clients editor** in Settings: rename a client or set its ID; the change
   applies to every audit for that client (and is logged to Activity).

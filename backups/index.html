@@ -195,18 +195,29 @@
   table.audits th .arrow { color: var(--accent); margin-left: 4px; }
   table.audits tbody tr { cursor: pointer; }
   table.audits tbody tr:hover { background: var(--panel-2); }
-  /* Shrink-to-content columns: width:1% + nowrap collapses them to just what
-     their value needs (a number, a date, a status glyph). */
+  /* Shrink-to-content columns: width:1% collapses them to just what their
+     VALUE needs (a number, a date, a status glyph). Values stay on one line;
+     the HEADER may wrap to two lines so a long label doesn't widen the column. */
   table.audits th.col-id, table.audits td.col-id,
   table.audits th.col-narrow, table.audits td.col-narrow,
   table.audits th.col-status, table.audits td.col-status,
   table.audits th.col-date, table.audits td.col-date {
-    width: 1%; white-space: nowrap; text-align: center;
+    width: 1%; text-align: center;
   }
+  table.audits td.col-id, table.audits td.col-narrow,
+  table.audits td.col-status, table.audits td.col-date { white-space: nowrap; }
   table.audits th.col-id, table.audits td.col-id { text-align: left; }
   /* Capped wrapping columns: tags + long free text wrap within a max width. */
   table.audits td.col-tags, table.audits th.col-tags { max-width: 230px; }
   table.audits td.col-text, table.audits th.col-text { max-width: 320px; }
+  /* VM / Workstation "not applicable" bubble (replaces "VM - N/A" text) */
+  .bubble { display: inline-block; font-size: 10.5px; font-weight: 700; padding: 1px 7px; border-radius: 20px; letter-spacing: .3px; }
+  .bubble.bub-vm { color: #a78bfa; background: rgba(139,92,246,.16); border: 1px solid rgba(139,92,246,.42); }
+  .bubble.bub-ws { color: var(--text-faint); background: var(--panel-2); border: 1px solid var(--border-2); }
+  /* clickable filter tags */
+  .tag.clickable { cursor: pointer; }
+  .tag.clickable:hover { filter: brightness(1.15); }
+  .vico { vertical-align: -2px; margin-right: 2px; }
   /* Conditional cell highlighting: stale dates (amber), bad/good health */
   table.audits td.cell-stale { background: rgba(240,185,85,.18); }
   table.audits td.cell-bad   { background: rgba(240,101,93,.16); color: var(--bad); font-weight: 600; }
@@ -232,6 +243,7 @@
   table.audits th.dragging { opacity: .4; }
   table.audits th.drop-target { outline: 2px dashed var(--accent); outline-offset: -2px; }
   #reorderBtn.on { color: var(--accent); border-color: var(--accent); background: var(--accent-dim); }
+  #solFilterChip.on { color: var(--accent); border-color: var(--accent); background: var(--accent-dim); }
   .empty { padding: 40px; text-align: center; color: var(--text-faint); }
 
   .status { font-weight: 700; }
@@ -427,6 +439,7 @@
           <select id="fPriority"><option value="">All</option><option>High</option><option>Medium</option><option>Low</option></select>
         </span>
         <label class="chk"><input type="checkbox" id="fFocus" /> Highlighted only</label>
+        <button class="btn sm" id="solFilterChip" hidden></button>
         <div class="grow"></div>
         <button class="btn sm" id="importBtn">Import</button>
         <input type="file" id="importFile" accept=".xlsx,.xls,.csv" hidden />
@@ -569,7 +582,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION    = "0.5.0";
+const APP_VERSION    = "0.6.0";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const OWNER_EMAIL    = "frank@umbrellaautomation.com";
 
@@ -615,8 +628,8 @@ const FIELDS = [
   { k: "auditor",              g: "core", t: "select", opts: AUDITORS, label: "Auditor", table: true },
   { k: "auditDate",            g: "core", t: "date",   label: "Audit date", table: true },
   { k: "backupSolutions",      g: "core", t: "multi",  opts: BACKUP_SOLUTIONS, label: "Backup solutions installed", table: true },
-  { k: "lastBackup",           g: "core", t: "date",   label: "Last backup (Veeam)", hint: "Veeam Cloud agent last backup", table: true, stale: 30 },
-  { k: "daysSinceLocal",       g: "core", t: "number", label: "Days since local backup [Disk 1]", table: true, wsb: true },
+  { k: "lastBackup",           g: "core", t: "date",   label: "Last backup", hint: "Veeam Cloud agent last backup", table: true, stale: 30, veeam: true },
+  { k: "daysSinceLocal",       g: "core", t: "number", label: "Days since local backup [Disk 1]", table: true, wsb: true, staleNum: 30 },
   { k: "driveState",           g: "core", t: "text",   label: "Current state of drives", table: true, health: true },
   { k: "recoveryMediaCreated", g: "core", t: "status", label: "Recovery media created / GDrive" },
   { k: "recoveryMediaTested",  g: "core", t: "status", label: "Recovery media tested", table: true },
@@ -715,6 +728,7 @@ const state = {
   viewers: [],          // emails (lowercased) allowed to see Activity
   cols: null,           // visible column keys (array, ordered)
   unlocked: false,      // column-reorder (drag) mode
+  solFilter: "",        // active backup-solution filter (set by clicking a tag)
   sortKey: "auditDate",
   sortDir: -1,
   editingId: null,
@@ -765,9 +779,22 @@ function solClass(name) {
   return "";
 }
 const solTag = x => `<span class="tag ${solClass(x)}">${esc(x)}</span>`;
+// Clickable variant for the table — clicking filters the dashboard to that solution.
+const solTagT = x => `<span class="tag clickable ${solClass(x)}" data-sol="${esc(x)}" title="Click to filter by ${esc(x)}">${esc(x)}</span>`;
 
 // Small Windows mark shown before Windows Server Backup / local columns.
 const WIN_ICON = '<svg class="winico" viewBox="0 0 24 24" width="11" height="11" aria-hidden="true"><path fill="#3b9eff" d="M3 5.4 11 4.2v7.1H3zM12 4.05 21 2.9v8.4h-9zM3 12.7h8v7.1L3 18.6zM12 12.7h9V21l-9-1.15z"/></svg>';
+// Veeam-green mark (a green disc with a white V) before the Veeam backup column.
+const VEEAM_ICON = '<svg class="vico" viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="#00b336"/><path d="M6 8l6 9 6-9" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+// Header icon for a field, based on its schema flag.
+function headIcon(f) { return f.wsb ? WIN_ICON + " " : f.veeam ? VEEAM_ICON + " " : ""; }
+// "VM - N/A" / "Workstation - N/A" -> a compact bubble instead of long text.
+function naBubble(v) {
+  const m = /^(VM|Workstation)\s*-\s*N\/?A$/i.exec(String(v == null ? "" : v).trim());
+  if (!m) return null;
+  const isVm = /^vm/i.test(m[1]);
+  return `<span class="bubble ${isVm ? "bub-vm" : "bub-ws"}" title="${esc(m[1])} — not applicable here">${isVm ? "VM" : "WS"}</span>`;
+}
 
 // Conditional cell highlighting:
 //  - date fields with .stale -> amber if older than that many days
@@ -782,6 +809,7 @@ function healthClass(v) {
 function cellState(f, v) {
   if (!f || v == null || v === "") return { cls: "", title: "" };
   if (f.stale && f.t === "date" && isStaleDate(v, f.stale)) return { cls: "cell-stale", title: `Over ${f.stale} days ago` };
+  if (f.staleNum && typeof v === "number" && v > f.staleNum) return { cls: "cell-stale", title: `Over ${f.staleNum} days` };
   if (f.health) { const c = healthClass(v); return { cls: c, title: c === "cell-bad" ? "Health issue flagged" : "" }; }
   return { cls: "", title: "" };
 }
@@ -1045,6 +1073,7 @@ function filteredSorted() {
     if (fa && r.auditor !== fa) return false;
     if (fp && r.priority !== fp) return false;
     if (ff && !r.focus) return false;
+    if (state.solFilter && !(r.backupSolutions || []).includes(state.solFilter)) return false;
     if (term) {
       const hay = [r.client, r.server, r.notes, r.errors, r.auditor, r.driveState, (r.backupSolutions || []).join(" ")].join(" ").toLowerCase();
       if (!hay.includes(term)) return false;
@@ -1081,8 +1110,7 @@ function renderTable() {
     const f = FIELD_BY_KEY[k];
     const c = colClass(f);
     const arrow = (!state.unlocked && state.sortKey === k) ? `<span class="arrow">${state.sortDir < 0 ? "▼" : "▲"}</span>` : "";
-    const ico = f.wsb ? WIN_ICON + " " : "";
-    return `<th data-k="${k}"${c ? ` class="${c}"` : ""}${state.unlocked ? " draggable=\"true\"" : ""}>${ico}${esc(f.label)}${arrow}</th>`;
+    return `<th data-k="${k}"${c ? ` class="${c}"` : ""}${state.unlocked ? " draggable=\"true\"" : ""}>${headIcon(f)}${esc(f.label)}${arrow}</th>`;
   }).join("");
   $("table.audits").classList.toggle("reordering", state.unlocked);
   $$("th[data-k]", thead).forEach(th => {
@@ -1117,7 +1145,32 @@ function renderTable() {
     try { await updateDoc(doc(db, "backup_audits", id), { focus: on, updatedAt: serverTimestamp(), updatedBy: state.user.email, updatedByName: state.user.name }); }
     catch (err) { toast("Couldn't save highlight: " + (err.message || err), true); cb.checked = !on; cb.closest("tr").classList.toggle("flagged", !on); }
   }));
+  // Clicking a backup-solution tag filters the dashboard to that solution.
+  $$("td .tag[data-sol]", tb).forEach(t => t.addEventListener("click", e => {
+    e.stopPropagation();
+    setSolFilter(t.dataset.sol);
+  }));
+  updateSolChip();
 }
+
+function setSolFilter(sol) {
+  state.solFilter = (state.solFilter === sol) ? "" : sol;   // click again to clear
+  renderTable();
+}
+function updateSolChip() {
+  const chip = $("#solFilterChip");
+  if (!chip) return;
+  if (state.solFilter) {
+    chip.hidden = false;
+    chip.innerHTML = `Backup: <b>${esc(state.solFilter)}</b> &times;`;
+    chip.classList.add("on");
+    chip.title = "Clear this filter";
+  } else {
+    chip.hidden = true;
+    chip.classList.remove("on");
+  }
+}
+$("#solFilterChip").addEventListener("click", () => setSolFilter(state.solFilter));
 
 function cellHtml(r, k) {
   const f = FIELD_BY_KEY[k];
@@ -1135,9 +1188,11 @@ function cellHtml(r, k) {
   }
   if (f.t === "bool") return td(v ? '<span class="pill focus">FOCUS</span>' : "");
   if (k === "priority" && v) return td(`<span class="pill ${v.toLowerCase()}">${esc(v)}</span>`);
-  if (f.t === "multi") return td((v || []).map(x => f.k === "backupSolutions" ? solTag(x) : `<span class="tag">${esc(x)}</span>`).join(""));
+  if (f.t === "multi") return td((v || []).map(x => f.k === "backupSolutions" ? solTagT(x) : `<span class="tag">${esc(x)}</span>`).join(""));
   if (f.t === "date") return td(fmtDate(v));
   if (f.sensitive && v) return td('<span class="secret">••••••</span>');
+  const nab = naBubble(v);                       // "VM - N/A" / "Workstation - N/A" -> bubble
+  if (nab) return td(nab);
   return td(esc(displayValue(f, v)));
 }
 
@@ -1535,9 +1590,9 @@ function openDetail(id) {
       else if (f.t === "multi") vh = (v || []).map(x => f.k === "backupSolutions" ? solTag(x) : `<span class="tag">${esc(x)}</span>`).join("");
       else if (f.t === "bool") vh = "Yes";
       else if (f.t === "date") vh = fmtDate(v);
-      else vh = esc(displayValue(f, v));
+      else vh = naBubble(v) || esc(displayValue(f, v));
       const st = cellState(f, v);
-      const ico = f.wsb ? WIN_ICON + " " : "";
+      const ico = headIcon(f);
       return `<div class="drow${st.cls ? " " + st.cls : ""}"${st.title ? ` title="${esc(st.title)}"` : ""}><div class="k">${ico}${esc(f.label)}</div><div class="v">${vh}</div></div>`;
     }).filter(Boolean).join("");
     if (rows) html += `<div class="detail-grp"><h3>${esc(title)}</h3>${rows}</div>`;
