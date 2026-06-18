@@ -67,6 +67,17 @@ Pages. Two server-side pieces are deployed separately:
 
 ## Changelog
 
+### v0.8.0 — 2026-06-15
+- **Per-server audit history.** Each audit is its own dated record and is never
+  overwritten. The detail drawer shows a **History** list of every past audit
+  for that client + server (click any to view it), and a **"+ New audit"**
+  button creates a fresh dated record pre-filled from the current one (the old
+  audit is kept). A **"Latest per server"** toolbar toggle collapses the
+  dashboard to each server's most recent audit, with the full history a click away.
+- **Column presets.** Save the current columns (visibility + order + widths) as
+  a named preset from the Columns menu; apply or delete presets. Stored on your
+  profile, so they sync across devices.
+
 ### v0.7.0 — 2026-06-15
 **Drag-to-resize columns**, like a spreadsheet: grab the right edge of any
 column header and drag to widen/narrow it. Widths are saved to your profile

@@ -284,6 +284,14 @@
   .menu .grp { font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--text-faint); margin: 8px 4px 4px; }
   .menu label { display: flex; align-items: center; gap: 8px; padding: 5px 6px; border-radius: 6px; cursor: pointer; font-size: 13px; }
   .menu label:hover { background: var(--panel-2); }
+  .preset-row { display: flex; align-items: center; gap: 6px; padding: 3px 6px; border-radius: 6px; }
+  .preset-row:hover { background: var(--panel-2); }
+  .preset-row .apply { flex: 1; cursor: pointer; font-size: 13px; color: var(--accent-2); padding: 3px 0; }
+  .preset-del { background: none; border: none; color: var(--text-faint); cursor: pointer; font-size: 16px; line-height: 1; padding: 0 4px; }
+  .preset-del:hover { color: var(--bad); }
+  .preset-empty { font-size: 12px; color: var(--text-faint); padding: 2px 6px; }
+  .preset-save { display: block; width: 100%; text-align: left; background: none; border: none; color: var(--accent-2); cursor: pointer; font-size: 12.5px; padding: 6px; border-radius: 6px; margin-bottom: 4px; }
+  .preset-save:hover { background: var(--panel-2); }
 
   /* ---------- modal / drawer ---------- */
   .overlay { position: fixed; inset: 0; background: rgba(4,7,11,.66); z-index: 40; display: flex; }
@@ -345,6 +353,14 @@
   .drow .v { color: var(--text); white-space: pre-wrap; word-break: break-word; }
   .secret { font-family: var(--mono); }
   .reveal { cursor: pointer; color: var(--accent-2); font-size: 11px; margin-left: 8px; }
+
+  /* ---------- audit history (detail drawer) ---------- */
+  .hist-row { display: flex; align-items: center; gap: 6px; padding: 7px 8px; border-radius: 7px; cursor: pointer; font-size: 13px; border-bottom: 1px solid var(--border); }
+  .hist-row:hover { background: var(--panel-2); }
+  .hist-row.current { background: var(--accent-dim); cursor: default; }
+  .hist-row .hd { font-weight: 600; color: var(--text); }
+  .hist-row .hw { color: var(--text-dim); flex: 1; }
+  .hist-row .hcur { font-size: 11px; color: var(--accent-2); }
 
   /* ---------- client editor ---------- */
   .client-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
@@ -450,6 +466,7 @@
           <select id="fPriority"><option value="">All</option><option>High</option><option>Medium</option><option>Low</option></select>
         </span>
         <label class="chk"><input type="checkbox" id="fFocus" /> Highlighted only</label>
+        <label class="chk"><input type="checkbox" id="fLatest" /> Latest per server</label>
         <button class="btn sm" id="solFilterChip" hidden></button>
         <div class="grow"></div>
         <button class="btn sm" id="importBtn">Import</button>
@@ -561,6 +578,7 @@
         </div>
       </div>
       <div style="flex:1"></div>
+      <button class="btn" id="detailNew" title="Create a new dated audit for this server (keeps this one)">+ New audit</button>
       <button class="btn" id="detailEdit">Edit</button>
     </div>
   </div>
@@ -593,7 +611,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION    = "0.7.0";
+const APP_VERSION    = "0.8.0";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const OWNER_EMAIL    = "frank@umbrellaautomation.com";
 
@@ -747,6 +765,7 @@ const state = {
   viewers: [],          // emails (lowercased) allowed to see Activity
   cols: null,           // visible column keys (array, ordered)
   colWidths: {},        // manual column widths { key: px } (Sheets-style resize)
+  presets: [],          // saved column presets [{name, columns, colWidths}]
   unlocked: false,      // column-reorder (drag) mode
   solFilter: "",        // active backup-solution filter (set by clicking a tag)
   sortKey: "auditDate",
@@ -909,6 +928,11 @@ async function loadUserPrefs(uid) {
       state.colWidths = d.colWidths;
       localStorage.setItem("backups:colWidths", JSON.stringify(state.colWidths));
     }
+    if (Array.isArray(d.presets)) {
+      state.presets = d.presets;
+      localStorage.setItem("backups:presets", JSON.stringify(state.presets));
+      buildColsMenu();
+    }
     renderTable();
     if (d.theme === "light" || d.theme === "dark") {
       localStorage.setItem("backups:theme", d.theme);
@@ -920,7 +944,7 @@ function saveUserPrefs() {
   if (!state.user) return;
   const theme = document.body.classList.contains("light") ? "light" : "dark";
   setDoc(doc(db, "backup_users", state.user.uid),
-    { columns: state.cols, colWidths: state.colWidths, theme, updatedAt: serverTimestamp() }, { merge: true })
+    { columns: state.cols, colWidths: state.colWidths, presets: state.presets, theme, updatedAt: serverTimestamp() }, { merge: true })
     .catch(e => console.warn("saveUserPrefs failed:", e));
 }
 
@@ -1011,6 +1035,7 @@ function loadCols() {
     state.cols = Array.isArray(saved) && saved.length ? saved.filter(k => FIELD_BY_KEY[k]) : DEFAULT_COLS.slice();
   } catch { state.cols = DEFAULT_COLS.slice(); }
   try { state.colWidths = JSON.parse(localStorage.getItem("backups:colWidths") || "{}") || {}; } catch { state.colWidths = {}; }
+  try { state.presets = JSON.parse(localStorage.getItem("backups:presets") || "[]") || []; } catch { state.presets = []; }
 }
 function saveCols() {
   localStorage.setItem("backups:cols", JSON.stringify(state.cols));
@@ -1020,9 +1045,14 @@ function saveCols() {
 
 function buildColsMenu() {
   const menu = $("#colsMenu");
+  let html = `<div class="grp">Presets</div>`;
+  html += state.presets.length
+    ? state.presets.map((p, i) =>
+        `<div class="preset-row"><span class="apply" data-preset="${i}" title="Apply this preset">${esc(p.name)}</span><button class="preset-del" data-delpreset="${i}" title="Delete preset">&times;</button></div>`).join("")
+    : `<div class="preset-empty">No presets yet.</div>`;
+  html += `<button class="preset-save" id="savePresetBtn">+ Save current columns as preset</button>`;
   const groups = { core: [], advanced: [] };
   FIELDS.forEach(f => groups[f.g].push(f));
-  let html = "";
   for (const [g, list] of Object.entries(groups)) {
     html += `<div class="grp">${g}</div>`;
     html += list.map(f =>
@@ -1035,6 +1065,37 @@ function buildColsMenu() {
     else state.cols = state.cols.filter(c => c !== k);
     saveCols(); renderTable();
   }));
+  $$("[data-preset]", menu).forEach(el => el.addEventListener("click", e => { e.stopPropagation(); applyPreset(+el.dataset.preset); }));
+  $$("[data-delpreset]", menu).forEach(el => el.addEventListener("click", e => { e.stopPropagation(); deletePreset(+el.dataset.delpreset); }));
+  $("#savePresetBtn").addEventListener("click", e => { e.stopPropagation(); savePresetFromCurrent(); });
+}
+function persistPresets() {
+  localStorage.setItem("backups:presets", JSON.stringify(state.presets));
+  saveUserPrefs();
+}
+function savePresetFromCurrent() {
+  const name = (prompt("Name this column preset:", "") || "").trim();
+  if (!name) return;
+  const existing = state.presets.findIndex(p => p.name.toLowerCase() === name.toLowerCase());
+  const preset = { name, columns: [...state.cols], colWidths: { ...state.colWidths } };
+  if (existing >= 0) state.presets[existing] = preset; else state.presets.push(preset);
+  persistPresets(); buildColsMenu();
+  toast(`Saved preset "${name}".`);
+}
+function applyPreset(i) {
+  const p = state.presets[i]; if (!p) return;
+  state.cols = (p.columns || []).filter(k => FIELD_BY_KEY[k]);
+  if (!state.cols.length) state.cols = DEFAULT_COLS.slice();
+  state.colWidths = { ...(p.colWidths || {}) };
+  saveCols(); buildColsMenu(); renderTable();
+  $("#colsMenu").hidden = true;
+  toast(`Applied "${p.name}".`);
+}
+function deletePreset(i) {
+  const p = state.presets[i]; if (!p) return;
+  if (!confirm(`Delete preset "${p.name}"?`)) return;
+  state.presets.splice(i, 1);
+  persistPresets(); buildColsMenu();
 }
 $("#colsBtn").addEventListener("click", e => { e.stopPropagation(); $("#colsMenu").hidden = !$("#colsMenu").hidden; });
 document.addEventListener("click", e => {
@@ -1153,6 +1214,17 @@ function filteredSorted() {
     }
     return true;
   });
+  // "Latest per server" — collapse each client+server to its newest dated audit
+  // (history stays intact in the data and in the drawer; this only affects the view).
+  if ($("#fLatest").checked) {
+    const best = new Map();
+    for (const r of rows) {
+      const key = (r.client || "") + "||" + (r.server || "");
+      const cur = best.get(key);
+      if (!cur || String(r.auditDate || "") > String(cur.auditDate || "")) best.set(key, r);
+    }
+    rows = [...best.values()];
+  }
   const k = state.sortKey, dir = state.sortDir;
   rows.sort((a, b) => {
     let va = a[k], vb = b[k];
@@ -1280,6 +1352,7 @@ function cellHtml(r, k) {
 // filters
 ["search", "fClient", "fAuditor", "fPriority"].forEach(id => $("#" + id).addEventListener("input", renderTable));
 $("#fFocus").addEventListener("change", renderTable);
+$("#fLatest").addEventListener("change", renderTable);
 
 function buildClientFilter() {
   const sel = $("#fClient");
@@ -1511,17 +1584,23 @@ function fieldBlock(f, val) {
   </div>`;
 }
 
-function openForm(record) {
-  state.editingId = record ? record.id : null;
+// openForm(record)            -> edit that record (overwrites it on save)
+// openForm(record, {clone})   -> NEW dated audit pre-filled from record
+//                                (creates a new doc; never touches the original)
+function openForm(record, opts = {}) {
+  const clone = !!opts.clone;
+  state.editingId = (record && !clone) ? record.id : null;
   const data = record || {};
-  $("#formTitle").textContent = record ? "Edit backup audit" : "New backup audit";
-  $("#formSub").textContent = record ? `${data.client || ""} — ${data.server || ""}` : "Fill in what you checked. Advanced fields are optional.";
+  const isNew = !record || clone;
+  $("#formTitle").textContent = clone ? "New audit (re-audit)" : record ? "Edit backup audit" : "New backup audit";
+  $("#formSub").textContent = isNew && !clone ? "Fill in what you checked. Advanced fields are optional."
+    : `${data.client || ""} — ${data.server || ""}${clone ? " · new dated record, the previous audit is kept" : ""}`;
   $("#coreFields").innerHTML = FIELDS.filter(f => f.g === "core").map(f => fieldBlock(f, data[f.k])).join("");
   $("#advFields").innerHTML  = FIELDS.filter(f => f.g === "advanced").map(f => fieldBlock(f, data[f.k])).join("");
-  $("#advBlock").open = false;
-  $("#deleteBtn").hidden = !record;
-  // default audit date to today on new
-  if (!record) { const d = $("#f_auditDate"); if (d && !d.value) d.value = new Date().toISOString().slice(0, 10); }
+  $("#advBlock").open = clone;   // show advanced when re-auditing so values can be updated
+  $("#deleteBtn").hidden = isNew;
+  // New / re-audit defaults to today's date so each audit is date-stamped.
+  if (isNew) { const d = $("#f_auditDate"); if (d) d.value = new Date().toISOString().slice(0, 10); }
   // wire status segments
   $$(".seg").forEach(seg => seg.addEventListener("click", e => {
     const b = e.target.closest("button"); if (!b) return;
@@ -1678,11 +1757,25 @@ function openDetail(id) {
     }).filter(Boolean).join("");
     if (rows) html += `<div class="detail-grp"><h3>${esc(title)}</h3>${rows}</div>`;
   }
+  // History: every audit for this same client + server, newest first. Each is
+  // its own dated record — viewing one never changes the others.
+  const hist = state.audits
+    .filter(a => a.client === r.client && a.server === r.server)
+    .sort((a, b) => String(b.auditDate || "").localeCompare(String(a.auditDate || "")));
+  if (hist.length > 1) {
+    const items = hist.map(a => {
+      const cur = a.id === detailId ? " current" : "";
+      const who = a.auditor ? " · " + esc(a.auditor) : "";
+      return `<div class="hist-row${cur}" data-hist="${a.id}"><span class="hd">${fmtDate(a.auditDate) || "(no date)"}</span><span class="hw">${who}</span>${cur ? '<span class="hcur">viewing</span>' : ""}</div>`;
+    }).join("");
+    html = `<div class="detail-grp"><h3>History — ${esc(hist.length)} audits for this server</h3>${items}</div>` + html;
+  }
   $("#detailBody").innerHTML = html || '<div class="notice">No data.</div>';
   $$("[data-reveal]", $("#detailBody")).forEach(el => el.addEventListener("click", () => {
     const s = el.previousElementSibling;
     s.textContent = s.dataset.secret; el.remove();
   }));
+  $$("[data-hist]", $("#detailBody")).forEach(el => el.addEventListener("click", () => openDetail(el.dataset.hist)));
   $("#detailOverlay").hidden = false;
 }
 $("#detailClose").addEventListener("click", () => $("#detailOverlay").hidden = true);
@@ -1690,6 +1783,13 @@ $("#detailEdit").addEventListener("click", () => {
   const r = state.audits.find(a => a.id === detailId);
   $("#detailOverlay").hidden = true;
   if (r) openForm(r);
+});
+// New dated audit for THIS server — clones identity + values into a fresh
+// record (never edits the one being viewed).
+$("#detailNew").addEventListener("click", () => {
+  const r = state.audits.find(a => a.id === detailId);
+  $("#detailOverlay").hidden = true;
+  if (r) openForm(r, { clone: true });
 });
 
 // ---------------------------------------------------------------
