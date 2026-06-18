@@ -67,6 +67,13 @@ Pages. Two server-side pieces are deployed separately:
 
 ## Changelog
 
+### v0.7.0 — 2026-06-15
+**Drag-to-resize columns**, like a spreadsheet: grab the right edge of any
+column header and drag to widen/narrow it. Widths are saved to your profile
+(cross-device). Double-click the edge to reset a column to automatic sizing.
+(Resize is available in normal mode; the Reorder button still handles drag
+reordering separately.)
+
 ### v0.6.1 — 2026-06-15
 Fixed the detail-drawer Export menu showing as an empty white box: it was
 anchored right and opened off the drawer's left edge, where the drawer's

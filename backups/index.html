@@ -202,10 +202,13 @@
   table.audits th.col-narrow, table.audits td.col-narrow,
   table.audits th.col-status, table.audits td.col-status,
   table.audits th.col-date, table.audits td.col-date {
-    width: 1%; text-align: center;
+    text-align: center;
   }
   table.audits td.col-id, table.audits td.col-narrow,
   table.audits td.col-status, table.audits td.col-date { white-space: nowrap; }
+  /* width:1% shrinks the column to its content — applied only while the column
+     hasn't been manually resized (see col-shrink in renderTable). */
+  table.audits th.col-shrink, table.audits td.col-shrink { width: 1%; }
   table.audits th.col-id, table.audits td.col-id { text-align: left; }
   /* Capped wrapping columns: tags + long free text wrap within a max width. */
   table.audits td.col-tags, table.audits th.col-tags { max-width: 230px; }
@@ -218,6 +221,11 @@
   .tag.clickable { cursor: pointer; }
   .tag.clickable:hover { filter: brightness(1.15); }
   .vico { vertical-align: -2px; margin-right: 2px; }
+  /* Spreadsheet-style column resize grabber on the header's right edge */
+  table.audits th { position: sticky; }   /* (already sticky; ensures the grabber anchors to it) */
+  .col-resize { position: absolute; top: 0; right: -3px; width: 8px; height: 100%; cursor: col-resize; z-index: 3; touch-action: none; }
+  .col-resize:hover { background: var(--accent); opacity: .55; }
+  body.resizing, body.resizing * { cursor: col-resize !important; user-select: none !important; }
   /* Conditional cell highlighting: stale dates (amber), bad/good health */
   table.audits td.cell-stale { background: rgba(240,185,85,.18); }
   table.audits td.cell-bad   { background: rgba(240,101,93,.16); color: var(--bad); font-weight: 600; }
@@ -585,7 +593,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION    = "0.6.1";
+const APP_VERSION    = "0.7.0";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const OWNER_EMAIL    = "frank@umbrellaautomation.com";
 
@@ -718,6 +726,14 @@ function colClass(f) {
   if (f.t === "textarea") return "col-text";        // long free text wraps within a cap
   return "";
 }
+const SHRINK_COLS = new Set(["col-id", "col-narrow", "col-status", "col-date"]);
+// Per-column classes for a th/td: type class + "col-shrink" (auto-tight) unless
+// the column has been manually resized (then the explicit width wins).
+function cellClasses(k) {
+  const c = colClass(FIELD_BY_KEY[k]);
+  const shrink = SHRINK_COLS.has(c) && !state.colWidths[k] ? " col-shrink" : "";
+  return (c + shrink).trim();
+}
 
 // ---------------------------------------------------------------
 // State
@@ -730,6 +746,7 @@ const state = {
   activity: [],
   viewers: [],          // emails (lowercased) allowed to see Activity
   cols: null,           // visible column keys (array, ordered)
+  colWidths: {},        // manual column widths { key: px } (Sheets-style resize)
   unlocked: false,      // column-reorder (drag) mode
   solFilter: "",        // active backup-solution filter (set by clicking a tag)
   sortKey: "auditDate",
@@ -886,8 +903,13 @@ async function loadUserPrefs(uid) {
     if (Array.isArray(d.columns) && d.columns.length) {
       state.cols = d.columns.filter(k => FIELD_BY_KEY[k]);
       localStorage.setItem("backups:cols", JSON.stringify(state.cols));
-      buildColsMenu(); renderTable();
+      buildColsMenu();
     }
+    if (d.colWidths && typeof d.colWidths === "object") {
+      state.colWidths = d.colWidths;
+      localStorage.setItem("backups:colWidths", JSON.stringify(state.colWidths));
+    }
+    renderTable();
     if (d.theme === "light" || d.theme === "dark") {
       localStorage.setItem("backups:theme", d.theme);
       applyTheme(d.theme);
@@ -898,7 +920,7 @@ function saveUserPrefs() {
   if (!state.user) return;
   const theme = document.body.classList.contains("light") ? "light" : "dark";
   setDoc(doc(db, "backup_users", state.user.uid),
-    { columns: state.cols, theme, updatedAt: serverTimestamp() }, { merge: true })
+    { columns: state.cols, colWidths: state.colWidths, theme, updatedAt: serverTimestamp() }, { merge: true })
     .catch(e => console.warn("saveUserPrefs failed:", e));
 }
 
@@ -988,8 +1010,13 @@ function loadCols() {
     const saved = JSON.parse(localStorage.getItem("backups:cols") || "null");
     state.cols = Array.isArray(saved) && saved.length ? saved.filter(k => FIELD_BY_KEY[k]) : DEFAULT_COLS.slice();
   } catch { state.cols = DEFAULT_COLS.slice(); }
+  try { state.colWidths = JSON.parse(localStorage.getItem("backups:colWidths") || "{}") || {}; } catch { state.colWidths = {}; }
 }
-function saveCols() { localStorage.setItem("backups:cols", JSON.stringify(state.cols)); saveUserPrefs(); }
+function saveCols() {
+  localStorage.setItem("backups:cols", JSON.stringify(state.cols));
+  localStorage.setItem("backups:colWidths", JSON.stringify(state.colWidths));
+  saveUserPrefs();
+}
 
 function buildColsMenu() {
   const menu = $("#colsMenu");
@@ -1035,6 +1062,49 @@ function wireHeaderDrag(th) {
     renderTable();
   });
 }
+
+// ---------------------------------------------------------------
+// COLUMN RESIZE (drag the header's right edge, like a spreadsheet)
+// ---------------------------------------------------------------
+function colElFor(k) {
+  const i = state.cols.indexOf(k);
+  return i < 0 ? null : $$("#colgroup col")[i + 1];   // +1 for the leading flag col
+}
+function wireColResize(grab, th) {
+  grab.addEventListener("click", e => e.stopPropagation());   // don't trigger sort
+  // Double-click the grabber to reset this column back to auto sizing.
+  grab.addEventListener("dblclick", e => {
+    e.stopPropagation();
+    delete state.colWidths[th.dataset.k];
+    saveCols(); renderTable();
+  });
+  grab.addEventListener("pointerdown", e => {
+    e.preventDefault(); e.stopPropagation();
+    const k = th.dataset.k;
+    const startX = e.clientX;
+    const startW = Math.round(th.getBoundingClientRect().width);
+    // Pin the current width and re-render once so shrink columns drop their
+    // width:1% rule — then live dragging actually moves the edge.
+    state.colWidths[k] = startW;
+    renderTable();
+    const col = colElFor(k);   // fresh element after the re-render
+    document.body.classList.add("resizing");
+    const move = ev => {
+      const w = Math.max(44, Math.round(startW + (ev.clientX - startX)));
+      state.colWidths[k] = w;
+      if (col) col.style.width = w + "px";   // live update
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      document.body.classList.remove("resizing");
+      saveCols();   // persist to localStorage + profile
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  });
+}
+
 $("#reorderBtn").addEventListener("click", () => {
   state.unlocked = !state.unlocked;
   const btn = $("#reorderBtn");
@@ -1104,25 +1174,33 @@ function renderTable() {
   // Leading fixed "flag" column (the row-highlight checkbox) is always first
   // and is not part of the user-chosen columns. colgroup drives widths under
   // table-layout:fixed.
+  // A manually-set width (px) overrides the auto/content sizing for that column.
   $("#colgroup").innerHTML = `<col class="col-flag">` + cols.map(k => {
     const c = colClass(FIELD_BY_KEY[k]);
-    return `<col${c ? ` class="${c}"` : ""}>`;
+    const w = state.colWidths[k];
+    return `<col${c ? ` class="${c}"` : ""}${w ? ` style="width:${w}px"` : ""}>`;
   }).join("");
   const thead = $("#theadRow");
+  // Resize grabber on each header's right edge (hidden in reorder mode).
+  const grab = state.unlocked ? "" : '<span class="col-resize"></span>';
   thead.innerHTML = `<th class="col-flag" title="Tick to highlight a row that needs attention">★</th>` + cols.map(k => {
     const f = FIELD_BY_KEY[k];
-    const c = colClass(f);
+    const c = cellClasses(k);
     const arrow = (!state.unlocked && state.sortKey === k) ? `<span class="arrow">${state.sortDir < 0 ? "▼" : "▲"}</span>` : "";
-    return `<th data-k="${k}"${c ? ` class="${c}"` : ""}${state.unlocked ? " draggable=\"true\"" : ""}>${headIcon(f)}${esc(f.label)}${arrow}</th>`;
+    return `<th data-k="${k}"${c ? ` class="${c}"` : ""}${state.unlocked ? " draggable=\"true\"" : ""}>${headIcon(f)}${esc(f.label)}${arrow}${grab}</th>`;
   }).join("");
   $("table.audits").classList.toggle("reordering", state.unlocked);
   $$("th[data-k]", thead).forEach(th => {
     if (state.unlocked) wireHeaderDrag(th);
-    else th.addEventListener("click", () => {
-      const k = th.dataset.k;
-      if (state.sortKey === k) state.sortDir *= -1; else { state.sortKey = k; state.sortDir = 1; }
-      renderTable();
-    });
+    else {
+      th.addEventListener("click", () => {
+        const k = th.dataset.k;
+        if (state.sortKey === k) state.sortDir *= -1; else { state.sortKey = k; state.sortDir = 1; }
+        renderTable();
+      });
+      const grabEl = th.querySelector(".col-resize");
+      if (grabEl) wireColResize(grabEl, th);
+    }
   });
 
   const rows = filteredSorted();
@@ -1178,7 +1256,7 @@ $("#solFilterChip").addEventListener("click", () => setSolFilter(state.solFilter
 function cellHtml(r, k) {
   const f = FIELD_BY_KEY[k];
   const v = r[k];
-  const c = colClass(f);                       // col-id / col-status / col-date / col-tags / ...
+  const c = cellClasses(k);                    // type class (+ col-shrink unless manually sized)
   const st = cellState(f, v);                  // {cls,title} for stale-date / health highlighting
   const td = (inner, extra = "") => {
     const cls = [c, extra, st.cls].filter(Boolean).join(" ");
