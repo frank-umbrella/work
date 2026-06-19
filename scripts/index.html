@@ -6,7 +6,7 @@
 <title>PC Setup Scripts</title>
 <meta name="description" content="PowerShell scripts for re-fixing a fresh Windows PC: show all tray icons, stop Copilot and Malwarebytes at startup. Windows 10 and 11.">
 <meta name="robots" content="noindex">
-<meta name="version" content="0.4.1">
+<meta name="version" content="0.5.0">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -218,6 +218,7 @@
       <li><a href="#copilot">Stop Copilot at startup</a></li>
       <li><a href="#malwarebytes">Stop Malwarebytes at startup</a></li>
       <li><a href="#windows-update">Windows Update routine</a></li>
+      <li><a href="#wu-options">Windows Update options</a></li>
       <li><a href="#disk-cleanup">Disk Cleanup</a></li>
       <li><a href="#tools">Scan &amp; removal tools</a></li>
     </ul>
@@ -460,6 +461,47 @@
     </div>
   </section>
 
+  <!-- ===================== Windows Update options ===================== -->
+  <section class="panel" id="wu-options">
+    <div class="panel-head">
+      <div>
+        <span class="tag">Maintenance</span>
+        <h2>Set Windows Update options + active hours</h2>
+        <code class="file">Set-WindowsUpdateOptions.ps1</code>
+      </div>
+      <div class="panel-side">
+        <span class="badge badge-warn">Admin needed</span>
+        <a class="dl" href="Set-WindowsUpdateOptions.ps1" download>Download .ps1</a>
+      </div>
+    </div>
+    <p class="purpose">Turns on the two Advanced-options toggles &mdash; <strong>Receive updates for other Microsoft products</strong> (registers the Microsoft Update service) and <strong>Notify me when a restart is required to finish updating</strong> &mdash; and sets <strong>Active hours</strong> (default 7&nbsp;AM&ndash;11&nbsp;PM). Machine-wide settings, so it self-elevates. GPO / Intune / WSUS policy may override these.</p>
+
+    <div class="opt">
+      <h3>Turn both on and set active hours</h3>
+      <p>Defaults to active hours 7&nbsp;AM&ndash;11&nbsp;PM. Pass <code>-ActiveHoursStart</code> / <code>-ActiveHoursEnd</code> (0&ndash;23) for other hours.</p>
+      <pre>powershell -ExecutionPolicy Bypass -File C:\Set-WindowsUpdateOptions.ps1</pre>
+      <p class="switches"><span class="lbl">Options:</span>
+        <span class="sw" tabindex="0" role="note" aria-label="-ActiveHoursStart 8: active hours start hour in 24-hour time, default 7"><code>-ActiveHoursStart 8</code><span class="bubble">Active hours start hour, 0&ndash;23 (default 7 = 7&nbsp;AM).</span></span>
+        <span class="sw" tabindex="0" role="note" aria-label="-ActiveHoursEnd 22: active hours end hour in 24-hour time, default 23"><code>-ActiveHoursEnd 22</code><span class="bubble">Active hours end hour, 0&ndash;23 (default 23 = 11&nbsp;PM).</span></span>
+        <span class="sw" tabindex="0" role="note" aria-label="-AutoActiveHours: let Windows manage active hours automatically instead of fixed hours"><code>-AutoActiveHours</code><span class="bubble">Let Windows set active hours automatically by activity, instead of fixed hours.</span></span>
+        <span class="sw" tabindex="0" role="note" aria-label="-NoMicrosoftUpdate: skip the Receive updates for other Microsoft products step"><code>-NoMicrosoftUpdate</code><span class="bubble">Skip the &ldquo;Receive updates for other Microsoft products&rdquo; toggle.</span></span>
+        <span class="sw" tabindex="0" role="note" aria-label="-NoRestartNotify: skip the Notify me when a restart is required step"><code>-NoRestartNotify</code><span class="bubble">Skip the &ldquo;Notify me when a restart is required&rdquo; toggle.</span></span>
+      </p>
+      <details class="manual">
+        <summary>Do it manually instead</summary>
+        <div class="manual-body">
+          <p class="note"><strong>Run box:</strong> <kbd>Win</kbd>+<kbd>R</kbd> &rarr; <code>ms-settings:windowsupdate-options</code> opens Advanced options directly.</p>
+          <ol>
+            <li><strong>Settings</strong> &rarr; <strong>Windows Update</strong> &rarr; <strong>Advanced options</strong>.</li>
+            <li>Turn <strong>On</strong> <em>Receive updates for other Microsoft products</em>.</li>
+            <li>Turn <strong>On</strong> <em>Notify me when a restart is required to finish updating</em>.</li>
+            <li>Under <strong>Active hours</strong>, choose <em>Manually</em> and set the start/end times (or <em>Automatically</em> to let Windows decide).</li>
+          </ol>
+        </div>
+      </details>
+    </div>
+  </section>
+
   <!-- ===================== Disk Cleanup ===================== -->
   <section class="panel" id="disk-cleanup">
     <div class="panel-head">
@@ -531,7 +573,7 @@
 </main>
 
 <footer class="page">
-  <p>PC Setup Scripts <span class="version">v0.4.1</span> &middot; Windows 10 &amp; 11.</p>
+  <p>PC Setup Scripts <span class="version">v0.5.0</span> &middot; Windows 10 &amp; 11.</p>
 </footer>
 
 <script>

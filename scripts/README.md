@@ -25,6 +25,7 @@ label.
 | Script                    | Does                                                          | Admin? |
 | ------------------------- | ------------------------------------------------------------- | ------ |
 | `Open-WindowsUpdate.ps1`  | Open Windows Update, pause updates, wait, then check          | To pause |
+| `Set-WindowsUpdateOptions.ps1` | Turn on MS-product updates + restart notify, set active hours | Yes |
 | `Open-DiskCleanup.ps1`    | Launch Disk Cleanup (cleanmgr) for a drive                    | No     |
 
 *(add future scripts and their own category heading here)*
@@ -306,7 +307,35 @@ machines, policy may override the pause.
 
 ---
 
-# 5. Launch Disk Cleanup
+# 5. Set Windows Update options (Advanced)
+
+`Set-WindowsUpdateOptions.ps1` - **admin needed** (self-elevates).
+
+Turns on "Receive updates for other Microsoft products" (registers the Microsoft
+Update service, GUID `7971f918-...`, with an `AllowMUUpdateService=1` fallback)
+and "Notify me when a restart is required" (`RestartNotificationsAllowed2=1`),
+and sets Active hours (`ActiveHoursStart`/`ActiveHoursEnd`, or
+`SmartActiveHoursState=1` for automatic). GPO / Intune / WSUS may override.
+Active hours range max 18 hours.
+
+```powershell
+.\Set-WindowsUpdateOptions.ps1                                  # both on + active hours 7am-11pm
+.\Set-WindowsUpdateOptions.ps1 -ActiveHoursStart 8 -ActiveHoursEnd 22
+.\Set-WindowsUpdateOptions.ps1 -AutoActiveHours                 # let Windows manage active hours
+```
+
+### Manual steps
+
+**Run box:** Win+R -> `ms-settings:windowsupdate-options` opens Advanced options.
+
+1. **Settings > Windows Update > Advanced options**.
+2. Turn **On** *Receive updates for other Microsoft products*.
+3. Turn **On** *Notify me when a restart is required to finish updating*.
+4. Under **Active hours**, choose *Manually* and set start/end (or *Automatically*).
+
+---
+
+# 6. Launch Disk Cleanup
 
 `Open-DiskCleanup.ps1` - no admin for the basic view.
 
