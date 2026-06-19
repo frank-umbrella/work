@@ -18,7 +18,7 @@ label.
 | `Show-AllTrayIcons.ps1`            | Show all system-tray icons on the taskbar (no chevron)     | No     |
 | `Disable-Copilot-Startup.ps1`      | Stop Microsoft 365 Copilot / Copilot launching at startup  | No     |
 | `Disable-Malwarebytes-Startup.ps1` | Stop Malwarebytes launching at startup                     | Maybe  |
-| `Disable-StartupApp.ps1`           | Generic engine the two above call (match any app by regex) | Maybe  |
+| `Disable-StartupApp.ps1`           | Standalone generic version: disable ANY app's startup by regex | Maybe  |
 
 ### Windows maintenance
 

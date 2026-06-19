@@ -6,7 +6,7 @@
 <title>PC Setup Scripts</title>
 <meta name="description" content="PowerShell scripts for re-fixing a fresh Windows PC: show all tray icons, stop Copilot and Malwarebytes at startup. Windows 10 and 11.">
 <meta name="robots" content="noindex">
-<meta name="version" content="0.2.0">
+<meta name="version" content="0.3.0">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -45,7 +45,7 @@
     border-bottom: 1px solid var(--line);
     padding: 30px 24px 26px;
   }
-  header.page .wrap { max-width: 920px; margin: 0 auto; }
+  header.page .wrap { max-width: 1160px; margin: 0 auto; }
   .crumb { font-size: 13px; color: var(--ink-soft); margin: 0 0 10px; }
   .crumb a { font-weight: 600; }
   header.page h1 { font-size: 28px; margin: 0 0 6px; letter-spacing: -0.01em; }
@@ -56,7 +56,23 @@
     background: var(--accent-soft); border-radius: 999px; padding: 3px 11px;
   }
 
-  main { max-width: 920px; margin: 0 auto; padding: 26px 24px 64px; }
+  main { max-width: 1160px; margin: 0 auto; padding: 26px 24px 64px; }
+
+  html { scroll-behavior: smooth; }
+  .layout { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 34px; align-items: start; }
+  .content { min-width: 0; }
+  nav.toc { position: sticky; top: 20px; }
+  nav.toc h2 { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: var(--ink-soft); margin: 0 0 10px; }
+  nav.toc ul { list-style: none; margin: 0; padding: 0; }
+  nav.toc a { display: block; padding: 7px 11px; border-left: 2px solid var(--line); color: var(--ink-soft); font-size: 13.5px; font-weight: 500; line-height: 1.3; transition: color .12s ease, border-color .12s ease, background .12s ease; }
+  nav.toc a:hover { color: var(--accent); background: var(--accent-soft); text-decoration: none; }
+  nav.toc a.active { color: var(--accent); border-left-color: var(--accent); font-weight: 600; }
+  .panel, .howto { scroll-margin-top: 16px; }
+  @media (max-width: 880px) {
+    .layout { grid-template-columns: 1fr; gap: 0; }
+    nav.toc { position: static; margin-bottom: 22px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); padding: 14px 16px; }
+    nav.toc a { border-left: 0; padding: 6px 0; }
+  }
 
   .howto {
     background: var(--surface); border: 1px solid var(--line);
@@ -111,12 +127,13 @@
   .copy-btn {
     position: absolute; top: 7px; right: 7px;
     font: inherit; font-size: 11.5px; font-weight: 600; line-height: 1.4;
-    color: #cdd3e0; background: rgba(255,255,255,0.08);
+    color: #cdd3e0; background: #232a3b;
     border: 1px solid rgba(255,255,255,0.18); border-radius: 6px;
     padding: 3px 10px; cursor: pointer;
+    box-shadow: -8px 0 8px 2px #0f1422;
     transition: background .12s ease, color .12s ease, border-color .12s ease;
   }
-  .copy-btn:hover { background: rgba(255,255,255,0.18); color: #fff; }
+  .copy-btn:hover { background: #313a52; color: #fff; }
   .copy-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .copy-btn.copied { color: #7ee2a8; border-color: rgba(126,226,168,0.5); background: rgba(126,226,168,0.14); }
 
@@ -155,7 +172,7 @@
   .dl-ext::after { content: " \2193"; }
   .tools-note { font-size: 12.5px; color: var(--ink-soft); margin: 14px 0 0; }
 
-  footer.page { max-width: 920px; margin: 0 auto; padding: 0 24px 36px; color: var(--ink-soft); font-size: 12.5px; }
+  footer.page { max-width: 1160px; margin: 0 auto; padding: 0 24px 36px; color: var(--ink-soft); font-size: 12.5px; }
   footer.page .version {
     display: inline-block; padding: 1px 7px; border: 1px solid var(--line-strong);
     border-radius: 999px; font-size: 11.5px; font-weight: 600; color: var(--ink-soft);
@@ -174,8 +191,22 @@
 </header>
 
 <main>
+  <div class="layout">
+  <nav class="toc" aria-label="On this page">
+    <h2>On this page</h2>
+    <ul>
+      <li><a href="#how-to-run">How to run</a></li>
+      <li><a href="#tray-icons">Show all tray icons</a></li>
+      <li><a href="#copilot">Stop Copilot at startup</a></li>
+      <li><a href="#malwarebytes">Stop Malwarebytes at startup</a></li>
+      <li><a href="#windows-update">Windows Update routine</a></li>
+      <li><a href="#disk-cleanup">Disk Cleanup</a></li>
+      <li><a href="#tools">Scan &amp; removal tools</a></li>
+    </ul>
+  </nav>
+  <div class="content">
 
-  <section class="howto">
+  <section class="howto" id="how-to-run">
     <h2>How to run any of these</h2>
     <ul>
       <li><strong>One-time use &mdash; nothing is left on the PC.</strong> Each script changes a Windows setting and exits, exactly like flipping the toggle by hand. Run it once, then delete the <code>.ps1</code>; only the setting persists. Nothing keeps running in the background. <em>(The single exception is the tray script's optional <code>-Install</code> &mdash; skip it for one-and-done; see that note below.)</em></li>
@@ -456,15 +487,12 @@ powershell -ExecutionPolicy Bypass -File .\Show-AllTrayIcons.ps1</pre>
     <p class="tools-note">Links go straight to the vendors' own download servers (verified live). Always run on-demand scanners with admin rights.</p>
   </section>
 
-  <p style="font-size:13px;color:var(--ink-soft);margin-top:26px;">
-    Source and full notes: <a href="https://github.com/frank-umbrella/work/tree/main/scripts">work/scripts on GitHub</a> &middot;
-    or open <a href="README.md">README.md</a> in the repo.
-  </p>
-
+  </div>
+  </div>
 </main>
 
 <footer class="page">
-  <p>PC Setup Scripts <span class="version">v0.2.0</span> &middot; Windows 10 &amp; 11.</p>
+  <p>PC Setup Scripts <span class="version">v0.3.0</span> &middot; Windows 10 &amp; 11.</p>
 </footer>
 
 <script>
@@ -503,6 +531,19 @@ powershell -ExecutionPolicy Bypass -File .\Show-AllTrayIcons.ps1</pre>
       btn._t = setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1600);
     });
   });
+
+  // Table-of-contents scrollspy: highlight the section currently in view.
+  const links = [...document.querySelectorAll('nav.toc a')];
+  if (links.length) {
+    const byId = new Map(links.map(a => [a.getAttribute('href').slice(1), a]));
+    const targets = [...byId.keys()].map(id => document.getElementById(id)).filter(Boolean);
+    const setActive = id => { links.forEach(a => a.classList.remove('active')); const a = byId.get(id); if (a) a.classList.add('active'); };
+    const obs = new IntersectionObserver(entries => {
+      const visible = entries.filter(e => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+      if (visible[0]) setActive(visible[0].target.id);
+    }, { rootMargin: '0px 0px -70% 0px', threshold: 0 });
+    targets.forEach(t => obs.observe(t));
+  }
 })();
 </script>
 
