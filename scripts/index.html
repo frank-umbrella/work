@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PC Setup Scripts</title>
+<meta name="description" content="PowerShell scripts for re-fixing a fresh Windows PC: show all tray icons, stop Copilot and Malwarebytes at startup. Windows 10 and 11.">
+<meta name="robots" content="noindex">
+<meta name="version" content="0.1.0">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --surface: #ffffff;
+    --ink: #1a1f2b;
+    --ink-soft: #475063;
+    --line: #e3e6ec;
+    --line-strong: #c9cfdb;
+    --accent: #1a56db;
+    --accent-soft: #eaf0fc;
+    --ok: #0f7b3f;
+    --ok-soft: #e7f5ec;
+    --warn: #9a6700;
+    --warn-soft: #fbf3df;
+    --radius: 12px;
+    --shadow: 0 1px 2px rgba(20, 25, 40, 0.04), 0 4px 14px rgba(20, 25, 40, 0.05);
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "Cascadia Mono", Consolas, "Liberation Mono", monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  header.page {
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+    padding: 30px 24px 26px;
+  }
+  header.page .wrap { max-width: 920px; margin: 0 auto; }
+  .crumb { font-size: 13px; color: var(--ink-soft); margin: 0 0 10px; }
+  .crumb a { font-weight: 600; }
+  header.page h1 { font-size: 28px; margin: 0 0 6px; letter-spacing: -0.01em; }
+  header.page p.lede { margin: 0; color: var(--ink-soft); font-size: 15px; max-width: 70ch; }
+  .os-pill {
+    display: inline-block; margin-top: 12px;
+    font-size: 12px; font-weight: 600; color: var(--accent);
+    background: var(--accent-soft); border-radius: 999px; padding: 3px 11px;
+  }
+
+  main { max-width: 920px; margin: 0 auto; padding: 26px 24px 64px; }
+
+  .howto {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: var(--radius); box-shadow: var(--shadow);
+    padding: 18px 20px; margin-bottom: 26px;
+  }
+  .howto h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-soft); margin: 0 0 10px; }
+  .howto ul { margin: 0; padding-left: 18px; color: var(--ink-soft); font-size: 14px; }
+  .howto code { font-family: var(--mono); font-size: 12.5px; background: var(--bg); border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; color: var(--ink); }
+
+  .panel {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: var(--radius); box-shadow: var(--shadow);
+    padding: 22px 22px 18px; margin-bottom: 22px;
+  }
+  .panel-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+  .tag { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-soft); }
+  .panel-head h2 { font-size: 20px; margin: 4px 0 6px; letter-spacing: -0.005em; }
+  code.file { font-family: var(--mono); font-size: 13px; color: var(--accent); }
+  .panel-side { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+  .badge { font-size: 12px; font-weight: 700; border-radius: 999px; padding: 3px 11px; white-space: nowrap; }
+  .badge-ok { color: var(--ok); background: var(--ok-soft); }
+  .badge-warn { color: var(--warn); background: var(--warn-soft); }
+  .dl {
+    font-size: 12.5px; font-weight: 600; border: 1px solid var(--line-strong);
+    border-radius: 8px; padding: 6px 12px; color: var(--ink); background: var(--surface);
+  }
+  .dl:hover { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); text-decoration: none; }
+
+  .purpose { color: var(--ink-soft); font-size: 14.5px; margin: 8px 0 18px; max-width: 72ch; }
+
+  .opt { border-top: 1px solid var(--line); padding: 16px 0 4px; }
+  .opt:first-of-type { border-top: 0; }
+  .opt h3 { font-size: 15.5px; margin: 0 0 4px; }
+  .opt p { font-size: 14px; color: var(--ink-soft); margin: 0 0 10px; max-width: 72ch; }
+  pre {
+    background: #0f1422; color: #e6e9f2; border-radius: 8px;
+    padding: 11px 14px; overflow-x: auto; margin: 0 0 10px;
+    font-family: var(--mono); font-size: 12.5px; line-height: 1.5;
+  }
+  pre .c { color: #8b93a7; }
+
+  details.manual {
+    border: 1px solid var(--line); border-radius: 8px; padding: 0;
+    background: var(--bg); margin: 0 0 6px;
+  }
+  details.manual > summary {
+    cursor: pointer; list-style: none; padding: 9px 13px;
+    font-size: 13.5px; font-weight: 600; color: var(--accent);
+    display: flex; align-items: center; gap: 7px;
+  }
+  details.manual > summary::-webkit-details-marker { display: none; }
+  details.manual > summary::before { content: "+"; font-weight: 700; width: 12px; text-align: center; }
+  details.manual[open] > summary::before { content: "\2212"; }
+  details.manual > summary:hover { text-decoration: underline; }
+  .manual-body { padding: 2px 16px 12px 30px; }
+  .manual-body ol { margin: 4px 0; padding-left: 18px; font-size: 14px; color: var(--ink); }
+  .manual-body li { margin-bottom: 4px; }
+  .manual-body .note { font-size: 13px; color: var(--ink-soft); margin: 8px 0 0; }
+  kbd { font-family: var(--sans); font-size: 12.5px; font-weight: 600; background: var(--surface); border: 1px solid var(--line-strong); border-bottom-width: 2px; border-radius: 5px; padding: 1px 6px; }
+  .danger { color: var(--warn); font-weight: 600; }
+
+  .tool { display: flex; justify-content: space-between; align-items: center; gap: 18px; border-top: 1px solid var(--line); padding: 16px 0; flex-wrap: wrap; }
+  .tool:first-of-type { border-top: 0; }
+  .tool .info { flex: 1; min-width: 220px; }
+  .tool .info h3 { font-size: 15.5px; margin: 0 0 3px; }
+  .tool .info p { font-size: 13.5px; color: var(--ink-soft); margin: 0; max-width: 60ch; }
+  .tool .info .host { font-family: var(--mono); font-size: 11.5px; color: var(--ink-soft); }
+  .dl-ext {
+    flex-shrink: 0; font-size: 13px; font-weight: 600; white-space: nowrap;
+    background: var(--accent); color: #fff; border: 1px solid var(--accent);
+    border-radius: 8px; padding: 8px 15px;
+  }
+  .dl-ext:hover { background: #1647b8; border-color: #1647b8; text-decoration: none; }
+  .dl-ext::after { content: " \2193"; }
+  .tools-note { font-size: 12.5px; color: var(--ink-soft); margin: 14px 0 0; }
+
+  footer.page { max-width: 920px; margin: 0 auto; padding: 0 24px 36px; color: var(--ink-soft); font-size: 12.5px; }
+  footer.page .version {
+    display: inline-block; padding: 1px 7px; border: 1px solid var(--line-strong);
+    border-radius: 999px; font-size: 11.5px; font-weight: 600; color: var(--ink-soft);
+    background: var(--surface); margin: 0 2px;
+  }
+</style>
+</head>
+<body>
+
+<header class="page">
+  <div class="wrap">
+    <p class="crumb"><a href="../index.html">&larr; Work Hub</a></p>
+    <h1>PC Setup Scripts</h1>
+    <p class="lede">PowerShell scripts for the things that have to be re-fixed every time you sign into a new or freshly imaged machine. Each script picks the right mechanism at run time, so the same file works on both Windows versions.</p>
+    <span class="os-pill">Windows 10 &amp; Windows 11</span>
+  </div>
+</header>
+
+<main>
+
+  <section class="howto">
+    <h2>How to run any of these</h2>
+    <ul>
+      <li>Save the <code>.ps1</code> somewhere local, open <strong>PowerShell</strong>, then run:
+        <code>powershell -ExecutionPolicy Bypass -File .\NAME.ps1</code></li>
+      <li><code>-List</code> shows what would change without touching anything &middot; <code>-WhatIf</code> is a full dry run &middot; <code>-Enable</code> reverses a disable.</li>
+      <li>Copied from a network share and blocked? Run <code>Unblock-File .\NAME.ps1</code> once.</li>
+    </ul>
+  </section>
+
+  <!-- ===================== Tray icons ===================== -->
+  <section class="panel" id="tray-icons">
+    <div class="panel-head">
+      <div>
+        <span class="tag">Taskbar</span>
+        <h2>Show all system tray icons</h2>
+        <code class="file">Show-AllTrayIcons.ps1</code>
+      </div>
+      <div class="panel-side">
+        <span class="badge badge-ok">No admin needed</span>
+        <a class="dl" href="Show-AllTrayIcons.ps1" download>Download .ps1</a>
+      </div>
+    </div>
+    <p class="purpose">Force every notification-area icon to show directly on the taskbar instead of hiding in the Windows 11 chevron flyout. Windows 11 made this per-app (<code>IsPromoted</code> under <code>NotifyIconSettings</code>) and new apps keep landing hidden; on Windows 10 it flips the old &ldquo;always show all icons&rdquo; switch. Once nothing is hidden the chevron disappears.</p>
+
+    <div class="opt">
+      <h3>Show all icons now</h3>
+      <p>Promotes every current tray icon and restarts Explorer so they appear immediately.</p>
+      <pre><span class="c"># one-shot</span>
+powershell -ExecutionPolicy Bypass -File .\Show-AllTrayIcons.ps1</pre>
+      <details class="manual">
+        <summary>Do it manually instead</summary>
+        <div class="manual-body">
+          <strong>Windows 11</strong>
+          <ol>
+            <li>Right-click the taskbar &rarr; <kbd>Taskbar settings</kbd>.</li>
+            <li>Expand <strong>Other system tray icons</strong>.</li>
+            <li>Turn <strong>On</strong> the toggle for each app you want always visible. The chevron disappears once nothing is hidden.</li>
+          </ol>
+          <p class="note"><strong>Faster:</strong> click the chevron to open the flyout, then drag an icon out onto the taskbar &mdash; that promotes it instantly.</p>
+          <strong>Windows 10</strong>
+          <ol>
+            <li>Right-click the taskbar &rarr; <kbd>Taskbar settings</kbd>.</li>
+            <li>Under <strong>Notification area</strong>, click <strong>Select which icons appear on the taskbar</strong>.</li>
+            <li>Turn on <strong>Always show all icons in the notification area</strong>.</li>
+          </ol>
+        </div>
+      </details>
+    </div>
+
+    <div class="opt">
+      <h3>Re-apply automatically on every logon</h3>
+      <p>Copies the script to <code>%LOCALAPPDATA%</code> and registers a logon task that re-runs ~1 minute after each sign-in &mdash; so newly installed apps get promoted too, without you remembering to.</p>
+      <pre>powershell -ExecutionPolicy Bypass -File .\Show-AllTrayIcons.ps1 -Install</pre>
+      <details class="manual">
+        <summary>Do it manually instead</summary>
+        <div class="manual-body">
+          <ol>
+            <li>Open <strong>Task Scheduler</strong> &rarr; <strong>Create Task</strong>.</li>
+            <li><strong>Triggers</strong> tab: New &rarr; <em>At log on</em>, delay 1 minute.</li>
+            <li><strong>Actions</strong> tab: New &rarr; Program <code>powershell.exe</code>, arguments <code>-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "C:\path\Show-AllTrayIcons.ps1"</code>.</li>
+            <li>Save. (There is no built-in Settings toggle that survives new app installs &mdash; this is the manual equivalent of <code>-Install</code>.)</li>
+          </ol>
+        </div>
+      </details>
+    </div>
+
+    <div class="opt">
+      <h3>Remove the logon task</h3>
+      <p>Unregisters the task and deletes the local copy.</p>
+      <pre>powershell -ExecutionPolicy Bypass -File .\Show-AllTrayIcons.ps1 -Uninstall</pre>
+      <details class="manual">
+        <summary>Do it manually instead</summary>
+        <div class="manual-body">
+          <ol>
+            <li>Open <strong>Task Scheduler</strong>, find <strong>ShowAllTrayIcons</strong> in the library, right-click &rarr; <strong>Delete</strong>.</li>
+            <li>Delete the folder <code>%LOCALAPPDATA%\ShowAllTrayIcons</code>.</li>
+          </ol>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <!-- ===================== Copilot ===================== -->
+  <section class="panel" id="copilot">
+    <div class="panel-head">
+      <div>
+        <span class="tag">Startup</span>
+        <h2>Stop Microsoft 365 Copilot at startup</h2>
+        <code class="file">Disable-Copilot-Startup.ps1</code>
+      </div>
+      <div class="panel-side">
+        <span class="badge badge-ok">No admin needed</span>
+        <a class="dl" href="Disable-Copilot-Startup.ps1" download>Download .ps1</a>
+      </div>
+    </div>
+    <p class="purpose">&ldquo;Microsoft 365 Copilot&rdquo; is the rebranded Microsoft 365 / Office app; &ldquo;Copilot&rdquo; is the standalone assistant. Both auto-start through a packaged-app startup task stored per-user (no admin). This sets that task to <em>DisabledByUser</em> so it stays off, and also catches any Copilot Run keys or scheduled tasks a given build uses.</p>
+
+    <div class="opt">
+      <h3>Disable Copilot startup</h3>
+      <p>Takes effect at the next sign-in. Run <code>-List</code> first if you want to preview matches.</p>
+      <pre>powershell -ExecutionPolicy Bypass -File .\Disable-Copilot-Startup.ps1
+<span class="c"># preview only:</span>  -List      <span class="c"># put it back:</span>  -Enable</pre>
+      <details class="manual">
+        <summary>Do it manually instead</summary>
+        <div class="manual-body">
+          <ol>
+            <li><kbd>Settings</kbd> &rarr; <strong>Apps</strong> &rarr; <strong>Startup</strong>.</li>
+            <li>Find <strong>Microsoft 365 Copilot</strong> (and/or <strong>Copilot</strong>) and switch it <strong>Off</strong>.</li>
+          </ol>
+          <p class="note">Or: <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Esc</kbd> &rarr; <strong>Task Manager</strong> &rarr; <strong>Startup apps</strong> &rarr; select the Copilot entry &rarr; <strong>Disable</strong>.</p>
+          <p class="note">To also hide the taskbar Copilot button (separate from startup): <kbd>Settings</kbd> &rarr; <strong>Personalization</strong> &rarr; <strong>Taskbar</strong> &rarr; turn off <strong>Copilot</strong>.</p>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <!-- ===================== Malwarebytes ===================== -->
+  <section class="panel" id="malwarebytes">
+    <div class="panel-head">
+      <div>
+        <span class="tag">Startup</span>
+        <h2>Stop Malwarebytes at startup</h2>
+        <code class="file">Disable-Malwarebytes-Startup.ps1</code>
+      </div>
+      <div class="panel-side">
+        <span class="badge badge-warn">Admin for service option</span>
+        <a class="dl" href="Disable-Malwarebytes-Startup.ps1" download>Download .ps1</a>
+      </div>
+    </div>
+    <p class="purpose">Malwarebytes changed how it starts. Older versions add a Run key, task, or Startup shortcut &mdash; those are found and disabled automatically. Current v4/v5 launches its tray (<code>mbamtray.exe</code>) from the <strong>MBAMService</strong> service via the in-app toggle, with no clean registry switch &mdash; so the script gives explicit levers for that case. The <em>tray-off-but-keep-protection</em> option is the in-app toggle (manual, below).</p>
+
+    <div class="opt">
+      <h3>Disable any Windows startup entries it finds</h3>
+      <p>Clears old Run keys, scheduled tasks, and Startup-folder shortcuts for Malwarebytes. Safe default; run <code>-List</code> first to see what exists.</p>
+      <pre>powershell -ExecutionPolicy Bypass -File .\Disable-Malwarebytes-Startup.ps1
+<span class="c"># preview:</span>  -List      <span class="c"># also kill the tray now:</span>  -StopTrayNow</pre>
+      <details class="manual">
+        <summary>Do it manually instead (tray off, protection ON &mdash; matches the toggle)</summary>
+        <div class="manual-body">
+          <ol>
+            <li>Open <strong>Malwarebytes</strong>.</li>
+            <li><strong>Settings</strong> (gear) &rarr; <strong>General</strong> (or <strong>Security</strong>, depending on version).</li>
+            <li>Under <strong>Windows startup</strong>, turn <strong>Off</strong> &ldquo;<em>Launch Malwarebytes in the background when Windows starts</em>.&rdquo;</li>
+          </ol>
+          <p class="note">This is the toggle that is <strong>On</strong> by default after every install &mdash; the surgical option that stops the background launch while keeping real-time protection.</p>
+        </div>
+      </details>
+    </div>
+
+    <div class="opt">
+      <h3>Stop Malwarebytes entirely at boot</h3>
+      <p><span class="danger">Sets MBAMService to Manual &mdash; this also stops real-time protection.</span> Requires admin. Use only if you want Malwarebytes fully dormant; reverse with <code>-Enable</code>.</p>
+      <pre>powershell -ExecutionPolicy Bypass -File .\Disable-Malwarebytes-Startup.ps1 -DisableService
+<span class="c"># restore protection:</span>  -DisableService -Enable</pre>
+      <details class="manual">
+        <summary>Do it manually instead</summary>
+        <div class="manual-body">
+          <ol>
+            <li>Press <kbd>Win</kbd>+<kbd>R</kbd>, type <code>services.msc</code>, Enter.</li>
+            <li>Find <strong>Malwarebytes Service</strong> (<code>MBAMService</code>), double-click.</li>
+            <li>Set <strong>Startup type</strong> to <strong>Manual</strong> (or Disabled), then <strong>Stop</strong> the service. Apply.</li>
+          </ol>
+          <p class="note"><strong>Self-protection:</strong> if it is enabled, Malwarebytes may revert external changes &mdash; turn self-protection off in the app first (Settings &rarr; Security), then apply.</p>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <!-- ===================== Tools / downloads ===================== -->
+  <section class="panel" id="tools">
+    <div class="panel-head">
+      <div>
+        <span class="tag">Tools</span>
+        <h2>On-demand scan &amp; removal downloads</h2>
+      </div>
+    </div>
+    <p class="purpose">Official vendor direct downloads for a quick second-opinion or cleanup pass on a machine. These are installers/scanners &mdash; they download immediately when clicked.</p>
+
+    <div class="tool">
+      <div class="info">
+        <h3>Malwarebytes for Windows (Free / Personal)</h3>
+        <p>On-demand malware scanner and remover. The free version scans and cleans on demand; Premium adds real-time protection. <span class="host">downloads.malwarebytes.com</span></p>
+      </div>
+      <a class="dl-ext" href="https://downloads.malwarebytes.com/file/mb-windows" target="_blank" rel="noopener noreferrer">Download MBSetup.exe</a>
+    </div>
+
+    <div class="tool">
+      <div class="info">
+        <h3>ESET Online Scanner</h3>
+        <p>Free one-time, second-opinion scanner with no lasting install footprint &mdash; good for confirming a machine is clean. <a href="https://www.eset.com/afr/online-scanner/" target="_blank" rel="noopener noreferrer">Vendor page</a> &middot; <span class="host">download.eset.com</span></p>
+      </div>
+      <a class="dl-ext" href="https://download.eset.com/com/eset/tools/online_scanner/latest/esetonlinescanner.exe" target="_blank" rel="noopener noreferrer">Download esetonlinescanner.exe</a>
+    </div>
+
+    <p class="tools-note">Links go straight to the vendors' own download servers (verified live). Always run on-demand scanners with admin rights.</p>
+  </section>
+
+  <p style="font-size:13px;color:var(--ink-soft);margin-top:26px;">
+    Source and full notes: <a href="https://github.com/frank-umbrella/work/tree/main/scripts">work/scripts on GitHub</a> &middot;
+    or open <a href="README.md">README.md</a> in the repo.
+  </p>
+
+</main>
+
+<footer class="page">
+  <p>PC Setup Scripts <span class="version">v0.1.0</span> &middot; part of the Work Hub &middot; Windows 10 &amp; 11.</p>
+</footer>
+
+</body>
+</html>
