@@ -24,6 +24,13 @@ label.
 
 ## How to run
 
+**One-time use - nothing is left on the PC.** Each script changes a Windows
+setting and exits, exactly like flipping the toggle by hand. Run it once, then
+delete the `.ps1`; only the setting persists and nothing keeps running in the
+background. The single exception is the tray script's optional `-Install`
+(registers a logon task to re-apply) - skip it for a one-and-done pass on a
+client machine, or run `-Uninstall` later to remove it.
+
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\<script>.ps1 [switches]
 ```

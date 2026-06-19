@@ -6,7 +6,7 @@
 <title>PC Setup Scripts</title>
 <meta name="description" content="PowerShell scripts for re-fixing a fresh Windows PC: show all tray icons, stop Copilot and Malwarebytes at startup. Windows 10 and 11.">
 <meta name="robots" content="noindex">
-<meta name="version" content="0.1.1">
+<meta name="version" content="0.1.2">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -157,6 +157,7 @@
   <section class="howto">
     <h2>How to run any of these</h2>
     <ul>
+      <li><strong>One-time use &mdash; nothing is left on the PC.</strong> Each script changes a Windows setting and exits, exactly like flipping the toggle by hand. Run it once, then delete the <code>.ps1</code>; only the setting persists. Nothing keeps running in the background. <em>(The single exception is the tray script's optional <code>-Install</code> &mdash; skip it for one-and-done; see that note below.)</em></li>
       <li>Save the <code>.ps1</code> somewhere local, open <strong>PowerShell</strong>, then run:
         <code>powershell -ExecutionPolicy Bypass -File .\NAME.ps1</code></li>
       <li><code>-List</code> shows what would change without touching anything &middot; <code>-WhatIf</code> is a full dry run &middot; <code>-Enable</code> reverses a disable.</li>
@@ -205,9 +206,10 @@ powershell -ExecutionPolicy Bypass -File .\Show-AllTrayIcons.ps1</pre>
     </div>
 
     <div class="opt">
-      <h3>Re-apply automatically on every logon</h3>
-      <p>Copies the script to <code>%LOCALAPPDATA%</code> and registers a logon task that re-runs ~1 minute after each sign-in &mdash; so newly installed apps get promoted too, without you remembering to.</p>
-      <pre>powershell -ExecutionPolicy Bypass -File .\Show-AllTrayIcons.ps1 -Install</pre>
+      <h3>Optional: re-apply automatically on every logon</h3>
+      <p><strong>This is the only option that leaves anything on the PC</strong> &mdash; skip it if you just want a one-time change. It copies the script to <code>%LOCALAPPDATA%</code> and registers a logon task that re-runs ~1 minute after each sign-in, so apps installed <em>later</em> get promoted too. Only worth it on a machine you manage long-term; for a one-and-done pass on a client PC, use the one-shot above instead.</p>
+      <pre>powershell -ExecutionPolicy Bypass -File .\Show-AllTrayIcons.ps1 -Install
+<span class="c"># remove it later:</span>  -Uninstall</pre>
       <details class="manual">
         <summary>Do it manually instead</summary>
         <div class="manual-body">
@@ -360,7 +362,7 @@ powershell -ExecutionPolicy Bypass -File .\Show-AllTrayIcons.ps1</pre>
 </main>
 
 <footer class="page">
-  <p>PC Setup Scripts <span class="version">v0.1.1</span> &middot; Windows 10 &amp; 11.</p>
+  <p>PC Setup Scripts <span class="version">v0.1.2</span> &middot; Windows 10 &amp; 11.</p>
 </footer>
 
 </body>
