@@ -6,7 +6,7 @@
 <title>PC Setup Scripts</title>
 <meta name="description" content="PowerShell scripts for re-fixing a fresh Windows PC: show all tray icons, stop Copilot and Malwarebytes at startup. Windows 10 and 11.">
 <meta name="robots" content="noindex">
-<meta name="version" content="0.5.0">
+<meta name="version" content="0.5.1">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -143,17 +143,28 @@
   .sw { position: relative; display: inline-flex; cursor: help; outline: none; }
   .sw > code { font-family: var(--mono); font-size: 12px; background: var(--bg); border: 1px solid var(--line-strong); border-bottom-width: 2px; border-radius: 5px; padding: 1px 7px; color: var(--ink); }
   .sw:hover > code, .sw:focus-visible > code { border-color: var(--accent); color: var(--accent); }
-  .sw .bubble {
+  .bubble {
     position: absolute; bottom: calc(100% + 9px); left: 50%; transform: translateX(-50%);
-    width: max-content; max-width: 250px; z-index: 20;
+    width: max-content; max-width: 270px; z-index: 20;
     background: var(--ink); color: #fff; font-size: 12px; font-weight: 400; line-height: 1.45;
     text-align: left; padding: 8px 11px; border-radius: 8px;
     box-shadow: 0 6px 22px rgba(20,25,40,0.28);
     opacity: 0; visibility: hidden; transition: opacity .12s ease; pointer-events: none;
   }
-  .sw .bubble code { background: rgba(255,255,255,0.16); border: 0; color: #fff; padding: 0 3px; border-radius: 3px; }
-  .sw .bubble::after { content: ""; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); border: 6px solid transparent; border-top-color: var(--ink); }
-  .sw:hover .bubble, .sw:focus .bubble, .sw:focus-within .bubble { opacity: 1; visibility: visible; }
+  .bubble code { background: rgba(255,255,255,0.16); border: 0; color: #fff; padding: 0 3px; border-radius: 3px; }
+  .bubble strong { color: #fff; }
+  .bubble::after { content: ""; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); border: 6px solid transparent; border-top-color: var(--ink); }
+  .sw:hover .bubble, .sw:focus .bubble, .sw:focus-within .bubble,
+  .tip:hover .bubble, .tip:focus .bubble, .tip:focus-within .bubble { opacity: 1; visibility: visible; }
+
+  .tip {
+    position: relative; display: inline-flex; align-items: center; justify-content: center;
+    width: 15px; height: 15px; margin-left: 5px; vertical-align: text-bottom;
+    border-radius: 50%; background: var(--accent-soft); color: var(--accent);
+    font-size: 10px; font-weight: 700; font-style: normal; cursor: help; outline: none; flex-shrink: 0;
+  }
+  .tip::before { content: "i"; font-family: Georgia, "Times New Roman", serif; line-height: 1; }
+  .tip:hover, .tip:focus-visible { background: var(--accent); color: #fff; }
 
   details.manual {
     border: 1px solid var(--line); border-radius: 8px; padding: 0;
@@ -493,9 +504,9 @@
           <p class="note"><strong>Run box:</strong> <kbd>Win</kbd>+<kbd>R</kbd> &rarr; <code>ms-settings:windowsupdate-options</code> opens Advanced options directly.</p>
           <ol>
             <li><strong>Settings</strong> &rarr; <strong>Windows Update</strong> &rarr; <strong>Advanced options</strong>.</li>
-            <li>Turn <strong>On</strong> <em>Receive updates for other Microsoft products</em>.</li>
-            <li>Turn <strong>On</strong> <em>Notify me when a restart is required to finish updating</em>.</li>
-            <li>Under <strong>Active hours</strong>, choose <em>Manually</em> and set the start/end times (or <em>Automatically</em> to let Windows decide).</li>
+            <li>Turn <strong>On</strong> <em>Receive updates for other Microsoft products</em><span class="tip" tabindex="0" role="note" aria-label="Switches Windows Update into Microsoft Update, so it also patches other Microsoft software (Office, Visual Studio, SQL Server), not just Windows. Example: an Office security fix is delivered through Windows Update."><span class="bubble">Switches Windows Update into &ldquo;<strong>Microsoft Update</strong>,&rdquo; so it also patches other Microsoft software (Office, Visual Studio, SQL Server) &mdash; not just Windows. <strong>Example:</strong> an Office security fix arrives through Windows Update.</span></span>.</li>
+            <li>Turn <strong>On</strong> <em>Notify me when a restart is required to finish updating</em><span class="tip" tabindex="0" role="note" aria-label="Windows shows a notification when an installed update needs a reboot to finish, so it is not a surprise. Example: a Restart to finish installing updates toast appears instead of a silently scheduled restart."><span class="bubble">Windows pops a notification when an installed update needs a reboot to finish, so it isn&rsquo;t a surprise. <strong>Example:</strong> a &ldquo;Restart to finish installing updates&rdquo; toast appears instead of a silent scheduled restart.</span></span>.</li>
+            <li>Under <strong>Active hours</strong><span class="tip" tabindex="0" role="note" aria-label="The window when Windows treats the PC as in use and will not auto-restart for updates. Manually means you pick the window; Automatically means Windows learns it. Example: 7 AM to 11 PM means update restarts only happen overnight, between 11 PM and 7 AM."><span class="bubble">The window when Windows treats the PC as &ldquo;in use&rdquo; and won&rsquo;t auto-restart for updates. <em>Manually</em> = you pick it; <em>Automatically</em> = Windows learns it. <strong>Example:</strong> 7&nbsp;AM&ndash;11&nbsp;PM means restarts only happen overnight (11&nbsp;PM&ndash;7&nbsp;AM).</span></span>, choose <em>Manually</em> and set the start/end times (or <em>Automatically</em> to let Windows decide).</li>
           </ol>
         </div>
       </details>
@@ -573,7 +584,7 @@
 </main>
 
 <footer class="page">
-  <p>PC Setup Scripts <span class="version">v0.5.0</span> &middot; Windows 10 &amp; 11.</p>
+  <p>PC Setup Scripts <span class="version">v0.5.1</span> &middot; Windows 10 &amp; 11.</p>
 </footer>
 
 <script>

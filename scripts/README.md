@@ -329,9 +329,16 @@ Active hours range max 18 hours.
 **Run box:** Win+R -> `ms-settings:windowsupdate-options` opens Advanced options.
 
 1. **Settings > Windows Update > Advanced options**.
-2. Turn **On** *Receive updates for other Microsoft products*.
-3. Turn **On** *Notify me when a restart is required to finish updating*.
-4. Under **Active hours**, choose *Manually* and set start/end (or *Automatically*).
+2. Turn **On** *Receive updates for other Microsoft products* - switches Windows
+   Update into "Microsoft Update" so other Microsoft software (Office, Visual
+   Studio, SQL Server) patches through Windows Update too, not just Windows.
+3. Turn **On** *Notify me when a restart is required to finish updating* - shows
+   a "Restart to finish installing updates" notification instead of a silently
+   scheduled reboot.
+4. Under **Active hours** (the window Windows treats the PC as in-use and won't
+   auto-restart for updates - e.g. 7 AM-11 PM means restarts only happen
+   overnight, 11 PM-7 AM), choose *Manually* and set start/end (or
+   *Automatically* to let Windows learn it).
 
 ---
 
