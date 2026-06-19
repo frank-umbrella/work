@@ -35,6 +35,28 @@ client machine, or run `-Uninstall` later to remove it.
 powershell -ExecutionPolicy Bypass -File .\<script>.ps1 [switches]
 ```
 
+### Step by step (example: Show-AllTrayIcons.ps1)
+
+1. **Save the script somewhere simple.** The root of the C: drive (`C:\`) is
+   easiest because the path has no spaces; the Desktop works too.
+2. **Open PowerShell.** Press Start, type `PowerShell`, press Enter. No admin is
+   needed for the tray or Copilot scripts; for the Malwarebytes service option,
+   right-click Windows PowerShell and choose *Run as administrator*.
+3. **Paste the line that matches where you saved it, then Enter:**
+
+   ```powershell
+   # saved to the root of C:
+   powershell -ExecutionPolicy Bypass -File C:\Show-AllTrayIcons.ps1
+
+   # saved to the Desktop
+   powershell -ExecutionPolicy Bypass -File "$HOME\Desktop\Show-AllTrayIcons.ps1"
+   ```
+
+Swap `Show-AllTrayIcons.ps1` for any other script name and add switches on the
+end (e.g. `... .ps1 -List`). The full path is in the command, so you do not need
+to change folders first. If the Desktop line errors, your Desktop is synced to
+OneDrive - use `"$HOME\OneDrive\Desktop\Show-AllTrayIcons.ps1"` instead.
+
 Common switches on these scripts:
 
 - `-List` - show what matches, change nothing (safe to run first)
