@@ -6,7 +6,7 @@
 <title>PC Setup Scripts</title>
 <meta name="description" content="PowerShell scripts for re-fixing a fresh Windows PC: show all tray icons, stop Copilot and Malwarebytes at startup. Windows 10 and 11.">
 <meta name="robots" content="noindex">
-<meta name="version" content="0.3.0">
+<meta name="version" content="0.3.1">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -251,7 +251,7 @@
       <h3>Show all icons now</h3>
       <p>Promotes every current tray icon and restarts Explorer so they appear immediately.</p>
       <pre><span class="c"># one-shot</span>
-powershell -ExecutionPolicy Bypass -File .\Show-AllTrayIcons.ps1</pre>
+powershell -ExecutionPolicy Bypass -File C:\Show-AllTrayIcons.ps1</pre>
       <details class="manual">
         <summary>Do it manually instead</summary>
         <div class="manual-body">
@@ -275,7 +275,7 @@ powershell -ExecutionPolicy Bypass -File .\Show-AllTrayIcons.ps1</pre>
     <div class="opt">
       <h3>Optional: re-apply automatically on every logon</h3>
       <p><strong>This is the only option that leaves anything on the PC</strong> &mdash; skip it if you just want a one-time change. It copies the script to <code>%LOCALAPPDATA%</code> and registers a logon task that re-runs ~1 minute after each sign-in, so apps installed <em>later</em> get promoted too. Only worth it on a machine you manage long-term; for a one-and-done pass on a client PC, use the one-shot above instead.</p>
-      <pre>powershell -ExecutionPolicy Bypass -File .\Show-AllTrayIcons.ps1 -Install
+      <pre>powershell -ExecutionPolicy Bypass -File C:\Show-AllTrayIcons.ps1 -Install
 <span class="c"># remove it later:</span>  -Uninstall</pre>
       <details class="manual">
         <summary>Do it manually instead</summary>
@@ -293,7 +293,7 @@ powershell -ExecutionPolicy Bypass -File .\Show-AllTrayIcons.ps1</pre>
     <div class="opt">
       <h3>Remove the logon task</h3>
       <p>Unregisters the task and deletes the local copy.</p>
-      <pre>powershell -ExecutionPolicy Bypass -File .\Show-AllTrayIcons.ps1 -Uninstall</pre>
+      <pre>powershell -ExecutionPolicy Bypass -File C:\Show-AllTrayIcons.ps1 -Uninstall</pre>
       <details class="manual">
         <summary>Do it manually instead</summary>
         <div class="manual-body">
@@ -324,7 +324,7 @@ powershell -ExecutionPolicy Bypass -File .\Show-AllTrayIcons.ps1</pre>
     <div class="opt">
       <h3>Disable Copilot startup</h3>
       <p>Takes effect at the next sign-in. Run <code>-List</code> first if you want to preview matches.</p>
-      <pre>powershell -ExecutionPolicy Bypass -File .\Disable-Copilot-Startup.ps1
+      <pre>powershell -ExecutionPolicy Bypass -File C:\Disable-Copilot-Startup.ps1
 <span class="c"># preview only:</span>  -List      <span class="c"># put it back:</span>  -Enable</pre>
       <details class="manual">
         <summary>Do it manually instead</summary>
@@ -358,7 +358,7 @@ powershell -ExecutionPolicy Bypass -File .\Show-AllTrayIcons.ps1</pre>
     <div class="opt">
       <h3>Disable any Windows startup entries it finds</h3>
       <p>Clears old Run keys, scheduled tasks, and Startup-folder shortcuts for Malwarebytes. Safe default; run <code>-List</code> first to see what exists.</p>
-      <pre>powershell -ExecutionPolicy Bypass -File .\Disable-Malwarebytes-Startup.ps1
+      <pre>powershell -ExecutionPolicy Bypass -File C:\Disable-Malwarebytes-Startup.ps1
 <span class="c"># preview:</span>  -List      <span class="c"># also kill the tray now:</span>  -StopTrayNow</pre>
       <details class="manual">
         <summary>Do it manually instead (tray off, protection ON &mdash; matches the toggle)</summary>
@@ -376,7 +376,7 @@ powershell -ExecutionPolicy Bypass -File .\Show-AllTrayIcons.ps1</pre>
     <div class="opt">
       <h3>Stop Malwarebytes entirely at boot</h3>
       <p><span class="danger">Sets MBAMService to Manual &mdash; this also stops real-time protection.</span> Requires admin. Use only if you want Malwarebytes fully dormant; reverse with <code>-Enable</code>.</p>
-      <pre>powershell -ExecutionPolicy Bypass -File .\Disable-Malwarebytes-Startup.ps1 -DisableService
+      <pre>powershell -ExecutionPolicy Bypass -File C:\Disable-Malwarebytes-Startup.ps1 -DisableService
 <span class="c"># restore protection:</span>  -DisableService -Enable</pre>
       <details class="manual">
         <summary>Do it manually instead</summary>
@@ -410,7 +410,7 @@ powershell -ExecutionPolicy Bypass -File .\Show-AllTrayIcons.ps1</pre>
     <div class="opt">
       <h3>Open, pause, wait, then check</h3>
       <p>Default is a 7-day pause and a 10-second wait before checking. Adjust with <code>-PauseDays</code> and <code>-WaitSeconds</code>.</p>
-      <pre>powershell -ExecutionPolicy Bypass -File .\Open-WindowsUpdate.ps1
+      <pre>powershell -ExecutionPolicy Bypass -File C:\Open-WindowsUpdate.ps1
 <span class="c"># pause 14 days:</span>  -PauseDays 14    <span class="c"># resume:</span>  -Resume    <span class="c"># skip pause:</span>  -NoPause</pre>
       <details class="manual">
         <summary>Do it manually instead</summary>
@@ -443,7 +443,7 @@ powershell -ExecutionPolicy Bypass -File .\Show-AllTrayIcons.ps1</pre>
     <div class="opt">
       <h3>Open Disk Cleanup</h3>
       <p>Opens the normal Disk Cleanup window for C: (use <code>-Drive D</code> for another drive).</p>
-      <pre>powershell -ExecutionPolicy Bypass -File .\Open-DiskCleanup.ps1
+      <pre>powershell -ExecutionPolicy Bypass -File C:\Open-DiskCleanup.ps1
 <span class="c"># system files (admin):</span>  -SystemFiles    <span class="c"># unattended, no clicks:</span>  -Auto</pre>
       <details class="manual">
         <summary>Do it manually instead</summary>
@@ -492,7 +492,7 @@ powershell -ExecutionPolicy Bypass -File .\Show-AllTrayIcons.ps1</pre>
 </main>
 
 <footer class="page">
-  <p>PC Setup Scripts <span class="version">v0.3.0</span> &middot; Windows 10 &amp; 11.</p>
+  <p>PC Setup Scripts <span class="version">v0.3.1</span> &middot; Windows 10 &amp; 11.</p>
 </footer>
 
 <script>
