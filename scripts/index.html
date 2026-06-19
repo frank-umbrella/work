@@ -6,7 +6,7 @@
 <title>PC Setup Scripts</title>
 <meta name="description" content="PowerShell scripts for re-fixing a fresh Windows PC: show all tray icons, stop Copilot and Malwarebytes at startup. Windows 10 and 11.">
 <meta name="robots" content="noindex">
-<meta name="version" content="0.3.1">
+<meta name="version" content="0.4.0">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -137,6 +137,24 @@
   .copy-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .copy-btn.copied { color: #7ee2a8; border-color: rgba(126,226,168,0.5); background: rgba(126,226,168,0.14); }
 
+  /* Switch chips with hover/focus tooltip */
+  .switches { font-size: 13px; color: var(--ink-soft); margin: 2px 0 10px; display: flex; flex-wrap: wrap; gap: 7px 10px; align-items: center; }
+  .switches .lbl { font-weight: 600; }
+  .sw { position: relative; display: inline-flex; cursor: help; outline: none; }
+  .sw > code { font-family: var(--mono); font-size: 12px; background: var(--bg); border: 1px solid var(--line-strong); border-bottom-width: 2px; border-radius: 5px; padding: 1px 7px; color: var(--ink); }
+  .sw:hover > code, .sw:focus-visible > code { border-color: var(--accent); color: var(--accent); }
+  .sw .bubble {
+    position: absolute; bottom: calc(100% + 9px); left: 50%; transform: translateX(-50%);
+    width: max-content; max-width: 250px; z-index: 20;
+    background: var(--ink); color: #fff; font-size: 12px; font-weight: 400; line-height: 1.45;
+    text-align: left; padding: 8px 11px; border-radius: 8px;
+    box-shadow: 0 6px 22px rgba(20,25,40,0.28);
+    opacity: 0; visibility: hidden; transition: opacity .12s ease; pointer-events: none;
+  }
+  .sw .bubble code { background: rgba(255,255,255,0.16); border: 0; color: #fff; padding: 0 3px; border-radius: 3px; }
+  .sw .bubble::after { content: ""; position: absolute; top: 100%; left: 50%; transform: translateX(-50%); border: 6px solid transparent; border-top-color: var(--ink); }
+  .sw:hover .bubble, .sw:focus .bubble, .sw:focus-within .bubble { opacity: 1; visibility: visible; }
+
   details.manual {
     border: 1px solid var(--line); border-radius: 8px; padding: 0;
     background: var(--bg); margin: 0 0 6px;
@@ -250,8 +268,7 @@
     <div class="opt">
       <h3>Show all icons now</h3>
       <p>Promotes every current tray icon and restarts Explorer so they appear immediately.</p>
-      <pre><span class="c"># one-shot</span>
-powershell -ExecutionPolicy Bypass -File C:\Show-AllTrayIcons.ps1</pre>
+      <pre>powershell -ExecutionPolicy Bypass -File C:\Show-AllTrayIcons.ps1</pre>
       <details class="manual">
         <summary>Do it manually instead</summary>
         <div class="manual-body">
@@ -275,8 +292,10 @@ powershell -ExecutionPolicy Bypass -File C:\Show-AllTrayIcons.ps1</pre>
     <div class="opt">
       <h3>Optional: re-apply automatically on every logon</h3>
       <p><strong>This is the only option that leaves anything on the PC</strong> &mdash; skip it if you just want a one-time change. It copies the script to <code>%LOCALAPPDATA%</code> and registers a logon task that re-runs ~1 minute after each sign-in, so apps installed <em>later</em> get promoted too. Only worth it on a machine you manage long-term; for a one-and-done pass on a client PC, use the one-shot above instead.</p>
-      <pre>powershell -ExecutionPolicy Bypass -File C:\Show-AllTrayIcons.ps1 -Install
-<span class="c"># remove it later:</span>  -Uninstall</pre>
+      <pre>powershell -ExecutionPolicy Bypass -File C:\Show-AllTrayIcons.ps1 -Install</pre>
+      <p class="switches"><span class="lbl">Reverse:</span>
+        <span class="sw" tabindex="0" role="note" aria-label="-Uninstall: removes the logon task and the local copy of the script"><code>-Uninstall</code><span class="bubble">Removes the logon task and the local copy of the script.</span></span>
+      </p>
       <details class="manual">
         <summary>Do it manually instead</summary>
         <div class="manual-body">
@@ -324,8 +343,11 @@ powershell -ExecutionPolicy Bypass -File C:\Show-AllTrayIcons.ps1</pre>
     <div class="opt">
       <h3>Disable Copilot startup</h3>
       <p>Takes effect at the next sign-in. Run <code>-List</code> first if you want to preview matches.</p>
-      <pre>powershell -ExecutionPolicy Bypass -File C:\Disable-Copilot-Startup.ps1
-<span class="c"># preview only:</span>  -List      <span class="c"># put it back:</span>  -Enable</pre>
+      <pre>powershell -ExecutionPolicy Bypass -File C:\Disable-Copilot-Startup.ps1</pre>
+      <p class="switches"><span class="lbl">Options:</span>
+        <span class="sw" tabindex="0" role="note" aria-label="-List: preview only, lists what would change without changing anything"><code>-List</code><span class="bubble">Preview only &mdash; lists what would change, changes nothing.</span></span>
+        <span class="sw" tabindex="0" role="note" aria-label="-Enable: undo, turns Copilot startup back on"><code>-Enable</code><span class="bubble">Undo &mdash; turns Copilot startup back on.</span></span>
+      </p>
       <details class="manual">
         <summary>Do it manually instead</summary>
         <div class="manual-body">
@@ -358,8 +380,11 @@ powershell -ExecutionPolicy Bypass -File C:\Show-AllTrayIcons.ps1</pre>
     <div class="opt">
       <h3>Disable any Windows startup entries it finds</h3>
       <p>Clears old Run keys, scheduled tasks, and Startup-folder shortcuts for Malwarebytes. Safe default; run <code>-List</code> first to see what exists.</p>
-      <pre>powershell -ExecutionPolicy Bypass -File C:\Disable-Malwarebytes-Startup.ps1
-<span class="c"># preview:</span>  -List      <span class="c"># also kill the tray now:</span>  -StopTrayNow</pre>
+      <pre>powershell -ExecutionPolicy Bypass -File C:\Disable-Malwarebytes-Startup.ps1</pre>
+      <p class="switches"><span class="lbl">Options:</span>
+        <span class="sw" tabindex="0" role="note" aria-label="-List: preview only, lists what would change without changing anything"><code>-List</code><span class="bubble">Preview only &mdash; lists what would change, changes nothing.</span></span>
+        <span class="sw" tabindex="0" role="note" aria-label="-StopTrayNow: also closes the Malwarebytes tray icon for the current session right now"><code>-StopTrayNow</code><span class="bubble">Also closes the Malwarebytes tray for this session right now.</span></span>
+      </p>
       <details class="manual">
         <summary>Do it manually instead (tray off, protection ON &mdash; matches the toggle)</summary>
         <div class="manual-body">
@@ -376,8 +401,10 @@ powershell -ExecutionPolicy Bypass -File C:\Show-AllTrayIcons.ps1</pre>
     <div class="opt">
       <h3>Stop Malwarebytes entirely at boot</h3>
       <p><span class="danger">Sets MBAMService to Manual &mdash; this also stops real-time protection.</span> Requires admin. Use only if you want Malwarebytes fully dormant; reverse with <code>-Enable</code>.</p>
-      <pre>powershell -ExecutionPolicy Bypass -File C:\Disable-Malwarebytes-Startup.ps1 -DisableService
-<span class="c"># restore protection:</span>  -DisableService -Enable</pre>
+      <pre>powershell -ExecutionPolicy Bypass -File C:\Disable-Malwarebytes-Startup.ps1 -DisableService</pre>
+      <p class="switches"><span class="lbl">Reverse:</span>
+        <span class="sw" tabindex="0" role="note" aria-label="DisableService Enable: restores MBAMService to automatic start so protection comes back at boot"><code>-DisableService -Enable</code><span class="bubble">Restores the service to automatic start &mdash; protection comes back at boot.</span></span>
+      </p>
       <details class="manual">
         <summary>Do it manually instead</summary>
         <div class="manual-body">
@@ -410,8 +437,12 @@ powershell -ExecutionPolicy Bypass -File C:\Show-AllTrayIcons.ps1</pre>
     <div class="opt">
       <h3>Open, pause, wait, then check</h3>
       <p>Default is a 7-day pause and a 10-second wait before checking. Adjust with <code>-PauseDays</code> and <code>-WaitSeconds</code>.</p>
-      <pre>powershell -ExecutionPolicy Bypass -File C:\Open-WindowsUpdate.ps1
-<span class="c"># pause 14 days:</span>  -PauseDays 14    <span class="c"># resume:</span>  -Resume    <span class="c"># skip pause:</span>  -NoPause</pre>
+      <pre>powershell -ExecutionPolicy Bypass -File C:\Open-WindowsUpdate.ps1</pre>
+      <p class="switches"><span class="lbl">Options:</span>
+        <span class="sw" tabindex="0" role="note" aria-label="-PauseDays 14: pause updates for a custom number of days instead of the default 7"><code>-PauseDays 14</code><span class="bubble">Pause for a custom number of days (default is 7).</span></span>
+        <span class="sw" tabindex="0" role="note" aria-label="-Resume: clear the pause and resume updates"><code>-Resume</code><span class="bubble">Un-pause &mdash; clears the pause and resumes updates.</span></span>
+        <span class="sw" tabindex="0" role="note" aria-label="-NoPause: just open and check for updates without pausing, no admin needed"><code>-NoPause</code><span class="bubble">Open + check only, no pause (no admin needed).</span></span>
+      </p>
       <details class="manual">
         <summary>Do it manually instead</summary>
         <div class="manual-body">
@@ -443,8 +474,11 @@ powershell -ExecutionPolicy Bypass -File C:\Show-AllTrayIcons.ps1</pre>
     <div class="opt">
       <h3>Open Disk Cleanup</h3>
       <p>Opens the normal Disk Cleanup window for C: (use <code>-Drive D</code> for another drive).</p>
-      <pre>powershell -ExecutionPolicy Bypass -File C:\Open-DiskCleanup.ps1
-<span class="c"># system files (admin):</span>  -SystemFiles    <span class="c"># unattended, no clicks:</span>  -Auto</pre>
+      <pre>powershell -ExecutionPolicy Bypass -File C:\Open-DiskCleanup.ps1</pre>
+      <p class="switches"><span class="lbl">Options:</span>
+        <span class="sw" tabindex="0" role="note" aria-label="-SystemFiles: opens the elevated system-files view with more categories including Windows Update cleanup"><code>-SystemFiles</code><span class="bubble">Elevated &ldquo;system files&rdquo; view &mdash; more categories (Windows Update cleanup, old installs).</span></span>
+        <span class="sw" tabindex="0" role="note" aria-label="-Auto: runs an unattended cleanup of common safe categories with no UI"><code>-Auto</code><span class="bubble">Unattended cleanup of common safe categories &mdash; no clicks.</span></span>
+      </p>
       <details class="manual">
         <summary>Do it manually instead</summary>
         <div class="manual-body">
@@ -492,7 +526,7 @@ powershell -ExecutionPolicy Bypass -File C:\Show-AllTrayIcons.ps1</pre>
 </main>
 
 <footer class="page">
-  <p>PC Setup Scripts <span class="version">v0.3.1</span> &middot; Windows 10 &amp; 11.</p>
+  <p>PC Setup Scripts <span class="version">v0.4.0</span> &middot; Windows 10 &amp; 11.</p>
 </footer>
 
 <script>
