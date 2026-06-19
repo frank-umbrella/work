@@ -150,6 +150,8 @@ powershell -ExecutionPolicy Bypass -File .\Show-AllTrayIcons.ps1 -Uninstall
 
 ### Windows 11
 
+**Run box:** Win+R -> `ms-settings:taskbar` opens Taskbar settings.
+
 1. Right-click the taskbar and choose **Taskbar settings**
    (or **Settings > Personalization > Taskbar**).
 2. Scroll to and expand **Other system tray icons**.
@@ -164,6 +166,9 @@ that app instantly - no Settings trip needed.
 > tray icons** and toggle them on, or just run the script.
 
 ### Windows 10
+
+**Run box:** Win+R -> `control /name Microsoft.NotificationAreaIcons` opens the
+classic dialog with the "Always show all icons" checkbox.
 
 1. Right-click the taskbar > **Taskbar settings**.
 2. Under **Notification area**, click
@@ -207,6 +212,9 @@ It also catches any Copilot/365 `Run` keys or scheduled tasks if a given build
 uses those instead. Takes effect at next sign-in.
 
 ### Manual steps (Copilot)
+
+**Run box:** Win+R -> `ms-settings:startupapps` opens Startup apps directly (or
+`taskmgr` for Task Manager > Startup apps).
 
 - **Settings > Apps > Startup**, find **Microsoft 365 Copilot** (and/or
   **Copilot**) and switch it **Off**, OR
@@ -290,6 +298,8 @@ machines, policy may override the pause.
 
 ### Manual steps
 
+**Run box:** Win+R -> `ms-settings:windowsupdate` opens Windows Update directly.
+
 1. Press Win+I -> **Windows Update**.
 2. Next to **Pause updates**, pick a duration (e.g. *Pause for 1 week*).
 3. Click **Check for updates**; **Resume updates** to un-pause early.
@@ -312,6 +322,9 @@ with no UI.
 ```
 
 ### Manual steps
+
+**Run box:** Win+R -> `cleanmgr` (or `cleanmgr /d C:` for a specific drive)
+opens Disk Cleanup directly.
 
 1. Press Start, type `Disk Cleanup`, Enter.
 2. Choose **C:**, tick categories, **OK**.

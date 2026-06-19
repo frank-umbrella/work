@@ -6,7 +6,7 @@
 <title>PC Setup Scripts</title>
 <meta name="description" content="PowerShell scripts for re-fixing a fresh Windows PC: show all tray icons, stop Copilot and Malwarebytes at startup. Windows 10 and 11.">
 <meta name="robots" content="noindex">
-<meta name="version" content="0.4.0">
+<meta name="version" content="0.4.1">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -272,6 +272,7 @@
       <details class="manual">
         <summary>Do it manually instead</summary>
         <div class="manual-body">
+          <p class="note"><strong>Run box:</strong> <kbd>Win</kbd>+<kbd>R</kbd> &rarr; <code>ms-settings:taskbar</code> opens Taskbar settings (Windows 11).</p>
           <strong>Windows 11</strong>
           <ol>
             <li>Right-click the taskbar &rarr; <kbd>Taskbar settings</kbd>.</li>
@@ -280,6 +281,7 @@
           </ol>
           <p class="note"><strong>Faster:</strong> click the chevron to open the flyout, then drag an icon out onto the taskbar &mdash; that promotes it instantly.</p>
           <strong>Windows 10</strong>
+          <p class="note"><strong>Run box:</strong> <kbd>Win</kbd>+<kbd>R</kbd> &rarr; <code>control /name Microsoft.NotificationAreaIcons</code> opens the classic dialog with the &ldquo;Always show all icons&rdquo; checkbox.</p>
           <ol>
             <li>Right-click the taskbar &rarr; <kbd>Taskbar settings</kbd>.</li>
             <li>Under <strong>Notification area</strong>, click <strong>Select which icons appear on the taskbar</strong>.</li>
@@ -351,6 +353,7 @@
       <details class="manual">
         <summary>Do it manually instead</summary>
         <div class="manual-body">
+          <p class="note"><strong>Run box:</strong> <kbd>Win</kbd>+<kbd>R</kbd> &rarr; <code>ms-settings:startupapps</code> opens Startup apps directly (or <code>taskmgr</code> for Task Manager &rarr; Startup apps).</p>
           <ol>
             <li><kbd>Settings</kbd> &rarr; <strong>Apps</strong> &rarr; <strong>Startup</strong>.</li>
             <li>Find <strong>Microsoft 365 Copilot</strong> (and/or <strong>Copilot</strong>) and switch it <strong>Off</strong>.</li>
@@ -446,6 +449,7 @@
       <details class="manual">
         <summary>Do it manually instead</summary>
         <div class="manual-body">
+          <p class="note"><strong>Run box:</strong> <kbd>Win</kbd>+<kbd>R</kbd> &rarr; <code>ms-settings:windowsupdate</code> opens Windows Update directly.</p>
           <ol>
             <li>Press <kbd>Win</kbd>+<kbd>I</kbd> &rarr; <strong>Windows Update</strong>.</li>
             <li>Next to <strong>Pause updates</strong>, pick a duration (e.g. <em>Pause for 1 week</em>).</li>
@@ -482,6 +486,7 @@
       <details class="manual">
         <summary>Do it manually instead</summary>
         <div class="manual-body">
+          <p class="note"><strong>Run box:</strong> <kbd>Win</kbd>+<kbd>R</kbd> &rarr; <code>cleanmgr</code> (or <code>cleanmgr /d C:</code> for a specific drive) opens Disk Cleanup directly.</p>
           <ol>
             <li>Press <kbd>Start</kbd>, type <code>Disk Cleanup</code>, press <kbd>Enter</kbd>.</li>
             <li>Choose the <strong>C:</strong> drive, tick the categories to remove, click <strong>OK</strong>.</li>
@@ -526,7 +531,7 @@
 </main>
 
 <footer class="page">
-  <p>PC Setup Scripts <span class="version">v0.4.0</span> &middot; Windows 10 &amp; 11.</p>
+  <p>PC Setup Scripts <span class="version">v0.4.1</span> &middot; Windows 10 &amp; 11.</p>
 </footer>
 
 <script>
