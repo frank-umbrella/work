@@ -20,6 +20,13 @@ label.
 | `Disable-Malwarebytes-Startup.ps1` | Stop Malwarebytes launching at startup                     | Maybe  |
 | `Disable-StartupApp.ps1`           | Generic engine the two above call (match any app by regex) | Maybe  |
 
+### Windows maintenance
+
+| Script                    | Does                                                          | Admin? |
+| ------------------------- | ------------------------------------------------------------- | ------ |
+| `Open-WindowsUpdate.ps1`  | Open Windows Update, pause updates, wait, then check          | To pause |
+| `Open-DiskCleanup.ps1`    | Launch Disk Cleanup (cleanmgr) for a drive                    | No     |
+
 *(add future scripts and their own category heading here)*
 
 ## How to run
@@ -261,6 +268,54 @@ the background launch while **keeping** protection:
 
 That toggle is `On` by default after install - which is why it needs turning off
 on every fresh machine.
+
+---
+
+# 4. Open Windows Update (pause + check)
+
+`Open-WindowsUpdate.ps1` - **admin needed to pause** (self-elevates).
+
+Runs the routine in one shot: opens Settings > Windows Update, pauses updates
+for `-PauseDays` (default 7) by writing the pause window to
+`HKLM\SOFTWARE\Microsoft\WindowsUpdate\UX\Settings`, waits `-WaitSeconds`
+(default 10), then triggers a check for updates. On GPO / Intune / WSUS-managed
+machines, policy may override the pause.
+
+```powershell
+.\Open-WindowsUpdate.ps1                      # open, pause 7 days, wait, check
+.\Open-WindowsUpdate.ps1 -PauseDays 14        # longer pause
+.\Open-WindowsUpdate.ps1 -Resume              # clear pause (resume), then check
+.\Open-WindowsUpdate.ps1 -NoPause             # just open + check, no admin
+```
+
+### Manual steps
+
+1. Press Win+I -> **Windows Update**.
+2. Next to **Pause updates**, pick a duration (e.g. *Pause for 1 week*).
+3. Click **Check for updates**; **Resume updates** to un-pause early.
+
+---
+
+# 5. Launch Disk Cleanup
+
+`Open-DiskCleanup.ps1` - no admin for the basic view.
+
+Opens `cleanmgr.exe` for the C: drive (use `-Drive D` for another). `-SystemFiles`
+opens the elevated view with more categories (Windows Update cleanup, old
+installations); `-Auto` runs an unattended cleanup of common safe categories
+with no UI.
+
+```powershell
+.\Open-DiskCleanup.ps1                # interactive, C:
+.\Open-DiskCleanup.ps1 -SystemFiles  # elevated "system files" view
+.\Open-DiskCleanup.ps1 -Auto         # unattended preset, no clicks
+```
+
+### Manual steps
+
+1. Press Start, type `Disk Cleanup`, Enter.
+2. Choose **C:**, tick categories, **OK**.
+3. For more, click **Clean up system files** and approve the admin prompt.
 
 ---
 

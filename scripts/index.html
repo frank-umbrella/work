@@ -6,7 +6,7 @@
 <title>PC Setup Scripts</title>
 <meta name="description" content="PowerShell scripts for re-fixing a fresh Windows PC: show all tray icons, stop Copilot and Malwarebytes at startup. Windows 10 and 11.">
 <meta name="robots" content="noindex">
-<meta name="version" content="0.1.4">
+<meta name="version" content="0.2.0">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -361,6 +361,72 @@ powershell -ExecutionPolicy Bypass -File .\Show-AllTrayIcons.ps1</pre>
     </div>
   </section>
 
+  <!-- ===================== Windows Update ===================== -->
+  <section class="panel" id="windows-update">
+    <div class="panel-head">
+      <div>
+        <span class="tag">Maintenance</span>
+        <h2>Open Windows Update, pause, then check</h2>
+        <code class="file">Open-WindowsUpdate.ps1</code>
+      </div>
+      <div class="panel-side">
+        <span class="badge badge-warn">Admin to pause</span>
+        <a class="dl" href="Open-WindowsUpdate.ps1" download>Download .ps1</a>
+      </div>
+    </div>
+    <p class="purpose">Opens Settings &gt; Windows Update, pauses updates for a set number of days, waits, then triggers a check for updates &mdash; the routine in one shot. Pausing writes the machine-wide pause window in the registry, so the script self-elevates for that step (the Update screen still opens in your normal session). On machines managed by Group Policy / Intune / WSUS, policy may override the pause.</p>
+
+    <div class="opt">
+      <h3>Open, pause, wait, then check</h3>
+      <p>Default is a 7-day pause and a 10-second wait before checking. Adjust with <code>-PauseDays</code> and <code>-WaitSeconds</code>.</p>
+      <pre>powershell -ExecutionPolicy Bypass -File .\Open-WindowsUpdate.ps1
+<span class="c"># pause 14 days:</span>  -PauseDays 14    <span class="c"># resume:</span>  -Resume    <span class="c"># skip pause:</span>  -NoPause</pre>
+      <details class="manual">
+        <summary>Do it manually instead</summary>
+        <div class="manual-body">
+          <ol>
+            <li>Press <kbd>Win</kbd>+<kbd>I</kbd> &rarr; <strong>Windows Update</strong>.</li>
+            <li>Next to <strong>Pause updates</strong>, pick a duration (e.g. <em>Pause for 1 week</em>).</li>
+            <li>When you are ready, click <strong>Check for updates</strong>. To resume early, click <strong>Resume updates</strong>.</li>
+          </ol>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <!-- ===================== Disk Cleanup ===================== -->
+  <section class="panel" id="disk-cleanup">
+    <div class="panel-head">
+      <div>
+        <span class="tag">Maintenance</span>
+        <h2>Launch Disk Cleanup</h2>
+        <code class="file">Open-DiskCleanup.ps1</code>
+      </div>
+      <div class="panel-side">
+        <span class="badge badge-ok">No admin needed</span>
+        <a class="dl" href="Open-DiskCleanup.ps1" download>Download .ps1</a>
+      </div>
+    </div>
+    <p class="purpose">Opens the built-in Disk Cleanup tool (<code>cleanmgr.exe</code>) for the C: drive so you can pick what to remove. Optional switches open the elevated &ldquo;system files&rdquo; view (more categories, including Windows Update cleanup) or run an unattended cleanup of common safe categories with no UI.</p>
+
+    <div class="opt">
+      <h3>Open Disk Cleanup</h3>
+      <p>Opens the normal Disk Cleanup window for C: (use <code>-Drive D</code> for another drive).</p>
+      <pre>powershell -ExecutionPolicy Bypass -File .\Open-DiskCleanup.ps1
+<span class="c"># system files (admin):</span>  -SystemFiles    <span class="c"># unattended, no clicks:</span>  -Auto</pre>
+      <details class="manual">
+        <summary>Do it manually instead</summary>
+        <div class="manual-body">
+          <ol>
+            <li>Press <kbd>Start</kbd>, type <code>Disk Cleanup</code>, press <kbd>Enter</kbd>.</li>
+            <li>Choose the <strong>C:</strong> drive, tick the categories to remove, click <strong>OK</strong>.</li>
+            <li>For more (Windows Update cleanup, old installations), click <strong>Clean up system files</strong> and approve the admin prompt.</li>
+          </ol>
+        </div>
+      </details>
+    </div>
+  </section>
+
   <!-- ===================== Tools / downloads ===================== -->
   <section class="panel" id="tools">
     <div class="panel-head">
@@ -398,7 +464,7 @@ powershell -ExecutionPolicy Bypass -File .\Show-AllTrayIcons.ps1</pre>
 </main>
 
 <footer class="page">
-  <p>PC Setup Scripts <span class="version">v0.1.4</span> &middot; Windows 10 &amp; 11.</p>
+  <p>PC Setup Scripts <span class="version">v0.2.0</span> &middot; Windows 10 &amp; 11.</p>
 </footer>
 
 <script>
