@@ -33,6 +33,7 @@ label.
 | Script                     | Does                                                         | Admin? |
 | -------------------------- | ------------------------------------------------------------ | ------ |
 | `Remove-HPWolfSecurity.ps1` | Fully remove HP Wolf Security and stop it reinstalling       | Yes    |
+| `Remove-ESETOnlineScanner.ps1` | Remove ESET Online Scanner leftovers (EOSv3 tasks, folder)  | Yes   |
 
 *(add future scripts and their own category heading here)*
 
@@ -409,6 +410,43 @@ Update Service, then reboot.
    Console** -> **HP Security Update Service** (this last one is what
    re-installs the agent - remove it last and it stops coming back).
 3. **Reboot.**
+
+---
+
+# 8. Remove ESET Online Scanner leftovers
+
+`Remove-ESETOnlineScanner.ps1` - **admin needed** (self-elevates).
+
+ESET Online Scanner is one-time by default, but if "Periodic scanning" was
+accepted it registers scheduled tasks (`EOSv3 Scheduler onLogOn` / `onTime`)
+that re-run scans at logon / on a timer - and these survive even after you
+"delete" the scanner. This removes those tasks, the data folder
+(`%LOCALAPPDATA%\ESET\ESETOnlineScanner` for every user profile), the Desktop
+shortcut, and any running scanner. It does NOT touch an installed ESET
+antivirus product - only the on-demand scanner's leftovers.
+
+```powershell
+.\Remove-ESETOnlineScanner.ps1 -List   # preview tasks/folders/shortcuts found
+.\Remove-ESETOnlineScanner.ps1         # remove them all
+```
+
+> Deleting the data folder also discards any ESET Online Scanner **quarantine**.
+> If it quarantined something you might still want, copy it out first.
+
+**Keep it one-and-done in the first place:** when running the scanner, decline
+the *Periodic scanning* prompt, tick *"Delete application data on closing"*
+before you close it, then delete the Desktop shortcut. Sources:
+[ESET - Periodic scan](https://help.eset.com/eos/en-US/periodic_scan.html),
+[Getting started](https://help.eset.com/eos/en-US/getting_started.html),
+[KB405 FAQ](https://support.eset.com/en/kb405-online-scanner-faq).
+
+### Manual steps
+
+**Run box:** Win+R -> `taskschd.msc` opens Task Scheduler.
+
+1. In Task Scheduler, delete `EOSv3 Scheduler onLogOn` / `EOSv3 Scheduler onTime`.
+2. Delete `%LOCALAPPDATA%\ESET\ESETOnlineScanner`.
+3. Delete the ESET Online Scanner Desktop shortcut.
 
 ---
 

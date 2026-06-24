@@ -6,7 +6,7 @@
 <title>PC Setup Scripts</title>
 <meta name="description" content="PowerShell scripts for re-fixing a fresh Windows PC: show all tray icons, stop Copilot and Malwarebytes at startup. Windows 10 and 11.">
 <meta name="robots" content="noindex">
-<meta name="version" content="0.6.0">
+<meta name="version" content="0.7.0">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -200,6 +200,9 @@
   .dl-ext:hover { background: #1647b8; border-color: #1647b8; text-decoration: none; }
   .dl-ext::after { content: " \2193"; }
   .tools-note { font-size: 12.5px; color: var(--ink-soft); margin: 14px 0 0; }
+  .tool-note { font-size: 12.5px; color: var(--ink-soft); margin: -6px 0 16px; padding: 10px 13px; background: var(--bg); border-left: 3px solid var(--accent); border-radius: 0 6px 6px 0; line-height: 1.55; }
+  .tool-note code { font-family: var(--mono); font-size: 11.5px; background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; color: var(--ink); }
+  .tool-note .src { display: block; margin-top: 6px; font-size: 11.5px; }
 
   footer.page { max-width: 1160px; margin: 0 auto; padding: 0 24px 36px; color: var(--ink-soft); font-size: 12.5px; }
   footer.page .version {
@@ -232,6 +235,7 @@
       <li><a href="#wu-options">Windows Update options</a></li>
       <li><a href="#disk-cleanup">Disk Cleanup</a></li>
       <li><a href="#hp-wolf">Remove HP Wolf Security</a></li>
+      <li><a href="#eset-cleanup">Remove ESET leftovers</a></li>
       <li><a href="#tools">Scan &amp; removal tools</a></li>
     </ul>
   </nav>
@@ -589,6 +593,43 @@
     </div>
   </section>
 
+  <!-- ===================== Remove ESET Online Scanner leftovers ===================== -->
+  <section class="panel" id="eset-cleanup">
+    <div class="panel-head">
+      <div>
+        <span class="tag">Removal</span>
+        <h2>Remove leftover ESET Online Scanner</h2>
+        <code class="file">Remove-ESETOnlineScanner.ps1</code>
+      </div>
+      <div class="panel-side">
+        <span class="badge badge-warn">Admin needed</span>
+        <a class="dl" href="Remove-ESETOnlineScanner.ps1" download>Download .ps1</a>
+      </div>
+    </div>
+    <p class="purpose">ESET Online Scanner is one-time by default, but if <em>Periodic scanning</em> was accepted it leaves scheduled tasks (<code>EOSv3 Scheduler onLogOn</code> / <code>onTime</code>) that re-run at startup &mdash; and these survive even after you &ldquo;delete&rdquo; the scanner. This removes those tasks, the data folder (<code>%LOCALAPPDATA%\ESET\ESETOnlineScanner</code>, every user profile), the Desktop shortcut, and any running scanner. It does <strong>not</strong> touch an installed ESET antivirus product &mdash; only the on-demand scanner&rsquo;s leftovers.</p>
+
+    <div class="opt">
+      <h3>Remove the leftovers</h3>
+      <p>Run <code>-List</code> first to see what&rsquo;s present.</p>
+      <pre>powershell -ExecutionPolicy Bypass -File C:\Remove-ESETOnlineScanner.ps1</pre>
+      <p class="switches"><span class="lbl">Options:</span>
+        <span class="sw" tabindex="0" role="note" aria-label="-List: preview only, lists the scheduled tasks, data folders, shortcuts and running process found, changes nothing"><code>-List</code><span class="bubble">Preview only &mdash; lists the tasks, data folders, shortcuts and running scanner found. Changes nothing.</span></span>
+      </p>
+      <details class="manual">
+        <summary>Do it manually instead</summary>
+        <div class="manual-body">
+          <p class="note"><strong>Run box:</strong> <kbd>Win</kbd>+<kbd>R</kbd> &rarr; <code>taskschd.msc</code> opens Task Scheduler.</p>
+          <ol>
+            <li>In <strong>Task Scheduler</strong>, delete any task named <code>EOSv3 Scheduler onLogOn</code> or <code>EOSv3 Scheduler onTime</code> (these are what re-run it at startup).</li>
+            <li>Delete the folder <code>%LOCALAPPDATA%\ESET\ESETOnlineScanner</code> (paste it into <kbd>Win</kbd>+<kbd>R</kbd>).</li>
+            <li>Delete the <strong>ESET Online Scanner</strong> Desktop shortcut.</li>
+          </ol>
+          <p class="note"><strong>Heads-up:</strong> deleting the data folder also discards any ESET Online Scanner <em>quarantine</em>. If it quarantined something you might still want, copy it out first.</p>
+        </div>
+      </details>
+    </div>
+  </section>
+
   <!-- ===================== Tools / downloads ===================== -->
   <section class="panel" id="tools">
     <div class="panel-head">
@@ -614,6 +655,11 @@
       </div>
       <a class="dl-ext" href="https://download.eset.com/com/eset/tools/online_scanner/latest/esetonlinescanner.exe" target="_blank" rel="noopener noreferrer">Download esetonlinescanner.exe</a>
     </div>
+    <p class="tool-note">
+      <strong>Keep it one-and-done on a client PC:</strong> ESET Online Scanner is one-time by default, but it offers <em>Periodic scanning</em> &mdash; choose <strong>No</strong>, or it adds <code>EOSv3 Scheduler onLogOn</code> / <code>onTime</code> scheduled tasks that re-run it at startup. Before closing, tick <strong>&ldquo;Delete application data on closing&rdquo;</strong> (uninstalls the downloaded engine and data; a quarantine folder stays if anything was quarantined), then delete the Desktop shortcut.
+      Already left running periodically? <a href="#eset-cleanup">Run the cleanup script &darr;</a>
+      <span class="src">Sources: <a href="https://help.eset.com/eos/en-US/periodic_scan.html" target="_blank" rel="noopener noreferrer">ESET &ndash; Periodic scan</a> &middot; <a href="https://help.eset.com/eos/en-US/getting_started.html" target="_blank" rel="noopener noreferrer">Getting started</a> &middot; <a href="https://support.eset.com/en/kb405-online-scanner-faq" target="_blank" rel="noopener noreferrer">KB405 FAQ</a></span>
+    </p>
 
     <p class="tools-note">Links go straight to the vendors' own download servers (verified live). Always run on-demand scanners with admin rights.</p>
   </section>
@@ -623,7 +669,7 @@
 </main>
 
 <footer class="page">
-  <p>PC Setup Scripts <span class="version">v0.6.0</span> &middot; Windows 10 &amp; 11.</p>
+  <p>PC Setup Scripts <span class="version">v0.7.0</span> &middot; Windows 10 &amp; 11.</p>
 </footer>
 
 <script>
