@@ -6,7 +6,7 @@
 <title>PC Setup Scripts</title>
 <meta name="description" content="PowerShell scripts for re-fixing a fresh Windows PC: show all tray icons, stop Copilot and Malwarebytes at startup. Windows 10 and 11.">
 <meta name="robots" content="noindex">
-<meta name="version" content="0.5.1">
+<meta name="version" content="0.6.0">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -231,6 +231,7 @@
       <li><a href="#windows-update">Windows Update routine</a></li>
       <li><a href="#wu-options">Windows Update options</a></li>
       <li><a href="#disk-cleanup">Disk Cleanup</a></li>
+      <li><a href="#hp-wolf">Remove HP Wolf Security</a></li>
       <li><a href="#tools">Scan &amp; removal tools</a></li>
     </ul>
   </nav>
@@ -550,6 +551,44 @@
     </div>
   </section>
 
+  <!-- ===================== Remove HP Wolf Security ===================== -->
+  <section class="panel" id="hp-wolf">
+    <div class="panel-head">
+      <div>
+        <span class="tag">Removal</span>
+        <h2>Remove HP Wolf Security (and stop it reinstalling)</h2>
+        <code class="file">Remove-HPWolfSecurity.ps1</code>
+      </div>
+      <div class="panel-side">
+        <span class="badge badge-warn">Admin needed</span>
+        <a class="dl" href="Remove-HPWolfSecurity.ps1" download>Download .ps1</a>
+      </div>
+    </div>
+    <p class="purpose">HP Wolf Security / HP Wolf Pro Security is HP&rsquo;s preinstalled endpoint protection. Uninstalling it from Control Panel often isn&rsquo;t enough &mdash; the <strong>HP Security Update Service</strong> re-downloads and reinstalls the agent, so it &ldquo;comes back.&rdquo; This removes the whole stack in HP&rsquo;s documented order with the update service <em>last</em>, and clears the services, scheduled tasks, and Store packages that trigger reinstalls. Self-elevates. Managed / password-protected installs need the HP admin console or uninstall password.</p>
+
+    <div class="opt">
+      <h3>Remove it all</h3>
+      <p>Run <code>-List</code> first to see what&rsquo;s present. Removal stops the services, clears tasks, then uninstalls each component in order &mdash; update service last, so it can&rsquo;t reinstall.</p>
+      <pre>powershell -ExecutionPolicy Bypass -File C:\Remove-HPWolfSecurity.ps1</pre>
+      <p class="switches"><span class="lbl">Options:</span>
+        <span class="sw" tabindex="0" role="note" aria-label="-List: preview only, lists the HP Wolf components, services, tasks, and AppX packages found, changes nothing"><code>-List</code><span class="bubble">Preview only &mdash; lists the HP Wolf components, services, tasks and AppX found. Changes nothing.</span></span>
+        <span class="sw" tabindex="0" role="note" aria-label="-Reboot: restart the PC automatically when removal finishes, which HP recommends"><code>-Reboot</code><span class="bubble">Restart the PC automatically when finished (HP recommends a reboot to complete removal).</span></span>
+      </p>
+      <details class="manual">
+        <summary>Do it manually instead</summary>
+        <div class="manual-body">
+          <p class="note"><strong>Run box:</strong> <kbd>Win</kbd>+<kbd>R</kbd> &rarr; <code>appwiz.cpl</code> opens Programs and Features.</p>
+          <ol>
+            <li>Open <strong>Programs and Features</strong> (or <strong>Settings &rarr; Apps &rarr; Installed apps</strong>).</li>
+            <li>Uninstall in <strong>this order</strong>: <em>HP Wolf Security</em><span class="tip" tabindex="0" role="note" aria-label="HP's preinstalled endpoint protection: isolation via HP Sure Click plus AI threat detection via HP Sure Sense. Example: it sandboxes email attachments and downloads in micro-VMs."><span class="bubble">HP&rsquo;s preinstalled endpoint protection &mdash; isolation (HP Sure Click) + AI threat detection (HP Sure Sense). <strong>Example:</strong> it opens email attachments inside throwaway micro-VMs.</span></span> &rarr; <em>HP Wolf Security - Console</em> &rarr; <em>HP Security Update Service</em><span class="tip" tabindex="0" role="note" aria-label="The component that re-downloads and reinstalls the agent. Remove it LAST and HP Wolf stops coming back. Example: skipping it is why a Control Panel uninstall reappears after a reboot."><span class="bubble">The piece that re-downloads and reinstalls the agent. Remove it <strong>last</strong> and Wolf stops coming back. <strong>Example:</strong> skipping it is why a Control&nbsp;Panel uninstall reappears after a reboot.</span></span>.</li>
+            <li><strong>Reboot</strong> the PC.</li>
+          </ol>
+          <p class="note"><strong>Managed install?</strong> If HP Wolf Pro Security was deployed by an admin console or set with an uninstall password, Programs and Features will fail &mdash; you need the HP admin console or the uninstall password.</p>
+        </div>
+      </details>
+    </div>
+  </section>
+
   <!-- ===================== Tools / downloads ===================== -->
   <section class="panel" id="tools">
     <div class="panel-head">
@@ -584,7 +623,7 @@
 </main>
 
 <footer class="page">
-  <p>PC Setup Scripts <span class="version">v0.5.1</span> &middot; Windows 10 &amp; 11.</p>
+  <p>PC Setup Scripts <span class="version">v0.6.0</span> &middot; Windows 10 &amp; 11.</p>
 </footer>
 
 <script>

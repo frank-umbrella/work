@@ -28,6 +28,12 @@ label.
 | `Set-WindowsUpdateOptions.ps1` | Turn on MS-product updates + restart notify, set active hours | Yes |
 | `Open-DiskCleanup.ps1`    | Launch Disk Cleanup (cleanmgr) for a drive                    | No     |
 
+### Software removal
+
+| Script                     | Does                                                         | Admin? |
+| -------------------------- | ------------------------------------------------------------ | ------ |
+| `Remove-HPWolfSecurity.ps1` | Fully remove HP Wolf Security and stop it reinstalling       | Yes    |
+
 *(add future scripts and their own category heading here)*
 
 ## How to run
@@ -365,6 +371,44 @@ opens Disk Cleanup directly.
 1. Press Start, type `Disk Cleanup`, Enter.
 2. Choose **C:**, tick categories, **OK**.
 3. For more, click **Clean up system files** and approve the admin prompt.
+
+---
+
+# 7. Remove HP Wolf Security
+
+`Remove-HPWolfSecurity.ps1` - **admin needed** (self-elevates).
+
+HP Wolf Security / HP Wolf Pro Security is HP's preinstalled endpoint
+protection. A plain Control Panel uninstall often isn't enough: the **HP
+Security Update Service** re-downloads and reinstalls the agent, so it keeps
+coming back. This removes the whole stack in HP's documented order with the
+update service **last**, and clears the services, scheduled tasks, and Store /
+AppX packages that trigger reinstalls. Discovery-based, so it works across
+versions (finds the current MSI product codes itself).
+
+HP's documented uninstall order (support.hpwolf.com, "How to uninstall HP Wolf
+Pro Security"): HP Wolf Security -> HP Wolf Security - Console -> HP Security
+Update Service, then reboot.
+
+```powershell
+.\Remove-HPWolfSecurity.ps1 -List    # preview every component/service/task/AppX found
+.\Remove-HPWolfSecurity.ps1          # remove everything in order, update service last
+.\Remove-HPWolfSecurity.ps1 -Reboot  # remove, then restart automatically
+```
+
+> **Managed / password-protected installs** (deployed by an HP admin console or
+> set with an uninstall password) will fail with msiexec 1603 - those need the
+> admin console or the uninstall password, not a local uninstall.
+
+### Manual steps
+
+**Run box:** Win+R -> `appwiz.cpl` opens Programs and Features.
+
+1. Open **Programs and Features** (or **Settings > Apps > Installed apps**).
+2. Uninstall in this order: **HP Wolf Security** -> **HP Wolf Security -
+   Console** -> **HP Security Update Service** (this last one is what
+   re-installs the agent - remove it last and it stops coming back).
+3. **Reboot.**
 
 ---
 
