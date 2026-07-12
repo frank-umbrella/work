@@ -6,7 +6,7 @@
 <title>Help Desk &middot; Umbrella Automation</title>
 <meta name="description" content="Internal IT help-desk and ticket system for Umbrella Automation managed-service clients.">
 <meta name="robots" content="noindex">
-<meta name="app-version" content="0.1.0">
+<meta name="app-version" content="0.2.0">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -62,6 +62,7 @@
   .btn.ghost:hover { background: var(--accent-soft); }
   .btn.danger { color: var(--danger); border-color: var(--danger-soft); }
   .btn.danger:hover { background: var(--danger-soft); }
+  .btn.sm { padding: 5px 10px; font-size: 12.5px; }
 
   /* ============== top bar ============== */
   header.bar {
@@ -111,9 +112,7 @@
 
   /* ============== card / empty state ============== */
   .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); }
-  .empty {
-    text-align: center; padding: 54px 24px; color: var(--ink-soft);
-  }
+  .empty { text-align: center; padding: 46px 24px; color: var(--ink-soft); }
   .empty .glyph {
     width: 52px; height: 52px; margin: 0 auto 14px; border-radius: 14px;
     background: var(--accent-soft); color: var(--accent-ink);
@@ -123,49 +122,93 @@
   .empty p { margin: 0 auto; max-width: 420px; font-size: 13.5px; }
   .soon {
     display: inline-block; margin-top: 4px; padding: 3px 9px; border-radius: 999px;
-    background: var(--warn-soft); color: var(--warn); font-size: 11.5px; font-weight: 600;
-    letter-spacing: .02em;
+    background: var(--warn-soft); color: var(--warn); font-size: 11.5px; font-weight: 600; letter-spacing: .02em;
   }
+
+  /* ============== filter chips + toolbar ============== */
+  .toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+  .chips { display: inline-flex; gap: 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 9px; padding: 3px; }
+  .chips button {
+    border: 0; background: transparent; border-radius: 6px; cursor: pointer;
+    padding: 6px 12px; font-size: 13px; font-weight: 500; color: var(--ink-soft);
+  }
+  .chips button.active { background: var(--accent-soft); color: var(--accent-ink); font-weight: 600; }
+  .search { position: relative; flex: 1 1 200px; max-width: 320px; }
+  .search input {
+    width: 100%; min-width: 0; padding: 8px 12px; border: 1px solid var(--line-strong);
+    border-radius: 8px; background: var(--surface);
+  }
+  .search input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+
+  /* ============== pills ============== */
+  .pill {
+    display: inline-block; padding: 2px 9px; border-radius: 999px;
+    font-size: 11.5px; font-weight: 600; letter-spacing: .01em; white-space: nowrap;
+  }
+  .st-Open { background: var(--info-soft, #e0f2fe); color: #0369a1; }
+  .st-Waiting { background: var(--warn-soft); color: var(--warn); }
+  .st-Closed { background: var(--surface-2); color: var(--ink-faint); border: 1px solid var(--line); }
+  .pri-high { background: var(--danger-soft); color: var(--danger); }
+  .pri-med { background: #fff7ed; color: #c2410c; }
+  .pri-low { background: var(--surface-2); color: var(--ink-soft); border: 1px solid var(--line); }
 
   /* ============== table (board) — restacks to cards under 640px ============== */
-  .table-wrap { width: 100%; }
+  .table-wrap { width: 100%; overflow: hidden; }
   table.board { width: 100%; border-collapse: collapse; }
-  table.board th, table.board td { text-align: left; padding: 11px 14px; font-size: 13.5px; }
+  table.board th, table.board td { text-align: left; padding: 11px 14px; font-size: 13.5px; overflow-wrap: anywhere; }
   table.board th {
     color: var(--ink-faint); font-weight: 600; font-size: 12px;
-    text-transform: uppercase; letter-spacing: .03em;
-    border-bottom: 1px solid var(--line);
+    text-transform: uppercase; letter-spacing: .03em; border-bottom: 1px solid var(--line);
   }
   table.board td { border-bottom: 1px solid var(--line); vertical-align: top; }
-  table.board tr:last-child td { border-bottom: 0; }
-  /* wrap, never nowrap — no horizontal scroll anywhere */
-  table.board th, table.board td { overflow-wrap: anywhere; }
+  table.board tbody tr { cursor: pointer; }
+  table.board tbody tr:hover { background: var(--surface-2); }
+  table.board tbody tr:last-child td { border-bottom: 0; }
+  .tnum { font-family: var(--mono); font-size: 12.5px; color: var(--ink-faint); }
+  .tsummary { font-weight: 600; color: var(--ink); }
+  .muted { color: var(--ink-faint); }
 
-  /* ============== auth screens ============== */
-  .center-screen {
-    min-height: 100vh; display: grid; place-items: center; padding: 24px;
+  /* ============== forms ============== */
+  .form-grid { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 14px; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field.full { grid-column: 1 / -1; }
+  .field label { font-size: 12.5px; font-weight: 600; color: var(--ink-soft); display: inline-flex; align-items: center; gap: 5px; }
+  .field .info {
+    display: inline-grid; place-items: center; width: 15px; height: 15px; border-radius: 50%;
+    background: var(--line); color: var(--ink-soft); font-size: 10px; font-weight: 700; cursor: help;
   }
-  .auth-card {
-    background: var(--surface); border: 1px solid var(--line); border-radius: 16px;
-    box-shadow: var(--shadow-lift); padding: 34px 30px; max-width: 400px; width: 100%;
-    text-align: center;
+  .field input, .field select, .field textarea {
+    width: 100%; min-width: 0; padding: 8px 11px; border: 1px solid var(--line-strong);
+    border-radius: 8px; background: var(--surface); color: var(--ink);
   }
-  .auth-card .logo {
-    width: 54px; height: 54px; margin: 0 auto 16px;
+  .field textarea { resize: vertical; min-height: 84px; }
+  .field input:focus, .field select:focus, .field textarea:focus {
+    outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft);
   }
-  .auth-card h1 { font-size: 20px; margin: 0 0 4px; letter-spacing: -.01em; }
-  .auth-card .meta { color: var(--ink-faint); font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 20px; }
-  .auth-card p { color: var(--ink-soft); font-size: 13.5px; margin: 0 0 22px; }
-  .gbtn {
-    display: inline-flex; align-items: center; gap: 10px; width: 100%; justify-content: center;
-    background: var(--surface); border: 1px solid var(--line-strong); border-radius: 9px;
-    padding: 11px 16px; font-size: 14px; font-weight: 600; color: var(--ink); cursor: pointer;
-    transition: background 100ms, border-color 100ms;
-  }
-  .gbtn:hover { background: var(--surface-2); border-color: var(--ink-faint); }
-  .auth-note { margin-top: 18px; font-size: 12px; color: var(--ink-faint); }
+  .needs-pick { border-color: var(--warn) !important; box-shadow: 0 0 0 3px var(--warn-soft); }
+  .row-inline { display: inline-flex; gap: 8px; align-items: center; }
 
-  /* ============== toast — top-center, passive confirmations only ============== */
+  /* ============== ticket detail ============== */
+  .detail-top { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+  .detail-top .title { flex: 1 1 auto; min-width: 0; }
+  .detail-top h2 { font-size: 19px; margin: 0 0 3px; letter-spacing: -.01em; overflow-wrap: anywhere; }
+  .detail-cols { display: grid; grid-template-columns: minmax(0,1fr) 300px; gap: 20px; align-items: start; }
+  .rail { display: flex; flex-direction: column; gap: 2px; }
+  .rail .attr { display: grid; grid-template-columns: 96px minmax(0,1fr); gap: 8px; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--line); }
+  .rail .attr:last-child { border-bottom: 0; }
+  .rail .attr .k { font-size: 12px; color: var(--ink-faint); font-weight: 600; }
+  .rail .attr .v { font-size: 13.5px; overflow-wrap: anywhere; }
+  .rail .attr select, .rail .attr input { width: 100%; min-width: 0; padding: 5px 8px; border: 1px solid var(--line-strong); border-radius: 7px; background: var(--surface); font-size: 13px; }
+  .desc-block { background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin-bottom: 20px; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .thread-h { font-size: 13px; font-weight: 700; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .04em; margin: 0 0 10px; }
+  .event { display: flex; gap: 10px; padding: 9px 0; border-bottom: 1px dashed var(--line); font-size: 13.5px; }
+  .event:last-child { border-bottom: 0; }
+  .event .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line-strong); margin-top: 6px; flex: 0 0 auto; }
+  .event .body { flex: 1 1 auto; min-width: 0; }
+  .event .who { font-weight: 600; }
+  .event .when { color: var(--ink-faint); font-size: 12px; }
+
+  /* ============== toast ============== */
   #toast {
     position: fixed; top: 18px; left: 50%; transform: translateX(-50%);
     background: var(--ink); color: #fff; padding: 11px 18px; border-radius: 10px;
@@ -175,49 +218,57 @@
   #toast[hidden] { display: none; }
   #toast.err { background: var(--danger); }
 
-  /* ============== modal — ✕ injected in head, data-entry stays persistent ============== */
+  /* ============== modal ============== */
   #modal {
     position: fixed; inset: 0; background: rgba(18,22,34,.44);
     display: none; align-items: flex-start; justify-content: center;
     padding: 40px 16px; z-index: 150; overflow-y: auto;
   }
   #modal.show { display: flex; }
-  .modal-card {
-    background: var(--surface); border-radius: 14px; box-shadow: var(--shadow-lift);
-    width: 100%; max-width: 540px; overflow: hidden;
-  }
+  .modal-card { background: var(--surface); border-radius: 14px; box-shadow: var(--shadow-lift); width: 100%; max-width: 560px; overflow: hidden; }
   .modal-head { position: relative; padding: 20px 22px 8px; }
   .modal-head h3 { margin: 0; font-size: 17px; }
   .modal-head .sub { color: var(--ink-faint); font-size: 12.5px; margin-top: 3px; }
-  .modal-close-x {
-    position: absolute; top: 12px; right: 12px;
-    background: transparent; border: 0; font-size: 22px; line-height: 1;
-    color: var(--ink-faint); cursor: pointer; width: 32px; height: 32px; border-radius: 8px;
-  }
+  .modal-close-x { position: absolute; top: 12px; right: 12px; background: transparent; border: 0; font-size: 22px; line-height: 1; color: var(--ink-faint); cursor: pointer; width: 32px; height: 32px; border-radius: 8px; }
   .modal-close-x:hover { background: var(--surface-2); color: var(--ink); }
-  .modal-body { padding: 8px 22px 4px; }
+  .modal-body { padding: 12px 22px 4px; }
   .modal-foot { padding: 16px 22px 20px; display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
 
-  /* ============== attention glow — unset decision dropdowns ============== */
-  .needs-pick {
-    border-color: var(--warn) !important;
-    box-shadow: 0 0 0 3px var(--warn-soft);
-  }
+  /* ============== auth screens ============== */
+  .center-screen { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
+  .auth-card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow-lift); padding: 34px 30px; max-width: 400px; width: 100%; text-align: center; }
+  .auth-card .logo { width: 54px; height: 54px; margin: 0 auto 16px; }
+  .auth-card h1 { font-size: 20px; margin: 0 0 4px; letter-spacing: -.01em; }
+  .auth-card .meta { color: var(--ink-faint); font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 20px; }
+  .auth-card p { color: var(--ink-soft); font-size: 13.5px; margin: 0 0 22px; }
+  .gbtn { display: inline-flex; align-items: center; gap: 10px; width: 100%; justify-content: center; background: var(--surface); border: 1px solid var(--line-strong); border-radius: 9px; padding: 11px 16px; font-size: 14px; font-weight: 600; color: var(--ink); cursor: pointer; transition: background 100ms, border-color 100ms; }
+  .gbtn:hover { background: var(--surface-2); border-color: var(--ink-faint); }
+  .auth-note { margin-top: 18px; font-size: 12px; color: var(--ink-faint); }
 
   /* ============== footer ============== */
-  footer.foot {
-    max-width: 1240px; margin: 0 auto; padding: 24px 20px 34px;
-    color: var(--ink-faint); font-size: 12.5px;
-  }
+  footer.foot { max-width: 1240px; margin: 0 auto; padding: 24px 20px 34px; color: var(--ink-faint); font-size: 12.5px; }
   footer.foot a { color: var(--ink-soft); }
 
   /* ============== responsive ============== */
+  @media (max-width: 860px) {
+    .detail-cols { grid-template-columns: minmax(0,1fr); }
+    .rail { order: -1; }
+  }
   @media (max-width: 640px) {
     header.bar .wrap { flex-wrap: wrap; gap: 10px; }
     nav.tabs { margin-left: 0; order: 3; width: 100%; margin-bottom: -10px; }
     nav.tabs button { margin-bottom: 0; padding: 6px 10px; }
     .userchip .email { max-width: 120px; }
     main { padding: 16px 14px 48px; }
+    .form-grid { grid-template-columns: minmax(0,1fr); }
+    /* board restacks into labeled cards */
+    table.board thead { display: none; }
+    table.board, table.board tbody, table.board tr, table.board td { display: block; width: 100%; }
+    table.board tr { border: 1px solid var(--line); border-radius: 10px; margin-bottom: 10px; padding: 4px 2px; }
+    table.board td { border-bottom: 0 !important; padding: 6px 14px; display: flex; justify-content: space-between; gap: 12px; }
+    table.board td::before { content: attr(data-label); color: var(--ink-faint); font-size: 12px; font-weight: 600; flex: 0 0 auto; }
+    table.board td.tsummary-cell { flex-direction: column; align-items: flex-start; }
+    table.board td.tsummary-cell::before { content: ""; display: none; }
   }
 </style>
 </head>
@@ -238,7 +289,7 @@
   </div>
 </section>
 
-<!-- ============== not-authorized (signed in, not staff) ============== -->
+<!-- ============== not-authorized ============== -->
 <section id="screenDenied" class="center-screen" hidden>
   <div class="auth-card">
     <img class="logo" src="favicon.svg" alt="">
@@ -284,30 +335,41 @@
   <main>
     <!-- Tickets -->
     <section class="panel active" id="panel-tickets" data-panel="tickets">
-      <div class="panel-head">
-        <h2>Tickets</h2>
-        <span class="sub">Open help-desk tickets across all organizations.</span>
-        <div class="spacer"></div>
-        <button class="btn primary" id="newTicketBtn" title="Ticket creation lands in M1">+ New ticket</button>
-      </div>
-      <div class="card table-wrap" id="ticketsCard">
-        <div class="empty">
-          <div class="glyph">
-            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-3a2 2 0 0 0 0-4z"/><path d="M12 6v12" stroke-dasharray="2 2"/></svg>
-          </div>
-          <h3>No tickets yet</h3>
-          <p>This is the scaffold. Ticket creation, the full data model, and the
-             Spiceworks import all arrive in the next milestones.</p>
-          <div class="soon">M1 — ticket core is next</div>
+      <!-- board view -->
+      <div id="ticketsList">
+        <div class="panel-head">
+          <h2>Tickets</h2>
+          <span class="sub" id="ticketCount"></span>
+          <div class="spacer"></div>
+          <button class="btn primary" id="newTicketBtn">+ New ticket</button>
         </div>
+        <div class="toolbar">
+          <div class="chips" id="statusChips">
+            <button data-status="Open" class="active">Open</button>
+            <button data-status="Waiting">Waiting</button>
+            <button data-status="Closed">Closed</button>
+            <button data-status="all">All</button>
+          </div>
+          <div class="search"><input id="ticketSearch" type="search" placeholder="Search tickets…" autocomplete="off"></div>
+        </div>
+        <div class="card table-wrap" id="ticketsCard"></div>
       </div>
+      <!-- detail view (hidden until a ticket is opened) -->
+      <div id="ticketDetail" hidden></div>
     </section>
 
-    <!-- placeholder panels for later milestones -->
+    <!-- Organizations -->
     <section class="panel" id="panel-orgs" data-panel="orgs">
-      <div class="panel-head"><h2>Organizations</h2><span class="sub">Client companies.</span></div>
-      <div class="card"><div class="empty"><h3>Coming in M1</h3><p>Organizations and contacts are introduced alongside the ticket core.</p><div class="soon">Milestone 1</div></div></div>
+      <div class="panel-head">
+        <h2>Organizations</h2>
+        <span class="sub" id="orgCount"></span>
+        <div class="spacer"></div>
+        <button class="btn primary" id="newOrgBtn">+ New organization</button>
+      </div>
+      <div class="card table-wrap" id="orgsCard"></div>
     </section>
+
+    <!-- placeholder panels -->
     <section class="panel" id="panel-devices" data-panel="devices">
       <div class="panel-head"><h2>Devices</h2><span class="sub">Assets you can link to tickets.</span></div>
       <div class="card"><div class="empty"><h3>Coming in M4</h3><p>Related devices land with labor tracking and tasks.</p><div class="soon">Milestone 4</div></div></div>
@@ -318,19 +380,17 @@
     </section>
     <section class="panel" id="panel-settings" data-panel="settings">
       <div class="panel-head"><h2>Settings</h2><span class="sub">Statuses, categories, custom attributes.</span></div>
-      <div class="card"><div class="empty"><h3>Coming in M5</h3><p>Admin-configurable statuses, categories, and custom attributes.</p><div class="soon">Milestone 5</div></div></div>
+      <div class="card"><div class="empty"><h3>Coming in M5</h3><p>Admin-configurable statuses, categories, and custom attributes. For now these are fixed defaults.</p><div class="soon">Milestone 5</div></div></div>
     </section>
   </main>
 
   <footer class="foot">
-    <a href="../">&larr; Work hub</a> &middot; Help Desk <span id="footVersion">v0.1.0</span>
+    <a href="../">&larr; Work hub</a> &middot; Help Desk <span id="footVersion">v0.2.0</span>
   </footer>
 </div>
 
-<!-- ============== toast ============== -->
 <div id="toast" hidden></div>
 
-<!-- ============== modal ============== -->
 <div id="modal" role="dialog" aria-modal="true">
   <div class="modal-card">
     <div class="modal-head">
@@ -349,7 +409,9 @@ import {
   getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-auth.js";
 import {
-  getFirestore, doc, getDoc
+  getFirestore, collection, doc, getDoc, getDocs, setDoc, updateDoc,
+  addDoc, deleteDoc, query, where, orderBy, onSnapshot,
+  runTransaction, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
 
 // ------------------------------------------------------------------
@@ -365,19 +427,39 @@ const firebaseConfig = {
   appId: "1:330286523878:web:27c4e2ffca3496ebc32227"
 };
 
-const APP_VERSION = "0.1.0";
-const MSP_DOMAIN = "umbrellaautomation.com"; // Google sign-in restricted to this domain
+const APP_VERSION = "0.2.0";
+const MSP_DOMAIN = "umbrellaautomation.com";
+
+// Fixed vocabularies for M1 (admin-configurable in M5).
+const STATUSES = ["Open", "Waiting", "Closed"];
+const PRIORITIES = [
+  { v: "high", label: "High" },
+  { v: "med",  label: "Medium" },
+  { v: "low",  label: "Low" }
+];
+const CATEGORIES = ["Network", "Hardware", "Software", "Email", "Printer", "Phone", "Account", "Other"];
+
+// New tickets start well above the client's current Spiceworks numbers
+// (~1900s) so app-created tickets never collide with historical ticket
+// numbers when the Spiceworks CSV is imported in M7. The import bumps the
+// counter past whatever it brings in, so numbering stays contiguous after.
+const TICKET_NUM_BASE = 5000;
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// keep the displayed version in lockstep with the meta/const
 document.title = "Help Desk " + APP_VERSION + " · Umbrella Automation";
 document.getElementById("footVersion").textContent = "v" + APP_VERSION;
 
 // ============== state ==============
-const state = { user: null, isStaff: false, isManager: false };
+const state = {
+  user: null, isStaff: false, isManager: false,
+  tickets: [], orgs: [], admins: [],
+  statusFilter: "Open", search: "",
+  openTicketId: null,
+  unsub: { tickets: null, orgs: null, admins: null, activity: null, openTicket: null }
+};
 
 // ============== helpers ==============
 const $ = s => document.querySelector(s);
@@ -385,29 +467,60 @@ const $$ = s => Array.from(document.querySelectorAll(s));
 
 function toast(msg, isErr = false) {
   const t = $("#toast");
-  t.textContent = msg;
-  t.classList.toggle("err", !!isErr);
-  t.hidden = false;
-  clearTimeout(toast._t);
-  toast._t = setTimeout(() => { t.hidden = true; }, 4500);
+  t.textContent = msg; t.classList.toggle("err", !!isErr); t.hidden = false;
+  clearTimeout(toast._t); toast._t = setTimeout(() => { t.hidden = true; }, 4500);
 }
-
-function escapeHTML(s) {
+function esc(s) {
   return String(s == null ? "" : s)
     .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
-
-// MSP staff see the raw error (missing-index deeplinks, rule rejections);
-// anyone else gets a generic message. Always console.error first.
-function friendlyErr(err, contextLabel) {
-  if (state.isStaff) return contextLabel + ": " + (err?.message || err?.code || String(err));
-  return contextLabel + " right now. Please try again.";
+function friendlyErr(err, ctx) {
+  console.error(ctx, err);
+  if (state.isStaff) return ctx + ": " + (err?.message || err?.code || String(err));
+  return ctx + " right now. Please try again.";
+}
+function fmtDate(d) {
+  if (!d) return "—";
+  const date = d.toDate ? d.toDate() : (d instanceof Date ? d : new Date(d));
+  if (isNaN(date)) return "—";
+  return date.toLocaleString(undefined, { year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+}
+function fmtRel(d) {
+  if (!d) return "";
+  const date = d.toDate ? d.toDate() : (d instanceof Date ? d : new Date(d));
+  if (isNaN(date)) return "";
+  const diff = (Date.now() - date.getTime()) / 1000;
+  if (diff < 60) return "just now";
+  if (diff < 3600) return Math.floor(diff / 60) + "m ago";
+  if (diff < 86400) return Math.floor(diff / 3600) + "h ago";
+  if (diff < 86400 * 7) return Math.floor(diff / 86400) + "d ago";
+  return date.toLocaleDateString();
+}
+function priLabel(v) { return (PRIORITIES.find(p => p.v === v) || {}).label || v || "—"; }
+function statusPill(s) { return `<span class="pill st-${esc(s)}">${esc(s)}</span>`; }
+function priPill(v) { return `<span class="pill pri-${esc(v || "med")}">${esc(priLabel(v))}</span>`; }
+function orgName(id) { const o = state.orgs.find(o => o.id === id); return o ? o.name : "—"; }
+function adminName(a) { return a?.name || (a?.email ? a.email.split("@")[0] : ""); }
+function assigneeLabel(t) { return t.assigneeUid ? (t.assigneeName || t.assigneeEmail || "Assigned") : "Unassigned"; }
+function randToken(n = 8) {
+  const b = new Uint8Array(n); crypto.getRandomValues(b);
+  return Array.from(b, x => "abcdefghijklmnopqrstuvwxyz0123456789"[x % 36]).join("");
 }
 
-// ============== modal (shared) ==============
-// Data-entry modals pass persistent:true so a backdrop click never discards
-// entered data — they close ONLY via the ✕, Cancel, or a confirm button.
+// ---- tooltip-labelled form field builder ----
+function field({ id, label, hint, node, full }) {
+  const info = hint ? ` <span class="info" title="${esc(hint)}">i</span>` : "";
+  return `<div class="field${full ? " full" : ""}">
+    <label for="${id}">${esc(label)}${info}</label>${node}</div>`;
+}
+function selectNode(id, opts, { glow, placeholder } = {}) {
+  const ph = placeholder ? `<option value="">${esc(placeholder)}</option>` : "";
+  const body = opts.map(o => `<option value="${esc(o.v)}">${esc(o.label)}</option>`).join("");
+  return `<select id="${id}"${glow ? ' data-glow="1"' : ""}>${ph}${body}</select>`;
+}
+
+// ============== modal ==============
 function openModal({ title, sub, body, foot, persistent }) {
   $("#modalTitle").textContent = title || "";
   $("#modalSub").textContent = sub || "";
@@ -416,11 +529,16 @@ function openModal({ title, sub, body, foot, persistent }) {
   $("#modal").classList.add("show");
   $("#modal").dataset.persistent = persistent ? "1" : "";
   $$("#modal [data-modal-close]").forEach(b => b.addEventListener("click", closeModal));
+  // amber attention-glow on unset decision dropdowns; clears on pick
+  $$('#modalBody select[data-glow]').forEach(sel => {
+    const sync = () => sel.classList.toggle("needs-pick", sel.value === "");
+    sync(); sel.addEventListener("change", sync);
+  });
 }
 function closeModal() { $("#modal").classList.remove("show"); $("#modal").dataset.persistent = ""; }
 $("#modal").addEventListener("click", e => {
-  if (e.target.id !== "modal") return;                 // clicks inside the card do nothing
-  if ($("#modal").dataset.persistent === "1") return;  // data-entry modals ignore backdrop
+  if (e.target.id !== "modal") return;
+  if ($("#modal").dataset.persistent === "1") return;   // data-entry modals ignore backdrop
   closeModal();
 });
 $("#modalCloseX").addEventListener("click", closeModal);
@@ -443,11 +561,358 @@ $("#tabs").addEventListener("click", e => {
   const tab = btn.dataset.tab;
   $$("#tabs button").forEach(b => b.classList.toggle("active", b === btn));
   $$(".panel").forEach(p => p.classList.toggle("active", p.dataset.panel === tab));
+  if (tab === "tickets") backToList();
 });
 
-// M0: features that don't exist yet just say so rather than silently no-op.
-$("#newTicketBtn").addEventListener("click", () =>
-  toast("Ticket creation arrives in M1.", false));
+// ============== data subscriptions ==============
+function startData() {
+  // tickets — ordered by updatedAt desc (single-field, no composite index)
+  state.unsub.tickets = onSnapshot(
+    query(collection(db, "tix_tickets"), orderBy("updatedAt", "desc")),
+    snap => { state.tickets = snap.docs.map(d => ({ id: d.id, ...d.data() })); renderBoard(); if (state.openTicketId) renderDetail(); },
+    err => toast(friendlyErr(err, "Couldn't load tickets"), true)
+  );
+  // orgs
+  state.unsub.orgs = onSnapshot(
+    query(collection(db, "tix_orgs"), orderBy("name")),
+    snap => { state.orgs = snap.docs.map(d => ({ id: d.id, ...d.data() })); renderBoard(); renderOrgs(); },
+    err => toast(friendlyErr(err, "Couldn't load organizations"), true)
+  );
+  // msp staff (assignee options) — one-shot is fine, roster changes rarely
+  getDocs(collection(db, "msp_admins"))
+    .then(snap => { state.admins = snap.docs.map(d => ({ id: d.id, ...d.data() })); })
+    .catch(err => console.warn("admins load", err));
+}
+function stopData() {
+  Object.keys(state.unsub).forEach(k => { if (state.unsub[k]) { state.unsub[k](); state.unsub[k] = null; } });
+}
+
+// ============== board ==============
+$("#statusChips").addEventListener("click", e => {
+  const b = e.target.closest("button[data-status]"); if (!b) return;
+  state.statusFilter = b.dataset.status;
+  $$("#statusChips button").forEach(x => x.classList.toggle("active", x === b));
+  renderBoard();
+});
+$("#ticketSearch").addEventListener("input", e => { state.search = e.target.value.trim().toLowerCase(); renderBoard(); });
+
+function filteredTickets() {
+  let list = state.tickets;
+  if (state.statusFilter !== "all") list = list.filter(t => (t.status || "Open") === state.statusFilter);
+  if (state.search) {
+    const q = state.search;
+    list = list.filter(t =>
+      String(t.num).includes(q) ||
+      (t.summary || "").toLowerCase().includes(q) ||
+      (orgName(t.orgId) || "").toLowerCase().includes(q) ||
+      (t.contactEmail || "").toLowerCase().includes(q)
+    );
+  }
+  return list;
+}
+function renderBoard() {
+  const list = filteredTickets();
+  $("#ticketCount").textContent = state.tickets.length
+    ? `${list.length} of ${state.tickets.length} ticket${state.tickets.length === 1 ? "" : "s"}`
+    : "";
+  const card = $("#ticketsCard");
+  if (!state.tickets.length) {
+    card.innerHTML = `<div class="empty">
+      <div class="glyph"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-3a2 2 0 0 0 0-4z"/><path d="M12 6v12" stroke-dasharray="2 2"/></svg></div>
+      <h3>No tickets yet</h3><p>Create your first ticket, or import your Spiceworks history in M7.</p></div>`;
+    return;
+  }
+  if (!list.length) { card.innerHTML = `<div class="empty"><h3>No matching tickets</h3><p>Try a different status filter or search.</p></div>`; return; }
+  const rows = list.map(t => `
+    <tr data-id="${esc(t.id)}">
+      <td class="tnum" data-label="#">${esc(t.num)}</td>
+      <td class="tsummary-cell"><div class="tsummary">${esc(t.summary)}</div></td>
+      <td data-label="Org">${esc(orgName(t.orgId))}</td>
+      <td data-label="Contact"><span class="muted">${esc(t.contactEmail || "—")}</span></td>
+      <td data-label="Assignee">${esc(assigneeLabel(t))}</td>
+      <td data-label="Priority">${priPill(t.priority)}</td>
+      <td data-label="Status">${statusPill(t.status || "Open")}</td>
+      <td data-label="Updated"><span class="muted">${esc(fmtRel(t.updatedAt))}</span></td>
+    </tr>`).join("");
+  card.innerHTML = `<table class="board"><thead><tr>
+    <th>#</th><th>Summary</th><th>Org</th><th>Contact</th><th>Assignee</th><th>Priority</th><th>Status</th><th>Updated</th>
+    </tr></thead><tbody>${rows}</tbody></table>`;
+  card.querySelectorAll("tbody tr").forEach(tr =>
+    tr.addEventListener("click", () => openTicket(tr.dataset.id)));
+}
+
+// ============== new ticket ==============
+$("#newTicketBtn").addEventListener("click", () => {
+  if (!state.orgs.length) {
+    openModal({ title: "Add an organization first",
+      body: `<p class="muted">Tickets belong to a client organization. Create one on the Organizations tab, then come back to open a ticket.</p>`,
+      foot: `<button class="btn" data-modal-close>OK</button>` });
+    return;
+  }
+  const orgOpts = state.orgs.map(o => ({ v: o.id, label: o.name }));
+  const admOpts = state.admins.map(a => ({ v: a.id, label: adminName(a) }));
+  const catOpts = CATEGORIES.map(c => ({ v: c, label: c }));
+  openModal({
+    title: "New ticket", persistent: true,
+    body: `<div class="form-grid">
+      ${field({ id: "nt-summary", label: "Summary", hint: "A one-line description of the issue — shows on the board.", full: true, node: `<input id="nt-summary" type="text" maxlength="140" placeholder="e.g. Printer offline in reception">` })}
+      ${field({ id: "nt-desc", label: "Description", hint: "The full details of the request as reported.", full: true, node: `<textarea id="nt-desc" placeholder="What's happening, and any steps already tried…"></textarea>` })}
+      ${field({ id: "nt-org", label: "Organization", hint: "Which client this ticket is for.", node: selectNode("nt-org", orgOpts, { glow: true, placeholder: "Select…" }) })}
+      ${field({ id: "nt-cat", label: "Category", hint: "The kind of issue — used for reporting later.", node: selectNode("nt-cat", catOpts, { glow: true, placeholder: "Select…" }) })}
+      ${field({ id: "nt-contact-email", label: "Contact email", hint: "Who reported it. Reused as the client contact for this org.", node: `<input id="nt-contact-email" type="email" placeholder="person@client.com">` })}
+      ${field({ id: "nt-contact-name", label: "Contact name", hint: "Optional — the requester's name.", node: `<input id="nt-contact-name" type="text" placeholder="Optional">` })}
+      ${field({ id: "nt-assignee", label: "Assignee", hint: "The tech responsible. Leave unassigned to triage later.", node: selectNode("nt-assignee", admOpts, { placeholder: "Unassigned" }) })}
+      ${field({ id: "nt-pri", label: "Priority", hint: "Defaults to Medium.", node: selectNode("nt-pri", PRIORITIES, {}) })}
+    </div>`,
+    foot: `<button class="btn" data-modal-close>Cancel</button><button class="btn primary" id="nt-save">Create ticket</button>`
+  });
+  $("#nt-pri").value = "med";
+  $("#nt-save").addEventListener("click", createTicket);
+});
+
+async function createTicket() {
+  const summary = $("#nt-summary").value.trim();
+  const orgId = $("#nt-org").value;
+  const category = $("#nt-cat").value;
+  const description = $("#nt-desc").value.trim();
+  const contactEmail = $("#nt-contact-email").value.trim().toLowerCase();
+  const contactName = $("#nt-contact-name").value.trim();
+  const assigneeId = $("#nt-assignee").value;
+  const priority = $("#nt-pri").value || "med";
+  if (!summary) return toast("Summary is required.", true);
+  if (!orgId) return toast("Pick an organization.", true);
+  if (!category) return toast("Pick a category.", true);
+
+  const btn = $("#nt-save"); btn.disabled = true; btn.textContent = "Creating…";
+  const adm = state.admins.find(a => a.id === assigneeId);
+  const u = state.user;
+  try {
+    // upsert contact (query by email only — single-field index — then match org client-side)
+    let contactId = null;
+    if (contactEmail) {
+      const cs = await getDocs(query(collection(db, "tix_contacts"), where("email", "==", contactEmail)));
+      const hit = cs.docs.find(d => d.data().orgId === orgId);
+      if (hit) contactId = hit.id;
+      else {
+        const cref = await addDoc(collection(db, "tix_contacts"), {
+          orgId, email: contactEmail, firstName: "", lastName: "", displayName: contactName || "",
+          phone: "", location: "", portalUid: null, source: "manual", createdAt: serverTimestamp()
+        });
+        contactId = cref.id;
+      }
+    }
+    // sequential number via transaction on the shared counter
+    const counterRef = doc(db, "tix_counters", "ticket");
+    const ticketRef = doc(collection(db, "tix_tickets"));
+    const num = await runTransaction(db, async tx => {
+      const cs = await tx.get(counterRef);
+      const next = cs.exists() ? (cs.data().next || TICKET_NUM_BASE) : TICKET_NUM_BASE;
+      tx.set(counterRef, { next: next + 1 }, { merge: true });
+      tx.set(ticketRef, {
+        num: next, summary, description,
+        orgId, orgName: orgName(orgId),
+        contactId, contactEmail, contactName: contactName || "",
+        assigneeUid: assigneeId || null, assigneeEmail: adm?.email || null, assigneeName: adm ? adminName(adm) : null,
+        status: "Open", priority, category, dueDate: null,
+        customAttrs: {}, ccEmails: [], deviceIds: [], mutedBy: [],
+        commentCount: 0, publicCommentCount: 0, timeSpentSec: 0, taskCounts: { done: 0, total: 0 },
+        spiceworksId: null, inbound: { token: randToken(8) },
+        createdAt: serverTimestamp(), createdByUid: u.uid, createdByEmail: u.email,
+        updatedAt: serverTimestamp(), lastActivityAt: serverTimestamp(), closedAt: null
+      });
+      return next;
+    });
+    await addActivity(ticketRef.id, { type: "created" });
+    closeModal();
+    toast(`Ticket #${num} created.`);
+    openTicket(ticketRef.id);
+  } catch (err) {
+    btn.disabled = false; btn.textContent = "Create ticket";
+    toast(friendlyErr(err, "Couldn't create the ticket"), true);
+  }
+}
+
+// ============== activity (history) ==============
+function addActivity(ticketId, event) {
+  const u = state.user;
+  return addDoc(collection(db, "tix_tickets", ticketId, "activity"), {
+    kind: "history", via: "web", at: serverTimestamp(),
+    byUid: u.uid, byEmail: u.email, byName: u.displayName || u.email,
+    event
+  });
+}
+function describeEvent(ev) {
+  const e = ev.event || {};
+  switch (e.type) {
+    case "created": return "created the ticket";
+    case "status": return `changed status <strong>${esc(e.from)}</strong> → <strong>${esc(e.to)}</strong>`;
+    case "assignee": return `set assignee to <strong>${esc(e.to || "Unassigned")}</strong>`;
+    case "priority": return `changed priority to <strong>${esc(priLabel(e.to))}</strong>`;
+    case "category": return `changed category to <strong>${esc(e.to)}</strong>`;
+    case "due": return e.to ? `set due date to <strong>${esc(e.to)}</strong>` : "cleared the due date";
+    default: return esc(e.type || "updated the ticket");
+  }
+}
+
+// ============== ticket detail ==============
+function openTicket(id) { state.openTicketId = id; subscribeActivity(id); showDetailView(true); renderDetail(); }
+function backToList() {
+  state.openTicketId = null;
+  if (state.unsub.activity) { state.unsub.activity(); state.unsub.activity = null; }
+  showDetailView(false);
+}
+function showDetailView(on) { $("#ticketDetail").hidden = !on; $("#ticketsList").hidden = on; }
+
+let _activity = [];
+function subscribeActivity(id) {
+  if (state.unsub.activity) state.unsub.activity();
+  _activity = [];
+  state.unsub.activity = onSnapshot(
+    query(collection(db, "tix_tickets", id, "activity"), orderBy("at", "asc")),
+    snap => { _activity = snap.docs.map(d => ({ id: d.id, ...d.data() })); if (state.openTicketId === id) renderDetail(); },
+    err => console.warn("activity", err)
+  );
+}
+function currentTicket() { return state.tickets.find(t => t.id === state.openTicketId); }
+
+function renderDetail() {
+  const t = currentTicket();
+  const box = $("#ticketDetail");
+  if (!t) { box.innerHTML = `<div class="panel-head"><button class="btn sm" id="d-back">&larr; Back</button></div><div class="card"><div class="empty"><h3>Ticket not found</h3></div></div>`; $("#d-back")?.addEventListener("click", backToList); return; }
+  const admOpts = [{ v: "", label: "Unassigned" }].concat(state.admins.map(a => ({ v: a.id, label: adminName(a) })));
+  const events = _activity.map(ev => `
+    <div class="event"><div class="dot"></div><div class="body">
+      <div><span class="who">${esc(ev.byName || ev.byEmail || "")}</span> ${describeEvent(ev)}</div>
+      <div class="when" title="${esc(fmtDate(ev.at))}">${esc(fmtRel(ev.at))}</div>
+    </div></div>`).join("") || `<p class="muted">No history yet.</p>`;
+
+  box.innerHTML = `
+    <div class="panel-head"><button class="btn sm" id="d-back">&larr; Tickets</button></div>
+    <div class="detail-top">
+      <div class="title">
+        <h2><span class="tnum">#${esc(t.num)}</span> &nbsp;${esc(t.summary)}</h2>
+        <div class="muted" style="font-size:12.5px">${esc(orgName(t.orgId))} · opened ${esc(fmtDate(t.createdAt))} by ${esc(t.createdByEmail || "")}</div>
+      </div>
+      ${t.status === "Closed"
+        ? `<button class="btn" data-act="reopen">Reopen</button>`
+        : `<button class="btn primary" data-act="close">Close ticket</button>`}
+    </div>
+    <div class="detail-cols">
+      <div>
+        <div class="thread-h">Description</div>
+        <div class="desc-block">${t.description ? esc(t.description) : '<span class="muted">No description.</span>'}</div>
+        <div class="thread-h">History</div>
+        <div class="thread">${events}</div>
+        <p class="muted" style="font-size:12.5px;margin-top:14px">Comments &amp; replies arrive in M2.</p>
+      </div>
+      <div class="card" style="padding:12px 14px">
+        <div class="rail">
+          <div class="attr"><span class="k">Status</span><span class="v">${selectNode("d-status", STATUSES.map(s => ({ v: s, label: s })))}</span></div>
+          <div class="attr"><span class="k">Priority</span><span class="v">${selectNode("d-pri", PRIORITIES)}</span></div>
+          <div class="attr"><span class="k">Assignee</span><span class="v">${selectNode("d-assignee", admOpts)}</span></div>
+          <div class="attr"><span class="k">Category</span><span class="v">${selectNode("d-cat", CATEGORIES.map(c => ({ v: c, label: c })))}</span></div>
+          <div class="attr"><span class="k">Due</span><span class="v"><input id="d-due" type="date"></span></div>
+          <div class="attr"><span class="k">Contact</span><span class="v">${esc(t.contactEmail || "—")}</span></div>
+          <div class="attr"><span class="k">Updated</span><span class="v muted">${esc(fmtRel(t.updatedAt))}</span></div>
+        </div>
+      </div>
+    </div>`;
+
+  $("#d-back").addEventListener("click", backToList);
+  $("#d-status").value = t.status || "Open";
+  $("#d-pri").value = t.priority || "med";
+  $("#d-assignee").value = t.assigneeUid || "";
+  $("#d-cat").value = t.category || "Other";
+  $("#d-due").value = t.dueDate || "";
+  $("#d-status").addEventListener("change", e => changeField(t, "status", e.target.value));
+  $("#d-pri").addEventListener("change", e => changeField(t, "priority", e.target.value));
+  $("#d-assignee").addEventListener("change", e => changeAssignee(t, e.target.value));
+  $("#d-cat").addEventListener("change", e => changeField(t, "category", e.target.value));
+  $("#d-due").addEventListener("change", e => changeField(t, "due", e.target.value));
+  box.querySelector('[data-act="close"]')?.addEventListener("click", () => changeField(t, "status", "Closed"));
+  box.querySelector('[data-act="reopen"]')?.addEventListener("click", () => changeField(t, "status", "Open"));
+}
+
+async function changeField(t, kind, value) {
+  const patch = { updatedAt: serverTimestamp(), lastActivityAt: serverTimestamp() };
+  let ev;
+  if (kind === "status") {
+    if (value === t.status) return;
+    patch.status = value;
+    patch.closedAt = value === "Closed" ? serverTimestamp() : null;
+    ev = { type: "status", from: t.status || "Open", to: value };
+  } else if (kind === "priority") {
+    if (value === t.priority) return;
+    patch.priority = value; ev = { type: "priority", from: t.priority, to: value };
+  } else if (kind === "category") {
+    if (value === t.category) return;
+    patch.category = value; ev = { type: "category", from: t.category, to: value };
+  } else if (kind === "due") {
+    if ((value || "") === (t.dueDate || "")) return;
+    patch.dueDate = value || null; ev = { type: "due", from: t.dueDate || "", to: value || "" };
+  }
+  try {
+    await updateDoc(doc(db, "tix_tickets", t.id), patch);
+    await addActivity(t.id, ev);
+    toast("Saved.");
+  } catch (err) { toast(friendlyErr(err, "Couldn't save the change"), true); }
+}
+async function changeAssignee(t, uid) {
+  if ((uid || "") === (t.assigneeUid || "")) return;
+  const adm = state.admins.find(a => a.id === uid);
+  try {
+    await updateDoc(doc(db, "tix_tickets", t.id), {
+      assigneeUid: uid || null, assigneeEmail: adm?.email || null, assigneeName: adm ? adminName(adm) : null,
+      updatedAt: serverTimestamp(), lastActivityAt: serverTimestamp()
+    });
+    await addActivity(t.id, { type: "assignee", to: adm ? adminName(adm) : "" });
+    toast("Saved.");
+  } catch (err) { toast(friendlyErr(err, "Couldn't reassign"), true); }
+}
+
+// ============== organizations ==============
+function renderOrgs() {
+  $("#orgCount").textContent = state.orgs.length ? `${state.orgs.length} organization${state.orgs.length === 1 ? "" : "s"}` : "";
+  const card = $("#orgsCard");
+  if (!state.orgs.length) {
+    card.innerHTML = `<div class="empty"><h3>No organizations yet</h3><p>Add your client companies here. Every ticket belongs to one.</p></div>`;
+    return;
+  }
+  const openCount = id => state.tickets.filter(t => t.orgId === id && t.status !== "Closed").length;
+  const rows = state.orgs.map(o => `
+    <tr data-id="${esc(o.id)}">
+      <td class="tsummary-cell"><div class="tsummary">${esc(o.name)}</div></td>
+      <td data-label="Open tickets">${openCount(o.id)}</td>
+      <td data-label="Notes"><span class="muted">${esc(o.notes || "—")}</span></td>
+      <td data-label=""><button class="btn sm" data-edit="${esc(o.id)}">Edit</button></td>
+    </tr>`).join("");
+  card.innerHTML = `<table class="board"><thead><tr><th>Organization</th><th>Open tickets</th><th>Notes</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
+  card.querySelectorAll("[data-edit]").forEach(b =>
+    b.addEventListener("click", e => { e.stopPropagation(); orgModal(state.orgs.find(o => o.id === b.dataset.edit)); }));
+}
+$("#newOrgBtn").addEventListener("click", () => orgModal(null));
+function orgModal(existing) {
+  openModal({
+    title: existing ? "Edit organization" : "New organization", persistent: true,
+    body: `<div class="form-grid">
+      ${field({ id: "org-name", label: "Name", hint: "The client company name shown on tickets.", full: true, node: `<input id="org-name" type="text" maxlength="120" value="${esc(existing?.name || "")}">` })}
+      ${field({ id: "org-sw", label: "Spiceworks name", hint: "The organization label used in Spiceworks — helps match rows at import time.", node: `<input id="org-sw" type="text" value="${esc(existing?.spiceworksName || "")}" placeholder="Optional">` })}
+      ${field({ id: "org-notes", label: "Notes", hint: "Internal notes about this client.", full: true, node: `<textarea id="org-notes" placeholder="Optional">${esc(existing?.notes || "")}</textarea>` })}
+    </div>`,
+    foot: `${existing ? "" : ""}<button class="btn" data-modal-close>Cancel</button><button class="btn primary" id="org-save">${existing ? "Save" : "Create"}</button>`
+  });
+  $("#org-save").addEventListener("click", async () => {
+    const name = $("#org-name").value.trim();
+    if (!name) return toast("Name is required.", true);
+    const data = { name, spiceworksName: $("#org-sw").value.trim(), notes: $("#org-notes").value.trim() };
+    const btn = $("#org-save"); btn.disabled = true; btn.textContent = "Saving…";
+    try {
+      if (existing) await updateDoc(doc(db, "tix_orgs", existing.id), data);
+      else await addDoc(collection(db, "tix_orgs"), { ...data, active: true, defaultAssigneeUid: null, createdAt: serverTimestamp(), createdByUid: state.user.uid });
+      closeModal(); toast(existing ? "Organization saved." : "Organization created.");
+    } catch (err) { btn.disabled = false; btn.textContent = existing ? "Save" : "Create"; toast(friendlyErr(err, "Couldn't save the organization"), true); }
+  });
+}
 
 // ============== auth ==============
 $("#googleBtn").addEventListener("click", async () => {
@@ -455,42 +920,30 @@ $("#googleBtn").addEventListener("click", async () => {
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ hd: MSP_DOMAIN, prompt: "select_account" });
     await signInWithPopup(auth, provider);
-  } catch (err) {
-    console.error(err);
-    toast("Sign-in failed. Please try again.", true);
-  }
+  } catch (err) { console.error(err); toast("Sign-in failed. Please try again.", true); }
 });
 $("#signoutBtn").addEventListener("click", () => signOut(auth));
 $("#deniedSignout").addEventListener("click", () => signOut(auth));
 
 onAuthStateChanged(auth, async (user) => {
-  state.user = user; state.isStaff = false; state.isManager = false;
+  stopData();
+  state.user = user; state.isStaff = false; state.isManager = false; state.openTicketId = null;
   if (!user) { show("signin"); return; }
   show("loading");
-
-  // Belt-and-suspenders: the hd param is a UI hint, not enforcement. If a
-  // non-Umbrella account slips through, the /msp_admins lookup below will
-  // fail closed anyway, but reject the obvious case early for a clean message.
   if (user.email && !user.email.toLowerCase().endsWith("@" + MSP_DOMAIN)) {
-    $("#deniedMsg").textContent =
-      "Signed in as " + user.email + ", which isn't an Umbrella Automation account.";
-    show("denied");
-    return;
+    $("#deniedMsg").textContent = "Signed in as " + user.email + ", which isn't an Umbrella Automation account.";
+    show("denied"); return;
   }
-
   try {
     const snap = await getDoc(doc(db, "msp_admins", user.uid));
     if (snap.exists()) {
-      state.isStaff = true;
-      state.isManager = snap.data().tixManager === true;
+      state.isStaff = true; state.isManager = snap.data().tixManager === true;
       enterApp(user);
     } else {
-      $("#deniedMsg").textContent =
-        "Signed in as " + user.email + ", but this account isn't on the staff roster yet.";
+      $("#deniedMsg").textContent = "Signed in as " + user.email + ", but this account isn't on the staff roster yet.";
       show("denied");
     }
   } catch (err) {
-    console.error(err);
     show("denied");
     $("#deniedMsg").textContent = friendlyErr(err, "Couldn't verify your access");
   }
@@ -500,7 +953,9 @@ function enterApp(user) {
   const email = user.email || "";
   $("#userEmail").textContent = email;
   $("#userAvatar").textContent = (email[0] || "?").toUpperCase();
+  backToList();
   show("app");
+  startData();
 }
 </script>
 </body>

@@ -295,5 +295,75 @@ service cloud.firestore {
         && request.resource.data.message.subject is string;
       allow update, delete: if false;
     }
+
+    // ================================================================
+    // Umbrella Help Desk (work/tickets) — tix_* collections.
+    // Shares this project. Staff principal = members of /msp_admins. A
+    // staff member with tixManager == true on their /msp_admins doc has
+    // extra powers (delete tickets/orgs/contacts; settings + imports in
+    // later milestones). Client-portal access (external per-org users)
+    // is NOT enabled here yet — it lands in M8 with its own principal.
+    // These rules are additive and do not affect the onboarding /
+    // incidents rules above.
+    // ================================================================
+    function isTixManager() {
+      return isMSPAdmin()
+        && get(/databases/$(database)/documents/msp_admins/$(request.auth.uid)).data.tixManager == true;
+    }
+
+    // ---- /tix_counters/{id} ----
+    // Sequential ticket-number source. The app assigns num = next inside
+    // a transaction, then writes next + 1. The update rule enforces that
+    // the counter only ever advances by exactly one, so numbers can't be
+    // rewound or arbitrarily jumped.
+    match /tix_counters/{id} {
+      allow get: if isMSPAdmin();
+      allow create: if isMSPAdmin() && request.resource.data.next is int;
+      allow update: if isMSPAdmin()
+        && request.resource.data.next == resource.data.next + 1;
+      allow delete: if false;
+    }
+
+    // ---- /tix_orgs/{orgId} ----  client organizations
+    match /tix_orgs/{orgId} {
+      allow read: if isMSPAdmin();
+      allow create, update: if isMSPAdmin();
+      allow delete: if isTixManager();
+    }
+
+    // ---- /tix_contacts/{contactId} ----  requesters (no login required)
+    match /tix_contacts/{contactId} {
+      allow read, create, update: if isMSPAdmin();
+      allow delete: if isTixManager();
+    }
+
+    // ---- /tix_tickets/{ticketId} ----
+    // Original attribution (num, createdAt, createdBy*) is immutable on
+    // update. Only a tixManager may delete a ticket.
+    match /tix_tickets/{ticketId} {
+      allow read: if isMSPAdmin();
+      allow create: if isMSPAdmin()
+        && request.resource.data.createdByUid == request.auth.uid
+        && request.resource.data.createdByEmail == request.auth.token.email
+        && request.resource.data.num is int;
+      allow update: if isMSPAdmin()
+        && request.resource.data.num == resource.data.num
+        && request.resource.data.createdByUid == resource.data.createdByUid
+        && request.resource.data.createdByEmail == resource.data.createdByEmail
+        && request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if isTixManager();
+
+      // ---- /tix_tickets/{id}/activity/{eventId} ----
+      // Append-only thread. History events now; public/private comments
+      // arrive in M2 (comment edit/pin will get their own narrower
+      // update clause then). Author fields must match the caller.
+      match /activity/{eventId} {
+        allow read: if isMSPAdmin();
+        allow create: if isMSPAdmin()
+          && request.resource.data.byUid == request.auth.uid
+          && request.resource.data.byEmail == request.auth.token.email;
+        allow update, delete: if false;
+      }
+    }
   }
 }

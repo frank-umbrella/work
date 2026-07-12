@@ -33,8 +33,8 @@ SPA on Firebase, deployed to `https://frank-umbrella.github.io/work/tickets/`.
 
 | M | Ships | Version |
 |---|---|---|
-| **M0** | Scaffold, standards, staff auth, empty board | **0.1.0** ← current |
-| M1 | Ticket core: sequential IDs, create/edit/close, orgs + contacts, auto history | 0.2.0 |
+| M0 | Scaffold, standards, staff auth, empty board | 0.1.0 |
+| **M1** | Ticket core: sequential IDs, create/edit/close, orgs + contacts, auto history | **0.2.0** ← current |
 | M2 | Comment thread (public/private), attachments, CC, mute | 0.3.0 |
 | M3 | Board power: sort, columns manager, filters, saved views, search, bulk update | 0.4.0 |
 | M4 | Labor/time tracking + CSV export, tasks, devices | 0.5.0 |
@@ -47,6 +47,19 @@ SPA on Firebase, deployed to `https://frank-umbrella.github.io/work/tickets/`.
 See [PLAN.md](PLAN.md) for the full design.
 
 ## Changelog
+
+### 0.2.0 — 2026-07-11
+Ticket core. **Why:** turn the scaffold into a working tracker — the smallest
+thing the team can actually run tickets in — before layering comments, labor,
+and import on top. Ships: sequential ticket numbers (a transaction-guarded
+`tix_counters/ticket`, starting at #5000 so app-created tickets never collide
+with Spiceworks' ~1900s numbers at import time), New Ticket creation with
+org/contact/assignee/priority/category, a board with status filters + search, a
+ticket detail view with inline edit of status/priority/assignee/category/due, an
+append-only History thread that records every change automatically, and
+organization management (with contacts auto-created from ticket requesters).
+Adds the first `tix_*` collections and their security rules (appended to
+`../onboarding/firestore.rules`). Comments/replies are M2.
 
 ### 0.1.0 — 2026-07-11
 Initial scaffold. **Why:** stand up the shell before any ticket logic so the
