@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Canned Replies</title>
+<meta name="description" content="Ready-to-send canned replies for common client requests: Gmail email headers, finding a PC name, creating a local admin account, opening a delegated Microsoft 365 mailbox, and enabling Google 2FA.">
+<meta name="robots" content="noindex">
+<meta name="version" content="0.1.0">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --surface: #ffffff;
+    --ink: #1a1f2b;
+    --ink-soft: #475063;
+    --line: #e3e6ec;
+    --line-strong: #c9cfdb;
+    --accent: #1a56db;
+    --accent-soft: #eaf0fc;
+    --ok: #0f7b3f;
+    --ok-soft: #e7f5ec;
+    --radius: 12px;
+    --shadow: 0 1px 2px rgba(20, 25, 40, 0.04), 0 4px 14px rgba(20, 25, 40, 0.05);
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "Cascadia Mono", Consolas, "Liberation Mono", monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  header.page {
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+    padding: 30px 24px 26px;
+  }
+  header.page .wrap { max-width: 1160px; margin: 0 auto; }
+  .crumb { font-size: 13px; color: var(--ink-soft); margin: 0 0 10px; }
+  .crumb a { font-weight: 600; }
+  header.page h1 { font-size: 28px; margin: 0 0 6px; letter-spacing: -0.01em; }
+  header.page p.lede { margin: 0; color: var(--ink-soft); font-size: 15px; max-width: 74ch; }
+  .os-pill {
+    display: inline-block; margin-top: 12px;
+    font-size: 12px; font-weight: 600; color: var(--accent);
+    background: var(--accent-soft); border-radius: 999px; padding: 3px 11px;
+  }
+
+  main { max-width: 1160px; margin: 0 auto; padding: 26px 24px 64px; }
+
+  html { scroll-behavior: smooth; }
+  .layout { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 34px; align-items: start; }
+  .content { min-width: 0; }
+  nav.toc { position: sticky; top: 20px; }
+  nav.toc h2 { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: var(--ink-soft); margin: 0 0 10px; }
+  nav.toc ul { list-style: none; margin: 0; padding: 0; }
+  nav.toc a { display: block; padding: 7px 11px; border-left: 2px solid var(--line); color: var(--ink-soft); font-size: 13.5px; font-weight: 500; line-height: 1.3; transition: color .12s ease, border-color .12s ease, background .12s ease; }
+  nav.toc a:hover { color: var(--accent); background: var(--accent-soft); text-decoration: none; }
+  nav.toc a.active { color: var(--accent); border-left-color: var(--accent); font-weight: 600; }
+  .panel { scroll-margin-top: 16px; }
+  @media (max-width: 880px) {
+    .layout { grid-template-columns: 1fr; gap: 0; }
+    nav.toc { position: static; margin-bottom: 22px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); padding: 14px 16px; }
+    nav.toc a { border-left: 0; padding: 6px 0; }
+  }
+
+  .howto {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: var(--radius); box-shadow: var(--shadow);
+    padding: 18px 20px; margin-bottom: 26px;
+  }
+  .howto h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-soft); margin: 0 0 10px; }
+  .howto ul { margin: 0; padding-left: 18px; color: var(--ink-soft); font-size: 14px; }
+  .howto ul li { margin-bottom: 6px; }
+  .howto code { font-family: var(--mono); font-size: 12.5px; background: var(--bg); border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; color: var(--ink); }
+
+  .panel {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: var(--radius); box-shadow: var(--shadow);
+    padding: 22px 22px 20px; margin-bottom: 22px;
+  }
+  .panel-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+  .tag { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-soft); }
+  .panel-head h2 { font-size: 20px; margin: 4px 0 0; letter-spacing: -0.005em; }
+  .purpose { color: var(--ink-soft); font-size: 14.5px; margin: 10px 0 16px; max-width: 76ch; }
+
+  .opt { border-top: 1px solid var(--line); padding: 16px 0 4px; }
+  .opt:first-of-type { border-top: 0; }
+  .opt h3 { font-size: 15px; margin: 0 0 10px; }
+
+  /* Copyable client-facing reply block (light, prose) */
+  .replyblock { position: relative; margin: 0 0 12px; }
+  pre.reply {
+    background: var(--bg); color: var(--ink);
+    border: 1px solid var(--line); border-radius: 8px;
+    padding: 14px 64px 14px 16px; margin: 0;
+    font-family: var(--sans); font-size: 14px; line-height: 1.6;
+    white-space: pre-wrap; word-wrap: break-word; overflow-wrap: anywhere;
+  }
+  .copy-btn {
+    position: absolute; top: 9px; right: 9px;
+    font: inherit; font-family: var(--sans); font-size: 11.5px; font-weight: 600; line-height: 1.4;
+    color: var(--ink); background: var(--surface);
+    border: 1px solid var(--line-strong); border-radius: 6px;
+    padding: 4px 11px; cursor: pointer;
+    transition: background .12s ease, color .12s ease, border-color .12s ease;
+  }
+  .copy-btn:hover { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+  .copy-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .copy-btn.copied { color: var(--ok); border-color: rgba(15,123,63,0.5); background: var(--ok-soft); }
+
+  .src { font-size: 12.5px; color: var(--ink-soft); margin: 4px 0 0; }
+  .src .lbl { font-weight: 600; }
+  .src a { word-break: break-all; }
+
+  footer.page { max-width: 1160px; margin: 0 auto; padding: 0 24px 36px; color: var(--ink-soft); font-size: 12.5px; }
+  footer.page .version {
+    display: inline-block; padding: 1px 7px; border: 1px solid var(--line-strong);
+    border-radius: 999px; font-size: 11.5px; font-weight: 600; color: var(--ink-soft);
+    background: var(--surface); margin: 0 2px;
+  }
+</style>
+</head>
+<body>
+
+<header class="page">
+  <div class="wrap">
+    <p class="crumb"><a href="../index.html">&larr; Work hub</a></p>
+    <h1>Canned Replies</h1>
+    <p class="lede">Ready-to-send responses for the questions that come up on nearly every ticket. Click <strong>Copy</strong> on any reply, paste it into your email or ticket, and tweak the greeting. Each reply is written to go straight to the client as-is.</p>
+    <span class="os-pill">Client-facing &middot; copy &amp; paste</span>
+  </div>
+</header>
+
+<main>
+  <div class="layout">
+  <nav class="toc" aria-label="On this page">
+    <h2>On this page</h2>
+    <ul>
+      <li><a href="#how-to-use">How to use these</a></li>
+      <li><a href="#gmail-header">Gmail &mdash; email header</a></li>
+      <li><a href="#pc-name">Locate PC name</a></li>
+      <li><a href="#local-admin">Local admin setup</a></li>
+      <li><a href="#delegate">365 delegate access</a></li>
+      <li><a href="#2fa">Enable Google 2FA</a></li>
+    </ul>
+  </nav>
+  <div class="content">
+
+  <section class="howto" id="how-to-use">
+    <h2>How to use these</h2>
+    <ul>
+      <li>Click <strong>Copy</strong> on the reply you need &mdash; the whole client-facing message goes to your clipboard.</li>
+      <li>Paste it into your email or ticket, add a greeting and sign-off, and send. Replies are written to be sent as-is; edit anything a specific client needs.</li>
+      <li>Any <strong>Source</strong> links below a reply are for your reference &mdash; they are <em>not</em> included when you copy.</li>
+      <li>Add new canned replies to this page so everyone sends the same, consistent wording.</li>
+    </ul>
+  </section>
+
+  <!-- ===================== Gmail header ===================== -->
+  <section class="panel" id="gmail-header">
+    <div class="panel-head">
+      <div>
+        <span class="tag">Gmail</span>
+        <h2>Get the full header of an email</h2>
+      </div>
+    </div>
+    <p class="purpose">Send when you need a client to pull the full message header from an email in Gmail (for spoofing / phishing / delivery investigations).</p>
+
+    <div class="opt">
+      <div class="replyblock">
+<pre class="reply">How to view and copy the full header of an email in Gmail:
+
+1. From a browser, open Gmail and open the email you want to check.
+2. Next to "Reply," click "More" (the three vertical dots in the upper-right corner of the email), then click "Show original."
+3. The full header opens in a new window.
+4. Click "Copy to clipboard" and send it back to us.</pre>
+      </div>
+      <p class="src"><span class="lbl">Sources:</span>
+        <a href="https://support.google.com/mail/answer/29436?hl=en" target="_blank" rel="noopener noreferrer">Google &ndash; Trace an email with its full header</a> &middot;
+        <a href="https://www.lifewire.com/how-to-see-full-email-headers-in-gmail-1171960" target="_blank" rel="noopener noreferrer">Lifewire &ndash; See full headers in Gmail</a>
+      </p>
+    </div>
+  </section>
+
+  <!-- ===================== Locate PC name ===================== -->
+  <section class="panel" id="pc-name">
+    <div class="panel-head">
+      <div>
+        <span class="tag">Windows &amp; Mac</span>
+        <h2>Locate your PC name</h2>
+      </div>
+    </div>
+    <p class="purpose">Send the block that matches the client's platform. The Run-box option works on both Windows&nbsp;10 and Windows&nbsp;11 if you're not sure which they have.</p>
+
+    <div class="opt">
+      <h3>Windows 11</h3>
+      <div class="replyblock">
+<pre class="reply">To find your PC name on Windows 11:
+
+1. Press the Windows key and "I" at the same time to open Settings.
+2. Select "System" at the top left of the screen that opens.
+3. Your computer's name is shown at the top of the pane on the right. You can also scroll down to "About" and click it &mdash; your name is listed next to "Device name."</pre>
+      </div>
+    </div>
+
+    <div class="opt">
+      <h3>Windows 10</h3>
+      <div class="replyblock">
+<pre class="reply">To find your PC name on Windows 10:
+
+1. Right-click the Start button.
+2. Click "System."
+3. Under "Computer name, domain, and workgroup settings," you'll find your computer name (and its full computer name if the PC is on a domain).</pre>
+      </div>
+    </div>
+
+    <div class="opt">
+      <h3>Any Windows (Run box) &mdash; Windows 10 or 11</h3>
+      <div class="replyblock">
+<pre class="reply">To find your PC name on Windows 10 or 11:
+
+1. Press the Windows key and "R" at the same time to open the "Run" box.
+2. In the "Run" box, type:  cmd /k hostname
+3. Press Enter. A command prompt window opens with your computer name at the top.</pre>
+      </div>
+    </div>
+
+    <div class="opt">
+      <h3>Mac (macOS 10.4 or later)</h3>
+      <div class="replyblock">
+<pre class="reply">To find your computer name on a Mac:
+
+1. Open System Preferences (or System Settings).
+2. Click the "Sharing" pane.
+3. Your computer name is listed at the top of the pane.</pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== Local admin setup ===================== -->
+  <section class="panel" id="local-admin">
+    <div class="panel-head">
+      <div>
+        <span class="tag">Access</span>
+        <h2>Create a local administrator account</h2>
+      </div>
+    </div>
+    <p class="purpose">Send when you need the client to create a local admin account before you can take over the PC remotely.</p>
+
+    <div class="opt">
+      <div class="replyblock">
+<pre class="reply">In order to get remote access to this PC, we'll need your help creating a local administrator username and password. Here's a guide from Microsoft to walk you through it:
+
+https://support.microsoft.com/en-us/windows/create-a-local-user-or-administrator-account-in-windows-20de74e0-ac7f-3502-a866-32915af2a34d
+
+Once it's created, let us know the username and we'll arrange a secure way to receive the password &mdash; please don't send it by email.</pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== 365 delegate access ===================== -->
+  <section class="panel" id="delegate">
+    <div class="panel-head">
+      <div>
+        <span class="tag">Microsoft 365</span>
+        <h2>Open a delegated mailbox (Outlook on the web)</h2>
+      </div>
+    </div>
+    <p class="purpose">Send when a client has been granted access to another mailbox and needs to open it in Outlook on the Web (OWA).</p>
+
+    <div class="opt">
+      <div class="replyblock">
+<pre class="reply">To open a mailbox you've been given access to, using Outlook on the web:
+
+1. Sign in to https://outlook.office.com with your own email.
+2. In the top-right corner, click your profile picture / initials.
+3. Select "Open another mailbox."
+4. Type the mailbox owner's name or email, select it, then click "Open."
+5. The other user's mailbox opens in a new browser tab.</pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== 2FA enable ===================== -->
+  <section class="panel" id="2fa">
+    <div class="panel-head">
+      <div>
+        <span class="tag">Google</span>
+        <h2>Enable 2-Step Verification (2FA)</h2>
+      </div>
+    </div>
+    <p class="purpose">Send when a Google account is missing 2-Step Verification and it needs to be turned on per company policy, along with recovery options.</p>
+
+    <div class="opt">
+      <div class="replyblock">
+<pre class="reply">2-Step Verification (2FA) needs to be set up on this Google account &mdash; it isn't currently enabled, and it's mandatory per company policy. Here's how to turn it on, plus how to set up your recovery options:
+
+Enable 2FA:  https://www.google.com/landing/2step/
+More information on 2FA:  https://support.google.com/accounts/answer/185839
+Set up recovery options:  https://support.google.com/accounts/answer/183723</pre>
+      </div>
+    </div>
+  </section>
+
+  </div>
+  </div>
+</main>
+
+<footer class="page">
+  <p>Canned Replies <span class="version">v0.1.0</span> &middot; Umbrella Automation internal.</p>
+</footer>
+
+<script>
+(() => {
+  // Add a Copy button to every reply block; copies the exact visible text.
+  document.querySelectorAll('.replyblock').forEach(block => {
+    const pre = block.querySelector('pre.reply');
+    if (!pre) return;
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'copy-btn';
+    btn.textContent = 'Copy';
+    btn.setAttribute('aria-label', 'Copy this reply to clipboard');
+    block.appendChild(btn);
+
+    btn.addEventListener('click', async () => {
+      const text = pre.innerText.replace(/\s+$/, '');
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch (e) {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand('copy'); } catch (e2) {}
+        ta.remove();
+      }
+      btn.textContent = 'Copied';
+      btn.classList.add('copied');
+      clearTimeout(btn._t);
+      btn._t = setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1600);
+    });
+  });
+
+  // Table-of-contents scrollspy: highlight the section currently in view.
+  const links = [...document.querySelectorAll('nav.toc a')];
+  if (links.length) {
+    const byId = new Map(links.map(a => [a.getAttribute('href').slice(1), a]));
+    const targets = [...byId.keys()].map(id => document.getElementById(id)).filter(Boolean);
+    const setActive = id => { links.forEach(a => a.classList.remove('active')); const a = byId.get(id); if (a) a.classList.add('active'); };
+    const obs = new IntersectionObserver(entries => {
+      const visible = entries.filter(e => e.isIntersecting).sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+      if (visible[0]) setActive(visible[0].target.id);
+    }, { rootMargin: '0px 0px -70% 0px', threshold: 0 });
+    targets.forEach(t => obs.observe(t));
+  }
+})();
+</script>
+
+</body>
+</html>
