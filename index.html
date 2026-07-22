@@ -6,7 +6,7 @@
 <title>Work Hub</title>
 <meta name="description" content="Internal dashboard linking to work-related tools and resources.">
 <meta name="robots" content="noindex">
-<meta name="version" content="0.6.2">
+<meta name="version" content="0.6.3">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -468,16 +468,29 @@
       </div>
     </a>
 
-    <a class="card" href="scripts/index.html" aria-label="Open PC Setup Scripts">
+    <a class="card" href="scripts/index.html" aria-label="Open PC Scripts">
       <div class="preview">
-        <iframe src="scripts/index.html" loading="lazy" tabindex="-1" aria-hidden="true" title="PC Setup Scripts preview"></iframe>
+        <iframe src="scripts/index.html" loading="lazy" tabindex="-1" aria-hidden="true" title="PC Scripts preview"></iframe>
         <div class="preview-overlay"></div>
       </div>
       <div class="meta">
         <div class="meta-tag">IT ops &middot; Windows setup scripts</div>
-        <h2>PC Setup Scripts</h2>
+        <h2>PC Scripts</h2>
         <p>PowerShell scripts for the things you re-fix on every fresh Windows 10/11 machine: show all system-tray icons on the taskbar, stop Microsoft 365 Copilot launching at startup, and stop Malwarebytes launching at startup. Each script lists its purpose, whether admin is needed, and the manual click-path for every option it automates.</p>
         <span class="open">Open scripts</span>
+      </div>
+    </a>
+
+    <a class="card" href="canned/index.html" aria-label="Open Canned Replies">
+      <div class="preview">
+        <iframe src="canned/index.html" loading="lazy" tabindex="-1" aria-hidden="true" title="Canned Replies preview"></iframe>
+        <div class="preview-overlay"></div>
+      </div>
+      <div class="meta">
+        <div class="meta-tag">Support &middot; Client-facing replies</div>
+        <h2>Canned Replies</h2>
+        <p>Ready-to-send responses for the questions on nearly every ticket: pulling a Gmail email header, finding a PC name on Windows or Mac, creating a local admin account, opening a delegated Microsoft 365 mailbox, and enabling Google 2FA. Click Copy, paste into the ticket, tweak the greeting, send.</p>
+        <span class="open">Open canned replies</span>
       </div>
     </a>
 
@@ -537,7 +550,7 @@
 </main>
 
 <footer class="page">
-  <p>Work hub <span class="version">v0.6.2</span> &middot; static site &middot; add tiles by dropping new folders alongside this page.</p>
+  <p>Work hub <span class="version">v0.6.3</span> &middot; static site &middot; add tiles by dropping new folders alongside this page.</p>
 </footer>
 
 <script>
