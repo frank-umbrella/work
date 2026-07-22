@@ -6,7 +6,7 @@
 <title>Re-enable LogMeIn &mdash; step by step</title>
 <meta name="description" content="Step-by-step guide with screenshots for turning LogMeIn back on from the LogMeIn Control Panel, so a computer is accessible for remote support again.">
 <meta name="robots" content="noindex">
-<meta name="version" content="0.1.0">
+<meta name="version" content="0.2.0">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -75,6 +75,7 @@
     background: var(--accent); color: #fff; font-size: 15px; font-weight: 700;
     display: flex; align-items: center; justify-content: center;
   }
+  .step-num.alt { background: var(--ink-soft); }
   .step-head h2 { font-size: 18px; margin: 0; letter-spacing: -0.005em; }
   .step p { font-size: 14.5px; color: var(--ink-soft); margin: 8px 0 14px; max-width: 74ch; }
   .step p .k { color: var(--ink); font-weight: 600; }
@@ -133,66 +134,33 @@
 
   <p class="note"><strong>Send this to the client, or walk them through it.</strong> The person sitting at the computer has to do this &mdash; because LogMeIn is off, we can't do it remotely. When they're done, the PC should read <em>&ldquo;Accessible&rdquo;</em> and we can connect.</p>
 
-  <!-- Step 1 -->
+  <!-- Step 1: Start search -->
   <div class="step">
-    <div class="step-head"><span class="step-num">1</span><h2>Find the LogMeIn icon in the system tray</h2></div>
-    <p>Look in the <span class="k">notification area</span>, near the clock in the bottom-right corner of the screen. If you don't see the blue LogMeIn icon, click the <span class="k">&ldquo;Show hidden icons&rdquo;</span> up-arrow to reveal it.</p>
+    <div class="step-head"><span class="step-num">1</span><h2>Open the LogMeIn Control Panel from Start</h2></div>
+    <p>Click the <span class="winkey"><svg aria-hidden="true"><use href="#winlogo"/></svg></span> <span class="k">Start</span> button (or press the <span class="k">Windows key</span>), type <kbd>LogMeIn Control Panel</kbd>, and select it from the search results.</p>
     <div class="mock">
-      <svg viewBox="0 0 640 90" role="img" aria-label="Windows taskbar system tray. The Show hidden icons up-arrow and the LogMeIn icon are highlighted, next to the clock.">
-        <rect width="640" height="90" fill="#f3f5f8"/>
-        <rect x="0" y="60" width="640" height="30" fill="#e7ebf1"/>
-        <!-- tray area on the right -->
-        <!-- up arrow -->
-        <g>
-          <rect x="360" y="18" width="46" height="46" rx="7" fill="#fff" stroke="#1a56db" stroke-width="2.5"/>
-          <path d="M373 46 L383 34 L393 46" fill="none" stroke="#475063" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-        </g>
-        <!-- generic tray icons -->
-        <circle cx="432" cy="41" r="10" fill="#9aa4b6"/>
-        <rect x="452" y="31" width="20" height="20" rx="3" fill="#9aa4b6"/>
-        <!-- LogMeIn icon highlighted -->
-        <g>
-          <rect x="486" y="18" width="46" height="46" rx="7" fill="#eaf0fc" stroke="#1a56db" stroke-width="2.5"/>
-          <circle cx="509" cy="41" r="13" fill="#0f6dd6"/>
-          <path d="M509 33 V41" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
-          <path d="M501 41 a8 8 0 1 0 16 0" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
-        </g>
-        <!-- clock -->
-        <text x="566" y="37" font-family="Segoe UI, sans-serif" font-size="15" fill="#1a1f2b">3:14 PM</text>
-        <text x="566" y="55" font-family="Segoe UI, sans-serif" font-size="13" fill="#475063">7/22/2026</text>
-        <!-- callouts -->
-        <text x="360" y="12" font-family="Segoe UI, sans-serif" font-size="12" font-weight="700" fill="#1a56db">Show hidden icons</text>
-        <text x="486" y="82" font-family="Segoe UI, sans-serif" font-size="12" font-weight="700" fill="#1a56db">LogMeIn icon</text>
+      <svg viewBox="0 0 640 190" role="img" aria-label="Windows Start search with LogMeIn Control Panel typed, showing the LogMeIn Control Panel app as the best match.">
+        <rect width="640" height="190" fill="#f3f5f8"/>
+        <!-- search box -->
+        <rect x="150" y="20" width="340" height="36" rx="6" fill="#fff" stroke="#c9cfdb"/>
+        <path d="M170 38 a7 7 0 1 0 0.1 0 M175 43 l6 6" fill="none" stroke="#475063" stroke-width="2"/>
+        <text x="192" y="43" font-family="Segoe UI, sans-serif" font-size="14" fill="#1a1f2b">LogMeIn Control Panel</text>
+        <!-- best match result -->
+        <rect x="150" y="64" width="340" height="46" rx="6" fill="#eaf0fc" stroke="#1a56db" stroke-width="1.5"/>
+        <circle cx="176" cy="87" r="12" fill="#0f6dd6"/>
+        <path d="M176 80 V88" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+        <path d="M169 87 a7 7 0 1 0 14 0" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+        <text x="200" y="83" font-family="Segoe UI, sans-serif" font-size="13.5" font-weight="700" fill="#1a1f2b">LogMeIn Control Panel</text>
+        <text x="200" y="99" font-family="Segoe UI, sans-serif" font-size="11.5" fill="#475063">App</text>
+        <text x="150" y="140" font-family="Segoe UI, sans-serif" font-size="12" font-weight="700" fill="#1a56db">Best match</text>
       </svg>
     </div>
-    <p class="cap">The tray sits at the bottom-right, next to the clock. The LogMeIn icon may be tucked behind the up-arrow.</p>
+    <p class="cap">If <strong>LogMeIn Control Panel</strong> doesn't appear in the results, restart the computer and try again.</p>
   </div>
 
-  <!-- Step 2 -->
+  <!-- Step 2: power button -->
   <div class="step">
-    <div class="step-head"><span class="step-num">2</span><h2>Right-click it and open the Control Panel</h2></div>
-    <p><span class="k">Right-click</span> the LogMeIn icon, then click <span class="k">&ldquo;LogMeIn Control Panel.&rdquo;</span></p>
-    <div class="mock">
-      <svg viewBox="0 0 640 210" role="img" aria-label="Right-click menu on the LogMeIn tray icon, with the LogMeIn Control Panel option highlighted.">
-        <rect width="640" height="210" fill="#f3f5f8"/>
-        <!-- context menu -->
-        <rect x="150" y="20" width="230" height="150" rx="8" fill="#ffffff" stroke="#c9cfdb" stroke-width="1"/>
-        <!-- highlighted item -->
-        <rect x="156" y="26" width="218" height="30" rx="5" fill="#eaf0fc"/>
-        <text x="172" y="46" font-family="Segoe UI, sans-serif" font-size="14" font-weight="700" fill="#1a56db">LogMeIn Control Panel</text>
-        <text x="172" y="80" font-family="Segoe UI, sans-serif" font-size="14" fill="#1a1f2b">Turn LogMeIn On / Off</text>
-        <text x="172" y="110" font-family="Segoe UI, sans-serif" font-size="14" fill="#1a1f2b">About LogMeIn</text>
-        <line x1="160" y1="128" x2="370" y2="128" stroke="#e3e6ec" stroke-width="1"/>
-        <text x="172" y="152" font-family="Segoe UI, sans-serif" font-size="14" fill="#1a1f2b">Exit</text>
-        <!-- pointer -->
-        <path d="M300 60 l0 26 l7 -7 l5 11 l6 -3 l-5 -11 l10 0 z" fill="#1a1f2b" stroke="#fff" stroke-width="1.5"/>
-      </svg>
-    </div>
-  </div>
-
-  <!-- Step 3 -->
-  <div class="step">
-    <div class="step-head"><span class="step-num">3</span><h2>Click the power button to turn it on</h2></div>
+    <div class="step-head"><span class="step-num">2</span><h2>Click the power button to turn it on</h2></div>
     <p>In the upper-left corner of the Control Panel, find the LogMeIn <span class="k">power button</span>. If it shows <span class="k">&ldquo;Not accessible&rdquo;</span> (a red power button), click <span class="k">Turn on</span> to switch it back on.</p>
     <div class="mock">
       <svg viewBox="0 0 650 300" role="img" aria-label="LogMeIn Control Panel Overview showing Not accessible, LogMeIn is off, with the red power button and the Turn on button highlighted.">
@@ -226,8 +194,7 @@
         <rect x="360" y="223" width="150" height="9" rx="4" fill="#e3e6ec"/>
         <text x="182" y="256" font-family="Segoe UI, sans-serif" font-size="12.5" fill="#475063">Connected remote users</text>
         <text x="360" y="256" font-family="Segoe UI, sans-serif" font-size="12.5" fill="#1a1f2b">None</text>
-        <!-- callouts -->
-        <text x="30" y="82" font-family="Segoe UI, sans-serif" font-size="11.5" font-weight="700" fill="#d64545" text-anchor="middle" transform="translate(0,0)"></text>
+        <!-- callout -->
         <path d="M58 30 h40" stroke="#d64545" stroke-width="1.5" fill="none" marker-end="url(#arrow-r)"/>
         <text x="104" y="34" font-family="Segoe UI, sans-serif" font-size="11.5" font-weight="700" fill="#d64545">Power button (red = off)</text>
         <defs>
@@ -238,9 +205,9 @@
     <p class="cap">This is the screen you'll see when LogMeIn is off. Clicking the red power button or <strong>Turn on</strong> both re-enable it.</p>
   </div>
 
-  <!-- Step 4 / result -->
+  <!-- Step 3: result -->
   <div class="step">
-    <div class="step-head"><span class="step-num">4</span><h2>Confirm it now shows &ldquo;Accessible&rdquo;</h2></div>
+    <div class="step-head"><span class="step-num">3</span><h2>Confirm it now shows &ldquo;Accessible&rdquo;</h2></div>
     <p>Once it's on, the power button turns <span class="k">green</span> and the status reads <span class="k">&ldquo;Accessible&rdquo;</span> or <span class="k">&ldquo;Enabled and Online.&rdquo;</span> That's it &mdash; we can connect now.</p>
     <div class="mock">
       <svg viewBox="0 0 650 120" role="img" aria-label="LogMeIn Control Panel status bar showing Accessible, with a green power button.">
@@ -256,26 +223,60 @@
     </div>
   </div>
 
+  <p class="note"><strong>Not in the search results?</strong> If <em>&ldquo;LogMeIn Control Panel&rdquo;</em> doesn't appear when you search from Start, restart the computer and try again &mdash; or use the system-tray method below.</p>
+
   <!-- Alternative -->
-  <h2 class="alt-head">Alternative &mdash; open it from Start</h2>
+  <h2 class="alt-head">Alternative &mdash; open it from the system tray</h2>
+
   <div class="step">
-    <div class="step-head"><span class="step-num">&starf;</span><h2>Search for the Control Panel</h2></div>
-    <p>Can't find the tray icon? Click the <span class="winkey"><svg aria-hidden="true"><use href="#winlogo"/></svg></span> <span class="k">Start</span> button, type <kbd>LogMeIn Control Panel</kbd>, and open it from the search results. Then click the power button in the upper-left corner to re-enable LogMeIn.</p>
+    <div class="step-head"><span class="step-num alt">&starf;</span><h2>Find the LogMeIn icon in the system tray</h2></div>
+    <p>Look in the <span class="k">notification area</span>, near the clock in the bottom-right corner of the screen. If you don't see the blue LogMeIn icon, click the <span class="k">&ldquo;Show hidden icons&rdquo;</span> up-arrow to reveal it.</p>
     <div class="mock">
-      <svg viewBox="0 0 640 190" role="img" aria-label="Windows Start search with LogMeIn Control Panel typed, showing the LogMeIn Control Panel app as the best match.">
-        <rect width="640" height="190" fill="#f3f5f8"/>
-        <!-- search box -->
-        <rect x="150" y="20" width="340" height="36" rx="6" fill="#fff" stroke="#c9cfdb"/>
-        <path d="M170 38 a7 7 0 1 0 0.1 0 M175 43 l6 6" fill="none" stroke="#475063" stroke-width="2"/>
-        <text x="192" y="43" font-family="Segoe UI, sans-serif" font-size="14" fill="#1a1f2b">LogMeIn Control Panel</text>
-        <!-- best match result -->
-        <rect x="150" y="64" width="340" height="46" rx="6" fill="#eaf0fc" stroke="#1a56db" stroke-width="1.5"/>
-        <circle cx="176" cy="87" r="12" fill="#0f6dd6"/>
-        <path d="M176 80 V88" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
-        <path d="M169 87 a7 7 0 1 0 14 0" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
-        <text x="200" y="83" font-family="Segoe UI, sans-serif" font-size="13.5" font-weight="700" fill="#1a1f2b">LogMeIn Control Panel</text>
-        <text x="200" y="99" font-family="Segoe UI, sans-serif" font-size="11.5" fill="#475063">App</text>
-        <text x="150" y="140" font-family="Segoe UI, sans-serif" font-size="12" font-weight="700" fill="#1a56db">Best match</text>
+      <svg viewBox="0 0 640 90" role="img" aria-label="Windows taskbar system tray. The Show hidden icons up-arrow and the LogMeIn icon are highlighted, next to the clock.">
+        <rect width="640" height="90" fill="#f3f5f8"/>
+        <rect x="0" y="60" width="640" height="30" fill="#e7ebf1"/>
+        <!-- up arrow -->
+        <g>
+          <rect x="360" y="18" width="46" height="46" rx="7" fill="#fff" stroke="#1a56db" stroke-width="2.5"/>
+          <path d="M373 46 L383 34 L393 46" fill="none" stroke="#475063" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        </g>
+        <!-- generic tray icons -->
+        <circle cx="432" cy="41" r="10" fill="#9aa4b6"/>
+        <rect x="452" y="31" width="20" height="20" rx="3" fill="#9aa4b6"/>
+        <!-- LogMeIn icon highlighted -->
+        <g>
+          <rect x="486" y="18" width="46" height="46" rx="7" fill="#eaf0fc" stroke="#1a56db" stroke-width="2.5"/>
+          <circle cx="509" cy="41" r="13" fill="#0f6dd6"/>
+          <path d="M509 33 V41" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+          <path d="M501 41 a8 8 0 1 0 16 0" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+        </g>
+        <!-- clock -->
+        <text x="566" y="37" font-family="Segoe UI, sans-serif" font-size="15" fill="#1a1f2b">3:14 PM</text>
+        <text x="566" y="55" font-family="Segoe UI, sans-serif" font-size="13" fill="#475063">7/22/2026</text>
+        <!-- callouts -->
+        <text x="360" y="12" font-family="Segoe UI, sans-serif" font-size="12" font-weight="700" fill="#1a56db">Show hidden icons</text>
+        <text x="486" y="82" font-family="Segoe UI, sans-serif" font-size="12" font-weight="700" fill="#1a56db">LogMeIn icon</text>
+      </svg>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-head"><span class="step-num alt">&starf;</span><h2>Right-click it, open the Control Panel, click the power button</h2></div>
+    <p><span class="k">Right-click</span> the LogMeIn icon, click <span class="k">&ldquo;LogMeIn Control Panel,&rdquo;</span> then click the <span class="k">power button</span> in the upper-left corner to re-enable LogMeIn (Step&nbsp;2 above).</p>
+    <div class="mock">
+      <svg viewBox="0 0 640 210" role="img" aria-label="Right-click menu on the LogMeIn tray icon, with the LogMeIn Control Panel option highlighted.">
+        <rect width="640" height="210" fill="#f3f5f8"/>
+        <!-- context menu -->
+        <rect x="150" y="20" width="230" height="150" rx="8" fill="#ffffff" stroke="#c9cfdb" stroke-width="1"/>
+        <!-- highlighted item -->
+        <rect x="156" y="26" width="218" height="30" rx="5" fill="#eaf0fc"/>
+        <text x="172" y="46" font-family="Segoe UI, sans-serif" font-size="14" font-weight="700" fill="#1a56db">LogMeIn Control Panel</text>
+        <text x="172" y="80" font-family="Segoe UI, sans-serif" font-size="14" fill="#1a1f2b">Turn LogMeIn On / Off</text>
+        <text x="172" y="110" font-family="Segoe UI, sans-serif" font-size="14" fill="#1a1f2b">About LogMeIn</text>
+        <line x1="160" y1="128" x2="370" y2="128" stroke="#e3e6ec" stroke-width="1"/>
+        <text x="172" y="152" font-family="Segoe UI, sans-serif" font-size="14" fill="#1a1f2b">Exit</text>
+        <!-- pointer -->
+        <path d="M300 60 l0 26 l7 -7 l5 11 l6 -3 l-5 -11 l10 0 z" fill="#1a1f2b" stroke="#fff" stroke-width="1.5"/>
       </svg>
     </div>
   </div>
@@ -289,7 +290,7 @@
 </main>
 
 <footer class="page">
-  <p>Re-enable LogMeIn <span class="version">v0.1.0</span> &middot; Umbrella Automation internal.</p>
+  <p>Re-enable LogMeIn <span class="version">v0.2.0</span> &middot; Umbrella Automation internal.</p>
 </footer>
 
 </body>
