@@ -6,7 +6,7 @@
 <title>Canned Replies</title>
 <meta name="description" content="Ready-to-send canned replies for common client requests: Gmail email headers, finding a PC name, creating a local admin account, opening a delegated Microsoft 365 mailbox, and enabling Google 2FA.">
 <meta name="robots" content="noindex">
-<meta name="version" content="0.1.0">
+<meta name="version" content="0.2.0">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -121,6 +121,15 @@
   .src .lbl { font-weight: 600; }
   .src a { word-break: break-all; }
 
+  .guide-link {
+    display: inline-flex; align-items: center; gap: 7px; margin-top: 2px;
+    font-size: 13.5px; font-weight: 600; color: var(--accent);
+    background: var(--accent-soft); border: 1px solid #cfe0fb;
+    border-radius: 8px; padding: 7px 13px;
+  }
+  .guide-link:hover { background: #ddeafb; text-decoration: none; }
+  .guide-link::after { content: "\2192"; font-weight: 700; }
+
   footer.page { max-width: 1160px; margin: 0 auto; padding: 0 24px 36px; color: var(--ink-soft); font-size: 12.5px; }
   footer.page .version {
     display: inline-block; padding: 1px 7px; border: 1px solid var(--line-strong);
@@ -151,6 +160,7 @@
       <li><a href="#local-admin">Local admin setup</a></li>
       <li><a href="#delegate">365 delegate access</a></li>
       <li><a href="#2fa">Enable Google 2FA</a></li>
+      <li><a href="#logmein">Re-enable LogMeIn</a></li>
     </ul>
   </nav>
   <div class="content">
@@ -311,12 +321,46 @@ Set up recovery options:  https://support.google.com/accounts/answer/183723</pre
     </div>
   </section>
 
+  <!-- ===================== Re-enable LogMeIn ===================== -->
+  <section class="panel" id="logmein">
+    <div class="panel-head">
+      <div>
+        <span class="tag">LogMeIn</span>
+        <h2>Re-enable LogMeIn on the client's PC</h2>
+      </div>
+    </div>
+    <p class="purpose">Send when a computer shows &ldquo;Not accessible &mdash; LogMeIn is off&rdquo; and you can't connect. The client has to turn it back on locally &mdash; we can't do it remotely while it's off. There's a <a href="logmein-enable.html">step-by-step guide with screenshots</a> you can share alongside this.</p>
+
+    <div class="opt">
+      <div class="replyblock">
+<pre class="reply">How to re-enable LogMeIn on your computer:
+
+Windows 10 or Windows 11:
+1. Find the LogMeIn icon in the notification area, near the clock in the bottom-right corner of your screen. You may need to click the "Show hidden icons" up-arrow to see it.
+2. Right-click the LogMeIn icon and click "LogMeIn Control Panel."
+3. In the upper-left corner of the Control Panel, find the LogMeIn power button.
+4. If LogMeIn shows as "Not accessible" or disabled, click the power button to turn it back on.
+
+LogMeIn should now show as "Accessible" or "Enabled and Online."
+
+Alternative:
+1. Click the Start button.
+2. Type: LogMeIn Control Panel
+3. Select "LogMeIn Control Panel" from the search results.
+4. Click the power button in the upper-left corner to re-enable LogMeIn.
+
+Please leave the computer powered on and connected to the internet after completing these steps.</pre>
+      </div>
+      <a class="guide-link" href="logmein-enable.html">Open the step-by-step guide with screenshots</a>
+    </div>
+  </section>
+
   </div>
   </div>
 </main>
 
 <footer class="page">
-  <p>Canned Replies <span class="version">v0.1.0</span> &middot; Umbrella Automation internal.</p>
+  <p>Canned Replies <span class="version">v0.2.0</span> &middot; Umbrella Automation internal.</p>
 </footer>
 
 <script>

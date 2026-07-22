@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Re-enable LogMeIn &mdash; step by step</title>
+<meta name="description" content="Step-by-step guide with screenshots for turning LogMeIn back on from the LogMeIn Control Panel, so a computer is accessible for remote support again.">
+<meta name="robots" content="noindex">
+<meta name="version" content="0.1.0">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --surface: #ffffff;
+    --ink: #1a1f2b;
+    --ink-soft: #475063;
+    --line: #e3e6ec;
+    --line-strong: #c9cfdb;
+    --accent: #1a56db;
+    --accent-soft: #eaf0fc;
+    --ok: #0f7b3f;
+    --ok-soft: #e7f5ec;
+    --red: #d64545;
+    --win: #0078d4;
+    --radius: 12px;
+    --shadow: 0 1px 2px rgba(20, 25, 40, 0.04), 0 4px 14px rgba(20, 25, 40, 0.05);
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "Cascadia Mono", Consolas, "Liberation Mono", monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  header.page {
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+    padding: 30px 24px 26px;
+  }
+  header.page .wrap { max-width: 900px; margin: 0 auto; }
+  .crumb { font-size: 13px; color: var(--ink-soft); margin: 0 0 10px; }
+  .crumb a { font-weight: 600; }
+  header.page h1 { font-size: 27px; margin: 0 0 6px; letter-spacing: -0.01em; }
+  header.page p.lede { margin: 0; color: var(--ink-soft); font-size: 15px; max-width: 72ch; }
+  .os-pill {
+    display: inline-block; margin-top: 12px;
+    font-size: 12px; font-weight: 600; color: var(--accent);
+    background: var(--accent-soft); border-radius: 999px; padding: 3px 11px;
+  }
+
+  main { max-width: 900px; margin: 0 auto; padding: 26px 24px 64px; }
+
+  .note {
+    background: var(--accent-soft); border: 1px solid #cfe0fb; border-radius: var(--radius);
+    padding: 13px 16px; margin: 0 0 24px; font-size: 14px; color: var(--ink);
+  }
+  .note strong { color: var(--accent); }
+
+  .step {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: var(--radius); box-shadow: var(--shadow);
+    padding: 20px 22px 22px; margin-bottom: 20px;
+  }
+  .step-head { display: flex; align-items: center; gap: 12px; margin: 0 0 4px; }
+  .step-num {
+    flex-shrink: 0; width: 30px; height: 30px; border-radius: 50%;
+    background: var(--accent); color: #fff; font-size: 15px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .step-head h2 { font-size: 18px; margin: 0; letter-spacing: -0.005em; }
+  .step p { font-size: 14.5px; color: var(--ink-soft); margin: 8px 0 14px; max-width: 74ch; }
+  .step p .k { color: var(--ink); font-weight: 600; }
+
+  /* Windows key / Start button glyph rendered inline, like a keycap */
+  .winkey {
+    display: inline-flex; align-items: center; justify-content: center;
+    vertical-align: -3px; width: 22px; height: 22px; margin: 0 1px;
+    border: 1px solid var(--line-strong); border-bottom-width: 2px; border-radius: 5px;
+    background: var(--surface);
+  }
+  .winkey svg { width: 13px; height: 13px; color: var(--win); }
+  kbd {
+    font-family: var(--sans); font-size: 12.5px; font-weight: 600;
+    background: var(--surface); border: 1px solid var(--line-strong);
+    border-bottom-width: 2px; border-radius: 5px; padding: 1px 6px; vertical-align: 1px;
+  }
+
+  .mock { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: #fff; box-shadow: var(--shadow); }
+  .mock svg { display: block; width: 100%; height: auto; }
+  .cap { font-size: 12.5px; color: var(--ink-soft); margin: 10px 2px 0; }
+
+  .alt-head { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-soft); margin: 30px 0 12px; padding-top: 20px; border-top: 1px solid var(--line); }
+
+  .backlink { display: inline-block; margin-top: 8px; font-size: 14px; font-weight: 600; }
+
+  footer.page { max-width: 900px; margin: 0 auto; padding: 0 24px 36px; color: var(--ink-soft); font-size: 12.5px; }
+  footer.page .version {
+    display: inline-block; padding: 1px 7px; border: 1px solid var(--line-strong);
+    border-radius: 999px; font-size: 11.5px; font-weight: 600; color: var(--ink-soft);
+    background: var(--surface); margin: 0 2px;
+  }
+  .src { font-size: 12.5px; color: var(--ink-soft); margin: 22px 0 0; }
+  .src .lbl { font-weight: 600; }
+</style>
+</head>
+<body>
+
+<!-- Reusable Windows logo glyph -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="winlogo" viewBox="0 0 100 100">
+    <path fill="currentColor" d="M0 0h46v46H0zM54 0h46v46H54zM0 54h46v46H0zM54 54h46v46H54z"/>
+  </symbol>
+</svg>
+
+<header class="page">
+  <div class="wrap">
+    <p class="crumb"><a href="index.html">&larr; Canned Replies</a></p>
+    <h1>Re-enable LogMeIn &mdash; step by step</h1>
+    <p class="lede">When a computer shows <em>&ldquo;Not accessible &mdash; LogMeIn is off,&rdquo;</em> the LogMeIn service on that PC has been switched off and no one can connect to it remotely. These steps turn it back on from the LogMeIn Control Panel.</p>
+    <span class="os-pill">Windows 10 &amp; Windows 11</span>
+  </div>
+</header>
+
+<main>
+
+  <p class="note"><strong>Send this to the client, or walk them through it.</strong> The person sitting at the computer has to do this &mdash; because LogMeIn is off, we can't do it remotely. When they're done, the PC should read <em>&ldquo;Accessible&rdquo;</em> and we can connect.</p>
+
+  <!-- Step 1 -->
+  <div class="step">
+    <div class="step-head"><span class="step-num">1</span><h2>Find the LogMeIn icon in the system tray</h2></div>
+    <p>Look in the <span class="k">notification area</span>, near the clock in the bottom-right corner of the screen. If you don't see the blue LogMeIn icon, click the <span class="k">&ldquo;Show hidden icons&rdquo;</span> up-arrow to reveal it.</p>
+    <div class="mock">
+      <svg viewBox="0 0 640 90" role="img" aria-label="Windows taskbar system tray. The Show hidden icons up-arrow and the LogMeIn icon are highlighted, next to the clock.">
+        <rect width="640" height="90" fill="#f3f5f8"/>
+        <rect x="0" y="60" width="640" height="30" fill="#e7ebf1"/>
+        <!-- tray area on the right -->
+        <!-- up arrow -->
+        <g>
+          <rect x="360" y="18" width="46" height="46" rx="7" fill="#fff" stroke="#1a56db" stroke-width="2.5"/>
+          <path d="M373 46 L383 34 L393 46" fill="none" stroke="#475063" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        </g>
+        <!-- generic tray icons -->
+        <circle cx="432" cy="41" r="10" fill="#9aa4b6"/>
+        <rect x="452" y="31" width="20" height="20" rx="3" fill="#9aa4b6"/>
+        <!-- LogMeIn icon highlighted -->
+        <g>
+          <rect x="486" y="18" width="46" height="46" rx="7" fill="#eaf0fc" stroke="#1a56db" stroke-width="2.5"/>
+          <circle cx="509" cy="41" r="13" fill="#0f6dd6"/>
+          <path d="M509 33 V41" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+          <path d="M501 41 a8 8 0 1 0 16 0" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+        </g>
+        <!-- clock -->
+        <text x="566" y="37" font-family="Segoe UI, sans-serif" font-size="15" fill="#1a1f2b">3:14 PM</text>
+        <text x="566" y="55" font-family="Segoe UI, sans-serif" font-size="13" fill="#475063">7/22/2026</text>
+        <!-- callouts -->
+        <text x="360" y="12" font-family="Segoe UI, sans-serif" font-size="12" font-weight="700" fill="#1a56db">Show hidden icons</text>
+        <text x="486" y="82" font-family="Segoe UI, sans-serif" font-size="12" font-weight="700" fill="#1a56db">LogMeIn icon</text>
+      </svg>
+    </div>
+    <p class="cap">The tray sits at the bottom-right, next to the clock. The LogMeIn icon may be tucked behind the up-arrow.</p>
+  </div>
+
+  <!-- Step 2 -->
+  <div class="step">
+    <div class="step-head"><span class="step-num">2</span><h2>Right-click it and open the Control Panel</h2></div>
+    <p><span class="k">Right-click</span> the LogMeIn icon, then click <span class="k">&ldquo;LogMeIn Control Panel.&rdquo;</span></p>
+    <div class="mock">
+      <svg viewBox="0 0 640 210" role="img" aria-label="Right-click menu on the LogMeIn tray icon, with the LogMeIn Control Panel option highlighted.">
+        <rect width="640" height="210" fill="#f3f5f8"/>
+        <!-- context menu -->
+        <rect x="150" y="20" width="230" height="150" rx="8" fill="#ffffff" stroke="#c9cfdb" stroke-width="1"/>
+        <!-- highlighted item -->
+        <rect x="156" y="26" width="218" height="30" rx="5" fill="#eaf0fc"/>
+        <text x="172" y="46" font-family="Segoe UI, sans-serif" font-size="14" font-weight="700" fill="#1a56db">LogMeIn Control Panel</text>
+        <text x="172" y="80" font-family="Segoe UI, sans-serif" font-size="14" fill="#1a1f2b">Turn LogMeIn On / Off</text>
+        <text x="172" y="110" font-family="Segoe UI, sans-serif" font-size="14" fill="#1a1f2b">About LogMeIn</text>
+        <line x1="160" y1="128" x2="370" y2="128" stroke="#e3e6ec" stroke-width="1"/>
+        <text x="172" y="152" font-family="Segoe UI, sans-serif" font-size="14" fill="#1a1f2b">Exit</text>
+        <!-- pointer -->
+        <path d="M300 60 l0 26 l7 -7 l5 11 l6 -3 l-5 -11 l10 0 z" fill="#1a1f2b" stroke="#fff" stroke-width="1.5"/>
+      </svg>
+    </div>
+  </div>
+
+  <!-- Step 3 -->
+  <div class="step">
+    <div class="step-head"><span class="step-num">3</span><h2>Click the power button to turn it on</h2></div>
+    <p>In the upper-left corner of the Control Panel, find the LogMeIn <span class="k">power button</span>. If it shows <span class="k">&ldquo;Not accessible&rdquo;</span> (a red power button), click <span class="k">Turn on</span> to switch it back on.</p>
+    <div class="mock">
+      <svg viewBox="0 0 650 300" role="img" aria-label="LogMeIn Control Panel Overview showing Not accessible, LogMeIn is off, with the red power button and the Turn on button highlighted.">
+        <rect width="650" height="300" fill="#ffffff"/>
+        <!-- top status bar -->
+        <circle cx="30" cy="30" r="13" fill="none" stroke="#d64545" stroke-width="3"/>
+        <path d="M30 21 V31" stroke="#d64545" stroke-width="3" stroke-linecap="round"/>
+        <path d="M22 30 a8 8 0 1 0 16 0" fill="none" stroke="#d64545" stroke-width="3" stroke-linecap="round"/>
+        <rect x="54" y="22" width="150" height="9" rx="4" fill="#d7dde6"/>
+        <text x="54" y="52" font-family="Segoe UI, sans-serif" font-size="12.5" fill="#d64545">&#9888; Not accessible &mdash; LogMeIn is off</text>
+        <line x1="0" y1="66" x2="650" y2="66" stroke="#e3e6ec" stroke-width="1"/>
+        <!-- left nav -->
+        <rect x="0" y="66" width="150" height="234" fill="#f6f8fb"/>
+        <rect x="0" y="80" width="150" height="34" fill="#eaf0fc"/>
+        <rect x="0" y="80" width="3" height="34" fill="#1a56db"/>
+        <text x="42" y="102" font-family="Segoe UI, sans-serif" font-size="14" font-weight="700" fill="#1a56db">Overview</text>
+        <text x="42" y="140" font-family="Segoe UI, sans-serif" font-size="14" fill="#475063">Desktop Sharing</text>
+        <text x="42" y="172" font-family="Segoe UI, sans-serif" font-size="14" fill="#475063">File Sharing</text>
+        <text x="42" y="204" font-family="Segoe UI, sans-serif" font-size="14" fill="#475063">Options</text>
+        <text x="42" y="236" font-family="Segoe UI, sans-serif" font-size="14" fill="#475063">About</text>
+        <line x1="150" y1="66" x2="150" y2="300" stroke="#e3e6ec" stroke-width="1"/>
+        <!-- content -->
+        <text x="182" y="104" font-family="Segoe UI, sans-serif" font-size="18" font-weight="700" fill="#1a1f2b">This computer:</text>
+        <text x="182" y="134" font-family="Segoe UI, sans-serif" font-size="14" font-weight="700" fill="#1a1f2b">Not accessible for remote use via LogMeIn.</text>
+        <text x="182" y="154" font-family="Segoe UI, sans-serif" font-size="14" fill="#475063">LogMeIn is turned off.</text>
+        <!-- Turn on button highlighted -->
+        <rect x="182" y="168" width="78" height="30" rx="4" fill="#f0f3f8" stroke="#1a56db" stroke-width="2.5"/>
+        <text x="221" y="188" font-family="Segoe UI, sans-serif" font-size="13.5" font-weight="600" fill="#1a56db" text-anchor="middle">Turn on</text>
+        <!-- detail rows -->
+        <text x="182" y="232" font-family="Segoe UI, sans-serif" font-size="12.5" fill="#475063">Computer name</text>
+        <rect x="360" y="223" width="150" height="9" rx="4" fill="#e3e6ec"/>
+        <text x="182" y="256" font-family="Segoe UI, sans-serif" font-size="12.5" fill="#475063">Connected remote users</text>
+        <text x="360" y="256" font-family="Segoe UI, sans-serif" font-size="12.5" fill="#1a1f2b">None</text>
+        <!-- callouts -->
+        <text x="30" y="82" font-family="Segoe UI, sans-serif" font-size="11.5" font-weight="700" fill="#d64545" text-anchor="middle" transform="translate(0,0)"></text>
+        <path d="M58 30 h40" stroke="#d64545" stroke-width="1.5" fill="none" marker-end="url(#arrow-r)"/>
+        <text x="104" y="34" font-family="Segoe UI, sans-serif" font-size="11.5" font-weight="700" fill="#d64545">Power button (red = off)</text>
+        <defs>
+          <marker id="arrow-r" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8 z" fill="#d64545"/></marker>
+        </defs>
+      </svg>
+    </div>
+    <p class="cap">This is the screen you'll see when LogMeIn is off. Clicking the red power button or <strong>Turn on</strong> both re-enable it.</p>
+  </div>
+
+  <!-- Step 4 / result -->
+  <div class="step">
+    <div class="step-head"><span class="step-num">4</span><h2>Confirm it now shows &ldquo;Accessible&rdquo;</h2></div>
+    <p>Once it's on, the power button turns <span class="k">green</span> and the status reads <span class="k">&ldquo;Accessible&rdquo;</span> or <span class="k">&ldquo;Enabled and Online.&rdquo;</span> That's it &mdash; we can connect now.</p>
+    <div class="mock">
+      <svg viewBox="0 0 650 120" role="img" aria-label="LogMeIn Control Panel status bar showing Accessible, with a green power button.">
+        <rect width="650" height="120" fill="#ffffff"/>
+        <circle cx="30" cy="34" r="13" fill="none" stroke="#0f7b3f" stroke-width="3"/>
+        <path d="M30 25 V35" stroke="#0f7b3f" stroke-width="3" stroke-linecap="round"/>
+        <path d="M22 34 a8 8 0 1 0 16 0" fill="none" stroke="#0f7b3f" stroke-width="3" stroke-linecap="round"/>
+        <rect x="54" y="26" width="150" height="9" rx="4" fill="#d7dde6"/>
+        <text x="54" y="56" font-family="Segoe UI, sans-serif" font-size="12.5" font-weight="700" fill="#0f7b3f">&#10003; Accessible &mdash; Enabled and Online</text>
+        <line x1="0" y1="72" x2="650" y2="72" stroke="#e3e6ec" stroke-width="1"/>
+        <text x="182" y="102" font-family="Segoe UI, sans-serif" font-size="14" font-weight="700" fill="#1a1f2b">This computer is accessible for remote use via LogMeIn.</text>
+      </svg>
+    </div>
+  </div>
+
+  <!-- Alternative -->
+  <h2 class="alt-head">Alternative &mdash; open it from Start</h2>
+  <div class="step">
+    <div class="step-head"><span class="step-num">&starf;</span><h2>Search for the Control Panel</h2></div>
+    <p>Can't find the tray icon? Click the <span class="winkey"><svg aria-hidden="true"><use href="#winlogo"/></svg></span> <span class="k">Start</span> button, type <kbd>LogMeIn Control Panel</kbd>, and open it from the search results. Then click the power button in the upper-left corner to re-enable LogMeIn.</p>
+    <div class="mock">
+      <svg viewBox="0 0 640 190" role="img" aria-label="Windows Start search with LogMeIn Control Panel typed, showing the LogMeIn Control Panel app as the best match.">
+        <rect width="640" height="190" fill="#f3f5f8"/>
+        <!-- search box -->
+        <rect x="150" y="20" width="340" height="36" rx="6" fill="#fff" stroke="#c9cfdb"/>
+        <path d="M170 38 a7 7 0 1 0 0.1 0 M175 43 l6 6" fill="none" stroke="#475063" stroke-width="2"/>
+        <text x="192" y="43" font-family="Segoe UI, sans-serif" font-size="14" fill="#1a1f2b">LogMeIn Control Panel</text>
+        <!-- best match result -->
+        <rect x="150" y="64" width="340" height="46" rx="6" fill="#eaf0fc" stroke="#1a56db" stroke-width="1.5"/>
+        <circle cx="176" cy="87" r="12" fill="#0f6dd6"/>
+        <path d="M176 80 V88" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+        <path d="M169 87 a7 7 0 1 0 14 0" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
+        <text x="200" y="83" font-family="Segoe UI, sans-serif" font-size="13.5" font-weight="700" fill="#1a1f2b">LogMeIn Control Panel</text>
+        <text x="200" y="99" font-family="Segoe UI, sans-serif" font-size="11.5" fill="#475063">App</text>
+        <text x="150" y="140" font-family="Segoe UI, sans-serif" font-size="12" font-weight="700" fill="#1a56db">Best match</text>
+      </svg>
+    </div>
+  </div>
+
+  <p class="note" style="margin-top:24px;"><strong>Last thing:</strong> please leave the computer powered on and connected to the internet after these steps, so we can reach it.</p>
+
+  <p class="src"><span class="lbl">LogMeIn reference:</span> <a href="https://support.logmein.com/pro/help/logmein-t-common-troubleshooting-connect" target="_blank" rel="noopener noreferrer">Common troubleshooting &mdash; &ldquo;Is the service running on the host?&rdquo;</a></p>
+
+  <a class="backlink" href="index.html">&larr; Back to Canned Replies</a>
+
+</main>
+
+<footer class="page">
+  <p>Re-enable LogMeIn <span class="version">v0.1.0</span> &middot; Umbrella Automation internal.</p>
+</footer>
+
+</body>
+</html>

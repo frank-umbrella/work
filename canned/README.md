@@ -15,6 +15,14 @@ so everyone sends the same, consistent wording.
 | Local admin setup            | A client must create a local admin account before remote takeover   |
 | 365 delegate access          | A client needs to open a delegated mailbox in Outlook on the Web    |
 | Enable Google 2FA            | A Google account is missing mandatory 2-Step Verification           |
+| Re-enable LogMeIn            | A PC shows "Not accessible - LogMeIn is off" and can't be reached   |
+
+## Subpages
+
+- `logmein-enable.html` - step-by-step guide (with inline-SVG screenshots) for
+  turning LogMeIn back on from the Control Panel. Linked from the Re-enable
+  LogMeIn reply; safe to share with a client. Uses an inline Windows-logo glyph
+  for the Start button rather than an external icon font.
 
 ## Notes
 
