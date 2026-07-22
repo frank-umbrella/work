@@ -89,6 +89,55 @@ notify; assignment change → assignee; status→Closed → contact; portal comm
 assignee. Subjects `[Ticket #N-token]`, replyTo `helpdesk@alerts.umbrellaautomation.com`
 from day one so M9 threading works retroactively.
 
+## Companion Chrome Extension (notifier) — `work/tickets/extension/`
+
+**Decision (2026-07-11):** MV3 Chrome Extension, NOT a Tampermonkey userscript.
+Why: this is fleet tooling handling client PII, not personal tooling. MV3 gives
+least-privilege `host_permissions` pinned to our origins; a userscript would
+require every tech to install Tampermonkey (a read-everything extension) and
+trust an auto-updating public script URL — the opposite of least privilege.
+Distribution via Chrome Web Store **unlisted** listing + Google Workspace
+admin-console force-install for the umbrellaautomation.com OU (version-pinned,
+centrally revocable). Dev-mode unpacked while iterating.
+
+**v1 scope: read-only new-ticket notifier.**
+- Toolbar badge: count of Open tickets (option: unassigned-only).
+- Desktop notification on (a) any new ticket, (b) ticket newly assigned to me.
+- Popup: newest open tickets, each deep-linking into the SPA; "Open Help Desk".
+- No content scripts. No writes — the extension contains no write code paths
+  (the real boundary remains the Firestore rules either way).
+
+**Architecture (SDK-free, minimal surface):**
+- Service worker only. Permissions: `identity`, `alarms`, `storage`,
+  `notifications`. Host permissions: `firestore.googleapis.com`,
+  `identitytoolkit.googleapis.com`. Nothing else.
+- Auth: `chrome.identity.getAuthToken` (Chrome-profile Google account) →
+  exchange via Identity Toolkit `signInWithIdp` REST → Firebase ID token →
+  Firestore REST `runQuery` with `Bearer` token. No Firebase SDK in the
+  extension. Requires a "Chrome extension" OAuth client in the
+  onboarding-a563d GCP project (client_id in manifest — public identifier,
+  fine for the repo). Existing `/msp_admins` rules gate all reads server-side;
+  a tech signed into Chrome with a non-Umbrella account simply gets
+  permission-denied and the popup shows a "sign in with your work profile"
+  state.
+- Polling via `chrome.alarms` every 60s; last-seen ticket ids in
+  `chrome.storage.local` drive the new/assigned notification delta. No
+  realtime listener needed for a badge.
+
+**Prerequisite in the SPA:** hash-based deep links (`#/t/<num>`) so the popup
+and notifications can open a specific ticket. Small addition — slated for M2
+alongside the thread work (M6 notification emails will want the same links).
+
+**Extension milestones (parallel track, doesn't block M2–M9):**
+- E0 — scaffold: manifest, OAuth client, auth exchange spike, badge with live
+  open count. Dev-mode unpacked on your machine. (after SPA M2/M3)
+- E1 — notifications + popup list + options page (badge mode, poll interval).
+- E2 — package, Web Store unlisted, Workspace force-install rollout. (makes
+  sense once the team actually lives in the tool — after the M7 migration)
+- Later candidates (revisit post-rollout): quick-create from any page
+  (deep-link prefill, still no direct writes), Spiceworks history grabber as a
+  throwaway sidecar during M7 if the flattened CSV proves insufficient.
+
 ## Open questions (defaults chosen; revisit as needed)
 1. Firebase project — join `onboarding-a563d` (chosen) vs new project.
 2. Folder name — `tickets` (chosen) vs `helpdesk`.
