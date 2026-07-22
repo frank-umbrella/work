@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PC Setup Scripts</title>
+<title>PC Scripts</title>
 <meta name="description" content="PowerShell scripts for re-fixing a fresh Windows PC: show all tray icons, stop Copilot and Malwarebytes at startup. Windows 10 and 11.">
 <meta name="robots" content="noindex">
-<meta name="version" content="0.7.0">
+<meta name="version" content="0.8.0">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -216,7 +216,7 @@
 
 <header class="page">
   <div class="wrap">
-    <h1>PC Setup Scripts</h1>
+    <h1>PC Scripts</h1>
     <p class="lede">PowerShell scripts for the things that have to be re-fixed every time you sign into a new or freshly imaged machine. Each script picks the right mechanism at run time, so the same file works on both Windows versions.</p>
     <span class="os-pill">Windows 10 &amp; Windows 11</span>
   </div>
@@ -234,6 +234,7 @@
       <li><a href="#windows-update">Windows Update routine</a></li>
       <li><a href="#wu-options">Windows Update options</a></li>
       <li><a href="#disk-cleanup">Disk Cleanup</a></li>
+      <li><a href="#devices-printers">Devices and Printers</a></li>
       <li><a href="#hp-wolf">Remove HP Wolf Security</a></li>
       <li><a href="#eset-cleanup">Remove ESET leftovers</a></li>
       <li><a href="#tools">Scan &amp; removal tools</a></li>
@@ -555,6 +556,41 @@
     </div>
   </section>
 
+  <!-- ===================== Devices and Printers ===================== -->
+  <section class="panel" id="devices-printers">
+    <div class="panel-head">
+      <div>
+        <span class="tag">Shortcuts</span>
+        <h2>Classic Devices and Printers</h2>
+        <code class="file">Open-DevicesAndPrinters.ps1</code>
+      </div>
+      <div class="panel-side">
+        <span class="badge badge-ok">No admin needed</span>
+        <a class="dl" href="Open-DevicesAndPrinters.ps1" download>Download .ps1</a>
+      </div>
+    </div>
+    <p class="purpose">Newer Windows buries the classic <strong>Devices and Printers</strong> window inside Settings. This opens the old Control Panel window directly (via its shell folder), and with <code>-AddPrinter</code> launches the legacy <strong>Add Printer wizard</strong> &mdash; handy for adding a printer by IP / local port the old way.</p>
+
+    <div class="opt">
+      <h3>Open Classic Devices and Printers</h3>
+      <p>Opens the Windows 7-style window. Use <code>-AddPrinter</code> to jump straight to the old Add Printer wizard.</p>
+      <pre>powershell -ExecutionPolicy Bypass -File C:\Open-DevicesAndPrinters.ps1</pre>
+      <p class="switches"><span class="lbl">Options:</span>
+        <span class="sw" tabindex="0" role="note" aria-label="-AddPrinter: opens the legacy Add Printer wizard directly instead of the Devices and Printers window"><code>-AddPrinter</code><span class="bubble">Opens the legacy Add Printer wizard directly (add by IP / local port the old way).</span></span>
+      </p>
+      <details class="manual">
+        <summary>Do it manually instead (Run box)</summary>
+        <div class="manual-body">
+          <p class="note">No script needed &mdash; paste either command into <kbd>Win</kbd>+<kbd>R</kbd> (or a Command Prompt).</p>
+          <p class="howto-cap">Classic Devices and Printers:</p>
+          <pre>explorer.exe shell:::{A8A91A66-3A7D-4424-8D24-04E180695C7A}</pre>
+          <p class="howto-cap">Old Add Printer wizard:</p>
+          <pre>rundll32.exe printui.dll,PrintUIEntry /il</pre>
+        </div>
+      </details>
+    </div>
+  </section>
+
   <!-- ===================== Remove HP Wolf Security ===================== -->
   <section class="panel" id="hp-wolf">
     <div class="panel-head">
@@ -669,7 +705,7 @@
 </main>
 
 <footer class="page">
-  <p>PC Setup Scripts <span class="version">v0.7.0</span> &middot; Windows 10 &amp; 11.</p>
+  <p>PC Scripts <span class="version">v0.8.0</span> &middot; Windows 10 &amp; 11.</p>
 </footer>
 
 <script>

@@ -27,6 +27,7 @@ label.
 | `Open-WindowsUpdate.ps1`  | Open Windows Update, pause updates, wait, then check          | To pause |
 | `Set-WindowsUpdateOptions.ps1` | Turn on MS-product updates + restart notify, set active hours | Yes |
 | `Open-DiskCleanup.ps1`    | Launch Disk Cleanup (cleanmgr) for a drive                    | No     |
+| `Open-DevicesAndPrinters.ps1` | Open classic Devices and Printers / old Add Printer wizard | No  |
 
 ### Software removal
 
@@ -375,7 +376,31 @@ opens Disk Cleanup directly.
 
 ---
 
-# 7. Remove HP Wolf Security
+# 7. Classic Devices and Printers
+
+`Open-DevicesAndPrinters.ps1` - no admin.
+
+Newer Windows buries the classic Devices and Printers window in Settings. This
+opens the old Control Panel window directly, and `-AddPrinter` launches the
+legacy Add Printer wizard (add a printer by IP / local port the old way).
+
+```powershell
+.\Open-DevicesAndPrinters.ps1              # classic Devices and Printers window
+.\Open-DevicesAndPrinters.ps1 -AddPrinter  # old Add Printer wizard
+```
+
+### Manual steps (Run box)
+
+Paste either into Win+R (or a Command Prompt):
+
+```text
+explorer.exe shell:::{A8A91A66-3A7D-4424-8D24-04E180695C7A}   (Devices and Printers)
+rundll32.exe printui.dll,PrintUIEntry /il                      (Add Printer wizard)
+```
+
+---
+
+# 8. Remove HP Wolf Security
 
 `Remove-HPWolfSecurity.ps1` - **admin needed** (self-elevates).
 
@@ -413,7 +438,7 @@ Update Service, then reboot.
 
 ---
 
-# 8. Remove ESET Online Scanner leftovers
+# 9. Remove ESET Online Scanner leftovers
 
 `Remove-ESETOnlineScanner.ps1` - **admin needed** (self-elevates).
 
