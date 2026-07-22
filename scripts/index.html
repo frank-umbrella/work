@@ -6,7 +6,7 @@
 <title>PC Scripts</title>
 <meta name="description" content="PowerShell scripts for re-fixing a fresh Windows PC: show all tray icons, stop Copilot and Malwarebytes at startup. Windows 10 and 11.">
 <meta name="robots" content="noindex">
-<meta name="version" content="0.8.0">
+<meta name="version" content="0.9.0">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -235,6 +235,7 @@
       <li><a href="#wu-options">Windows Update options</a></li>
       <li><a href="#disk-cleanup">Disk Cleanup</a></li>
       <li><a href="#devices-printers">Devices and Printers</a></li>
+      <li><a href="#print-flush">Print Flush</a></li>
       <li><a href="#hp-wolf">Remove HP Wolf Security</a></li>
       <li><a href="#eset-cleanup">Remove ESET leftovers</a></li>
       <li><a href="#tools">Scan &amp; removal tools</a></li>
@@ -591,6 +592,38 @@
     </div>
   </section>
 
+  <!-- ===================== Print Flush ===================== -->
+  <section class="panel" id="print-flush">
+    <div class="panel-head">
+      <div>
+        <span class="tag">Printing</span>
+        <h2>Print Flush &mdash; clear stuck print jobs</h2>
+        <code class="file">Print-Flush.bat</code>
+      </div>
+      <div class="panel-side">
+        <span class="badge badge-warn">Admin needed</span>
+        <a class="dl" href="Print-Flush.bat" download>Download .bat</a>
+      </div>
+    </div>
+    <p class="purpose">Stops the Print Spooler, deletes stuck / corrupt print jobs from the spool folder, and restarts it &mdash; the fix for a frozen print queue or a printer that just won&rsquo;t print. It also re-points the spooler&rsquo;s service dependency to <code>RPCSS</code><span class="tip" tabindex="0" role="note" aria-label="Permanently sets the Print Spooler service dependency to RPCSS only, removing extra dependencies a driver added. This lets the spooler start again on machines, often Lexmark, where a bad dependency blocks it."><span class="bubble">Permanently sets the spooler&rsquo;s service dependency to <code>RPCSS</code> only (removing extras a driver added). Lets the spooler start again on machines &mdash; often Lexmark &mdash; where a bad dependency blocks it.</span></span>, which unbreaks the spooler on machines where a bad dependency stops it starting.</p>
+
+    <div class="opt">
+      <h3>Run it (as administrator)</h3>
+      <p>It needs admin to stop/start the spooler and clear the spool folder. Right-click <strong>Print-Flush.bat</strong> and choose <em>Run as administrator</em> &mdash; or launch it elevated from PowerShell:</p>
+      <pre>Start-Process C:\Print-Flush.bat -Verb RunAs</pre>
+      <details class="manual">
+        <summary>Do it manually instead</summary>
+        <div class="manual-body">
+          <p class="note"><strong>Run box:</strong> <kbd>Win</kbd>+<kbd>R</kbd> &rarr; <code>cmd</code>, then <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Enter</kbd> for an elevated Command Prompt. Then run:</p>
+          <pre>net stop spooler
+del /Q /F /S "%systemroot%\System32\Spool\Printers\*.*"
+net start spooler</pre>
+          <p class="note">If the spooler won&rsquo;t start (common with Lexmark), reset its dependency first: <code>sc config spooler depend= RPCSS</code></p>
+        </div>
+      </details>
+    </div>
+  </section>
+
   <!-- ===================== Remove HP Wolf Security ===================== -->
   <section class="panel" id="hp-wolf">
     <div class="panel-head">
@@ -705,7 +738,7 @@
 </main>
 
 <footer class="page">
-  <p>PC Scripts <span class="version">v0.8.0</span> &middot; Windows 10 &amp; 11.</p>
+  <p>PC Scripts <span class="version">v0.9.0</span> &middot; Windows 10 &amp; 11.</p>
 </footer>
 
 <script>

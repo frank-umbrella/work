@@ -28,6 +28,7 @@ label.
 | `Set-WindowsUpdateOptions.ps1` | Turn on MS-product updates + restart notify, set active hours | Yes |
 | `Open-DiskCleanup.ps1`    | Launch Disk Cleanup (cleanmgr) for a drive                    | No     |
 | `Open-DevicesAndPrinters.ps1` | Open classic Devices and Printers / old Add Printer wizard | No  |
+| `Print-Flush.bat`         | Stop spooler, clear stuck print jobs, restart spooler         | Yes    |
 
 ### Software removal
 
@@ -400,7 +401,39 @@ rundll32.exe printui.dll,PrintUIEntry /il                      (Add Printer wiza
 
 ---
 
-# 8. Remove HP Wolf Security
+# 8. Print Flush
+
+`Print-Flush.bat` - **admin needed** (right-click > Run as administrator).
+
+Stops the Print Spooler, deletes stuck / corrupt jobs from the spool folder, and
+restarts it - the fix for a frozen print queue or a printer that won't print. It
+also re-points the spooler's service dependency to `RPCSS` (permanently), which
+unbreaks the spooler on machines - often Lexmark - where a bad dependency stops
+it starting.
+
+Right-click the `.bat` and choose **Run as administrator**, or elevate it from
+PowerShell:
+
+```powershell
+Start-Process C:\Print-Flush.bat -Verb RunAs
+```
+
+### Manual steps
+
+In an elevated Command Prompt (Win+R -> `cmd` -> Ctrl+Shift+Enter):
+
+```text
+net stop spooler
+del /Q /F /S "%systemroot%\System32\Spool\Printers\*.*"
+net start spooler
+```
+
+If the spooler won't start (common with Lexmark), reset its dependency first:
+`sc config spooler depend= RPCSS`
+
+---
+
+# 9. Remove HP Wolf Security
 
 `Remove-HPWolfSecurity.ps1` - **admin needed** (self-elevates).
 
@@ -438,7 +471,7 @@ Update Service, then reboot.
 
 ---
 
-# 9. Remove ESET Online Scanner leftovers
+# 10. Remove ESET Online Scanner leftovers
 
 `Remove-ESETOnlineScanner.ps1` - **admin needed** (self-elevates).
 
