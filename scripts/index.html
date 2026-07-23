@@ -6,7 +6,7 @@
 <title>PC Scripts</title>
 <meta name="description" content="PowerShell scripts for re-fixing a fresh Windows PC: show all tray icons, stop Copilot and Malwarebytes at startup. Windows 10 and 11.">
 <meta name="robots" content="noindex">
-<meta name="version" content="0.9.0">
+<meta name="version" content="0.10.0">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -233,6 +233,7 @@
       <li><a href="#malwarebytes">Stop Malwarebytes at startup</a></li>
       <li><a href="#windows-update">Windows Update routine</a></li>
       <li><a href="#wu-options">Windows Update options</a></li>
+      <li><a href="#admin-pwd-expiry">Admin password expiry</a></li>
       <li><a href="#disk-cleanup">Disk Cleanup</a></li>
       <li><a href="#devices-printers">Devices and Printers</a></li>
       <li><a href="#print-flush">Print Flush</a></li>
@@ -520,6 +521,42 @@
     </div>
   </section>
 
+  <!-- ===================== Admin password expiry ===================== -->
+  <section class="panel" id="admin-pwd-expiry">
+    <div class="panel-head">
+      <div>
+        <span class="tag">Accounts</span>
+        <h2>Disable password expiry (admin account)</h2>
+        <code class="file">Disable-AdminPasswordExpiry.ps1</code>
+      </div>
+      <div class="panel-side">
+        <span class="badge badge-warn">Admin needed</span>
+        <a class="dl" href="Disable-AdminPasswordExpiry.ps1" download>Download .ps1</a>
+      </div>
+    </div>
+    <p class="purpose">Sets <strong>Password never expires</strong> on the local <code>admin</code> account so the standard admin login doesn&rsquo;t get locked out when its password ages. Uses the built-in <code>Set-LocalUser</code><span class="tip" tabindex="0" role="note" aria-label="The built-in local-accounts cmdlet on Windows 10 and 11. Applies to local accounts only; domain and Microsoft Entra (Azure AD) accounts get their password policy from the directory, not here."><span class="bubble">Built-in local-accounts cmdlet (Win 10/11). <strong>Local accounts only</strong> &mdash; domain / Microsoft Entra (Azure AD) accounts get password policy from the directory, not here.</span></span> cmdlet, so it still works on Windows 11 24H2+ where <code>wmic</code> has been removed. Default targets a local account named <code>admin</code>.</p>
+
+    <div class="opt">
+      <h3>Set the admin password to never expire</h3>
+      <p>Run it and it flips <em>Password never expires</em> on for the <code>admin</code> account.</p>
+      <pre>powershell -ExecutionPolicy Bypass -File C:\Disable-AdminPasswordExpiry.ps1</pre>
+      <p class="switches"><span class="lbl">Options:</span>
+        <span class="sw" tabindex="0" role="note" aria-label="-User localadmin: target a different local account name instead of admin"><code>-User localadmin</code><span class="bubble">Target a different local account name (default is <code>admin</code>).</span></span>
+        <span class="sw" tabindex="0" role="note" aria-label="-Revert: turn password expiry back ON for the account"><code>-Revert</code><span class="bubble">Turn password expiry back <strong>on</strong> for the account.</span></span>
+      </p>
+      <details class="manual">
+        <summary>Do it manually instead</summary>
+        <div class="manual-body">
+          <p class="note"><strong>Run box (Pro / Enterprise):</strong> <kbd>Win</kbd>+<kbd>R</kbd> &rarr; <code>lusrmgr.msc</code> &rarr; <strong>Users</strong> &rarr; double-click <strong>admin</strong> &rarr; tick <strong>Password never expires</strong> &rarr; OK.</p>
+          <p class="howto-cap">Modern command (elevated PowerShell):</p>
+          <pre>Set-LocalUser -Name 'admin' -PasswordNeverExpires $true</pre>
+          <p class="howto-cap">Classic command (<code>wmic</code> &mdash; works on builds before Windows&nbsp;11 24H2):</p>
+          <pre>wmic UserAccount where Name='admin' set PasswordExpires=False</pre>
+        </div>
+      </details>
+    </div>
+  </section>
+
   <!-- ===================== Disk Cleanup ===================== -->
   <section class="panel" id="disk-cleanup">
     <div class="panel-head">
@@ -738,7 +775,7 @@ net start spooler</pre>
 </main>
 
 <footer class="page">
-  <p>PC Scripts <span class="version">v0.9.0</span> &middot; Windows 10 &amp; 11.</p>
+  <p>PC Scripts <span class="version">v0.10.0</span> &middot; Windows 10 &amp; 11.</p>
 </footer>
 
 <script>

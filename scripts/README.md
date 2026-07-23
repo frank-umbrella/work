@@ -30,6 +30,12 @@ label.
 | `Open-DevicesAndPrinters.ps1` | Open classic Devices and Printers / old Add Printer wizard | No  |
 | `Print-Flush.bat`         | Stop spooler, clear stuck print jobs, restart spooler         | Yes    |
 
+### Accounts
+
+| Script                          | Does                                                     | Admin? |
+| ------------------------------- | -------------------------------------------------------- | ------ |
+| `Disable-AdminPasswordExpiry.ps1` | Set "Password never expires" on a local account (default admin) | Yes |
+
 ### Software removal
 
 | Script                     | Does                                                         | Admin? |
@@ -505,6 +511,33 @@ before you close it, then delete the Desktop shortcut. Sources:
 1. In Task Scheduler, delete `EOSv3 Scheduler onLogOn` / `EOSv3 Scheduler onTime`.
 2. Delete `%LOCALAPPDATA%\ESET\ESETOnlineScanner`.
 3. Delete the ESET Online Scanner Desktop shortcut.
+
+---
+
+# 11. Disable admin password expiry
+
+`Disable-AdminPasswordExpiry.ps1` - **admin needed** (self-elevates).
+
+Sets "Password never expires" on the local `admin` account so the standard admin
+login doesn't lock out when its password ages. Uses `Set-LocalUser`, the modern
+replacement for `wmic UserAccount ... set PasswordExpires=False` (wmic is removed
+by default in Windows 11 24H2). Local accounts only - not domain / Microsoft
+Entra (Azure AD) accounts.
+
+```powershell
+.\Disable-AdminPasswordExpiry.ps1                    # the admin account
+.\Disable-AdminPasswordExpiry.ps1 -User localadmin   # a different local account
+.\Disable-AdminPasswordExpiry.ps1 -Revert            # turn expiry back on
+```
+
+### Manual steps
+
+- **GUI (Pro / Enterprise):** Win+R -> `lusrmgr.msc` -> Users -> double-click
+  **admin** -> tick **Password never expires** -> OK.
+- **Modern command** (elevated PowerShell):
+  `Set-LocalUser -Name 'admin' -PasswordNeverExpires $true`
+- **Classic command** (wmic, pre-24H2):
+  `wmic UserAccount where Name='admin' set PasswordExpires=False`
 
 ---
 
