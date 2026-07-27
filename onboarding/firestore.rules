@@ -354,15 +354,37 @@ service cloud.firestore {
       allow delete: if isTixManager();
 
       // ---- /tix_tickets/{id}/activity/{eventId} ----
-      // Append-only thread. History events now; public/private comments
-      // arrive in M2 (comment edit/pin will get their own narrower
-      // update clause then). Author fields must match the caller.
+      // Append-only thread of history events and public/private comments.
+      // Nothing is ever deleted, and authorship / timestamp / kind /
+      // visibility are immutable — an edit can never turn a private note
+      // into a public reply, or rewrite who said what.
       match /activity/{eventId} {
         allow read: if isMSPAdmin();
         allow create: if isMSPAdmin()
           && request.resource.data.byUid == request.auth.uid
           && request.resource.data.byEmail == request.auth.token.email;
-        allow update, delete: if false;
+
+        function immutableCore() {
+          return request.resource.data.kind == resource.data.kind
+            && request.resource.data.byUid == resource.data.byUid
+            && request.resource.data.byEmail == resource.data.byEmail
+            && request.resource.data.at == resource.data.at
+            && request.resource.data.visibility == resource.data.visibility;
+        }
+        // Author edits their own comment text (marked edited client-side).
+        allow update: if isMSPAdmin()
+          && resource.data.kind == "comment"
+          && resource.data.byUid == request.auth.uid
+          && immutableCore()
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['body', 'editedAt', 'attachments']);
+        // Any staff member can pin / unpin a comment.
+        allow update: if isMSPAdmin()
+          && resource.data.kind == "comment"
+          && immutableCore()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pinned']);
+
+        allow delete: if false;
       }
     }
   }

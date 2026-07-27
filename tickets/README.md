@@ -34,8 +34,8 @@ SPA on Firebase, deployed to `https://frank-umbrella.github.io/work/tickets/`.
 | M | Ships | Version |
 |---|---|---|
 | M0 | Scaffold, standards, staff auth, empty board | 0.1.0 |
-| **M1** | Ticket core: sequential IDs, create/edit/close, orgs + contacts, auto history | **0.2.0** ← current |
-| M2 | Comment thread (public/private), attachments, CC, mute | 0.3.0 |
+| M1 | Ticket core: sequential IDs, create/edit/close, orgs + contacts, auto history | 0.2.0 |
+| **M2** | Comment thread (public/private), attachments, CC, mute | **0.3.0** ← current |
 | M3 | Board power: sort, columns manager, filters, saved views, search, bulk update | 0.4.0 |
 | M4 | Labor/time tracking + CSV export, tasks, devices | 0.5.0 |
 | M5 | Admin-configurable custom attributes | 0.6.0 |
@@ -47,6 +47,29 @@ SPA on Firebase, deployed to `https://frank-umbrella.github.io/work/tickets/`.
 See [PLAN.md](PLAN.md) for the full design.
 
 ## Changelog
+
+### 0.3.0 — 2026-07-28
+M2 — the comment thread. **Why:** a tracker you can't hold a conversation in
+still leaves the actual back-and-forth in someone's inbox, which is the whole
+problem with the status quo. This makes the ticket the record.
+
+- **Public replies vs private notes.** The composer toggles between the two,
+  and private notes are visually distinct (amber) so nobody posts an internal
+  aside to a client by accident. Visibility is immutable after posting — an
+  edit can never flip a private note into a public one.
+- **All / Comments / History tabs**, matching Spiceworks, so you can read just
+  the conversation or just the audit trail.
+- **Attachments** (25 MB each) on comments, stored under `tix/<ticket>/<event>/`.
+- **Pin** a comment to the top of the thread; **edit** your own (marked edited,
+  original timestamp and author preserved).
+- **CC list** and a per-user **mute** toggle — both wired for the M6
+  notification emails, so muting already means something when mail turns on.
+- **Deep links**: opening a ticket sets `#/t/<num>`, and that URL now restores
+  the ticket on a cold load. Prerequisite for the notifier extension and for
+  linking straight to a ticket from an email.
+
+Adds an `activity` update clause (narrow: body/editedAt/attachments by the
+author, `pinned` by any staff) and a Storage rule for the `tix/` path.
 
 ### 0.2.2 — 2026-07-28
 Add a Computer / PC name field to the New Ticket form and the ticket detail

@@ -23,6 +23,9 @@ service firebase.storage {
         && firestore.exists(/databases/(default)/documents/msp_admins/$(request.auth.uid));
     }
 
+    // Shared content-type allowlist — also used by the /tix (Help Desk)
+    // block below; the formats overlap exactly (screenshots, logs, PDFs,
+    // saved emails), so it stays one list rather than two copies.
     function allowedIncidentType() {
       return request.resource.contentType.matches("image/.*")
           || request.resource.contentType.matches("text/.*")
@@ -59,6 +62,22 @@ service firebase.storage {
         && request.resource.size < 1 * 1024 * 1024
         && request.resource.contentType.matches("image/.*");
       allow delete: if isMSPAdmin();
+    }
+
+    // -------- /tix/{ticketId}/{eventId}/... --------
+    // Umbrella Help Desk (work/tickets) comment attachments. Staff-only
+    // for now; when the client portal lands (M8) this gains a clause
+    // letting a portal user read files on their own org's tickets, gated
+    // via firestore.get() on the ticket's orgId (same cross-service
+    // pattern used above). Files are immutable once written — a new
+    // upload means a new comment.
+    match /tix/{ticketId}/{eventId}/{file=**} {
+      allow read:   if isMSPAdmin();
+      allow create: if isMSPAdmin()
+        && request.resource.size < 25 * 1024 * 1024
+        && allowedIncidentType();
+      allow delete: if isMSPAdmin();
+      allow update: if false;
     }
 
     // Default deny for all other paths.

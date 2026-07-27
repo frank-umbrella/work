@@ -6,7 +6,7 @@
 <title>Help Desk &middot; Umbrella Automation</title>
 <meta name="description" content="Internal IT help-desk and ticket system for Umbrella Automation managed-service clients.">
 <meta name="robots" content="noindex">
-<meta name="app-version" content="0.2.2">
+<meta name="app-version" content="0.3.0">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -212,6 +212,69 @@
   .event .who { font-weight: 600; }
   .event .when { color: var(--ink-faint); font-size: 12px; }
 
+  /* ============== thread: tabs, comments, composer ============== */
+  .thread-tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); margin-bottom: 12px; }
+  .thread-tabs button {
+    background: transparent; border: 0; border-bottom: 2px solid transparent;
+    padding: 7px 13px; margin-bottom: -1px; cursor: pointer; border-radius: 0;
+    color: var(--ink-soft); font-size: 13px; font-weight: 500;
+  }
+  .thread-tabs button:hover { color: var(--accent); }
+  .thread-tabs button.active { color: var(--accent-ink); border-bottom-color: var(--accent); font-weight: 600; }
+
+  .cmt { display: flex; gap: 10px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .cmt:last-child { border-bottom: 0; }
+  .cmt .av {
+    width: 30px; height: 30px; border-radius: 50%; flex: 0 0 auto;
+    background: var(--accent-soft); color: var(--accent-ink);
+    display: grid; place-items: center; font-weight: 700; font-size: 12px;
+  }
+  .cmt.private .av { background: var(--warn-soft); color: var(--warn); }
+  .cmt .main { flex: 1 1 auto; min-width: 0; }
+  .cmt .head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-bottom: 3px; }
+  .cmt .head .who { font-weight: 600; font-size: 13.5px; }
+  .cmt .head .when { color: var(--ink-faint); font-size: 12px; }
+  .cmt .head .acts { margin-left: auto; display: flex; gap: 2px; }
+  .cmt .head .acts button {
+    background: transparent; border: 0; cursor: pointer; color: var(--ink-faint);
+    font-size: 11.5px; padding: 2px 6px; border-radius: 5px;
+  }
+  .cmt .head .acts button:hover { background: var(--surface-2); color: var(--ink); }
+  .cmt .text { font-size: 13.5px; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .cmt.private { background: #fffdf5; border-radius: 8px; padding: 12px 12px; border: 1px solid var(--warn-soft); margin: 6px 0; }
+  .tag-private { background: var(--warn-soft); color: var(--warn); }
+  .tag-pinned { background: var(--accent-soft); color: var(--accent-ink); }
+  .cmt .files { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .cmt .files a {
+    display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px;
+    background: var(--surface-2); border: 1px solid var(--line); border-radius: 7px;
+    padding: 4px 9px; color: var(--ink-soft); max-width: 100%; overflow-wrap: anywhere;
+  }
+  .cmt .files a:hover { border-color: var(--accent); color: var(--accent-ink); text-decoration: none; }
+
+  .composer { border: 1px solid var(--line-strong); border-radius: 10px; background: var(--surface); margin-top: 16px; overflow: hidden; }
+  .composer.private-mode { border-color: var(--warn); background: #fffdf5; }
+  .composer textarea { width: 100%; min-width: 0; border: 0; padding: 12px 14px; resize: vertical; min-height: 76px; background: transparent; }
+  .composer textarea:focus { outline: none; }
+  .composer .bar { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-top: 1px solid var(--line); flex-wrap: wrap; }
+  .composer .bar .spacer { flex: 1 1 auto; }
+  .vis-toggle { display: inline-flex; background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 2px; }
+  .vis-toggle button { border: 0; background: transparent; border-radius: 6px; padding: 5px 11px; font-size: 12.5px; font-weight: 500; cursor: pointer; color: var(--ink-soft); }
+  .vis-toggle button.active { background: var(--surface); color: var(--ink); font-weight: 600; box-shadow: var(--shadow); }
+  .vis-toggle button.active[data-vis="private"] { background: var(--warn-soft); color: var(--warn); }
+  .attach-list { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 10px 8px; }
+  .attach-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 999px; padding: 3px 5px 3px 10px; overflow-wrap: anywhere; }
+  .attach-chip button { border: 0; background: transparent; cursor: pointer; color: var(--ink-faint); font-size: 14px; line-height: 1; padding: 0 4px; }
+  .attach-chip button:hover { color: var(--danger); }
+
+  /* CC chips in the rail */
+  .cc-list { display: flex; flex-wrap: wrap; gap: 5px; }
+  .cc-chip { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 999px; padding: 2px 4px 2px 9px; overflow-wrap: anywhere; }
+  .cc-chip button { border: 0; background: transparent; cursor: pointer; color: var(--ink-faint); font-size: 13px; line-height: 1; padding: 0 3px; }
+  .cc-chip button:hover { color: var(--danger); }
+  .switch { display: inline-flex; align-items: center; gap: 7px; cursor: pointer; font-size: 13px; }
+  .switch input { width: auto; }
+
   /* ============== toast ============== */
   #toast {
     position: fixed; top: 18px; left: 50%; transform: translateX(-50%);
@@ -389,7 +452,7 @@
   </main>
 
   <footer class="foot">
-    <a href="../">&larr; Work hub</a> &middot; Help Desk <span id="footVersion">v0.2.2</span>
+    <a href="../">&larr; Work hub</a> &middot; Help Desk <span id="footVersion">v0.3.0</span>
   </footer>
 </div>
 
@@ -415,8 +478,11 @@ import {
 import {
   getFirestore, collection, doc, getDoc, getDocs, setDoc, updateDoc,
   addDoc, deleteDoc, query, where, orderBy, onSnapshot,
-  runTransaction, serverTimestamp
+  runTransaction, serverTimestamp, increment, arrayUnion, arrayRemove
 } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
+import {
+  getStorage, ref as storageRef, uploadBytes, getDownloadURL
+} from "https://www.gstatic.com/firebasejs/12.12.1/firebase-storage.js";
 
 // ------------------------------------------------------------------
 // Firebase config — shared onboarding-a563d project. Help Desk owns the
@@ -431,7 +497,7 @@ const firebaseConfig = {
   appId: "1:330286523878:web:27c4e2ffca3496ebc32227"
 };
 
-const APP_VERSION = "0.2.2";
+const APP_VERSION = "0.3.0";
 const MSP_DOMAIN = "umbrellaautomation.com";
 
 // Fixed vocabularies for M1 (admin-configurable in M5).
@@ -452,6 +518,10 @@ const TICKET_NUM_BASE = 5000;
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+const storage = getStorage(app);
+
+// Attachment limits — mirrored in storage.rules (rules are the real gate).
+const MAX_FILE_BYTES = 25 * 1024 * 1024;
 
 document.title = "Help Desk " + APP_VERSION + " · Umbrella Automation";
 document.getElementById("footVersion").textContent = "v" + APP_VERSION;
@@ -462,6 +532,9 @@ const state = {
   tickets: [], orgs: [], admins: [],
   statusFilter: "Open", search: "",
   openTicketId: null,
+  threadTab: "all",          // all | comments | history
+  draftVisibility: "public", // public | private
+  pendingFiles: [],          // File[] staged on the composer
   unsub: { tickets: null, orgs: null, admins: null, activity: null, openTicket: null }
 };
 
@@ -573,7 +646,11 @@ function startData() {
   // tickets — ordered by updatedAt desc (single-field, no composite index)
   state.unsub.tickets = onSnapshot(
     query(collection(db, "tix_tickets"), orderBy("updatedAt", "desc")),
-    snap => { state.tickets = snap.docs.map(d => ({ id: d.id, ...d.data() })); renderBoard(); if (state.openTicketId) renderDetail(); },
+    snap => {
+      state.tickets = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderBoard();
+      if (state.openTicketId) renderDetail(); else applyHashRoute();
+    },
     err => toast(friendlyErr(err, "Couldn't load tickets"), true)
   );
   // orgs
@@ -757,18 +834,46 @@ function describeEvent(ev) {
     case "category": return `changed category to <strong>${esc(e.to)}</strong>`;
     case "due": return e.to ? `set due date to <strong>${esc(e.to)}</strong>` : "cleared the due date";
     case "attr": return e.to ? `set ${esc(e.label || e.key)} to <strong>${esc(e.to)}</strong>` : `cleared ${esc(e.label || e.key)}`;
+    case "cc": return `${e.action === "remove" ? "removed" : "added"} <strong>${esc(e.to)}</strong> ${e.action === "remove" ? "from" : "to"} the CC list`;
     default: return esc(e.type || "updated the ticket");
   }
 }
 
 // ============== ticket detail ==============
-function openTicket(id) { state.openTicketId = id; subscribeActivity(id); showDetailView(true); renderDetail(); }
+function openTicket(id, { silent } = {}) {
+  state.openTicketId = id;
+  state.threadTab = "all"; state.draftVisibility = "public"; state.pendingFiles = [];
+  subscribeActivity(id);
+  showDetailView(true);
+  renderDetail();
+  // Deep link: #/t/<num>. Written on open so the URL is shareable and the
+  // notifier extension / M6 emails can point at a specific ticket.
+  if (!silent) {
+    const t = state.tickets.find(x => x.id === id);
+    if (t) history.replaceState(null, "", "#/t/" + t.num);
+  }
+}
 function backToList() {
   state.openTicketId = null;
+  state.pendingFiles = [];
   if (state.unsub.activity) { state.unsub.activity(); state.unsub.activity = null; }
   showDetailView(false);
+  if (location.hash) history.replaceState(null, "", location.pathname + location.search);
 }
 function showDetailView(on) { $("#ticketDetail").hidden = !on; $("#ticketsList").hidden = on; }
+
+// Resolve #/t/<num> once tickets are loaded (deep link on cold load).
+function applyHashRoute() {
+  const m = (location.hash || "").match(/^#\/t\/(\d+)$/);
+  if (!m) return;
+  const t = state.tickets.find(x => String(x.num) === m[1]);
+  if (t && state.openTicketId !== t.id) openTicket(t.id, { silent: true });
+}
+window.addEventListener("hashchange", () => {
+  if (!state.isStaff) return;
+  if (/^#\/t\/\d+$/.test(location.hash || "")) applyHashRoute();
+  else if (state.openTicketId) backToList();
+});
 
 let _activity = [];
 function subscribeActivity(id) {
@@ -787,11 +892,26 @@ function renderDetail() {
   const box = $("#ticketDetail");
   if (!t) { box.innerHTML = `<div class="panel-head"><button class="btn sm" id="d-back">&larr; Back</button></div><div class="card"><div class="empty"><h3>Ticket not found</h3></div></div>`; $("#d-back")?.addEventListener("click", backToList); return; }
   const admOpts = [{ v: "", label: "Unassigned" }].concat(state.admins.map(a => ({ v: a.id, label: adminName(a) })));
-  const events = _activity.map(ev => `
+
+  // ---- thread: pinned comments first, then chronological ----
+  const tab = state.threadTab;
+  const visible = _activity.filter(ev =>
+    tab === "all" ? true : tab === "comments" ? ev.kind === "comment" : ev.kind === "history");
+  const ordered = [
+    ...visible.filter(ev => ev.kind === "comment" && ev.pinned),
+    ...visible.filter(ev => !(ev.kind === "comment" && ev.pinned))
+  ];
+  const threadHTML = ordered.map(ev => ev.kind === "comment" ? renderComment(ev) : `
     <div class="event"><div class="dot"></div><div class="body">
       <div><span class="who">${esc(ev.byName || ev.byEmail || "")}</span> ${describeEvent(ev)}</div>
       <div class="when" title="${esc(fmtDate(ev.at))}">${esc(fmtRel(ev.at))}</div>
-    </div></div>`).join("") || `<p class="muted">No history yet.</p>`;
+    </div></div>`).join("") ||
+    `<p class="muted">${tab === "comments" ? "No comments yet." : tab === "history" ? "No history yet." : "Nothing here yet."}</p>`;
+
+  const ccHTML = (t.ccEmails || []).length
+    ? (t.ccEmails || []).map(e => `<span class="cc-chip">${esc(e)}<button data-cc-remove="${esc(e)}" title="Remove">&times;</button></span>`).join("")
+    : `<span class="muted" style="font-size:12.5px">None</span>`;
+  const muted = (t.mutedBy || []).includes(state.user.uid);
 
   box.innerHTML = `
     <div class="panel-head"><button class="btn sm" id="d-back">&larr; Tickets</button></div>
@@ -808,9 +928,26 @@ function renderDetail() {
       <div>
         <div class="thread-h">Description</div>
         <div class="desc-block">${t.description ? esc(t.description) : '<span class="muted">No description.</span>'}</div>
-        <div class="thread-h">History</div>
-        <div class="thread">${events}</div>
-        <p class="muted" style="font-size:12.5px;margin-top:14px">Comments &amp; replies arrive in M2.</p>
+        <div class="thread-tabs" id="d-threadTabs">
+          <button data-tt="all" class="${tab === "all" ? "active" : ""}">All</button>
+          <button data-tt="comments" class="${tab === "comments" ? "active" : ""}">Comments</button>
+          <button data-tt="history" class="${tab === "history" ? "active" : ""}">History</button>
+        </div>
+        <div class="thread">${threadHTML}</div>
+        <div class="composer${state.draftVisibility === "private" ? " private-mode" : ""}" id="d-composer">
+          <textarea id="d-cmt" placeholder="${state.draftVisibility === "private" ? "Internal note — the client never sees this…" : "Reply to the client…"}"></textarea>
+          <div class="attach-list" id="d-attachList"></div>
+          <div class="bar">
+            <div class="vis-toggle" id="d-vis">
+              <button data-vis="public" class="${state.draftVisibility === "public" ? "active" : ""}" title="Visible to the client. Emailed to the contact in M6.">Public reply</button>
+              <button data-vis="private" class="${state.draftVisibility === "private" ? "active" : ""}" title="Internal only — never shown to the client or emailed.">Private note</button>
+            </div>
+            <button class="btn sm" id="d-attachBtn" title="Attach a file (max 25 MB each)">Attach</button>
+            <input type="file" id="d-file" multiple hidden>
+            <div class="spacer"></div>
+            <button class="btn primary" id="d-send">Send</button>
+          </div>
+        </div>
       </div>
       <div class="card" style="padding:12px 14px">
         <div class="rail">
@@ -821,6 +958,8 @@ function renderDetail() {
           <div class="attr"><span class="k">Due</span><span class="v"><input id="d-due" type="date"></span></div>
           <div class="attr"><span class="k" title="Which machine this ticket is about.">Computer</span><span class="v"><input id="d-computer" type="text" maxlength="80" placeholder="—"></span></div>
           <div class="attr"><span class="k">Contact</span><span class="v">${esc(t.contactEmail || "—")}</span></div>
+          <div class="attr"><span class="k" title="Extra people copied on public replies (M6 emails).">CC'd</span><span class="v"><div class="cc-list">${ccHTML}</div><button class="btn sm" id="d-ccAdd" style="margin-top:6px">+ Add CC</button></span></div>
+          <div class="attr"><span class="k" title="Stop notifying you about this ticket. Others still get notified.">Mute</span><span class="v"><label class="switch"><input type="checkbox" id="d-mute" ${muted ? "checked" : ""}> <span class="muted" style="font-size:12.5px">${muted ? "Muted for me" : "Notify me"}</span></label></span></div>
           <div class="attr"><span class="k">Updated</span><span class="v muted">${esc(fmtRel(t.updatedAt))}</span></div>
         </div>
       </div>
@@ -841,6 +980,189 @@ function renderDetail() {
   $("#d-computer").addEventListener("change", e => changeField(t, "computerName", e.target.value.trim()));
   box.querySelector('[data-act="close"]')?.addEventListener("click", () => changeField(t, "status", "Closed"));
   box.querySelector('[data-act="reopen"]')?.addEventListener("click", () => changeField(t, "status", "Open"));
+
+  // ---- thread tabs ----
+  $("#d-threadTabs").addEventListener("click", e => {
+    const b = e.target.closest("button[data-tt]"); if (!b) return;
+    state.threadTab = b.dataset.tt; renderDetail();
+  });
+  // ---- composer ----
+  const ta = $("#d-cmt");
+  ta.value = _draftText;
+  ta.addEventListener("input", () => { _draftText = ta.value; });
+  $("#d-vis").addEventListener("click", e => {
+    const b = e.target.closest("button[data-vis]"); if (!b) return;
+    state.draftVisibility = b.dataset.vis; _draftText = ta.value; renderDetail();
+  });
+  $("#d-attachBtn").addEventListener("click", () => $("#d-file").click());
+  $("#d-file").addEventListener("change", e => {
+    for (const f of Array.from(e.target.files || [])) {
+      if (f.size > MAX_FILE_BYTES) { toast(`"${f.name}" is over 25 MB.`, true); continue; }
+      state.pendingFiles.push(f);
+    }
+    e.target.value = ""; _draftText = ta.value; renderAttachList();
+  });
+  $("#d-send").addEventListener("click", () => sendComment(t));
+  // Ctrl/Cmd+Enter sends — the shortcut techs expect in a reply box.
+  ta.addEventListener("keydown", e => {
+    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); sendComment(t); }
+  });
+  renderAttachList();
+
+  // ---- comment actions (edit / pin) ----
+  box.querySelectorAll("[data-cmt-edit]").forEach(b =>
+    b.addEventListener("click", () => editComment(t, b.dataset.cmtEdit)));
+  box.querySelectorAll("[data-cmt-pin]").forEach(b =>
+    b.addEventListener("click", () => togglePin(t, b.dataset.cmtPin)));
+
+  // ---- CC + mute ----
+  $("#d-ccAdd").addEventListener("click", () => addCcModal(t));
+  box.querySelectorAll("[data-cc-remove]").forEach(b =>
+    b.addEventListener("click", () => removeCc(t, b.dataset.ccRemove)));
+  $("#d-mute").addEventListener("change", e => toggleMute(t, e.target.checked));
+}
+
+// Draft survives re-renders (snapshots re-render the detail constantly).
+let _draftText = "";
+
+function renderAttachList() {
+  const box = $("#d-attachList"); if (!box) return;
+  box.innerHTML = state.pendingFiles.map((f, i) =>
+    `<span class="attach-chip">${esc(f.name)} <button data-rm="${i}" title="Remove">&times;</button></span>`).join("");
+  box.querySelectorAll("[data-rm]").forEach(b =>
+    b.addEventListener("click", () => { state.pendingFiles.splice(Number(b.dataset.rm), 1); renderAttachList(); }));
+}
+
+function renderComment(ev) {
+  const who = ev.byName || ev.byEmail || "";
+  const initial = (who[0] || "?").toUpperCase();
+  const mine = ev.byUid === state.user.uid;
+  const files = (ev.attachments || []).map(a =>
+    `<a href="${esc(a.downloadURL)}" target="_blank" rel="noopener noreferrer">${esc(a.name)}</a>`).join("");
+  const tags = [
+    ev.visibility === "private" ? `<span class="pill tag-private">Private</span>` : "",
+    ev.pinned ? `<span class="pill tag-pinned">Pinned</span>` : "",
+    ev.editedAt ? `<span class="muted" style="font-size:11.5px">edited</span>` : ""
+  ].join(" ");
+  return `<div class="cmt ${ev.visibility === "private" ? "private" : ""}">
+    <div class="av">${esc(initial)}</div>
+    <div class="main">
+      <div class="head">
+        <span class="who">${esc(who)}</span>
+        <span class="when" title="${esc(fmtDate(ev.at))}">${esc(fmtRel(ev.at))}</span>
+        ${tags}
+        <span class="acts">
+          ${mine ? `<button data-cmt-edit="${esc(ev.id)}">Edit</button>` : ""}
+          <button data-cmt-pin="${esc(ev.id)}">${ev.pinned ? "Unpin" : "Pin"}</button>
+        </span>
+      </div>
+      <div class="text">${esc(ev.body)}</div>
+      ${files ? `<div class="files">${files}</div>` : ""}
+    </div></div>`;
+}
+
+async function sendComment(t) {
+  const ta = $("#d-cmt");
+  const body = ta.value.trim();
+  const files = state.pendingFiles.slice();
+  if (!body && !files.length) return toast("Write something first.", true);
+  const visibility = state.draftVisibility;
+  const btn = $("#d-send"); btn.disabled = true; btn.textContent = files.length ? "Uploading…" : "Sending…";
+  const u = state.user;
+  try {
+    // Create the comment first so attachments have a stable folder to live in.
+    const ref = await addDoc(collection(db, "tix_tickets", t.id, "activity"), {
+      kind: "comment", visibility, via: "web", body,
+      at: serverTimestamp(), byUid: u.uid, byEmail: u.email, byName: u.displayName || u.email,
+      pinned: false, editedAt: null, attachments: [],
+      emailMessageId: null, inReplyTo: null   // M9 inbound-threading hooks
+    });
+    if (files.length) {
+      const uploaded = [];
+      for (const f of files) {
+        const path = `tix/${t.id}/${ref.id}/${f.name}`;
+        const sref = storageRef(storage, path);
+        await uploadBytes(sref, f, { contentType: f.type || "application/octet-stream" });
+        uploaded.push({ path, name: f.name, size: f.size, contentType: f.type || "", downloadURL: await getDownloadURL(sref) });
+      }
+      await updateDoc(doc(db, "tix_tickets", t.id, "activity", ref.id), { attachments: uploaded });
+    }
+    const patch = {
+      updatedAt: serverTimestamp(), lastActivityAt: serverTimestamp(),
+      commentCount: increment(1)
+    };
+    if (visibility === "public") {
+      patch.publicCommentCount = increment(1);
+      patch.lastPublicActivityAt = serverTimestamp();
+    }
+    await updateDoc(doc(db, "tix_tickets", t.id), patch);
+    ta.value = ""; _draftText = ""; state.pendingFiles = [];
+    toast(visibility === "private" ? "Private note added." : "Reply added.");
+    renderDetail();
+  } catch (err) {
+    btn.disabled = false; btn.textContent = "Send";
+    toast(friendlyErr(err, "Couldn't post the comment"), true);
+  }
+}
+
+function editComment(t, eventId) {
+  const ev = _activity.find(x => x.id === eventId); if (!ev) return;
+  openModal({
+    title: "Edit comment", persistent: true,
+    sub: ev.visibility === "private" ? "Private note — internal only." : "Public reply — the client can see this.",
+    body: `<div class="form-grid">${field({ id: "ec-body", label: "Comment", full: true, hint: "The original posting time and author stay unchanged; the comment is marked edited.", node: `<textarea id="ec-body">${esc(ev.body)}</textarea>` })}</div>`,
+    foot: `<button class="btn" data-modal-close>Cancel</button><button class="btn primary" id="ec-save">Save</button>`
+  });
+  $("#ec-save").addEventListener("click", async () => {
+    const body = $("#ec-body").value.trim();
+    if (!body) return toast("Comment can't be empty.", true);
+    const btn = $("#ec-save"); btn.disabled = true; btn.textContent = "Saving…";
+    try {
+      await updateDoc(doc(db, "tix_tickets", t.id, "activity", eventId), { body, editedAt: serverTimestamp() });
+      closeModal(); toast("Comment updated.");
+    } catch (err) { btn.disabled = false; btn.textContent = "Save"; toast(friendlyErr(err, "Couldn't edit the comment"), true); }
+  });
+}
+
+async function togglePin(t, eventId) {
+  const ev = _activity.find(x => x.id === eventId); if (!ev) return;
+  try {
+    await updateDoc(doc(db, "tix_tickets", t.id, "activity", eventId), { pinned: !ev.pinned });
+    toast(ev.pinned ? "Unpinned." : "Pinned to the top.");
+  } catch (err) { toast(friendlyErr(err, "Couldn't pin the comment"), true); }
+}
+
+function addCcModal(t) {
+  openModal({
+    title: "Add CC", persistent: true,
+    body: `<div class="form-grid">${field({ id: "cc-email", label: "Email address", full: true, hint: "Copied on public replies when notification emails land in M6. Internal notes are never sent.", node: `<input id="cc-email" type="email" placeholder="person@client.com">` })}</div>`,
+    foot: `<button class="btn" data-modal-close>Cancel</button><button class="btn primary" id="cc-save">Add</button>`
+  });
+  $("#cc-save").addEventListener("click", async () => {
+    const email = $("#cc-email").value.trim().toLowerCase();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return toast("Enter a valid email address.", true);
+    if ((t.ccEmails || []).includes(email)) { closeModal(); return toast("Already on the CC list."); }
+    try {
+      await updateDoc(doc(db, "tix_tickets", t.id), { ccEmails: arrayUnion(email), updatedAt: serverTimestamp() });
+      await addActivity(t.id, { type: "cc", action: "add", to: email });
+      closeModal(); toast("CC added.");
+    } catch (err) { toast(friendlyErr(err, "Couldn't add the CC"), true); }
+  });
+}
+async function removeCc(t, email) {
+  try {
+    await updateDoc(doc(db, "tix_tickets", t.id), { ccEmails: arrayRemove(email), updatedAt: serverTimestamp() });
+    await addActivity(t.id, { type: "cc", action: "remove", to: email });
+    toast("CC removed.");
+  } catch (err) { toast(friendlyErr(err, "Couldn't remove the CC"), true); }
+}
+async function toggleMute(t, on) {
+  try {
+    await updateDoc(doc(db, "tix_tickets", t.id), {
+      mutedBy: on ? arrayUnion(state.user.uid) : arrayRemove(state.user.uid)
+    });
+    toast(on ? "Muted — you won't be notified about this ticket." : "Notifications back on.");
+  } catch (err) { toast(friendlyErr(err, "Couldn't change mute"), true); }
 }
 
 async function changeField(t, kind, value) {
