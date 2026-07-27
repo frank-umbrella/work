@@ -48,6 +48,13 @@ See [PLAN.md](PLAN.md) for the full design.
 
 ## Changelog
 
+### 0.3.1 — 2026-07-28
+Fix: a cold load on `#/t/<num>` landed on the board instead of the ticket.
+**Why:** sign-in called `backToList()` to reset the view, and that helper
+clears the hash by design (correct when a user presses Back, wrong during
+startup) — so the deep link was erased before the tickets snapshot arrived to
+resolve it. Startup now resets the view without touching the hash.
+
 ### 0.3.0 — 2026-07-28
 M2 — the comment thread. **Why:** a tracker you can't hold a conversation in
 still leaves the actual back-and-forth in someone's inbox, which is the whole
