@@ -6,7 +6,7 @@
 <title>Help Desk &middot; Umbrella Automation</title>
 <meta name="description" content="Internal IT help-desk and ticket system for Umbrella Automation managed-service clients.">
 <meta name="robots" content="noindex">
-<meta name="app-version" content="0.2.1">
+<meta name="app-version" content="0.2.2">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -389,7 +389,7 @@
   </main>
 
   <footer class="foot">
-    <a href="../">&larr; Work hub</a> &middot; Help Desk <span id="footVersion">v0.2.1</span>
+    <a href="../">&larr; Work hub</a> &middot; Help Desk <span id="footVersion">v0.2.2</span>
   </footer>
 </div>
 
@@ -431,7 +431,7 @@ const firebaseConfig = {
   appId: "1:330286523878:web:27c4e2ffca3496ebc32227"
 };
 
-const APP_VERSION = "0.2.1";
+const APP_VERSION = "0.2.2";
 const MSP_DOMAIN = "umbrellaautomation.com";
 
 // Fixed vocabularies for M1 (admin-configurable in M5).
@@ -665,6 +665,7 @@ $("#newTicketBtn").addEventListener("click", () => {
       ${field({ id: "nt-cat", label: "Category", hint: "The kind of issue — used for reporting later.", node: selectNode("nt-cat", catOpts, { glow: true, placeholder: "Select…" }) })}
       ${field({ id: "nt-contact-email", label: "Contact email", hint: "Who reported it. Reused as the client contact for this org.", node: `<input id="nt-contact-email" type="email" placeholder="person@client.com">` })}
       ${field({ id: "nt-contact-name", label: "Contact name", hint: "Optional — the requester's name.", node: `<input id="nt-contact-name" type="text" placeholder="Optional">` })}
+      ${field({ id: "nt-computer", label: "Computer / PC name", hint: "Which machine this is about — e.g. FRONTDESK-PC. Helps the tech find the device fast; leave blank if not machine-related.", node: `<input id="nt-computer" type="text" maxlength="80" placeholder="Optional — e.g. FRONTDESK-PC">` })}
       ${field({ id: "nt-assignee", label: "Assignee", hint: "The tech responsible. Leave unassigned to triage later.", node: selectNode("nt-assignee", admOpts, { placeholder: "Unassigned" }) })}
       ${field({ id: "nt-pri", label: "Priority", hint: "Defaults to Medium.", node: selectNode("nt-pri", PRIORITIES, {}) })}
     </div>`,
@@ -683,6 +684,7 @@ async function createTicket() {
   const contactName = $("#nt-contact-name").value.trim();
   const assigneeId = $("#nt-assignee").value;
   const priority = $("#nt-pri").value || "med";
+  const computerName = $("#nt-computer").value.trim();
   if (!summary) return toast("Summary is required.", true);
   if (!orgId) return toast("Pick an organization.", true);
   if (!category) return toast("Pick a category.", true);
@@ -718,7 +720,7 @@ async function createTicket() {
         contactId, contactEmail, contactName: contactName || "",
         assigneeUid: assigneeId || null, assigneeEmail: adm?.email || null, assigneeName: adm ? adminName(adm) : null,
         status: "Open", priority, category, dueDate: null,
-        customAttrs: {}, ccEmails: [], deviceIds: [], mutedBy: [],
+        customAttrs: computerName ? { computerName } : {}, ccEmails: [], deviceIds: [], mutedBy: [],
         commentCount: 0, publicCommentCount: 0, timeSpentSec: 0, taskCounts: { done: 0, total: 0 },
         spiceworksId: null, inbound: { token: randToken(8) },
         createdAt: serverTimestamp(), createdByUid: u.uid, createdByEmail: u.email,
@@ -754,6 +756,7 @@ function describeEvent(ev) {
     case "priority": return `changed priority to <strong>${esc(priLabel(e.to))}</strong>`;
     case "category": return `changed category to <strong>${esc(e.to)}</strong>`;
     case "due": return e.to ? `set due date to <strong>${esc(e.to)}</strong>` : "cleared the due date";
+    case "attr": return e.to ? `set ${esc(e.label || e.key)} to <strong>${esc(e.to)}</strong>` : `cleared ${esc(e.label || e.key)}`;
     default: return esc(e.type || "updated the ticket");
   }
 }
@@ -816,6 +819,7 @@ function renderDetail() {
           <div class="attr"><span class="k">Assignee</span><span class="v">${selectNode("d-assignee", admOpts)}</span></div>
           <div class="attr"><span class="k">Category</span><span class="v">${selectNode("d-cat", CATEGORIES.map(c => ({ v: c, label: c })))}</span></div>
           <div class="attr"><span class="k">Due</span><span class="v"><input id="d-due" type="date"></span></div>
+          <div class="attr"><span class="k" title="Which machine this ticket is about.">Computer</span><span class="v"><input id="d-computer" type="text" maxlength="80" placeholder="—"></span></div>
           <div class="attr"><span class="k">Contact</span><span class="v">${esc(t.contactEmail || "—")}</span></div>
           <div class="attr"><span class="k">Updated</span><span class="v muted">${esc(fmtRel(t.updatedAt))}</span></div>
         </div>
@@ -828,11 +832,13 @@ function renderDetail() {
   $("#d-assignee").value = t.assigneeUid || "";
   $("#d-cat").value = t.category || "Other";
   $("#d-due").value = t.dueDate || "";
+  $("#d-computer").value = t.customAttrs?.computerName || "";
   $("#d-status").addEventListener("change", e => changeField(t, "status", e.target.value));
   $("#d-pri").addEventListener("change", e => changeField(t, "priority", e.target.value));
   $("#d-assignee").addEventListener("change", e => changeAssignee(t, e.target.value));
   $("#d-cat").addEventListener("change", e => changeField(t, "category", e.target.value));
   $("#d-due").addEventListener("change", e => changeField(t, "due", e.target.value));
+  $("#d-computer").addEventListener("change", e => changeField(t, "computerName", e.target.value.trim()));
   box.querySelector('[data-act="close"]')?.addEventListener("click", () => changeField(t, "status", "Closed"));
   box.querySelector('[data-act="reopen"]')?.addEventListener("click", () => changeField(t, "status", "Open"));
 }
@@ -854,6 +860,11 @@ async function changeField(t, kind, value) {
   } else if (kind === "due") {
     if ((value || "") === (t.dueDate || "")) return;
     patch.dueDate = value || null; ev = { type: "due", from: t.dueDate || "", to: value || "" };
+  } else if (kind === "computerName") {
+    const prev = t.customAttrs?.computerName || "";
+    if (value === prev) return;
+    patch["customAttrs.computerName"] = value;
+    ev = { type: "attr", key: "computerName", label: "Computer name", from: prev, to: value };
   }
   try {
     await updateDoc(doc(db, "tix_tickets", t.id), patch);

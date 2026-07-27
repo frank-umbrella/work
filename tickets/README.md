@@ -48,6 +48,15 @@ See [PLAN.md](PLAN.md) for the full design.
 
 ## Changelog
 
+### 0.2.2 — 2026-07-28
+Add a Computer / PC name field to the New Ticket form and the ticket detail
+rail. **Why:** most tickets are about a specific machine, and the tech's first
+question is always "which PC?" — capturing it at creation (like Spiceworks'
+Computer Name attribute) saves a round-trip with the client. Stored as the
+first custom attribute (`customAttrs.computerName`); edits are recorded in
+History. The full admin-configurable custom-attributes system is still M5 —
+this field just lands early because it's the one that matters daily.
+
 ### 0.2.1 — 2026-07-28
 Fix: after signing in, the page appeared stuck on the sign-in card. **Why:**
 the auth screens use the `hidden` attribute, but their `.center-screen` class
