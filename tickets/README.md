@@ -48,6 +48,12 @@ See [PLAN.md](PLAN.md) for the full design.
 
 ## Changelog
 
+### 0.3.2 — 2026-07-28
+Fix: the Mute row's "Notify me" label wrapped one character per line. **Why:**
+the rail's `input { width: 100% }` rule also matched the mute checkbox and
+stretched it across the whole cell, leaving the label a few pixels to wrap in.
+The override now out-specifies that rule, and the label is `nowrap`.
+
 ### 0.3.1 — 2026-07-28
 Fix: a cold load on `#/t/<num>` landed on the board instead of the ticket.
 **Why:** sign-in called `backToList()` to reset the view, and that helper

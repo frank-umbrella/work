@@ -6,7 +6,7 @@
 <title>Help Desk &middot; Umbrella Automation</title>
 <meta name="description" content="Internal IT help-desk and ticket system for Umbrella Automation managed-service clients.">
 <meta name="robots" content="noindex">
-<meta name="app-version" content="0.3.1">
+<meta name="app-version" content="0.3.2">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -273,7 +273,11 @@
   .cc-chip button { border: 0; background: transparent; cursor: pointer; color: var(--ink-faint); font-size: 13px; line-height: 1; padding: 0 3px; }
   .cc-chip button:hover { color: var(--danger); }
   .switch { display: inline-flex; align-items: center; gap: 7px; cursor: pointer; font-size: 13px; }
-  .switch input { width: auto; }
+  /* Must out-specify `.rail .attr input { width:100% }`, which otherwise
+     stretches the checkbox across the whole cell and squeezes its label
+     into one-character-per-line. */
+  .rail .attr .switch input, .switch input { width: auto; flex: 0 0 auto; }
+  .switch span { white-space: nowrap; }
 
   /* ============== toast ============== */
   #toast {
@@ -452,7 +456,7 @@
   </main>
 
   <footer class="foot">
-    <a href="../">&larr; Work hub</a> &middot; Help Desk <span id="footVersion">v0.3.1</span>
+    <a href="../">&larr; Work hub</a> &middot; Help Desk <span id="footVersion">v0.3.2</span>
   </footer>
 </div>
 
@@ -497,7 +501,7 @@ const firebaseConfig = {
   appId: "1:330286523878:web:27c4e2ffca3496ebc32227"
 };
 
-const APP_VERSION = "0.3.1";
+const APP_VERSION = "0.3.2";
 const MSP_DOMAIN = "umbrellaautomation.com";
 
 // Fixed vocabularies for M1 (admin-configurable in M5).
