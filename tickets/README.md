@@ -48,6 +48,14 @@ See [PLAN.md](PLAN.md) for the full design.
 
 ## Changelog
 
+### 0.2.1 — 2026-07-28
+Fix: after signing in, the page appeared stuck on the sign-in card. **Why:**
+the auth screens use the `hidden` attribute, but their `.center-screen` class
+sets an explicit `display: grid`, which overrides `hidden` — so the "hidden"
+sign-in screen kept rendering at full viewport height and pushed the real app
+below the fold. Added a `[hidden] { display: none !important; }` guard so
+`hidden` always wins. Sign-in itself was working the whole time.
+
 ### 0.2.0 — 2026-07-11
 Ticket core. **Why:** turn the scaffold into a working tracker — the smallest
 thing the team can actually run tickets in — before layering comments, labor,

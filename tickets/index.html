@@ -6,7 +6,7 @@
 <title>Help Desk &middot; Umbrella Automation</title>
 <meta name="description" content="Internal IT help-desk and ticket system for Umbrella Automation managed-service clients.">
 <meta name="robots" content="noindex">
-<meta name="app-version" content="0.2.0">
+<meta name="app-version" content="0.2.1">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -35,6 +35,10 @@
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
+  /* The hidden attribute must always win, even over classes that set an
+     explicit display (e.g. .center-screen's display:grid) — without this,
+     "hidden" auth screens keep rendering and push the app below the fold. */
+  [hidden] { display: none !important; }
   body {
     background: var(--bg); color: var(--ink);
     font-family: var(--sans); font-size: 14.5px; line-height: 1.5;
@@ -385,7 +389,7 @@
   </main>
 
   <footer class="foot">
-    <a href="../">&larr; Work hub</a> &middot; Help Desk <span id="footVersion">v0.2.0</span>
+    <a href="../">&larr; Work hub</a> &middot; Help Desk <span id="footVersion">v0.2.1</span>
   </footer>
 </div>
 
@@ -427,7 +431,7 @@ const firebaseConfig = {
   appId: "1:330286523878:web:27c4e2ffca3496ebc32227"
 };
 
-const APP_VERSION = "0.2.0";
+const APP_VERSION = "0.2.1";
 const MSP_DOMAIN = "umbrellaautomation.com";
 
 // Fixed vocabularies for M1 (admin-configurable in M5).
