@@ -42,6 +42,7 @@ label.
 | -------------------------- | ------------------------------------------------------------ | ------ |
 | `Remove-HPWolfSecurity.ps1` | Fully remove HP Wolf Security and stop it reinstalling       | Yes    |
 | `Remove-ESETOnlineScanner.ps1` | Remove ESET Online Scanner leftovers (EOSv3 tasks, folder)  | Yes   |
+| `Remove-ScreenConnect.ps1` | Fully remove ScreenConnect / ConnectWise Control client(s)     | Yes   |
 
 *(add future scripts and their own category heading here)*
 
@@ -538,6 +539,33 @@ Entra (Azure AD) accounts.
   `Set-LocalUser -Name 'admin' -PasswordNeverExpires $true`
 - **Classic command** (wmic, pre-24H2):
   `wmic UserAccount where Name='admin' set PasswordExpires=False`
+
+---
+
+# 12. Remove ScreenConnect
+
+`Remove-ScreenConnect.ps1` - **admin needed** (self-elevates).
+
+The ScreenConnect / ConnectWise Control access agent installs as `ScreenConnect
+Client (<id>)`: a program, a Windows service, and a Program Files folder - and a
+PC can carry more than one (agents left by different providers). This finds
+every instance and uninstalls each, stops + deletes any leftover service, and
+clears leftover Program Files folders. Discovery-based (works across versions).
+
+```powershell
+.\Remove-ScreenConnect.ps1 -List   # preview every product/service/folder found
+.\Remove-ScreenConnect.ps1         # remove them all
+```
+
+### Manual steps
+
+Run box: Win+R -> `appwiz.cpl` (Programs and Features) and `services.msc`.
+
+1. In **Programs and Features**, uninstall every **ScreenConnect Client (...)**
+   entry (there may be several).
+2. If a **ScreenConnect Client** service remains in `services.msc`, delete it
+   from an elevated Command Prompt: `sc delete "ScreenConnect Client (<id>)"`
+3. Delete any leftover `C:\Program Files (x86)\ScreenConnect Client (<id>)` folder.
 
 ---
 

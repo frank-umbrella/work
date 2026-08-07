@@ -6,7 +6,7 @@
 <title>PC Scripts</title>
 <meta name="description" content="PowerShell scripts for re-fixing a fresh Windows PC: show all tray icons, stop Copilot and Malwarebytes at startup. Windows 10 and 11.">
 <meta name="robots" content="noindex">
-<meta name="version" content="0.10.0">
+<meta name="version" content="0.11.0">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -239,6 +239,7 @@
       <li><a href="#print-flush">Print Flush</a></li>
       <li><a href="#hp-wolf">Remove HP Wolf Security</a></li>
       <li><a href="#eset-cleanup">Remove ESET leftovers</a></li>
+      <li><a href="#screenconnect">Remove ScreenConnect</a></li>
       <li><a href="#tools">Scan &amp; removal tools</a></li>
     </ul>
   </nav>
@@ -736,6 +737,42 @@ net start spooler</pre>
     </div>
   </section>
 
+  <!-- ===================== Remove ScreenConnect ===================== -->
+  <section class="panel" id="screenconnect">
+    <div class="panel-head">
+      <div>
+        <span class="tag">Removal</span>
+        <h2>Remove ScreenConnect (ConnectWise Control)</h2>
+        <code class="file">Remove-ScreenConnect.ps1</code>
+      </div>
+      <div class="panel-side">
+        <span class="badge badge-warn">Admin needed</span>
+        <a class="dl" href="Remove-ScreenConnect.ps1" download>Download .ps1</a>
+      </div>
+    </div>
+    <p class="purpose">The ScreenConnect access agent installs as <code>ScreenConnect Client (&lt;id&gt;)</code><span class="tip" tabindex="0" role="note" aria-label="Each ScreenConnect agent is a program, a Windows service, and a Program Files folder, all named with a unique instance id. A PC can carry more than one, left behind by different providers."><span class="bubble">Each agent = a program + a Windows service + a Program Files folder, all named with a unique instance id. A PC can carry <strong>more than one</strong>, left by different providers.</span></span> &mdash; a program, a service, and a folder. This finds <strong>every</strong> instance and removes all three: uninstalls each, stops and deletes its service, and clears leftover folders. Self-elevates.</p>
+
+    <div class="opt">
+      <h3>Remove it all</h3>
+      <p>Run <code>-List</code> first to see what&rsquo;s installed (there may be more than one).</p>
+      <pre>powershell -ExecutionPolicy Bypass -File C:\Remove-ScreenConnect.ps1</pre>
+      <p class="switches"><span class="lbl">Options:</span>
+        <span class="sw" tabindex="0" role="note" aria-label="-List: preview only, lists every ScreenConnect product, service, and folder found, changes nothing"><code>-List</code><span class="bubble">Preview only &mdash; lists every ScreenConnect product, service and folder found. Changes nothing.</span></span>
+      </p>
+      <details class="manual">
+        <summary>Do it manually instead</summary>
+        <div class="manual-body">
+          <p class="note"><strong>Run box:</strong> <kbd>Win</kbd>+<kbd>R</kbd> &rarr; <code>appwiz.cpl</code> (Programs and Features), and <code>services.msc</code> (Services).</p>
+          <ol>
+            <li>In <strong>Programs and Features</strong>, uninstall every <strong>ScreenConnect Client (&hellip;)</strong> entry (there may be several).</li>
+            <li>In <strong>Services</strong> (<code>services.msc</code>), if any <strong>ScreenConnect Client</strong> service remains, note its name, then in an <strong>elevated Command Prompt</strong> run: <code>sc delete "ScreenConnect Client (&lt;id&gt;)"</code></li>
+            <li>Delete any leftover folder under <code>C:\Program Files (x86)\ScreenConnect Client (&lt;id&gt;)</code>.</li>
+          </ol>
+        </div>
+      </details>
+    </div>
+  </section>
+
   <!-- ===================== Tools / downloads ===================== -->
   <section class="panel" id="tools">
     <div class="panel-head">
@@ -775,7 +812,7 @@ net start spooler</pre>
 </main>
 
 <footer class="page">
-  <p>PC Scripts <span class="version">v0.10.0</span> &middot; Windows 10 &amp; 11.</p>
+  <p>PC Scripts <span class="version">v0.11.0</span> &middot; Windows 10 &amp; 11.</p>
 </footer>
 
 <script>
