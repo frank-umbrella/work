@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Standard Operating Procedures</title>
+<meta name="description" content="Umbrella Automation standard operating procedures: numbered, versioned, and downloadable as PDF.">
+<meta name="robots" content="noindex">
+<meta name="version" content="0.1.0">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --surface: #ffffff;
+    --ink: #1a1f2b;
+    --ink-soft: #475063;
+    --line: #e3e6ec;
+    --line-strong: #c9cfdb;
+    --accent: #1a56db;
+    --accent-soft: #eaf0fc;
+    --ok: #0f7b3f;
+    --ok-soft: #e7f5ec;
+    --radius: 12px;
+    --shadow: 0 1px 2px rgba(20, 25, 40, 0.04), 0 4px 14px rgba(20, 25, 40, 0.05);
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "Cascadia Mono", Consolas, "Liberation Mono", monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  header.page {
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+    padding: 30px 24px 26px;
+  }
+  header.page .wrap { max-width: 980px; margin: 0 auto; }
+  .crumb { font-size: 13px; color: var(--ink-soft); margin: 0 0 10px; }
+  .crumb a { font-weight: 600; }
+  header.page h1 { font-size: 28px; margin: 0 0 6px; letter-spacing: -0.01em; }
+  header.page p.lede { margin: 0; color: var(--ink-soft); font-size: 15px; max-width: 72ch; }
+
+  main { max-width: 980px; margin: 0 auto; padding: 26px 24px 64px; }
+
+  .howto {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: var(--radius); box-shadow: var(--shadow);
+    padding: 18px 20px; margin-bottom: 26px;
+  }
+  .howto h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-soft); margin: 0 0 10px; }
+  .howto ul { margin: 0; padding-left: 18px; color: var(--ink-soft); font-size: 14px; }
+  .howto li { margin-bottom: 6px; }
+  .howto li:last-child { margin-bottom: 0; }
+  .howto strong { color: var(--ink); }
+  .howto code { font-family: var(--mono); font-size: 12.5px; background: var(--bg); border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; color: var(--ink); }
+
+  .panel {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: var(--radius); box-shadow: var(--shadow);
+    padding: 22px 22px 20px; margin-bottom: 22px;
+  }
+  .panel-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+  .tag { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-soft); }
+  .panel-head h2 { font-size: 20px; margin: 4px 0 2px; letter-spacing: -0.005em; }
+  .sop-id {
+    display: inline-block; margin-right: 8px; vertical-align: 2px;
+    font-size: 12px; font-weight: 700; letter-spacing: 0.05em; color: var(--accent);
+    background: var(--accent-soft); border-radius: 6px; padding: 2px 8px;
+  }
+  .panel-side { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+  .badge { font-size: 12px; font-weight: 700; border-radius: 999px; padding: 3px 11px; white-space: nowrap; }
+  .badge-ok { color: var(--ok); background: var(--ok-soft); }
+  .meta-line { font-size: 12.5px; color: var(--ink-soft); margin: 0 0 12px; }
+  .meta-line strong { color: var(--ink); }
+
+  .purpose { color: var(--ink-soft); font-size: 14.5px; margin: 8px 0 16px; max-width: 76ch; }
+
+  .covers { margin: 0 0 18px; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 7px; }
+  .covers li {
+    font-size: 12.5px; font-weight: 600; color: var(--ink-soft);
+    background: var(--bg); border: 1px solid var(--line-strong);
+    border-radius: 999px; padding: 3px 11px;
+  }
+
+  .actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .btn-open {
+    display: inline-block; font-size: 13.5px; font-weight: 600; white-space: nowrap;
+    background: var(--accent); color: #fff; border: 1px solid var(--accent);
+    border-radius: 8px; padding: 8px 16px;
+  }
+  .btn-open:hover { background: #1647b8; border-color: #1647b8; text-decoration: none; }
+  .btn-pdf {
+    display: inline-block; font-size: 13px; font-weight: 600; white-space: nowrap;
+    border: 1px solid var(--line-strong); border-radius: 8px; padding: 7px 14px;
+    color: var(--ink); background: var(--surface);
+  }
+  .btn-pdf:hover { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); text-decoration: none; }
+  .btn-pdf::after { content: " \2193"; }
+  .actions .hint { font-size: 12px; color: var(--ink-soft); }
+
+  footer.page { max-width: 980px; margin: 0 auto; padding: 0 24px 36px; color: var(--ink-soft); font-size: 12.5px; }
+  footer.page .version {
+    display: inline-block; padding: 1px 7px; border: 1px solid var(--line-strong);
+    border-radius: 999px; font-size: 11.5px; font-weight: 600; color: var(--ink-soft);
+    background: var(--surface); margin: 0 2px;
+  }
+</style>
+</head>
+<body>
+
+<header class="page">
+  <div class="wrap">
+    <p class="crumb"><a href="../index.html">Work Hub</a> / SOPs</p>
+    <h1>Standard Operating Procedures</h1>
+    <p class="lede">The written standard for how Umbrella Automation does recurring work &mdash; one numbered, versioned document per procedure. Follow the current version; if reality and the SOP disagree, fix the SOP.</p>
+  </div>
+</header>
+
+<main>
+
+  <section class="howto" id="conventions">
+    <h2>How SOPs work here</h2>
+    <ul>
+      <li><strong>Numbering:</strong> SOPs are numbered in order of creation (<code>SOP-001</code>, <code>SOP-002</code>, &hellip;). A number is never reused, even if an SOP is retired.</li>
+      <li><strong>Versioning:</strong> each SOP carries its own version and effective date. Wording fixes bump the minor version (1.0 &rarr; 1.1); a change to what you actually do bumps the major version (1.x &rarr; 2.0). Every change gets a revision-history entry.</li>
+      <li><strong>Review:</strong> every SOP is reviewed at least annually, or immediately when the underlying product or process changes.</li>
+      <li><strong>PDF copies:</strong> click <strong>Download PDF</strong> on any SOP (or press <code>Ctrl+P</code> on its page) and choose <em>Save as PDF</em> in the print dialog. The PDF comes out letter-sized with the Umbrella Automation logo in the header &mdash; ready to attach to a ticket or hand to a client.</li>
+      <li><strong>Source of truth:</strong> the web page is the master copy. A saved PDF is a snapshot &mdash; check the version number against this page before relying on an old download.</li>
+    </ul>
+  </section>
+
+  <section class="panel" id="sop-001">
+    <div class="panel-head">
+      <div>
+        <span class="tag">Security &middot; Client onboarding</span>
+        <h2><span class="sop-id">SOP-001</span>Google Workspace Security &amp; Password Configuration</h2>
+      </div>
+      <div class="panel-side">
+        <span class="badge badge-ok">Active</span>
+      </div>
+    </div>
+    <p class="meta-line">Version <strong>1.0</strong> &middot; Effective <strong>2026-08-14</strong> &middot; Review <strong>annual</strong></p>
+    <p class="purpose">The standard security baseline applied to every new Google Workspace client: Organizational Unit structure, 15-character password policy with no forced rotation, mandatory 2-Step Verification, passkeys, Super Admin protection, account creation and offboarding standards, and the final verification checklist.</p>
+    <ul class="covers">
+      <li>OU structure</li>
+      <li>Password policy</li>
+      <li>2-Step Verification</li>
+      <li>Passkeys</li>
+      <li>Super Admin protection</li>
+      <li>Offboarding</li>
+      <li>Service accounts</li>
+      <li>Verification checklist</li>
+    </ul>
+    <div class="actions">
+      <a class="btn-open" href="gws-security-onboarding.html">Open SOP-001</a>
+      <a class="btn-pdf" href="gws-security-onboarding.html?print=1">Download PDF</a>
+      <span class="hint">Opens the print dialog &mdash; choose &ldquo;Save as PDF.&rdquo;</span>
+    </div>
+  </section>
+
+</main>
+
+<footer class="page">
+  <p>SOP library <span class="version">v0.1.0</span> &middot; 1 SOP &middot; to add one, copy an existing SOP page, take the next number, and add a card here.</p>
+</footer>
+
+</body>
+</html>
