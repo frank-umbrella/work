@@ -6,7 +6,7 @@
 <title>Onboarding &middot; Umbrella Automation</title>
 <meta name="description" content="Client onboarding system for Umbrella Automation managed service clients. Submit new hire, termination, and position change requests.">
 <meta name="robots" content="noindex">
-<meta name="app-version" content="0.5.5">
+<meta name="app-version" content="0.6.0">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -1238,7 +1238,7 @@
 <div class="toast" id="toast" hidden></div>
 
 <footer class="foot" id="appFooter" hidden>
-  <p><a href="../">&larr; Work hub</a> &middot; Onboarding v0.5.5</p>
+  <p><a href="../">&larr; Work hub</a> &middot; Onboarding v0.6.0</p>
 </footer>
 
 <script type="module">
@@ -1279,7 +1279,7 @@ const firebaseConfig = {
   appId: "1:330286523878:web:27c4e2ffca3496ebc32227"
 };
 
-const APP_VERSION = "0.5.5";
+const APP_VERSION = "0.6.0";
 const STATUSES = ["Submitted", "In Progress", "Completed", "Cancelled"];
 const MSP_DOMAIN = "umbrellaautomation.com"; // Google sign-in restricted to this domain
 
@@ -1357,7 +1357,7 @@ const DEMO_FIXTURES = {
       summary: "New Hire: Maya Patel",
       status: "In Progress", submittedAt: _demoTs(2), lastActivityAt: _demoTs(1),
       submittedByUid: "demo-mgr-uid", submittedByEmail: "sarah.johnson@jemmedspa.com",
-      submittedByName: "Sarah Johnson",
+      submittedByName: "Sarah Johnson", relatedTicket: "4821",
       values: { firstName: "Maya", lastName: "Patel", title: "Esthetician", preferredEmail: "maya.patel@jemmedspa.com", hireDate: "2026-05-20", managerEmail: "ops@jemmedspa.com", employeeStatus: "New Hire" }},
     { id: "sub3", clientId: "jem-medspa-demo", clientName: "JEM MedSpa",
       formId: "rehire", formTitle: "Rehire", formKind: "rehire",
@@ -1523,6 +1523,28 @@ function pillStatus(s) {
 function pillKind(k) {
   const lc = String(k || "other").toLowerCase().replace(/[^a-z]/g, "");
   return `<span class="pill kind-${lc}">${escapeHTML(formKindLabel(k))}</span>`;
+}
+
+// Spiceworks Cloud ticket deep-link. URL pattern per the MSP's account
+// — if Spiceworks changes their routing (or the pattern below turns out
+// to be off), this is the single place to fix it.
+const SPICEWORKS_TICKET_URL = (n) =>
+  "https://on.spiceworks.com/tickets/open/ticket_number=" + encodeURIComponent(n);
+
+// Renders the related-ticket value for the submission detail modal.
+// MSP admins get a clickable Spiceworks link (they have Spiceworks
+// accounts); managers see plain text — the link would just bounce off
+// the Spiceworks login for them. Only digits-ish values get linked;
+// anything else (e.g. "emailed John about this") stays text.
+function relatedTicketHTML(ticket) {
+  const t = String(ticket).trim();
+  const looksLikeNumber = /^#?\d{1,10}$/.test(t.replace(/^(HD|hd|SW|sw)[-\s]?/, ""));
+  const bare = t.replace(/^#/, "").replace(/^(HD|hd|SW|sw)[-\s]?/, "");
+  if (state.role === "admin" && looksLikeNumber) {
+    return `<a href="${escapeHTML(SPICEWORKS_TICKET_URL(bare))}" target="_blank" rel="noopener"
+      title="Open ticket ${escapeHTML(bare)} in Spiceworks">${escapeHTML(t)} ↗</a>`;
+  }
+  return escapeHTML(t);
 }
 
 function formKindLabel(k) {
@@ -2127,6 +2149,23 @@ function renderDynamicForm(schema) {
     root.appendChild(grid);
   });
 
+  // Built-in optional ticket reference — present on EVERY request type,
+  // independent of the per-client form schema (so admins don't have to
+  // add it to each client's form JSON). Free text for now; when the
+  // Umbrella Help Desk system goes live (shares this Firebase project)
+  // this can graduate to a real ticket lookup.
+  const ticketWrap = document.createElement("div");
+  ticketWrap.className = "field";
+  ticketWrap.style.marginTop = "18px";
+  ticketWrap.innerHTML = `
+    <label for="dfRelatedTicket">Related ticket # <span style="font-weight:400;color:var(--ink-faint);">(optional)</span></label>
+    <input id="dfRelatedTicket" type="text" maxlength="60"
+      placeholder="e.g. HD-1042"
+      title="If a help desk ticket was already opened about this onboarding, enter its number so the MSP can connect the two.">
+    <div class="help">If a support ticket was already submitted about this onboarding, reference it here so your MSP can tie them together.</div>
+  `;
+  root.appendChild(ticketWrap);
+
   // Action row.
   const actions = document.createElement("div");
   actions.className = "form-actions";
@@ -2436,6 +2475,7 @@ async function submitDynamicForm() {
       submittedByUid: state.user.uid,
       submittedByEmail: state.user.email,
       submittedByName: ((state.managerDoc.firstName || "") + " " + (state.managerDoc.lastName || "")).trim(),
+      relatedTicket: ($("#dfRelatedTicket")?.value || "").trim(),
       submittedAt: serverTimestamp(),
       lastActivityAt: serverTimestamp()
     };
@@ -2517,7 +2557,7 @@ function renderMySubmissions() {
   const list = state.submissions.filter(s => {
     if (f.myStatus && s.status !== f.myStatus) return false;
     if (search) {
-      const hay = (s.summary + " " + (s.formTitle || "") + " " + JSON.stringify(s.values || {})).toLowerCase();
+      const hay = (s.summary + " " + (s.formTitle || "") + " " + (s.relatedTicket || "") + " " + JSON.stringify(s.values || {})).toLowerCase();
       if (!hay.includes(search)) return false;
     }
     return true;
@@ -2604,7 +2644,7 @@ function renderQueue() {
     if (f.qStatus && s.status !== f.qStatus) return false;
     if (f.qType && s.formKind !== f.qType) return false;
     if (search) {
-      const hay = (s.summary + " " + (s.formTitle || "") + " " + (s.clientName || "") + " " + (s.submittedByEmail || "")).toLowerCase();
+      const hay = (s.summary + " " + (s.formTitle || "") + " " + (s.clientName || "") + " " + (s.submittedByEmail || "") + " " + (s.relatedTicket || "")).toLowerCase();
       if (!hay.includes(search)) return false;
     }
     return true;
@@ -2818,6 +2858,7 @@ function renderSubmissionDetail() {
       <dt>Status</dt><dd>${pillStatus(s.status)}</dd>
       <dt>Submitted by</dt><dd>${escapeHTML(s.submittedByName || s.submittedByEmail)} <span style="color:var(--ink-faint);">${escapeHTML(s.submittedByEmail || "")}</span></dd>
       <dt>Submitted</dt><dd>${escapeHTML(fmtDate(s.submittedAt))}</dd>
+      ${s.relatedTicket ? `<dt>Related ticket</dt><dd>${relatedTicketHTML(s.relatedTicket)}</dd>` : ""}
     </dl>
     ${statusCtrl}
     <div class="answers">
