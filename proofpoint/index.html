@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Proofpoint Email Guide</title>
+<meta name="description" content="End-user guide to Proofpoint Essentials: what the Quarantine Digest email is, how to release legitimate messages, and how to use the Proofpoint portal.">
+<meta name="robots" content="noindex">
+<meta name="version" content="0.1.0">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --surface: #ffffff;
+    --ink: #1a1f2b;
+    --ink-soft: #475063;
+    --line: #e3e6ec;
+    --line-strong: #c9cfdb;
+    --accent: #1a56db;
+    --accent-soft: #eaf0fc;
+    --warn: #b54708;
+    --warn-soft: #fff4e5;
+    --good: #036b3f;
+    --good-soft: #e6f4ec;
+    --radius: 10px;
+    --shadow: 0 1px 2px rgba(20, 25, 40, 0.04), 0 4px 14px rgba(20, 25, 40, 0.05);
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); }
+  a:hover { text-decoration: none; }
+
+  header.page {
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+    padding: 28px 24px 20px;
+  }
+  header.page .wrap {
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  header.page h1 {
+    font-size: 26px;
+    margin: 0 0 6px;
+    letter-spacing: -0.01em;
+  }
+  header.page p {
+    margin: 0;
+    color: var(--ink-soft);
+    font-size: 15px;
+  }
+
+  main {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 24px 24px 60px;
+  }
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: 24px;
+  }
+  @media (max-width: 880px) {
+    .layout { grid-template-columns: 1fr; }
+  }
+
+  .content article + article { margin-top: 18px; }
+  .content h2 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-soft);
+    margin: 22px 0 10px;
+    font-weight: 700;
+  }
+  .content h2:first-child { margin-top: 0; }
+  .content article {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+    box-shadow: var(--shadow);
+  }
+  .content article h3 {
+    margin: 0 0 8px;
+    font-size: 17px;
+    letter-spacing: -0.005em;
+  }
+  .content article p { margin: 0 0 10px; color: var(--ink); }
+  .content article p:last-child { margin-bottom: 0; }
+  .content ul, .content ol {
+    margin: 6px 0 10px;
+    padding-left: 20px;
+  }
+  .content li { margin: 4px 0; }
+  .content li code, .content p code {
+    font-family: var(--mono);
+    font-size: 0.92em;
+    background: #f1f3f7;
+    border: 1px solid var(--line);
+    padding: 1px 5px;
+    border-radius: 5px;
+    overflow-wrap: anywhere;
+  }
+
+  .pill {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 2px 8px;
+    border-radius: 999px;
+    vertical-align: middle;
+    margin-right: 8px;
+  }
+  .pill.warn { background: var(--warn-soft); color: var(--warn); }
+  .pill.good { background: var(--good-soft); color: var(--good); }
+  .pill.info { background: var(--accent-soft); color: var(--accent); }
+
+  .callout {
+    border-left: 3px solid var(--accent);
+    background: var(--accent-soft);
+    padding: 10px 14px;
+    border-radius: 6px;
+    margin: 10px 0 0;
+    font-size: 14.5px;
+    color: var(--ink);
+  }
+  .callout.warn { border-color: var(--warn); background: var(--warn-soft); }
+
+  .sidebar { display: flex; flex-direction: column; gap: 16px; }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 18px 18px 16px;
+    box-shadow: var(--shadow);
+  }
+  .card h3 {
+    margin: 0 0 4px;
+    font-size: 16px;
+  }
+  .card .lead {
+    color: var(--ink-soft);
+    font-size: 14px;
+    margin: 0 0 12px;
+  }
+  .card ol {
+    margin: 0 0 12px;
+    padding-left: 20px;
+    font-size: 14.5px;
+  }
+  .card ol li { margin: 3px 0; }
+  .card ol li code, .card p code {
+    font-family: var(--mono);
+    font-size: 0.9em;
+    background: #f1f3f7;
+    border: 1px solid var(--line);
+    padding: 0 4px;
+    border-radius: 4px;
+    overflow-wrap: anywhere;
+  }
+  .card .btn {
+    display: inline-block;
+    background: var(--accent);
+    color: #fff;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 14px;
+    padding: 9px 14px;
+    border-radius: 7px;
+  }
+  .card .btn:hover { background: #1547b8; }
+  .card .btn.secondary {
+    background: transparent;
+    color: var(--accent);
+    border: 1px solid var(--line-strong);
+  }
+  .card .btn.secondary:hover { background: var(--accent-soft); }
+  .card .btn + .btn { margin-left: 6px; }
+  .card .small {
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    margin-top: 10px;
+  }
+
+  footer.page {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 24px 32px;
+    color: var(--ink-soft);
+    font-size: 12.5px;
+  }
+  footer.page p { margin: 6px 0; }
+  footer.page .version {
+    display: inline-block;
+    padding: 1px 7px;
+    border: 1px solid var(--line-strong);
+    border-radius: 999px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--ink-soft);
+    background: var(--surface);
+    margin: 0 2px;
+  }
+
+  /* === Digest mockup ========================================== */
+  .mockup {
+    margin-top: 16px;
+    padding: 14px 16px 16px;
+    border: 1px dashed var(--line-strong);
+    border-radius: var(--radius);
+    background: #fafbfd;
+  }
+  .mockup-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-soft);
+    margin-bottom: 10px;
+  }
+  .mockup-callouts {
+    margin-top: 12px;
+    display: grid;
+    gap: 6px;
+    font-size: 13.5px;
+    counter-reset: callout;
+  }
+  .mockup-callouts > div {
+    counter-increment: callout;
+    position: relative;
+    padding-left: 26px;
+  }
+  .mockup-callouts > div::before {
+    content: counter(callout);
+    position: absolute;
+    left: 0; top: 1px;
+    width: 18px; height: 18px;
+    background: var(--accent);
+    color: #fff;
+    border-radius: 50%;
+    font: 700 11px var(--sans);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .mockup-callouts code {
+    font-family: var(--mono);
+    font-size: 0.92em;
+    background: #f1f3f7;
+    border: 1px solid var(--line);
+    padding: 0 4px;
+    border-radius: 4px;
+    overflow-wrap: anywhere;
+  }
+
+  .email-frame {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-top: 3px solid var(--accent);
+    border-radius: 8px;
+    overflow: hidden;
+    font-size: 13.5px;
+    box-shadow: 0 1px 3px rgba(20, 25, 40, 0.06);
+  }
+  .email-toolbar {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 12px;
+    background: #f5f6f8;
+    border-bottom: 1px solid var(--line);
+    font-size: 12px;
+    color: var(--ink-soft);
+  }
+  .email-toolbar .dot {
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    background: #d3d6dc;
+    display: inline-block;
+  }
+  .email-subject {
+    padding: 12px 14px 4px;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+  .email-meta {
+    padding: 0 14px 10px;
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    border-bottom: 1px solid var(--line);
+  }
+  .email-meta .name { color: var(--ink); font-weight: 600; margin-right: 4px; }
+  .email-meta .addr { font-family: var(--mono); font-size: 0.92em; overflow-wrap: anywhere; }
+  .email-body { padding: 14px; }
+  .email-body p { margin: 0 0 10px; }
+
+  .digest-list {
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .digest-row {
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .digest-row + .digest-row { border-top: 1px solid var(--line); }
+  .digest-row .from {
+    font-weight: 600;
+    color: var(--ink);
+    font-size: 13px;
+  }
+  .digest-row .from .addr {
+    font-family: var(--mono);
+    font-weight: 400;
+    font-size: 11.5px;
+    color: var(--ink-soft);
+    overflow-wrap: anywhere;
+  }
+  .digest-row .subj {
+    color: var(--ink-soft);
+    font-size: 12.5px;
+  }
+  .digest-row .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .digest-link {
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--accent);
+    background: var(--accent-soft);
+    border: 1px solid var(--line-strong);
+    border-radius: 4px;
+    padding: 2px 8px;
+    cursor: default;
+    white-space: nowrap;
+  }
+  .digest-link.approve {
+    color: var(--good);
+    background: var(--good-soft);
+  }
+
+  /* === FAQ ==================================================== */
+  details.faq {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 0;
+  }
+  details.faq + details.faq { margin-top: 10px; }
+  details.faq summary {
+    cursor: pointer;
+    padding: 14px 18px;
+    font-weight: 600;
+    font-size: 15px;
+    list-style: none;
+    position: relative;
+    padding-right: 40px;
+  }
+  details.faq summary::-webkit-details-marker { display: none; }
+  details.faq summary::after {
+    content: '+';
+    position: absolute;
+    right: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 18px;
+    font-weight: 400;
+    color: var(--ink-soft);
+  }
+  details.faq[open] summary::after { content: '\2212'; }
+  details.faq .faq-body {
+    padding: 0 18px 14px;
+    font-size: 14.5px;
+    color: var(--ink);
+  }
+  details.faq .faq-body p { margin: 0 0 10px; }
+  details.faq .faq-body p:last-child { margin-bottom: 0; }
+  details.faq .faq-body ul, details.faq .faq-body ol {
+    margin: 6px 0 10px;
+    padding-left: 20px;
+  }
+  details.faq .faq-body li { margin: 4px 0; }
+  details.faq .faq-body code {
+    font-family: var(--mono);
+    font-size: 0.92em;
+    background: #f1f3f7;
+    border: 1px solid var(--line);
+    padding: 1px 5px;
+    border-radius: 5px;
+    overflow-wrap: anywhere;
+  }
+</style>
+</head>
+<body>
+
+<header class="page">
+  <div class="wrap">
+    <h1>Proofpoint Email Guide</h1>
+    <p>What the Quarantine Digest email is, how to release a legitimate message, and how to use the Proofpoint Essentials portal.</p>
+  </div>
+</header>
+
+<main>
+  <div class="layout">
+    <div class="content">
+
+      <h2>How Proofpoint protects your mailbox</h2>
+
+      <article>
+        <h3>What is Proofpoint?</h3>
+        <p>Proofpoint Essentials is an email security service that sits in front of your mailbox, like a gatekeeper. Every message sent to your address passes through Proofpoint before it reaches your inbox:</p>
+        <ul>
+          <li><strong>Clean mail</strong> is delivered to your inbox as normal &mdash; you never notice Proofpoint was involved.</li>
+          <li><strong>Suspected spam</strong> is held in <strong>quarantine</strong> instead of being delivered. You can review it and release anything legitimate.</li>
+          <li><strong>Viruses and known-malicious mail</strong> are blocked outright. For your safety these do not appear in your quarantine and cannot be released by you &mdash; if you believe a legitimate message was blocked, contact us and we can check from the admin side.</li>
+        </ul>
+        <p>No filter is perfect. Occasionally a real message lands in quarantine (a &ldquo;false positive&rdquo;) &mdash; that is what the Quarantine Digest and the portal below are for.</p>
+      </article>
+
+      <h2>The Quarantine Digest email</h2>
+
+      <article>
+        <h3><span class="pill info">Overview</span>What the digest is</h3>
+        <p>The Quarantine Digest is an automatic email from Proofpoint Essentials that lists the messages recently held in your quarantine, so you can rescue anything legitimate with one click &mdash; no password needed.</p>
+        <ul>
+          <li>It typically arrives <strong>once a day</strong>. (The exact schedule is set for your organization, so yours may arrive at a different time or more than once a day.)</li>
+          <li>It lists only messages quarantined <strong>since your last digest</strong> &mdash; it is a snapshot, not your full quarantine. The portal always has the complete, up-to-the-minute list.</li>
+          <li><strong>No new spam, no digest.</strong> If nothing was quarantined, no email is sent that cycle &mdash; a quiet day is normal.</li>
+        </ul>
+      </article>
+
+      <article class="mockup" aria-label="Example Proofpoint Essentials Quarantine Digest email">
+        <div class="mockup-label">Example: what the digest email looks like</div>
+        <div class="email-frame">
+          <div class="email-toolbar">
+            <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+            <span>Inbox</span>
+          </div>
+          <div class="email-subject">Proofpoint Essentials &mdash; Quarantine Digest</div>
+          <div class="email-meta">
+            <span class="name">Proofpoint Essentials</span>
+            <span class="addr">&lt;do-not-reply@us2.proofpointessentials.com&gt;</span>
+          </div>
+          <div class="email-body">
+            <p>The following messages were quarantined for <strong>you@yourcompany.com</strong>:</p>
+            <div class="digest-list">
+              <div class="digest-row">
+                <div class="from">Acme Payroll <span class="addr">&lt;statements@acmepayroll.com&gt;</span></div>
+                <div class="subj">Your August payroll statement is ready</div>
+                <div class="actions"><span class="digest-link">Release</span><span class="digest-link approve">Release and Approve</span></div>
+              </div>
+              <div class="digest-row">
+                <div class="from">Prize Dept <span class="addr">&lt;winner@free-giveaway-now.example&gt;</span></div>
+                <div class="subj">CONGRATULATIONS!! Claim your $500 gift card today</div>
+                <div class="actions"><span class="digest-link">Release</span><span class="digest-link approve">Release and Approve</span></div>
+              </div>
+              <div class="digest-row">
+                <div class="from">Marketing Weekly <span class="addr">&lt;news@newsletter-blast.example&gt;</span></div>
+                <div class="subj">10 growth hacks you can't afford to miss</div>
+                <div class="actions"><span class="digest-link">Release</span><span class="digest-link approve">Release and Approve</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="mockup-callouts">
+          <div>The digest comes from Proofpoint Essentials (<code>us2.proofpointessentials.com</code>), not from a person. The exact sender address can vary slightly.</div>
+          <div>The first row is a real message caught by mistake &mdash; a payroll statement you were expecting. That is the kind of message you release.</div>
+          <div>The other rows are correctly caught spam. Leave them alone &mdash; you never have to do anything with spam; it deletes itself.</div>
+          <div><strong>Release</strong> delivers that one message. <strong>Release and Approve</strong> also adds the sender to your safe list so future mail skips the spam filter.</div>
+        </div>
+      </article>
+
+      <article>
+        <h3><span class="pill good">Actions</span>What the digest buttons do</h3>
+        <ul>
+          <li><strong>Release</strong> &mdash; delivers that one message to your inbox. Future messages from the sender are still filtered normally. Use this for one-off mail, or when you are not sure you want everything the sender might send later.</li>
+          <li><strong>Release and Approve</strong> &mdash; delivers the message <em>and</em> adds the sender to your safe senders list, so their future mail comes straight to your inbox. Use this for senders you trust and expect to hear from again.</li>
+        </ul>
+        <p>A released message usually appears in your inbox within a few minutes. If you do not see it, check your <strong>Spam</strong> (Gmail) or <strong>Junk Email</strong> (Outlook) folder &mdash; your mail provider runs its own filter after Proofpoint and can occasionally move a released message there.</p>
+        <div class="callout warn">Only release messages you were actually expecting. If a quarantined message looks suspicious or too good to be true, leave it alone &mdash; sitting in quarantine it cannot hurt anything, and it is deleted automatically after about 30 days. Not sure? Ask us before releasing.</div>
+      </article>
+
+      <h2>The Proofpoint Essentials portal</h2>
+
+      <article>
+        <h3><span class="pill info">Sign in</span>Logging in to the portal</h3>
+        <p>The digest covers day-to-day needs, but the portal gives you the full picture: every quarantined message, your safe and blocked sender lists, and the Emergency Inbox.</p>
+        <ol>
+          <li>Go to <a href="https://us2.proofpointessentials.com/" target="_blank" rel="noopener">us2.proofpointessentials.com</a>.</li>
+          <li>Sign in with your <strong>full work email address</strong>.</li>
+          <li>Use the password Proofpoint sent you when your account was created &mdash; or click <strong>Forgot password?</strong> to set a new one. (This is a separate password from your email password.)</li>
+        </ol>
+      </article>
+
+      <article>
+        <h3><span class="pill good">Quarantine</span>Reviewing quarantined mail in the portal</h3>
+        <p>Once signed in, open your quarantine (under <strong>Logs</strong>, filtered to quarantined messages). From there you can:</p>
+        <ul>
+          <li><strong>See the complete list</strong> of everything currently held &mdash; not just what the last digest showed.</li>
+          <li><strong>Preview a message safely</strong> before deciding &mdash; viewing it in the portal does not run attachments or load anything on your computer.</li>
+          <li><strong>Release</strong> or <strong>Release and Approve</strong> one or more messages: tick the checkboxes, then use the action buttons.</li>
+        </ul>
+        <p>Quarantined messages are kept for about 30 days and then deleted automatically &mdash; you never need to clean up your quarantine.</p>
+      </article>
+
+      <article>
+        <h3><span class="pill good">Sender lists</span>Safe and blocked senders</h3>
+        <p>The portal also holds your personal sender lists:</p>
+        <ul>
+          <li><strong>Safe senders</strong> &mdash; mail from these addresses skips the spam filter. Senders you &ldquo;Release and Approve&rdquo; end up here; you can also add or remove addresses directly.</li>
+          <li><strong>Blocked senders</strong> &mdash; mail from these addresses is always quarantined or discarded. Useful for a persistent nuisance sender that keeps slipping through.</li>
+        </ul>
+        <p>Added someone by mistake? Open the list and remove the entry &mdash; the change takes effect for future mail.</p>
+        <div class="callout">Safe-listing does not bypass virus scanning &mdash; a safe-listed sender whose account is hacked will still have malicious attachments blocked.</div>
+      </article>
+
+      <article>
+        <h3><span class="pill info">Emergency Inbox</span>If your email is ever down</h3>
+        <p>Because Proofpoint sits in front of your mailbox, it keeps receiving your mail even if your email service (Google Workspace or Microsoft 365) has an outage. During an outage you can sign in to the portal and use the <strong>Emergency Inbox</strong> to read and reply to new mail. When your mail service comes back, everything received during the outage is delivered to your normal inbox automatically.</p>
+      </article>
+
+      <h2>Frequently asked questions</h2>
+
+      <details class="faq">
+        <summary>An email I'm expecting never arrived. What do I check?</summary>
+        <div class="faq-body">
+          <ol>
+            <li>Check your <strong>Spam / Junk</strong> folder in Gmail or Outlook first &mdash; your mail provider's own filter runs after Proofpoint.</li>
+            <li>Check your most recent <strong>Quarantine Digest</strong> email.</li>
+            <li>Sign in to the <strong>portal</strong> and check the full quarantine list &mdash; the digest only shows recent items.</li>
+            <li>Still nothing? Contact us. The message may have been blocked at a level you cannot see (for example as a virus), or it may never have been sent &mdash; we can trace it from the admin side.</li>
+          </ol>
+        </div>
+      </details>
+
+      <details class="faq">
+        <summary>I released a message but it's not in my inbox.</summary>
+        <div class="faq-body">
+          <p>Check your <strong>Spam</strong> (Gmail) or <strong>Junk Email</strong> (Outlook) folder. Releasing a message gets it past Proofpoint, but your mail provider still runs its own junk filter and can move the message there. Mark it as &ldquo;Not spam&rdquo; / &ldquo;Not junk&rdquo; to help future delivery.</p>
+        </div>
+      </details>
+
+      <details class="faq">
+        <summary>I haven't received a digest in a while. Is something broken?</summary>
+        <div class="faq-body">
+          <p>Probably not &mdash; the digest is only sent when there are <strong>new</strong> quarantined messages since the last one. No new spam means no digest. You can confirm everything is working by signing in to the portal and looking at your quarantine directly. If you believe digests have genuinely stopped (for example, the portal shows new quarantined mail but no digest arrived), contact us and we will check your digest settings.</p>
+        </div>
+      </details>
+
+      <details class="faq">
+        <summary>Can I change how often I get the digest, or turn it off?</summary>
+        <div class="faq-body">
+          <p>The digest schedule is managed centrally for your organization. If you would like it more often, less often, or off entirely for your account, just ask &mdash; it is a quick change on our side.</p>
+        </div>
+      </details>
+
+      <details class="faq">
+        <summary>How do I unblock a sender I blocked by mistake?</summary>
+        <div class="faq-body">
+          <p>Sign in to the portal, open your <strong>blocked senders</strong> list, and remove the entry. The same works in reverse for removing someone from your <strong>safe senders</strong> list. If you cannot find the list, contact us and we can fix it from the admin side.</p>
+        </div>
+      </details>
+
+      <details class="faq">
+        <summary>How long do messages stay in quarantine?</summary>
+        <div class="faq-body">
+          <p>About <strong>30 days</strong>, then they are deleted automatically. If you might need a quarantined message, release it before then &mdash; after deletion it cannot be recovered.</p>
+        </div>
+      </details>
+
+      <details class="faq">
+        <summary>Is it safe to just ignore the digest?</summary>
+        <div class="faq-body">
+          <p>Yes. Nothing in quarantine requires action &mdash; spam deletes itself after about 30 days. The only cost of ignoring the digest is that a legitimate message caught by mistake would sit unnoticed. A quick skim of each digest (10 seconds &mdash; scan the sender names for anyone you know) is all we recommend.</p>
+        </div>
+      </details>
+
+      <details class="faq">
+        <summary>Can I file the digests into their own folder automatically?</summary>
+        <div class="faq-body">
+          <p>Yes &mdash; create an inbox rule that matches the digest and moves it to a folder:</p>
+          <ul>
+            <li><strong>Gmail:</strong> open a digest, click the three-dot menu, pick <strong>Filter messages like this</strong>, then <strong>Create filter</strong> and choose <strong>Apply the label</strong> (for example a &ldquo;Quarantine&rdquo; label).</li>
+            <li><strong>Outlook (web):</strong> right-click a digest, pick <strong>Advanced actions</strong> &rarr; <strong>Create rule</strong>, and choose a folder to move it to.</li>
+          </ul>
+          <p>If you do this, remember to actually glance at that folder now and then &mdash; out of sight is how false positives get missed.</p>
+        </div>
+      </details>
+
+    </div>
+
+    <aside class="sidebar">
+
+      <div class="card">
+        <h3>Sign in to Proofpoint</h3>
+        <p class="lead">The portal shows your full quarantine, sender lists, and the Emergency Inbox.</p>
+        <ol>
+          <li>Open the portal (button below).</li>
+          <li>Sign in with your full work email address.</li>
+          <li>Forgot the password? Click <strong>Forgot password?</strong> on the login page.</li>
+        </ol>
+        <a class="btn" href="https://us2.proofpointessentials.com/" target="_blank" rel="noopener">Open Proofpoint Essentials</a>
+        <p class="small">Your Proofpoint password is separate from your email password.</p>
+      </div>
+
+      <div class="card">
+        <h3>Think it might be phishing?</h3>
+        <p class="lead">If a quarantined message looks like a scam or impersonation, do not release it &mdash; even to look at it.</p>
+        <p style="margin:0 0 12px;font-size:14.5px;">Our phishing guide shows the warning signs and how to send anything suspicious to IT safely.</p>
+        <a class="btn secondary" href="../phish/index.html">Open the phishing guide</a>
+      </div>
+
+      <div class="card">
+        <h3>Need a hand?</h3>
+        <p class="lead">Not sure whether to release something, or missing an email you can't find anywhere?</p>
+        <p style="margin:0;font-size:14.5px;">Open a ticket or reply to any email from us with the sender address and approximate time of the message, and we will trace it from the admin side. There is no penalty for asking &mdash; we would rather check ten safe emails than have you release one bad one.</p>
+      </div>
+
+    </aside>
+  </div>
+</main>
+
+<footer class="page">
+  <p>Proofpoint email guide <span class="version">v0.1.0</span> &middot; Details like the digest schedule and retention period can vary by organization &mdash; when in doubt, ask us.</p>
+</footer>
+
+</body>
+</html>
