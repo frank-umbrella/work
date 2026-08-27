@@ -1,12 +1,12 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PC Scripts v0.13.1</title>
+<title>PC Scripts v0.14.0</title>
 <meta name="description" content="PowerShell scripts for re-fixing a fresh Windows PC: show all tray icons, stop Copilot and Malwarebytes at startup. Windows 10 and 11.">
 <meta name="robots" content="noindex">
-<meta name="version" content="0.13.1">
+<meta name="version" content="0.14.0">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -1017,6 +1017,14 @@ net start spooler</pre>
       <span class="src">Sources: <a href="https://help.eset.com/eos/en-US/periodic_scan.html" target="_blank" rel="noopener noreferrer">ESET &ndash; Periodic scan</a> &middot; <a href="https://help.eset.com/eos/en-US/getting_started.html" target="_blank" rel="noopener noreferrer">Getting started</a> &middot; <a href="https://support.eset.com/en/kb405-online-scanner-faq" target="_blank" rel="noopener noreferrer">KB405 FAQ</a></span>
     </p>
 
+    <div class="tool">
+      <div class="info">
+        <h3>Malwarebytes AdwCleaner</h3>
+        <p>Free portable remover for adware, PUPs, unwanted toolbars, and browser hijackers &mdash; the go-to for &ldquo;my browser is full of junk.&rdquo; Single portable exe, no install: run it, <strong>Scan</strong>, then <strong>Quarantine</strong>. It keeps logs and quarantine in <code>C:\AdwCleaner</code> &mdash; delete that folder when done for a clean pass. <span class="host">downloads.malwarebytes.com</span></p>
+      </div>
+      <a class="dl-ext" href="https://downloads.malwarebytes.com/file/adwcleaner" target="_blank" rel="noopener noreferrer">Download adwcleaner.exe</a>
+    </div>
+
     <p class="tools-note">Links go straight to the vendors' own download servers (verified live). Always run on-demand scanners with admin rights.</p>
   </section>
 
@@ -1025,7 +1033,7 @@ net start spooler</pre>
 </main>
 
 <footer class="page">
-  <p>PC Scripts <span class="version">v0.13.1</span> &middot; Windows 10 &amp; 11.</p>
+  <p>PC Scripts <span class="version">v0.14.0</span> &middot; Windows 10 &amp; 11.</p>
 </footer>
 
 <script>
@@ -1096,7 +1104,7 @@ net start spooler</pre>
       pre.textContent = b.dataset.base + sel.map(c => ' ' + c.dataset.switch).join('');
       let html = '<div class="explain-title">What this command will do</div><ul>';
       html += '<li>' + b.dataset.baseDesc + '</li>';
-      sel.forEach(c => { html += '<li><code>' + c.dataset.switch + '</code> — ' + c.dataset.desc + '</li>'; });
+      sel.forEach(c => { html += '<li><code>' + c.dataset.switch + '</code> â€” ' + c.dataset.desc + '</li>'; });
       html += '</ul>';
       explain.innerHTML = html;
     };
