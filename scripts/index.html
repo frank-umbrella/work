@@ -6,7 +6,7 @@
 <title>PC Scripts</title>
 <meta name="description" content="PowerShell scripts for re-fixing a fresh Windows PC: show all tray icons, stop Copilot and Malwarebytes at startup. Windows 10 and 11.">
 <meta name="robots" content="noindex">
-<meta name="version" content="0.12.0">
+<meta name="version" content="0.13.0">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -318,7 +318,16 @@
     <div class="opt">
       <h3>Show all icons now</h3>
       <p>Promotes every current tray icon and restarts Explorer so they appear immediately.</p>
-      <pre>powershell -ExecutionPolicy Bypass -File C:\Show-AllTrayIcons.ps1</pre>
+      <div class="builder" data-base="powershell -ExecutionPolicy Bypass -File C:\Show-AllTrayIcons.ps1"
+           data-base-desc="Shows every current system-tray icon on the taskbar (Win11: sets IsPromoted on all entries; Win10: the always-show-all switch) and restarts Explorer so it takes effect immediately. One-time change; nothing stays on the PC.">
+        <p class="build-lbl">Options &mdash; click to add to the command (hover for details):</p>
+        <div class="builder-opts">
+          <button type="button" class="opt-chip" data-switch="-Install" data-group="task" data-desc="Also registers a logon task that re-applies ~1 minute after each sign-in, so apps installed later get promoted too. The ONLY option that leaves anything on the PC - skip it for a one-and-done pass.">-Install</button>
+          <button type="button" class="opt-chip" data-switch="-Uninstall" data-group="task" data-desc="Removes the logon task and the local copy that -Install created. Nothing else changes.">-Uninstall</button>
+        </div>
+        <div class="explain" aria-live="polite"></div>
+        <pre>powershell -ExecutionPolicy Bypass -File C:\Show-AllTrayIcons.ps1</pre>
+      </div>
       <details class="manual">
         <summary>Do it manually instead</summary>
         <div class="manual-body">
@@ -345,9 +354,6 @@
       <h3>Optional: re-apply automatically on every logon</h3>
       <p><strong>This is the only option that leaves anything on the PC</strong> &mdash; skip it if you just want a one-time change. It copies the script to <code>%LOCALAPPDATA%</code> and registers a logon task that re-runs ~1 minute after each sign-in, so apps installed <em>later</em> get promoted too. Only worth it on a machine you manage long-term; for a one-and-done pass on a client PC, use the one-shot above instead.</p>
       <pre>powershell -ExecutionPolicy Bypass -File C:\Show-AllTrayIcons.ps1 -Install</pre>
-      <p class="switches"><span class="lbl">Reverse:</span>
-        <span class="sw" tabindex="0" role="note" aria-label="-Uninstall: removes the logon task and the local copy of the script"><code>-Uninstall</code><span class="bubble">Removes the logon task and the local copy of the script.</span></span>
-      </p>
       <details class="manual">
         <summary>Do it manually instead</summary>
         <div class="manual-body">
@@ -395,11 +401,16 @@
     <div class="opt">
       <h3>Disable Copilot startup</h3>
       <p>Takes effect at the next sign-in. Run <code>-List</code> first if you want to preview matches.</p>
-      <pre>powershell -ExecutionPolicy Bypass -File C:\Disable-Copilot-Startup.ps1</pre>
-      <p class="switches"><span class="lbl">Options:</span>
-        <span class="sw" tabindex="0" role="note" aria-label="-List: preview only, lists what would change without changing anything"><code>-List</code><span class="bubble">Preview only &mdash; lists what would change, changes nothing.</span></span>
-        <span class="sw" tabindex="0" role="note" aria-label="-Enable: undo, turns Copilot startup back on"><code>-Enable</code><span class="bubble">Undo &mdash; turns Copilot startup back on.</span></span>
-      </p>
+      <div class="builder" data-base="powershell -ExecutionPolicy Bypass -File C:\Disable-Copilot-Startup.ps1"
+           data-base-desc="Stops Microsoft 365 Copilot and the standalone Copilot from launching at startup (sets their startup tasks to Disabled, the same reversible way Task Manager does). Takes effect at the next sign-in. No admin needed.">
+        <p class="build-lbl">Options &mdash; click to add to the command (hover for details):</p>
+        <div class="builder-opts">
+          <button type="button" class="opt-chip" data-switch="-List" data-group="action" data-desc="Preview only - lists what would change, changes nothing.">-List</button>
+          <button type="button" class="opt-chip" data-switch="-Enable" data-group="action" data-desc="Undo - turns Copilot startup back on.">-Enable</button>
+        </div>
+        <div class="explain" aria-live="polite"></div>
+        <pre>powershell -ExecutionPolicy Bypass -File C:\Disable-Copilot-Startup.ps1</pre>
+      </div>
       <details class="manual">
         <summary>Do it manually instead</summary>
         <div class="manual-body">
@@ -433,11 +444,17 @@
     <div class="opt">
       <h3>Disable any Windows startup entries it finds</h3>
       <p>Clears old Run keys, scheduled tasks, and Startup-folder shortcuts for Malwarebytes. Safe default; run <code>-List</code> first to see what exists.</p>
-      <pre>powershell -ExecutionPolicy Bypass -File C:\Disable-Malwarebytes-Startup.ps1</pre>
-      <p class="switches"><span class="lbl">Options:</span>
-        <span class="sw" tabindex="0" role="note" aria-label="-List: preview only, lists what would change without changing anything"><code>-List</code><span class="bubble">Preview only &mdash; lists what would change, changes nothing.</span></span>
-        <span class="sw" tabindex="0" role="note" aria-label="-StopTrayNow: also closes the Malwarebytes tray icon for the current session right now"><code>-StopTrayNow</code><span class="bubble">Also closes the Malwarebytes tray for this session right now.</span></span>
-      </p>
+      <div class="builder" data-base="powershell -ExecutionPolicy Bypass -File C:\Disable-Malwarebytes-Startup.ps1"
+           data-base-desc="Finds and disables any Malwarebytes Run keys, scheduled tasks and Startup-folder shortcuts (the reversible Task Manager way). The modern v4/v5 tray is service-driven - use the in-app toggle or the service option below for that.">
+        <p class="build-lbl">Options &mdash; click to add to the command (hover for details):</p>
+        <div class="builder-opts">
+          <button type="button" class="opt-chip" data-switch="-List" data-group="action" data-desc="Preview only - lists what exists, changes nothing.">-List</button>
+          <button type="button" class="opt-chip" data-switch="-StopTrayNow" data-group="action" data-desc="Also closes the Malwarebytes tray (mbamtray.exe) for the current session right now.">-StopTrayNow</button>
+          <button type="button" class="opt-chip" data-switch="-Enable" data-group="action" data-desc="Undo - re-enables the startup entries this script disabled.">-Enable</button>
+        </div>
+        <div class="explain" aria-live="polite"></div>
+        <pre>powershell -ExecutionPolicy Bypass -File C:\Disable-Malwarebytes-Startup.ps1</pre>
+      </div>
       <details class="manual">
         <summary>Do it manually instead (tray off, protection ON &mdash; matches the toggle)</summary>
         <div class="manual-body">
@@ -454,10 +471,15 @@
     <div class="opt">
       <h3>Stop Malwarebytes entirely at boot</h3>
       <p><span class="danger">Sets MBAMService to Manual &mdash; this also stops real-time protection.</span> Requires admin. Use only if you want Malwarebytes fully dormant; reverse with <code>-Enable</code>.</p>
-      <pre>powershell -ExecutionPolicy Bypass -File C:\Disable-Malwarebytes-Startup.ps1 -DisableService</pre>
-      <p class="switches"><span class="lbl">Reverse:</span>
-        <span class="sw" tabindex="0" role="note" aria-label="DisableService Enable: restores MBAMService to automatic start so protection comes back at boot"><code>-DisableService -Enable</code><span class="bubble">Restores the service to automatic start &mdash; protection comes back at boot.</span></span>
-      </p>
+      <div class="builder" data-base="powershell -ExecutionPolicy Bypass -File C:\Disable-Malwarebytes-Startup.ps1 -DisableService"
+           data-base-desc="Sets the Malwarebytes services (MBAMService and related) to Manual start so NOTHING launches at boot - including real-time protection. Admin required; Malwarebytes self-protection may need turning off first if the change doesn't stick.">
+        <p class="build-lbl">Options &mdash; click to add to the command (hover for details):</p>
+        <div class="builder-opts">
+          <button type="button" class="opt-chip" data-switch="-Enable" data-desc="Restore: sets the services back to Automatic so protection returns at boot.">-Enable</button>
+        </div>
+        <div class="explain" aria-live="polite"></div>
+        <pre>powershell -ExecutionPolicy Bypass -File C:\Disable-Malwarebytes-Startup.ps1 -DisableService</pre>
+      </div>
       <details class="manual">
         <summary>Do it manually instead</summary>
         <div class="manual-body">
@@ -531,16 +553,20 @@
     <p class="purpose">Turns on the two Advanced-options toggles &mdash; <strong>Receive updates for other Microsoft products</strong> (registers the Microsoft Update service) and <strong>Notify me when a restart is required to finish updating</strong> &mdash; and sets <strong>Active hours</strong> (default 7&nbsp;AM&ndash;11&nbsp;PM). Machine-wide settings, so it self-elevates. GPO / Intune / WSUS policy may override these.</p>
 
     <div class="opt">
-      <h3>Turn both on and set active hours</h3>
-      <p>Defaults to active hours 7&nbsp;AM&ndash;11&nbsp;PM. Pass <code>-ActiveHoursStart</code> / <code>-ActiveHoursEnd</code> (0&ndash;23) for other hours.</p>
-      <pre>powershell -ExecutionPolicy Bypass -File C:\Set-WindowsUpdateOptions.ps1</pre>
-      <p class="switches"><span class="lbl">Options:</span>
-        <span class="sw" tabindex="0" role="note" aria-label="-ActiveHoursStart 8: active hours start hour in 24-hour time, default 7"><code>-ActiveHoursStart 8</code><span class="bubble">Active hours start hour, 0&ndash;23 (default 7 = 7&nbsp;AM).</span></span>
-        <span class="sw" tabindex="0" role="note" aria-label="-ActiveHoursEnd 22: active hours end hour in 24-hour time, default 23"><code>-ActiveHoursEnd 22</code><span class="bubble">Active hours end hour, 0&ndash;23 (default 23 = 11&nbsp;PM).</span></span>
-        <span class="sw" tabindex="0" role="note" aria-label="-AutoActiveHours: let Windows manage active hours automatically instead of fixed hours"><code>-AutoActiveHours</code><span class="bubble">Let Windows set active hours automatically by activity, instead of fixed hours.</span></span>
-        <span class="sw" tabindex="0" role="note" aria-label="-NoMicrosoftUpdate: skip the Receive updates for other Microsoft products step"><code>-NoMicrosoftUpdate</code><span class="bubble">Skip the &ldquo;Receive updates for other Microsoft products&rdquo; toggle.</span></span>
-        <span class="sw" tabindex="0" role="note" aria-label="-NoRestartNotify: skip the Notify me when a restart is required step"><code>-NoRestartNotify</code><span class="bubble">Skip the &ldquo;Notify me when a restart is required&rdquo; toggle.</span></span>
-      </p>
+      <h3>Build the command</h3>
+      <div class="builder" data-base="powershell -ExecutionPolicy Bypass -File C:\Set-WindowsUpdateOptions.ps1"
+           data-base-desc="Turns ON Receive updates for other Microsoft products and Notify me when a restart is required, and sets Active hours to the default 7 AM - 11 PM. Machine-wide settings, so it self-elevates. GPO / Intune / WSUS policy can override.">
+        <p class="build-lbl">Options &mdash; click to add to the command (hover for details):</p>
+        <div class="builder-opts">
+          <button type="button" class="opt-chip" data-switch="-ActiveHoursStart 8" data-excludes="-AutoActiveHours" data-desc="Start active hours at 8 AM instead of 7 AM. Hours are 0-23 (24-hour clock) - edit the number after copying.">-ActiveHoursStart 8</button>
+          <button type="button" class="opt-chip" data-switch="-ActiveHoursEnd 22" data-excludes="-AutoActiveHours" data-desc="End active hours at 10 PM instead of 11 PM. Hours are 0-23 - edit after copying. Windows allows a window of at most 18 hours.">-ActiveHoursEnd 22</button>
+          <button type="button" class="opt-chip" data-switch="-AutoActiveHours" data-excludes="-ActiveHoursStart 8|-ActiveHoursEnd 22" data-desc="Let Windows learn active hours from how the PC is used, instead of fixed start/end hours. Can't combine with fixed hours.">-AutoActiveHours</button>
+          <button type="button" class="opt-chip" data-switch="-NoMicrosoftUpdate" data-desc="Skip the Receive updates for other Microsoft products toggle - leave it as it is.">-NoMicrosoftUpdate</button>
+          <button type="button" class="opt-chip" data-switch="-NoRestartNotify" data-desc="Skip the Notify me when a restart is required toggle - leave it as it is.">-NoRestartNotify</button>
+        </div>
+        <div class="explain" aria-live="polite"></div>
+        <pre>powershell -ExecutionPolicy Bypass -File C:\Set-WindowsUpdateOptions.ps1</pre>
+      </div>
       <details class="manual">
         <summary>Do it manually instead</summary>
         <div class="manual-body">
@@ -574,11 +600,16 @@
     <div class="opt">
       <h3>Set the admin password to never expire</h3>
       <p>Run it and it flips <em>Password never expires</em> on for the <code>admin</code> account.</p>
-      <pre>powershell -ExecutionPolicy Bypass -File C:\Disable-AdminPasswordExpiry.ps1</pre>
-      <p class="switches"><span class="lbl">Options:</span>
-        <span class="sw" tabindex="0" role="note" aria-label="-User localadmin: target a different local account name instead of admin"><code>-User localadmin</code><span class="bubble">Target a different local account name (default is <code>admin</code>).</span></span>
-        <span class="sw" tabindex="0" role="note" aria-label="-Revert: turn password expiry back ON for the account"><code>-Revert</code><span class="bubble">Turn password expiry back <strong>on</strong> for the account.</span></span>
-      </p>
+      <div class="builder" data-base="powershell -ExecutionPolicy Bypass -File C:\Disable-AdminPasswordExpiry.ps1"
+           data-base-desc="Sets Password never expires on the local admin account so the standard admin login stops locking out when its password ages. Local accounts only (not domain / Entra); self-elevates.">
+        <p class="build-lbl">Options &mdash; click to add to the command (hover for details):</p>
+        <div class="builder-opts">
+          <button type="button" class="opt-chip" data-switch="-User localadmin" data-desc="Target a different local account name (default is admin - edit the name after copying).">-User localadmin</button>
+          <button type="button" class="opt-chip" data-switch="-Revert" data-desc="Turn password expiry back ON for the account.">-Revert</button>
+        </div>
+        <div class="explain" aria-live="polite"></div>
+        <pre>powershell -ExecutionPolicy Bypass -File C:\Disable-AdminPasswordExpiry.ps1</pre>
+      </div>
       <details class="manual">
         <summary>Do it manually instead</summary>
         <div class="manual-body">
@@ -610,11 +641,17 @@
     <div class="opt">
       <h3>Open Disk Cleanup</h3>
       <p>Opens the normal Disk Cleanup window for C: (use <code>-Drive D</code> for another drive).</p>
-      <pre>powershell -ExecutionPolicy Bypass -File C:\Open-DiskCleanup.ps1</pre>
-      <p class="switches"><span class="lbl">Options:</span>
-        <span class="sw" tabindex="0" role="note" aria-label="-SystemFiles: opens the elevated system-files view with more categories including Windows Update cleanup"><code>-SystemFiles</code><span class="bubble">Elevated &ldquo;system files&rdquo; view &mdash; more categories (Windows Update cleanup, old installs).</span></span>
-        <span class="sw" tabindex="0" role="note" aria-label="-Auto: runs an unattended cleanup of common safe categories with no UI"><code>-Auto</code><span class="bubble">Unattended cleanup of common safe categories &mdash; no clicks.</span></span>
-      </p>
+      <div class="builder" data-base="powershell -ExecutionPolicy Bypass -File C:\Open-DiskCleanup.ps1"
+           data-base-desc="Opens the normal interactive Disk Cleanup window (cleanmgr.exe) for drive C: so you can pick what to remove. No admin needed for the basic view.">
+        <p class="build-lbl">Options &mdash; click to add to the command (hover for details):</p>
+        <div class="builder-opts">
+          <button type="button" class="opt-chip" data-switch="-Drive D" data-excludes="-Auto" data-desc="Clean drive D: instead of C: (edit the letter after copying). Not used by -Auto, which always runs its preset.">-Drive D</button>
+          <button type="button" class="opt-chip" data-switch="-SystemFiles" data-group="action" data-desc="Open the elevated system-files view instead - more categories (Windows Update cleanup, old installations). Shows an admin prompt.">-SystemFiles</button>
+          <button type="button" class="opt-chip" data-switch="-Auto" data-group="action" data-excludes="-Drive D" data-desc="Unattended cleanup of common safe categories (temp files, recycle bin, thumbnails, update cleanup) - no clicks, runs and exits.">-Auto</button>
+        </div>
+        <div class="explain" aria-live="polite"></div>
+        <pre>powershell -ExecutionPolicy Bypass -File C:\Open-DiskCleanup.ps1</pre>
+      </div>
       <details class="manual">
         <summary>Do it manually instead</summary>
         <div class="manual-body">
@@ -652,9 +689,9 @@
         <div class="builder-opts">
           <button type="button" class="opt-chip" data-switch="-Drive D" data-desc="Check drive D: instead of C:. Edit the letter after copying for any other drive. Non-Windows drives are checked immediately, no reboot.">-Drive D</button>
           <button type="button" class="opt-chip" data-switch="-SkipSurface" data-group="mode" data-desc="Skip the /r bad-sector surface scan - much faster (minutes instead of hours); still fixes filesystem errors with /f.">-SkipSurface</button>
-          <button type="button" class="opt-chip" data-switch="-ReadOnly" data-group="mode" data-desc="Report-only scan: no /f and no /r. Nothing is changed and no reboot is needed - safe first look.">-ReadOnly</button>
-          <button type="button" class="opt-chip" data-switch="-Reboot" data-group="mode2" data-desc="Restart the PC immediately after scheduling, so the check runs right away. Warn the user first - the machine goes down.">-Reboot</button>
-          <button type="button" class="opt-chip" data-switch="-Status" data-group="mode2" data-desc="Only show whether a check is already scheduled for the drive (chkntfs). Changes nothing.">-Status</button>
+          <button type="button" class="opt-chip" data-switch="-ReadOnly" data-group="mode" data-excludes="-Reboot" data-desc="Report-only scan: no /f and no /r. Nothing is changed and no reboot is needed - safe first look.">-ReadOnly</button>
+          <button type="button" class="opt-chip" data-switch="-Reboot" data-desc="Restart the PC immediately after scheduling, so the check runs right away. Warn the user first - the machine goes down.">-Reboot</button>
+          <button type="button" class="opt-chip" data-switch="-Status" data-excludes="-SkipSurface|-ReadOnly|-Reboot" data-desc="Only show whether a check is already scheduled for the drive (chkntfs). Changes nothing - combine only with -Drive.">-Status</button>
         </div>
         <div class="explain" aria-live="polite"></div>
         <pre>powershell -ExecutionPolicy Bypass -File C:\Invoke-CheckDisk.ps1</pre>
@@ -693,7 +730,7 @@
         <div class="builder-opts">
           <button type="button" class="opt-chip" data-switch="-ExportLog" data-desc="After SFC finishes, save its results (the [SR] lines from CBS.log) to SFCDETAILS.TXT on the Desktop for review. Note: CBS.log accumulates, so earlier SFC runs appear in the file too.">-ExportLog</button>
           <button type="button" class="opt-chip" data-switch="-SfcOnly" data-group="phase" data-desc="Skip DISM and run only sfc /scannow. Faster, but if the component store is corrupt SFC may fail - run the full pass in that case.">-SfcOnly</button>
-          <button type="button" class="opt-chip" data-switch="-DismOnly" data-group="phase" data-desc="Run only the DISM component-store repair and skip SFC.">-DismOnly</button>
+          <button type="button" class="opt-chip" data-switch="-DismOnly" data-group="phase" data-excludes="-ExportLog" data-desc="Run only the DISM component-store repair and skip SFC (so there are no SFC results to export).">-DismOnly</button>
         </div>
         <div class="explain" aria-live="polite"></div>
         <pre>powershell -ExecutionPolicy Bypass -File C:\Repair-SystemFiles.ps1</pre>
@@ -769,10 +806,15 @@
     <div class="opt">
       <h3>Open Classic Devices and Printers</h3>
       <p>Opens the Windows 7-style window. Use <code>-AddPrinter</code> to jump straight to the old Add Printer wizard.</p>
-      <pre>powershell -ExecutionPolicy Bypass -File C:\Open-DevicesAndPrinters.ps1</pre>
-      <p class="switches"><span class="lbl">Options:</span>
-        <span class="sw" tabindex="0" role="note" aria-label="-AddPrinter: opens the legacy Add Printer wizard directly instead of the Devices and Printers window"><code>-AddPrinter</code><span class="bubble">Opens the legacy Add Printer wizard directly (add by IP / local port the old way).</span></span>
-      </p>
+      <div class="builder" data-base="powershell -ExecutionPolicy Bypass -File C:\Open-DevicesAndPrinters.ps1"
+           data-base-desc="Opens the classic Windows 7-style Devices and Printers window (via its shell folder). No admin needed.">
+        <p class="build-lbl">Options &mdash; click to add to the command (hover for details):</p>
+        <div class="builder-opts">
+          <button type="button" class="opt-chip" data-switch="-AddPrinter" data-desc="Open the legacy Add Printer wizard directly instead - add a printer by IP / local port the old way.">-AddPrinter</button>
+        </div>
+        <div class="explain" aria-live="polite"></div>
+        <pre>powershell -ExecutionPolicy Bypass -File C:\Open-DevicesAndPrinters.ps1</pre>
+      </div>
       <details class="manual">
         <summary>Do it manually instead (Run box)</summary>
         <div class="manual-body">
@@ -836,11 +878,16 @@ net start spooler</pre>
     <div class="opt">
       <h3>Remove it all</h3>
       <p>Run <code>-List</code> first to see what&rsquo;s present. Removal stops the services, clears tasks, then uninstalls each component in order &mdash; update service last, so it can&rsquo;t reinstall.</p>
-      <pre>powershell -ExecutionPolicy Bypass -File C:\Remove-HPWolfSecurity.ps1</pre>
-      <p class="switches"><span class="lbl">Options:</span>
-        <span class="sw" tabindex="0" role="note" aria-label="-List: preview only, lists the HP Wolf components, services, tasks, and AppX packages found, changes nothing"><code>-List</code><span class="bubble">Preview only &mdash; lists the HP Wolf components, services, tasks and AppX found. Changes nothing.</span></span>
-        <span class="sw" tabindex="0" role="note" aria-label="-Reboot: restart the PC automatically when removal finishes, which HP recommends"><code>-Reboot</code><span class="bubble">Restart the PC automatically when finished (HP recommends a reboot to complete removal).</span></span>
-      </p>
+      <div class="builder" data-base="powershell -ExecutionPolicy Bypass -File C:\Remove-HPWolfSecurity.ps1"
+           data-base-desc="Removes the full HP Wolf stack in HP's documented order - HP Wolf Security, then the Console, then the HP Security Update Service LAST (the piece that reinstalls it) - plus its services, scheduled tasks and Store packages. Self-elevates.">
+        <p class="build-lbl">Options &mdash; click to add to the command (hover for details):</p>
+        <div class="builder-opts">
+          <button type="button" class="opt-chip" data-switch="-List" data-group="run" data-desc="Preview only - lists every HP Wolf component, service, task and AppX found. Changes nothing.">-List</button>
+          <button type="button" class="opt-chip" data-switch="-Reboot" data-group="run" data-desc="Restart the PC automatically when removal finishes (HP recommends a reboot). Warn the user first.">-Reboot</button>
+        </div>
+        <div class="explain" aria-live="polite"></div>
+        <pre>powershell -ExecutionPolicy Bypass -File C:\Remove-HPWolfSecurity.ps1</pre>
+      </div>
       <details class="manual">
         <summary>Do it manually instead</summary>
         <div class="manual-body">
@@ -874,10 +921,15 @@ net start spooler</pre>
     <div class="opt">
       <h3>Remove the leftovers</h3>
       <p>Run <code>-List</code> first to see what&rsquo;s present.</p>
-      <pre>powershell -ExecutionPolicy Bypass -File C:\Remove-ESETOnlineScanner.ps1</pre>
-      <p class="switches"><span class="lbl">Options:</span>
-        <span class="sw" tabindex="0" role="note" aria-label="-List: preview only, lists the scheduled tasks, data folders, shortcuts and running process found, changes nothing"><code>-List</code><span class="bubble">Preview only &mdash; lists the tasks, data folders, shortcuts and running scanner found. Changes nothing.</span></span>
-      </p>
+      <div class="builder" data-base="powershell -ExecutionPolicy Bypass -File C:\Remove-ESETOnlineScanner.ps1"
+           data-base-desc="Removes ESET Online Scanner leftovers: the EOSv3 startup scheduled tasks, the data folder in every user profile (including any quarantine - copy it out first if needed), the Desktop shortcut, and any running scanner. Self-elevates. Does NOT touch an installed ESET antivirus.">
+        <p class="build-lbl">Options &mdash; click to add to the command (hover for details):</p>
+        <div class="builder-opts">
+          <button type="button" class="opt-chip" data-switch="-List" data-desc="Preview only - lists the tasks, data folders, shortcuts and running scanner found. Changes nothing.">-List</button>
+        </div>
+        <div class="explain" aria-live="polite"></div>
+        <pre>powershell -ExecutionPolicy Bypass -File C:\Remove-ESETOnlineScanner.ps1</pre>
+      </div>
       <details class="manual">
         <summary>Do it manually instead</summary>
         <div class="manual-body">
@@ -911,10 +963,15 @@ net start spooler</pre>
     <div class="opt">
       <h3>Remove it all</h3>
       <p>Run <code>-List</code> first to see what&rsquo;s installed (there may be more than one).</p>
-      <pre>powershell -ExecutionPolicy Bypass -File C:\Remove-ScreenConnect.ps1</pre>
-      <p class="switches"><span class="lbl">Options:</span>
-        <span class="sw" tabindex="0" role="note" aria-label="-List: preview only, lists every ScreenConnect product, service, and folder found, changes nothing"><code>-List</code><span class="bubble">Preview only &mdash; lists every ScreenConnect product, service and folder found. Changes nothing.</span></span>
-      </p>
+      <div class="builder" data-base="powershell -ExecutionPolicy Bypass -File C:\Remove-ScreenConnect.ps1"
+           data-base-desc="Finds every ScreenConnect / ConnectWise Control instance and removes all three parts of each: uninstalls the product, stops and deletes its service, and clears leftover Program Files folders. Self-elevates.">
+        <p class="build-lbl">Options &mdash; click to add to the command (hover for details):</p>
+        <div class="builder-opts">
+          <button type="button" class="opt-chip" data-switch="-List" data-desc="Preview only - lists every ScreenConnect product, service and folder found (there may be more than one instance). Changes nothing.">-List</button>
+        </div>
+        <div class="explain" aria-live="polite"></div>
+        <pre>powershell -ExecutionPolicy Bypass -File C:\Remove-ScreenConnect.ps1</pre>
+      </div>
       <details class="manual">
         <summary>Do it manually instead</summary>
         <div class="manual-body">
@@ -968,7 +1025,7 @@ net start spooler</pre>
 </main>
 
 <footer class="page">
-  <p>PC Scripts <span class="version">v0.12.0</span> &middot; Windows 10 &amp; 11.</p>
+  <p>PC Scripts <span class="version">v0.13.0</span> &middot; Windows 10 &amp; 11.</p>
 </footer>
 
 <script>
@@ -1043,11 +1100,22 @@ net start spooler</pre>
       html += '</ul>';
       explain.innerHTML = html;
     };
+    // Two chips conflict if they share a data-group, or either lists the
+    // other's switch in its data-excludes (pipe-separated). Selecting a chip
+    // auto-deselects anything it conflicts with.
+    const conflicts = (a, c) => {
+      if (a === c) return false;
+      if (a.dataset.group && a.dataset.group === c.dataset.group) return true;
+      const exC = (c.dataset.excludes || '').split('|');
+      const exA = (a.dataset.excludes || '').split('|');
+      return exC.includes(a.dataset.switch) || exA.includes(c.dataset.switch);
+    };
     chips.forEach(c => c.addEventListener('click', () => {
       const on = c.getAttribute('aria-pressed') === 'true';
-      // Chips sharing a data-group are mutually exclusive.
-      if (!on && c.dataset.group) {
-        chips.forEach(o => { if (o !== c && o.dataset.group === c.dataset.group) o.setAttribute('aria-pressed', 'false'); });
+      if (!on) {
+        chips.forEach(o => {
+          if (o.getAttribute('aria-pressed') === 'true' && conflicts(o, c)) o.setAttribute('aria-pressed', 'false');
+        });
       }
       c.setAttribute('aria-pressed', on ? 'false' : 'true');
       render();

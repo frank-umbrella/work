@@ -67,6 +67,11 @@ starts in `C:\windows\system32`, so a relative `.\<script>.ps1` won't find a
 script saved to `C:\`. The per-script examples below assume the script sits in
 `C:\` - adjust the path if you saved it elsewhere.
 
+**On the web page**, every script has a command builder: click the switch chips
+under a command and the copy block updates live, a highlighted "What this
+command will do" box explains each selected part, and switches that conflict
+deselect each other automatically.
+
 ### Step by step (example: Show-AllTrayIcons.ps1)
 
 1. **Save the script somewhere simple.** The root of the C: drive (`C:\`) is
