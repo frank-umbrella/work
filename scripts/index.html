@@ -6,7 +6,7 @@
 <title>PC Scripts</title>
 <meta name="description" content="PowerShell scripts for re-fixing a fresh Windows PC: show all tray icons, stop Copilot and Malwarebytes at startup. Windows 10 and 11.">
 <meta name="robots" content="noindex">
-<meta name="version" content="0.11.0">
+<meta name="version" content="0.12.0">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -166,6 +166,30 @@
   .tip::before { content: "i"; font-family: Georgia, "Times New Roman", serif; line-height: 1; }
   .tip:hover, .tip:focus-visible { background: var(--accent); color: #fff; }
 
+  /* Interactive command builder: toggle chips build the command; explainer updates live */
+  .build-lbl { font-size: 13px; font-weight: 600; color: var(--ink-soft); margin: 0 0 8px; }
+  .builder-opts { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 12px; }
+  .opt-chip {
+    position: relative; font-family: var(--mono); font-size: 12px; font-weight: 600;
+    color: var(--ink); background: var(--bg);
+    border: 1px solid var(--line-strong); border-bottom-width: 2px; border-radius: 6px;
+    padding: 4px 11px; cursor: pointer;
+    transition: background .12s ease, color .12s ease, border-color .12s ease;
+  }
+  .opt-chip:hover { border-color: var(--accent); color: var(--accent); }
+  .opt-chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .opt-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .opt-chip:hover .bubble, .opt-chip:focus-visible .bubble { opacity: 1; visibility: visible; }
+  .explain {
+    background: var(--accent-soft); border-left: 3px solid var(--accent);
+    border-radius: 0 8px 8px 0; padding: 10px 14px; margin: 0 0 10px;
+    font-size: 13px; color: var(--ink); line-height: 1.55;
+  }
+  .explain-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--accent); margin-bottom: 4px; }
+  .explain ul { margin: 0; padding-left: 18px; }
+  .explain li { margin-bottom: 3px; }
+  .explain code { font-family: var(--mono); font-size: 11.5px; background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
+
   details.manual {
     border: 1px solid var(--line); border-radius: 8px; padding: 0;
     background: var(--bg); margin: 0 0 6px;
@@ -235,6 +259,9 @@
       <li><a href="#wu-options">Windows Update options</a></li>
       <li><a href="#admin-pwd-expiry">Admin password expiry</a></li>
       <li><a href="#disk-cleanup">Disk Cleanup</a></li>
+      <li><a href="#check-disk">Check Disk (chkdsk)</a></li>
+      <li><a href="#repair-system">Repair system files</a></li>
+      <li><a href="#component-cleanup">WinSxS cleanup</a></li>
       <li><a href="#devices-printers">Devices and Printers</a></li>
       <li><a href="#print-flush">Print Flush</a></li>
       <li><a href="#hp-wolf">Remove HP Wolf Security</a></li>
@@ -252,7 +279,9 @@
       <li>Save the <code>.ps1</code> somewhere local, open <strong>PowerShell</strong>, then run:
         <code>powershell -ExecutionPolicy Bypass -File .\NAME.ps1</code></li>
       <li><code>-List</code> shows what would change without touching anything &middot; <code>-WhatIf</code> is a full dry run &middot; <code>-Enable</code> reverses a disable.</li>
-      <li>Copied from a network share and blocked? Run <code>Unblock-File .\NAME.ps1</code> once.</li>
+      <li>Copied from a network share and blocked? Run <code>Unblock-File C:\NAME.ps1</code> once.</li>
+      <li><strong>Always use the full path</strong> (e.g. <code>-File C:\NAME.ps1</code>) like the copy blocks below do. An <em>elevated</em> PowerShell starts in <code>C:\windows\system32</code>, so a relative <code>.\NAME.ps1</code> won&rsquo;t find a script saved to <code>C:\</code>.</li>
+      <li><strong>Ad-blocker note:</strong> uBlock Origin may flag the Copy buttons as a &ldquo;ClickFix&rdquo; attempt. That&rsquo;s its guard against scam pages that push PowerShell commands onto your clipboard &mdash; copying admin commands is exactly what this page does legitimately, so the pattern matches. The buttons only copy the command shown on screen. If a copy is blocked, the button switches to <em>Press Ctrl+C</em> with the command pre-selected, or allow clipboard access for this site in uBlock.</li>
     </ul>
 
     <h3 class="howto-sub">Step by step (example: Show-AllTrayIcons.ps1)</h3>
@@ -459,14 +488,19 @@
     <p class="purpose">Opens Settings &gt; Windows Update, pauses updates for a set number of days, waits, then triggers a check for updates &mdash; the routine in one shot. Pausing writes the machine-wide pause window in the registry, so the script self-elevates for that step (the Update screen still opens in your normal session). On machines managed by Group Policy / Intune / WSUS, policy may override the pause.</p>
 
     <div class="opt">
-      <h3>Open, pause, wait, then check</h3>
-      <p>Default is a 7-day pause and a 10-second wait before checking. Adjust with <code>-PauseDays</code> and <code>-WaitSeconds</code>.</p>
-      <pre>powershell -ExecutionPolicy Bypass -File C:\Open-WindowsUpdate.ps1</pre>
-      <p class="switches"><span class="lbl">Options:</span>
-        <span class="sw" tabindex="0" role="note" aria-label="-PauseDays 14: pause updates for a custom number of days instead of the default 7"><code>-PauseDays 14</code><span class="bubble">Pause for a custom number of days (default is 7).</span></span>
-        <span class="sw" tabindex="0" role="note" aria-label="-Resume: clear the pause and resume updates"><code>-Resume</code><span class="bubble">Un-pause &mdash; clears the pause and resumes updates.</span></span>
-        <span class="sw" tabindex="0" role="note" aria-label="-NoPause: just open and check for updates without pausing, no admin needed"><code>-NoPause</code><span class="bubble">Open + check only, no pause (no admin needed).</span></span>
-      </p>
+      <h3>Build the command</h3>
+      <div class="builder" data-base="powershell -ExecutionPolicy Bypass -File C:\Open-WindowsUpdate.ps1"
+           data-base-desc="Opens Settings > Windows Update, pauses updates for 7 days (writes the machine-wide pause window - this is the step that needs the admin prompt), waits 10 seconds, then triggers Check for updates.">
+        <p class="build-lbl">Options &mdash; click to add to the command (hover for details):</p>
+        <div class="builder-opts">
+          <button type="button" class="opt-chip" data-switch="-PauseDays 14" data-group="pause" data-desc="Pause for 14 days instead of the default 7. Edit the number after copying for any length - Windows caps pausing at about 35 days.">-PauseDays 14</button>
+          <button type="button" class="opt-chip" data-switch="-Resume" data-group="pause" data-desc="Un-pause: clears any existing pause so updates resume, then opens the screen and checks.">-Resume</button>
+          <button type="button" class="opt-chip" data-switch="-NoPause" data-group="pause" data-desc="Skip the pause step entirely - just open Windows Update and check. The only mode that needs no admin.">-NoPause</button>
+          <button type="button" class="opt-chip" data-switch="-WaitSeconds 30" data-desc="Wait 30 seconds between pausing and checking instead of the default 10 (edit the number after copying).">-WaitSeconds 30</button>
+        </div>
+        <div class="explain" aria-live="polite"></div>
+        <pre>powershell -ExecutionPolicy Bypass -File C:\Open-WindowsUpdate.ps1</pre>
+      </div>
       <details class="manual">
         <summary>Do it manually instead</summary>
         <div class="manual-body">
@@ -590,6 +624,128 @@
             <li>Choose the <strong>C:</strong> drive, tick the categories to remove, click <strong>OK</strong>.</li>
             <li>For more (Windows Update cleanup, old installations), click <strong>Clean up system files</strong> and approve the admin prompt.</li>
           </ol>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <!-- ===================== Check Disk ===================== -->
+  <section class="panel" id="check-disk">
+    <div class="panel-head">
+      <div>
+        <span class="tag">Repair</span>
+        <h2>Check Disk (chkdsk /f /r)</h2>
+        <code class="file">Invoke-CheckDisk.ps1</code>
+      </div>
+      <div class="panel-side">
+        <span class="badge badge-warn">Admin needed</span>
+        <a class="dl" href="Invoke-CheckDisk.ps1" download>Download .ps1</a>
+      </div>
+    </div>
+    <p class="purpose">The classic <code>chkdsk C: /f /r</code> in one script: fixes filesystem errors and scans the disk surface for bad sectors. The Windows drive can&rsquo;t be locked while Windows runs, so the check is <strong>scheduled for the next restart</strong> (the script answers the schedule prompt for you and confirms it&rsquo;s queued). Heads-up: the <code>/r</code> surface scan can take <em>hours</em> on large or slow drives.</p>
+
+    <div class="opt">
+      <h3>Build the command</h3>
+      <div class="builder" data-base="powershell -ExecutionPolicy Bypass -File C:\Invoke-CheckDisk.ps1"
+           data-base-desc="Runs chkdsk C: /f /r - fixes filesystem errors (/f) and scans the whole disk surface for bad sectors, recovering readable data (/r). On the Windows drive it schedules the check for the next restart and confirms it's queued.">
+        <p class="build-lbl">Options &mdash; click to add to the command (hover for details):</p>
+        <div class="builder-opts">
+          <button type="button" class="opt-chip" data-switch="-Drive D" data-desc="Check drive D: instead of C:. Edit the letter after copying for any other drive. Non-Windows drives are checked immediately, no reboot.">-Drive D</button>
+          <button type="button" class="opt-chip" data-switch="-SkipSurface" data-group="mode" data-desc="Skip the /r bad-sector surface scan - much faster (minutes instead of hours); still fixes filesystem errors with /f.">-SkipSurface</button>
+          <button type="button" class="opt-chip" data-switch="-ReadOnly" data-group="mode" data-desc="Report-only scan: no /f and no /r. Nothing is changed and no reboot is needed - safe first look.">-ReadOnly</button>
+          <button type="button" class="opt-chip" data-switch="-Reboot" data-group="mode2" data-desc="Restart the PC immediately after scheduling, so the check runs right away. Warn the user first - the machine goes down.">-Reboot</button>
+          <button type="button" class="opt-chip" data-switch="-Status" data-group="mode2" data-desc="Only show whether a check is already scheduled for the drive (chkntfs). Changes nothing.">-Status</button>
+        </div>
+        <div class="explain" aria-live="polite"></div>
+        <pre>powershell -ExecutionPolicy Bypass -File C:\Invoke-CheckDisk.ps1</pre>
+      </div>
+      <details class="manual">
+        <summary>Do it manually instead</summary>
+        <div class="manual-body">
+          <p class="note"><strong>Run box:</strong> <kbd>Win</kbd>+<kbd>R</kbd> &rarr; <code>cmd</code>, then <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Enter</kbd> for an elevated Command Prompt. Then run:</p>
+          <pre>chkdsk C: /f /r</pre>
+          <p class="note">On C: it asks to schedule at the next restart &mdash; answer <kbd>Y</kbd>, then reboot when convenient. To see whether a check is already queued: <code>chkntfs C:</code></p>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <!-- ===================== Repair system files ===================== -->
+  <section class="panel" id="repair-system">
+    <div class="panel-head">
+      <div>
+        <span class="tag">Repair</span>
+        <h2>Repair system files (DISM + SFC)</h2>
+        <code class="file">Repair-SystemFiles.ps1</code>
+      </div>
+      <div class="panel-side">
+        <span class="badge badge-warn">Admin needed</span>
+        <a class="dl" href="Repair-SystemFiles.ps1" download>Download .ps1</a>
+      </div>
+    </div>
+    <p class="purpose">The standard &ldquo;Windows is corrupted&rdquo; repair pass, in the correct order: <strong>DISM /RestoreHealth</strong> first (repairs the component store &mdash; the source SFC repairs from &mdash; pulling known-good files from Windows Update), then <strong>sfc /scannow</strong> (replaces corrupted system files from that repaired store). Running DISM first matters: if the store itself is corrupt, SFC repairs from a bad source and fails. Both steps take minutes and may sit at certain percentages &mdash; that&rsquo;s normal; don&rsquo;t close the window.</p>
+
+    <div class="opt">
+      <h3>Build the command</h3>
+      <div class="builder" data-base="powershell -ExecutionPolicy Bypass -File C:\Repair-SystemFiles.ps1"
+           data-base-desc="Runs DISM /Online /Cleanup-Image /RestoreHealth (repairs the Windows component store, downloading replacement files from Windows Update if needed), then sfc /scannow (replaces corrupted system files from the repaired store). Several minutes each; stalls at some percentages are normal.">
+        <p class="build-lbl">Options &mdash; click to add to the command (hover for details):</p>
+        <div class="builder-opts">
+          <button type="button" class="opt-chip" data-switch="-ExportLog" data-desc="After SFC finishes, save its results (the [SR] lines from CBS.log) to SFCDETAILS.TXT on the Desktop for review. Note: CBS.log accumulates, so earlier SFC runs appear in the file too.">-ExportLog</button>
+          <button type="button" class="opt-chip" data-switch="-SfcOnly" data-group="phase" data-desc="Skip DISM and run only sfc /scannow. Faster, but if the component store is corrupt SFC may fail - run the full pass in that case.">-SfcOnly</button>
+          <button type="button" class="opt-chip" data-switch="-DismOnly" data-group="phase" data-desc="Run only the DISM component-store repair and skip SFC.">-DismOnly</button>
+        </div>
+        <div class="explain" aria-live="polite"></div>
+        <pre>powershell -ExecutionPolicy Bypass -File C:\Repair-SystemFiles.ps1</pre>
+      </div>
+      <details class="manual">
+        <summary>Do it manually instead</summary>
+        <div class="manual-body">
+          <p class="note"><strong>Run box:</strong> <kbd>Win</kbd>+<kbd>R</kbd> &rarr; <code>cmd</code>, then <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Enter</kbd> for an elevated Command Prompt. Run these in order:</p>
+          <pre>DISM.exe /Online /Cleanup-Image /RestoreHealth</pre>
+          <pre>sfc /scannow</pre>
+          <p class="note">To dump the SFC results to your Desktop afterwards:</p>
+          <pre>findstr /C:"[SR]" %windir%\Logs\CBS\CBS.log > "%USERPROFILE%\Desktop\SFCDETAILS.TXT"</pre>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <!-- ===================== Component store cleanup ===================== -->
+  <section class="panel" id="component-cleanup">
+    <div class="panel-head">
+      <div>
+        <span class="tag">Maintenance</span>
+        <h2>Clean the component store (WinSxS)</h2>
+        <code class="file">Clear-ComponentStore.ps1</code>
+      </div>
+      <div class="panel-side">
+        <span class="badge badge-warn">Admin needed</span>
+        <a class="dl" href="Clear-ComponentStore.ps1" download>Download .ps1</a>
+      </div>
+    </div>
+    <p class="purpose">Trims the <strong>WinSxS</strong> component store with <code>DISM /StartComponentCleanup</code> &mdash; removes superseded component versions to reclaim disk space (often several GB). Safe and supported; can take a while. Start with <code>-Analyze</code> to see whether cleanup is even worth it on that machine.</p>
+
+    <div class="opt">
+      <h3>Build the command</h3>
+      <div class="builder" data-base="powershell -ExecutionPolicy Bypass -File C:\Clear-ComponentStore.ps1"
+           data-base-desc="Runs Dism.exe /Online /Cleanup-Image /StartComponentCleanup - removes superseded component versions from the WinSxS folder to reclaim disk space. Safe and supported; can take a while.">
+        <p class="build-lbl">Options &mdash; click to add to the command (hover for details):</p>
+        <div class="builder-opts">
+          <button type="button" class="opt-chip" data-switch="-Analyze" data-group="action" data-desc="Report-only: shows the component store's size and whether cleanup is recommended. Changes nothing - run this first.">-Analyze</button>
+          <button type="button" class="opt-chip" data-switch="-ResetBase" data-group="action" data-desc="Also deletes the fallback copies of ALL superseded updates. Frees the most space but is NON-REVERSIBLE: installed updates can no longer be uninstalled afterward. Only on a stable machine.">-ResetBase</button>
+          <button type="button" class="opt-chip" data-switch="-UseTask" data-group="action" data-desc="Run the built-in background servicing task instead of DISM - same cleanup, runs quietly with no window, auto-stops after about an hour.">-UseTask</button>
+        </div>
+        <div class="explain" aria-live="polite"></div>
+        <pre>powershell -ExecutionPolicy Bypass -File C:\Clear-ComponentStore.ps1</pre>
+      </div>
+      <details class="manual">
+        <summary>Do it manually instead</summary>
+        <div class="manual-body">
+          <p class="note"><strong>Run box:</strong> <kbd>Win</kbd>+<kbd>R</kbd> &rarr; <code>cmd</code>, then <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Enter</kbd> for an elevated Command Prompt.</p>
+          <pre>Dism.exe /Online /Cleanup-Image /StartComponentCleanup</pre>
+          <p class="note">Or run the built-in background servicing task instead:</p>
+          <pre>schtasks.exe /Run /TN "\Microsoft\Windows\Servicing\StartComponentCleanup"</pre>
         </div>
       </details>
     </div>
@@ -812,7 +968,7 @@ net start spooler</pre>
 </main>
 
 <footer class="page">
-  <p>PC Scripts <span class="version">v0.11.0</span> &middot; Windows 10 &amp; 11.</p>
+  <p>PC Scripts <span class="version">v0.12.0</span> &middot; Windows 10 &amp; 11.</p>
 </footer>
 
 <script>
@@ -833,8 +989,10 @@ net start spooler</pre>
 
     btn.addEventListener('click', async () => {
       const text = pre.innerText.replace(/\s+$/, '');
+      let ok = false;
       try {
         await navigator.clipboard.writeText(text);
+        ok = true;
       } catch (e) {
         const ta = document.createElement('textarea');
         ta.value = text;
@@ -842,14 +1000,59 @@ net start spooler</pre>
         ta.style.opacity = '0';
         document.body.appendChild(ta);
         ta.select();
-        try { document.execCommand('copy'); } catch (e2) {}
+        try { ok = document.execCommand('copy'); } catch (e2) { ok = false; }
         ta.remove();
       }
-      btn.textContent = 'Copied';
-      btn.classList.add('copied');
       clearTimeout(btn._t);
-      btn._t = setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1600);
+      if (ok) {
+        btn.textContent = 'Copied';
+        btn.classList.add('copied');
+      } else {
+        // Clipboard blocked (e.g. an ad-blocker's ClickFix guard): select the
+        // command so a manual Ctrl+C still works in one keystroke.
+        const range = document.createRange();
+        range.selectNodeContents(pre);
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(range);
+        btn.textContent = 'Press Ctrl+C';
+      }
+      btn._t = setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2400);
     });
+  });
+
+  // Command builders: toggle chips add switches; the code block and the
+  // "What this command will do" explainer update live.
+  document.querySelectorAll('.builder').forEach(b => {
+    const pre = b.querySelector('pre');
+    const explain = b.querySelector('.explain');
+    const chips = [...b.querySelectorAll('.opt-chip')];
+    chips.forEach(c => {
+      c.setAttribute('aria-pressed', 'false');
+      const bub = document.createElement('span');
+      bub.className = 'bubble';
+      bub.textContent = c.dataset.desc;
+      c.appendChild(bub);
+    });
+    const render = () => {
+      const sel = chips.filter(c => c.getAttribute('aria-pressed') === 'true');
+      pre.textContent = b.dataset.base + sel.map(c => ' ' + c.dataset.switch).join('');
+      let html = '<div class="explain-title">What this command will do</div><ul>';
+      html += '<li>' + b.dataset.baseDesc + '</li>';
+      sel.forEach(c => { html += '<li><code>' + c.dataset.switch + '</code> — ' + c.dataset.desc + '</li>'; });
+      html += '</ul>';
+      explain.innerHTML = html;
+    };
+    chips.forEach(c => c.addEventListener('click', () => {
+      const on = c.getAttribute('aria-pressed') === 'true';
+      // Chips sharing a data-group are mutually exclusive.
+      if (!on && c.dataset.group) {
+        chips.forEach(o => { if (o !== c && o.dataset.group === c.dataset.group) o.setAttribute('aria-pressed', 'false'); });
+      }
+      c.setAttribute('aria-pressed', on ? 'false' : 'true');
+      render();
+    }));
+    render();
   });
 
   // Table-of-contents scrollspy: highlight the section currently in view.

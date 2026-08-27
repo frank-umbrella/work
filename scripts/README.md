@@ -1,4 +1,4 @@
-# scripts
+﻿# scripts
 
 Utility scripts for the Work hub - the things that have to be re-done every time
 you get into a new or freshly imaged Windows PC, plus any other handy automation.
@@ -29,6 +29,9 @@ label.
 | `Open-DiskCleanup.ps1`    | Launch Disk Cleanup (cleanmgr) for a drive                    | No     |
 | `Open-DevicesAndPrinters.ps1` | Open classic Devices and Printers / old Add Printer wizard | No  |
 | `Print-Flush.bat`         | Stop spooler, clear stuck print jobs, restart spooler         | Yes    |
+| `Invoke-CheckDisk.ps1`    | Classic chkdsk /f /r (schedules on the Windows drive)         | Yes    |
+| `Repair-SystemFiles.ps1`  | DISM /RestoreHealth then SFC /scannow, in the right order     | Yes    |
+| `Clear-ComponentStore.ps1` | Trim WinSxS via DISM StartComponentCleanup                   | Yes    |
 
 ### Accounts
 
@@ -56,8 +59,13 @@ background. The single exception is the tray script's optional `-Install`
 client machine, or run `-Uninstall` later to remove it.
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\<script>.ps1 [switches]
+powershell -ExecutionPolicy Bypass -File C:\<script>.ps1 [switches]
 ```
+
+**Always use the full path** (`-File C:\<script>.ps1`). An *elevated* PowerShell
+starts in `C:\windows\system32`, so a relative `.\<script>.ps1` won't find a
+script saved to `C:\`. The per-script examples below assume the script sits in
+`C:\` - adjust the path if you saved it elsewhere.
 
 ### Step by step (example: Show-AllTrayIcons.ps1)
 
@@ -89,7 +97,7 @@ Common switches on these scripts:
 
 If a script is blocked by execution policy, the `-ExecutionPolicy Bypass` above
 runs it without changing the machine's policy. To unblock a file copied from a
-network share once: `Unblock-File .\<script>.ps1`.
+network share once: `Unblock-File C:\<script>.ps1`.
 
 ---
 
@@ -134,7 +142,7 @@ the OS: on Windows 11 it promotes every `NotifyIconSettings` entry; on Windows
 ### One-shot (apply right now)
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\Show-AllTrayIcons.ps1
+powershell -ExecutionPolicy Bypass -File C:\Show-AllTrayIcons.ps1
 ```
 
 It promotes all current icons and restarts Explorer so they appear immediately.
@@ -146,13 +154,13 @@ the script to `%LOCALAPPDATA%\ShowAllTrayIcons\` and registers a scheduled task
 that re-runs ~1 minute after each sign-in (so startup apps have time to load):
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\Show-AllTrayIcons.ps1 -Install
+powershell -ExecutionPolicy Bypass -File C:\Show-AllTrayIcons.ps1 -Install
 ```
 
 ### Remove the logon task
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\Show-AllTrayIcons.ps1 -Uninstall
+powershell -ExecutionPolicy Bypass -File C:\Show-AllTrayIcons.ps1 -Uninstall
 ```
 
 ### Notes
@@ -220,9 +228,9 @@ HKCU\Software\Classes\Local Settings\Software\Microsoft\Windows\CurrentVersion\A
 ```
 
 ```powershell
-.\Disable-Copilot-Startup.ps1 -List     # show what would change
-.\Disable-Copilot-Startup.ps1           # disable Copilot startup
-.\Disable-Copilot-Startup.ps1 -Enable   # put it back
+C:\Disable-Copilot-Startup.ps1 -List     # show what would change
+C:\Disable-Copilot-Startup.ps1           # disable Copilot startup
+C:\Disable-Copilot-Startup.ps1 -Enable   # put it back
 ```
 
 It also catches any Copilot/365 `Run` keys or scheduled tasks if a given build
@@ -258,11 +266,11 @@ expose a simple registry switch:
   clean Run key** to flip for that, so the script gives you explicit levers:
 
 ```powershell
-.\Disable-Malwarebytes-Startup.ps1 -List           # show what exists
-.\Disable-Malwarebytes-Startup.ps1                 # disable any Run/task/folder entries + stop tray hint
-.\Disable-Malwarebytes-Startup.ps1 -StopTrayNow    # also kill mbamtray.exe for this session now
-.\Disable-Malwarebytes-Startup.ps1 -DisableService # set MBAMService to Manual (admin) - see warning
-.\Disable-Malwarebytes-Startup.ps1 -DisableService -Enable  # restore services to Automatic
+C:\Disable-Malwarebytes-Startup.ps1 -List           # show what exists
+C:\Disable-Malwarebytes-Startup.ps1                 # disable any Run/task/folder entries + stop tray hint
+C:\Disable-Malwarebytes-Startup.ps1 -StopTrayNow    # also kill mbamtray.exe for this session now
+C:\Disable-Malwarebytes-Startup.ps1 -DisableService # set MBAMService to Manual (admin) - see warning
+C:\Disable-Malwarebytes-Startup.ps1 -DisableService -Enable  # restore services to Automatic
 ```
 
 ### Which option do you want?
@@ -307,10 +315,10 @@ for `-PauseDays` (default 7) by writing the pause window to
 machines, policy may override the pause.
 
 ```powershell
-.\Open-WindowsUpdate.ps1                      # open, pause 7 days, wait, check
-.\Open-WindowsUpdate.ps1 -PauseDays 14        # longer pause
-.\Open-WindowsUpdate.ps1 -Resume              # clear pause (resume), then check
-.\Open-WindowsUpdate.ps1 -NoPause             # just open + check, no admin
+C:\Open-WindowsUpdate.ps1                      # open, pause 7 days, wait, check
+C:\Open-WindowsUpdate.ps1 -PauseDays 14        # longer pause
+C:\Open-WindowsUpdate.ps1 -Resume              # clear pause (resume), then check
+C:\Open-WindowsUpdate.ps1 -NoPause             # just open + check, no admin
 ```
 
 ### Manual steps
@@ -335,9 +343,9 @@ and sets Active hours (`ActiveHoursStart`/`ActiveHoursEnd`, or
 Active hours range max 18 hours.
 
 ```powershell
-.\Set-WindowsUpdateOptions.ps1                                  # both on + active hours 7am-11pm
-.\Set-WindowsUpdateOptions.ps1 -ActiveHoursStart 8 -ActiveHoursEnd 22
-.\Set-WindowsUpdateOptions.ps1 -AutoActiveHours                 # let Windows manage active hours
+C:\Set-WindowsUpdateOptions.ps1                                  # both on + active hours 7am-11pm
+C:\Set-WindowsUpdateOptions.ps1 -ActiveHoursStart 8 -ActiveHoursEnd 22
+C:\Set-WindowsUpdateOptions.ps1 -AutoActiveHours                 # let Windows manage active hours
 ```
 
 ### Manual steps
@@ -368,9 +376,9 @@ installations); `-Auto` runs an unattended cleanup of common safe categories
 with no UI.
 
 ```powershell
-.\Open-DiskCleanup.ps1                # interactive, C:
-.\Open-DiskCleanup.ps1 -SystemFiles  # elevated "system files" view
-.\Open-DiskCleanup.ps1 -Auto         # unattended preset, no clicks
+C:\Open-DiskCleanup.ps1                # interactive, C:
+C:\Open-DiskCleanup.ps1 -SystemFiles  # elevated "system files" view
+C:\Open-DiskCleanup.ps1 -Auto         # unattended preset, no clicks
 ```
 
 ### Manual steps
@@ -393,8 +401,8 @@ opens the old Control Panel window directly, and `-AddPrinter` launches the
 legacy Add Printer wizard (add a printer by IP / local port the old way).
 
 ```powershell
-.\Open-DevicesAndPrinters.ps1              # classic Devices and Printers window
-.\Open-DevicesAndPrinters.ps1 -AddPrinter  # old Add Printer wizard
+C:\Open-DevicesAndPrinters.ps1              # classic Devices and Printers window
+C:\Open-DevicesAndPrinters.ps1 -AddPrinter  # old Add Printer wizard
 ```
 
 ### Manual steps (Run box)
@@ -457,9 +465,9 @@ Pro Security"): HP Wolf Security -> HP Wolf Security - Console -> HP Security
 Update Service, then reboot.
 
 ```powershell
-.\Remove-HPWolfSecurity.ps1 -List    # preview every component/service/task/AppX found
-.\Remove-HPWolfSecurity.ps1          # remove everything in order, update service last
-.\Remove-HPWolfSecurity.ps1 -Reboot  # remove, then restart automatically
+C:\Remove-HPWolfSecurity.ps1 -List    # preview every component/service/task/AppX found
+C:\Remove-HPWolfSecurity.ps1          # remove everything in order, update service last
+C:\Remove-HPWolfSecurity.ps1 -Reboot  # remove, then restart automatically
 ```
 
 > **Managed / password-protected installs** (deployed by an HP admin console or
@@ -491,8 +499,8 @@ shortcut, and any running scanner. It does NOT touch an installed ESET
 antivirus product - only the on-demand scanner's leftovers.
 
 ```powershell
-.\Remove-ESETOnlineScanner.ps1 -List   # preview tasks/folders/shortcuts found
-.\Remove-ESETOnlineScanner.ps1         # remove them all
+C:\Remove-ESETOnlineScanner.ps1 -List   # preview tasks/folders/shortcuts found
+C:\Remove-ESETOnlineScanner.ps1         # remove them all
 ```
 
 > Deleting the data folder also discards any ESET Online Scanner **quarantine**.
@@ -526,9 +534,9 @@ by default in Windows 11 24H2). Local accounts only - not domain / Microsoft
 Entra (Azure AD) accounts.
 
 ```powershell
-.\Disable-AdminPasswordExpiry.ps1                    # the admin account
-.\Disable-AdminPasswordExpiry.ps1 -User localadmin   # a different local account
-.\Disable-AdminPasswordExpiry.ps1 -Revert            # turn expiry back on
+C:\Disable-AdminPasswordExpiry.ps1                    # the admin account
+C:\Disable-AdminPasswordExpiry.ps1 -User localadmin   # a different local account
+C:\Disable-AdminPasswordExpiry.ps1 -Revert            # turn expiry back on
 ```
 
 ### Manual steps
@@ -553,8 +561,8 @@ every instance and uninstalls each, stops + deletes any leftover service, and
 clears leftover Program Files folders. Discovery-based (works across versions).
 
 ```powershell
-.\Remove-ScreenConnect.ps1 -List   # preview every product/service/folder found
-.\Remove-ScreenConnect.ps1         # remove them all
+C:\Remove-ScreenConnect.ps1 -List   # preview every product/service/folder found
+C:\Remove-ScreenConnect.ps1         # remove them all
 ```
 
 ### Manual steps
@@ -566,6 +574,95 @@ Run box: Win+R -> `appwiz.cpl` (Programs and Features) and `services.msc`.
 2. If a **ScreenConnect Client** service remains in `services.msc`, delete it
    from an elevated Command Prompt: `sc delete "ScreenConnect Client (<id>)"`
 3. Delete any leftover `C:\Program Files (x86)\ScreenConnect Client (<id>)` folder.
+
+---
+
+# 13. Check Disk (chkdsk /f /r)
+
+`Invoke-CheckDisk.ps1` - **admin needed** (self-elevates).
+
+The classic `chkdsk C: /f /r`: fixes filesystem errors (`/f`) and scans the disk
+surface for bad sectors, recovering readable data (`/r` - can take HOURS). The
+Windows drive can't be locked while Windows runs, so the check is scheduled for
+the next restart (the script answers the schedule prompt and confirms with
+`chkntfs`).
+
+```powershell
+C:\Invoke-CheckDisk.ps1                # chkdsk C: /f /r (scheduled on reboot)
+C:\Invoke-CheckDisk.ps1 -SkipSurface   # /f only - much faster, no surface scan
+C:\Invoke-CheckDisk.ps1 -ReadOnly      # report-only, changes nothing
+C:\Invoke-CheckDisk.ps1 -Drive D       # another drive (runs immediately)
+C:\Invoke-CheckDisk.ps1 -Reboot        # restart now so the check runs right away
+C:\Invoke-CheckDisk.ps1 -Status        # is a check already scheduled? (chkntfs)
+```
+
+### Manual steps
+
+Elevated Command Prompt (Win+R -> `cmd` -> Ctrl+Shift+Enter):
+`chkdsk C: /f /r` - answer `Y` to schedule on the next restart. Check the queue
+with `chkntfs C:`.
+
+---
+
+# 14. Repair system files (DISM + SFC)
+
+`Repair-SystemFiles.ps1` - **admin needed** (self-elevates).
+
+The standard corruption-repair pass in the correct order: DISM
+`/Online /Cleanup-Image /RestoreHealth` first (repairs the component store -
+the source SFC repairs from - downloading known-good files from Windows Update),
+then `sfc /scannow` (replaces corrupted system files from that repaired store).
+DISM-first matters: a corrupt store makes SFC repair from a bad source. Both
+steps can sit at certain percentages for a while - normal; don't close the
+window.
+
+```powershell
+C:\Repair-SystemFiles.ps1              # DISM RestoreHealth, then SFC /scannow
+C:\Repair-SystemFiles.ps1 -ExportLog   # + write SFC results to Desktop\SFCDETAILS.TXT
+C:\Repair-SystemFiles.ps1 -SfcOnly     # only sfc /scannow
+C:\Repair-SystemFiles.ps1 -DismOnly    # only the DISM store repair
+```
+
+### Manual steps
+
+Elevated Command Prompt, in order:
+
+```text
+DISM.exe /Online /Cleanup-Image /RestoreHealth
+sfc /scannow
+findstr /C:"[SR]" %windir%\Logs\CBS\CBS.log > "%USERPROFILE%\Desktop\SFCDETAILS.TXT"
+```
+
+(The findstr line is optional - it dumps the SFC results to the Desktop. CBS.log
+accumulates, so earlier runs appear too.)
+
+---
+
+# 15. Clean the component store (WinSxS)
+
+`Clear-ComponentStore.ps1` - **admin needed** (self-elevates).
+
+Trims WinSxS with `DISM /Online /Cleanup-Image /StartComponentCleanup` -
+removes superseded component versions to reclaim disk space (often several GB).
+Run `-Analyze` first to see if it's worth it.
+
+```powershell
+C:\Clear-ComponentStore.ps1 -Analyze    # report-only: store size + recommendation
+C:\Clear-ComponentStore.ps1             # the cleanup
+C:\Clear-ComponentStore.ps1 -UseTask    # background servicing task instead (quiet)
+C:\Clear-ComponentStore.ps1 -ResetBase  # max space - NON-REVERSIBLE (updates can't be uninstalled)
+```
+
+### Manual steps
+
+Elevated Command Prompt:
+
+```text
+Dism.exe /Online /Cleanup-Image /StartComponentCleanup
+schtasks.exe /Run /TN "\Microsoft\Windows\Servicing\StartComponentCleanup"
+```
+
+(The schtasks line runs the built-in background task instead - same cleanup.)
 
 ---
 
