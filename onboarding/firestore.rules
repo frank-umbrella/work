@@ -324,6 +324,29 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // ---- /tix_userprefs/{uid} ----
+    // Per-user board layout (visible columns, sort). Strictly self-scoped:
+    // even other staff have no reason to read someone's layout.
+    match /tix_userprefs/{uid} {
+      allow get: if isMSPAdmin() && request.auth.uid == uid;
+      allow create, update, delete: if isMSPAdmin() && request.auth.uid == uid;
+    }
+
+    // ---- /tix_views/{viewId} ----
+    // Saved board views. Personal views belong to their creator; shared
+    // views (ownerUid == 'shared') are visible to all staff but only a
+    // tixManager may create, modify, or delete them.
+    match /tix_views/{viewId} {
+      allow read: if isMSPAdmin()
+        && (resource.data.ownerUid == request.auth.uid || resource.data.ownerUid == 'shared');
+      allow create: if isMSPAdmin()
+        && (request.resource.data.ownerUid == request.auth.uid
+            || (request.resource.data.ownerUid == 'shared' && isTixManager()));
+      allow update, delete: if isMSPAdmin()
+        && (resource.data.ownerUid == request.auth.uid
+            || (resource.data.ownerUid == 'shared' && isTixManager()));
+    }
+
     // ---- /tix_orgs/{orgId} ----  client organizations
     match /tix_orgs/{orgId} {
       allow read: if isMSPAdmin();

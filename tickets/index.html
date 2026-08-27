@@ -6,7 +6,7 @@
 <title>Help Desk &middot; Umbrella Automation</title>
 <meta name="description" content="Internal IT help-desk and ticket system for Umbrella Automation managed-service clients.">
 <meta name="robots" content="noindex">
-<meta name="app-version" content="0.3.2">
+<meta name="app-version" content="0.4.0">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -143,6 +143,29 @@
     border-radius: 8px; background: var(--surface);
   }
   .search input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .ctl {
+    padding: 7px 10px; border: 1px solid var(--line-strong); border-radius: 8px;
+    background: var(--surface); font-size: 13px; max-width: 190px; min-width: 0;
+  }
+  .ctl:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+
+  /* sortable headers + selection */
+  table.board th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+  table.board th.sortable:hover { color: var(--accent-ink); }
+  table.board th.sorted { color: var(--accent-ink); }
+  table.board .col-check { width: 34px; }
+  table.board .col-check input { width: auto; cursor: pointer; }
+  table.board tbody tr.sel, table.board tbody tr.sel:hover { background: var(--accent-soft); }
+
+  /* columns-manager modal rows */
+  .col-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 4px; border-bottom: 1px solid var(--line); }
+  .col-row:last-child { border-bottom: 0; }
+  .col-row label { display: flex; gap: 8px; align-items: center; font-size: 13.5px; cursor: pointer; }
+  .col-row input { width: auto; }
+  .col-ord { display: flex; gap: 4px; }
+  .col-ord button { border: 1px solid var(--line-strong); background: var(--surface); border-radius: 6px; cursor: pointer; padding: 2px 9px; font-size: 12px; }
+  .col-ord button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent-ink); }
+  .col-ord button:disabled { opacity: .35; cursor: default; }
 
   /* ============== pills ============== */
   .pill {
@@ -340,6 +363,9 @@
     table.board td::before { content: attr(data-label); color: var(--ink-faint); font-size: 12px; font-weight: 600; flex: 0 0 auto; }
     table.board td.tsummary-cell { flex-direction: column; align-items: flex-start; }
     table.board td.tsummary-cell::before { content: ""; display: none; }
+    /* bulk select is a desktop workflow; hide it in the card restack */
+    table.board .col-check, #bulkBtn { display: none; }
+    .ctl { max-width: 100%; flex: 1 1 44%; }
   }
 </style>
 </head>
@@ -415,13 +441,22 @@
           <button class="btn primary" id="newTicketBtn">+ New ticket</button>
         </div>
         <div class="toolbar">
-          <div class="chips" id="statusChips">
-            <button data-status="Open" class="active">Open</button>
-            <button data-status="Waiting">Waiting</button>
-            <button data-status="Closed">Closed</button>
-            <button data-status="all">All</button>
-          </div>
+          <select id="viewSelect" class="ctl" title="Views — saved filter combinations. Pick one, or set filters and save your own."></select>
+          <select id="fStatus" class="ctl" title="Filter by status">
+            <option value="Open">Open</option>
+            <option value="Waiting">Waiting</option>
+            <option value="Closed">Closed</option>
+            <option value="notclosed">Not closed</option>
+            <option value="all">All statuses</option>
+          </select>
+          <select id="fOrg" class="ctl" title="Filter by organization"></select>
+          <select id="fAssignee" class="ctl" title="Filter by assignee"></select>
           <div class="search"><input id="ticketSearch" type="search" placeholder="Search tickets…" autocomplete="off"></div>
+          <button class="btn sm" id="saveViewBtn" hidden title="Save the current filter combination as a reusable view">Save view…</button>
+          <button class="btn sm danger" id="deleteViewBtn" hidden title="Delete this saved view">Delete view</button>
+          <div class="spacer"></div>
+          <button class="btn sm primary" id="bulkBtn" hidden>Bulk update (0)</button>
+          <button class="btn sm" id="colsBtn" title="Choose which columns show and their order. Saved to your account.">&#9881; Columns</button>
         </div>
         <div class="card table-wrap" id="ticketsCard"></div>
       </div>
@@ -456,7 +491,7 @@
   </main>
 
   <footer class="foot">
-    <a href="../">&larr; Work hub</a> &middot; Help Desk <span id="footVersion">v0.3.2</span>
+    <a href="../">&larr; Work hub</a> &middot; Help Desk <span id="footVersion">v0.4.0</span>
   </footer>
 </div>
 
@@ -482,7 +517,7 @@ import {
 import {
   getFirestore, collection, doc, getDoc, getDocs, setDoc, updateDoc,
   addDoc, deleteDoc, query, where, orderBy, onSnapshot,
-  runTransaction, serverTimestamp, increment, arrayUnion, arrayRemove
+  runTransaction, serverTimestamp, increment, arrayUnion, arrayRemove, writeBatch
 } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
 import {
   getStorage, ref as storageRef, uploadBytes, getDownloadURL
@@ -501,7 +536,7 @@ const firebaseConfig = {
   appId: "1:330286523878:web:27c4e2ffca3496ebc32227"
 };
 
-const APP_VERSION = "0.3.2";
+const APP_VERSION = "0.4.0";
 const MSP_DOMAIN = "umbrellaautomation.com";
 
 // Fixed vocabularies for M1 (admin-configurable in M5).
@@ -534,12 +569,18 @@ document.getElementById("footVersion").textContent = "v" + APP_VERSION;
 const state = {
   user: null, isStaff: false, isManager: false,
   tickets: [], orgs: [], admins: [],
-  statusFilter: "Open", search: "",
+  search: "",
+  filters: { status: "Open", orgId: "", assignee: "" },
+  sort: null,                // set from DEFAULT_SORT below / user prefs
+  visibleCols: null,         // set from DEFAULT_COLS below / user prefs
+  views: [],                 // saved views (mine + shared)
+  currentViewId: "b:open",   // builtin id, saved-view doc id, or null = custom
+  selected: new Set(),       // ticket ids checked for bulk update
   openTicketId: null,
   threadTab: "all",          // all | comments | history
   draftVisibility: "public", // public | private
   pendingFiles: [],          // File[] staged on the composer
-  unsub: { tickets: null, orgs: null, admins: null, activity: null, openTicket: null }
+  unsub: { tickets: null, orgs: null, views: null, activity: null, openTicket: null }
 };
 
 // ============== helpers ==============
@@ -647,11 +688,15 @@ $("#tabs").addEventListener("click", e => {
 
 // ============== data subscriptions ==============
 function startData() {
+  loadPrefs();
   // tickets — ordered by updatedAt desc (single-field, no composite index)
   state.unsub.tickets = onSnapshot(
     query(collection(db, "tix_tickets"), orderBy("updatedAt", "desc")),
     snap => {
       state.tickets = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      // drop selections that no longer resolve to a ticket
+      const ids = new Set(state.tickets.map(t => t.id));
+      state.selected.forEach(id => { if (!ids.has(id)) state.selected.delete(id); });
       renderBoard();
       if (state.openTicketId) renderDetail(); else applyHashRoute();
     },
@@ -660,70 +705,424 @@ function startData() {
   // orgs
   state.unsub.orgs = onSnapshot(
     query(collection(db, "tix_orgs"), orderBy("name")),
-    snap => { state.orgs = snap.docs.map(d => ({ id: d.id, ...d.data() })); renderBoard(); renderOrgs(); },
+    snap => { state.orgs = snap.docs.map(d => ({ id: d.id, ...d.data() })); renderBoard(); renderOrgs(); renderToolbar(); },
     err => toast(friendlyErr(err, "Couldn't load organizations"), true)
+  );
+  // saved views — mine + shared ('in' filter needs no composite index)
+  state.unsub.views = onSnapshot(
+    query(collection(db, "tix_views"), where("ownerUid", "in", [state.user.uid, "shared"])),
+    snap => {
+      state.views = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+      renderToolbar();
+    },
+    err => console.warn("views", err)
   );
   // msp staff (assignee options) — one-shot is fine, roster changes rarely
   getDocs(collection(db, "msp_admins"))
-    .then(snap => { state.admins = snap.docs.map(d => ({ id: d.id, ...d.data() })); })
+    .then(snap => { state.admins = snap.docs.map(d => ({ id: d.id, ...d.data() })); renderToolbar(); })
     .catch(err => console.warn("admins load", err));
 }
 function stopData() {
   Object.keys(state.unsub).forEach(k => { if (state.unsub[k]) { state.unsub[k](); state.unsub[k] = null; } });
 }
 
-// ============== board ==============
-$("#statusChips").addEventListener("click", e => {
-  const b = e.target.closest("button[data-status]"); if (!b) return;
-  state.statusFilter = b.dataset.status;
-  $$("#statusChips button").forEach(x => x.classList.toggle("active", x === b));
+// ============== board: columns, sort, views, bulk ==============
+// Column registry. sv = sort value. Cells render via cellHTML so the board
+// can be rebuilt from whatever subset/order the user keeps in visibleCols.
+const COLUMNS = [
+  { key: "num",      label: "#",        sv: t => t.num },
+  { key: "summary",  label: "Summary",  sv: t => (t.summary || "").toLowerCase() },
+  { key: "org",      label: "Org",      sv: t => (orgName(t.orgId) || "").toLowerCase() },
+  { key: "contact",  label: "Contact",  sv: t => (t.contactEmail || "").toLowerCase() },
+  { key: "assignee", label: "Assignee", sv: t => assigneeLabel(t).toLowerCase() },
+  { key: "priority", label: "Priority", sv: t => ({ high: 0, med: 1, low: 2 })[t.priority] ?? 1 },
+  { key: "status",   label: "Status",   sv: t => ({ Open: 0, Waiting: 1, Closed: 2 })[t.status] ?? 0 },
+  { key: "category", label: "Category", sv: t => (t.category || "").toLowerCase() },
+  { key: "computer", label: "Computer", sv: t => (t.customAttrs?.computerName || "").toLowerCase() },
+  { key: "due",      label: "Due",      sv: t => t.dueDate || "9999-99-99" },
+  { key: "created",  label: "Created",  sv: t => t.createdAt?.toMillis?.() || 0 },
+  { key: "updated",  label: "Updated",  sv: t => t.updatedAt?.toMillis?.() || 0 }
+];
+const DEFAULT_COLS = ["num", "summary", "org", "contact", "assignee", "priority", "status", "updated"];
+const DEFAULT_SORT = { key: "updated", dir: "desc" };
+state.visibleCols = [...DEFAULT_COLS];
+state.sort = { ...DEFAULT_SORT };
+
+const BUILTIN_VIEWS = [
+  { id: "b:open",       name: "Open",        filters: { status: "Open",      orgId: "", assignee: "" } },
+  { id: "b:waiting",    name: "Waiting",     filters: { status: "Waiting",   orgId: "", assignee: "" } },
+  { id: "b:mine",       name: "My tickets",  filters: { status: "notclosed", orgId: "", assignee: "me" } },
+  { id: "b:unassigned", name: "Unassigned",  filters: { status: "notclosed", orgId: "", assignee: "none" } },
+  { id: "b:closed",     name: "Closed",      filters: { status: "Closed",    orgId: "", assignee: "" } },
+  { id: "b:all",        name: "All tickets", filters: { status: "all",       orgId: "", assignee: "" } }
+];
+
+function cellHTML(t, key) {
+  switch (key) {
+    case "num": return `<td class="tnum" data-label="#">${esc(t.num)}</td>`;
+    case "summary": return `<td class="tsummary-cell"><div class="tsummary">${esc(t.summary)}</div></td>`;
+    case "org": return `<td data-label="Org">${esc(orgName(t.orgId))}</td>`;
+    case "contact": return `<td data-label="Contact"><span class="muted">${esc(t.contactEmail || "—")}</span></td>`;
+    case "assignee": return `<td data-label="Assignee">${esc(assigneeLabel(t))}</td>`;
+    case "priority": return `<td data-label="Priority">${priPill(t.priority)}</td>`;
+    case "status": return `<td data-label="Status">${statusPill(t.status || "Open")}</td>`;
+    case "category": return `<td data-label="Category">${esc(t.category || "—")}</td>`;
+    case "computer": return `<td data-label="Computer"><span class="muted">${esc(t.customAttrs?.computerName || "—")}</span></td>`;
+    case "due": return `<td data-label="Due">${esc(t.dueDate || "—")}</td>`;
+    case "created": return `<td data-label="Created"><span class="muted" title="${esc(fmtDate(t.createdAt))}">${esc(fmtRel(t.createdAt))}</span></td>`;
+    case "updated": return `<td data-label="Updated"><span class="muted" title="${esc(fmtDate(t.updatedAt))}">${esc(fmtRel(t.updatedAt))}</span></td>`;
+    default: return `<td data-label=""></td>`;
+  }
+}
+
+// ---- per-user prefs (columns + sort), debounced write-through ----
+let _prefsT = null;
+function savePrefs() {
+  clearTimeout(_prefsT);
+  _prefsT = setTimeout(() => {
+    setDoc(doc(db, "tix_userprefs", state.user.uid),
+      { columns: state.visibleCols, sort: state.sort, updatedAt: serverTimestamp() },
+      { merge: true })
+      .catch(err => console.warn("prefs save", err));
+  }, 600);
+}
+async function loadPrefs() {
+  try {
+    const snap = await getDoc(doc(db, "tix_userprefs", state.user.uid));
+    if (snap.exists()) {
+      const p = snap.data();
+      if (Array.isArray(p.columns) && p.columns.length) {
+        const valid = p.columns.filter(k => COLUMNS.some(c => c.key === k));
+        if (valid.length) state.visibleCols = valid;
+      }
+      if (p.sort && COLUMNS.some(c => c.key === p.sort.key)) {
+        state.sort = { key: p.sort.key, dir: p.sort.dir === "asc" ? "asc" : "desc" };
+      }
+    }
+  } catch (err) { console.warn("prefs load", err); }
   renderBoard();
+}
+
+// ---- toolbar (views + filters) ----
+function renderToolbar() {
+  const vs = $("#viewSelect");
+  if (!vs) return;
+  const cur = state.currentViewId;
+  vs.innerHTML =
+    `<optgroup label="Views">` +
+      BUILTIN_VIEWS.map(v => `<option value="${v.id}">${esc(v.name)}</option>`).join("") +
+    `</optgroup>` +
+    (state.views.length
+      ? `<optgroup label="Saved">` +
+          state.views.map(v => `<option value="${esc(v.id)}">${esc(v.name)}${v.ownerUid === "shared" ? " (shared)" : ""}</option>`).join("") +
+        `</optgroup>`
+      : "") +
+    `<option value="custom"${cur ? " hidden" : ""}>Custom filter</option>`;
+  vs.value = cur || "custom";
+
+  const fo = $("#fOrg");
+  const prevO = state.filters.orgId;
+  fo.innerHTML = `<option value="">All orgs</option>` +
+    state.orgs.map(o => `<option value="${esc(o.id)}">${esc(o.name)}</option>`).join("");
+  fo.value = prevO && state.orgs.some(o => o.id === prevO) ? prevO : "";
+
+  const fa = $("#fAssignee");
+  const prevA = state.filters.assignee;
+  fa.innerHTML = `<option value="">Anyone</option><option value="me">Me</option><option value="none">Unassigned</option>` +
+    state.admins.map(a => `<option value="${esc(a.id)}">${esc(adminName(a))}</option>`).join("");
+  fa.value = ["", "me", "none"].includes(prevA) || state.admins.some(a => a.id === prevA) ? prevA : "";
+
+  $("#fStatus").value = state.filters.status;
+
+  const curSaved = state.views.find(v => v.id === cur);
+  $("#saveViewBtn").hidden = !!cur;
+  $("#deleteViewBtn").hidden = !curSaved || (curSaved.ownerUid === "shared" && !state.isManager);
+}
+
+function applyView(id) {
+  const v = BUILTIN_VIEWS.find(x => x.id === id) || state.views.find(x => x.id === id);
+  if (!v) { state.currentViewId = null; renderToolbar(); renderBoard(); return; }
+  state.currentViewId = id;
+  state.filters = { status: "all", orgId: "", assignee: "", ...(v.filters || {}) };
+  if (v.sort && COLUMNS.some(c => c.key === v.sort.key)) state.sort = { ...v.sort };
+  state.search = ""; $("#ticketSearch").value = "";
+  renderToolbar(); renderBoard();
+}
+$("#viewSelect").addEventListener("change", e => applyView(e.target.value));
+[["fStatus", "status"], ["fOrg", "orgId"], ["fAssignee", "assignee"]].forEach(([id, key]) => {
+  $("#" + id).addEventListener("change", e => {
+    state.filters[key] = e.target.value;
+    state.currentViewId = null;   // hand-tuned filters = custom until saved
+    renderToolbar(); renderBoard();
+  });
 });
 $("#ticketSearch").addEventListener("input", e => { state.search = e.target.value.trim().toLowerCase(); renderBoard(); });
 
+$("#saveViewBtn").addEventListener("click", () => {
+  const sharedRow = state.isManager
+    ? field({ id: "sv-shared", label: "Shared view", hint: "Shared views appear for every tech. Only managers can create or edit them.", node: `<label class="switch"><input type="checkbox" id="sv-shared"> <span>Visible to the whole team</span></label>` })
+    : "";
+  openModal({
+    title: "Save view", persistent: true,
+    sub: "Saves the current filters and sort as a reusable view.",
+    body: `<div class="form-grid">
+      ${field({ id: "sv-name", label: "Name", full: true, hint: "Shown in the view picker.", node: `<input id="sv-name" type="text" maxlength="60" placeholder="e.g. Acme — open">` })}
+      ${sharedRow}
+    </div>`,
+    foot: `<button class="btn" data-modal-close>Cancel</button><button class="btn primary" id="sv-save">Save view</button>`
+  });
+  $("#sv-save").addEventListener("click", async () => {
+    const name = $("#sv-name").value.trim();
+    if (!name) return toast("Give the view a name.", true);
+    const shared = state.isManager && $("#sv-shared")?.checked;
+    const btn = $("#sv-save"); btn.disabled = true; btn.textContent = "Saving…";
+    try {
+      const ref = await addDoc(collection(db, "tix_views"), {
+        name, ownerUid: shared ? "shared" : state.user.uid,
+        filters: { ...state.filters }, sort: { ...state.sort },
+        createdAt: serverTimestamp(), createdByEmail: state.user.email
+      });
+      state.currentViewId = ref.id;
+      closeModal(); toast(`View "${name}" saved.`); renderToolbar();
+    } catch (err) { btn.disabled = false; btn.textContent = "Save view"; toast(friendlyErr(err, "Couldn't save the view"), true); }
+  });
+});
+$("#deleteViewBtn").addEventListener("click", () => {
+  const v = state.views.find(x => x.id === state.currentViewId); if (!v) return;
+  openModal({
+    title: "Delete view?", persistent: true,
+    body: `<p>Delete the ${v.ownerUid === "shared" ? "shared " : ""}view <strong>${esc(v.name)}</strong>? Tickets are not affected.</p>`,
+    foot: `<button class="btn" data-modal-close>Cancel</button><button class="btn danger" id="dv-yes">Delete view</button>`
+  });
+  $("#dv-yes").addEventListener("click", async () => {
+    try {
+      await deleteDoc(doc(db, "tix_views", v.id));
+      state.currentViewId = "b:open"; applyView("b:open");
+      closeModal(); toast("View deleted.");
+    } catch (err) { toast(friendlyErr(err, "Couldn't delete the view"), true); }
+  });
+});
+
+// ---- columns manager ----
+$("#colsBtn").addEventListener("click", () => {
+  openModal({
+    title: "Columns", persistent: true,
+    sub: "Choose which columns show and their order. Saved to your account.",
+    body: `<div id="colList"></div>`,
+    foot: `<button class="btn" id="colsReset" title="Back to the standard columns and sort">Reset to default</button><button class="btn primary" data-modal-close>Done</button>`
+  });
+  const paint = () => {
+    const vis = state.visibleCols;
+    const rows =
+      vis.map((k, i) => {
+        const c = COLUMNS.find(x => x.key === k);
+        return `<div class="col-row">
+          <label><input type="checkbox" data-colkey="${c.key}" checked> ${esc(c.key === "num" ? "Number (#)" : c.label)}</label>
+          <span class="col-ord">
+            <button data-up="${c.key}" ${i === 0 ? "disabled" : ""} title="Move up">&#8593;</button>
+            <button data-down="${c.key}" ${i === vis.length - 1 ? "disabled" : ""} title="Move down">&#8595;</button>
+          </span></div>`;
+      }).join("") +
+      COLUMNS.filter(c => !vis.includes(c.key)).map(c => `<div class="col-row">
+          <label><input type="checkbox" data-colkey="${c.key}"> ${esc(c.key === "num" ? "Number (#)" : c.label)}</label>
+          <span class="col-ord"></span></div>`).join("");
+    $("#colList").innerHTML = rows;
+    $$("#colList [data-colkey]").forEach(cb => cb.addEventListener("change", () => {
+      const k = cb.dataset.colkey;
+      if (cb.checked) { if (!state.visibleCols.includes(k)) state.visibleCols.push(k); }
+      else {
+        if (state.visibleCols.length === 1) { cb.checked = true; return toast("Keep at least one column.", true); }
+        state.visibleCols = state.visibleCols.filter(x => x !== k);
+      }
+      savePrefs(); renderBoard(); paint();
+    }));
+    $$("#colList [data-up]").forEach(b => b.addEventListener("click", () => {
+      const i = state.visibleCols.indexOf(b.dataset.up);
+      if (i > 0) { [state.visibleCols[i - 1], state.visibleCols[i]] = [state.visibleCols[i], state.visibleCols[i - 1]]; savePrefs(); renderBoard(); paint(); }
+    }));
+    $$("#colList [data-down]").forEach(b => b.addEventListener("click", () => {
+      const i = state.visibleCols.indexOf(b.dataset.down);
+      if (i > -1 && i < state.visibleCols.length - 1) { [state.visibleCols[i], state.visibleCols[i + 1]] = [state.visibleCols[i + 1], state.visibleCols[i]]; savePrefs(); renderBoard(); paint(); }
+    }));
+  };
+  paint();
+  $("#colsReset").addEventListener("click", () => {
+    state.visibleCols = [...DEFAULT_COLS];
+    state.sort = { ...DEFAULT_SORT };
+    savePrefs(); renderBoard(); paint();
+    toast("Columns reset to default.");
+  });
+});
+
+// ---- filtering + sorting ----
 function filteredTickets() {
+  const f = state.filters;
   let list = state.tickets;
-  if (state.statusFilter !== "all") list = list.filter(t => (t.status || "Open") === state.statusFilter);
+  if (f.status === "notclosed") list = list.filter(t => (t.status || "Open") !== "Closed");
+  else if (f.status !== "all") list = list.filter(t => (t.status || "Open") === f.status);
+  if (f.orgId) list = list.filter(t => t.orgId === f.orgId);
+  if (f.assignee === "me") list = list.filter(t => t.assigneeUid === state.user.uid);
+  else if (f.assignee === "none") list = list.filter(t => !t.assigneeUid);
+  else if (f.assignee) list = list.filter(t => t.assigneeUid === f.assignee);
   if (state.search) {
     const q = state.search;
     list = list.filter(t =>
       String(t.num).includes(q) ||
       (t.summary || "").toLowerCase().includes(q) ||
       (orgName(t.orgId) || "").toLowerCase().includes(q) ||
-      (t.contactEmail || "").toLowerCase().includes(q)
+      (t.contactEmail || "").toLowerCase().includes(q) ||
+      (t.category || "").toLowerCase().includes(q) ||
+      (t.customAttrs?.computerName || "").toLowerCase().includes(q) ||
+      (t.assigneeName || "").toLowerCase().includes(q)
     );
   }
   return list;
 }
+function sortedTickets(list) {
+  const col = COLUMNS.find(c => c.key === state.sort.key);
+  if (!col) return list;
+  const mul = state.sort.dir === "asc" ? 1 : -1;
+  return list.slice().sort((a, b) => {
+    const va = col.sv(a), vb = col.sv(b);
+    return va < vb ? -mul : va > vb ? mul : 0;
+  });
+}
+// Header click cycles asc -> desc -> back to the default sort.
+function cycleSort(key) {
+  if (state.sort.key !== key) state.sort = { key, dir: "asc" };
+  else if (state.sort.dir === "asc") state.sort = { key, dir: "desc" };
+  else state.sort = { ...DEFAULT_SORT };
+  savePrefs(); renderBoard();
+}
+
 function renderBoard() {
-  const list = filteredTickets();
+  const card = $("#ticketsCard");
+  if (!card) return;
+  const list = sortedTickets(filteredTickets());
   $("#ticketCount").textContent = state.tickets.length
     ? `${list.length} of ${state.tickets.length} ticket${state.tickets.length === 1 ? "" : "s"}`
     : "";
-  const card = $("#ticketsCard");
   if (!state.tickets.length) {
     card.innerHTML = `<div class="empty">
       <div class="glyph"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v3a2 2 0 0 0 0 4v3a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-3a2 2 0 0 0 0-4z"/><path d="M12 6v12" stroke-dasharray="2 2"/></svg></div>
       <h3>No tickets yet</h3><p>Create your first ticket, or import your Spiceworks history in M7.</p></div>`;
-    return;
+    syncBulkBtn(); return;
   }
-  if (!list.length) { card.innerHTML = `<div class="empty"><h3>No matching tickets</h3><p>Try a different status filter or search.</p></div>`; return; }
+  if (!list.length) {
+    card.innerHTML = `<div class="empty"><h3>No matching tickets</h3><p>Try a different view, filters, or search.</p></div>`;
+    syncBulkBtn(); return;
+  }
+  const cols = state.visibleCols.map(k => COLUMNS.find(c => c.key === k)).filter(Boolean);
+  const allSel = list.every(t => state.selected.has(t.id));
+  const head =
+    `<th class="col-check"><input type="checkbox" id="selAll" ${allSel ? "checked" : ""} title="Select all shown"></th>` +
+    cols.map(c => {
+      const active = state.sort.key === c.key;
+      const ind = active ? (state.sort.dir === "asc" ? " ▲" : " ▼") : "";
+      return `<th class="sortable${active ? " sorted" : ""}" data-sort="${c.key}" title="Sort by ${esc(c.label)} — click cycles ascending / descending / default">${esc(c.label)}${ind}</th>`;
+    }).join("");
   const rows = list.map(t => `
-    <tr data-id="${esc(t.id)}">
-      <td class="tnum" data-label="#">${esc(t.num)}</td>
-      <td class="tsummary-cell"><div class="tsummary">${esc(t.summary)}</div></td>
-      <td data-label="Org">${esc(orgName(t.orgId))}</td>
-      <td data-label="Contact"><span class="muted">${esc(t.contactEmail || "—")}</span></td>
-      <td data-label="Assignee">${esc(assigneeLabel(t))}</td>
-      <td data-label="Priority">${priPill(t.priority)}</td>
-      <td data-label="Status">${statusPill(t.status || "Open")}</td>
-      <td data-label="Updated"><span class="muted">${esc(fmtRel(t.updatedAt))}</span></td>
+    <tr data-id="${esc(t.id)}" class="${state.selected.has(t.id) ? "sel" : ""}">
+      <td class="col-check"><input type="checkbox" data-check="${esc(t.id)}" ${state.selected.has(t.id) ? "checked" : ""}></td>
+      ${cols.map(c => cellHTML(t, c.key)).join("")}
     </tr>`).join("");
-  card.innerHTML = `<table class="board"><thead><tr>
-    <th>#</th><th>Summary</th><th>Org</th><th>Contact</th><th>Assignee</th><th>Priority</th><th>Status</th><th>Updated</th>
-    </tr></thead><tbody>${rows}</tbody></table>`;
+  card.innerHTML = `<table class="board"><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table>`;
+
+  card.querySelectorAll("th[data-sort]").forEach(th =>
+    th.addEventListener("click", () => cycleSort(th.dataset.sort)));
+  card.querySelector("#selAll")?.addEventListener("change", e => {
+    list.forEach(t => e.target.checked ? state.selected.add(t.id) : state.selected.delete(t.id));
+    renderBoard();
+  });
+  card.querySelectorAll("[data-check]").forEach(cb =>
+    cb.addEventListener("change", () => {
+      const id = cb.dataset.check;
+      cb.checked ? state.selected.add(id) : state.selected.delete(id);
+      cb.closest("tr").classList.toggle("sel", cb.checked);
+      syncBulkBtn();
+    }));
   card.querySelectorAll("tbody tr").forEach(tr =>
-    tr.addEventListener("click", () => openTicket(tr.dataset.id)));
+    tr.addEventListener("click", e => {
+      if (e.target.closest(".col-check")) return;  // checkbox clicks never open
+      openTicket(tr.dataset.id);
+    }));
+  syncBulkBtn();
+}
+
+// ---- bulk update ----
+function syncBulkBtn() {
+  const n = state.selected.size;
+  const b = $("#bulkBtn");
+  b.hidden = n === 0;
+  b.textContent = `Bulk update (${n})`;
+}
+$("#bulkBtn").addEventListener("click", () => {
+  const n = state.selected.size; if (!n) return;
+  const admOpts = [{ v: "none", label: "Unassigned" }].concat(state.admins.map(a => ({ v: a.id, label: adminName(a) })));
+  const noChange = { v: "", label: "(no change)" };
+  openModal({
+    title: `Bulk update ${n} ticket${n === 1 ? "" : "s"}`, persistent: true,
+    sub: "Only the fields you set are changed; everything else is left alone. Every change is written to each ticket's History.",
+    body: `<div class="form-grid">
+      ${field({ id: "bu-status", label: "Status", node: selectNode("bu-status", [noChange, ...STATUSES.map(s => ({ v: s, label: s }))]) })}
+      ${field({ id: "bu-pri", label: "Priority", node: selectNode("bu-pri", [noChange, ...PRIORITIES]) })}
+      ${field({ id: "bu-assignee", label: "Assignee", node: selectNode("bu-assignee", [noChange, ...admOpts]) })}
+      ${field({ id: "bu-cat", label: "Category", node: selectNode("bu-cat", [noChange, ...CATEGORIES.map(c => ({ v: c, label: c }))]) })}
+    </div>`,
+    foot: `<button class="btn" data-modal-close>Cancel</button><button class="btn primary" id="bu-apply">Apply to ${n}</button>`
+  });
+  $("#bu-apply").addEventListener("click", applyBulk);
+});
+async function applyBulk() {
+  const st = $("#bu-status").value, pr = $("#bu-pri").value, as = $("#bu-assignee").value, ca = $("#bu-cat").value;
+  if (!st && !pr && !as && !ca) return toast("Pick at least one change.", true);
+  const btn = $("#bu-apply"); btn.disabled = true; btn.textContent = "Applying…";
+  const u = state.user;
+  try {
+    // Batches cap at 500 ops; a ticket takes up to 5 (patch + history docs).
+    let batch = writeBatch(db), ops = 0, changed = 0;
+    const commits = [];
+    for (const id of [...state.selected]) {
+      const t = state.tickets.find(x => x.id === id); if (!t) continue;
+      const patch = {}; const events = [];
+      if (st && st !== (t.status || "Open")) {
+        patch.status = st;
+        patch.closedAt = st === "Closed" ? serverTimestamp() : null;
+        events.push({ type: "status", from: t.status || "Open", to: st });
+      }
+      if (pr && pr !== t.priority) { patch.priority = pr; events.push({ type: "priority", from: t.priority, to: pr }); }
+      if (as) {
+        const uid2 = as === "none" ? null : as;
+        if ((uid2 || null) !== (t.assigneeUid || null)) {
+          const adm = state.admins.find(a => a.id === uid2);
+          patch.assigneeUid = uid2; patch.assigneeEmail = adm?.email || null; patch.assigneeName = adm ? adminName(adm) : null;
+          events.push({ type: "assignee", to: adm ? adminName(adm) : "" });
+        }
+      }
+      if (ca && ca !== t.category) { patch.category = ca; events.push({ type: "category", from: t.category, to: ca }); }
+      if (!events.length) continue;
+      patch.updatedAt = serverTimestamp(); patch.lastActivityAt = serverTimestamp();
+      batch.update(doc(db, "tix_tickets", id), patch);
+      for (const ev of events) {
+        batch.set(doc(collection(db, "tix_tickets", id, "activity")), {
+          kind: "history", via: "web", at: serverTimestamp(),
+          byUid: u.uid, byEmail: u.email, byName: u.displayName || u.email, event: ev
+        });
+      }
+      ops += 1 + events.length; changed++;
+      if (ops > 450) { commits.push(batch.commit()); batch = writeBatch(db); ops = 0; }
+    }
+    if (!changed) { closeModal(); return toast("Nothing to change — the selected tickets already match."); }
+    commits.push(batch.commit());
+    await Promise.all(commits);
+    state.selected.clear();
+    closeModal();
+    toast(`Updated ${changed} ticket${changed === 1 ? "" : "s"}.`);
+  } catch (err) {
+    btn.disabled = false; btn.textContent = "Apply";
+    toast(friendlyErr(err, "Couldn't apply the bulk update"), true);
+  }
 }
 
 // ============== new ticket ==============
@@ -1269,6 +1668,9 @@ $("#deniedSignout").addEventListener("click", () => signOut(auth));
 onAuthStateChanged(auth, async (user) => {
   stopData();
   state.user = user; state.isStaff = false; state.isManager = false; state.openTicketId = null;
+  state.selected.clear(); state.views = []; state.currentViewId = "b:open";
+  state.filters = { status: "Open", orgId: "", assignee: "" };
+  state.visibleCols = [...DEFAULT_COLS]; state.sort = { ...DEFAULT_SORT };
   if (!user) { show("signin"); return; }
   show("loading");
   if (user.email && !user.email.toLowerCase().endsWith("@" + MSP_DOMAIN)) {
@@ -1301,6 +1703,7 @@ function enterApp(user) {
   state.openTicketId = null;
   showDetailView(false);
   show("app");
+  renderToolbar();   // populate selects before the first snapshots land
   startData();
 }
 </script>

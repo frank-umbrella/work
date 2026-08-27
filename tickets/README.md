@@ -35,8 +35,8 @@ SPA on Firebase, deployed to `https://frank-umbrella.github.io/work/tickets/`.
 |---|---|---|
 | M0 | Scaffold, standards, staff auth, empty board | 0.1.0 |
 | M1 | Ticket core: sequential IDs, create/edit/close, orgs + contacts, auto history | 0.2.0 |
-| **M2** | Comment thread (public/private), attachments, CC, mute | **0.3.0** ← current |
-| M3 | Board power: sort, columns manager, filters, saved views, search, bulk update | 0.4.0 |
+| M2 | Comment thread (public/private), attachments, CC, mute | 0.3.0 |
+| **M3** | Board power: sort, columns manager, filters, saved views, search, bulk update | **0.4.0** ← current |
 | M4 | Labor/time tracking + CSV export, tasks, devices | 0.5.0 |
 | M5 | Admin-configurable custom attributes | 0.6.0 |
 | M6 | Outbound email (Resend) | 0.7.0 |
@@ -47,6 +47,28 @@ SPA on Firebase, deployed to `https://frank-umbrella.github.io/work/tickets/`.
 See [PLAN.md](PLAN.md) for the full design.
 
 ## Changelog
+
+### 0.4.0 — 2026-07-28
+M3 — board power. **Why:** once real ticket volume lands (especially after the
+Spiceworks import), a fixed list stops being manageable — techs need to slice
+the queue their way, and repetitive one-at-a-time edits become the bottleneck.
+
+- **Sortable columns**: click a header to cycle ascending → descending → back
+  to the default (newest activity first).
+- **Columns manager** (the gear button): choose which columns show and their
+  order — including Category, Computer, Due, and Created, hidden by default.
+  Layout and sort are saved per-user (`tix_userprefs`) and survive reload.
+- **Views**: built-ins (Open, Waiting, My tickets, Unassigned, Closed, All)
+  plus your own — set status/org/assignee filters, hit "Save view…". Managers
+  can mark a view shared so the whole team gets it.
+- **Filters**: status, organization, and assignee dropdowns alongside search;
+  search now also matches category, computer name, and assignee.
+- **Bulk update**: select tickets with the new checkboxes (header checkbox =
+  all shown), then change status/priority/assignee/category in one shot. Every
+  change is still written to each ticket's History individually.
+
+New collections `tix_userprefs` (self-scoped) and `tix_views` (personal, or
+shared — shared ones manager-only to write) with matching rules.
 
 ### 0.3.2 — 2026-07-28
 Fix: the Mute row's "Notify me" label wrapped one character per line. **Why:**
