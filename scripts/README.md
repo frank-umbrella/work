@@ -47,6 +47,12 @@ label.
 | `Remove-ESETOnlineScanner.ps1` | Remove ESET Online Scanner leftovers (EOSv3 tasks, folder)  | Yes   |
 | `Remove-ScreenConnect.ps1` | Fully remove ScreenConnect / ConnectWise Control client(s)     | Yes   |
 
+### Deployment (on-page command generators, no script file)
+
+| Section              | Does                                                              | Admin? |
+| -------------------- | ----------------------------------------------------------------- | ------ |
+| Deploy SentinelOne   | Paste your site token, copy the exact silent msiexec install line | Yes    |
+
 *(add future scripts and their own category heading here)*
 
 ## How to run
@@ -668,6 +674,25 @@ schtasks.exe /Run /TN "\Microsoft\Windows\Servicing\StartComponentCleanup"
 ```
 
 (The schtasks line runs the built-in background task instead - same cleanup.)
+
+---
+
+# 16. Deploy SentinelOne agent (silent install)
+
+No script file - the page has a command generator: paste your **site token**
+(and adjust the installer filename if your console serves a newer version) and
+copy the exact line. The token is used client-side only to build the command;
+nothing is saved or sent.
+
+```text
+msiexec.exe /i "SentinelInstaller_windows_64bit_v26_1_2_177.msi" SITE_TOKEN="YOUR_SITE_TOKEN" /qn /norestart
+```
+
+- `/i "...msi"` installs the agent; `SITE_TOKEN` enrolls the endpoint into your
+  SentinelOne site; `/qn` = fully silent; `/norestart` suppresses auto-reboot.
+- **Run as admin**, from the folder containing the MSI (or use a full path).
+- Verify: *SentinelOne Agent* service running / `C:\Program Files\SentinelOne`
+  exists; the endpoint appears in the console within minutes.
 
 ---
 
