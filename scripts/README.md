@@ -696,7 +696,10 @@ msiexec.exe /i "C:\SentinelInstaller_windows_64bit_v26_1_2_177.msi" SITE_TOKEN="
   running ("service does not exist" = the install didn't take). The endpoint
   appears in the console within minutes. Broader sweep (any state, catches
   helper services too): `sc.exe query type= service state= all | findstr /i sentinel`
-  - no output = nothing SentinelOne installed.
+  - no output = nothing SentinelOne installed. One-line full check (PowerShell;
+  field-tested): `sc.exe query SentinelAgent; tasklist | findstr /i sentinel; dir "C:\Program Files\SentinelOne"`
+  - service + processes + install folder in one paste (in classic cmd, use `&`
+  between commands instead of `;`).
 
 ---
 

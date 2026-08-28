@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PC Scripts v0.15.3</title>
+<title>PC Scripts v0.15.4</title>
 <meta name="description" content="PowerShell scripts for re-fixing a fresh Windows PC: show all tray icons, stop Copilot and Malwarebytes at startup. Windows 10 and 11.">
 <meta name="robots" content="noindex">
-<meta name="version" content="0.15.3">
+<meta name="version" content="0.15.4">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -1053,6 +1053,9 @@ net start spooler</pre>
           <p class="howto-cap">Or sweep for every Sentinel service, running or not:</p>
           <pre>sc.exe query type= service state= all | findstr /i sentinel</pre>
           <p class="note">Lists <em>all</em> services (any state) and filters for anything Sentinel-named &mdash; catches the agent plus its helper services even if a service name differs between versions. No output at all = nothing SentinelOne is installed.</p>
+          <p class="howto-cap">One-line full check &mdash; service + running processes + install folder (PowerShell):</p>
+          <pre>sc.exe query SentinelAgent; tasklist | findstr /i sentinel; dir "C:\Program Files\SentinelOne"</pre>
+          <p class="note">Three confirmations in one paste: the agent <em>service</em> state, any Sentinel <em>processes</em> actually running, and the <em>install folder</em> contents. All three showing results = solid install. The <code>;</code> separator is PowerShell &mdash; in a classic Command Prompt use <code>&amp;</code> between the commands instead.</p>
           <p class="note"><code>STATE : 4  RUNNING</code> means the agent service is installed and running. (Also: <code>C:\Program Files\SentinelOne</code> exists, and the endpoint appears in the console within a few minutes.) If it returns <em>the specified service does not exist</em>, the install didn&rsquo;t take &mdash; re-check the token and path.</p>
         </div>
       </details>
@@ -1106,7 +1109,7 @@ net start spooler</pre>
 </main>
 
 <footer class="page">
-  <p>PC Scripts <span class="version">v0.15.3</span> &middot; Windows 10 &amp; 11.</p>
+  <p>PC Scripts <span class="version">v0.15.4</span> &middot; Windows 10 &amp; 11.</p>
 </footer>
 
 <script>
