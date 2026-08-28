@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PC Scripts v0.15.2</title>
+<title>PC Scripts v0.15.3</title>
 <meta name="description" content="PowerShell scripts for re-fixing a fresh Windows PC: show all tray icons, stop Copilot and Malwarebytes at startup. Windows 10 and 11.">
 <meta name="robots" content="noindex">
-<meta name="version" content="0.15.2">
+<meta name="version" content="0.15.3">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -1050,6 +1050,9 @@ net start spooler</pre>
           <p class="howto-cap">Verify the install took:</p>
           <pre>sc.exe query SentinelAgent</pre>
           <p class="note"><strong>Why <code>sc.exe</code> and not <code>sc</code>:</strong> in PowerShell, <code>sc</code> is an alias for <code>Set-Content</code> (it would create a file instead of querying). <code>sc.exe</code> works the same in both Command Prompt and PowerShell.</p>
+          <p class="howto-cap">Or sweep for every Sentinel service, running or not:</p>
+          <pre>sc.exe query type= service state= all | findstr /i sentinel</pre>
+          <p class="note">Lists <em>all</em> services (any state) and filters for anything Sentinel-named &mdash; catches the agent plus its helper services even if a service name differs between versions. No output at all = nothing SentinelOne is installed.</p>
           <p class="note"><code>STATE : 4  RUNNING</code> means the agent service is installed and running. (Also: <code>C:\Program Files\SentinelOne</code> exists, and the endpoint appears in the console within a few minutes.) If it returns <em>the specified service does not exist</em>, the install didn&rsquo;t take &mdash; re-check the token and path.</p>
         </div>
       </details>
@@ -1103,7 +1106,7 @@ net start spooler</pre>
 </main>
 
 <footer class="page">
-  <p>PC Scripts <span class="version">v0.15.2</span> &middot; Windows 10 &amp; 11.</p>
+  <p>PC Scripts <span class="version">v0.15.3</span> &middot; Windows 10 &amp; 11.</p>
 </footer>
 
 <script>

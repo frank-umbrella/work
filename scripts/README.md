@@ -694,7 +694,9 @@ msiexec.exe /i "C:\SentinelInstaller_windows_64bit_v26_1_2_177.msi" SITE_TOKEN="
   `cd` needed; edit the path if it lives elsewhere.
 - Verify with `sc.exe query SentinelAgent` (sc.exe, not sc - in PowerShell `sc` is an alias for Set-Content) - `STATE : 4 RUNNING` means installed and
   running ("service does not exist" = the install didn't take). The endpoint
-  appears in the console within minutes.
+  appears in the console within minutes. Broader sweep (any state, catches
+  helper services too): `sc.exe query type= service state= all | findstr /i sentinel`
+  - no output = nothing SentinelOne installed.
 
 ---
 
