@@ -692,7 +692,7 @@ msiexec.exe /i "C:\SentinelInstaller_windows_64bit_v26_1_2_177.msi" SITE_TOKEN="
   SentinelOne site; `/qn` = fully silent; `/norestart` suppresses auto-reboot.
 - **Run as admin.** The absolute path assumes the MSI at the root of C: - no
   `cd` needed; edit the path if it lives elsewhere.
-- Verify with `sc query SentinelAgent` - `STATE : 4 RUNNING` means installed and
+- Verify with `sc.exe query SentinelAgent` (sc.exe, not sc - in PowerShell `sc` is an alias for Set-Content) - `STATE : 4 RUNNING` means installed and
   running ("service does not exist" = the install didn't take). The endpoint
   appears in the console within minutes.
 
