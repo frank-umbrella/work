@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PC Scripts v0.15.0</title>
+<title>PC Scripts v0.15.1</title>
 <meta name="description" content="PowerShell scripts for re-fixing a fresh Windows PC: show all tray icons, stop Copilot and Malwarebytes at startup. Windows 10 and 11.">
 <meta name="robots" content="noindex">
-<meta name="version" content="0.15.0">
+<meta name="version" content="0.15.1">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -1013,14 +1013,14 @@ net start spooler</pre>
         <span class="badge badge-warn">Admin needed</span>
       </div>
     </div>
-    <p class="purpose">Silent install of the SentinelOne Windows agent with the site token baked in &mdash; no wizard, no prompts. Paste your <strong>site token</strong> below and the command updates to the exact line to run. Run it from an <strong>elevated</strong> Command Prompt or PowerShell, in the folder containing the MSI (or put a full path in the installer field). Adjust the installer filename if your console serves a newer version.</p>
+    <p class="purpose">Silent install of the SentinelOne Windows agent with the site token baked in &mdash; no wizard, no prompts. Paste your <strong>site token</strong> below and the command updates to the exact line to run in an <strong>elevated</strong> Command Prompt or PowerShell. The command assumes the MSI sits at the root of C: (<code>C:\</code>) &mdash; edit the installer field if it lives elsewhere or your console serves a newer version.</p>
 
     <div class="opt">
       <h3>Build the command</h3>
       <div class="tbuilder" data-template='msiexec.exe /i "{MSI}" SITE_TOKEN="{TOKEN}" /qn /norestart'>
         <div class="tfields">
-          <label class="tfield"><span>Installer file (or full path to it)</span>
-            <input type="text" data-var="MSI" data-placeholder="SentinelInstaller_windows_64bit_v26_1_2_177.msi" value="SentinelInstaller_windows_64bit_v26_1_2_177.msi" spellcheck="false" autocomplete="off">
+          <label class="tfield"><span>Installer path (assumes the MSI at the root of C:)</span>
+            <input type="text" data-var="MSI" data-placeholder="C:\SentinelInstaller_windows_64bit_v26_1_2_177.msi" value="C:\SentinelInstaller_windows_64bit_v26_1_2_177.msi" spellcheck="false" autocomplete="off">
           </label>
           <label class="tfield"><span>Site token &mdash; paste it here (from the SentinelOne console)</span>
             <input type="text" data-var="TOKEN" data-placeholder="YOUR_SITE_TOKEN" data-required="true" placeholder="YOUR_SITE_TOKEN" spellcheck="false" autocomplete="off">
@@ -1043,11 +1043,13 @@ net start spooler</pre>
         <div class="manual-body">
           <ol>
             <li>In the <strong>SentinelOne management console</strong>, download the Windows agent MSI (64-bit) and copy the <strong>site token</strong> (Sentinels &rarr; Site Info, or Settings &rarr; Sites &rarr; your site).</li>
-            <li>Put the MSI somewhere simple on the target PC &mdash; e.g. <code>C:\</code> or Downloads.</li>
-            <li>Open an <strong>elevated</strong> prompt: <kbd>Win</kbd>+<kbd>R</kbd> &rarr; <code>cmd</code> &rarr; <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Enter</kbd>, then <code>cd</code> to the MSI folder (skip the cd if you used a full path in the field above).</li>
+            <li>Put the MSI at the root of the C: drive (<code>C:\</code>) so it matches the command &mdash; or edit the installer field above to wherever it lives.</li>
+            <li>Open an <strong>elevated</strong> prompt: <kbd>Win</kbd>+<kbd>R</kbd> &rarr; <code>cmd</code> &rarr; <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Enter</kbd>. No <code>cd</code> needed &mdash; the full path is in the command.</li>
             <li>Paste the built command, press <kbd>Enter</kbd>. Silent installs show no output &mdash; that&rsquo;s normal.</li>
-            <li><strong>Verify:</strong> <code>services.msc</code> shows <em>SentinelOne Agent</em> running (or <code>C:\Program Files\SentinelOne</code> exists), and the endpoint appears in the console within a few minutes.</li>
           </ol>
+          <p class="howto-cap">Verify the install took:</p>
+          <pre>sc query SentinelAgent</pre>
+          <p class="note"><code>STATE : 4  RUNNING</code> means the agent service is installed and running. (Also: <code>C:\Program Files\SentinelOne</code> exists, and the endpoint appears in the console within a few minutes.) If it returns <em>the specified service does not exist</em>, the install didn&rsquo;t take &mdash; re-check the token and path.</p>
         </div>
       </details>
     </div>
@@ -1100,7 +1102,7 @@ net start spooler</pre>
 </main>
 
 <footer class="page">
-  <p>PC Scripts <span class="version">v0.15.0</span> &middot; Windows 10 &amp; 11.</p>
+  <p>PC Scripts <span class="version">v0.15.1</span> &middot; Windows 10 &amp; 11.</p>
 </footer>
 
 <script>

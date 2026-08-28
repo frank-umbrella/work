@@ -685,14 +685,16 @@ copy the exact line. The token is used client-side only to build the command;
 nothing is saved or sent.
 
 ```text
-msiexec.exe /i "SentinelInstaller_windows_64bit_v26_1_2_177.msi" SITE_TOKEN="YOUR_SITE_TOKEN" /qn /norestart
+msiexec.exe /i "C:\SentinelInstaller_windows_64bit_v26_1_2_177.msi" SITE_TOKEN="YOUR_SITE_TOKEN" /qn /norestart
 ```
 
 - `/i "...msi"` installs the agent; `SITE_TOKEN` enrolls the endpoint into your
   SentinelOne site; `/qn` = fully silent; `/norestart` suppresses auto-reboot.
-- **Run as admin**, from the folder containing the MSI (or use a full path).
-- Verify: *SentinelOne Agent* service running / `C:\Program Files\SentinelOne`
-  exists; the endpoint appears in the console within minutes.
+- **Run as admin.** The absolute path assumes the MSI at the root of C: - no
+  `cd` needed; edit the path if it lives elsewhere.
+- Verify with `sc query SentinelAgent` - `STATE : 4 RUNNING` means installed and
+  running ("service does not exist" = the install didn't take). The endpoint
+  appears in the console within minutes.
 
 ---
 
