@@ -78,6 +78,18 @@ under a command and the copy block updates live, a highlighted "What this
 command will do" box explains each selected part, and switches that conflict
 deselect each other automatically.
 
+**Running these over LogMeIn** (the usual method - its built-in admin Command
+Prompt, so the user isn't interrupted): that shell is already elevated, so
+self-elevating scripts run in place with no UAC popup on the user's screen.
+Best fit is everything machine-wide or silent (SentinelOne deploy, removals,
+Print Flush, chkdsk, DISM/SFC, WinSxS, Windows Update options, password expiry,
+Disk Cleanup -Auto). Two exceptions to run in a remote-control session as the
+signed-in user instead: the per-user scripts (tray icons, Copilot - they write
+HKCU, and the background shell runs as the admin account, so they'd change the
+wrong profile) and the window-openers (Devices and Printers, interactive Disk
+Cleanup, the Windows Update screen - their windows open where no one can see
+them).
+
 ### Step by step (example: Show-AllTrayIcons.ps1)
 
 1. **Save the script somewhere simple.** The root of the C: drive (`C:\`) is

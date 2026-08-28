@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PC Scripts v0.15.4</title>
+<title>PC Scripts v0.16.0</title>
 <meta name="description" content="PowerShell scripts for re-fixing a fresh Windows PC: show all tray icons, stop Copilot and Malwarebytes at startup. Windows 10 and 11.">
 <meta name="robots" content="noindex">
-<meta name="version" content="0.15.4">
+<meta name="version" content="0.16.0">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -296,6 +296,7 @@
       <li><code>-List</code> shows what would change without touching anything &middot; <code>-WhatIf</code> is a full dry run &middot; <code>-Enable</code> reverses a disable.</li>
       <li>Copied from a network share and blocked? Run <code>Unblock-File C:\NAME.ps1</code> once.</li>
       <li><strong>Always use the full path</strong> (e.g. <code>-File C:\NAME.ps1</code>) like the copy blocks below do. An <em>elevated</em> PowerShell starts in <code>C:\windows\system32</code>, so a relative <code>.\NAME.ps1</code> won&rsquo;t find a script saved to <code>C:\</code>.</li>
+      <li><strong>Running these over LogMeIn</strong> (the usual method &mdash; the built-in admin Command Prompt, so the user isn&rsquo;t interrupted): that shell is <em>already elevated</em>, so the self-elevating scripts detect it and run in place with no UAC popup appearing on the user&rsquo;s screen. Best fit: everything <em>machine-wide or silent</em> &mdash; SentinelOne deploy, the removals, Print Flush, chkdsk, DISM/SFC, WinSxS, Windows Update options, password expiry, Disk Cleanup <code>-Auto</code>. <strong>Two exceptions:</strong> the <em>per-user</em> scripts (Show all tray icons, Stop Copilot &mdash; they change the logged-in user&rsquo;s settings, and the background shell runs as the admin account, so they&rsquo;d change the <em>wrong profile</em>) and the <em>window-openers</em> (Devices and Printers, interactive Disk Cleanup, the Windows Update screen &mdash; their windows open where no one can see them). Run those during a remote-control session as the signed-in user instead.</li>
       <li><strong>Ad-blocker note:</strong> uBlock Origin may flag the Copy buttons as a &ldquo;ClickFix&rdquo; attempt. That&rsquo;s its guard against scam pages that push PowerShell commands onto your clipboard &mdash; copying admin commands is exactly what this page does legitimately, so the pattern matches. The buttons only copy the command shown on screen. If a copy is blocked, the button switches to <em>Press Ctrl+C</em> with the command pre-selected, or allow clipboard access for this site in uBlock.</li>
     </ul>
 
@@ -1109,7 +1110,7 @@ net start spooler</pre>
 </main>
 
 <footer class="page">
-  <p>PC Scripts <span class="version">v0.15.4</span> &middot; Windows 10 &amp; 11.</p>
+  <p>PC Scripts <span class="version">v0.16.0</span> &middot; Windows 10 &amp; 11.</p>
 </footer>
 
 <script>
