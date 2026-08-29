@@ -167,7 +167,7 @@ jobs:
         # built EXEs are downloadable from the Actions run page for ~90
         # days. Doesn't bloat anything since GitHub stores them once.
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Watchtower-Setup-${{ steps.version.outputs.version }}
           path: |
@@ -181,7 +181,7 @@ jobs:
         # authoritative archive is committed to the repo below so we
         # have permanent git-history retention.
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: resolved-deps-${{ steps.version.outputs.version }}
           path: resolved-deps.txt
