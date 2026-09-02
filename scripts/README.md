@@ -47,6 +47,13 @@ label.
 | `Remove-ESETOnlineScanner.ps1` | Remove ESET Online Scanner leftovers (EOSv3 tasks, folder)  | Yes   |
 | `Remove-ScreenConnect.ps1` | Fully remove ScreenConnect / ConnectWise Control client(s)     | Yes   |
 
+### Diagnostics (copy-paste checks, no script file)
+
+| Section          | Does                                                          | Admin? |
+| ---------------- | ------------------------------------------------------------- | ------ |
+| Check RAM type   | Per-stick DDR3/4/5, size, speed, part number, DIMM/SO-DIMM    | No     |
+| Check drive type | Per-disk SSD/HDD, bus, size, health + which disk Windows is on | No    |
+
 ### Deployment (on-page command generators, no script file)
 
 | Section              | Does                                                              | Admin? |
@@ -686,6 +693,43 @@ schtasks.exe /Run /TN "\Microsoft\Windows\Servicing\StartComponentCleanup"
 ```
 
 (The schtasks line runs the built-in background task instead - same cleanup.)
+
+---
+
+# 16a. Check RAM type (DDR3/4/5)
+
+Copy-paste check, no script file, no admin. Reads `Win32_PhysicalMemory`'s
+`SMBIOSMemoryType` (the reliable property - the old `MemoryType` often reports
+0). Shows per stick: slot, maker, part number, GB, rated + running speed, DDR
+generation (incl. LPDDR3/4/5 on laptops), DIMM vs SO-DIMM. The full block is on
+the page; key fallbacks when Type = Unknown:
+
+1. Google the Part number the check returned (part numbers encode the type).
+2. CPU-Z portable ghost mode: `cpuz_x64.exe -txt=report` - silent full report
+   incl. SPD (background-shell friendly).
+3. Crucial System Scanner (crucial.com/store/systemscanner) - also shows
+   compatible upgrades / max capacity, but opens results in a browser and has
+   no silent mode: remote-control sessions only.
+
+# 16b. Check drive type (SSD or HDD)
+
+Copy-paste check, no script file, no admin:
+
+```powershell
+Get-PhysicalDisk | ForEach-Object {
+    [PSCustomObject]@{
+        Disk = $_.DeviceId; Name = $_.FriendlyName; Type = $_.MediaType
+        Bus = $_.BusType; SizeGB = [math]::Round($_.Size / 1GB)
+        Health = $_.HealthStatus
+    }
+} | Sort-Object {[int]$_.Disk} | Format-Table -AutoSize
+
+"Windows (C:) is on Disk $((Get-Partition -DriveLetter C).DiskNumber)"
+```
+
+Type = SSD/HDD; *Unspecified* is usually a USB enclosure hiding the type
+(Bus = NVMe means SSD regardless; otherwise Google the model name). Health
+anything but *Healthy* deserves a look.
 
 ---
 

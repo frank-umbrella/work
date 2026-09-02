@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PC Scripts v0.16.0</title>
+<title>PC Scripts v0.17.0</title>
 <meta name="description" content="PowerShell scripts for re-fixing a fresh Windows PC: show all tray icons, stop Copilot and Malwarebytes at startup. Windows 10 and 11.">
 <meta name="robots" content="noindex">
-<meta name="version" content="0.16.0">
+<meta name="version" content="0.17.0">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -276,6 +276,8 @@
       <li><a href="#check-disk">Check Disk (chkdsk)</a></li>
       <li><a href="#repair-system">Repair system files</a></li>
       <li><a href="#component-cleanup">WinSxS cleanup</a></li>
+      <li><a href="#ram-check">Check RAM type</a></li>
+      <li><a href="#disk-check">Check drive type</a></li>
       <li><a href="#devices-printers">Devices and Printers</a></li>
       <li><a href="#print-flush">Print Flush</a></li>
       <li><a href="#hp-wolf">Remove HP Wolf Security</a></li>
@@ -296,7 +298,7 @@
       <li><code>-List</code> shows what would change without touching anything &middot; <code>-WhatIf</code> is a full dry run &middot; <code>-Enable</code> reverses a disable.</li>
       <li>Copied from a network share and blocked? Run <code>Unblock-File C:\NAME.ps1</code> once.</li>
       <li><strong>Always use the full path</strong> (e.g. <code>-File C:\NAME.ps1</code>) like the copy blocks below do. An <em>elevated</em> PowerShell starts in <code>C:\windows\system32</code>, so a relative <code>.\NAME.ps1</code> won&rsquo;t find a script saved to <code>C:\</code>.</li>
-      <li><strong>Running these over LogMeIn</strong> (the usual method &mdash; the built-in admin Command Prompt, so the user isn&rsquo;t interrupted): that shell is <em>already elevated</em>, so the self-elevating scripts detect it and run in place with no UAC popup appearing on the user&rsquo;s screen. Best fit: everything <em>machine-wide or silent</em> &mdash; SentinelOne deploy, the removals, Print Flush, chkdsk, DISM/SFC, WinSxS, Windows Update options, password expiry, Disk Cleanup <code>-Auto</code>. <strong>Two exceptions:</strong> the <em>per-user</em> scripts (Show all tray icons, Stop Copilot &mdash; they change the logged-in user&rsquo;s settings, and the background shell runs as the admin account, so they&rsquo;d change the <em>wrong profile</em>) and the <em>window-openers</em> (Devices and Printers, interactive Disk Cleanup, the Windows Update screen &mdash; their windows open where no one can see them). Run those during a remote-control session as the signed-in user instead.</li>
+      <li><strong>Running these over LogMeIn</strong> (the usual method &mdash; the built-in admin Command Prompt, so the user isn&rsquo;t interrupted): that shell is <em>already elevated</em>, so the self-elevating scripts detect it and run in place with no UAC popup appearing on the user&rsquo;s screen. Best fit: everything <em>machine-wide or silent</em> &mdash; SentinelOne deploy, the removals, Print Flush, chkdsk, DISM/SFC, WinSxS, Windows Update options, password expiry, Disk Cleanup <code>-Auto</code>, and the RAM / drive checks (read-only). <strong>Two exceptions:</strong> the <em>per-user</em> scripts (Show all tray icons, Stop Copilot &mdash; they change the logged-in user&rsquo;s settings, and the background shell runs as the admin account, so they&rsquo;d change the <em>wrong profile</em>) and the <em>window-openers</em> (Devices and Printers, interactive Disk Cleanup, the Windows Update screen &mdash; their windows open where no one can see them). Run those during a remote-control session as the signed-in user instead.</li>
       <li><strong>Ad-blocker note:</strong> uBlock Origin may flag the Copy buttons as a &ldquo;ClickFix&rdquo; attempt. That&rsquo;s its guard against scam pages that push PowerShell commands onto your clipboard &mdash; copying admin commands is exactly what this page does legitimately, so the pattern matches. The buttons only copy the command shown on screen. If a copy is blocked, the button switches to <em>Press Ctrl+C</em> with the command pre-selected, or allow clipboard access for this site in uBlock.</li>
     </ul>
 
@@ -804,6 +806,112 @@
     </div>
   </section>
 
+  <!-- ===================== Check RAM type ===================== -->
+  <section class="panel" id="ram-check">
+    <div class="panel-head">
+      <div>
+        <span class="tag">Diagnostics</span>
+        <h2>Check RAM type (DDR3 / DDR4 / DDR5)</h2>
+        <code class="file">copy-paste check &mdash; no script file</code>
+      </div>
+      <div class="panel-side">
+        <span class="badge badge-ok">No admin needed</span>
+      </div>
+    </div>
+    <p class="purpose">One paste into PowerShell (the LogMeIn admin prompt works great &mdash; read-only, invisible to the user) and you get every stick&rsquo;s slot, maker, part number, size, speed, DDR generation and form factor. Reads the SMBIOS memory-device type, which is reliable where the old <code>MemoryType</code> property famously reports 0/unknown.</p>
+
+    <div class="opt">
+      <h3>Run the check</h3>
+      <div class="explain">
+        <div class="explain-title">What the columns mean</div>
+        <ul>
+          <li><code>Slot</code> / <code>Mfr</code> / <code>Part</code> &mdash; physical slot, maker, and the exact module part number (your fallback key &mdash; see below).</li>
+          <li><code>GB</code> &mdash; size per stick. <code>MTs</code> &mdash; rated speed; <code>Run</code> &mdash; what it&rsquo;s actually running at.</li>
+          <li><code>Type</code> &mdash; DDR3/DDR4/DDR5 (and LPDDR3/4/5 on laptops with soldered memory).</li>
+          <li><code>Form</code> &mdash; DIMM (desktop) or SO-DIMM (laptop) &mdash; what shape of stick to buy.</li>
+        </ul>
+      </div>
+      <pre>Get-CimInstance Win32_PhysicalMemory | ForEach-Object {
+    [PSCustomObject]@{
+        Slot = $_.DeviceLocator
+        Mfr  = $_.Manufacturer
+        Part = ("$($_.PartNumber)").Trim()
+        GB   = [math]::Round($_.Capacity / 1GB)
+        MTs  = $_.Speed
+        Run  = $_.ConfiguredClockSpeed
+        Type = switch ($_.SMBIOSMemoryType) {
+            20 {"DDR"} 21 {"DDR2"} 24 {"DDR3"} 26 {"DDR4"} 34 {"DDR5"}
+            27 {"LPDDR"} 28 {"LPDDR2"} 29 {"LPDDR3"} 30 {"LPDDR4"} 35 {"LPDDR5"}
+            default {"Unknown($($_.SMBIOSMemoryType)) - Google the Part number"}
+        }
+        Form = switch ($_.FormFactor) {
+            8 {"DIMM"} 12 {"SO-DIMM"} default {"Other($($_.FormFactor))"}
+        }
+    }
+} | Format-Table -AutoSize -Wrap</pre>
+      <details class="manual">
+        <summary>If Type shows Unknown &mdash; fallback ladder</summary>
+        <div class="manual-body">
+          <ol>
+            <li><strong>Google the Part number</strong> the check already returned &mdash; module part numbers encode the type (e.g. <code>KF560C40-16</code> is Kingston FURY DDR5). Zero installs.</li>
+            <li><strong>CPU-Z portable, ghost mode</strong> &mdash; background-shell friendly: <code>cpuz_x64.exe -txt=report</code> writes a full text report (including SPD memory data) with no UI at all. Get it from <a href="https://www.cpuid.com/softwares/cpu-z.html" target="_blank" rel="noopener noreferrer">cpuid.com</a> (portable ZIP).</li>
+            <li><strong>Crucial System Scanner</strong> &mdash; <a href="https://www.crucial.com/store/systemscanner" target="_blank" rel="noopener noreferrer">crucial.com/store/systemscanner</a>: also tells you <em>compatible upgrades and max capacity</em>, but it opens its results in a browser and has no silent mode &mdash; use it during a remote-control session, not from the background shell.</li>
+          </ol>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <!-- ===================== Check drive type ===================== -->
+  <section class="panel" id="disk-check">
+    <div class="panel-head">
+      <div>
+        <span class="tag">Diagnostics</span>
+        <h2>Check drive type (SSD or HDD)</h2>
+        <code class="file">copy-paste check &mdash; no script file</code>
+      </div>
+      <div class="panel-side">
+        <span class="badge badge-ok">No admin needed</span>
+      </div>
+    </div>
+    <p class="purpose">One paste lists every physical disk with its type (SSD / HDD), connection, size, and health &mdash; the &ldquo;is this machine still on spinning rust?&rdquo; check before recommending an upgrade. Read-only; fine from the LogMeIn admin prompt.</p>
+
+    <div class="opt">
+      <h3>Run the check</h3>
+      <div class="explain">
+        <div class="explain-title">What the columns mean</div>
+        <ul>
+          <li><code>Type</code> &mdash; <strong>SSD</strong> or <strong>HDD</strong>. <em>Unspecified</em> usually means a USB enclosure that doesn&rsquo;t pass the type through (see fallback below).</li>
+          <li><code>Bus</code> &mdash; <strong>NVMe</strong> (always an SSD), <strong>SATA</strong> (either), <strong>USB</strong> (external drive), RAID (behind a controller).</li>
+          <li><code>Disk</code> &mdash; the disk number; the second command tells you which number Windows lives on.</li>
+          <li><code>Health</code> &mdash; Windows&rsquo; own verdict; anything but <em>Healthy</em> deserves a look.</li>
+        </ul>
+      </div>
+      <pre>Get-PhysicalDisk | ForEach-Object {
+    [PSCustomObject]@{
+        Disk   = $_.DeviceId
+        Name   = $_.FriendlyName
+        Type   = $_.MediaType
+        Bus    = $_.BusType
+        SizeGB = [math]::Round($_.Size / 1GB)
+        Health = $_.HealthStatus
+    }
+} | Sort-Object {[int]$_.Disk} | Format-Table -AutoSize</pre>
+      <p class="howto-cap">Which disk is Windows actually on:</p>
+      <pre>"Windows (C:) is on Disk $((Get-Partition -DriveLetter C).DiskNumber)"</pre>
+      <details class="manual">
+        <summary>If Type shows Unspecified &mdash; how to tell anyway</summary>
+        <div class="manual-body">
+          <ol>
+            <li><code>Bus</code> says <strong>NVMe</strong> &rarr; it&rsquo;s an SSD, full stop.</li>
+            <li><strong>USB</strong> drives are externals &mdash; enclosures often hide the type; Google the <code>Name</code> (model) if it matters.</li>
+            <li>On SATA with no type, Google the model in <code>Name</code> &mdash; it identifies the drive in one hit (e.g. <code>ST2000DM008</code> is a Seagate BarraCuda spinner).</li>
+          </ol>
+        </div>
+      </details>
+    </div>
+  </section>
+
   <!-- ===================== Devices and Printers ===================== -->
   <section class="panel" id="devices-printers">
     <div class="panel-head">
@@ -1110,7 +1218,7 @@ net start spooler</pre>
 </main>
 
 <footer class="page">
-  <p>PC Scripts <span class="version">v0.16.0</span> &middot; Windows 10 &amp; 11.</p>
+  <p>PC Scripts <span class="version">v0.17.0</span> &middot; Windows 10 &amp; 11.</p>
 </footer>
 
 <script>
