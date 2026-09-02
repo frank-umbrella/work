@@ -701,7 +701,8 @@ schtasks.exe /Run /TN "\Microsoft\Windows\Servicing\StartComponentCleanup"
 Copy-paste check, no script file, no admin. Reads `Win32_PhysicalMemory`'s
 `SMBIOSMemoryType` (the reliable property - the old `MemoryType` often reports
 0). Shows per stick: slot, maker, part number, GB, rated + running speed, DDR
-generation (incl. LPDDR3/4/5 on laptops), DIMM vs SO-DIMM. The full block is on
+generation (incl. LPDDR3/4/5 on laptops), ECC vs Non-ECC (via total width >
+data width - true side-band ECC, not DDR5 on-die), DIMM vs SO-DIMM. The full block is on
 the page; key fallbacks when Type = Unknown:
 
 1. Google the Part number the check returned (part numbers encode the type).

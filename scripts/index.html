@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PC Scripts v0.17.0</title>
+<title>PC Scripts v0.17.1</title>
 <meta name="description" content="PowerShell scripts for re-fixing a fresh Windows PC: show all tray icons, stop Copilot and Malwarebytes at startup. Windows 10 and 11.">
 <meta name="robots" content="noindex">
-<meta name="version" content="0.17.0">
+<meta name="version" content="0.17.1">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -828,6 +828,7 @@
           <li><code>Slot</code> / <code>Mfr</code> / <code>Part</code> &mdash; physical slot, maker, and the exact module part number (your fallback key &mdash; see below).</li>
           <li><code>GB</code> &mdash; size per stick. <code>MTs</code> &mdash; rated speed; <code>Run</code> &mdash; what it&rsquo;s actually running at.</li>
           <li><code>Type</code> &mdash; DDR3/DDR4/DDR5 (and LPDDR3/4/5 on laptops with soldered memory).</li>
+          <li><code>ECC</code> &mdash; error-correcting (server/workstation) vs Non-ECC (standard) memory, detected by the extra check bits (total width &gt; data width). <code>?</code> = the board didn&rsquo;t report widths. Don&rsquo;t mix the two, and note DDR5&rsquo;s built-in on-die ECC is <em>not</em> the same thing &mdash; this detects true side-band ECC.</li>
           <li><code>Form</code> &mdash; DIMM (desktop) or SO-DIMM (laptop) &mdash; what shape of stick to buy.</li>
         </ul>
       </div>
@@ -844,6 +845,8 @@
             27 {"LPDDR"} 28 {"LPDDR2"} 29 {"LPDDR3"} 30 {"LPDDR4"} 35 {"LPDDR5"}
             default {"Unknown($($_.SMBIOSMemoryType)) - Google the Part number"}
         }
+        ECC  = if (-not $_.TotalWidth -or -not $_.DataWidth) {"?"}
+               elseif ($_.TotalWidth -gt $_.DataWidth) {"ECC"} else {"Non-ECC"}
         Form = switch ($_.FormFactor) {
             8 {"DIMM"} 12 {"SO-DIMM"} default {"Other($($_.FormFactor))"}
         }
@@ -1218,7 +1221,7 @@ net start spooler</pre>
 </main>
 
 <footer class="page">
-  <p>PC Scripts <span class="version">v0.17.0</span> &middot; Windows 10 &amp; 11.</p>
+  <p>PC Scripts <span class="version">v0.17.1</span> &middot; Windows 10 &amp; 11.</p>
 </footer>
 
 <script>
