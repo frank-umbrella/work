@@ -53,6 +53,7 @@ label.
 | ---------------- | ------------------------------------------------------------- | ------ |
 | Check RAM type   | Per-stick DDR3/4/5, size, speed, part number, DIMM/SO-DIMM    | No     |
 | Check drive type | Per-disk SSD/HDD, bus, size, health + which disk Windows is on | No    |
+| `RecentFileActivity.ps1` | Newest modified/accessed files under a folder tree + C:\ log | Rec.  |
 
 ### Deployment (on-page command generators, no script file)
 
@@ -731,6 +732,26 @@ Get-PhysicalDisk | ForEach-Object {
 Type = SSD/HDD; *Unspecified* is usually a USB enclosure hiding the type
 (Bus = NVMe means SSD regardless; otherwise Google the model name). Health
 anything but *Healthy* deserves a look.
+
+---
+
+# 16c. Recent file activity scanner
+
+`RecentFileActivity.ps1` - run as admin (so permission-restricted folders aren't
+skipped; skips are counted and flagged either way). Fully interactive: asks for
+the folder (default `D:\Shares`), Modified vs Accessed, and how many results -
+then shows a numbered report AND saves a timestamped log to
+`C:\RecentFileActivity_<date>.log`. The "what just changed on this share?" tool
+for file servers.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File C:\RecentFileActivity.ps1
+```
+
+Caveat baked into the report: **LastAccessTime can lie** - Windows often
+disables/delays access-time updates for performance, so Modified
+(LastWriteTime) is the reliable signal. Large shares can take minutes and look
+idle mid-scan; that's normal.
 
 ---
 

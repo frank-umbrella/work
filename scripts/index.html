@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PC Scripts v0.18.0</title>
+<title>PC Scripts v0.19.0</title>
 <meta name="description" content="PowerShell scripts for re-fixing a fresh Windows PC: show all tray icons, stop Copilot and Malwarebytes at startup. Windows 10 and 11.">
 <meta name="robots" content="noindex">
-<meta name="version" content="0.18.0">
+<meta name="version" content="0.19.0">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -306,6 +306,7 @@
       <ul>
         <li><a href="#ram-check">RAM type (DDR / ECC)</a></li>
         <li><a href="#disk-check">Drive type (SSD / HDD)</a></li>
+        <li><a href="#recent-files">Recent file activity</a></li>
       </ul>
     </div>
     <div class="toc-group">
@@ -964,6 +965,37 @@
     </div>
   </section>
 
+  <!-- ===================== Recent file activity ===================== -->
+  <section class="panel" id="recent-files">
+    <div class="panel-head">
+      <div>
+        <span class="tag">Diagnostics</span>
+        <h2>Recent file activity scanner</h2>
+        <code class="file">RecentFileActivity.ps1</code>
+      </div>
+      <div class="panel-side">
+        <span class="badge badge-warn">Run as admin</span>
+        <a class="dl" href="RecentFileActivity.ps1" download>Download .ps1</a>
+      </div>
+    </div>
+    <p class="purpose">Finds the most recently <strong>modified</strong> or <strong>accessed</strong> files in a folder and all its subfolders &mdash; the &ldquo;what just changed on this share?&rdquo; tool for file servers (who saved what, ransomware-style mass changes, or checking if a share is even still used). Fully <strong>interactive</strong>: it asks for the folder (default <code>D:\Shares</code>), modified vs accessed, and how many results &mdash; then shows the report on screen <em>and</em> saves a timestamped log to <code>C:\RecentFileActivity_&lt;date&gt;.log</code>. Works fine in the LogMeIn admin prompt (the prompts are just text).</p>
+
+    <div class="opt">
+      <h3>Run it</h3>
+      <div class="explain">
+        <div class="explain-title">What it asks, and what you get</div>
+        <ul>
+          <li><strong>Folder to scan</strong> &mdash; e.g. <code>D:\Shares</code>, <code>D:\Shares\Accounting</code>, <code>C:\Users</code>. Enter = the default.</li>
+          <li><strong>Modified vs Accessed</strong> &mdash; Modified (LastWriteTime) is the reliable one. <strong>Accessed can lie:</strong> Windows often disables or delays LastAccessTime updates for performance, so don&rsquo;t treat it as proof a file was or wasn&rsquo;t opened.</li>
+          <li><strong>How many results</strong> &mdash; default 20, newest first.</li>
+          <li><strong>Output</strong> &mdash; numbered report on screen + a timestamped log at <code>C:\RecentFileActivity_&lt;date&gt;.log</code> you can attach to a ticket. Skipped-permission items are counted and flagged.</li>
+        </ul>
+      </div>
+      <pre>powershell -ExecutionPolicy Bypass -File C:\RecentFileActivity.ps1</pre>
+      <p class="tfield-note">Large shares can take several minutes and PowerShell may look idle while it scans &mdash; that&rsquo;s normal. Run as admin so permission-restricted folders don&rsquo;t get skipped (skips are reported either way).</p>
+    </div>
+  </section>
+
   <!-- ===================== Devices and Printers ===================== -->
   <section class="panel" id="devices-printers">
     <div class="panel-head">
@@ -1270,7 +1302,7 @@ net start spooler</pre>
 </main>
 
 <footer class="page">
-  <p>PC Scripts <span class="version">v0.18.0</span> &middot; Windows 10 &amp; 11.</p>
+  <p>PC Scripts <span class="version">v0.19.0</span> &middot; Windows 10 &amp; 11.</p>
 </footer>
 
 <script>
