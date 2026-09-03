@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PC Scripts v0.17.1</title>
+<title>PC Scripts v0.18.0</title>
 <meta name="description" content="PowerShell scripts for re-fixing a fresh Windows PC: show all tray icons, stop Copilot and Malwarebytes at startup. Windows 10 and 11.">
 <meta name="robots" content="noindex">
-<meta name="version" content="0.17.1">
+<meta name="version" content="0.18.0">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -61,10 +61,12 @@
   html { scroll-behavior: smooth; }
   .layout { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 34px; align-items: start; }
   .content { min-width: 0; }
-  nav.toc { position: sticky; top: 20px; }
+  nav.toc { position: sticky; top: 20px; max-height: calc(100vh - 40px); overflow-y: auto; padding-right: 4px; }
   nav.toc h2 { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: var(--ink-soft); margin: 0 0 10px; }
+  nav.toc .toc-group { margin: 0 0 12px; }
+  nav.toc .toc-group h3 { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); margin: 0 0 3px; padding-left: 11px; opacity: 0.85; }
   nav.toc ul { list-style: none; margin: 0; padding: 0; }
-  nav.toc a { display: block; padding: 7px 11px; border-left: 2px solid var(--line); color: var(--ink-soft); font-size: 13.5px; font-weight: 500; line-height: 1.3; transition: color .12s ease, border-color .12s ease, background .12s ease; }
+  nav.toc a { display: block; padding: 5px 11px; border-left: 2px solid var(--line); color: var(--ink-soft); font-size: 13px; font-weight: 500; line-height: 1.3; transition: color .12s ease, border-color .12s ease, background .12s ease; }
   nav.toc a:hover { color: var(--accent); background: var(--accent-soft); text-decoration: none; }
   nav.toc a.active { color: var(--accent); border-left-color: var(--accent); font-weight: 600; }
   .panel, .howto { scroll-margin-top: 16px; }
@@ -264,28 +266,75 @@
   <div class="layout">
   <nav class="toc" aria-label="On this page">
     <h2>On this page</h2>
-    <ul>
-      <li><a href="#how-to-run">How to run</a></li>
-      <li><a href="#tray-icons">Show all tray icons</a></li>
-      <li><a href="#copilot">Stop Copilot at startup</a></li>
-      <li><a href="#malwarebytes">Stop Malwarebytes at startup</a></li>
-      <li><a href="#windows-update">Windows Update routine</a></li>
-      <li><a href="#wu-options">Windows Update options</a></li>
-      <li><a href="#admin-pwd-expiry">Admin password expiry</a></li>
-      <li><a href="#disk-cleanup">Disk Cleanup</a></li>
-      <li><a href="#check-disk">Check Disk (chkdsk)</a></li>
-      <li><a href="#repair-system">Repair system files</a></li>
-      <li><a href="#component-cleanup">WinSxS cleanup</a></li>
-      <li><a href="#ram-check">Check RAM type</a></li>
-      <li><a href="#disk-check">Check drive type</a></li>
-      <li><a href="#devices-printers">Devices and Printers</a></li>
-      <li><a href="#print-flush">Print Flush</a></li>
-      <li><a href="#hp-wolf">Remove HP Wolf Security</a></li>
-      <li><a href="#eset-cleanup">Remove ESET leftovers</a></li>
-      <li><a href="#screenconnect">Remove ScreenConnect</a></li>
-      <li><a href="#sentinelone">Deploy SentinelOne</a></li>
-      <li><a href="#tools">Scan &amp; removal tools</a></li>
-    </ul>
+    <div class="toc-group">
+      <ul>
+        <li><a href="#how-to-run">How to run</a></li>
+      </ul>
+    </div>
+    <div class="toc-group">
+      <h3>Startup &amp; taskbar</h3>
+      <ul>
+        <li><a href="#tray-icons">Show all tray icons</a></li>
+        <li><a href="#copilot">Stop Copilot</a></li>
+        <li><a href="#malwarebytes">Stop Malwarebytes</a></li>
+      </ul>
+    </div>
+    <div class="toc-group">
+      <h3>Windows Update</h3>
+      <ul>
+        <li><a href="#windows-update">Pause + check routine</a></li>
+        <li><a href="#wu-options">Options + active hours</a></li>
+      </ul>
+    </div>
+    <div class="toc-group">
+      <h3>Accounts</h3>
+      <ul>
+        <li><a href="#admin-pwd-expiry">Admin password expiry</a></li>
+      </ul>
+    </div>
+    <div class="toc-group">
+      <h3>Disk &amp; repair</h3>
+      <ul>
+        <li><a href="#disk-cleanup">Disk Cleanup</a></li>
+        <li><a href="#check-disk">Check Disk (chkdsk)</a></li>
+        <li><a href="#repair-system">Repair system files</a></li>
+        <li><a href="#component-cleanup">WinSxS cleanup</a></li>
+      </ul>
+    </div>
+    <div class="toc-group">
+      <h3>Diagnostics</h3>
+      <ul>
+        <li><a href="#ram-check">RAM type (DDR / ECC)</a></li>
+        <li><a href="#disk-check">Drive type (SSD / HDD)</a></li>
+      </ul>
+    </div>
+    <div class="toc-group">
+      <h3>Printers</h3>
+      <ul>
+        <li><a href="#devices-printers">Devices and Printers</a></li>
+        <li><a href="#print-flush">Print Flush</a></li>
+      </ul>
+    </div>
+    <div class="toc-group">
+      <h3>Software removal</h3>
+      <ul>
+        <li><a href="#hp-wolf">HP Wolf Security</a></li>
+        <li><a href="#eset-cleanup">ESET leftovers</a></li>
+        <li><a href="#screenconnect">ScreenConnect</a></li>
+      </ul>
+    </div>
+    <div class="toc-group">
+      <h3>Deployment</h3>
+      <ul>
+        <li><a href="#sentinelone">Deploy SentinelOne</a></li>
+      </ul>
+    </div>
+    <div class="toc-group">
+      <h3>Downloads</h3>
+      <ul>
+        <li><a href="#tools">Scan &amp; removal tools</a></li>
+      </ul>
+    </div>
   </nav>
   <div class="content">
 
@@ -1221,7 +1270,7 @@ net start spooler</pre>
 </main>
 
 <footer class="page">
-  <p>PC Scripts <span class="version">v0.17.1</span> &middot; Windows 10 &amp; 11.</p>
+  <p>PC Scripts <span class="version">v0.18.0</span> &middot; Windows 10 &amp; 11.</p>
 </footer>
 
 <script>
