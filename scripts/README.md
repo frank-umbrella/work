@@ -60,6 +60,7 @@ label.
 | Section              | Does                                                              | Admin? |
 | -------------------- | ----------------------------------------------------------------- | ------ |
 | Deploy SentinelOne   | Paste your site token, copy the exact silent msiexec install line | Yes    |
+| Deploy Malwarebytes  | Download + /VERYSILENT install + verify, one paste; silent-scan combo | Yes |
 
 *(add future scripts and their own category heading here)*
 
@@ -778,6 +779,33 @@ msiexec.exe /i "C:\SentinelInstaller_windows_64bit_v26_1_2_177.msi" SITE_TOKEN="
   field-tested): `sc.exe query SentinelAgent; tasklist | findstr /i sentinel; dir "C:\Program Files\SentinelOne"`
   - service + processes + install folder in one paste (in classic cmd, use `&`
   between commands instead of `;`).
+
+---
+
+# 17. Deploy Malwarebytes (silent install)
+
+No script file - one paste into elevated PowerShell (LogMeIn admin prompt is
+perfect; nothing shows on the user's screen):
+
+```powershell
+Invoke-WebRequest "https://downloads.malwarebytes.com/file/mb-windows" -OutFile C:\MBSetup.exe
+Start-Process C:\MBSetup.exe -ArgumentList "/VERYSILENT /NORESTART /SUPPRESSMSGBOXES /NOCANCEL" -Wait
+sc.exe query MBAMService
+```
+
+`MBAMService` at `STATE : 4 RUNNING` = installed. Heads-up: silent install lands
+as Free with the 14-day Premium trial auto-started (real-time protection, tray,
+and launch-at-startup all ON - see section 3 to turn startup off). No
+license-key switch exists on the consumer installer. The /VERYSILENT switches
+are deployment canon (stable v3->v5), not an official consumer doc.
+
+**Silent scanning afterwards** (full MB has no scan CLI - scans are GUI-only):
+
+```text
+C:\adwcleaner.exe /eula /scan          (adware/PUP layer - official AdwCleaner CLI)
+C:\adwcleaner.exe /eula /clean /noreboot
+Update-MpSignature; Start-MpScan -ScanType QuickScan   (Defender AV layer)
+```
 
 ---
 
