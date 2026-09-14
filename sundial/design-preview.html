@@ -89,6 +89,12 @@
   .chip{display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border-radius:999px;border:1px solid var(--m-line);background:var(--m-card2);font-size:13px;cursor:pointer;color:var(--m-text)}
   .chip i{width:9px;height:9px;border-radius:50%;display:inline-block}
   .chip .x{color:var(--m-muted);margin-left:2px}
+  .chip .mk{font-style:normal;font-family:var(--m-mono);font-size:11px;padding:0 5px;border-radius:4px;border:1px dashed var(--m-line);color:var(--m-muted);cursor:pointer}
+  .chip .mk.on{border-style:solid;border-color:var(--m-accent);color:var(--m-accent);font-weight:700}
+  .chip .mk.off{border-style:solid;border-color:var(--m-stop);color:var(--m-stop);text-decoration:line-through}
+  .also{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 12px;padding:8px 12px;border:1px solid var(--m-line);border-radius:calc(var(--m-radius) - 2px);background:var(--m-card2);font-size:13px}
+  .also .t{font-family:var(--m-mono);font-weight:600;margin-left:auto}
+  .tagnb{display:inline-block;font-size:11px;padding:1px 7px;border-radius:999px;background:var(--m-card2);border:1px solid var(--m-line);color:var(--m-muted);margin-left:6px}
   .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:12px}
   .tile{background:var(--m-card);border:1px solid var(--m-line);border-radius:var(--m-radius);padding:12px 14px;min-width:0}
   .tile .k{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--m-muted)}
@@ -195,6 +201,7 @@
             <span class="pill"><span class="dot"></span> Clocked in &middot; Acme Dental &middot; Remote support</span>
             <div class="timer" id="timer">01:23:45</div>
             <div class="since">Since 1:15 PM &middot; today 4h 15m across 2 clients</div>
+            <div class="also" title="Running alongside because Monitoring is flagged Can run alongside. Tap to bring it to the top."><span class="dot" style="width:8px;height:8px;border-radius:50%;background:var(--m-go);display:inline-block"></span><span>Also running: Northside Legal &middot; Monitoring</span><span class="t">00:42:10</span><button class="btn sm">Punch Out</button></div>
             <div class="btnrow">
               <button class="btn big stop">Punch Out</button>
               <button class="btn big">Switch client</button>
@@ -235,6 +242,7 @@
           <tbody>
             <tr><td class="t" data-l="Start">9:02 AM</td><td class="t" data-l="End">10:47 AM</td><td class="t" data-l="Duration">1h 45m</td><td data-l="Client"><span class="cdot" style="background:#b8412c"></span>Acme Dental</td><td data-l="Job type">Remote support</td><td data-l="Project">Printer replacement</td><td data-l="Notes">Printer queue stuck on front desk PC; cleared spooler, updated driver.</td><td class="act" data-l=""><a>Edit</a><a>Dup</a><a>Del</a></td></tr>
             <tr><td class="t" data-l="Start">10:55 AM</td><td class="t" data-l="End">12:40 PM</td><td class="t" data-l="Duration">1h 45m</td><td data-l="Client"><span class="cdot" style="background:#2f6fb5"></span>Northside Legal</td><td data-l="Job type">Project</td><td data-l="Project">M365 migration</td><td data-l="Notes">Moved 6 mailboxes, verified Outlook profiles.</td><td class="act" data-l=""><a>Edit</a><a>Dup</a><a>Del</a></td></tr>
+            <tr><td class="t" data-l="Start">12:40 PM</td><td class="t" data-l="End">12:55 PM</td><td class="t" data-l="Duration">0h 15m</td><td data-l="Client"><span class="cdot" style="background:#b8412c"></span>Acme Dental</td><td data-l="Job type">Admin<span class="tagnb">non-billable</span></td><td data-l="Project"></td><td data-l="Notes">Updated asset list.</td><td class="act" data-l=""><a>Edit</a><a>Dup</a><a>Del</a></td></tr>
             <tr><td class="t" data-l="Start">1:15 PM</td><td class="t" data-l="End"><span class="pill"><span class="dot"></span> running</span></td><td class="t" data-l="Duration">0h 45m</td><td data-l="Client"><span class="cdot" style="background:#b8412c"></span>Acme Dental</td><td data-l="Job type">Remote support</td><td data-l="Project">Printer replacement</td><td data-l="Notes">Printer queue stuck on front desk PC...</td><td class="act" data-l=""><a>Edit</a></td></tr>
           </tbody>
         </table>
@@ -280,8 +288,12 @@
             <div><label class="lab">Hourly rate <span class="q" title="Optional. Only used when Show amounts is on in Export.">?</span></label><div class="money"><input class="fld" value="75.00"></div></div>
             <div><label class="lab">Rounding <span class="q" title="Overrides the default in Settings for this client's exports. Stored time is never rounded.">?</span></label><select class="fld sel"><option>Use default (15 min)</option><option>None</option><option>6 min</option><option>15 min</option></select></div>
           </div>
-          <label class="lab">Job types <span class="q" title="Sub-categories of work for this client. Type one and press Enter. Removing one keeps old entries intact.">?</span></label>
-          <div class="chips" style="margin-bottom:6px"><span class="chip">Remote support <span class="x">&times;</span></span><span class="chip">On-site <span class="x">&times;</span></span><span class="chip">Project <span class="x">&times;</span></span></div>
+          <div class="g2">
+            <div class="ck" style="margin-top:12px"><i class="on">&#10003;</i> Billable <span class="q" title="Default for this client's job types. Non-billable time still shows in your own exports, tagged, and is left out of Billable-only exports and amounts.">?</span></div>
+            <div class="ck" style="margin-top:12px"><i></i> Can run alongside other jobs <span class="q" title="Lets a job for this client run while another job is running, instead of asking you to switch. Use it for background work like migrations or monitoring.">?</span></div>
+          </div>
+          <label class="lab">Job types <span class="q" title="Sub-categories of work for this client. Type one and press Enter. The $ and || markers cycle Use client default / Yes / No for billable and can-run-alongside.">?</span></label>
+          <div class="chips" style="margin-bottom:6px"><span class="chip">Remote support <em class="mk" title="Billable: client default">$</em><em class="mk" title="Alongside: client default">||</em><span class="x">&times;</span></span><span class="chip">On-site <em class="mk" title="Billable: client default">$</em><em class="mk" title="Alongside: client default">||</em><span class="x">&times;</span></span><span class="chip">Monitoring <em class="mk" title="Billable: client default">$</em><em class="mk on" title="Alongside: yes">||</em><span class="x">&times;</span></span><span class="chip">Admin <em class="mk off" title="Billable: no">$</em><em class="mk" title="Alongside: client default">||</em><span class="x">&times;</span></span></div>
           <input class="fld" placeholder="Add a job type and press Enter">
           <label class="lab">Color</label>
           <div class="chips"><span class="chip"><i style="background:#b8412c"></i></span><span class="chip"><i style="background:#2f6fb5"></i></span><span class="chip"><i style="background:#5a9a4a"></i></span><span class="chip"><i style="background:#8a5bb8"></i></span><span class="chip"><i style="background:#d08a1e"></i></span><span class="chip"><i style="background:#3a9ea5"></i></span></div>
@@ -298,6 +310,8 @@
           <div class="seg"><span class="on">Today</span><span>Yesterday</span><span>This week</span><span>Last week</span><span>Custom</span></div>
           <label class="lab">Client <span class="q" title="Pick one client to send them only their hours. All clients is for your own records.">?</span></label>
           <select class="fld sel"><option>All clients</option><option>Acme Dental</option><option>Northside Legal</option><option>Harbor Vet</option></select>
+          <label class="lab">Billable <span class="q" title="Billable only gives a clean block to forward to a client. All tags non-billable lines and splits each subtotal.">?</span></label>
+          <div class="seg"><span class="on">All</span><span>Billable only</span><span>Non-billable only</span></div>
           <label class="lab">Options</label>
           <div class="ck"><i class="on">&#10003;</i> Include notes</div>
           <div class="ck"><i class="on">&#10003;</i> Include project</div>
@@ -316,13 +330,14 @@ Your Name
 Acme Dental
   9:02 AM - 10:45 AM   1h 45m   Remote support (Printer replacement) - Printer queue stuck on front desk PC; cleared spooler, updated driver.
   1:15 PM -  2:00 PM   0h 45m   Remote support (Printer replacement) - Confirmed print from all 3 workstations.
-  Subtotal 2h 30m
+  2:00 PM -  2:15 PM   0h 15m   Admin [non-billable] - Updated asset list.
+  Subtotal 2h 45m (billable 2h 30m, non-billable 0h 15m)
 
 Northside Legal
   10:45 AM - 12:45 PM  2h 00m   Project (M365 migration) - Moved 6 mailboxes, verified Outlook profiles.
   Subtotal 2h 00m
 
-Total 4h 30m</pre>
+Total 4h 45m (billable 4h 30m, non-billable 0h 15m)</pre>
           <div class="hint">Copy for email puts a real table on the clipboard for Gmail and Outlook, with this text as the plain fallback. Open in email pre-fills To, Subject, and Body.</div>
         </div>
       </div>
