@@ -249,5 +249,19 @@ service cloud.firestore {
     match /backup_users/{uid} {
       allow get, create, update, delete: if isMSPAdmin() && request.auth.uid == uid;
     }
+
+    // -------- Sundial (work/sundial) --------
+    // Personal hours tracker. Shares THIS project's login like Backup
+    // Audits, but the data is per-user: /sundial_users/{uid} holds the
+    // user's settings doc, with /clients and /entries subcollections
+    // beneath it. Every signed-in @umbrellaautomation.com employee gets
+    // their own tree and can never read or write anyone else's. A team
+    // tier later would add a manager roster and widen reads here.
+    match /sundial_users/{uid} {
+      allow read, write: if isMSPAdmin() && request.auth.uid == uid;
+      match /{sub=**} {
+        allow read, write: if isMSPAdmin() && request.auth.uid == uid;
+      }
+    }
   }
 }
