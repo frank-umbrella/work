@@ -100,6 +100,17 @@ Nothing is persisted in mock mode; a reload starts over.
 
 ## Changelog
 
+### v0.1.12 - 2026-09-14
+
+Notes as a sub-row under each entry.
+
+Notes was the widest column and still cramped. It is no longer a column: when
+Notes is switched on in the Columns manager, each entry gets a full-width
+sub-row beneath it holding the note, indented and in a quieter grey, joined to
+the row above so the two read as one entry. Long notes still show two lines
+with an ellipsis and a "more" link that expands them. Project takes the slack
+that Notes used to take, so the main columns get more room.
+
 ### v0.1.11 - 2026-09-14
 
 The Now card is now a stack of short rows.

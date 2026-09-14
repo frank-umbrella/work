@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Sundial v0.1.11</title>
-<meta name="version" content="0.1.11" />
+<title>Sundial v0.1.12</title>
+<meta name="version" content="0.1.12" />
 <meta name="robots" content="noindex, nofollow" />
 <meta name="description" content="Internal hours tracker for Umbrella Automation. Restricted to @umbrellaautomation.com accounts." />
 <meta name="theme-color" content="#1e6fd9" />
@@ -155,6 +155,11 @@ textarea.fld{min-height:64px;resize:vertical}
    that in the stacked layout (where the cell is a flex row) the clamped box
    is not itself a flex item, which would blockify it and defeat the clamp. */
 .mt td .notebox{display:block;min-width:0;flex:1 1 auto}
+/* Notes sub-row: the entry row above it drops its bottom border so the two
+   read as one entry; the note is indented and muted. */
+.mt tr.hasnote td{border-bottom:0}
+.mt tr.noterow td{padding:0 8px 10px 8px;border-bottom:1px solid var(--line);color:var(--muted);font-size:13px;vertical-align:top}
+.mt tr.noterow.running td{background:inherit}
 .mt td .note{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-clamp:2;overflow:hidden;cursor:pointer}
 .mt td .note.fits{cursor:default}
 .mt td .note.open{display:block;-webkit-line-clamp:unset;line-clamp:none;overflow:visible}
@@ -331,6 +336,10 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
   .mt td:before{content:attr(data-l);flex:0 0 76px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding-top:3px}
   .mt td.act{justify-content:flex-start;text-align:left;white-space:normal;flex-wrap:wrap}
   .mt td.act button{margin:0 12px 0 0}
+  /* in the stacked layout the note block is glued to the bottom of its entry card */
+  .mt tbody tr.hasnote{margin-bottom:0;border-bottom:0;border-radius:var(--radius) var(--radius) 0 0}
+  .mt tbody tr.noterow{margin-top:0;border-top:0;border-radius:0 0 var(--radius) var(--radius);padding-top:0}
+  .mt tr.noterow td{padding:4px 0;border-bottom:0}
 }
 @media (max-width:640px){
   .nav,.who .em{display:none}
@@ -658,12 +667,12 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
 
 <script type="module">
 /* ==============================================================
-   Sundial v0.1.11 - hours tracker
+   Sundial v0.1.12 - hours tracker
    Single file on purpose: no build step, same as Backup Audits.
    Firestore rules for /sundial_users live in ../watchtower/firestore.rules.
    ============================================================== */
 
-const APP_VERSION    = "0.1.11";
+const APP_VERSION    = "0.1.12";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const OWNER_EMAIL    = "frank@umbrellaautomation.com";
 const SDK            = "https://www.gstatic.com/firebasejs/12.13.0/";
@@ -1298,7 +1307,7 @@ const ICONS = {
 const COL_DEFAULT_W = { start: 84, end: 138, dur: 80, job: 122, ticket: 74, project: 122, notes: 160 };
 const FLEX_MIN_W = 200, COL_MIN_W = 48, ACTIONS_W = 96;
 function flexColumnKey(cols) {
-  if (cols.some(c => c.k === "notes")) return "notes";
+  if (cols.some(c => c.k === "project")) return "project";   // notes live in a sub-row, so Project absorbs the slack
   return cols.length ? cols[cols.length - 1].k : null;
 }
 function measureClientWidth(tableEl, rows) {
@@ -1337,7 +1346,11 @@ function columnWidths(tableEl, cols, rows) {
   return { widths: out, flex: flex };
 }
 function renderEntryTable(tableEl, rows, opts) {
-  const cols = visibleColumns();
+  /* Notes is not a column any more: when it is switched on in the Columns
+     manager it renders as a full-width sub-row under each entry. */
+  const allCols = visibleColumns();
+  const showNotes = allCols.some(c => c.k === "notes");
+  const cols = allCols.filter(c => c.k !== "notes");
   const s = state.settings.sort || {};
   const cw = columnWidths(tableEl, cols, rows);
   /* In the card-stacked layout every cell shares one anonymous column, and
@@ -1350,14 +1363,17 @@ function renderEntryTable(tableEl, rows, opts) {
     '<th data-sort="' + c.k + '">' + esc(c.label) + (s.key === c.k ? '<span class="ar">' + (s.dir === "desc" ? "▼" : "▲") + "</span>" : "") +
     (c.k === cw.flex ? "" : '<span class="rz" data-rz="' + c.k + '" title="Drag to resize. Double-click to reset."></span>') + "</th>").join("") +
     "<th></th></tr></thead>";
-  const body = "<tbody>" + (rows.length ? sortEntries(rows).map(e =>
-    '<tr' + (e.end ? "" : ' class="running"') + '>' +
+  const body = "<tbody>" + (rows.length ? sortEntries(rows).map(e => {
+    const hasNote = showNotes && !!e.notes;
+    return '<tr class="' + (e.end ? "" : "running ") + (hasNote ? "hasnote" : "") + '">' +
     cols.map(c => '<td class="' + (c.k === "end" ? "t endc" : c.k === "start" || c.k === "dur" ? "t" : c.k === "client" ? "cl" : "") + '" data-l="' + esc(c.label) + '">' + entryCellHTML(e, c.k) + "</td>").join("") +
     '<td class="act" data-l="Actions">' +
       '<button class="ibtn" data-edit="' + e.id + '" title="Edit this entry." aria-label="Edit">' + ICONS.edit + "</button>" +
       '<button class="ibtn" data-dup="' + e.id + '" title="Duplicate: same client, job, tickets, project and notes, with new times." aria-label="Duplicate">' + ICONS.dup + "</button>" +
       '<button class="ibtn danger" data-del="' + e.id + '" title="Delete this entry (asks first)." aria-label="Delete">' + ICONS.del + "</button>" +
-    "</td></tr>").join("")
+    "</td></tr>" +
+    (hasNote ? '<tr class="noterow' + (e.end ? "" : " running") + '"><td colspan="' + (cols.length + 1) + '" data-l="Notes">' + entryCellHTML(e, "notes") + "</td></tr>" : "");
+  }).join("")
     : '<tr><td colspan="' + (cols.length + 1) + '" class="emptyrow">' + esc(opts.empty) + "</td></tr>") + "</tbody>";
   tableEl.innerHTML = colgroup + head + body;
   attachResizeHandles(tableEl, cols, cw);
