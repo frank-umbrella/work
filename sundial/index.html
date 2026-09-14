@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Sundial v0.1.9</title>
-<meta name="version" content="0.1.9" />
+<title>Sundial v0.1.10</title>
+<meta name="version" content="0.1.10" />
 <meta name="robots" content="noindex, nofollow" />
 <meta name="description" content="Internal hours tracker for Umbrella Automation. Restricted to @umbrellaautomation.com accounts." />
 <meta name="theme-color" content="#1e6fd9" />
@@ -192,6 +192,20 @@ textarea.fld{min-height:64px;resize:vertical}
 
 /* ---------- clock ---------- */
 .now{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:18px;align-items:start}
+/* Running with the start form open: three columns side by side when there is
+   room; below 1100px the start form drops under the other two at full width
+   (its own fields go two-up), so the card never grows into a tall stack. */
+.now.open3{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media (max-width:1099px){
+  .now.open3{grid-template-columns:minmax(0,1.1fr) minmax(0,1fr)}
+  .now.open3 #startPanel{grid-column:1 / -1;border-top:1px solid var(--line);padding-top:10px}
+}
+@media (max-width:860px){
+  .now.open3{grid-template-columns:minmax(0,1fr)}
+  .now.open3 #startPanel{grid-column:auto}
+}
+.now textarea.fld{min-height:52px}
+.now .btnrow{margin-top:12px}
 @media (max-width:860px){.now{grid-template-columns:minmax(0,1fr)}}
 .timer{font:600 56px/1 var(--mono);letter-spacing:.02em;margin:8px 0;color:var(--text);overflow-wrap:anywhere}
 .since{font-size:13px;color:var(--muted);margin:6px 0 12px;overflow-wrap:anywhere}
@@ -387,7 +401,7 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
             </div>
           </div>
         </div>
-        <div>
+        <div id="runCol" hidden>
           <div id="runEdit" hidden>
             <h4 style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:0 0 2px">Running entry</h4>
             <div class="g2">
@@ -398,13 +412,16 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
             <textarea class="fld" id="rNotes"></textarea>
             <div class="hint">Saves when you click away. Everything is editable later from the table.</div>
           </div>
+        </div>
 
           <div id="startPanel">
             <h4 id="startTitle" style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:0 0 2px" hidden>Start another job</h4>
-            <label class="lab" for="fClient">Client <span class="q" title="Who the work is for. Exports group and filter by this, so pick it before the timer starts.">?</span></label>
-            <select class="fld" id="fClient"></select>
-            <label class="lab" for="fJob">Job type <span class="q" title="The kind of work under this client. It carries the billable and can-run-alongside flags the entry starts with.">?</span></label>
-            <select class="fld" id="fJob" disabled></select>
+            <div class="g2">
+              <div><label class="lab" for="fClient">Client <span class="q" title="Who the work is for. Exports group and filter by this, so pick it before the timer starts.">?</span></label>
+              <select class="fld" id="fClient"></select></div>
+              <div><label class="lab" for="fJob">Job type <span class="q" title="The kind of work under this client. It carries the billable and can-run-alongside flags the entry starts with.">?</span></label>
+              <select class="fld" id="fJob" disabled></select></div>
+            </div>
             <div class="g2">
               <div><label class="lab" for="fTicket">Ticket #s <span class="q" title="Optional. Free text so INC-0042 works as well as 5421. Several tickets? Separate them with commas. Each links up when the client has a ticket URL pattern.">?</span></label><input class="fld" id="fTicket" autocomplete="off"></div>
               <div><label class="lab" for="fProject">Project <span class="q" title="Optional label that keeps recurring work together in exports. Suggestions come from this client past entries.">?</span></label><input class="fld" id="fProject" list="projList" autocomplete="off"></div>
@@ -428,7 +445,6 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
             </div>
             <div class="hint" id="punchHint"></div>
           </div>
-        </div>
       </div>
     </div>
 
@@ -618,12 +634,12 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
 
 <script type="module">
 /* ==============================================================
-   Sundial v0.1.9 - hours tracker
+   Sundial v0.1.10 - hours tracker
    Single file on purpose: no build step, same as Backup Audits.
    Firestore rules for /sundial_users live in ../watchtower/firestore.rules.
    ============================================================== */
 
-const APP_VERSION    = "0.1.9";
+const APP_VERSION    = "0.1.10";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const OWNER_EMAIL    = "frank@umbrellaautomation.com";
 const SDK            = "https://www.gstatic.com/firebasejs/12.13.0/";
@@ -1042,6 +1058,8 @@ function paintClock() {
   $("#startTitle").hidden = !main;
   $("#cancelStartBtn").hidden = !main;
   $("#startPanel").hidden = !!main && !state.startPanelOpen;
+  $("#runCol").hidden = !main;
+  $(".now").classList.toggle("open3", !!main && !!state.startPanelOpen);
   $("#punchHint").hidden = !main;
 
   if (main) {

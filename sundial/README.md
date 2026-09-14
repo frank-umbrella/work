@@ -100,6 +100,18 @@ Nothing is persisted in mock mode; a reload starts over.
 
 ## Changelog
 
+### v0.1.10 - 2026-09-14
+
+A shorter Now card while a timer runs.
+
+Opening "Start another job" while something was running stacked the running
+entry's fields and the whole start form in one column beside an empty timer
+column, and the card grew taller than the screen. The card now lays out as
+three columns when the window is wide enough (timer, running entry, start
+form); below about 1100 pixels the start form drops under the other two at full
+width with its own fields two-up. Client and job type sit on one row, the note
+boxes start shorter, and Cancel still folds the start form away.
+
 ### v0.1.9 - 2026-09-14
 
 Week start on any day, a Client ID per client, and readable job-type markers.
