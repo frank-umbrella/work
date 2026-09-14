@@ -100,6 +100,20 @@ Nothing is persisted in mock mode; a reload starts over.
 
 ## Changelog
 
+### v0.1.11 - 2026-09-14
+
+The Now card is now a stack of short rows.
+
+The three-column attempt in v0.1.10 only helped on very wide windows. The card
+is now laid out in rows: the status row puts the pill, the timer, the "since"
+time and the Stop / Switch buttons on one line; the running entry's ticket,
+project and notes fields are folded behind an **Edit details** button that
+slides them open (a one-line summary of what is recorded sits under the timer
+so you rarely need to); and the start form puts client, job type, ticket,
+project and notes on a single line with Start beside them. While a timer runs
+and nothing is open the card is about one row tall. Phones keep the stacked
+layout with the big buttons.
+
 ### v0.1.10 - 2026-09-14
 
 A shorter Now card while a timer runs.
