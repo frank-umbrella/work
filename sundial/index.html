@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Sundial v0.1.3</title>
-<meta name="version" content="0.1.3" />
+<title>Sundial v0.1.4</title>
+<meta name="version" content="0.1.4" />
 <meta name="robots" content="noindex, nofollow" />
 <meta name="description" content="Internal hours tracker for Umbrella Automation. Restricted to @umbrellaautomation.com accounts." />
 <meta name="theme-color" content="#1e6fd9" />
@@ -141,7 +141,7 @@ textarea.fld{min-height:64px;resize:vertical}
 .btn.stop{background:var(--stop);border-color:var(--stop);color:#fff}
 .btn.acc{background:var(--accent);border-color:var(--accent);color:var(--onaccent)}
 .btn.sm{padding:5px 10px;font-size:12px;font-weight:600}
-.minibtn{margin-left:6px;padding:1px 8px;font:inherit;font-size:11px;font-weight:600;border-radius:999px;border:1px solid var(--line2);background:var(--card2);color:var(--text);cursor:pointer;vertical-align:middle}
+.minibtn{margin-left:6px;width:22px;height:22px;padding:0;display:inline-grid;place-items:center;font:inherit;border-radius:50%;border:1px solid var(--line2);background:var(--card2);color:var(--text);cursor:pointer;vertical-align:middle}
 .minibtn.stop{border-color:var(--stop);color:var(--stop)}
 .minibtn.stop:hover{background:var(--stop);color:#fff}
 .btnrow{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
@@ -584,12 +584,12 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
 
 <script type="module">
 /* ==============================================================
-   Sundial v0.1.3 - hours tracker
+   Sundial v0.1.4 - hours tracker
    Single file on purpose: no build step, same as Backup Audits.
    Firestore rules for /sundial_users live in ../watchtower/firestore.rules.
    ============================================================== */
 
-const APP_VERSION    = "0.1.3";
+const APP_VERSION    = "0.1.4";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const OWNER_EMAIL    = "frank@umbrellaautomation.com";
 const SDK            = "https://www.gstatic.com/firebasejs/12.13.0/";
@@ -1173,7 +1173,8 @@ function entryCellHTML(e, key) {
   switch (key) {
     case "start":  return fmtTime(toDate(e.start));
     case "end":    return e.end ? fmtTime(toDate(e.end))
-                     : '<span class="pill"><span class="dot"></span>running</span><button class="minibtn stop" data-out="' + e.id + '" title="Stop this timer now.">Stop</button>';
+                     : '<span class="pill"><span class="dot"></span>running</span><button class="minibtn stop" data-out="' + e.id + '" title="Stop this timer now." aria-label="Stop this timer">' +
+                       '<svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true"><rect width="10" height="10" rx="1.5" fill="currentColor"/></svg></button>';
     case "dur":    return '<span data-elapsed="' + e.id + '">' + fmtDur(entrySeconds(e)) + "</span>";
     case "client": return '<span class="cdot" style="background:' + esc(clientColor(c)) + '"></span>' + esc(c ? c.name : "Unknown client");
     case "job":    return esc(jobTypeName(c, e.jobTypeId) || "") + (e.billable === false ? '<span class="tagnb">non-billable</span>' : "");

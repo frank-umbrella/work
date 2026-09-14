@@ -100,6 +100,13 @@ Nothing is persisted in mock mode; a reload starts over.
 
 ## Changelog
 
+### v0.1.4 - 2026-09-14
+
+The small Stop button on the running row is now a stop square icon in a round
+red button instead of the word, so the End column stays narrow and the control
+reads as a media-style stop at a glance. Hover or long-press still says "Stop
+this timer now", and screen readers get the same label.
+
 ### v0.1.3 - 2026-09-14
 
 Resume from the table, and a Stop button on the running row.
