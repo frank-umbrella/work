@@ -100,6 +100,25 @@ Nothing is persisted in mock mode; a reload starts over.
 
 ## Changelog
 
+### v0.1.9 - 2026-09-14
+
+Week start on any day, a Client ID per client, and readable job-type markers.
+
+Settings now lets the week start on any day of the week, not only Monday or
+Sunday, and the default is Sunday, so the Timesheet strip runs Sunday to
+Saturday and "This week" and "Last week" in Export follow the same choice.
+
+Each client has an optional Client ID, your own reference such as an accounting
+or PSA customer code. It shows beside the name on the client card, in
+parentheses after the client name in the grouped text export, and as a
+`client_id` column in both the hours CSV and the clients template / import /
+export.
+
+The four markers on each job type chip were single symbols (a dollar sign, two
+bars, TRV, LIM) that needed a tooltip to decode. They are now the words
+billable, alongside, travel and limit, and a legend under the Job types label
+explains what each one means and what dashed, blue and red stand for.
+
 ### v0.1.8 - 2026-09-14
 
 A light / dark button in the header.

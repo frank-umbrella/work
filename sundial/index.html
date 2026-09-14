@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Sundial v0.1.8</title>
-<meta name="version" content="0.1.8" />
+<title>Sundial v0.1.9</title>
+<meta name="version" content="0.1.9" />
 <meta name="robots" content="noindex, nofollow" />
 <meta name="description" content="Internal hours tracker for Umbrella Automation. Restricted to @umbrellaautomation.com accounts." />
 <meta name="theme-color" content="#1e6fd9" />
@@ -177,7 +177,8 @@ textarea.fld{min-height:64px;resize:vertical}
 .chip{display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border-radius:999px;border:1px solid var(--line2);background:var(--card2);font-size:13px;color:var(--text);cursor:pointer;max-width:100%}
 .chip i.dot{width:9px;height:9px;border-radius:50%;display:inline-block;flex:none}
 .chip .x{color:var(--muted);margin-left:2px;cursor:pointer;font-weight:700}
-.chip .mk{font-style:normal;font-family:var(--mono);font-size:11px;padding:0 5px;border-radius:4px;border:1px dashed var(--line2);color:var(--muted);cursor:pointer}
+.chip .mk,.hint .mk{font-style:normal;font-size:10.5px;letter-spacing:.02em;padding:0 6px;border-radius:999px;border:1px dashed var(--line2);color:var(--muted);cursor:pointer;line-height:1.5}
+.hint .mk{cursor:default}
 .chip .mk.on{border-style:solid;border-color:var(--accent);color:var(--accent);font-weight:700}
 .chip .mk.off{border-style:solid;border-color:var(--stop);color:var(--stop);text-decoration:line-through}
 .pill{display:inline-flex;align-items:center;gap:7px;padding:4px 11px;border-radius:999px;background:var(--chip);color:var(--chiptext);font-size:13px;font-weight:600;max-width:100%;flex-wrap:wrap}
@@ -542,7 +543,7 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
       </div>
       <div class="g2">
         <div><label class="lab" for="sTimeFormat">Time format <span class="q" title="12-hour reads more naturally to the people you email. 24-hour is tighter in tables.">?</span></label><select class="fld" id="sTimeFormat"><option value="12h">12-hour</option><option value="24h">24-hour</option></select></div>
-        <div><label class="lab" for="sWeekStart">Week start <span class="q" title="Sets which day the seven-day strip and the This week range begin on.">?</span></label><select class="fld" id="sWeekStart"><option value="mon">Monday</option><option value="sun">Sunday</option></select></div>
+        <div><label class="lab" for="sWeekStart">Week start <span class="q" title="Sets which day the seven-day strip and the This week range begin on.">?</span></label><select class="fld" id="sWeekStart"><option value="sun">Sunday</option><option value="mon">Monday</option><option value="tue">Tuesday</option><option value="wed">Wednesday</option><option value="thu">Thursday</option><option value="fri">Friday</option><option value="sat">Saturday</option></select></div>
       </div>
     </div>
 
@@ -617,12 +618,12 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
 
 <script type="module">
 /* ==============================================================
-   Sundial v0.1.8 - hours tracker
+   Sundial v0.1.9 - hours tracker
    Single file on purpose: no build step, same as Backup Audits.
    Firestore rules for /sundial_users live in ../watchtower/firestore.rules.
    ============================================================== */
 
-const APP_VERSION    = "0.1.8";
+const APP_VERSION    = "0.1.9";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const OWNER_EMAIL    = "frank@umbrellaautomation.com";
 const SDK            = "https://www.gstatic.com/firebasejs/12.13.0/";
@@ -666,9 +667,10 @@ function toDate(v) {
 function dayKey(d) { const x = new Date(d); return x.getFullYear() + "-" + p2(x.getMonth() + 1) + "-" + p2(x.getDate()); }
 function dayDate(k) { const a = String(k).split("-").map(Number); return new Date(a[0], a[1] - 1, a[2]); }
 function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
+const WEEKDAY_INDEX = { sun: 0, mon: 1, tue: 2, wed: 3, thu: 4, fri: 5, sat: 6 };
 function startOfWeek(d, weekStart) {
   const x = new Date(d); x.setHours(0, 0, 0, 0);
-  const first = weekStart === "sun" ? 0 : 1;
+  const first = WEEKDAY_INDEX[weekStart] != null ? WEEKDAY_INDEX[weekStart] : 0;   // any day; Sunday by default
   const diff = (x.getDay() - first + 7) % 7;
   return addDays(x, -diff);
 }
@@ -715,7 +717,7 @@ const COLUMN_DEFS = [
 ];
 const PALETTE = ["#1e6fd9", "#d3403a", "#1c9d63", "#8a5bb8", "#d08a1e", "#3a9ea5", "#c2557a", "#5a6b7d"];
 const DEFAULT_SETTINGS = {
-  yourName: "", timeFormat: "12h", weekStart: "mon", rounding: "none",
+  yourName: "", timeFormat: "12h", weekStart: "sun", rounding: "none",
   defaultJobTypes: DEFAULT_JOB_TYPES.slice(),
   exportTemplate: "grouped", showAmounts: false,
   newClientBillable: true, newClientAllowConcurrent: false,
@@ -877,7 +879,7 @@ function mockStore() {
     const now = new Date();
     const mk = (name, color, jts) => ({
       id: uid(), name, email: name.toLowerCase().replace(/[^a-z]+/g, "") + "@example.com", color,
-      rate: null, archived: false, billable: true, allowConcurrent: false, ticketUrl: "",
+      rate: null, archived: false, billable: true, allowConcurrent: false, ticketUrl: "", code: "",
       rounding: null, jobTypes: jts, createdAt: now, updatedAt: now
     });
     const jt = (n, o) => Object.assign({ id: uid(), name: n, archived: false, billable: null, allowConcurrent: null, travel: false, limit: null }, o || {});
@@ -1730,12 +1732,13 @@ function paintClients() {
     const st = monthStatsFor(c.id);
     const jts = activeJobTypes(c);
     return '<div class="card cl">' +
-      "<h5><span class=\"cdot\" style=\"background:" + esc(clientColor(c)) + "\"></span>" + esc(c.name) + "</h5>" +
+      "<h5><span class=\"cdot\" style=\"background:" + esc(clientColor(c)) + "\"></span>" + esc(c.name) +
+        (c.code ? ' <span class="tagnb" title="Client ID">' + esc(c.code) + "</span>" : "") + "</h5>" +
       '<div class="em">' + esc(c.email || "no email yet") + "</div>" +
       '<div class="chips">' + (jts.length ? jts.map(j => '<span class="chip">' + esc(j.name) +
-        (j.billable === false ? '<em class="mk off">$</em>' : "") +
-        (j.allowConcurrent === true ? '<em class="mk on">||</em>' : "") +
-        (j.travel ? '<em class="mk on">TRV</em>' : "") + "</span>").join("")
+        (j.billable === false ? '<em class="mk off" title="Not billable">non-billable</em>' : "") +
+        (j.allowConcurrent === true ? '<em class="mk on" title="May run alongside another job">alongside</em>' : "") +
+        (j.travel ? '<em class="mk on" title="Travel: asks for miles when stopped">travel</em>' : "") + "</span>").join("")
         : '<span class="hint">No job types yet</span>') + "</div>" +
       '<div class="st"><span>This month <b>' + esc(fmtDur(st.secs)) + "</b></span><span>Entries <b>" + st.count + "</b></span>" +
         (state.settings.showAmounts ? "<span>Rate <b>" + (c.rate != null ? "$" + Number(c.rate).toFixed(2) : "-") + "</b></span>" : "") +
@@ -1762,7 +1765,7 @@ function openClientModal(client) {
     name: "", email: "", color: PALETTE[state.clients.length % PALETTE.length], rate: null, archived: false,
     billable: state.settings.newClientBillable !== false,
     allowConcurrent: !!state.settings.newClientAllowConcurrent,
-    ticketUrl: "", rounding: null,
+    ticketUrl: "", code: "", rounding: null,
     jobTypes: (state.settings.defaultJobTypes || DEFAULT_JOB_TYPES).map(newJobType)
   };
   if (!Array.isArray(c.jobTypes)) c.jobTypes = [];
@@ -1783,11 +1786,15 @@ function openClientModal(client) {
         '<select class="fld" id="cRounding"><option value="">Use default</option><option value="none">None</option><option value="6">6 minutes</option><option value="15">15 minutes</option></select>') +
     '<label class="lab" for="cTicketUrl">Ticket URL pattern <span class="q" title="Paste a ticket link and replace the number with {n}. Ticket numbers then become links in tables and exports.">?</span></label>' +
     '<input class="fld" id="cTicketUrl" placeholder="https://helpdesk.example/tickets/{n}" autocomplete="off">' +
+    '<label class="lab" for="cCode">Client ID <span class="q" title="Your own reference for this client, such as an accounting or PSA customer code. Shows beside the name on the card, in the grouped export header, and as its own column in the CSV files.">?</span></label>' +
+    '<input class="fld" id="cCode" placeholder="e.g. ACME-01" autocomplete="off">' +
     '<div class="g2" style="margin-top:6px">' +
       '<label class="ck"><input type="checkbox" id="cBillable"> Billable <span class="q" title="The default for this client job types. Non-billable time still shows in your own exports, tagged.">?</span></label>' +
       '<label class="ck"><input type="checkbox" id="cConcurrent"> Can run alongside other jobs <span class="q" title="Lets this client work run while another job is running instead of asking you to switch. For background work like migrations or monitoring.">?</span></label>' +
     "</div>" +
-    '<label class="lab">Job types <span class="q" title="Sub-categories of work for this client. Type one and press Enter. The markers cycle client default, yes, no: $ is billable, || is can-run-alongside, TRV marks travel, LIM sets a time limit.">?</span></label>' +
+    '<label class="lab">Job types <span class="q" title="Sub-categories of work for this client. Type one and press Enter. Each type carries four markers you can tap.">?</span></label>' +
+    '<div class="hint" style="margin:0 0 8px"><b>billable</b> counts toward billable hours; <b>alongside</b> may run at the same time as another job; <b>travel</b> asks for miles when stopped; <b>limit</b> sets a time limit. ' +
+    'Tap a marker to change it: <span class="mk">dashed</span> follows the client setting, <span class="mk on">blue</span> is on, <span class="mk off">red</span> is off.</div>' +
     '<div class="chips" id="cJts"></div>' +
     '<div id="cLimBox"></div>' +
     '<input class="fld" id="cJtAdd" placeholder="Add a job type and press Enter" style="margin-top:8px" autocomplete="off">' +
@@ -1804,6 +1811,7 @@ function openClientModal(client) {
   if ($("#cRate", w)) $("#cRate", w).value = c.rate != null ? Number(c.rate).toFixed(2) : "";
   $("#cRounding", w).value = c.rounding || "";
   $("#cTicketUrl", w).value = c.ticketUrl || "";
+  $("#cCode", w).value = c.code || "";
   $("#cBillable", w).checked = c.billable !== false;
   $("#cConcurrent", w).checked = !!c.allowConcurrent;
   if ($("#cRate", w)) $("#cRate", w).addEventListener("blur", e => {
@@ -1827,10 +1835,10 @@ function openClientModal(client) {
   function paintJts() {
     $("#cJts", w).innerHTML = jts.filter(j => !j.archived).map((j, i) =>
       '<span class="chip" data-jt="' + esc(j.id) + '"><span>' + esc(j.name) + "</span>" +
-      '<em class="' + mkClass(j.billable) + '" data-cyc="billable" title="' + esc(mkTitle("Billable", j.billable)) + '">$</em>' +
-      '<em class="' + mkClass(j.allowConcurrent) + '" data-cyc="allowConcurrent" title="' + esc(mkTitle("Can run alongside", j.allowConcurrent)) + '">||</em>' +
-      '<em class="mk' + (j.travel ? " on" : "") + '" data-travel="1" title="Travel: ' + (j.travel ? "yes" : "no") + '. Travel job types ask for miles when stopped from v0.3.">TRV</em>' +
-      '<em class="mk' + (j.limit ? " on" : "") + '" data-limit="1" title="Time limit' + (j.limit ? ": warn at " + j.limit.warnMin + " min, hard limit " + j.limit.hardMin + " min" : ": none") + '. Stored now, enforced in v0.3.">LIM</em>' +
+      '<em class="' + mkClass(j.billable) + '" data-cyc="billable" title="' + esc(mkTitle("Billable", j.billable)) + '. Tap to cycle.">billable</em>' +
+      '<em class="' + mkClass(j.allowConcurrent) + '" data-cyc="allowConcurrent" title="' + esc(mkTitle("Can run alongside another job", j.allowConcurrent)) + '. Tap to cycle.">alongside</em>' +
+      '<em class="mk' + (j.travel ? " on" : "") + '" data-travel="1" title="Travel: ' + (j.travel ? "yes" : "no") + '. Travel job types ask for miles when stopped (from v0.3). Tap to toggle.">travel</em>' +
+      '<em class="mk' + (j.limit ? " on" : "") + '" data-limit="1" title="Time limit' + (j.limit ? ": warn at " + j.limit.warnMin + " min, hard limit " + j.limit.hardMin + " min" : ": none") + '. Stored now, enforced in v0.3. Tap to set.">limit</em>' +
       '<span class="x" data-rm="1" title="Removes it from the picker. Old entries keep working because the type is archived, not deleted.">&times;</span></span>').join("") ||
       '<span class="hint">No job types yet. Add one below.</span>';
     paintLimBox();
@@ -1911,6 +1919,7 @@ function openClientModal(client) {
       billable: $("#cBillable", w).checked,
       allowConcurrent: $("#cConcurrent", w).checked,
       ticketUrl: $("#cTicketUrl", w).value.trim(),
+      code: $("#cCode", w).value.trim(),
       rounding: $("#cRounding", w).value || null,
       jobTypes: jts
     };
@@ -1936,7 +1945,7 @@ function ensureXLSX() {
   });
   return _xlsxPromise;
 }
-const TEMPLATE_COLS = ["name", "email", "rate", "color", "billable", "concurrent", "ticket_url", "job_types", "rounding", "archived"];
+const TEMPLATE_COLS = ["name", "client_id", "email", "rate", "color", "billable", "concurrent", "ticket_url", "job_types", "rounding", "archived"];
 function jobTypesToText(jts) {
   return (jts || []).map(j => {
     const flags = [];
@@ -1995,7 +2004,7 @@ function download(filename, text, mime) {
 }
 function clientRows() {
   return state.clients.slice().sort((a, b) => a.name.localeCompare(b.name)).map(c => [
-    c.name, c.email || "", c.rate != null ? Number(c.rate).toFixed(2) : "", c.color || "",
+    c.name, c.code || "", c.email || "", c.rate != null ? Number(c.rate).toFixed(2) : "", c.color || "",
     c.billable === false ? "no" : "yes", c.allowConcurrent ? "yes" : "no",
     c.ticketUrl || "", jobTypesToText(c.jobTypes), c.rounding || "default", c.archived ? "yes" : "no"
   ]);
@@ -2027,6 +2036,7 @@ const TEMPLATE_EXAMPLES = [
 const TEMPLATE_HELP = [
   ["Column", "Required", "Allowed values", "Notes"],
   ["name", "yes", "any text", "Matched case-insensitively on import. A matching name updates that client instead of creating a second one."],
+  ["client_id", "no", "any short code", "Your own reference for the client (accounting or PSA customer code). Shown on the card, in the grouped export header, and in the hours CSV."],
   ["email", "no", "an email address", "Used as the To address for a per-client export."],
   ["rate", "no", "a number like 75.00", "Blank means no rate. Only used when Show amounts is on."],
   ["color", "no", "a hex color like #1e6fd9", "Blank assigns one for you."],
@@ -2080,6 +2090,7 @@ async function importClientsFile(file) {
       billable: yesNo(r.billable, true),
       allowConcurrent: yesNo(r.concurrent, false),
       ticketUrl: String(r.ticket_url || "").trim(),
+      code: String(r.client_id || "").trim(),
       rounding: !roundRaw || roundRaw === "default" ? null : roundRaw,
       archived: yesNo(r.archived, false),
       jobTypes: jobTypesFromText(r.job_types, existing ? existing.jobTypes : null)
@@ -2190,7 +2201,7 @@ function buildExportText() {
     const groups = Array.from(byClient.entries()).map(g => ({ c: clientById(g[0]), rows: g[1] }))
       .sort((a, b) => (a.c ? a.c.name : "").localeCompare(b.c ? b.c.name : ""));
     groups.forEach(g => {
-      lines.push(g.c ? g.c.name : "Unknown client");
+      lines.push(g.c ? g.c.name + (g.c.code ? " (" + g.c.code + ")" : "") : "Unknown client");
       g.rows.forEach(e => lines.push("  " + timeCol(e) + "   " + entryDesc(e, false)));
       lines.push("  " + splitLine("Subtotal", sum(g.rows), billOf(g.rows), nonOf(g.rows)));
       lines.push("");
@@ -2221,7 +2232,7 @@ function paintExport() {
 }
 function exportCSVRows() {
   const rows = exportRows();
-  const head = ["date", "start", "end", "duration_hours", "duration_hm", "client", "job_type", "ticket", "project", "notes", "billable", "miles", "rate", "amount"];
+  const head = ["date", "start", "end", "duration_hours", "duration_hm", "client", "client_id", "job_type", "ticket", "project", "notes", "billable", "miles", "rate", "amount"];
   const body = rows.map(e => {
     const c = clientById(e.clientId);
     const secs = entrySeconds(e);
@@ -2230,7 +2241,7 @@ function exportCSVRows() {
     const amount = state.settings.showAmounts && rate != null && e.billable !== false ? (hours * rate) : null;
     return [
       e.day, fmtTime(toDate(e.start)), e.end ? fmtTime(toDate(e.end)) : "running",
-      hours.toFixed(2), fmtDur(secs), c ? c.name : "Unknown client", jobTypeName(c, e.jobTypeId) || "",
+      hours.toFixed(2), fmtDur(secs), c ? c.name : "Unknown client", c && c.code ? c.code : "", jobTypeName(c, e.jobTypeId) || "",
       e.ticket || "", e.project || "", e.notes || "", e.billable === false ? "no" : "yes",
       e.miles != null ? e.miles : "", rate != null ? rate.toFixed(2) : "", amount != null ? amount.toFixed(2) : ""
     ];
@@ -2311,7 +2322,7 @@ function paintSettings() {
   set("#sName", s.yourName || "");
   set("#sTheme", s.theme || "system");
   set("#sTimeFormat", s.timeFormat || "12h");
-  set("#sWeekStart", s.weekStart || "mon");
+  set("#sWeekStart", s.weekStart || "sun");
   set("#sRounding", s.rounding || "none");
   set("#sTemplateSel", s.exportTemplate || "grouped");
   set("#sCapacity", s.weeklyCapacityHours != null ? s.weeklyCapacityHours : 40);

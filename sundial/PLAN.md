@@ -71,7 +71,7 @@ client so recurring projects stay consistent without another management screen.
 | Money | Optional, off by default | Rate per client and a "show amounts" toggle in Settings. Playbook money fields (`$` inside, 2 decimals). |
 | Analytics | None | Client names live in it. No GA, no third-party scripts beyond Firebase and lazy-loaded SheetJS. |
 | Time format | 12-hour default, 24-hour toggle | Email recipients read "9:02 AM" more easily. |
-| Week start | Monday, configurable | Weekly views and export ranges follow it. |
+| Week start | Sunday by default, any weekday in Settings (changed from Monday in v0.1.9) | Weekly views and export ranges follow it. |
 
 ## 3. Data model (Firestore, project `watchtower-6fbe1`)
 
