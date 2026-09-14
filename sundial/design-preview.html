@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Sundial - Hours Tracker Design Preview v0.2.0</title>
+<title>Sundial - Hours Tracker Design Preview v0.3.0</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2316161c'/%3E%3Ccircle cx='32' cy='32' r='20' fill='none' stroke='%2300bcd4' stroke-width='5'/%3E%3Cpath d='M32 18v14l9 6' fill='none' stroke='%2300bcd4' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E">
 <style>
   :root{--pg:#16161c;--pg2:#1e1e26;--pgcard:#24242e;--pgline:#33333f;--pgtext:#e8e8ee;--pgmuted:#9a9aab;--pgacc:#00bcd4;}
@@ -95,6 +95,42 @@
   .also{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 12px;padding:8px 12px;border:1px solid var(--m-line);border-radius:calc(var(--m-radius) - 2px);background:var(--m-card2);font-size:13px}
   .also .t{font-family:var(--m-mono);font-weight:600;margin-left:auto}
   .tagnb{display:inline-block;font-size:11px;padding:1px 7px;border-radius:999px;background:var(--m-card2);border:1px solid var(--m-line);color:var(--m-muted);margin-left:6px}
+  .sync{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--m-topmuted);border:1px solid var(--m-line);border-radius:999px;padding:3px 10px;margin-left:auto}
+  .sync i{width:7px;height:7px;border-radius:50%;background:var(--m-go)}
+  .top .who{margin-left:0}
+  .tsbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .util{display:grid;gap:6px}
+  .util .ut{font-size:14px}.util .ut b{margin-right:6px}
+  .ubar{display:flex;height:14px;border-radius:999px;background:var(--m-card2);border:1px solid var(--m-line);overflow:hidden}
+  .ubar i,.ukey i{display:block;height:100%}
+  .ubar .b,.ukey .b{background:var(--m-accent)}
+  .ubar .nb,.ukey .nb{background:var(--m-accent);opacity:.35}
+  .ukey{display:flex;gap:16px;font-size:12px;color:var(--m-muted);flex-wrap:wrap}
+  .ukey span{display:inline-flex;align-items:center;gap:6px}.ukey i{width:10px;height:10px;border-radius:3px}
+  .wg{width:100%;border-collapse:collapse;font-size:13px;table-layout:fixed}
+  .wg th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--m-muted);font-weight:600;border-bottom:1px solid var(--m-line);padding:6px 4px;text-align:center;line-height:1.2}
+  .wg th small{font-weight:400;font-size:11px;letter-spacing:0;text-transform:none}
+  .wg th.rk,.wg td.rk{text-align:left;width:32%;padding-left:6px}
+  .wg td{padding:6px 4px;border-bottom:1px solid var(--m-line);text-align:center;vertical-align:middle}
+  .wg td.rk small{color:var(--m-muted)}
+  .wg .today{background:rgba(30,111,217,.06)}
+  .wg .cell{display:inline-block;width:100%;max-width:58px;height:30px;line-height:28px;border:1px solid var(--m-line);border-radius:6px;background:var(--m-card2);font-family:var(--m-mono);font-size:13px}
+  .wg .tot{font-family:var(--m-mono);font-weight:700;width:9%}
+  .wg tfoot td{font-family:var(--m-mono);font-weight:600;border-bottom:0;padding-top:10px}
+  .wg tfoot td.rk{font-family:var(--m-font);font-weight:400}
+  .wg td.act{width:4%}.wg td.act a{color:var(--m-muted)}
+  .cal{display:grid;grid-template-columns:52px repeat(3,minmax(0,1fr));gap:0 6px}
+  .calh{font-size:13px;font-weight:600;text-align:center;padding:4px 0 8px;border-bottom:1px solid var(--m-line)}
+  .calh small{font-weight:400;color:var(--m-muted);font-family:var(--m-mono)}
+  .calh.today{color:var(--m-accent)}
+  .axis{display:grid;grid-auto-rows:45px;font-size:11px;color:var(--m-muted);text-align:right;padding-right:6px;padding-top:6px}
+  .col{position:relative;height:405px;background:repeating-linear-gradient(to bottom,transparent 0 44px,var(--m-line) 44px 45px);border-left:1px solid var(--m-line)}
+  .col.today{background-color:rgba(30,111,217,.04)}
+  .blk{position:absolute;left:2%;width:96%;border-radius:6px;color:#fff;font-size:11px;line-height:1.25;padding:4px 6px;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.2)}
+  .blk b{display:block;font-size:12px}
+  .blk.run{outline:2px dashed rgba(255,255,255,.7);outline-offset:-3px}
+  .nowline{position:absolute;left:0;right:0;height:2px;background:var(--m-stop)}
+  .nowline:before{content:"";position:absolute;left:-5px;top:-4px;width:10px;height:10px;border-radius:50%;background:var(--m-stop)}
   .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:12px}
   .tile{background:var(--m-card);border:1px solid var(--m-line);border-radius:var(--m-radius);padding:12px 14px;min-width:0}
   .tile .k{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--m-muted)}
@@ -161,7 +197,7 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>Sundial <span class="ver">design preview v0.2.0</span></h1>
+  <h1>Sundial <span class="ver">design preview v0.3.0</span></h1>
   <p class="sub">Direction C (Ledger) was chosen on 2026-09-14 and is the default here. A and B stay for reference. Read <code>PLAN.md</code> next to this file for the build plan. Use the Phone width tab to check the mobile layout with its bottom tab bar.</p>
 
   <div class="switcher">
@@ -176,6 +212,8 @@
 
   <div class="viewtabs">
     <button data-view="clock" class="active">Clock</button>
+    <button data-view="week">Timesheet: Week grid</button>
+    <button data-view="calendar">Timesheet: Calendar</button>
     <button data-view="clients">Clients</button>
     <button data-view="export">Export</button>
     <button data-view="phone">Phone width</button>
@@ -188,7 +226,8 @@
         <svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="22" fill="none" stroke="currentColor" stroke-width="6"/><path d="M32 16v16l10 7" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round"/></svg>
         Sundial <span class="v">v0.1.0</span>
       </div>
-      <nav class="nav"><a class="on" id="navClock">Clock</a><a>Entries</a><a id="navClients">Clients</a><a id="navExport">Export</a><a>Settings</a></nav>
+      <nav class="nav"><a class="on" id="navClock">Clock</a><a id="navTimesheet">Timesheet</a><a id="navClients">Clients</a><a id="navExport">Export</a><a>Settings</a></nav>
+      <span class="sync" title="Reads the browser's online state plus pending Firestore writes. Punch In and Out never wait on the network."><i></i>Synced</span>
       <span class="who">Mon, Sep 14, 2026</span>
     </div>
 
@@ -198,9 +237,9 @@
         <h4>Now</h4>
         <div class="now">
           <div>
-            <span class="pill"><span class="dot"></span> Clocked in &middot; Acme Dental &middot; Remote support</span>
+            <span class="pill"><span class="dot"></span> Clocked in &middot; Acme Dental &middot; Remote support &middot; #5421</span>
             <div class="timer" id="timer">01:23:45</div>
-            <div class="since">Since 1:15 PM &middot; today 4h 15m across 2 clients</div>
+            <div class="since">Since 1:15 PM &middot; today 4h 15m across 2 clients &middot; <span title="Support Ticket has a 2h limit. Warning at 1h 45m, reason required past 2h.">1h 24m of 2h limit</span></div>
             <div class="also" title="Running alongside because Monitoring is flagged Can run alongside. Tap to bring it to the top."><span class="dot" style="width:8px;height:8px;border-radius:50%;background:var(--m-go);display:inline-block"></span><span>Also running: Northside Legal &middot; Monitoring</span><span class="t">00:42:10</span><button class="btn sm">Punch Out</button></div>
             <div class="btnrow">
               <button class="btn big stop">Punch Out</button>
@@ -208,8 +247,12 @@
             </div>
           </div>
           <div>
-            <label class="lab">Project <span class="q" title="Optional label so recurring work groups together in exports. Autocompletes from this client's past entries.">?</span></label>
-            <input class="fld" value="Printer replacement">
+            <div class="g2">
+              <div><label class="lab">Ticket # <span class="q" title="Optional. Becomes a link when the client has a ticket URL pattern. Time limits count across every entry with the same ticket.">?</span></label>
+              <input class="fld" value="5421"></div>
+              <div><label class="lab">Project <span class="q" title="Optional label so recurring work groups together in exports. Autocompletes from this client's past entries.">?</span></label>
+              <input class="fld" value="Printer replacement"></div>
+            </div>
             <label class="lab">Notes <span class="q" title="What you did. This is the line that goes in the email, so write it for the client.">?</span></label>
             <textarea class="fld">Printer queue stuck on front desk PC; cleared spooler, updated driver.</textarea>
             <div class="hint">Notes save when you click away. Edit anything later from the table.</div>
@@ -343,6 +386,60 @@ Total 4h 45m (billable 4h 30m, non-billable 0h 15m)</pre>
       </div>
     </div>
 
+    <!-- ================= TIMESHEET: WEEK GRID ================= -->
+    <div class="view body" id="v-week">
+      <div class="tsbar">
+        <span class="seg"><span>&larr;</span><span class="on">This week: Sep 14 - 20</span><span>&rarr;</span></span>
+        <select class="fld sel" style="width:auto;min-width:150px"><option>All clients</option><option>Acme Dental</option></select>
+        <span class="seg" style="margin-left:auto"><span>Day</span><span class="on">Week</span><span>Calendar</span></span>
+      </div>
+      <div class="mcard">
+        <div class="util"><div class="ut"><b>This week</b> 21h 40m of 40h</div><div class="ubar"><i class="b" style="width:42%"></i><i class="nb" style="width:12%"></i></div><div class="ukey"><span><i class="b"></i>Billable 16h 50m</span><span><i class="nb"></i>Non-billable 4h 50m</span></div></div>
+      </div>
+      <div class="mcard">
+        <table class="wg">
+          <thead><tr><th class="rk">Client &middot; Job type &middot; Ticket</th><th class="today">Mon<br><small>14</small></th><th>Tue<br><small>15</small></th><th>Wed<br><small>16</small></th><th>Thu<br><small>17</small></th><th>Fri<br><small>18</small></th><th>Sat<br><small>19</small></th><th>Sun<br><small>20</small></th><th class="tot">Total</th><th></th></tr></thead>
+          <tbody>
+            <tr><td class="rk"><span class="cdot" style="background:#b8412c"></span><b>Acme Dental</b><br><small>Remote support &middot; <a>#5421</a></small></td><td class="today"><span class="cell">2:30</span></td><td><span class="cell"></span></td><td><span class="cell"></span></td><td><span class="cell">1:15</span></td><td><span class="cell"></span></td><td><span class="cell"></span></td><td><span class="cell"></span></td><td class="tot">3:45</td><td class="act"><a>&times;</a></td></tr>
+            <tr><td class="rk"><span class="cdot" style="background:#b8412c"></span><b>Acme Dental</b><br><small>Admin <span class="tagnb">non-billable</span></small></td><td class="today"><span class="cell">0:20</span></td><td><span class="cell"></span></td><td><span class="cell">0:30</span></td><td><span class="cell"></span></td><td><span class="cell"></span></td><td><span class="cell"></span></td><td><span class="cell"></span></td><td class="tot">0:50</td><td class="act"><a>&times;</a></td></tr>
+            <tr><td class="rk"><span class="cdot" style="background:#2f6fb5"></span><b>Northside Legal</b><br><small>Project &middot; M365 migration</small></td><td class="today"><span class="cell">1:45</span></td><td><span class="cell">4:00</span></td><td><span class="cell">3:30</span></td><td><span class="cell"></span></td><td><span class="cell">2:00</span></td><td><span class="cell"></span></td><td><span class="cell"></span></td><td class="tot">11:15</td><td class="act"><a>&times;</a></td></tr>
+            <tr><td class="rk"><span class="cdot" style="background:#5a9a4a"></span><b>Harbor Vet</b><br><small>Travel <span class="tagnb">12 mi</span></small></td><td class="today"><span class="cell"></span></td><td><span class="cell">0:40</span></td><td><span class="cell"></span></td><td><span class="cell"></span></td><td><span class="cell">0:40</span></td><td><span class="cell"></span></td><td><span class="cell"></span></td><td class="tot">1:20</td><td class="act"><a>&times;</a></td></tr>
+          </tbody>
+          <tfoot><tr><td class="rk"><button class="btn sm">+ Add row</button> <span class="hint" style="display:inline">Type 1:30 into an empty cell to add a manual entry for that day.</span></td><td class="today">4:35</td><td>4:40</td><td>4:00</td><td>1:15</td><td>2:40</td><td>0</td><td>0</td><td class="tot">17:10</td><td></td></tr></tfoot>
+        </table>
+      </div>
+    </div>
+
+    <!-- ================= TIMESHEET: CALENDAR ================= -->
+    <div class="view body" id="v-calendar">
+      <div class="tsbar">
+        <span class="seg"><span>&larr;</span><span class="on">Mon, Sep 14 - Wed, Sep 16</span><span>&rarr;</span></span>
+        <span class="seg" style="margin-left:auto"><span>Day</span><span>Week</span><span class="on">Calendar</span></span>
+      </div>
+      <div class="mcard" style="padding:12px 14px">
+        <div class="cal">
+          <div class="calh"></div><div class="calh today">Mon 14<br><small>4:35</small></div><div class="calh">Tue 15<br><small>4:40</small></div><div class="calh">Wed 16<br><small>4:00</small></div>
+          <div class="axis"><span>8 AM</span><span>9</span><span>10</span><span>11</span><span>12 PM</span><span>1</span><span>2</span><span>3</span><span>4</span></div>
+          <div class="col today">
+            <div class="blk" style="top:62px;height:105px;background:#b8412c" title="Acme Dental / Remote support #5421, 9:02 - 10:47"><b>Acme Dental</b>Remote support #5421</div>
+            <div class="blk" style="top:175px;height:105px;background:#2f6fb5" title="Northside Legal / Project, 10:55 - 12:40"><b>Northside Legal</b>Project &middot; M365</div>
+            <div class="blk run" style="top:315px;height:84px;background:#b8412c;width:48%" title="Running"><b>Acme Dental</b>Remote support #5421</div>
+            <div class="blk run" style="top:340px;height:60px;background:#2f6fb5;left:52%;width:46%" title="Running alongside"><b>Northside</b>Monitoring</div>
+            <div class="nowline" style="top:399px"></div>
+          </div>
+          <div class="col">
+            <div class="blk" style="top:30px;height:40px;background:#5a9a4a"><b>Harbor Vet</b>Travel &middot; 12 mi</div>
+            <div class="blk" style="top:70px;height:240px;background:#2f6fb5"><b>Northside Legal</b>Project &middot; M365</div>
+          </div>
+          <div class="col">
+            <div class="blk" style="top:90px;height:210px;background:#2f6fb5"><b>Northside Legal</b>Project &middot; M365</div>
+            <div class="blk" style="top:330px;height:30px;background:#b8412c"><b>Acme</b></div>
+          </div>
+        </div>
+        <div class="hint">Blocks side by side are entries running alongside each other. Drag the bottom edge to change End, drag a block to move it, click empty space to add a manual entry there. The running block grows live.</div>
+      </div>
+    </div>
+
     <div class="foot"><span>Sundial v0.1.0</span><span>Signed in as you@umbrellaautomation.com</span><span>Synced</span></div>
     <div class="tabbar"><a class="on"><b>&#9711;</b>Clock</a><a><b>&#9776;</b>Entries</a><a><b>&#9679;</b>Clients</a><a><b>&#8593;</b>Export</a><a><b>&#8943;</b>More</a></div>
   </div>
@@ -362,6 +459,9 @@ Total 4h 45m (billable 4h 30m, non-billable 0h 15m)</pre>
     <li>Today table is sortable with a Columns manager and stacks into cards under 640px (see the Phone width tab).</li>
     <li>Client modal never closes on backdrop click. Money field has the dollar sign inside and two decimals.</li>
     <li>Export preview is exactly the text that gets copied. Toasts sit top-center.</li>
+    <li>Timesheet has three views like Harvest: Day list (phone default), Week grid with editable cells and a utilization bar, and Calendar with side-by-side blocks for jobs running alongside each other.</li>
+    <li>Sync pill in the header is the only place offline shows. Punch In and Out never wait on the network.</li>
+    <li>Ticket # sits next to Project; time limits per job type show under the timer and count across every entry on the same ticket.</li>
   </ul>
 </div>
 
@@ -394,7 +494,8 @@ Total 4h 45m (billable 4h 30m, non-billable 0h 15m)</pre>
     document.querySelectorAll('.view').forEach(function(el){ el.classList.toggle('on', el.id==='v-'+v); });
     document.querySelectorAll('.viewtabs button').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-view')===(phone?'phone':v)); });
     document.querySelectorAll('.nav a').forEach(function(a){ a.classList.remove('on'); });
-    var n=document.getElementById('nav'+v.charAt(0).toUpperCase()+v.slice(1)); if(n) n.classList.add('on');
+    var navName = (v==='week'||v==='calendar') ? 'Timesheet' : v.charAt(0).toUpperCase()+v.slice(1);
+    var n=document.getElementById('nav'+navName); if(n) n.classList.add('on');
     frame.style.maxWidth = phone ? '400px' : '';
     frame.style.margin = phone ? '0 auto' : '';
     frame.style.maxHeight = phone ? '760px' : '';
@@ -402,6 +503,7 @@ Total 4h 45m (billable 4h 30m, non-billable 0h 15m)</pre>
   }
   document.querySelectorAll('.viewtabs button').forEach(function(b){ b.addEventListener('click', function(){ showView(b.getAttribute('data-view')); }); });
   ['Clock','Clients','Export'].forEach(function(n){ var a=document.getElementById('nav'+n); if(a) a.addEventListener('click', function(){ showView(n.toLowerCase()); }); });
+  document.getElementById('navTimesheet').addEventListener('click', function(){ showView('week'); });
 
   // live timer
   var t=document.getElementById('timer'), s=1*3600+23*60+45;
