@@ -111,9 +111,32 @@ bar with Clock, Entries, Clients, Export, More.
   Both buttons are full-width on the phone.
 - **Recent chips.** Up to 6 recent client/job pairs. One tap punches in.
 - **Today tiles.** Total time, entries, clients, this week.
-- **Today table.** Start, End, Duration, Client, Job type, Project, Notes,
-  actions. Sortable, Columns manager, card-stack under 640px. Delete confirms
-  in a modal.
+- **Today table.** Start, End, Duration, Client, Job type, Project, Notes, and
+  Edit / Duplicate / Delete on every row (see "Per-entry actions" below).
+  Sortable, Columns manager, card-stack under 640px.
+
+### Per-entry actions (every punch, every table, every screen size)
+Each row in the Today and Entries tables has **Edit**, **Duplicate**, and
+**Delete**. On the phone the row is a card and the three actions sit in its
+footer as full-width-friendly buttons; nothing is hidden behind a swipe.
+
+- **Edit** opens the entry modal with every field editable: Client, Job type,
+  Project, Notes, Start date + time, End date + time. Duration recalculates as
+  you type. The running entry can be edited too (fix a late punch-in by moving
+  Start; End stays blank while it runs). Overlap with another entry shows an
+  inline warning with the conflicting entry named; Save is still allowed.
+- **Duplicate** opens the entry modal prefilled with the source entry's Client,
+  Job type, Project, and Notes, with Start set to now and End blank. Two
+  buttons at the bottom: **Punch in now** (saves it as the running entry, after
+  punching out anything already running) and **Save with times** (you set Start
+  and End yourself, for "same job as yesterday, 9 to 11"). Duplicate never
+  touches the original.
+- **Delete** confirms in a modal that shows the entry's client, times, and
+  duration. Deleting the running entry is allowed and clears the clock.
+
+The entry modal is the same one "Add manual entry" opens, so there is one form
+to learn. Client select filters the Job type select; the Project field
+autocompletes from that client's history.
 
 ### Entries
 - Same table over Today / Yesterday / This week / Last week / Month / Custom,
@@ -235,7 +258,8 @@ Restore validates the schema and asks before merging.
    chips, today tiles, today table.
 5. Clients view, client modal, job type chip editor, Import / Export /
    Template (CSV and XLSX).
-6. Entry modal (manual add / edit), overlap warning, delete confirm.
+6. Entry modal (manual add / edit / duplicate with "Punch in now" and "Save
+   with times"), overlap warning, delete confirm, edit of the running entry.
 7. Export view: text preview, Copy as text, CSV, JSON backup / restore.
 8. Settings view. Phone pass at 390px, bottom tab bar, PWA install check on
    iPhone. Playbook pass from section 6.
