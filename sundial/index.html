@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Sundial v0.1.7</title>
-<meta name="version" content="0.1.7" />
+<title>Sundial v0.1.8</title>
+<meta name="version" content="0.1.8" />
 <meta name="robots" content="noindex, nofollow" />
 <meta name="description" content="Internal hours tracker for Umbrella Automation. Restricted to @umbrellaautomation.com accounts." />
 <meta name="theme-color" content="#1e6fd9" />
@@ -94,6 +94,10 @@ a{color:var(--accent)}
 .nav button{background:none;border:0;color:var(--topmuted);padding:6px 11px;border-radius:999px;font-size:14px;cursor:pointer}
 .nav button.on{color:var(--toptext);background:var(--card2);font-weight:600}
 .sync{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--topmuted);border:1px solid var(--line);border-radius:999px;padding:3px 10px;margin-left:auto;white-space:nowrap;cursor:help}
+.themebtn{width:30px;height:30px;padding:0;display:inline-grid;place-items:center;border:1px solid var(--line);border-radius:50%;background:transparent;color:var(--topmuted);cursor:pointer;flex:0 0 auto}
+.themebtn:hover{color:var(--accent);border-color:var(--accent)}
+html[data-eff="dark"] .themebtn .moon{display:none}
+html:not([data-eff="dark"]) .themebtn .sun{display:none}
 .sync i{width:7px;height:7px;border-radius:50%;background:var(--ok);flex:none}
 .sync[data-s="offline"] i{background:var(--glow)}
 .sync[data-s="syncing"] i{background:var(--accent);animation:blink 1.2s infinite}
@@ -352,6 +356,10 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
     <button data-view="settings">Settings</button>
   </nav>
   <span class="sync" id="syncPill" data-s="synced" title="Reads the browser online state plus Firestore pending writes. Start and Stop never wait on the network."><i></i><span id="syncText">Synced</span></span>
+  <button class="themebtn" id="themeToggle" type="button" title="Switch between light and dark. Settings has a third option that follows your device." aria-label="Toggle light or dark theme">
+    <svg class="sun" viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><circle cx="8" cy="8" r="3.2" fill="none" stroke="currentColor" stroke-width="1.6"/><g stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M8 1.5V3.2"/><path d="M8 12.8V14.5"/><path d="M1.5 8H3.2"/><path d="M12.8 8H14.5"/><path d="M3.4 3.4L4.6 4.6"/><path d="M11.4 11.4L12.6 12.6"/><path d="M3.4 12.6L4.6 11.4"/><path d="M11.4 4.6L12.6 3.4"/></g></svg>
+    <svg class="moon" viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path d="M13.5 10.2A6 6 0 0 1 5.8 2.5a6 6 0 1 0 7.7 7.7z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+  </button>
   <span class="who"><span class="em" id="userEmail"></span><button class="btn sm" id="signoutBtn">Sign out</button></span>
 </header>
 
@@ -609,12 +617,12 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
 
 <script type="module">
 /* ==============================================================
-   Sundial v0.1.7 - hours tracker
+   Sundial v0.1.8 - hours tracker
    Single file on purpose: no build step, same as Backup Audits.
    Firestore rules for /sundial_users live in ../watchtower/firestore.rules.
    ============================================================== */
 
-const APP_VERSION    = "0.1.7";
+const APP_VERSION    = "0.1.8";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const OWNER_EMAIL    = "frank@umbrellaautomation.com";
 const SDK            = "https://www.gstatic.com/firebasejs/12.13.0/";
@@ -2279,9 +2287,17 @@ async function restoreBackupFile(file) {
    ============================================================== */
 function applyTheme() {
   const t = state.settings.theme || "system";
-  if (t === "system") document.documentElement.removeAttribute("data-theme");
-  else document.documentElement.setAttribute("data-theme", t);
+  const root = document.documentElement;
+  if (t === "system") root.removeAttribute("data-theme");
+  else root.setAttribute("data-theme", t);
+  /* the header button shows what a click will switch TO: a sun while dark
+     is in effect, a moon while light is */
+  const dark = t === "dark" || (t === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+  root.setAttribute("data-eff", dark ? "dark" : "light");
+  const b = $("#themeToggle");
+  if (b) b.title = (dark ? "Switch to light." : "Switch to dark.") + " Settings has a third option that follows your device.";
 }
+window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { if ((state.settings.theme || "system") === "system") applyTheme(); });
 function paintSettingsJobTypes() {
   const list = state.settings.defaultJobTypes || [];
   $("#sJobTypes").innerHTML = list.length ? list.map(n =>
@@ -2442,6 +2458,14 @@ $("#jsonFile").addEventListener("change", e => { const f = e.target.files[0]; e.
 
 $("#sName").addEventListener("change", e => saveSetting({ yourName: e.target.value.trim() }));
 $("#sTheme").addEventListener("change", e => saveSetting({ theme: e.target.value }));
+/* header toggle: flips between an explicit light and dark; "system" stays a Settings choice */
+$("#themeToggle").addEventListener("click", () => {
+  const next = document.documentElement.getAttribute("data-eff") === "dark" ? "light" : "dark";
+  state.settings.theme = next;
+  applyTheme();
+  const sel = $("#sTheme"); if (sel) sel.value = next;
+  saveSetting({ theme: next });
+});
 $("#sTimeFormat").addEventListener("change", e => saveSetting({ timeFormat: e.target.value }));
 $("#sWeekStart").addEventListener("change", e => saveSetting({ weekStart: e.target.value }));
 $("#sRounding").addEventListener("change", e => saveSetting({ rounding: e.target.value }));

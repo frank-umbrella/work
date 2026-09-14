@@ -100,6 +100,17 @@ Nothing is persisted in mock mode; a reload starts over.
 
 ## Changelog
 
+### v0.1.8 - 2026-09-14
+
+A light / dark button in the header.
+
+The theme choice lived only in Settings, three taps away, and the app was
+following the device (dark, for most of us at night). The header now has a
+round sun / moon button next to the sync pill, on desktop and phone: the sun
+shows while dark is in effect and switches to light, the moon shows while light
+is in effect and switches to dark. The choice is saved to your account. Settings
+keeps the third option, "follow my device".
+
 ### v0.1.7 - 2026-09-14
 
 More room for Notes, folded notes, and icon actions.
