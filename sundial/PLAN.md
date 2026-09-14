@@ -12,6 +12,11 @@ link from anywhere, `noindex, nofollow`. Internal tool for your own hours while
 a replacement provider is chosen. Designed so a team tier can be added later
 without rework (section 10).
 
+Terminology note (2026-09-14, after v0.1.1 shipped): the built app says **Start**
+and **Stop** wherever this plan says Punch In and Punch Out. "Punch" reads like a
+factory time clock; this is an hours log by client. Switch keeps its name. The
+plan text below is left as written.
+
 Reference products looked at for views and features: Harvest (day list, week
 grid, calendar, team utilization), Clockify (calendar), Workyard and Jibble
 (GPS time cards, shift list). Sundial borrows the views, not the GPS.

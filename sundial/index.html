@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Sundial v0.1.1</title>
-<meta name="version" content="0.1.1" />
+<title>Sundial v0.1.2</title>
+<meta name="version" content="0.1.2" />
 <meta name="robots" content="noindex, nofollow" />
 <meta name="description" content="Internal hours tracker for Umbrella Automation. Restricted to @umbrellaautomation.com accounts." />
 <meta name="theme-color" content="#1e6fd9" />
@@ -290,7 +290,7 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
       Sign in with Google
     </button>
     <div class="domain">Restricted to <code>@umbrellaautomation.com</code> accounts.</div>
-    <div class="offline-note">Works offline once you have signed in on this device: the app opens straight to the Clock and punches are stored locally until the connection is back. A device that has never signed in needs one online sign-in first.</div>
+    <div class="offline-note">Works offline once you have signed in on this device: the app opens straight to the Clock and entries are stored locally until the connection is back. A device that has never signed in needs one online sign-in first.</div>
     <div id="signinErr" class="err" hidden></div>
   </div>
 </div>
@@ -313,7 +313,7 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
     <button data-view="export">Export</button>
     <button data-view="settings">Settings</button>
   </nav>
-  <span class="sync" id="syncPill" data-s="synced" title="Reads the browser online state plus Firestore pending writes. Punch In and Punch Out never wait on the network."><i></i><span id="syncText">Synced</span></span>
+  <span class="sync" id="syncPill" data-s="synced" title="Reads the browser online state plus Firestore pending writes. Start and Stop never wait on the network."><i></i><span id="syncText">Synced</span></span>
   <span class="who"><span class="em" id="userEmail"></span><button class="btn sm" id="signoutBtn">Sign out</button></span>
 </header>
 
@@ -325,9 +325,9 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
       <div class="now">
         <div>
           <div id="outLeft">
-            <span class="pill" style="background:var(--card2);color:var(--muted)">Clocked out</span>
+            <span class="pill" style="background:var(--card2);color:var(--muted)">Not running</span>
             <div class="timer">00:00:00</div>
-            <div class="since" id="outSince">Pick a client and a job type, then punch in.</div>
+            <div class="since" id="outSince">Pick a client and a job type, then start.</div>
           </div>
           <div id="inLeft" hidden>
             <span class="pill" id="runPill"></span>
@@ -335,8 +335,8 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
             <div class="since" id="runSince"></div>
             <div id="alsoList"></div>
             <div class="btnrow">
-              <button class="btn big stop" id="punchOutBtn">Punch Out</button>
-              <button class="btn big" id="switchBtn" title="Punch out what is running and start a new job, with this client already picked.">Switch client</button>
+              <button class="btn big stop" id="punchOutBtn">Stop</button>
+              <button class="btn big" id="switchBtn" title="Stop what is running and start a new job, with this client already picked.">Switch client</button>
             </div>
           </div>
         </div>
@@ -365,7 +365,7 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
             <label class="lab" for="fNotes">Notes <span class="q" title="What you are doing. Written for the client, because this is the line that lands in the email.">?</span></label>
             <textarea class="fld" id="fNotes"></textarea>
             <datalist id="projList"></datalist>
-            <button type="button" class="linkbtn" id="timesToggle" aria-expanded="false" title="Forgot to punch in, or want to log a block of time you already finished? Set the times here instead of starting the timer now.">Set start and end times instead</button>
+            <button type="button" class="linkbtn" id="timesToggle" aria-expanded="false" title="Forgot to start the timer, or want to log a block of time you already finished? Set the times here instead of starting the timer now.">Set start and end times instead</button>
             <div id="timesRow" hidden>
               <div class="g2">
                 <div><label class="lab" for="fStartD">Start date</label><input type="date" class="fld" id="fStartD"></div>
@@ -376,7 +376,7 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
               <div class="hint" id="timesHint"></div>
             </div>
             <div class="btnrow">
-              <button class="btn big go" id="punchBtn">Punch In</button>
+              <button class="btn big go" id="punchBtn">Start</button>
               <button class="btn" id="cancelStartBtn" hidden>Cancel</button>
             </div>
             <div class="hint" id="punchHint"></div>
@@ -386,7 +386,7 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
     </div>
 
     <div class="card">
-      <h4>Recent - tap to punch in</h4>
+      <h4>Recent - tap to start</h4>
       <div class="chips" id="recentChips"></div>
     </div>
 
@@ -430,7 +430,7 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
     <div class="card" id="archivedCard" hidden>
       <h4>Archived</h4>
       <div id="archivedList"></div>
-      <div class="hint">Archived clients stay out of the punch-in lists but keep their old entries and exports intact.</div>
+      <div class="hint">Archived clients stay out of the start lists but keep their old entries and exports intact.</div>
     </div>
     <input type="file" id="clFile" accept=".csv,.xlsx,.xls" hidden>
     <input type="file" id="jsonFile" accept=".json,application/json" hidden>
@@ -526,7 +526,7 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
       <h4>Offline</h4>
       <div id="offlineStatus" class="hint" style="font-size:13.5px"></div>
       <div class="btnrow">
-        <button class="btn sm" id="sRetry" title="Nudges the connection so queued punches go up now instead of at the next change.">Retry sync now</button>
+        <button class="btn sm" id="sRetry" title="Nudges the connection so queued entries go up now instead of at the next change.">Retry sync now</button>
         <button class="btn sm" id="sClearCache" title="Throws away the offline copy of the app and reloads it from the network. Your hours live in your account, not in the cache.">Clear local cache and reload</button>
       </div>
     </div>
@@ -571,12 +571,12 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
 
 <script type="module">
 /* ==============================================================
-   Sundial v0.1.1 - hours tracker
+   Sundial v0.1.2 - hours tracker
    Single file on purpose: no build step, same as Backup Audits.
    Firestore rules for /sundial_users live in ../watchtower/firestore.rules.
    ============================================================== */
 
-const APP_VERSION    = "0.1.1";
+const APP_VERSION    = "0.1.2";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const OWNER_EMAIL    = "frank@umbrellaautomation.com";
 const SDK            = "https://www.gstatic.com/firebasejs/12.13.0/";
@@ -747,7 +747,7 @@ function confirmModal(title, bodyHTML, confirmLabel, onConfirm, danger) {
 /* ==============================================================
    DATA STORES
    Both stores expose the same surface. Writes are fire-and-forget
-   so Punch In and Punch Out never wait on the network.
+   so Start and Stop never wait on the network.
    ============================================================== */
 let fb = null;
 
@@ -993,7 +993,7 @@ function paintClock() {
     const c = clientById(main.clientId), jt = jobTypeById(c, main.jobTypeId);
     const bits = [c ? c.name : "Unknown client", jobTypeName(c, main.jobTypeId) || "Job"];
     if (main.ticket) bits.push("#" + main.ticket);
-    $("#runPill").innerHTML = '<span class="dot"></span> Clocked in &middot; ' + esc(bits.join(" / ")) +
+    $("#runPill").innerHTML = '<span class="dot"></span> Running &middot; ' + esc(bits.join(" / ")) +
       (effBillable(c, jt) ? "" : '<span class="tagnb">non-billable</span>');
     $("#runSince").textContent = "Since " + fmtTime(toDate(main.start));
     if (state.runEditId !== main.id) {
@@ -1007,7 +1007,7 @@ function paintClock() {
       '<div class="also" data-also="' + e.id + '"><span class="cdot" style="background:' + esc(clientColor(clientById(e.clientId))) + '"></span>' +
       '<span>Also running: ' + esc(entryLabel(e)) + "</span>" +
       '<span class="t" data-elapsed="' + e.id + '">' + fmtClock(entrySeconds(e)) + "</span>" +
-      '<button class="btn sm" data-out="' + e.id + '">Punch Out</button>' +
+      '<button class="btn sm" data-out="' + e.id + '">Stop</button>' +
       '<button class="btn sm" data-top="' + e.id + '" title="Bring this one to the top of the Clock screen.">Bring up</button></div>'
     ).join("");
   } else {
@@ -1061,11 +1061,11 @@ function paintPunchButton() {
   } else if (t.open && t.start) {
     btn.textContent = running.length && !ok ? "Switch, starting at " + fmtTime(t.start) : "Start at " + fmtTime(t.start);
     $("#punchHint").textContent = !running.length ? "The timer will already show the time since " + fmtTime(t.start) + "."
-      : (ok ? "This job may run alongside what is already running." : "Something is already running. Switch punches it out first.");
+      : (ok ? "This job may run alongside what is already running." : "Something is already running. Switch stops it first.");
   } else {
-    btn.textContent = running.length && !ok ? "Switch" : "Punch In";
+    btn.textContent = running.length && !ok ? "Switch" : "Start";
     $("#punchHint").textContent = !running.length ? ""
-      : (ok ? "This job may run alongside what is already running." : "Something is already running. Switch punches it out first.");
+      : (ok ? "This job may run alongside what is already running." : "Something is already running. Switch stops it first.");
   }
   paintTimesHint(t);
 }
@@ -1110,7 +1110,7 @@ function paintRecent() {
     out.push({ c, j });
   });
   const box = $("#recentChips");
-  if (!out.length) { box.innerHTML = '<span class="hint">Punch in once and your recent client and job pairs land here for one-tap starts.</span>'; return; }
+  if (!out.length) { box.innerHTML = '<span class="hint">Start once and your recent client and job pairs land here for one-tap starts.</span>'; return; }
   box.innerHTML = out.slice(0, 6).map(r =>
     '<button class="chip" data-recent="' + esc(r.c.id) + "|" + esc(r.j.id) + '">' +
     '<i class="dot" style="background:' + esc(clientColor(r.c)) + '"></i>' + esc(r.c.name) + " &middot; " + esc(r.j.name) + "</button>").join("");
@@ -1219,14 +1219,14 @@ function doPunchIn(fields) {
   paintClock();
   if (end) toast("Logged " + fmtDur((end - start) / 1000) + " for " + (c ? c.name : "client") + ".");
   else if (fields.start) toast("Started " + (c ? c.name : "client") + " from " + fmtTime(start) + ".");
-  else toast("Punched in on " + (c ? c.name : "client") + ".");
+  else toast("Started " + (c ? c.name : "client") + ".");
   return id;
 }
 function punchOut(id) {
   const e = state.entries.find(x => x.id === id);
   if (!e) return;
   store.updateEntry(id, { end: new Date() });
-  toast("Punched out. " + fmtDur(entrySeconds(e)) + " logged.");
+  toast("Stopped. " + fmtDur(entrySeconds(e)) + " logged.");
 }
 function startJob(fields) {
   const c = clientById(fields.clientId), jt = jobTypeById(c, fields.jobTypeId);
@@ -1241,7 +1241,7 @@ function startJob(fields) {
     confirmModal("Something is already running",
       "<p>" + esc(entryLabel(running[0])) + " has been running for " + esc(fmtDur(entrySeconds(running[0]))) + ".</p>" +
       "<p>" + esc(c.name + " / " + jt.name) + " is not flagged to run alongside another job, so it cannot start on its own.</p>",
-      "Punch out current and start new", () => {
+      "Stop current and start new", () => {
         running.forEach(r => store.updateEntry(r.id, { end: new Date() }));
         doPunchIn(fields);
         clearStartForm();
@@ -1259,7 +1259,7 @@ function setTimesOpen(open) {
   const row = $("#timesRow"), tog = $("#timesToggle");
   row.hidden = !open;
   tog.setAttribute("aria-expanded", open ? "true" : "false");
-  tog.textContent = open ? "Hide times (punch in now instead)" : "Set start and end times instead";
+  tog.textContent = open ? "Hide times (start now instead)" : "Set start and end times instead";
   if (open) {
     const today = localInput(new Date());
     if (!$("#fStartD").value) $("#fStartD").value = today;
@@ -1318,7 +1318,7 @@ function openEntryModal(mode, src) {
     '<div id="eWarn"></div>';
 
   const foot = isDup
-    ? '<button class="btn" data-close>Cancel</button><button class="btn" id="eSaveTimes">Save with times</button><button class="btn acc" id="ePunch">Punch in now</button>'
+    ? '<button class="btn" data-close>Cancel</button><button class="btn" id="eSaveTimes">Save with times</button><button class="btn acc" id="ePunch">Start now</button>'
     : '<button class="btn" data-close>Cancel</button><button class="btn acc" id="eSave">Save</button>';
 
   const w = openModal(isEdit ? "Edit entry" : isDup ? "Duplicate entry" : "Add manual entry", body, foot, { wide: true });
@@ -1491,7 +1491,7 @@ function paintTimesheet() {
         '<div class="meta">' + meta.join(" &middot; ") + "</div>" +
         (e.notes ? '<div class="meta">' + esc(e.notes) + "</div>" : "") + "</div>" +
       '<div class="right"><span class="dur" data-elapsed="' + e.id + '">' + esc(fmtDur(entrySeconds(e))) + "</span>" +
-        (e.end ? '<button class="btn sm" data-tsstart="' + e.id + '" title="Duplicates this entry and punches in on it now.">Start</button>'
+        (e.end ? '<button class="btn sm" data-tsstart="' + e.id + '" title="Duplicates this entry and starts it now.">Start</button>'
                : '<button class="btn sm stop" data-out="' + e.id + '">Stop</button>') +
         '<button class="btn sm" data-edit="' + e.id + '">Edit</button></div></div>';
   }).join("") : '<div class="emptyrow">Nothing logged on this day.</div>';
@@ -1529,7 +1529,7 @@ function paintClients() {
         (state.settings.showAmounts ? "<span>Rate <b>" + (c.rate != null ? "$" + Number(c.rate).toFixed(2) : "-") + "</b></span>" : "") +
         (c.ticketUrl ? '<span title="' + esc(c.ticketUrl) + '">Ticket links <b>on</b></span>' : "") + "</div>" +
       '<div class="btnrow" style="margin-top:4px"><button class="btn sm" data-cedit="' + c.id + '">Edit</button>' +
-        '<button class="btn sm" data-carch="' + c.id + '" title="Keeps every entry and export intact, and takes the client out of the punch-in lists.">Archive</button></div>' +
+        '<button class="btn sm" data-carch="' + c.id + '" title="Keeps every entry and export intact, and takes the client out of the start lists.">Archive</button></div>' +
       "</div>";
   }).join("") : '<div class="card"><div class="emptyrow">No clients yet. Add one, or import a list.</div></div>';
 
@@ -1617,7 +1617,7 @@ function openClientModal(client) {
       '<span class="chip" data-jt="' + esc(j.id) + '"><span>' + esc(j.name) + "</span>" +
       '<em class="' + mkClass(j.billable) + '" data-cyc="billable" title="' + esc(mkTitle("Billable", j.billable)) + '">$</em>' +
       '<em class="' + mkClass(j.allowConcurrent) + '" data-cyc="allowConcurrent" title="' + esc(mkTitle("Can run alongside", j.allowConcurrent)) + '">||</em>' +
-      '<em class="mk' + (j.travel ? " on" : "") + '" data-travel="1" title="Travel: ' + (j.travel ? "yes" : "no") + '. Travel job types ask for miles at punch out from v0.3.">TRV</em>' +
+      '<em class="mk' + (j.travel ? " on" : "") + '" data-travel="1" title="Travel: ' + (j.travel ? "yes" : "no") + '. Travel job types ask for miles when stopped from v0.3.">TRV</em>' +
       '<em class="mk' + (j.limit ? " on" : "") + '" data-limit="1" title="Time limit' + (j.limit ? ": warn at " + j.limit.warnMin + " min, hard limit " + j.limit.hardMin + " min" : ": none") + '. Stored now, enforced in v0.3.">LIM</em>' +
       '<span class="x" data-rm="1" title="Removes it from the picker. Old entries keep working because the type is archived, not deleted.">&times;</span></span>').join("") ||
       '<span class="hint">No job types yet. Add one below.</span>';
@@ -1670,7 +1670,7 @@ function openClientModal(client) {
     if (used) {
       openModal("Cannot delete this client",
         "<p>" + esc(c.name) + " has " + used + " entr" + (used === 1 ? "y" : "ies") + " logged against it. Deleting the client would leave those hours without a name, so it is refused.</p>" +
-        "<p>Archive it instead: the client leaves the punch-in lists and every entry and export stays intact.</p>",
+        "<p>Archive it instead: the client leaves the start lists and every entry and export stays intact.</p>",
         '<button class="btn" data-close>Cancel</button><button class="btn acc" id="cArchInstead">Archive instead</button>')
         .querySelector("#cArchInstead").addEventListener("click", () => {
           store.upsertClient(c.id, { archived: true });
@@ -1823,7 +1823,7 @@ const TEMPLATE_HELP = [
   ["ticket_url", "no", "a link with {n}", "Replace the ticket number in the link with {n} and ticket numbers become links."],
   ["job_types", "no", "names separated by |", "Per-type flags in brackets: Admin[nonbillable], Monitoring[concurrent], Travel[travel], Support Ticket[limit=105/120] where the numbers are warn minutes / hard minutes."],
   ["rounding", "no", "default, none, 6 or 15", "Overrides the Settings default for this client."],
-  ["archived", "no", "yes or no", "Archived clients keep their entries but leave the punch-in lists."]
+  ["archived", "no", "yes or no", "Archived clients keep their entries but leave the start lists."]
 ];
 function downloadTemplate() {
   pickFormat("Download the client template",

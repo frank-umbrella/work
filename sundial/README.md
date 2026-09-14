@@ -1,7 +1,7 @@
 # Sundial
 
 A personal hours tracker for client work. Pick a client and the kind of work,
-punch in, add notes as you go, punch out. At the end of the day copy a clean,
+start the timer, add notes as you go, stop it. At the end of the day copy a clean,
 email-ready block of the day's hours and paste it wherever it needs to go, or
 download a CSV.
 
@@ -42,7 +42,7 @@ Offline is a requirement, not a bonus. Four layers:
    available, tap to reload" toast.
 2. **The data.** Firestore runs with a persistent local cache and multi-tab
    support. Reads come from the cache when the network is down and writes queue
-   up locally. Punch In and Punch Out never wait on the network.
+   up locally. Start and Stop never wait on the network.
 3. **Honest status.** The sync pill in the header reads the browser's online
    state plus the number of writes Firestore still has pending: `Synced`,
    `Syncing`, or `Offline, 3 pending`.
@@ -99,6 +99,15 @@ account, and it is inert anywhere else because of the hostname check:
 Nothing is persisted in mock mode; a reload starts over.
 
 ## Changelog
+
+### v0.1.2 - 2026-09-14
+
+Start and Stop instead of Punch In and Punch Out.
+
+"Punch" is factory time-clock language and this is an hours log by client, so
+the words felt wrong next to Start time and End time on the fields. Every
+button, status pill, toast, and tooltip now says Start, Stop, or Switch, the
+same vocabulary Harvest and Clockify use for a timer. Nothing else changed.
 
 ### v0.1.1 - 2026-09-14
 
