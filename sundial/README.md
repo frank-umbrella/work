@@ -100,6 +100,20 @@ Nothing is persisted in mock mode; a reload starts over.
 
 ## Changelog
 
+### v0.1.7 - 2026-09-14
+
+More room for Notes, folded notes, and icon actions.
+
+Notes is the column you actually read, and it was getting squeezed by three
+text buttons in Actions. Edit, Duplicate and Delete are now small round icon
+buttons (pencil, two squares, bin) with tooltips and screen-reader labels, which
+hands about eighty pixels back to Notes, and Notes now has a guaranteed minimum
+of two hundred pixels on desktop.
+
+Long notes show two lines with an ellipsis and a "more" link. Clicking the note
+or the link shows the whole thing; clicking again folds it back. Short notes are
+unchanged and are not clickable.
+
 ### v0.1.6 - 2026-09-14
 
 The play and stop buttons in the End column now sit in one fixed slot at the

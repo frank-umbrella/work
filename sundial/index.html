@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Sundial v0.1.6</title>
-<meta name="version" content="0.1.6" />
+<title>Sundial v0.1.7</title>
+<meta name="version" content="0.1.7" />
 <meta name="robots" content="noindex, nofollow" />
 <meta name="description" content="Internal hours tracker for Umbrella Automation. Restricted to @umbrellaautomation.com accounts." />
 <meta name="theme-color" content="#1e6fd9" />
@@ -147,6 +147,18 @@ textarea.fld{min-height:64px;resize:vertical}
 .minibtn.play{border-color:var(--ok);color:var(--ok)}
 .minibtn.play:hover{background:var(--ok);color:#fff}
 .minibtn.play svg{margin-left:1px}
+/* Notes: two lines with an ellipsis, click to expand. The wrapper exists so
+   that in the stacked layout (where the cell is a flex row) the clamped box
+   is not itself a flex item, which would blockify it and defeat the clamp. */
+.mt td .notebox{display:block;min-width:0;flex:1 1 auto}
+.mt td .note{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-clamp:2;overflow:hidden;cursor:pointer}
+.mt td .note.fits{cursor:default}
+.mt td .note.open{display:block;-webkit-line-clamp:unset;line-clamp:none;overflow:visible}
+.morebtn{display:inline-block;margin-top:2px;padding:0;border:0;background:none;font:inherit;font-size:12px;color:var(--accent);cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+/* Actions: small round icon buttons */
+.mt td.act .ibtn{width:24px;height:24px;margin-left:4px;padding:0;display:inline-grid;place-items:center;border:1px solid var(--line2);border-radius:50%;background:var(--card2);color:var(--muted);cursor:pointer;vertical-align:middle}
+.mt td.act .ibtn:hover{color:var(--accent);border-color:var(--accent)}
+.mt td.act .ibtn.danger:hover{color:var(--stop);border-color:var(--stop)}
 /* End column: time or "running" on the left, the play / stop button in a
    fixed slot at the right edge, vertically centered, so every button in the
    column lines up regardless of how wide the time text is. */
@@ -597,12 +609,12 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
 
 <script type="module">
 /* ==============================================================
-   Sundial v0.1.6 - hours tracker
+   Sundial v0.1.7 - hours tracker
    Single file on purpose: no build step, same as Backup Audits.
    Firestore rules for /sundial_users live in ../watchtower/firestore.rules.
    ============================================================== */
 
-const APP_VERSION    = "0.1.6";
+const APP_VERSION    = "0.1.7";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const OWNER_EMAIL    = "frank@umbrellaautomation.com";
 const SDK            = "https://www.gstatic.com/firebasejs/12.13.0/";
@@ -1202,10 +1214,15 @@ function entryCellHTML(e, key) {
     case "job":    return esc(jobTypeName(c, e.jobTypeId) || "") + (e.billable === false ? '<span class="tagnb">non-billable</span>' : "");
     case "ticket": return ticketHTML(c, e.ticket);
     case "project":return esc(e.project || "");
-    case "notes":  return esc(e.notes || "");
+    case "notes":  return e.notes ? '<span class="notebox"><span class="note" title="Click to show the whole note.">' + esc(e.notes) + "</span></span>" : "";
   }
   return "";
 }
+const ICONS = {
+  edit: '<svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M11.5 2.5 L13.5 4.5 L6 12 L3 13 L4 10 Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>',
+  dup:  '<svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10.5 5.5 V3.5 A1 1 0 0 0 9.5 2.5 H3.5 A1 1 0 0 0 2.5 3.5 V9.5 A1 1 0 0 0 3.5 10.5 H5.5" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>',
+  del:  '<svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M3 4.5 H13 M6.5 4.5 V3 H9.5 V4.5 M4.5 4.5 L5.2 13.5 H10.8 L11.5 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/></svg>'
+};
 /* ---- column widths ----
    The table uses a fixed layout so widths are predictable: every visible
    column gets a pixel width except one flexible column (Notes when shown,
@@ -1216,7 +1233,7 @@ function entryCellHTML(e, key) {
    that column. The sum of fixed widths is always kept below the table width
    minus room for the flexible column, so nothing ever scrolls sideways. */
 const COL_DEFAULT_W = { start: 84, end: 138, dur: 80, job: 122, ticket: 74, project: 122, notes: 160 };
-const FLEX_MIN_W = 120, COL_MIN_W = 48, ACTIONS_W = 172;
+const FLEX_MIN_W = 200, COL_MIN_W = 48, ACTIONS_W = 96;
 function flexColumnKey(cols) {
   if (cols.some(c => c.k === "notes")) return "notes";
   return cols.length ? cols[cols.length - 1].k : null;
@@ -1274,13 +1291,33 @@ function renderEntryTable(tableEl, rows, opts) {
     '<tr' + (e.end ? "" : ' class="running"') + '>' +
     cols.map(c => '<td class="' + (c.k === "end" ? "t endc" : c.k === "start" || c.k === "dur" ? "t" : c.k === "client" ? "cl" : "") + '" data-l="' + esc(c.label) + '">' + entryCellHTML(e, c.k) + "</td>").join("") +
     '<td class="act" data-l="Actions">' +
-      '<button data-edit="' + e.id + '">Edit</button>' +
-      '<button data-dup="' + e.id + '">Duplicate</button>' +
-      '<button data-del="' + e.id + '">Delete</button>' +
+      '<button class="ibtn" data-edit="' + e.id + '" title="Edit this entry." aria-label="Edit">' + ICONS.edit + "</button>" +
+      '<button class="ibtn" data-dup="' + e.id + '" title="Duplicate: same client, job, tickets, project and notes, with new times." aria-label="Duplicate">' + ICONS.dup + "</button>" +
+      '<button class="ibtn danger" data-del="' + e.id + '" title="Delete this entry (asks first)." aria-label="Delete">' + ICONS.del + "</button>" +
     "</td></tr>").join("")
     : '<tr><td colspan="' + (cols.length + 1) + '" class="emptyrow">' + esc(opts.empty) + "</td></tr>") + "</tbody>";
   tableEl.innerHTML = colgroup + head + body;
   attachResizeHandles(tableEl, cols, cw);
+  clampNotes(tableEl);
+}
+/* Notes show two lines with an ellipsis. When a note is actually longer, a
+   "more" link appears and clicking it (or the note) shows the whole thing;
+   click again to fold it back. Nothing is persisted. */
+function clampNotes(tableEl) {
+  tableEl.querySelectorAll("td .note").forEach(n => {
+    if (n.scrollHeight <= n.clientHeight + 1) { n.classList.add("fits"); n.removeAttribute("title"); return; }
+    const more = document.createElement("button");
+    more.type = "button"; more.className = "morebtn"; more.textContent = "more";
+    more.title = "Show the whole note.";
+    n.after(more);
+    const toggle = () => {
+      const open = n.classList.toggle("open");
+      more.textContent = open ? "less" : "more";
+      more.title = open ? "Fold the note back to two lines." : "Show the whole note.";
+    };
+    more.addEventListener("click", e => { e.stopPropagation(); toggle(); });
+    n.addEventListener("click", e => { e.stopPropagation(); toggle(); });
+  });
 }
 function attachResizeHandles(tableEl, cols, cw) {
   const colEls = tableEl.querySelectorAll("colgroup col");
