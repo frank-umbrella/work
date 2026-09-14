@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sundial - Hours Tracker Design Preview v0.2.0</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2316161c'/%3E%3Ccircle cx='32' cy='32' r='20' fill='none' stroke='%2300bcd4' stroke-width='5'/%3E%3Cpath d='M32 18v14l9 6' fill='none' stroke='%2300bcd4' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+  :root{--pg:#16161c;--pg2:#1e1e26;--pgcard:#24242e;--pgline:#33333f;--pgtext:#e8e8ee;--pgmuted:#9a9aab;--pgacc:#00bcd4;}
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--pg);color:var(--pgtext);font:15px/1.55 "Segoe UI",system-ui,-apple-system,Helvetica,Arial,sans-serif;overflow-x:hidden}
+  a{color:var(--pgacc)}
+  .wrap{max-width:1180px;margin:0 auto;padding:22px 18px 60px}
+  h1{font-size:26px;margin:0 0 4px}
+  h2{font-size:19px;margin:34px 0 10px;padding-top:18px;border-top:1px solid var(--pgline)}
+  h3{font-size:15px;margin:18px 0 6px;color:#fff}
+  p{margin:6px 0 10px;max-width:78ch}
+  .sub{color:var(--pgmuted);margin:0 0 14px}
+  .ver{display:inline-block;font-size:11px;padding:2px 8px;border:1px solid var(--pgline);border-radius:999px;color:var(--pgmuted);margin-left:8px;vertical-align:middle}
+  table{border-collapse:collapse;width:100%;font-size:14px;margin:8px 0 14px}
+  th,td{text-align:left;padding:7px 9px;border-bottom:1px solid var(--pgline);vertical-align:top}
+  th{color:var(--pgmuted);font-weight:600;font-size:12px;letter-spacing:.06em;text-transform:uppercase}
+  ul{margin:4px 0 12px;padding-left:20px;max-width:80ch}
+  li{margin:3px 0}
+  code{background:#0f0f14;border:1px solid var(--pgline);padding:1px 5px;border-radius:4px;font-size:13px}
+  .grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:14px}
+  .card{background:var(--pgcard);border:1px solid var(--pgline);border-radius:10px;padding:14px 16px}
+  .card h3{margin-top:0}
+  .tag{display:inline-block;font-size:11px;padding:1px 7px;border-radius:999px;border:1px solid var(--pgline);color:var(--pgmuted);margin-right:4px}
+
+  /* ---------- switcher bar ---------- */
+  .switcher{position:sticky;top:0;z-index:5;background:rgba(22,22,28,.94);backdrop-filter:blur(6px);border:1px solid var(--pgline);border-radius:10px;padding:10px 12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:12px 0 10px}
+  .switcher .lbl{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--pgmuted);margin-right:4px}
+  .switcher button{background:#1c1c25;color:#cfcfda;border:1px solid var(--pgline);border-radius:8px;padding:7px 13px;font:inherit;font-size:14px;cursor:pointer}
+  .switcher button:hover{border-color:#5a5a6c}
+  .switcher button.active{background:#2d2d3a;color:#fff;border-color:var(--pgacc)}
+  .switcher .next{margin-left:auto;background:var(--pgacc);color:#0b0b10;border-color:var(--pgacc);font-weight:600}
+  .switcher .hint{flex-basis:100%;font-size:12px;color:var(--pgmuted)}
+  .caption{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:baseline;margin:0 0 12px;font-size:14px}
+  .caption b{font-size:16px;color:#fff}
+  .caption span.d{color:var(--pgmuted);flex-basis:100%}
+  .viewtabs{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
+  .viewtabs button{background:#1c1c25;color:#cfcfda;border:1px solid var(--pgline);border-radius:8px;padding:6px 12px;font:inherit;font-size:13px;cursor:pointer}
+  .viewtabs button.active{color:#fff;border-color:var(--pgacc);background:#2d2d3a}
+
+  /* ---------- mockup frame + themes ---------- */
+  .frame{position:relative;container-type:inline-size;border:1px solid var(--pgline);border-radius:14px;overflow:hidden;background:#000}
+  .mock{background:var(--m-bg);color:var(--m-text);font-family:var(--m-font);min-height:640px;transition:background .25s,color .25s}
+  .mock[data-theme="timecard"]{--m-bg:#efe6d2;--m-bg2:#e5dac2;--m-card:#fdf8ee;--m-card2:#f4ecda;--m-text:#2b2418;--m-muted:#7d7059;--m-accent:#b8412c;--m-accent2:#8f2f1f;--m-go:#2f7d4f;--m-stop:#b8412c;--m-line:rgba(43,36,24,.16);--m-radius:6px;--m-font:"Segoe UI",system-ui,Helvetica,Arial,sans-serif;--m-mono:Consolas,"Courier New",monospace;--m-display:Georgia,"Times New Roman",serif;--m-chip:#e9dcc0;--m-chiptext:#5a4a2c;--m-onaccent:#fff;--m-topbar:#2b2418;--m-toptext:#f4ecda;--m-topmuted:#b9ad95;--m-glow:#d9a441}
+  .mock[data-theme="nightshift"]{--m-bg:#0f1216;--m-bg2:#141920;--m-card:#171d24;--m-card2:#1e262f;--m-text:#e8edf2;--m-muted:#8b97a5;--m-accent:#2ee6a6;--m-accent2:#5cf0bb;--m-go:#2ee6a6;--m-stop:#ff6b6b;--m-line:rgba(255,255,255,.09);--m-radius:12px;--m-font:"Segoe UI",system-ui,Helvetica,Arial,sans-serif;--m-mono:Consolas,"Courier New",monospace;--m-display:"Segoe UI",system-ui,Helvetica,Arial,sans-serif;--m-chip:rgba(46,230,166,.14);--m-chiptext:#8cf3cd;--m-onaccent:#06110c;--m-topbar:#0b0e12;--m-toptext:#e8edf2;--m-topmuted:#8b97a5;--m-glow:#f0b429}
+  .mock[data-theme="ledger"]{--m-bg:#f4f6f9;--m-bg2:#e9edf3;--m-card:#ffffff;--m-card2:#f1f4f8;--m-text:#1a2233;--m-muted:#5b6675;--m-accent:#1e6fd9;--m-accent2:#155cb8;--m-go:#1e6fd9;--m-stop:#d3403a;--m-line:rgba(26,34,51,.12);--m-radius:8px;--m-font:"Segoe UI",system-ui,Helvetica,Arial,sans-serif;--m-mono:Consolas,"Courier New",monospace;--m-display:"Segoe UI",system-ui,Helvetica,Arial,sans-serif;--m-chip:#e3ecfa;--m-chiptext:#1b4f9c;--m-onaccent:#fff;--m-topbar:#ffffff;--m-toptext:#1a2233;--m-topmuted:#5b6675;--m-glow:#e0a300}
+
+  /* app chrome */
+  .top{display:flex;align-items:center;gap:14px;padding:12px 18px;background:var(--m-topbar);color:var(--m-toptext);border-bottom:1px solid var(--m-line);flex-wrap:wrap}
+  .brand{display:flex;align-items:center;gap:9px;font-family:var(--m-display);font-weight:700;font-size:19px;letter-spacing:.02em}
+  .brand svg{width:26px;height:26px}
+  .brand .v{font:12px var(--m-mono);color:var(--m-topmuted);margin-left:4px}
+  .nav{display:flex;gap:2px;flex-wrap:wrap}
+  .nav a{color:var(--m-topmuted);text-decoration:none;padding:6px 11px;border-radius:999px;font-size:14px}
+  .nav a.on{color:var(--m-toptext);background:rgba(127,127,127,.18)}
+  .top .who{margin-left:auto;font-size:13px;color:var(--m-topmuted)}
+  .body{padding:18px;display:grid;gap:16px}
+  .mcard{background:var(--m-card);border:1px solid var(--m-line);border-radius:var(--m-radius);padding:16px 18px;min-width:0}
+  .mcard h4{margin:0 0 10px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--m-muted);font-weight:600}
+  .now{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:18px;align-items:start}
+  @container (max-width:760px){.now{grid-template-columns:minmax(0,1fr)}}
+  .timer{font:600 56px/1 var(--m-mono);letter-spacing:.02em;margin:4px 0 8px;color:var(--m-text)}
+  .mock[data-theme="timecard"] .timer{color:var(--m-accent)}
+  .mock[data-theme="nightshift"] .timer{color:var(--m-accent);text-shadow:0 0 18px rgba(46,230,166,.35)}
+  .pill{display:inline-flex;align-items:center;gap:7px;padding:4px 11px;border-radius:999px;background:var(--m-chip);color:var(--m-chiptext);font-size:13px;font-weight:600}
+  .pill .dot{width:8px;height:8px;border-radius:50%;background:var(--m-go);box-shadow:0 0 0 3px rgba(46,200,130,.18);animation:blink 1.6s infinite}
+  @keyframes blink{50%{opacity:.35}}
+  .since{font-size:13px;color:var(--m-muted);margin:6px 0 12px}
+  .lab{display:block;font-size:12px;color:var(--m-muted);margin:10px 0 4px;font-weight:600}
+  .lab .q{display:inline-block;width:14px;height:14px;border-radius:50%;border:1px solid var(--m-muted);font-size:10px;line-height:12px;text-align:center;margin-left:5px;opacity:.75;cursor:help}
+  .fld{width:100%;background:var(--m-card2);color:var(--m-text);border:1px solid var(--m-line);border-radius:calc(var(--m-radius) - 2px);padding:9px 11px;font:inherit;font-size:14px}
+  .fld.sel{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--m-muted) 50%),linear-gradient(135deg,var(--m-muted) 50%,transparent 50%);background-position:calc(100% - 16px) 50%,calc(100% - 11px) 50%;background-size:5px 5px;background-repeat:no-repeat}
+  .fld.glow{border-color:var(--m-glow);box-shadow:0 0 0 3px rgba(224,163,0,.22)}
+  textarea.fld{min-height:64px;resize:vertical}
+  .money{position:relative}.money .fld{padding-left:24px}.money:before{content:"$";position:absolute;left:10px;top:9px;color:var(--m-muted)}
+  .btnrow{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+  .btn{border:1px solid var(--m-line);background:var(--m-card2);color:var(--m-text);border-radius:calc(var(--m-radius) - 1px);padding:10px 16px;font:inherit;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap}
+  .btn.big{font-size:17px;padding:14px 26px;flex:1 1 auto;text-align:center}
+  .btn.go{background:var(--m-go);border-color:var(--m-go);color:var(--m-onaccent)}
+  .btn.stop{background:var(--m-stop);border-color:var(--m-stop);color:#fff}
+  .btn.acc{background:var(--m-accent);border-color:var(--m-accent);color:var(--m-onaccent)}
+  .btn.sm{padding:5px 10px;font-size:12px;font-weight:500}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border-radius:999px;border:1px solid var(--m-line);background:var(--m-card2);font-size:13px;cursor:pointer;color:var(--m-text)}
+  .chip i{width:9px;height:9px;border-radius:50%;display:inline-block}
+  .chip .x{color:var(--m-muted);margin-left:2px}
+  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:12px}
+  .tile{background:var(--m-card);border:1px solid var(--m-line);border-radius:var(--m-radius);padding:12px 14px;min-width:0}
+  .tile .k{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--m-muted)}
+  .tile .n{font:600 26px/1.2 var(--m-mono);margin-top:4px}
+  .thead{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+  .thead h4{margin:0}
+  .thead .sp{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+  .mt{width:100%;border-collapse:collapse;font-size:14px;margin:0;table-layout:auto}
+  .mt th{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--m-muted);font-weight:600;border-bottom:1px solid var(--m-line);padding:8px 8px;text-align:left;white-space:nowrap;cursor:pointer}
+  .mt th.s:after{content:" \25B2";font-size:9px;color:var(--m-accent)}
+  .mt td{padding:9px 8px;border-bottom:1px solid var(--m-line);vertical-align:top}
+  .mt td.t{font-family:var(--m-mono);white-space:nowrap}
+  .mt td.act{white-space:nowrap;text-align:right}
+  .mt td.act a{color:var(--m-muted);text-decoration:none;margin-left:8px;font-size:13px}
+  .mt tr.sub td{font-weight:700;background:var(--m-card2)}
+  .cdot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:middle}
+  .tabbar{display:none;position:sticky;bottom:0;background:var(--m-card);border-top:1px solid var(--m-line);padding:6px 4px calc(6px + env(safe-area-inset-bottom));z-index:3}
+  .tabbar a{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;color:var(--m-muted);text-decoration:none;padding:4px 0}
+  .tabbar a b{font-size:18px;font-weight:400;line-height:1}
+  .tabbar a.on{color:var(--m-accent)}
+  @container (max-width:640px){
+    .nav,.top .who{display:none}
+    .tabbar{display:flex}
+    .body{padding:12px}
+    .timer{font-size:48px}
+    .fld{font-size:16px}
+    .mt thead{display:none}
+    .mt tr{display:block;border:1px solid var(--m-line);border-radius:var(--m-radius);margin-bottom:10px;padding:6px 10px}
+    .mt td{display:flex;gap:10px;border:0;padding:4px 0}
+    .mt td:before{content:attr(data-l);flex:0 0 78px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--m-muted);padding-top:3px}
+    .mt td.act{justify-content:flex-start}
+  }
+  .toast{position:absolute;top:70px;left:50%;transform:translateX(-50%);background:var(--m-text);color:var(--m-bg);padding:9px 16px;border-radius:999px;font-size:13px;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,.25);z-index:3}
+  .foot{padding:10px 18px 16px;font-size:12px;color:var(--m-muted);display:flex;gap:14px;flex-wrap:wrap}
+
+  /* clients view */
+  .clients{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:14px}
+  .cl h5{margin:0 0 2px;font-size:17px;font-family:var(--m-display)}
+  .cl .em{font-size:13px;color:var(--m-muted);margin-bottom:8px;word-break:break-all}
+  .cl .st{display:flex;gap:16px;font-size:13px;color:var(--m-muted);margin:8px 0 10px}
+  .cl .st b{color:var(--m-text);font-family:var(--m-mono)}
+  .modal{position:absolute;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:20px;z-index:4}
+  .mbox{background:var(--m-card);color:var(--m-text);border:1px solid var(--m-line);border-radius:var(--m-radius);width:min(100%,520px);padding:18px 20px;box-shadow:0 20px 60px rgba(0,0,0,.4)}
+  .mbox .mh{display:flex;align-items:center;margin-bottom:6px}
+  .mbox .mh b{font-size:17px;font-family:var(--m-display)}
+  .mbox .mh .x{margin-left:auto;width:30px;height:30px;border-radius:50%;border:1px solid var(--m-line);display:grid;place-items:center;color:var(--m-muted);cursor:pointer}
+  .g2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:0 14px}
+  .hint{font-size:12px;color:var(--m-muted);margin:4px 0 0}
+
+  /* export view */
+  .exp{display:grid;grid-template-columns:minmax(0,300px) minmax(0,1fr);gap:16px}
+  @container (max-width:820px){.exp{grid-template-columns:minmax(0,1fr)}}
+  .seg{display:flex;flex-wrap:wrap;gap:4px;background:var(--m-card2);border:1px solid var(--m-line);border-radius:999px;padding:3px}
+  .seg span{padding:5px 11px;border-radius:999px;font-size:13px;cursor:pointer}
+  .seg span.on{background:var(--m-accent);color:var(--m-onaccent);font-weight:600}
+  .ck{display:flex;align-items:center;gap:8px;font-size:14px;margin:7px 0}
+  .ck i{width:16px;height:16px;border:1px solid var(--m-muted);border-radius:4px;display:inline-grid;place-items:center;font-size:11px;font-style:normal}
+  .ck i.on{background:var(--m-accent);border-color:var(--m-accent);color:var(--m-onaccent)}
+  pre.prev{margin:0;background:var(--m-card2);border:1px solid var(--m-line);border-radius:calc(var(--m-radius) - 2px);padding:14px 16px;font:13px/1.5 var(--m-mono);white-space:pre-wrap;word-break:break-word;color:var(--m-text);max-width:100%}
+  .mock[data-theme="timecard"] pre.prev{background:#fffdf7}
+
+  .view{display:none}.view.on{display:block}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Sundial <span class="ver">design preview v0.2.0</span></h1>
+  <p class="sub">Direction C (Ledger) was chosen on 2026-09-14 and is the default here. A and B stay for reference. Read <code>PLAN.md</code> next to this file for the build plan. Use the Phone width tab to check the mobile layout with its bottom tab bar.</p>
+
+  <div class="switcher">
+    <span class="lbl">Direction</span>
+    <button data-opt="timecard">A. Timecard</button>
+    <button data-opt="nightshift">B. Night Shift</button>
+    <button data-opt="ledger" title="Chosen 2026-09-14">C. Ledger &#9733;</button>
+    <button class="next" id="nextBtn">Next &rarr;</button>
+    <span class="hint">Left / right arrow keys switch directions. Tabs below switch screens. The timer in the Clock screen is live so you can feel the pacing.</span>
+  </div>
+  <div class="caption" id="caption"></div>
+
+  <div class="viewtabs">
+    <button data-view="clock" class="active">Clock</button>
+    <button data-view="clients">Clients</button>
+    <button data-view="export">Export</button>
+    <button data-view="phone">Phone width</button>
+  </div>
+
+  <div class="frame" id="frame">
+  <div class="mock" id="mock" data-theme="timecard">
+    <div class="top">
+      <div class="brand">
+        <svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="22" fill="none" stroke="currentColor" stroke-width="6"/><path d="M32 16v16l10 7" fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round"/></svg>
+        Sundial <span class="v">v0.1.0</span>
+      </div>
+      <nav class="nav"><a class="on" id="navClock">Clock</a><a>Entries</a><a id="navClients">Clients</a><a id="navExport">Export</a><a>Settings</a></nav>
+      <span class="who">Mon, Sep 14, 2026</span>
+    </div>
+
+    <!-- ================= CLOCK ================= -->
+    <div class="view on body" id="v-clock">
+      <div class="mcard">
+        <h4>Now</h4>
+        <div class="now">
+          <div>
+            <span class="pill"><span class="dot"></span> Clocked in &middot; Acme Dental &middot; Remote support</span>
+            <div class="timer" id="timer">01:23:45</div>
+            <div class="since">Since 1:15 PM &middot; today 4h 15m across 2 clients</div>
+            <div class="btnrow">
+              <button class="btn big stop">Punch Out</button>
+              <button class="btn big">Switch client</button>
+            </div>
+          </div>
+          <div>
+            <label class="lab">Project <span class="q" title="Optional label so recurring work groups together in exports. Autocompletes from this client's past entries.">?</span></label>
+            <input class="fld" value="Printer replacement">
+            <label class="lab">Notes <span class="q" title="What you did. This is the line that goes in the email, so write it for the client.">?</span></label>
+            <textarea class="fld">Printer queue stuck on front desk PC; cleared spooler, updated driver.</textarea>
+            <div class="hint">Notes save when you click away. Edit anything later from the table.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="mcard">
+        <h4>Recent - tap to punch in</h4>
+        <div class="chips">
+          <span class="chip"><i style="background:#b8412c"></i>Acme Dental &middot; Remote support</span>
+          <span class="chip"><i style="background:#b8412c"></i>Acme Dental &middot; On-site</span>
+          <span class="chip"><i style="background:#2f6fb5"></i>Northside Legal &middot; Project</span>
+          <span class="chip"><i style="background:#5a9a4a"></i>Harbor Vet &middot; Consulting</span>
+          <span class="chip"><i style="background:#2f6fb5"></i>Northside Legal &middot; Remote support</span>
+        </div>
+      </div>
+
+      <div class="tiles">
+        <div class="tile"><div class="k">Today</div><div class="n">4h 15m</div></div>
+        <div class="tile"><div class="k">Entries</div><div class="n">3</div></div>
+        <div class="tile"><div class="k">Clients</div><div class="n">2</div></div>
+        <div class="tile"><div class="k">This week</div><div class="n">21h 40m</div></div>
+      </div>
+
+      <div class="mcard">
+        <div class="thead"><h4>Today</h4><span class="sp"><button class="btn sm">+ Manual entry</button><button class="btn sm">Columns</button></span></div>
+        <table class="mt">
+          <thead><tr><th class="s">Start</th><th>End</th><th>Duration</th><th>Client</th><th>Job type</th><th>Project</th><th>Notes</th><th></th></tr></thead>
+          <tbody>
+            <tr><td class="t" data-l="Start">9:02 AM</td><td class="t" data-l="End">10:47 AM</td><td class="t" data-l="Duration">1h 45m</td><td data-l="Client"><span class="cdot" style="background:#b8412c"></span>Acme Dental</td><td data-l="Job type">Remote support</td><td data-l="Project">Printer replacement</td><td data-l="Notes">Printer queue stuck on front desk PC; cleared spooler, updated driver.</td><td class="act" data-l=""><a>Edit</a><a>Dup</a><a>Del</a></td></tr>
+            <tr><td class="t" data-l="Start">10:55 AM</td><td class="t" data-l="End">12:40 PM</td><td class="t" data-l="Duration">1h 45m</td><td data-l="Client"><span class="cdot" style="background:#2f6fb5"></span>Northside Legal</td><td data-l="Job type">Project</td><td data-l="Project">M365 migration</td><td data-l="Notes">Moved 6 mailboxes, verified Outlook profiles.</td><td class="act" data-l=""><a>Edit</a><a>Dup</a><a>Del</a></td></tr>
+            <tr><td class="t" data-l="Start">1:15 PM</td><td class="t" data-l="End"><span class="pill"><span class="dot"></span> running</span></td><td class="t" data-l="Duration">0h 45m</td><td data-l="Client"><span class="cdot" style="background:#b8412c"></span>Acme Dental</td><td data-l="Job type">Remote support</td><td data-l="Project">Printer replacement</td><td data-l="Notes">Printer queue stuck on front desk PC...</td><td class="act" data-l=""><a>Edit</a></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="toast">Copied 4h 15m for Sep 14</div>
+    </div>
+
+    <!-- ================= CLIENTS ================= -->
+    <div class="view body" id="v-clients">
+      <div class="thead"><h4 style="margin:0;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--m-muted)">Clients</h4><span class="sp"><button class="btn sm acc">+ Add client</button><button class="btn sm" title="CSV or XLSX. Preview shows creates, updates by name, and problem rows before anything is applied.">Import</button><button class="btn sm" title="Every client, including archived, in the template's columns.">Export</button><button class="btn sm" title="Blank .xlsx (or .csv) with example rows and a How to fill sheet.">Template</button></span></div>
+      <div class="clients">
+        <div class="mcard cl">
+          <h5><span class="cdot" style="background:#b8412c"></span>Acme Dental</h5>
+          <div class="em">office@acmedental.example</div>
+          <div class="chips"><span class="chip">Remote support</span><span class="chip">On-site</span><span class="chip">Project</span><span class="chip">+</span></div>
+          <div class="st"><span>This month <b>18h 30m</b></span><span>Entries <b>14</b></span><span>Rate <b>$75.00</b></span></div>
+          <div class="btnrow" style="margin-top:4px"><button class="btn sm">Edit</button><button class="btn sm">Archive</button></div>
+        </div>
+        <div class="mcard cl">
+          <h5><span class="cdot" style="background:#2f6fb5"></span>Northside Legal</h5>
+          <div class="em">it@northsidelegal.example</div>
+          <div class="chips"><span class="chip">Project</span><span class="chip">Remote support</span><span class="chip">Consulting</span><span class="chip">+</span></div>
+          <div class="st"><span>This month <b>9h 15m</b></span><span>Entries <b>6</b></span><span>Rate <b>$90.00</b></span></div>
+          <div class="btnrow" style="margin-top:4px"><button class="btn sm">Edit</button><button class="btn sm">Archive</button></div>
+        </div>
+        <div class="mcard cl">
+          <h5><span class="cdot" style="background:#5a9a4a"></span>Harbor Vet</h5>
+          <div class="em">no email yet</div>
+          <div class="chips"><span class="chip">Consulting</span><span class="chip">Admin</span><span class="chip">+</span></div>
+          <div class="st"><span>This month <b>2h 00m</b></span><span>Entries <b>2</b></span><span>Rate <b>-</b></span></div>
+          <div class="btnrow" style="margin-top:4px"><button class="btn sm">Edit</button><button class="btn sm">Archive</button></div>
+        </div>
+      </div>
+      <div class="hint">Archived (1): Old Town Bakery</div>
+
+      <div class="modal">
+        <div class="mbox">
+          <div class="mh"><b>Edit client</b><span class="x">&times;</span></div>
+          <div class="hint">Closes only with the X, Cancel, or Save. Clicking outside does nothing.</div>
+          <div class="g2">
+            <div><label class="lab">Name</label><input class="fld" value="Acme Dental"></div>
+            <div><label class="lab">Email <span class="q" title="Used as the To address when you pick Open in email for this client.">?</span></label><input class="fld" value="office@acmedental.example"></div>
+            <div><label class="lab">Hourly rate <span class="q" title="Optional. Only used when Show amounts is on in Export.">?</span></label><div class="money"><input class="fld" value="75.00"></div></div>
+            <div><label class="lab">Rounding <span class="q" title="Overrides the default in Settings for this client's exports. Stored time is never rounded.">?</span></label><select class="fld sel"><option>Use default (15 min)</option><option>None</option><option>6 min</option><option>15 min</option></select></div>
+          </div>
+          <label class="lab">Job types <span class="q" title="Sub-categories of work for this client. Type one and press Enter. Removing one keeps old entries intact.">?</span></label>
+          <div class="chips" style="margin-bottom:6px"><span class="chip">Remote support <span class="x">&times;</span></span><span class="chip">On-site <span class="x">&times;</span></span><span class="chip">Project <span class="x">&times;</span></span></div>
+          <input class="fld" placeholder="Add a job type and press Enter">
+          <label class="lab">Color</label>
+          <div class="chips"><span class="chip"><i style="background:#b8412c"></i></span><span class="chip"><i style="background:#2f6fb5"></i></span><span class="chip"><i style="background:#5a9a4a"></i></span><span class="chip"><i style="background:#8a5bb8"></i></span><span class="chip"><i style="background:#d08a1e"></i></span><span class="chip"><i style="background:#3a9ea5"></i></span></div>
+          <div class="btnrow" style="justify-content:flex-end"><button class="btn">Cancel</button><button class="btn acc">Save</button></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= EXPORT ================= -->
+    <div class="view body" id="v-export">
+      <div class="exp">
+        <div class="mcard">
+          <h4>Range</h4>
+          <div class="seg"><span class="on">Today</span><span>Yesterday</span><span>This week</span><span>Last week</span><span>Custom</span></div>
+          <label class="lab">Client <span class="q" title="Pick one client to send them only their hours. All clients is for your own records.">?</span></label>
+          <select class="fld sel"><option>All clients</option><option>Acme Dental</option><option>Northside Legal</option><option>Harbor Vet</option></select>
+          <label class="lab">Options</label>
+          <div class="ck"><i class="on">&#10003;</i> Include notes</div>
+          <div class="ck"><i class="on">&#10003;</i> Include project</div>
+          <div class="ck"><i class="on">&#10003;</i> Group by client</div>
+          <div class="ck"><i></i> Show amounts</div>
+          <label class="lab">Rounding</label>
+          <div class="seg"><span>None</span><span>6 min</span><span class="on">15 min</span></div>
+          <label class="lab">Template</label>
+          <div class="seg"><span class="on">Grouped</span><span>Flat</span></div>
+        </div>
+        <div class="mcard">
+          <div class="thead"><h4>Preview</h4><span class="sp"><button class="btn sm acc">Copy as text</button><button class="btn sm">Copy for email</button><button class="btn sm">Open in email</button><button class="btn sm">CSV</button><button class="btn sm">JSON backup</button></span></div>
+<pre class="prev">Hours for Monday, September 14, 2026
+Your Name
+
+Acme Dental
+  9:02 AM - 10:45 AM   1h 45m   Remote support (Printer replacement) - Printer queue stuck on front desk PC; cleared spooler, updated driver.
+  1:15 PM -  2:00 PM   0h 45m   Remote support (Printer replacement) - Confirmed print from all 3 workstations.
+  Subtotal 2h 30m
+
+Northside Legal
+  10:45 AM - 12:45 PM  2h 00m   Project (M365 migration) - Moved 6 mailboxes, verified Outlook profiles.
+  Subtotal 2h 00m
+
+Total 4h 30m</pre>
+          <div class="hint">Copy for email puts a real table on the clipboard for Gmail and Outlook, with this text as the plain fallback. Open in email pre-fills To, Subject, and Body.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="foot"><span>Sundial v0.1.0</span><span>Signed in as you@umbrellaautomation.com</span><span>Synced</span></div>
+    <div class="tabbar"><a class="on"><b>&#9711;</b>Clock</a><a><b>&#9776;</b>Entries</a><a><b>&#9679;</b>Clients</a><a><b>&#8593;</b>Export</a><a><b>&#8943;</b>More</a></div>
+  </div>
+  </div>
+
+  <h2>What you are looking at</h2>
+  <div class="grid3">
+    <div class="card"><h3>A. Timecard</h3><p>Cream paper, stamp-red accent, serif brand, monospace times. Feels like a physical punch card. Warm and readable in daylight, a bit heavy at night.</p></div>
+    <div class="card"><h3>B. Night Shift</h3><p>Dark dashboard, glowing green timer, red Punch Out. Best on a phone in a server room. The most "app" of the three and the easiest to keep open all day on a second monitor.</p></div>
+    <div class="card"><h3>C. Ledger (chosen)</h3><p>White cards, blue accent, quiet. Matches Backup Audits' light theme, so it sits naturally beside the other Umbrella tools and reads as business software. Dark mode follows the OS.</p></div>
+  </div>
+
+  <h2>Same in every direction</h2>
+  <ul>
+    <li>One running entry at a time. Punch Out and Switch are the only big buttons while clocked in; Client and Job type selects glow amber until chosen when clocked out.</li>
+    <li>Recent chips are the phone fast path: one tap punches in with a known client and job type.</li>
+    <li>Today table is sortable with a Columns manager and stacks into cards under 640px (see the Phone width tab).</li>
+    <li>Client modal never closes on backdrop click. Money field has the dollar sign inside and two decimals.</li>
+    <li>Export preview is exactly the text that gets copied. Toasts sit top-center.</li>
+  </ul>
+</div>
+
+<script>
+(function(){
+  var opts={
+    timecard:{name:"A. Timecard",tag:"warm / paper",d:"Cream background, stamp-red accent, serif brand, monospace times. Physical punch-card feel."},
+    nightshift:{name:"B. Night Shift",tag:"dark / glow",d:"Dark dashboard with a glowing green timer and red Punch Out. Built for a phone or a second monitor."},
+    ledger:{name:"C. Ledger",tag:"chosen 2026-09-14",d:"White cards and a blue accent. Matches Backup Audits' light theme; reads as business software. Dark mode will follow the OS."}
+  };
+  var order=Object.keys(opts), mock=document.getElementById('mock'), cap=document.getElementById('caption');
+  function apply(k){
+    mock.setAttribute('data-theme',k);
+    document.querySelectorAll('.switcher button[data-opt]').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-opt')===k); });
+    var o=opts[k]; cap.innerHTML='<b>'+o.name+'</b><span class="tag">'+o.tag+'</span><span class="d">'+o.d+'</span>';
+    try{localStorage.setItem('sundial-preview-opt',k);}catch(e){}
+  }
+  function next(){ var i=order.indexOf(mock.getAttribute('data-theme')); apply(order[(i+1)%order.length]); }
+  function prev(){ var i=order.indexOf(mock.getAttribute('data-theme')); apply(order[(i-1+order.length)%order.length]); }
+  document.querySelectorAll('.switcher button[data-opt]').forEach(function(b){ b.addEventListener('click', function(){ apply(b.getAttribute('data-opt')); }); });
+  document.getElementById('nextBtn').addEventListener('click', next);
+  document.addEventListener('keydown', function(e){ if(e.key==='ArrowRight') next(); if(e.key==='ArrowLeft') prev(); });
+  var saved=null; try{saved=localStorage.getItem('sundial-preview-opt');}catch(e){}
+  apply(opts[saved]?saved:'ledger');
+
+  // views
+  var frame=document.getElementById('frame');
+  function showView(v){
+    var phone = v==='phone'; if(phone) v='clock';
+    document.querySelectorAll('.view').forEach(function(el){ el.classList.toggle('on', el.id==='v-'+v); });
+    document.querySelectorAll('.viewtabs button').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-view')===(phone?'phone':v)); });
+    document.querySelectorAll('.nav a').forEach(function(a){ a.classList.remove('on'); });
+    var n=document.getElementById('nav'+v.charAt(0).toUpperCase()+v.slice(1)); if(n) n.classList.add('on');
+    frame.style.maxWidth = phone ? '400px' : '';
+    frame.style.margin = phone ? '0 auto' : '';
+    frame.style.maxHeight = phone ? '760px' : '';
+    frame.style.overflowY = phone ? 'auto' : '';
+  }
+  document.querySelectorAll('.viewtabs button').forEach(function(b){ b.addEventListener('click', function(){ showView(b.getAttribute('data-view')); }); });
+  ['Clock','Clients','Export'].forEach(function(n){ var a=document.getElementById('nav'+n); if(a) a.addEventListener('click', function(){ showView(n.toLowerCase()); }); });
+
+  // live timer
+  var t=document.getElementById('timer'), s=1*3600+23*60+45;
+  setInterval(function(){ s++; var h=Math.floor(s/3600), m=Math.floor(s%3600/60), x=s%60; t.textContent=(h<10?'0':'')+h+':'+(m<10?'0':'')+m+':'+(x<10?'0':'')+x; },1000);
+})();
+</script>
+</body>
+</html>
