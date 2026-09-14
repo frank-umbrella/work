@@ -1,0 +1,2331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Sundial v0.1.0</title>
+<meta name="version" content="0.1.0" />
+<meta name="robots" content="noindex, nofollow" />
+<meta name="description" content="Internal hours tracker for Umbrella Automation. Restricted to @umbrellaautomation.com accounts." />
+<meta name="theme-color" content="#1e6fd9" />
+
+<link rel="icon" type="image/svg+xml" href="favicon.svg" />
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
+<link rel="apple-touch-icon" href="apple-touch-icon.png" />
+<link rel="manifest" href="manifest.json" />
+
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="Umbrella Automation" />
+<meta property="og:title" content="Sundial - Hours tracker" />
+<meta property="og:description" content="Internal hours tracker. Restricted to @umbrellaautomation.com accounts." />
+<meta property="og:image" content="https://frank-umbrella.github.io/work/sundial/og-image.png" />
+<meta property="og:url" content="https://frank-umbrella.github.io/work/sundial/" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="Sundial - Hours tracker" />
+<meta name="twitter:description" content="Internal hours tracker. Restricted to @umbrellaautomation.com accounts." />
+<meta name="twitter:image" content="https://frank-umbrella.github.io/work/sundial/og-image.png" />
+<style>
+/* ---------------------------------------------------------------
+   Ledger palette (direction C from design-preview.html).
+   Light is the base set on :root. Dark redefines the same tokens
+   under prefers-color-scheme AND [data-theme="dark"]; [data-theme="light"]
+   forces light back on regardless of the OS.
+   --------------------------------------------------------------- */
+:root{
+  --bg:#f4f6f9; --bg2:#e9edf3; --card:#ffffff; --card2:#f1f4f8;
+  --text:#1a2233; --muted:#5b6675; --accent:#1e6fd9; --accent2:#155cb8;
+  --go:#1e6fd9; --stop:#d3403a; --ok:#1c9d63; --line:rgba(26,34,51,.12);
+  --line2:rgba(26,34,51,.22);
+  --chip:#e3ecfa; --chiptext:#1b4f9c; --onaccent:#ffffff;
+  --topbar:#ffffff; --toptext:#1a2233; --topmuted:#5b6675; --glow:#e0a300;
+  --shadow:0 6px 22px rgba(40,55,75,.14);
+  --radius:8px;
+  --mono:Consolas,ui-monospace,SFMono-Regular,Menlo,"Courier New",monospace;
+  --sans:"Segoe UI",system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#11151c; --bg2:#161c25; --card:#1a212b; --card2:#212a36;
+    --text:#e6ebf2; --muted:#94a1b2; --accent:#5aa2f5; --accent2:#7cb8ff;
+    --go:#3f86e0; --stop:#e0655e; --ok:#3ecf8e; --line:rgba(255,255,255,.12);
+    --line2:rgba(255,255,255,.2);
+    --chip:#1b3a5c; --chiptext:#bcd8ff; --onaccent:#0b1420;
+    --topbar:#141a23; --toptext:#e6ebf2; --topmuted:#94a1b2; --glow:#e6b13a;
+    --shadow:0 6px 24px rgba(0,0,0,.5);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#11151c; --bg2:#161c25; --card:#1a212b; --card2:#212a36;
+  --text:#e6ebf2; --muted:#94a1b2; --accent:#5aa2f5; --accent2:#7cb8ff;
+  --go:#3f86e0; --stop:#e0655e; --ok:#3ecf8e; --line:rgba(255,255,255,.12);
+  --line2:rgba(255,255,255,.2);
+  --chip:#1b3a5c; --chiptext:#bcd8ff; --onaccent:#0b1420;
+  --topbar:#141a23; --toptext:#e6ebf2; --topmuted:#94a1b2; --glow:#e6b13a;
+  --shadow:0 6px 24px rgba(0,0,0,.5);
+}
+
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;max-width:100%}
+body{font-family:var(--sans);font-size:15px;line-height:1.55;background:var(--bg);color:var(--text);-webkit-text-size-adjust:100%}
+h1,h2,h3,h4,h5{margin:0}
+button{font:inherit}
+a{color:var(--accent)}
+[hidden]{display:none !important}
+
+/* ---------- sign-in wall ---------- */
+#signin{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;background:var(--bg);z-index:60;overflow-y:auto}
+.signin-card{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:30px 26px;width:min(100%,420px);text-align:center;margin:auto}
+.signin-card .mark{width:54px;height:54px;margin-bottom:10px;color:var(--accent)}
+.signin-card h1{font-size:23px;letter-spacing:.01em}
+.signin-card .sub{color:var(--muted);font-size:14px;margin:4px 0 20px}
+.gbtn{display:inline-flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:12px 16px;border-radius:10px;border:1px solid var(--line2);background:var(--card2);color:var(--text);font-size:15px;font-weight:600;cursor:pointer}
+.gbtn:hover{border-color:var(--accent)}
+.signin-card .domain{margin-top:16px;font-size:13px;color:var(--muted)}
+.signin-card .domain code{background:var(--card2);border:1px solid var(--line);border-radius:4px;padding:1px 5px;font-family:var(--mono);font-size:12px}
+.signin-card .offline-note{margin-top:14px;font-size:12.5px;color:var(--muted);border-top:1px solid var(--line);padding-top:12px;text-align:left}
+.err{margin-top:12px;color:var(--stop);font-size:13px}
+
+/* ---------- app chrome ---------- */
+.top{display:flex;align-items:center;gap:12px;padding:10px 16px;background:var(--topbar);color:var(--toptext);border-bottom:1px solid var(--line);flex-wrap:wrap;position:sticky;top:0;z-index:20}
+.brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:19px;letter-spacing:.02em;min-width:0}
+.brand svg{width:26px;height:26px;flex:none;color:var(--accent)}
+.brand .v{font:12px var(--mono);color:var(--topmuted);margin-left:2px;font-weight:400}
+.nav{display:flex;gap:2px;flex-wrap:wrap}
+.nav button{background:none;border:0;color:var(--topmuted);padding:6px 11px;border-radius:999px;font-size:14px;cursor:pointer}
+.nav button.on{color:var(--toptext);background:var(--card2);font-weight:600}
+.sync{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--topmuted);border:1px solid var(--line);border-radius:999px;padding:3px 10px;margin-left:auto;white-space:nowrap;cursor:help}
+.sync i{width:7px;height:7px;border-radius:50%;background:var(--ok);flex:none}
+.sync[data-s="offline"] i{background:var(--glow)}
+.sync[data-s="syncing"] i{background:var(--accent);animation:blink 1.2s infinite}
+@keyframes blink{50%{opacity:.3}}
+.who{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--topmuted);min-width:0}
+.who .em{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:26ch}
+main{padding:16px;display:grid;gap:16px;max-width:1180px;margin:0 auto;width:100%;min-width:0}
+.view{display:none;gap:16px;min-width:0}
+.view.on{display:grid}
+.foot{padding:14px 18px 22px;font-size:12px;color:var(--muted);display:flex;gap:14px;flex-wrap:wrap;max-width:1180px;margin:0 auto;width:100%}
+
+/* ---------- cards ---------- */
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;min-width:0}
+.card > h4, .chead h4{margin:0 0 10px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.chead{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.chead h4{margin:0}
+.chead .sp{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+
+/* ---------- fields ---------- */
+.lab{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px;font-weight:600}
+.lab .q{display:inline-block;width:14px;height:14px;border-radius:50%;border:1px solid var(--muted);font-size:10px;line-height:12px;text-align:center;margin-left:5px;opacity:.75;cursor:help;font-weight:400}
+.fld{width:100%;max-width:100%;background:var(--card2);color:var(--text);border:1px solid var(--line2);border-radius:calc(var(--radius) - 2px);padding:9px 11px;font:inherit;font-size:14px;min-width:0}
+select.fld{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);background-position:calc(100% - 16px) 50%,calc(100% - 11px) 50%;background-size:5px 5px;background-repeat:no-repeat;padding-right:30px}
+.fld:focus{outline:2px solid var(--accent);outline-offset:1px}
+.fld.glow{border-color:var(--glow);box-shadow:0 0 0 3px rgba(224,163,0,.22)}
+.fld[disabled]{opacity:.55;cursor:not-allowed}
+textarea.fld{min-height:64px;resize:vertical}
+.money{position:relative;display:block}
+.money .fld{padding-left:24px}
+.money:before{content:"$";position:absolute;left:10px;top:9px;color:var(--muted);font-size:14px;pointer-events:none}
+.g2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:0 14px}
+.g3{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,170px),1fr));gap:0 14px}
+.hint{font-size:12px;color:var(--muted);margin:4px 0 0}
+.ck{display:flex;align-items:center;gap:8px;font-size:14px;margin:8px 0;cursor:pointer}
+.ck input{width:16px;height:16px;accent-color:var(--accent);flex:none}
+
+/* ---------- buttons ---------- */
+.btn{border:1px solid var(--line2);background:var(--card2);color:var(--text);border-radius:calc(var(--radius) - 1px);padding:10px 16px;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap}
+.btn:hover:not([disabled]){border-color:var(--accent)}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+.btn.big{font-size:17px;padding:15px 26px;flex:1 1 auto;text-align:center}
+.btn.go{background:var(--go);border-color:var(--go);color:var(--onaccent)}
+.btn.stop{background:var(--stop);border-color:var(--stop);color:#fff}
+.btn.acc{background:var(--accent);border-color:var(--accent);color:var(--onaccent)}
+.btn.sm{padding:5px 10px;font-size:12px;font-weight:600}
+.btnrow{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+.btnrow.end{justify-content:flex-end}
+
+/* ---------- chips / pills ---------- */
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border-radius:999px;border:1px solid var(--line2);background:var(--card2);font-size:13px;color:var(--text);cursor:pointer;max-width:100%}
+.chip i.dot{width:9px;height:9px;border-radius:50%;display:inline-block;flex:none}
+.chip .x{color:var(--muted);margin-left:2px;cursor:pointer;font-weight:700}
+.chip .mk{font-style:normal;font-family:var(--mono);font-size:11px;padding:0 5px;border-radius:4px;border:1px dashed var(--line2);color:var(--muted);cursor:pointer}
+.chip .mk.on{border-style:solid;border-color:var(--accent);color:var(--accent);font-weight:700}
+.chip .mk.off{border-style:solid;border-color:var(--stop);color:var(--stop);text-decoration:line-through}
+.pill{display:inline-flex;align-items:center;gap:7px;padding:4px 11px;border-radius:999px;background:var(--chip);color:var(--chiptext);font-size:13px;font-weight:600;max-width:100%;flex-wrap:wrap}
+.pill .dot{width:8px;height:8px;border-radius:50%;background:var(--go);flex:none;animation:blink 1.6s infinite}
+.tagnb{display:inline-block;font-size:11px;padding:1px 7px;border-radius:999px;background:var(--card2);border:1px solid var(--line);color:var(--muted);margin-left:6px;white-space:nowrap}
+.cdot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:middle;flex:none}
+.seg{display:inline-flex;flex-wrap:wrap;gap:4px;background:var(--card2);border:1px solid var(--line);border-radius:999px;padding:3px;max-width:100%}
+.seg button{background:none;border:0;padding:5px 11px;border-radius:999px;font-size:13px;cursor:pointer;color:var(--text)}
+.seg button.on{background:var(--accent);color:var(--onaccent);font-weight:600}
+.seg button[disabled]{opacity:.45;cursor:not-allowed}
+
+/* ---------- clock ---------- */
+.now{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:860px){.now{grid-template-columns:minmax(0,1fr)}}
+.timer{font:600 56px/1 var(--mono);letter-spacing:.02em;margin:8px 0;color:var(--text);overflow-wrap:anywhere}
+.since{font-size:13px;color:var(--muted);margin:6px 0 12px;overflow-wrap:anywhere}
+.also{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 10px;padding:8px 12px;border:1px solid var(--line);border-radius:calc(var(--radius) - 2px);background:var(--card2);font-size:13px}
+.also .t{font-family:var(--mono);font-weight:600;margin-left:auto}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,140px),1fr));gap:12px}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px;min-width:0}
+.tile .k{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.tile .n{font:600 26px/1.2 var(--mono);margin-top:4px;overflow-wrap:anywhere}
+
+/* ---------- tables ---------- */
+.tablewrap{overflow-x:auto;max-width:100%}
+.mt{width:100%;border-collapse:collapse;font-size:14px}
+.mt th{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600;border-bottom:1px solid var(--line);padding:8px;text-align:left;white-space:nowrap;cursor:pointer;user-select:none}
+.mt th .ar{color:var(--accent);font-size:9px;margin-left:3px}
+.mt td{padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:top;overflow-wrap:anywhere}
+.mt td.t{font-family:var(--mono);white-space:nowrap}
+.mt td.act{white-space:nowrap;text-align:right}
+.mt td.act button{color:var(--muted);background:none;border:0;margin-left:8px;font-size:13px;cursor:pointer;padding:2px}
+.mt td.act button:hover{color:var(--accent)}
+.mt tr.running{background:var(--card2)}
+.emptyrow{color:var(--muted);font-size:14px;padding:14px 4px}
+
+/* ---------- timesheet ---------- */
+.daystrip{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;margin:10px 0}
+.daystrip button{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 2px;border-radius:var(--radius);border:1px solid var(--line);background:var(--card2);color:var(--text);cursor:pointer;min-width:0}
+.daystrip button.on{border-color:var(--accent);background:var(--chip);color:var(--chiptext);font-weight:700}
+.daystrip .dw{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.daystrip button.on .dw{color:var(--chiptext)}
+.daystrip .dd{font:600 16px/1.1 var(--mono)}
+.daystrip .dt{font:11px var(--mono);color:var(--muted)}
+.daystrip button.on .dt{color:var(--chiptext)}
+.tsrow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:start;padding:10px 0;border-bottom:1px solid var(--line)}
+.tsrow.running{background:var(--card2);border-radius:var(--radius);padding:10px}
+.tsrow .meta{font-size:13px;color:var(--muted);overflow-wrap:anywhere}
+.tsrow .ttl{font-weight:600;overflow-wrap:anywhere}
+.tsrow .right{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.tsrow .dur{font-family:var(--mono);font-weight:700;white-space:nowrap}
+.daytotal{display:flex;justify-content:flex-end;gap:10px;font-family:var(--mono);font-weight:700;padding-top:12px}
+
+/* ---------- clients ---------- */
+.clients{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:14px}
+.cl h5{margin:0 0 2px;font-size:17px;overflow-wrap:anywhere}
+.cl .em{font-size:13px;color:var(--muted);margin-bottom:8px;overflow-wrap:anywhere}
+.cl .st{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--muted);margin:10px 0}
+.cl .st b{color:var(--text);font-family:var(--mono)}
+.swatches{display:flex;flex-wrap:wrap;gap:8px}
+.swatch{width:30px;height:30px;border-radius:50%;border:2px solid var(--line2);cursor:pointer;padding:0}
+.swatch.on{border-color:var(--text);box-shadow:0 0 0 3px var(--chip)}
+.limbox{margin-top:8px;padding:10px 12px;border:1px solid var(--line2);border-radius:var(--radius);background:var(--card2)}
+
+/* ---------- export ---------- */
+.exp{display:grid;grid-template-columns:minmax(0,300px) minmax(0,1fr);gap:16px}
+@media (max-width:880px){.exp{grid-template-columns:minmax(0,1fr)}}
+pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-radius:calc(var(--radius) - 2px);padding:14px 16px;font:13px/1.5 var(--mono);white-space:pre-wrap;overflow-wrap:anywhere;color:var(--text);max-width:100%;min-height:120px}
+
+/* ---------- modals ---------- */
+.modal{position:fixed;inset:0;background:rgba(10,15,25,.5);display:flex;align-items:flex-start;justify-content:center;padding:20px;z-index:70;overflow-y:auto}
+.mbox{background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:var(--radius);width:min(100%,560px);padding:18px 20px;box-shadow:var(--shadow);margin:auto;min-width:0}
+.mbox.wide{width:min(100%,760px)}
+.mbox .mh{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.mbox .mh b{font-size:17px;overflow-wrap:anywhere}
+.mbox .mh .x{margin-left:auto;width:30px;height:30px;border-radius:50%;border:1px solid var(--line2);background:var(--card2);color:var(--muted);cursor:pointer;flex:none;font-size:16px;line-height:1}
+.warn{margin-top:10px;padding:9px 12px;border:1px solid var(--glow);background:rgba(224,163,0,.12);border-radius:calc(var(--radius) - 2px);font-size:13px}
+.prob{color:var(--stop)}
+.scrolly{max-height:38vh;overflow-y:auto;border:1px solid var(--line);border-radius:calc(var(--radius) - 2px);padding:8px 10px;margin-top:8px;font-size:13px}
+
+/* ---------- toast (top-center) ---------- */
+.toast{position:fixed;top:14px;left:50%;transform:translateX(-50%) translateY(-8px);z-index:90;background:var(--card);border:1px solid var(--line2);color:var(--text);padding:11px 18px;border-radius:999px;box-shadow:var(--shadow);font-size:13.5px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;max-width:calc(100% - 28px);text-align:center}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto}
+.toast.bad{border-color:var(--stop)}
+.toast.tap{cursor:pointer}
+
+/* ---------- phone ---------- */
+.tabbar{display:none;position:sticky;bottom:0;background:var(--card);border-top:1px solid var(--line);padding:6px 4px calc(6px + env(safe-area-inset-bottom));z-index:20}
+.tabbar button{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;color:var(--muted);background:none;border:0;padding:5px 0;cursor:pointer;min-width:0}
+.tabbar button b{font-size:17px;font-weight:400;line-height:1}
+.tabbar button.on{color:var(--accent)}
+@media (max-width:640px){
+  .nav,.who .em{display:none}
+  .tabbar{display:flex}
+  main{padding:12px}
+  .timer{font-size:46px}
+  .fld{font-size:16px}
+  .top{padding:9px 12px}
+  .tablewrap{overflow-x:visible}
+  .mt thead{display:none}
+  .mt tbody tr{display:block;border:1px solid var(--line);border-radius:var(--radius);margin-bottom:10px;padding:6px 10px}
+  .mt td{display:flex;gap:10px;border:0;padding:4px 0}
+  .mt td:before{content:attr(data-l);flex:0 0 76px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding-top:3px}
+  .mt td.act{justify-content:flex-start;text-align:left}
+  .mt td.act button{margin:0 12px 0 0}
+  .daystrip{gap:3px}
+  .daystrip button{padding:6px 1px}
+  .btnrow .btn{flex:1 1 auto}
+  .modal{padding:10px}
+  .mbox{padding:14px}
+}
+@media (max-width:380px){
+  .daystrip .dw{font-size:9px}
+  .daystrip .dt{font-size:10px}
+}
+</style>
+</head>
+<body>
+
+<!-- ============ SIGN IN ============ -->
+<div id="signin">
+  <div class="signin-card">
+    <svg class="mark" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <circle cx="32" cy="40" r="19" fill="none" stroke="currentColor" stroke-width="4"/>
+      <path d="M32 40 L32 14" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+      <path d="M32 40 L48 30" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+      <circle cx="32" cy="40" r="3.5" fill="currentColor"/>
+    </svg>
+    <h1>Sundial</h1>
+    <p class="sub">Umbrella Automation - hours tracker</p>
+    <button id="signinBtn" class="gbtn">
+      <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.7-6.7C35.6 2.7 30.2 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.8 6.1C12.3 13.2 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.5 3-2.2 5.5-4.7 7.2l7.3 5.7c4.3-4 6.7-9.9 6.7-17.4z"/><path fill="#FBBC05" d="M10.4 28.3c-.5-1.5-.8-3.1-.8-4.8s.3-3.3.8-4.8l-7.8-6.1C1 16 0 19.9 0 24s1 8 2.6 11.4l7.8-6.1z"/><path fill="#34A853" d="M24 48c6.2 0 11.5-2 15.3-5.5l-7.3-5.7c-2 1.4-4.7 2.3-8 2.3-6.3 0-11.7-3.7-13.6-9.8l-7.8 6.1C6.5 42.6 14.6 48 24 48z"/></svg>
+      Sign in with Google
+    </button>
+    <div class="domain">Restricted to <code>@umbrellaautomation.com</code> accounts.</div>
+    <div class="offline-note">Works offline once you have signed in on this device: the app opens straight to the Clock and punches are stored locally until the connection is back. A device that has never signed in needs one online sign-in first.</div>
+    <div id="signinErr" class="err" hidden></div>
+  </div>
+</div>
+
+<!-- ============ APP ============ -->
+<div id="app" hidden>
+<header class="top">
+  <div class="brand">
+    <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <circle cx="32" cy="40" r="19" fill="none" stroke="currentColor" stroke-width="5"/>
+      <path d="M32 40 L32 14" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
+      <path d="M32 40 L48 30" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
+    </svg>
+    Sundial <span class="v" id="verChip"></span>
+  </div>
+  <nav class="nav" id="topNav">
+    <button data-view="clock" class="on">Clock</button>
+    <button data-view="timesheet">Timesheet</button>
+    <button data-view="clients">Clients</button>
+    <button data-view="export">Export</button>
+    <button data-view="settings">Settings</button>
+  </nav>
+  <span class="sync" id="syncPill" data-s="synced" title="Reads the browser online state plus Firestore pending writes. Punch In and Punch Out never wait on the network."><i></i><span id="syncText">Synced</span></span>
+  <span class="who"><span class="em" id="userEmail"></span><button class="btn sm" id="signoutBtn">Sign out</button></span>
+</header>
+
+<main>
+  <!-- ============ CLOCK ============ -->
+  <section class="view on" id="v-clock">
+    <div class="card">
+      <h4>Now</h4>
+      <div class="now">
+        <div>
+          <div id="outLeft">
+            <span class="pill" style="background:var(--card2);color:var(--muted)">Clocked out</span>
+            <div class="timer">00:00:00</div>
+            <div class="since" id="outSince">Pick a client and a job type, then punch in.</div>
+          </div>
+          <div id="inLeft" hidden>
+            <span class="pill" id="runPill"></span>
+            <div class="timer" id="runTimer">00:00:00</div>
+            <div class="since" id="runSince"></div>
+            <div id="alsoList"></div>
+            <div class="btnrow">
+              <button class="btn big stop" id="punchOutBtn">Punch Out</button>
+              <button class="btn big" id="switchBtn" title="Punch out what is running and start a new job, with this client already picked.">Switch client</button>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div id="runEdit" hidden>
+            <h4 style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:0 0 2px">Running entry</h4>
+            <div class="g2">
+              <div><label class="lab" for="rTicket">Ticket # <span class="q" title="The ticket this time belongs to. It becomes a link in tables and exports when the client has a ticket URL pattern.">?</span></label><input class="fld" id="rTicket" autocomplete="off"></div>
+              <div><label class="lab" for="rProject">Project <span class="q" title="An optional label so recurring work groups together in exports. Suggestions come from this client past entries.">?</span></label><input class="fld" id="rProject" list="projList" autocomplete="off"></div>
+            </div>
+            <label class="lab" for="rNotes">Notes <span class="q" title="What you did. This is the line that goes in the email, so write it for the client.">?</span></label>
+            <textarea class="fld" id="rNotes"></textarea>
+            <div class="hint">Saves when you click away. Everything is editable later from the table.</div>
+          </div>
+
+          <div id="startPanel">
+            <h4 id="startTitle" style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:0 0 2px" hidden>Start another job</h4>
+            <label class="lab" for="fClient">Client <span class="q" title="Who the work is for. Exports group and filter by this, so pick it before the timer starts.">?</span></label>
+            <select class="fld" id="fClient"></select>
+            <label class="lab" for="fJob">Job type <span class="q" title="The kind of work under this client. It carries the billable and can-run-alongside flags the entry starts with.">?</span></label>
+            <select class="fld" id="fJob" disabled></select>
+            <div class="g2">
+              <div><label class="lab" for="fTicket">Ticket # <span class="q" title="Optional. Free text so INC-0042 works as well as 5421. Links up when the client has a ticket URL pattern.">?</span></label><input class="fld" id="fTicket" autocomplete="off"></div>
+              <div><label class="lab" for="fProject">Project <span class="q" title="Optional label that keeps recurring work together in exports. Suggestions come from this client past entries.">?</span></label><input class="fld" id="fProject" list="projList" autocomplete="off"></div>
+            </div>
+            <label class="lab" for="fNotes">Notes <span class="q" title="What you are doing. Written for the client, because this is the line that lands in the email.">?</span></label>
+            <textarea class="fld" id="fNotes"></textarea>
+            <datalist id="projList"></datalist>
+            <div class="btnrow">
+              <button class="btn big go" id="punchBtn">Punch In</button>
+              <button class="btn" id="cancelStartBtn" hidden>Cancel</button>
+            </div>
+            <div class="hint" id="punchHint"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h4>Recent - tap to punch in</h4>
+      <div class="chips" id="recentChips"></div>
+    </div>
+
+    <div class="tiles" id="todayTiles"></div>
+
+    <div class="card">
+      <div class="chead"><h4>Today</h4><span class="sp"><button class="btn sm" id="addEntryBtn">+ Manual entry</button><button class="btn sm" id="colsBtn" title="Pick which columns you want. The layout is saved to your account.">Columns</button></span></div>
+      <div class="tablewrap"><table class="mt" id="todayTable"></table></div>
+    </div>
+  </section>
+
+  <!-- ============ TIMESHEET ============ -->
+  <section class="view" id="v-timesheet">
+    <div class="card">
+      <div class="chead">
+        <span class="seg"><button id="tsPrev" title="Previous day">&#8592;</button><button id="tsToday">Today</button><button id="tsNext" title="Next day">&#8594;</button></span>
+        <select class="fld" id="tsClient" style="width:auto;min-width:min(100%,170px)" title="Show only one client, for example when you are checking what to bill them."></select>
+        <span class="sp"><span class="seg"><button class="on" id="tsvDay">Day</button><button disabled title="Coming in v0.2">Week</button><button disabled title="Coming in v0.2">Calendar</button></span></span>
+      </div>
+      <div class="daystrip" id="tsStrip"></div>
+    </div>
+    <div class="card">
+      <div class="chead"><h4 id="tsTitle">Day</h4><span class="sp"><button class="btn sm" id="tsAdd">+ Manual entry</button></span></div>
+      <div id="tsRows"></div>
+      <div class="daytotal" id="tsTotal"></div>
+    </div>
+  </section>
+
+  <!-- ============ CLIENTS ============ -->
+  <section class="view" id="v-clients">
+    <div class="chead">
+      <h4>Clients</h4>
+      <span class="sp">
+        <button class="btn sm acc" id="clAdd">+ Add client</button>
+        <button class="btn sm" id="clImport" title="CSV or XLSX. You see exactly what will be created and updated before anything is written. Nothing is ever deleted.">Import</button>
+        <button class="btn sm" id="clExport" title="Every client, archived ones included, in the template columns so the file re-imports cleanly.">Export</button>
+        <button class="btn sm" id="clTemplate" title="A blank workbook with example rows and a How to fill sheet, so an import gets the columns right the first time.">Template</button>
+      </span>
+    </div>
+    <div class="clients" id="clientCards"></div>
+    <div class="card" id="archivedCard" hidden>
+      <h4>Archived</h4>
+      <div id="archivedList"></div>
+      <div class="hint">Archived clients stay out of the punch-in lists but keep their old entries and exports intact.</div>
+    </div>
+    <input type="file" id="clFile" accept=".csv,.xlsx,.xls" hidden>
+    <input type="file" id="jsonFile" accept=".json,application/json" hidden>
+  </section>
+
+  <!-- ============ EXPORT ============ -->
+  <section class="view" id="v-export">
+    <div class="exp">
+      <div class="card">
+        <h4>Range</h4>
+        <span class="seg" id="xRange">
+          <button data-r="today" class="on">Today</button>
+          <button data-r="yesterday">Yesterday</button>
+          <button data-r="week">This week</button>
+          <button data-r="lastweek">Last week</button>
+          <button data-r="month">This month</button>
+          <button data-r="custom">Custom</button>
+        </span>
+        <div class="g2" id="xCustom" hidden>
+          <div><label class="lab" for="xFrom">From</label><input type="date" class="fld" id="xFrom"></div>
+          <div><label class="lab" for="xTo">To</label><input type="date" class="fld" id="xTo"></div>
+        </div>
+        <label class="lab" for="xClient">Client <span class="q" title="Pick one client to send them only their own hours. All clients is for your own records.">?</span></label>
+        <select class="fld" id="xClient"></select>
+        <label class="lab">Billable <span class="q" title="Billable only gives a clean block to forward to a client. All tags non-billable lines and splits every subtotal.">?</span></label>
+        <span class="seg" id="xBillable">
+          <button data-b="all" class="on">All</button>
+          <button data-b="yes">Billable only</button>
+          <button data-b="no">Non-billable only</button>
+        </span>
+        <label class="lab">Options</label>
+        <label class="ck"><input type="checkbox" id="xNotes" checked> Include notes <span class="q" title="Turn off when you only want the shape of the day and not the detail.">?</span></label>
+        <label class="ck"><input type="checkbox" id="xProject" checked> Include project</label>
+        <label class="ck"><input type="checkbox" id="xTicket" checked> Include ticket #</label>
+        <label class="ck"><input type="checkbox" id="xGroup" checked> Group by client <span class="q" title="Off gives one line per entry with the client in front, which pastes into a spreadsheet more cleanly.">?</span></label>
+        <label class="lab">Template</label>
+        <span class="seg" id="xTemplate">
+          <button data-t="grouped" class="on">Grouped</button>
+          <button data-t="flat">Flat</button>
+        </span>
+        <div class="hint">Time is stored raw. Rounding and amounts arrive in v0.2.</div>
+      </div>
+      <div class="card">
+        <div class="chead"><h4>Preview</h4><span class="sp">
+          <button class="btn sm acc" id="xCopy">Copy as text</button>
+          <button class="btn sm" id="xCsv" title="One row per entry, UTF-8 with a byte-order mark so Excel opens it correctly.">Download CSV</button>
+          <button class="btn sm" id="xJson" title="Everything in your account as one file: settings, clients and entries. Keep it somewhere safe.">Download JSON backup</button>
+          <button class="btn sm" id="xRestore" title="Merges a backup file back in by id. Nothing is deleted; matching records are overwritten.">Restore from JSON</button>
+        </span></div>
+        <pre class="prev" id="xPreview"></pre>
+        <div class="hint">The preview is exactly the text that gets copied.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SETTINGS ============ -->
+  <section class="view" id="v-settings">
+    <div class="card">
+      <h4>You</h4>
+      <div class="g2">
+        <div><label class="lab" for="sName">Your name <span class="q" title="Printed under the date at the top of every text export, so the person reading it knows whose hours these are.">?</span></label><input class="fld" id="sName"></div>
+        <div><label class="lab" for="sTheme">Theme <span class="q" title="System follows your device. Pick Light or Dark to pin it on this device and everywhere you sign in.">?</span></label><select class="fld" id="sTheme"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></div>
+      </div>
+      <div class="g2">
+        <div><label class="lab" for="sTimeFormat">Time format <span class="q" title="12-hour reads more naturally to the people you email. 24-hour is tighter in tables.">?</span></label><select class="fld" id="sTimeFormat"><option value="12h">12-hour</option><option value="24h">24-hour</option></select></div>
+        <div><label class="lab" for="sWeekStart">Week start <span class="q" title="Sets which day the seven-day strip and the This week range begin on.">?</span></label><select class="fld" id="sWeekStart"><option value="mon">Monday</option><option value="sun">Sunday</option></select></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h4>Tracking</h4>
+      <div class="g2">
+        <div><label class="lab" for="sRounding">Default rounding <span class="q" title="Stored time is never rounded. This will round exports in v0.2; it is saved now so the choice survives.">?</span></label><select class="fld" id="sRounding"><option value="none">None</option><option value="6">6 minutes</option><option value="15">15 minutes</option></select></div>
+        <div><label class="lab" for="sTemplateSel">Export template <span class="q" title="The layout the Export screen opens with.">?</span></label><select class="fld" id="sTemplateSel"><option value="grouped">Grouped by client</option><option value="flat">Flat, one line per entry</option></select></div>
+      </div>
+      <div class="g2">
+        <div><label class="lab" for="sCapacity">Weekly capacity hours <span class="q" title="The full week you are measuring against. It drives the utilization bar arriving in v0.2.">?</span></label><input class="fld" id="sCapacity" type="number" min="0" step="0.5"></div>
+        <div><label class="lab" for="sMileage">Mileage rate <span class="q" title="Dollars per mile for the travel export. Set it once a year; it is stored now and used in v0.3.">?</span></label><span class="money"><input class="fld" id="sMileage" inputmode="decimal"></span></div>
+      </div>
+      <div class="g2">
+        <div><label class="lab" for="sDefaultView">Default timesheet view <span class="q" title="Which timesheet view opens first. Week and Calendar arrive in v0.2; the choice is stored now.">?</span></label><select class="fld" id="sDefaultView"><option value="day">Day list</option><option value="week">Week grid</option><option value="calendar">Calendar</option></select></div>
+        <div><label class="lab">Show amounts <span class="q" title="Off by default. On shows hourly rates on clients and money in exports.">?</span></label><label class="ck"><input type="checkbox" id="sShowAmounts"> Show rates and amounts</label></div>
+      </div>
+      <label class="lab">Default job types <span class="q" title="The list a brand new client starts with. Changing it never touches clients you already have.">?</span></label>
+      <div class="chips" id="sJobTypes"></div>
+      <input class="fld" id="sJobTypeAdd" placeholder="Add a job type and press Enter" style="margin-top:8px">
+      <label class="lab">Defaults for new clients <span class="q" title="Applied when a client is created. Changing them never touches existing clients.">?</span></label>
+      <label class="ck"><input type="checkbox" id="sNewBillable"> Billable</label>
+      <label class="ck"><input type="checkbox" id="sNewConcurrent"> Can run alongside other jobs</label>
+    </div>
+
+    <div class="card">
+      <h4>Offline</h4>
+      <div id="offlineStatus" class="hint" style="font-size:13.5px"></div>
+      <div class="btnrow">
+        <button class="btn sm" id="sRetry" title="Nudges the connection so queued punches go up now instead of at the next change.">Retry sync now</button>
+        <button class="btn sm" id="sClearCache" title="Throws away the offline copy of the app and reloads it from the network. Your hours live in your account, not in the cache.">Clear local cache and reload</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h4>Backup</h4>
+      <div class="hint" style="font-size:13.5px">A JSON backup holds your settings, clients and entries. Restore merges it back by id and never deletes anything.</div>
+      <div class="btnrow">
+        <button class="btn sm" id="sBackup">Download JSON backup</button>
+        <button class="btn sm" id="sRestore">Restore from JSON</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h4>Danger</h4>
+      <div class="hint" style="font-size:13.5px">Erasing removes every client and entry in your account and cannot be undone. Download a backup first.</div>
+      <div class="btnrow">
+        <button class="btn sm stop" id="sErase">Erase my data</button>
+        <button class="btn sm" id="sSignout">Sign out</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">
+  <span id="footVer"></span>
+  <span id="footWho"></span>
+  <span id="footSync"></span>
+</footer>
+
+<nav class="tabbar" id="tabbar">
+  <button data-view="clock" class="on"><b>&#9711;</b>Clock</button>
+  <button data-view="timesheet"><b>&#9776;</b>Timesheet</button>
+  <button data-view="clients"><b>&#9679;</b>Clients</button>
+  <button data-view="export"><b>&#8593;</b>Export</button>
+  <button data-view="settings"><b>&#8943;</b>More</button>
+</nav>
+</div>
+
+<div id="modalRoot"></div>
+<div class="toast" id="toast"></div>
+
+<script type="module">
+/* ==============================================================
+   Sundial v0.1.0 - hours tracker
+   Single file on purpose: no build step, same as Backup Audits.
+   Firestore rules for /sundial_users live in ../watchtower/firestore.rules.
+   ============================================================== */
+
+const APP_VERSION    = "0.1.0";
+const ALLOWED_DOMAIN = "umbrellaautomation.com";
+const OWNER_EMAIL    = "frank@umbrellaautomation.com";
+const SDK            = "https://www.gstatic.com/firebasejs/12.13.0/";
+const XLSX_URL       = "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";
+
+/* ---------------------------------------------------------------
+   Shared login with Watchtower and Backup Audits: SAME Firebase
+   project (watchtower-6fbe1), SAME Google provider and
+   @umbrellaautomation.com domain gate. The apiKey is not a secret.
+   Sundial data lives under /sundial_users/{uid}.
+   --------------------------------------------------------------- */
+const firebaseConfig = {
+  apiKey:            "AIzaSyDKWHa-nmIzFvnLqF92rmzIXiSKe2HywQw",
+  authDomain:        "watchtower-6fbe1.firebaseapp.com",
+  projectId:         "watchtower-6fbe1",
+  storageBucket:     "watchtower-6fbe1.firebasestorage.app",
+  messagingSenderId: "637038228926",
+  appId:             "1:637038228926:web:e8a793889c70162f0935ef"
+};
+
+/* Local development hook: ?mock=1 on 127.0.0.1 / localhost skips Firebase
+   entirely and runs the whole app against an in-memory store. Harmless
+   anywhere else because of the hostname check. Documented in README. */
+const MOCK = new URLSearchParams(location.search).get("mock") === "1" &&
+             ["127.0.0.1", "localhost", ""].includes(location.hostname);
+
+const $  = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g,
+  c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+
+/* ---------------- time helpers ---------------- */
+const p2 = n => String(n).padStart(2, "0");
+function toDate(v) {
+  if (!v) return null;
+  if (v instanceof Date) return v;
+  if (typeof v.toDate === "function") return v.toDate();
+  return new Date(v);
+}
+function dayKey(d) { const x = new Date(d); return x.getFullYear() + "-" + p2(x.getMonth() + 1) + "-" + p2(x.getDate()); }
+function dayDate(k) { const a = String(k).split("-").map(Number); return new Date(a[0], a[1] - 1, a[2]); }
+function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
+function startOfWeek(d, weekStart) {
+  const x = new Date(d); x.setHours(0, 0, 0, 0);
+  const first = weekStart === "sun" ? 0 : 1;
+  const diff = (x.getDay() - first + 7) % 7;
+  return addDays(x, -diff);
+}
+function fmtTime(d) {
+  if (!d) return "";
+  if (state.settings.timeFormat === "24h") return p2(d.getHours()) + ":" + p2(d.getMinutes());
+  let h = d.getHours() % 12; if (h === 0) h = 12;
+  return h + ":" + p2(d.getMinutes()) + " " + (d.getHours() < 12 ? "AM" : "PM");
+}
+function fmtDur(sec) {
+  sec = Math.max(0, Math.floor(sec));
+  return Math.floor(sec / 3600) + "h " + p2(Math.floor((sec % 3600) / 60)) + "m";
+}
+function fmtClock(sec) {
+  sec = Math.max(0, Math.floor(sec));
+  return p2(Math.floor(sec / 3600)) + ":" + p2(Math.floor((sec % 3600) / 60)) + ":" + p2(sec % 60);
+}
+function fmtDayLong(k) {
+  return dayDate(k).toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+}
+function fmtDayShort(k) {
+  return dayDate(k).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+function localInput(d) { return d ? d.getFullYear() + "-" + p2(d.getMonth() + 1) + "-" + p2(d.getDate()) : ""; }
+function localTimeInput(d) { return d ? p2(d.getHours()) + ":" + p2(d.getMinutes()) : ""; }
+function fromInputs(dateStr, timeStr) {
+  if (!dateStr || !timeStr) return null;
+  const a = dateStr.split("-").map(Number), b = timeStr.split(":").map(Number);
+  return new Date(a[0], a[1] - 1, a[2], b[0] || 0, b[1] || 0, 0, 0);
+}
+
+/* ---------------- defaults ---------------- */
+const DEFAULT_JOB_TYPES = ["Remote support", "On-site", "Project", "Travel", "Admin"];
+const DEFAULT_COLUMNS   = ["start", "end", "dur", "client", "job", "ticket", "project", "notes"];
+const COLUMN_DEFS = [
+  { k: "start",   label: "Start" },
+  { k: "end",     label: "End" },
+  { k: "dur",     label: "Duration" },
+  { k: "client",  label: "Client" },
+  { k: "job",     label: "Job type" },
+  { k: "ticket",  label: "Ticket" },
+  { k: "project", label: "Project" },
+  { k: "notes",   label: "Notes" }
+];
+const PALETTE = ["#1e6fd9", "#d3403a", "#1c9d63", "#8a5bb8", "#d08a1e", "#3a9ea5", "#c2557a", "#5a6b7d"];
+const DEFAULT_SETTINGS = {
+  yourName: "", timeFormat: "12h", weekStart: "mon", rounding: "none",
+  defaultJobTypes: DEFAULT_JOB_TYPES.slice(),
+  exportTemplate: "grouped", showAmounts: false,
+  newClientBillable: true, newClientAllowConcurrent: false,
+  weeklyCapacityHours: 40, mileageRate: 0.70, defaultView: "day",
+  theme: "system", columns: DEFAULT_COLUMNS.slice(), sort: null
+};
+
+/* ---------------- state ---------------- */
+const state = {
+  user: null,
+  settings: Object.assign({}, DEFAULT_SETTINGS),
+  settingsLoaded: false,
+  clients: [],
+  entries: [],
+  view: "clock",
+  tsDay: dayKey(new Date()),
+  tsClient: "",
+  sync: { pending: 0, online: navigator.onLine },
+  startPanelOpen: true,
+  mainRunningId: null,
+  runEditId: null,
+  xOpts: { range: "today", from: "", to: "", client: "", billable: "all", notes: true, project: true, ticket: true, group: true, template: "grouped" }
+};
+let store = null;
+
+/* ---------------- toast ---------------- */
+function toast(msg, bad = false, onTap = null) {
+  const t = $("#toast");
+  t.textContent = msg;
+  t.classList.toggle("bad", !!bad);
+  t.classList.toggle("tap", !!onTap);
+  t.onclick = onTap || null;
+  t.classList.add("show");
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => { t.classList.remove("show"); t.onclick = null; }, onTap ? 12000 : 2800);
+}
+
+/* ---------------- modal system ----------------
+   Closes only via the X, Cancel, the confirm button, or Escape.
+   Clicking the backdrop deliberately does nothing. */
+let modalStack = [];
+function openModal(title, bodyHTML, footHTML, opts = {}) {
+  const wrap = document.createElement("div");
+  wrap.className = "modal";
+  wrap.innerHTML =
+    '<div class="mbox' + (opts.wide ? " wide" : "") + '" role="dialog" aria-modal="true">' +
+      '<div class="mh"><b>' + esc(title) + '</b><button class="x" data-close aria-label="Close">&times;</button></div>' +
+      '<div class="mbody">' + bodyHTML + '</div>' +
+      '<div class="btnrow end">' + footHTML + '</div>' +
+    '</div>';
+  wrap.addEventListener("mousedown", e => { if (e.target === wrap) e.stopPropagation(); });
+  $("#modalRoot").appendChild(wrap);
+  modalStack.push(wrap);
+  wrap.querySelectorAll("[data-close]").forEach(b => b.addEventListener("click", () => closeModal(wrap)));
+  const focusable = wrap.querySelector("input,select,textarea,button:not(.x)");
+  if (focusable && !opts.noFocus) setTimeout(() => focusable.focus(), 30);
+  return wrap;
+}
+function closeModal(wrap) {
+  if (!wrap) wrap = modalStack[modalStack.length - 1];
+  if (!wrap) return;
+  wrap.remove();
+  modalStack = modalStack.filter(m => m !== wrap);
+}
+document.addEventListener("keydown", e => { if (e.key === "Escape" && modalStack.length) closeModal(); });
+
+function confirmModal(title, bodyHTML, confirmLabel, onConfirm, danger) {
+  const w = openModal(title, bodyHTML,
+    '<button class="btn" data-close>Cancel</button>' +
+    '<button class="btn ' + (danger ? "stop" : "acc") + '" data-go>' + esc(confirmLabel) + "</button>");
+  w.querySelector("[data-go]").addEventListener("click", () => { closeModal(w); onConfirm(); });
+  return w;
+}
+
+/* ==============================================================
+   DATA STORES
+   Both stores expose the same surface. Writes are fire-and-forget
+   so Punch In and Punch Out never wait on the network.
+   ============================================================== */
+let fb = null;
+
+function firestoreStore(user) {
+  const fs = fb.fs, db = fb.db;
+  const root       = fs.doc(db, "sundial_users", user.uid);
+  const clientsCol = fs.collection(root, "clients");
+  const entriesCol = fs.collection(root, "entries");
+  let unsubs = [], h = null;
+  let pend = { s: 0, c: 0, e: 0 };
+  let windowStart = dayKey(addDays(new Date(), -400));
+  let unsubEntries = null;
+
+  const bump = () => h.sync({ pending: pend.s + pend.c + pend.e });
+  const stamp = d => Object.assign({}, d, { updatedAt: new Date() });
+
+  function subEntries() {
+    if (unsubEntries) unsubEntries();
+    const q = fs.query(entriesCol, fs.where("day", ">=", windowStart));
+    unsubEntries = fs.onSnapshot(q, { includeMetadataChanges: true }, snap => {
+      pend.e = snap.docs.filter(d => d.metadata.hasPendingWrites).length;
+      h.entries(snap.docs.map(d => Object.assign({ id: d.id }, d.data())));
+      bump();
+    }, err => h.error(err));
+  }
+
+  return {
+    start(handlers) {
+      h = handlers;
+      unsubs.push(fs.onSnapshot(root, { includeMetadataChanges: true }, snap => {
+        pend.s = snap.metadata.hasPendingWrites ? 1 : 0;
+        h.settings(snap.exists() ? snap.data() : null);
+        bump();
+      }, err => h.error(err)));
+      unsubs.push(fs.onSnapshot(clientsCol, { includeMetadataChanges: true }, snap => {
+        pend.c = snap.docs.filter(d => d.metadata.hasPendingWrites).length;
+        h.clients(snap.docs.map(d => Object.assign({ id: d.id }, d.data())));
+        bump();
+      }, err => h.error(err)));
+      subEntries();
+    },
+    stop() { unsubs.forEach(u => u()); unsubs = []; if (unsubEntries) unsubEntries(); unsubEntries = null; },
+    extendWindow(day) { if (day < windowStart) { windowStart = day; subEntries(); } },
+    saveSettings(patch) { fs.setDoc(root, stamp(patch), { merge: true }).catch(e => toast(e.message || e, true)); },
+    upsertClient(id, data) {
+      const ref = id ? fs.doc(clientsCol, id) : fs.doc(clientsCol);
+      const payload = stamp(data);
+      if (!id) payload.createdAt = new Date();
+      fs.setDoc(ref, payload, { merge: true }).catch(e => toast(e.message || e, true));
+      return ref.id;
+    },
+    deleteClient(id) { fs.deleteDoc(fs.doc(clientsCol, id)).catch(e => toast(e.message || e, true)); },
+    addEntry(data) {
+      const ref = fs.doc(entriesCol);
+      fs.setDoc(ref, Object.assign({ createdAt: new Date() }, stamp(data))).catch(e => toast(e.message || e, true));
+      return ref.id;
+    },
+    setEntry(id, data) {
+      const ref = fs.doc(entriesCol, id);
+      fs.setDoc(ref, Object.assign({ createdAt: new Date() }, stamp(data)), { merge: true }).catch(e => toast(e.message || e, true));
+      return id;
+    },
+    updateEntry(id, patch) { fs.setDoc(fs.doc(entriesCol, id), stamp(patch), { merge: true }).catch(e => toast(e.message || e, true)); },
+    deleteEntry(id) { fs.deleteDoc(fs.doc(entriesCol, id)).catch(e => toast(e.message || e, true)); },
+    async eraseAll() {
+      for (const e of state.entries.slice()) await fs.deleteDoc(fs.doc(entriesCol, e.id));
+      for (const c of state.clients.slice()) await fs.deleteDoc(fs.doc(clientsCol, c.id));
+      await fs.deleteDoc(root);
+    },
+    async retry() {
+      try { await fb.fs.disableNetwork(db); await fb.fs.enableNetwork(db); } catch (e) { /* ignore */ }
+    }
+  };
+}
+
+function mockStore() {
+  let h = null;
+  const data = { settings: null, clients: [], entries: [] };
+  const push = () => { h.settings(data.settings); h.clients(data.clients.map(c => Object.assign({}, c))); h.entries(data.entries.map(e => Object.assign({}, e))); h.sync({ pending: 0 }); };
+  function seed() {
+    const now = new Date();
+    const mk = (name, color, jts) => ({
+      id: uid(), name, email: name.toLowerCase().replace(/[^a-z]+/g, "") + "@example.com", color,
+      rate: null, archived: false, billable: true, allowConcurrent: false, ticketUrl: "",
+      rounding: null, jobTypes: jts, createdAt: now, updatedAt: now
+    });
+    const jt = (n, o) => Object.assign({ id: uid(), name: n, archived: false, billable: null, allowConcurrent: null, travel: false, limit: null }, o || {});
+    const c1 = mk("Example Co", "#1e6fd9", [jt("Remote support"), jt("On-site"), jt("Admin", { billable: false }), jt("Monitoring", { allowConcurrent: true })]);
+    const c2 = mk("Example Dental", "#d3403a", [jt("Remote support"), jt("Project"), jt("Travel", { travel: true })]);
+    const c3 = mk("Example Legal", "#1c9d63", [jt("Project"), jt("Consulting")]);
+    c2.ticketUrl = "https://helpdesk.example/tickets/{n}";
+    data.clients = [c1, c2, c3];
+    const at = (dayOff, h1, m1, h2, m2) => {
+      const s = addDays(now, -dayOff); s.setHours(h1, m1, 0, 0);
+      const e = addDays(now, -dayOff); e.setHours(h2, m2, 0, 0);
+      return [s, e];
+    };
+    const ent = (c, jIdx, dayOff, h1, m1, h2, m2, ticket, project, notes) => {
+      const t = at(dayOff, h1, m1, h2, m2);
+      const j = c.jobTypes[jIdx];
+      return {
+        id: uid(), clientId: c.id, jobTypeId: j.id, project: project || "", ticket: ticket || "", notes: notes || "",
+        billable: j.billable == null ? c.billable : j.billable, miles: null, mileageNote: "", limitOverride: null,
+        start: t[0], end: t[1], day: dayKey(t[0]), createdAt: now, updatedAt: now
+      };
+    };
+    data.entries = [
+      ent(c1, 0, 0, 9, 2, 10, 47, "5421", "Printer replacement", "Printer queue stuck on front desk PC; cleared spooler, updated driver."),
+      ent(c3, 0, 0, 10, 55, 12, 40, "", "M365 migration", "Moved 6 mailboxes, verified Outlook profiles."),
+      ent(c1, 2, 0, 12, 40, 13, 0, "", "", "Updated asset list."),
+      ent(c2, 1, 1, 13, 15, 15, 30, "INC-0042", "Server refresh", "Racked and imaged the replacement host."),
+      ent(c3, 0, 2, 9, 0, 12, 30, "", "M365 migration", "Cutover planning call and DNS prep.")
+    ];
+    data.settings = Object.assign({}, DEFAULT_SETTINGS, { yourName: "Example User" });
+  }
+  seed();
+  return {
+    start(handlers) { h = handlers; setTimeout(push, 0); },
+    stop() {},
+    extendWindow() {},
+    saveSettings(patch) { data.settings = Object.assign({}, data.settings || {}, patch, { updatedAt: new Date() }); push(); },
+    upsertClient(id, d) {
+      if (id) { const i = data.clients.findIndex(c => c.id === id); if (i >= 0) data.clients[i] = Object.assign({}, data.clients[i], d, { updatedAt: new Date() }); }
+      else { id = uid(); data.clients.push(Object.assign({ id, createdAt: new Date(), updatedAt: new Date() }, d)); }
+      push(); return id;
+    },
+    deleteClient(id) { data.clients = data.clients.filter(c => c.id !== id); push(); },
+    addEntry(d) { const id = uid(); data.entries.push(Object.assign({ id, createdAt: new Date(), updatedAt: new Date() }, d)); push(); return id; },
+    setEntry(id, d) { const i = data.entries.findIndex(e => e.id === id); if (i >= 0) data.entries[i] = Object.assign({}, data.entries[i], d); else data.entries.push(Object.assign({ id }, d)); push(); return id; },
+    updateEntry(id, patch) { const i = data.entries.findIndex(e => e.id === id); if (i >= 0) data.entries[i] = Object.assign({}, data.entries[i], patch, { updatedAt: new Date() }); push(); },
+    deleteEntry(id) { data.entries = data.entries.filter(e => e.id !== id); push(); },
+    async eraseAll() { data.entries = []; data.clients = []; data.settings = Object.assign({}, DEFAULT_SETTINGS); push(); },
+    async retry() {}
+  };
+}
+
+/* ---------------- sync pill ---------------- */
+function syncLabel() {
+  if (!state.sync.online) return state.sync.pending ? "Offline, " + state.sync.pending + " pending" : "Offline";
+  if (state.sync.pending) return "Syncing";
+  return "Synced";
+}
+function paintSync() {
+  const label = syncLabel();
+  const s = !state.sync.online ? "offline" : (state.sync.pending ? "syncing" : "synced");
+  const pill = $("#syncPill");
+  if (pill) { pill.dataset.s = s; $("#syncText").textContent = label; }
+  const f = $("#footSync"); if (f) f.textContent = label;
+  const os = $("#offlineStatus");
+  if (os) {
+    os.textContent = (state.sync.online ? "Online. " : "Offline. ") +
+      (state.sync.pending ? state.sync.pending + " change" + (state.sync.pending === 1 ? "" : "s") + " waiting to sync. " : "Nothing waiting to sync. ") +
+      (MOCK ? "Mock mode: nothing is stored." : "Your hours are cached on this device, so the app opens and records time without a connection.");
+  }
+}
+window.addEventListener("online",  () => { state.sync.online = true;  paintSync(); });
+window.addEventListener("offline", () => { state.sync.online = false; paintSync(); });
+
+/* ==============================================================
+   DERIVED HELPERS
+   ============================================================== */
+function clientById(id) { return state.clients.find(c => c.id === id) || null; }
+function jobTypeById(client, id) { return client && Array.isArray(client.jobTypes) ? (client.jobTypes.find(j => j.id === id) || null) : null; }
+function jobTypeName(client, id) { const j = jobTypeById(client, id); return j ? j.name : ""; }
+function effBillable(client, jt) {
+  if (jt && jt.billable != null) return !!jt.billable;
+  return client ? client.billable !== false : true;
+}
+function effConcurrent(client, jt) {
+  if (jt && jt.allowConcurrent != null) return !!jt.allowConcurrent;
+  return client ? !!client.allowConcurrent : false;
+}
+function entrySeconds(e, now) {
+  const s = toDate(e.start); if (!s) return 0;
+  const en = toDate(e.end) || (now || new Date());
+  return Math.max(0, (en - s) / 1000);
+}
+function runningEntries() {
+  const list = state.entries.filter(e => !e.end).sort((a, b) => toDate(b.start) - toDate(a.start));
+  /* the strip you tapped stays at the top of the Clock screen */
+  const i = list.findIndex(e => e.id === state.mainRunningId);
+  if (i > 0) list.unshift(list.splice(i, 1)[0]);
+  return list;
+}
+function activeClients() { return state.clients.filter(c => !c.archived).sort((a, b) => a.name.localeCompare(b.name)); }
+function activeJobTypes(c) { return c && Array.isArray(c.jobTypes) ? c.jobTypes.filter(j => !j.archived) : []; }
+function entriesForDay(day) {
+  return state.entries.filter(e => e.day === day).sort((a, b) => toDate(a.start) - toDate(b.start));
+}
+function clientColor(c) { return (c && c.color) || "#5a6b7d"; }
+function ticketHTML(client, ticket) {
+  if (!ticket) return "";
+  const pat = client && client.ticketUrl;
+  if (pat && pat.indexOf("{n}") >= 0) {
+    return '<a href="' + esc(pat.replace("{n}", encodeURIComponent(ticket))) + '" target="_blank" rel="noopener">#' + esc(ticket) + "</a>";
+  }
+  return "#" + esc(ticket);
+}
+function overlaps(start, end, exceptId) {
+  const s = start.getTime(), e = (end || new Date()).getTime();
+  return state.entries.filter(x => {
+    if (x.id === exceptId) return false;
+    const xs = toDate(x.start); if (!xs) return false;
+    const xe = toDate(x.end) || new Date();
+    return xs.getTime() < e && xe.getTime() > s;
+  });
+}
+function entryLabel(e) {
+  const c = clientById(e.clientId);
+  return (c ? c.name : "Unknown client") + " / " + (jobTypeName(c, e.jobTypeId) || "Job");
+}
+
+/* ---------------- select helpers ---------------- */
+function fillSelect(sel, items, placeholder, keep) {
+  const want = keep != null ? keep : sel.value;
+  const sig = placeholder + "|" + items.map(i => i.v + ":" + i.t).join("|");
+  if (sel.dataset.sig !== sig) {
+    sel.innerHTML = (placeholder != null ? '<option value="">' + esc(placeholder) + "</option>" : "") +
+      items.map(i => '<option value="' + esc(i.v) + '">' + esc(i.t) + "</option>").join("");
+    sel.dataset.sig = sig;
+  }
+  if (want != null && (want === "" || items.some(i => i.v === want))) sel.value = want;
+  else if (want && !items.some(i => i.v === want)) sel.value = "";
+}
+function glow(sel) { sel.classList.toggle("glow", !sel.value && !sel.disabled); }
+
+/* ==============================================================
+   CLOCK
+   ============================================================== */
+function paintClock() {
+  const running = runningEntries();
+  const main = running[0] || null;
+
+  $("#outLeft").hidden = !!main;
+  $("#inLeft").hidden  = !main;
+  $("#runEdit").hidden = !main;
+  $("#startTitle").hidden = !main;
+  $("#cancelStartBtn").hidden = !main;
+  $("#startPanel").hidden = !!main && !state.startPanelOpen;
+  $("#punchHint").hidden = !main;
+
+  if (main) {
+    const c = clientById(main.clientId), jt = jobTypeById(c, main.jobTypeId);
+    const bits = [c ? c.name : "Unknown client", jobTypeName(c, main.jobTypeId) || "Job"];
+    if (main.ticket) bits.push("#" + main.ticket);
+    $("#runPill").innerHTML = '<span class="dot"></span> Clocked in &middot; ' + esc(bits.join(" / ")) +
+      (effBillable(c, jt) ? "" : '<span class="tagnb">non-billable</span>');
+    $("#runSince").textContent = "Since " + fmtTime(toDate(main.start));
+    if (state.runEditId !== main.id) {
+      state.runEditId = main.id;
+      $("#rTicket").value  = main.ticket  || "";
+      $("#rProject").value = main.project || "";
+      $("#rNotes").value   = main.notes   || "";
+    }
+    const others = running.slice(1);
+    $("#alsoList").innerHTML = others.map(e =>
+      '<div class="also" data-also="' + e.id + '"><span class="cdot" style="background:' + esc(clientColor(clientById(e.clientId))) + '"></span>' +
+      '<span>Also running: ' + esc(entryLabel(e)) + "</span>" +
+      '<span class="t" data-elapsed="' + e.id + '">' + fmtClock(entrySeconds(e)) + "</span>" +
+      '<button class="btn sm" data-out="' + e.id + '">Punch Out</button>' +
+      '<button class="btn sm" data-top="' + e.id + '" title="Bring this one to the top of the Clock screen.">Bring up</button></div>'
+    ).join("");
+  } else {
+    state.runEditId = null;
+    $("#alsoList").innerHTML = "";
+  }
+
+  const cs = activeClients();
+  const fc = $("#fClient");
+  fillSelect(fc, cs.map(c => ({ v: c.id, t: c.name })), "Pick a client");
+  const c = clientById(fc.value);
+  const fj = $("#fJob");
+  fj.disabled = !c;
+  fillSelect(fj, activeJobTypes(c).map(j => ({ v: j.id, t: j.name })), c ? "Pick a job type" : "Pick a client first");
+  glow(fc); glow(fj);
+  paintProjectList(fc.value);
+  paintPunchButton();
+
+  paintRecent();
+  paintTiles();
+  paintTodayTable();
+  paintTimer();
+}
+
+function paintProjectList(clientId) {
+  const seen = [];
+  state.entries
+    .filter(e => e.clientId === clientId && e.project)
+    .sort((a, b) => toDate(b.start) - toDate(a.start))
+    .forEach(e => { if (seen.indexOf(e.project) < 0) seen.push(e.project); });
+  $("#projList").innerHTML = seen.slice(0, 20).map(p => '<option value="' + esc(p) + '"></option>').join("");
+}
+
+function canStartAlongside(client, jt) {
+  const running = runningEntries();
+  if (!running.length) return true;
+  if (effConcurrent(client, jt)) return true;
+  return running.every(e => { const c = clientById(e.clientId); return effConcurrent(c, jobTypeById(c, e.jobTypeId)); });
+}
+function paintPunchButton() {
+  const c = clientById($("#fClient").value);
+  const jt = jobTypeById(c, $("#fJob").value);
+  const running = runningEntries();
+  const ok = canStartAlongside(c, jt);
+  const btn = $("#punchBtn");
+  btn.textContent = running.length && !ok ? "Switch" : "Punch In";
+  btn.classList.toggle("go", true);
+  $("#punchHint").textContent = !running.length ? ""
+    : (ok ? "This job may run alongside what is already running." : "Something is already running. Switch punches it out first.");
+}
+
+function paintRecent() {
+  const seen = [], out = [];
+  state.entries.slice().sort((a, b) => toDate(b.start) - toDate(a.start)).forEach(e => {
+    const key = e.clientId + "|" + e.jobTypeId;
+    if (seen.indexOf(key) >= 0) return;
+    const c = clientById(e.clientId); if (!c || c.archived) return;
+    const j = jobTypeById(c, e.jobTypeId); if (!j || j.archived) return;
+    seen.push(key);
+    out.push({ c, j });
+  });
+  const box = $("#recentChips");
+  if (!out.length) { box.innerHTML = '<span class="hint">Punch in once and your recent client and job pairs land here for one-tap starts.</span>'; return; }
+  box.innerHTML = out.slice(0, 6).map(r =>
+    '<button class="chip" data-recent="' + esc(r.c.id) + "|" + esc(r.j.id) + '">' +
+    '<i class="dot" style="background:' + esc(clientColor(r.c)) + '"></i>' + esc(r.c.name) + " &middot; " + esc(r.j.name) + "</button>").join("");
+}
+
+function paintTiles() {
+  const today = dayKey(new Date());
+  const rows = entriesForDay(today);
+  const total = rows.reduce((s, e) => s + entrySeconds(e), 0);
+  const bill  = rows.filter(e => e.billable !== false).reduce((s, e) => s + entrySeconds(e), 0);
+  const clients = new Set(rows.map(e => e.clientId)).size;
+  const ws = startOfWeek(new Date(), state.settings.weekStart);
+  const wsKey = dayKey(ws), weKey = dayKey(addDays(ws, 6));
+  const week = state.entries.filter(e => e.day >= wsKey && e.day <= weKey).reduce((s, e) => s + entrySeconds(e), 0);
+  $("#todayTiles").innerHTML =
+    tile("Today", fmtDur(total)) + tile("Billable", fmtDur(bill)) +
+    tile("Entries", String(rows.length)) + tile("Clients", String(clients)) + tile("This week", fmtDur(week));
+}
+function tile(k, n) { return '<div class="tile"><div class="k">' + esc(k) + '</div><div class="n">' + esc(n) + "</div></div>"; }
+
+function visibleColumns() {
+  const cols = Array.isArray(state.settings.columns) && state.settings.columns.length ? state.settings.columns : DEFAULT_COLUMNS;
+  return COLUMN_DEFS.filter(d => cols.indexOf(d.k) >= 0);
+}
+function sortEntries(rows) {
+  const s = state.settings.sort;
+  if (!s || !s.key) return rows;
+  const dir = s.dir === "desc" ? -1 : 1;
+  const val = e => {
+    const c = clientById(e.clientId);
+    switch (s.key) {
+      case "start":  return toDate(e.start).getTime();
+      case "end":    return toDate(e.end) ? toDate(e.end).getTime() : Infinity;
+      case "dur":    return entrySeconds(e);
+      case "client": return (c ? c.name : "").toLowerCase();
+      case "job":    return (jobTypeName(c, e.jobTypeId) || "").toLowerCase();
+      case "ticket": return (e.ticket || "").toLowerCase();
+      case "project":return (e.project || "").toLowerCase();
+      case "notes":  return (e.notes || "").toLowerCase();
+      default: return 0;
+    }
+  };
+  return rows.slice().sort((a, b) => { const x = val(a), y = val(b); return x < y ? -dir : x > y ? dir : 0; });
+}
+function entryCellHTML(e, key) {
+  const c = clientById(e.clientId);
+  switch (key) {
+    case "start":  return fmtTime(toDate(e.start));
+    case "end":    return e.end ? fmtTime(toDate(e.end)) : '<span class="pill"><span class="dot"></span>running</span>';
+    case "dur":    return '<span data-elapsed="' + e.id + '">' + fmtDur(entrySeconds(e)) + "</span>";
+    case "client": return '<span class="cdot" style="background:' + esc(clientColor(c)) + '"></span>' + esc(c ? c.name : "Unknown client");
+    case "job":    return esc(jobTypeName(c, e.jobTypeId) || "") + (e.billable === false ? '<span class="tagnb">non-billable</span>' : "");
+    case "ticket": return ticketHTML(c, e.ticket);
+    case "project":return esc(e.project || "");
+    case "notes":  return esc(e.notes || "");
+  }
+  return "";
+}
+function renderEntryTable(tableEl, rows, opts) {
+  const cols = visibleColumns();
+  const s = state.settings.sort || {};
+  const head = "<thead><tr>" + cols.map(c =>
+    '<th data-sort="' + c.k + '">' + esc(c.label) + (s.key === c.k ? '<span class="ar">' + (s.dir === "desc" ? "▼" : "▲") + "</span>" : "") + "</th>").join("") +
+    "<th></th></tr></thead>";
+  const body = "<tbody>" + (rows.length ? sortEntries(rows).map(e =>
+    '<tr' + (e.end ? "" : ' class="running"') + '>' +
+    cols.map(c => '<td class="' + (c.k === "start" || c.k === "end" || c.k === "dur" ? "t" : "") + '" data-l="' + esc(c.label) + '">' + entryCellHTML(e, c.k) + "</td>").join("") +
+    '<td class="act" data-l="Actions">' +
+      '<button data-edit="' + e.id + '">Edit</button>' +
+      '<button data-dup="' + e.id + '">Duplicate</button>' +
+      '<button data-del="' + e.id + '">Delete</button>' +
+    "</td></tr>").join("")
+    : '<tr><td colspan="' + (cols.length + 1) + '" class="emptyrow">' + esc(opts.empty) + "</td></tr>") + "</tbody>";
+  tableEl.innerHTML = head + body;
+}
+function paintTodayTable() {
+  renderEntryTable($("#todayTable"), entriesForDay(dayKey(new Date())), { empty: "Nothing logged today yet." });
+}
+
+/* live one-second tick: the timer is computed from the stored start
+   timestamp, so it survives a reload and a closed laptop lid. */
+function paintTimer() {
+  const running = runningEntries();
+  const main = running[0];
+  if (main) $("#runTimer").textContent = fmtClock(entrySeconds(main));
+  $$("[data-elapsed]").forEach(el => {
+    const e = state.entries.find(x => x.id === el.getAttribute("data-elapsed"));
+    if (!e || e.end) return;
+    el.textContent = el.closest(".also") ? fmtClock(entrySeconds(e)) : fmtDur(entrySeconds(e));
+  });
+}
+setInterval(() => { if (state.user) paintTimer(); }, 1000);
+
+/* ---------------- punching ---------------- */
+function doPunchIn(fields) {
+  const now = new Date();
+  const c = clientById(fields.clientId), jt = jobTypeById(c, fields.jobTypeId);
+  state.startPanelOpen = false;
+  const id = store.addEntry({
+    clientId: fields.clientId, jobTypeId: fields.jobTypeId,
+    project: fields.project || "", ticket: fields.ticket || "", notes: fields.notes || "",
+    billable: effBillable(c, jt), miles: null, mileageNote: "", limitOverride: null,
+    start: now, end: null, day: dayKey(now)
+  });
+  paintClock();
+  toast("Punched in on " + (c ? c.name : "client") + ".");
+  return id;
+}
+function punchOut(id) {
+  const e = state.entries.find(x => x.id === id);
+  if (!e) return;
+  store.updateEntry(id, { end: new Date() });
+  toast("Punched out. " + fmtDur(entrySeconds(e)) + " logged.");
+}
+function startJob(fields) {
+  const c = clientById(fields.clientId), jt = jobTypeById(c, fields.jobTypeId);
+  if (!c)  { toast("Pick a client first.", true); glow($("#fClient")); return; }
+  if (!jt) { toast("Pick a job type first.", true); glow($("#fJob")); return; }
+  const running = runningEntries();
+  if (running.length && !canStartAlongside(c, jt)) {
+    confirmModal("Something is already running",
+      "<p>" + esc(entryLabel(running[0])) + " has been running for " + esc(fmtDur(entrySeconds(running[0]))) + ".</p>" +
+      "<p>" + esc(c.name + " / " + jt.name) + " is not flagged to run alongside another job, so it cannot start on its own.</p>",
+      "Punch out current and start new", () => {
+        running.forEach(r => store.updateEntry(r.id, { end: new Date() }));
+        doPunchIn(fields);
+        clearStartForm();
+      });
+    return;
+  }
+  doPunchIn(fields);
+  clearStartForm();
+}
+function clearStartForm() {
+  $("#fTicket").value = ""; $("#fProject").value = ""; $("#fNotes").value = "";
+}
+function startFields() {
+  return {
+    clientId: $("#fClient").value, jobTypeId: $("#fJob").value,
+    ticket: $("#fTicket").value.trim(), project: $("#fProject").value.trim(), notes: $("#fNotes").value.trim()
+  };
+}
+
+/* ==============================================================
+   ENTRY MODAL - one form for add, edit and duplicate
+   ============================================================== */
+function openEntryModal(mode, src) {
+  const isDup = mode === "dup", isEdit = mode === "edit";
+  const now = new Date();
+  const base = src || {};
+  const start = isDup ? now : (toDate(base.start) || now);
+  const end   = isDup ? null : toDate(base.end);
+  const cs = activeClients();
+  const clientId = base.clientId || (cs[0] ? "" : "");
+
+  const body =
+    '<div class="g2">' +
+      '<div><label class="lab" for="eClient">Client <span class="q" title="Exports group and filter by client, so this one is not optional.">?</span></label>' +
+        '<select class="fld" id="eClient"></select></div>' +
+      '<div><label class="lab" for="eJob">Job type <span class="q" title="Changing this resets Billable to whatever that job type says, because that is almost always what you meant.">?</span></label>' +
+        '<select class="fld" id="eJob"></select></div>' +
+    "</div>" +
+    '<div class="g2">' +
+      '<div><label class="lab" for="eTicket">Ticket # <span class="q" title="Free text. Becomes a link when this client has a ticket URL pattern.">?</span></label>' +
+        '<input class="fld" id="eTicket" autocomplete="off"></div>' +
+      '<div><label class="lab" for="eProject">Project <span class="q" title="Optional label that keeps recurring work together in exports.">?</span></label>' +
+        '<input class="fld" id="eProject" list="eProjList" autocomplete="off"><datalist id="eProjList"></datalist></div>' +
+    "</div>" +
+    '<label class="lab" for="eNotes">Notes <span class="q" title="Written for the client: this is the line that lands in the email export.">?</span></label>' +
+    '<textarea class="fld" id="eNotes"></textarea>' +
+    '<label class="ck" style="margin-top:10px"><input type="checkbox" id="eBillable"> Billable ' +
+      '<span class="q" title="Starts from the job type value. Non-billable time still shows in your own exports, tagged, and is left out of billable-only ones.">?</span></label>' +
+    '<div class="g2">' +
+      '<div><label class="lab" for="eStartD">Start date</label><input type="date" class="fld" id="eStartD"></div>' +
+      '<div><label class="lab" for="eStartT">Start time</label><input type="time" class="fld" id="eStartT"></div>' +
+    "</div>" +
+    '<div class="g2">' +
+      '<div><label class="lab" for="eEndD">End date <span class="q" title="Leave the end blank to save this as the running entry.">?</span></label><input type="date" class="fld" id="eEndD"></div>' +
+      '<div><label class="lab" for="eEndT">End time</label><input type="time" class="fld" id="eEndT"></div>' +
+    "</div>" +
+    '<div class="hint" id="eDur" style="font-size:13.5px;margin-top:8px"></div>' +
+    '<div id="eWarn"></div>';
+
+  const foot = isDup
+    ? '<button class="btn" data-close>Cancel</button><button class="btn" id="eSaveTimes">Save with times</button><button class="btn acc" id="ePunch">Punch in now</button>'
+    : '<button class="btn" data-close>Cancel</button><button class="btn acc" id="eSave">Save</button>';
+
+  const w = openModal(isEdit ? "Edit entry" : isDup ? "Duplicate entry" : "Add manual entry", body, foot, { wide: true });
+
+  const eClient = $("#eClient", w), eJob = $("#eJob", w);
+  fillSelect(eClient, cs.map(c => ({ v: c.id, t: c.name })), "Pick a client", base.clientId || "");
+  function refreshJobs(keep) {
+    const c = clientById(eClient.value);
+    eJob.disabled = !c;
+    fillSelect(eJob, activeJobTypes(c).map(j => ({ v: j.id, t: j.name })), c ? "Pick a job type" : "Pick a client first", keep);
+    glow(eClient); glow(eJob);
+    const seen = [];
+    state.entries.filter(e => e.clientId === eClient.value && e.project).sort((a, b) => toDate(b.start) - toDate(a.start))
+      .forEach(e => { if (seen.indexOf(e.project) < 0) seen.push(e.project); });
+    $("#eProjList", w).innerHTML = seen.slice(0, 20).map(p => '<option value="' + esc(p) + '"></option>').join("");
+  }
+  refreshJobs(base.jobTypeId || "");
+  $("#eTicket", w).value  = base.ticket  || "";
+  $("#eProject", w).value = base.project || "";
+  $("#eNotes", w).value   = base.notes   || "";
+  const c0 = clientById(eClient.value);
+  $("#eBillable", w).checked = base.billable != null && !isDup ? base.billable !== false
+    : effBillable(c0, jobTypeById(c0, eJob.value));
+  $("#eStartD", w).value = localInput(start);
+  $("#eStartT", w).value = localTimeInput(start);
+  $("#eEndD", w).value   = end ? localInput(end) : "";
+  $("#eEndT", w).value   = end ? localTimeInput(end) : "";
+
+  function readForm() {
+    const s = fromInputs($("#eStartD", w).value, $("#eStartT", w).value);
+    const eD = $("#eEndD", w).value, eT = $("#eEndT", w).value;
+    const en = (eD && eT) ? fromInputs(eD, eT) : null;
+    return {
+      clientId: eClient.value, jobTypeId: eJob.value,
+      ticket: $("#eTicket", w).value.trim(), project: $("#eProject", w).value.trim(), notes: $("#eNotes", w).value.trim(),
+      billable: $("#eBillable", w).checked, start: s, end: en
+    };
+  }
+  function refreshDur() {
+    const f = readForm();
+    const dur = $("#eDur", w), warn = $("#eWarn", w);
+    if (!f.start) { dur.textContent = "Set a start date and time."; warn.innerHTML = ""; return; }
+    if (f.end && f.end <= f.start) { dur.innerHTML = '<span class="prob">End is before start.</span>'; warn.innerHTML = ""; return; }
+    dur.textContent = f.end ? "Duration " + fmtDur((f.end - f.start) / 1000)
+                            : "Running - this entry will have no end time. " + fmtDur((new Date() - f.start) / 1000) + " so far.";
+    const conflicts = overlaps(f.start, f.end, isEdit ? base.id : null);
+    warn.innerHTML = conflicts.length
+      ? '<div class="warn">Overlaps ' + esc(entryLabel(conflicts[0])) + " " +
+        esc(fmtTime(toDate(conflicts[0].start))) + " - " + esc(conflicts[0].end ? fmtTime(toDate(conflicts[0].end)) : "running") +
+        (conflicts.length > 1 ? " and " + (conflicts.length - 1) + " more" : "") +
+        ". Saving is still allowed; overlapping time is counted in full for each entry.</div>"
+      : "";
+  }
+  eClient.addEventListener("change", () => {
+    refreshJobs("");
+    const c = clientById(eClient.value);
+    $("#eBillable", w).checked = effBillable(c, jobTypeById(c, eJob.value));
+    refreshDur();
+  });
+  eJob.addEventListener("change", () => {
+    const c = clientById(eClient.value);
+    $("#eBillable", w).checked = effBillable(c, jobTypeById(c, eJob.value));
+    glow(eJob); refreshDur();
+  });
+  ["eStartD", "eStartT", "eEndD", "eEndT"].forEach(id => $("#" + id, w).addEventListener("input", refreshDur));
+  refreshDur();
+
+  function validate(f) {
+    if (!f.clientId) { toast("Pick a client.", true); glow(eClient); return false; }
+    if (!f.jobTypeId) { toast("Pick a job type.", true); glow(eJob); return false; }
+    if (!f.start) { toast("Set a start date and time.", true); return false; }
+    if (f.end && f.end <= f.start) { toast("End must be after start.", true); return false; }
+    return true;
+  }
+  function payload(f) {
+    return {
+      clientId: f.clientId, jobTypeId: f.jobTypeId, project: f.project, ticket: f.ticket, notes: f.notes,
+      billable: f.billable, miles: base.miles != null && isEdit ? base.miles : null,
+      mileageNote: isEdit ? (base.mileageNote || "") : "", limitOverride: isEdit ? (base.limitOverride || null) : null,
+      start: f.start, end: f.end, day: dayKey(f.start)
+    };
+  }
+  const saveBtn = $("#eSave", w);
+  if (saveBtn) saveBtn.addEventListener("click", () => {
+    const f = readForm(); if (!validate(f)) return;
+    if (isEdit) store.updateEntry(base.id, payload(f)); else store.addEntry(payload(f));
+    closeModal(w);
+    toast(isEdit ? "Entry updated." : "Entry added.");
+  });
+  const saveTimes = $("#eSaveTimes", w);
+  if (saveTimes) saveTimes.addEventListener("click", () => {
+    const f = readForm(); if (!validate(f)) return;
+    store.addEntry(payload(f));
+    closeModal(w);
+    toast("Entry added.");
+  });
+  const punchNow = $("#ePunch", w);
+  if (punchNow) punchNow.addEventListener("click", () => {
+    const f = readForm();
+    if (!f.clientId) { toast("Pick a client.", true); glow(eClient); return; }
+    if (!f.jobTypeId) { toast("Pick a job type.", true); glow(eJob); return; }
+    closeModal(w);
+    startJob({ clientId: f.clientId, jobTypeId: f.jobTypeId, ticket: f.ticket, project: f.project, notes: f.notes });
+  });
+}
+
+function deleteEntryModal(id) {
+  const e = state.entries.find(x => x.id === id); if (!e) return;
+  const c = clientById(e.clientId);
+  confirmModal("Delete this entry?",
+    "<p><b>" + esc(c ? c.name : "Unknown client") + "</b> / " + esc(jobTypeName(c, e.jobTypeId) || "Job") + "</p>" +
+    "<p>" + esc(fmtDayShort(e.day)) + ", " + esc(fmtTime(toDate(e.start))) + " - " +
+    esc(e.end ? fmtTime(toDate(e.end)) : "running") + " &middot; " + esc(fmtDur(entrySeconds(e))) + "</p>" +
+    (e.end ? "" : "<p>This is the entry that is running now. Deleting it clears the clock.</p>"),
+    "Delete entry", () => { store.deleteEntry(id); toast("Entry deleted."); }, true);
+}
+
+function openColumnsModal() {
+  const cols = Array.isArray(state.settings.columns) && state.settings.columns.length ? state.settings.columns : DEFAULT_COLUMNS;
+  const body = '<p class="hint" style="font-size:13.5px">Pick the columns you want in the Today and Timesheet tables. The layout is saved to your account, so it follows you to the phone.</p>' +
+    COLUMN_DEFS.map(d => '<label class="ck"><input type="checkbox" data-col="' + d.k + '"' + (cols.indexOf(d.k) >= 0 ? " checked" : "") + "> " + esc(d.label) + "</label>").join("");
+  const w = openModal("Columns", body,
+    '<button class="btn" data-close>Cancel</button><button class="btn" id="colReset">Reset</button><button class="btn acc" id="colSave">Save</button>');
+  $("#colReset", w).addEventListener("click", () => {
+    $$("[data-col]", w).forEach(cb => { cb.checked = DEFAULT_COLUMNS.indexOf(cb.getAttribute("data-col")) >= 0; });
+  });
+  $("#colSave", w).addEventListener("click", () => {
+    const picked = $$("[data-col]", w).filter(cb => cb.checked).map(cb => cb.getAttribute("data-col"));
+    if (!picked.length) { toast("Keep at least one column.", true); return; }
+    state.settings.columns = picked;
+    store.saveSettings({ columns: picked });
+    closeModal(w);
+    paintAll();
+    toast("Columns saved.");
+  });
+}
+
+/* ==============================================================
+   TIMESHEET (v0.1 = Day list; Week and Calendar land in v0.2)
+   ============================================================== */
+function paintTimesheet() {
+  const sel = $("#tsClient");
+  fillSelect(sel, activeClients().map(c => ({ v: c.id, t: c.name })), "All clients", state.tsClient);
+  const ws = startOfWeek(dayDate(state.tsDay), state.settings.weekStart);
+  const todayKey = dayKey(new Date());
+  let stripHTML = "";
+  for (let i = 0; i < 7; i++) {
+    const d = addDays(ws, i), k = dayKey(d);
+    const total = state.entries.filter(e => e.day === k && (!state.tsClient || e.clientId === state.tsClient))
+      .reduce((s, e) => s + entrySeconds(e), 0);
+    stripHTML += '<button data-day="' + k + '"' + (k === state.tsDay ? ' class="on"' : "") + '>' +
+      '<span class="dw">' + esc(d.toLocaleDateString(undefined, { weekday: "short" })) + "</span>" +
+      '<span class="dd">' + d.getDate() + "</span>" +
+      '<span class="dt">' + (total ? esc(fmtDur(total)) : "-") + "</span></button>";
+  }
+  $("#tsStrip").innerHTML = stripHTML;
+  $("#tsTitle").textContent = (state.tsDay === todayKey ? "Today - " : "") + fmtDayLong(state.tsDay);
+
+  const rows = entriesForDay(state.tsDay).filter(e => !state.tsClient || e.clientId === state.tsClient);
+  $("#tsRows").innerHTML = rows.length ? rows.map(e => {
+    const c = clientById(e.clientId);
+    const meta = [];
+    if (e.ticket)  meta.push(ticketHTML(c, e.ticket));
+    if (e.project) meta.push(esc(e.project));
+    meta.push(esc(fmtTime(toDate(e.start)) + " - " + (e.end ? fmtTime(toDate(e.end)) : "running")));
+    return '<div class="tsrow' + (e.end ? "" : " running") + '">' +
+      "<div><div class=\"ttl\"><span class=\"cdot\" style=\"background:" + esc(clientColor(c)) + "\"></span>" +
+        esc(c ? c.name : "Unknown client") + " &middot; " + esc(jobTypeName(c, e.jobTypeId) || "Job") +
+        (e.billable === false ? '<span class="tagnb">non-billable</span>' : "") + "</div>" +
+        '<div class="meta">' + meta.join(" &middot; ") + "</div>" +
+        (e.notes ? '<div class="meta">' + esc(e.notes) + "</div>" : "") + "</div>" +
+      '<div class="right"><span class="dur" data-elapsed="' + e.id + '">' + esc(fmtDur(entrySeconds(e))) + "</span>" +
+        (e.end ? '<button class="btn sm" data-tsstart="' + e.id + '" title="Duplicates this entry and punches in on it now.">Start</button>'
+               : '<button class="btn sm stop" data-out="' + e.id + '">Stop</button>') +
+        '<button class="btn sm" data-edit="' + e.id + '">Edit</button></div></div>';
+  }).join("") : '<div class="emptyrow">Nothing logged on this day.</div>';
+
+  const total = rows.reduce((s, e) => s + entrySeconds(e), 0);
+  const bill  = rows.filter(e => e.billable !== false).reduce((s, e) => s + entrySeconds(e), 0);
+  $("#tsTotal").innerHTML = "Day total " + esc(fmtDur(total)) +
+    (bill !== total ? ' <span style="color:var(--muted);font-weight:400">(billable ' + esc(fmtDur(bill)) + ")</span>" : "");
+}
+
+/* ==============================================================
+   CLIENTS
+   ============================================================== */
+function monthStatsFor(clientId) {
+  const now = new Date();
+  const from = dayKey(new Date(now.getFullYear(), now.getMonth(), 1));
+  const to   = dayKey(new Date(now.getFullYear(), now.getMonth() + 1, 0));
+  const rows = state.entries.filter(e => e.clientId === clientId && e.day >= from && e.day <= to);
+  return { count: rows.length, secs: rows.reduce((s, e) => s + entrySeconds(e), 0) };
+}
+function paintClients() {
+  const live = activeClients();
+  $("#clientCards").innerHTML = live.length ? live.map(c => {
+    const st = monthStatsFor(c.id);
+    const jts = activeJobTypes(c);
+    return '<div class="card cl">' +
+      "<h5><span class=\"cdot\" style=\"background:" + esc(clientColor(c)) + "\"></span>" + esc(c.name) + "</h5>" +
+      '<div class="em">' + esc(c.email || "no email yet") + "</div>" +
+      '<div class="chips">' + (jts.length ? jts.map(j => '<span class="chip">' + esc(j.name) +
+        (j.billable === false ? '<em class="mk off">$</em>' : "") +
+        (j.allowConcurrent === true ? '<em class="mk on">||</em>' : "") +
+        (j.travel ? '<em class="mk on">TRV</em>' : "") + "</span>").join("")
+        : '<span class="hint">No job types yet</span>') + "</div>" +
+      '<div class="st"><span>This month <b>' + esc(fmtDur(st.secs)) + "</b></span><span>Entries <b>" + st.count + "</b></span>" +
+        (state.settings.showAmounts ? "<span>Rate <b>" + (c.rate != null ? "$" + Number(c.rate).toFixed(2) : "-") + "</b></span>" : "") +
+        (c.ticketUrl ? '<span title="' + esc(c.ticketUrl) + '">Ticket links <b>on</b></span>' : "") + "</div>" +
+      '<div class="btnrow" style="margin-top:4px"><button class="btn sm" data-cedit="' + c.id + '">Edit</button>' +
+        '<button class="btn sm" data-carch="' + c.id + '" title="Keeps every entry and export intact, and takes the client out of the punch-in lists.">Archive</button></div>' +
+      "</div>";
+  }).join("") : '<div class="card"><div class="emptyrow">No clients yet. Add one, or import a list.</div></div>';
+
+  const arch = state.clients.filter(c => c.archived).sort((a, b) => a.name.localeCompare(b.name));
+  $("#archivedCard").hidden = !arch.length;
+  $("#archivedList").innerHTML = arch.map(c =>
+    '<div class="tsrow"><div><div class="ttl"><span class="cdot" style="background:' + esc(clientColor(c)) + '"></span>' + esc(c.name) + "</div></div>" +
+    '<div class="right"><button class="btn sm" data-cunarch="' + c.id + '">Unarchive</button>' +
+    '<button class="btn sm" data-cedit="' + c.id + '">Edit</button></div></div>').join("");
+}
+
+function newJobType(name) {
+  return { id: uid(), name: name, archived: false, billable: null, allowConcurrent: null, travel: false, limit: null };
+}
+function openClientModal(client) {
+  const isNew = !client;
+  const c = client ? JSON.parse(JSON.stringify(client)) : {
+    name: "", email: "", color: PALETTE[state.clients.length % PALETTE.length], rate: null, archived: false,
+    billable: state.settings.newClientBillable !== false,
+    allowConcurrent: !!state.settings.newClientAllowConcurrent,
+    ticketUrl: "", rounding: null,
+    jobTypes: (state.settings.defaultJobTypes || DEFAULT_JOB_TYPES).map(newJobType)
+  };
+  if (!Array.isArray(c.jobTypes)) c.jobTypes = [];
+  let jts = c.jobTypes.map(j => Object.assign({}, j));
+  let limitOpenId = null;
+
+  const body =
+    '<div class="hint">Closes only with the X, Cancel or Save. Clicking outside does nothing.</div>' +
+    '<div class="g2">' +
+      '<div><label class="lab" for="cName">Name <span class="q" title="How this client appears everywhere, including the text you paste into an email.">?</span></label><input class="fld" id="cName"></div>' +
+      '<div><label class="lab" for="cEmail">Email <span class="q" title="Used as the To address when a per-client export gets sent, from v0.2.">?</span></label><input class="fld" id="cEmail" autocomplete="off"></div>' +
+    "</div>" +
+    (state.settings.showAmounts
+      ? '<div class="g2"><div><label class="lab" for="cRate">Hourly rate <span class="q" title="Only used when Show amounts is on. Amounts are computed from billable time only.">?</span></label><span class="money"><input class="fld" id="cRate" inputmode="decimal"></span></div>' +
+        '<div><label class="lab" for="cRounding">Rounding <span class="q" title="Overrides the Settings default for this client. Stored time is never rounded; rounding applies at export from v0.2.">?</span></label>' +
+        '<select class="fld" id="cRounding"><option value="">Use default</option><option value="none">None</option><option value="6">6 minutes</option><option value="15">15 minutes</option></select></div></div>'
+      : '<label class="lab" for="cRounding">Rounding <span class="q" title="Overrides the Settings default for this client. Stored time is never rounded; rounding applies at export from v0.2.">?</span></label>' +
+        '<select class="fld" id="cRounding"><option value="">Use default</option><option value="none">None</option><option value="6">6 minutes</option><option value="15">15 minutes</option></select>') +
+    '<label class="lab" for="cTicketUrl">Ticket URL pattern <span class="q" title="Paste a ticket link and replace the number with {n}. Ticket numbers then become links in tables and exports.">?</span></label>' +
+    '<input class="fld" id="cTicketUrl" placeholder="https://helpdesk.example/tickets/{n}" autocomplete="off">' +
+    '<div class="g2" style="margin-top:6px">' +
+      '<label class="ck"><input type="checkbox" id="cBillable"> Billable <span class="q" title="The default for this client job types. Non-billable time still shows in your own exports, tagged.">?</span></label>' +
+      '<label class="ck"><input type="checkbox" id="cConcurrent"> Can run alongside other jobs <span class="q" title="Lets this client work run while another job is running instead of asking you to switch. For background work like migrations or monitoring.">?</span></label>' +
+    "</div>" +
+    '<label class="lab">Job types <span class="q" title="Sub-categories of work for this client. Type one and press Enter. The markers cycle client default, yes, no: $ is billable, || is can-run-alongside, TRV marks travel, LIM sets a time limit.">?</span></label>' +
+    '<div class="chips" id="cJts"></div>' +
+    '<div id="cLimBox"></div>' +
+    '<input class="fld" id="cJtAdd" placeholder="Add a job type and press Enter" style="margin-top:8px" autocomplete="off">' +
+    '<label class="lab">Color <span class="q" title="The dot beside this client everywhere, so a day of entries is scannable at a glance.">?</span></label>' +
+    '<div class="swatches" id="cColors"></div>';
+
+  const foot = '<button class="btn" data-close>Cancel</button>' +
+    (isNew ? "" : '<button class="btn stop" id="cDelete">Delete</button>') +
+    '<button class="btn acc" id="cSave">Save</button>';
+
+  const w = openModal(isNew ? "Add client" : "Edit client", body, foot, { wide: true });
+  $("#cName", w).value = c.name || "";
+  $("#cEmail", w).value = c.email || "";
+  if ($("#cRate", w)) $("#cRate", w).value = c.rate != null ? Number(c.rate).toFixed(2) : "";
+  $("#cRounding", w).value = c.rounding || "";
+  $("#cTicketUrl", w).value = c.ticketUrl || "";
+  $("#cBillable", w).checked = c.billable !== false;
+  $("#cConcurrent", w).checked = !!c.allowConcurrent;
+  if ($("#cRate", w)) $("#cRate", w).addEventListener("blur", e => {
+    const v = parseFloat(String(e.target.value).replace(/[^0-9.\-]/g, ""));
+    e.target.value = isFinite(v) ? v.toFixed(2) : "";
+  });
+
+  let color = c.color || PALETTE[0];
+  function paintColors() {
+    $("#cColors", w).innerHTML = PALETTE.map(p =>
+      '<button type="button" class="swatch' + (p === color ? " on" : "") + '" data-color="' + p + '" style="background:' + p + '" title="' + p + '"></button>').join("");
+  }
+  paintColors();
+  $("#cColors", w).addEventListener("click", e => {
+    const b = e.target.closest("[data-color]"); if (!b) return;
+    color = b.getAttribute("data-color"); paintColors();
+  });
+
+  function mkClass(v) { return v === true ? "mk on" : v === false ? "mk off" : "mk"; }
+  function mkTitle(what, v) { return what + ": " + (v === true ? "yes" : v === false ? "no" : "client default"); }
+  function paintJts() {
+    $("#cJts", w).innerHTML = jts.filter(j => !j.archived).map((j, i) =>
+      '<span class="chip" data-jt="' + esc(j.id) + '"><span>' + esc(j.name) + "</span>" +
+      '<em class="' + mkClass(j.billable) + '" data-cyc="billable" title="' + esc(mkTitle("Billable", j.billable)) + '">$</em>' +
+      '<em class="' + mkClass(j.allowConcurrent) + '" data-cyc="allowConcurrent" title="' + esc(mkTitle("Can run alongside", j.allowConcurrent)) + '">||</em>' +
+      '<em class="mk' + (j.travel ? " on" : "") + '" data-travel="1" title="Travel: ' + (j.travel ? "yes" : "no") + '. Travel job types ask for miles at punch out from v0.3.">TRV</em>' +
+      '<em class="mk' + (j.limit ? " on" : "") + '" data-limit="1" title="Time limit' + (j.limit ? ": warn at " + j.limit.warnMin + " min, hard limit " + j.limit.hardMin + " min" : ": none") + '. Stored now, enforced in v0.3.">LIM</em>' +
+      '<span class="x" data-rm="1" title="Removes it from the picker. Old entries keep working because the type is archived, not deleted.">&times;</span></span>').join("") ||
+      '<span class="hint">No job types yet. Add one below.</span>';
+    paintLimBox();
+  }
+  function paintLimBox() {
+    const box = $("#cLimBox", w);
+    const j = jts.find(x => x.id === limitOpenId);
+    if (!j) { box.innerHTML = ""; return; }
+    box.innerHTML = '<div class="limbox"><b style="font-size:13px">Time limit for ' + esc(j.name) + "</b>" +
+      '<div class="hint">Warn at a soft threshold, then require a reason past the hard limit. Counted across every entry with the same ticket. Stored in v0.1, enforced in v0.3.</div>' +
+      '<div class="g2"><div><label class="lab" for="limWarn">Warn at (minutes)</label><input type="number" min="0" class="fld" id="limWarn" value="' + (j.limit ? j.limit.warnMin : "") + '"></div>' +
+      '<div><label class="lab" for="limHard">Hard limit (minutes)</label><input type="number" min="0" class="fld" id="limHard" value="' + (j.limit ? j.limit.hardMin : "") + '"></div></div>' +
+      '<div class="btnrow"><button class="btn sm" id="limClear">Clear</button><button class="btn sm" id="limClose">Close</button><button class="btn sm acc" id="limSave">Set limit</button></div></div>';
+    $("#limSave", w).addEventListener("click", () => {
+      const wv = parseInt($("#limWarn", w).value, 10), hv = parseInt($("#limHard", w).value, 10);
+      if (!isFinite(hv) || hv <= 0) { toast("A hard limit in minutes is required.", true); return; }
+      j.limit = { warnMin: isFinite(wv) && wv > 0 ? wv : Math.max(1, Math.round(hv * 0.875)), hardMin: hv };
+      limitOpenId = null; paintJts();
+    });
+    $("#limClear", w).addEventListener("click", () => { j.limit = null; limitOpenId = null; paintJts(); });
+    $("#limClose", w).addEventListener("click", () => { limitOpenId = null; paintLimBox(); });
+  }
+  paintJts();
+  $("#cJts", w).addEventListener("click", e => {
+    const chip = e.target.closest("[data-jt]"); if (!chip) return;
+    const j = jts.find(x => x.id === chip.getAttribute("data-jt")); if (!j) return;
+    const cyc = e.target.getAttribute("data-cyc");
+    if (cyc) { j[cyc] = j[cyc] == null ? true : j[cyc] === true ? false : null; paintJts(); return; }
+    if (e.target.getAttribute("data-travel")) { j.travel = !j.travel; paintJts(); return; }
+    if (e.target.getAttribute("data-limit")) { limitOpenId = limitOpenId === j.id ? null : j.id; paintJts(); return; }
+    if (e.target.getAttribute("data-rm")) {
+      const used = state.entries.some(x => x.jobTypeId === j.id);
+      if (used) j.archived = true; else jts = jts.filter(x => x.id !== j.id);
+      if (limitOpenId === j.id) limitOpenId = null;
+      paintJts();
+    }
+  });
+  $("#cJtAdd", w).addEventListener("keydown", e => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    const v = e.target.value.trim(); if (!v) return;
+    if (jts.some(j => !j.archived && j.name.toLowerCase() === v.toLowerCase())) { toast("That job type is already there."); e.target.value = ""; return; }
+    jts.push(newJobType(v)); e.target.value = ""; paintJts();
+  });
+
+  const del = $("#cDelete", w);
+  if (del) del.addEventListener("click", () => {
+    const used = state.entries.filter(x => x.clientId === c.id).length;
+    if (used) {
+      openModal("Cannot delete this client",
+        "<p>" + esc(c.name) + " has " + used + " entr" + (used === 1 ? "y" : "ies") + " logged against it. Deleting the client would leave those hours without a name, so it is refused.</p>" +
+        "<p>Archive it instead: the client leaves the punch-in lists and every entry and export stays intact.</p>",
+        '<button class="btn" data-close>Cancel</button><button class="btn acc" id="cArchInstead">Archive instead</button>')
+        .querySelector("#cArchInstead").addEventListener("click", () => {
+          store.upsertClient(c.id, { archived: true });
+          closeModal(); closeModal(w); toast("Client archived.");
+        });
+      return;
+    }
+    confirmModal("Delete " + c.name + "?", "<p>This client has no entries, so it can be removed for good.</p>", "Delete client", () => {
+      store.deleteClient(c.id); closeModal(w); toast("Client deleted.");
+    }, true);
+  });
+
+  $("#cSave", w).addEventListener("click", () => {
+    const name = $("#cName", w).value.trim();
+    if (!name) { toast("A name is required.", true); $("#cName", w).focus(); return; }
+    const dup = state.clients.find(x => x.name.toLowerCase() === name.toLowerCase() && x.id !== c.id);
+    if (dup) { toast("A client called " + dup.name + " already exists.", true); return; }
+    const rateEl = $("#cRate", w);
+    const rate = rateEl && rateEl.value.trim() !== "" ? Number(parseFloat(rateEl.value.replace(/[^0-9.\-]/g, ""))) : (isNew ? null : (c.rate != null ? c.rate : null));
+    const data = {
+      name: name,
+      email: $("#cEmail", w).value.trim(),
+      color: color,
+      rate: isFinite(rate) ? rate : null,
+      archived: !!c.archived,
+      billable: $("#cBillable", w).checked,
+      allowConcurrent: $("#cConcurrent", w).checked,
+      ticketUrl: $("#cTicketUrl", w).value.trim(),
+      rounding: $("#cRounding", w).value || null,
+      jobTypes: jts
+    };
+    store.upsertClient(isNew ? null : c.id, data);
+    closeModal(w);
+    toast(isNew ? "Client added." : "Client saved.");
+  });
+}
+
+/* ==============================================================
+   CLIENT IMPORT / EXPORT / TEMPLATE
+   ============================================================== */
+let _xlsxPromise = null;
+function ensureXLSX() {
+  if (window.XLSX) return Promise.resolve(window.XLSX);
+  if (_xlsxPromise) return _xlsxPromise;
+  _xlsxPromise = new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = XLSX_URL;
+    s.onload = () => resolve(window.XLSX);
+    s.onerror = () => reject(new Error("Could not load the spreadsheet library. It needs the network the first time."));
+    document.head.appendChild(s);
+  });
+  return _xlsxPromise;
+}
+const TEMPLATE_COLS = ["name", "email", "rate", "color", "billable", "concurrent", "ticket_url", "job_types", "rounding", "archived"];
+function jobTypesToText(jts) {
+  return (jts || []).map(j => {
+    const flags = [];
+    if (j.billable === false) flags.push("nonbillable");
+    if (j.billable === true)  flags.push("billable");
+    if (j.allowConcurrent === true)  flags.push("concurrent");
+    if (j.allowConcurrent === false) flags.push("noconcurrent");
+    if (j.travel) flags.push("travel");
+    if (j.limit)  flags.push("limit=" + j.limit.warnMin + "/" + j.limit.hardMin);
+    if (j.archived) flags.push("archived");
+    return j.name + (flags.length ? "[" + flags.join(",") + "]" : "");
+  }).join(" | ");
+}
+function jobTypesFromText(text, existing) {
+  const out = [];
+  String(text || "").split("|").map(s => s.trim()).filter(Boolean).forEach(part => {
+    const m = /^(.*?)\s*(?:\[(.*?)\])?$/.exec(part);
+    const name = (m[1] || "").trim();
+    if (!name) return;
+    const prev = (existing || []).find(j => j.name.toLowerCase() === name.toLowerCase());
+    const j = prev ? Object.assign({}, prev, { archived: false }) : newJobType(name);
+    j.billable = null; j.allowConcurrent = null; j.travel = false; j.limit = null;
+    String(m[2] || "").split(",").map(s => s.trim().toLowerCase()).filter(Boolean).forEach(f => {
+      if (f === "nonbillable" || f === "non-billable") j.billable = false;
+      else if (f === "billable") j.billable = true;
+      else if (f === "concurrent") j.allowConcurrent = true;
+      else if (f === "noconcurrent") j.allowConcurrent = false;
+      else if (f === "travel") j.travel = true;
+      else if (f === "archived") j.archived = true;
+      else {
+        const lm = /^limit=(\d+)\/(\d+)$/.exec(f);
+        if (lm) j.limit = { warnMin: parseInt(lm[1], 10), hardMin: parseInt(lm[2], 10) };
+      }
+    });
+    out.push(j);
+  });
+  return out;
+}
+function yesNo(v, dflt) {
+  const s = String(v == null ? "" : v).trim().toLowerCase();
+  if (s === "") return dflt;
+  return ["yes", "y", "true", "1", "on"].indexOf(s) >= 0;
+}
+function csvCell(v) {
+  const s = v == null ? "" : String(v);
+  return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+function buildCSV(rows) { return rows.map(r => r.map(csvCell).join(",")).join("\r\n"); }
+function download(filename, text, mime) {
+  const blob = new Blob([text], { type: mime || "text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
+}
+function clientRows() {
+  return state.clients.slice().sort((a, b) => a.name.localeCompare(b.name)).map(c => [
+    c.name, c.email || "", c.rate != null ? Number(c.rate).toFixed(2) : "", c.color || "",
+    c.billable === false ? "no" : "yes", c.allowConcurrent ? "yes" : "no",
+    c.ticketUrl || "", jobTypesToText(c.jobTypes), c.rounding || "default", c.archived ? "yes" : "no"
+  ]);
+}
+function pickFormat(title, onCSV, onXLSX) {
+  const w = openModal(title,
+    '<p class="hint" style="font-size:13.5px">XLSX keeps the example sheet and the How to fill notes. CSV is plain text that any spreadsheet opens.</p>',
+    '<button class="btn" data-close>Cancel</button><button class="btn" id="fmtCsv">CSV</button><button class="btn acc" id="fmtXlsx">XLSX</button>');
+  $("#fmtCsv", w).addEventListener("click", () => { closeModal(w); onCSV(); });
+  $("#fmtXlsx", w).addEventListener("click", () => { closeModal(w); onXLSX(); });
+}
+function exportClients() {
+  if (!state.clients.length) { toast("No clients to export yet.", true); return; }
+  pickFormat("Export clients",
+    () => { download("sundial-clients-" + dayKey(new Date()) + ".csv", "﻿" + buildCSV([TEMPLATE_COLS].concat(clientRows())), "text/csv;charset=utf-8"); toast("Clients exported."); },
+    () => ensureXLSX().then(X => {
+      const wb = X.utils.book_new();
+      X.utils.book_append_sheet(wb, X.utils.aoa_to_sheet([TEMPLATE_COLS].concat(clientRows())), "Clients");
+      X.writeFile(wb, "sundial-clients-" + dayKey(new Date()) + ".xlsx");
+      toast("Clients exported.");
+    }).catch(e => toast(e.message || e, true)));
+}
+const TEMPLATE_EXAMPLES = [
+  ["Example Co", "office@example.com", "75.00", "#1e6fd9", "yes", "no", "https://helpdesk.example/tickets/{n}",
+   "Remote support | On-site | Admin[nonbillable] | Monitoring[concurrent]", "default", "no"],
+  ["Example Dental", "it@example.com", "", "#d3403a", "yes", "no", "",
+   "Project | Travel[travel] | Support Ticket[limit=105/120]", "15", "no"]
+];
+const TEMPLATE_HELP = [
+  ["Column", "Required", "Allowed values", "Notes"],
+  ["name", "yes", "any text", "Matched case-insensitively on import. A matching name updates that client instead of creating a second one."],
+  ["email", "no", "an email address", "Used as the To address for a per-client export."],
+  ["rate", "no", "a number like 75.00", "Blank means no rate. Only used when Show amounts is on."],
+  ["color", "no", "a hex color like #1e6fd9", "Blank assigns one for you."],
+  ["billable", "no", "yes or no", "The client default. Blank means yes."],
+  ["concurrent", "no", "yes or no", "Can run alongside other jobs. Blank means no."],
+  ["ticket_url", "no", "a link with {n}", "Replace the ticket number in the link with {n} and ticket numbers become links."],
+  ["job_types", "no", "names separated by |", "Per-type flags in brackets: Admin[nonbillable], Monitoring[concurrent], Travel[travel], Support Ticket[limit=105/120] where the numbers are warn minutes / hard minutes."],
+  ["rounding", "no", "default, none, 6 or 15", "Overrides the Settings default for this client."],
+  ["archived", "no", "yes or no", "Archived clients keep their entries but leave the punch-in lists."]
+];
+function downloadTemplate() {
+  pickFormat("Download the client template",
+    () => { download("sundial-clients-template.csv", "﻿" + buildCSV([TEMPLATE_COLS].concat(TEMPLATE_EXAMPLES)), "text/csv;charset=utf-8"); toast("Template downloaded."); },
+    () => ensureXLSX().then(X => {
+      const wb = X.utils.book_new();
+      X.utils.book_append_sheet(wb, X.utils.aoa_to_sheet([TEMPLATE_COLS].concat(TEMPLATE_EXAMPLES)), "Clients");
+      X.utils.book_append_sheet(wb, X.utils.aoa_to_sheet(TEMPLATE_HELP), "How to fill");
+      X.writeFile(wb, "sundial-clients-template.xlsx");
+      toast("Template downloaded.");
+    }).catch(e => toast(e.message || e, true)));
+}
+async function importClientsFile(file) {
+  let rows;
+  try {
+    const X = await ensureXLSX();
+    const buf = await file.arrayBuffer();
+    const wb = X.read(buf, { type: "array" });
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    rows = X.utils.sheet_to_json(sheet, { defval: "" });
+  } catch (e) { toast(e.message || e, true); return; }
+  if (!rows || !rows.length) { toast("That file has no data rows.", true); return; }
+
+  const norm = k => String(k).trim().toLowerCase().replace(/[\s-]+/g, "_");
+  const creates = [], updates = [], problems = [];
+  rows.forEach((raw, i) => {
+    const r = {};
+    Object.keys(raw).forEach(k => { r[norm(k)] = raw[k]; });
+    const name = String(r.name || "").trim();
+    if (!name) { problems.push({ row: i + 2, why: "No name in the name column." }); return; }
+    const existing = state.clients.find(c => c.name.toLowerCase() === name.toLowerCase());
+    const rateRaw = String(r.rate == null ? "" : r.rate).trim();
+    const rate = rateRaw === "" ? null : parseFloat(rateRaw.replace(/[^0-9.\-]/g, ""));
+    if (rateRaw !== "" && !isFinite(rate)) { problems.push({ row: i + 2, why: name + ": rate is not a number." }); return; }
+    const roundRaw = String(r.rounding || "").trim().toLowerCase();
+    if (roundRaw && ["default", "none", "6", "15"].indexOf(roundRaw) < 0) { problems.push({ row: i + 2, why: name + ": rounding must be default, none, 6 or 15." }); return; }
+    const data = {
+      name: name,
+      email: String(r.email || "").trim(),
+      color: String(r.color || "").trim() || (existing ? existing.color : PALETTE[(state.clients.length + creates.length) % PALETTE.length]),
+      rate: rate,
+      billable: yesNo(r.billable, true),
+      allowConcurrent: yesNo(r.concurrent, false),
+      ticketUrl: String(r.ticket_url || "").trim(),
+      rounding: !roundRaw || roundRaw === "default" ? null : roundRaw,
+      archived: yesNo(r.archived, false),
+      jobTypes: jobTypesFromText(r.job_types, existing ? existing.jobTypes : null)
+    };
+    if (!data.jobTypes.length) data.jobTypes = existing ? existing.jobTypes : (state.settings.defaultJobTypes || DEFAULT_JOB_TYPES).map(newJobType);
+    if (existing) {
+      const keptArchived = (existing.jobTypes || []).filter(j => j.archived && !data.jobTypes.some(n => n.name.toLowerCase() === j.name.toLowerCase()));
+      data.jobTypes = data.jobTypes.concat(keptArchived);
+      updates.push({ id: existing.id, data: data });
+    } else creates.push({ data: data });
+  });
+
+  const list = (title, items, cls) => !items.length ? "" :
+    "<p><b>" + title + " (" + items.length + ")</b></p><div class=\"scrolly" + (cls ? " " + cls : "") + "\">" +
+    items.map(x => "<div>" + esc(x.why ? "Row " + x.row + ": " + x.why : x.data.name) + "</div>").join("") + "</div>";
+  const w = openModal("Import preview",
+    '<p class="hint" style="font-size:13.5px">Nothing has been written yet. Import never deletes a client; rows that match an existing name are updated in place.</p>' +
+    list("To create", creates) + list("To update by name", updates) + list("Problem rows", problems, "prob") +
+    (!creates.length && !updates.length ? "<p>Nothing usable in that file.</p>" : ""),
+    '<button class="btn" data-close>Cancel</button>' +
+    (creates.length || updates.length ? '<button class="btn acc" id="impGo">Apply ' + (creates.length + updates.length) + " row" + (creates.length + updates.length === 1 ? "" : "s") + "</button>" : ""),
+    { wide: true });
+  const go = $("#impGo", w);
+  if (go) go.addEventListener("click", () => {
+    creates.forEach(x => store.upsertClient(null, x.data));
+    updates.forEach(x => store.upsertClient(x.id, x.data));
+    closeModal(w);
+    toast("Imported " + (creates.length + updates.length) + " client" + (creates.length + updates.length === 1 ? "" : "s") + ".");
+  });
+}
+
+/* ==============================================================
+   EXPORT
+   ============================================================== */
+function exportRangeKeys() {
+  const o = state.xOpts, today = new Date();
+  if (o.range === "today")     return [dayKey(today), dayKey(today)];
+  if (o.range === "yesterday") { const k = dayKey(addDays(today, -1)); return [k, k]; }
+  if (o.range === "week")      { const ws = startOfWeek(today, state.settings.weekStart); return [dayKey(ws), dayKey(addDays(ws, 6))]; }
+  if (o.range === "lastweek")  { const ws = startOfWeek(addDays(today, -7), state.settings.weekStart); return [dayKey(ws), dayKey(addDays(ws, 6))]; }
+  if (o.range === "month")     return [dayKey(new Date(today.getFullYear(), today.getMonth(), 1)), dayKey(new Date(today.getFullYear(), today.getMonth() + 1, 0))];
+  const from = o.from || dayKey(today), to = o.to || dayKey(today);
+  return from <= to ? [from, to] : [to, from];
+}
+function exportRows() {
+  const r = exportRangeKeys(), o = state.xOpts;
+  return state.entries.filter(e => {
+    if (e.day < r[0] || e.day > r[1]) return false;
+    if (o.client && e.clientId !== o.client) return false;
+    if (o.billable === "yes" && e.billable === false) return false;
+    if (o.billable === "no"  && e.billable !== false) return false;
+    return true;
+  }).sort((a, b) => toDate(a.start) - toDate(b.start));
+}
+function overlapSeconds(rows) {
+  const iv = rows.map(e => [toDate(e.start).getTime(), (toDate(e.end) || new Date()).getTime()]).sort((a, b) => a[0] - b[0]);
+  let unionEnd = null, union = 0, sum = 0;
+  iv.forEach(p => {
+    sum += p[1] - p[0];
+    if (unionEnd == null) { union += p[1] - p[0]; unionEnd = p[1]; return; }
+    if (p[1] <= unionEnd) return;
+    union += p[1] - Math.max(p[0], unionEnd);
+    unionEnd = p[1];
+  });
+  return Math.max(0, (sum - union) / 1000);
+}
+function splitLine(prefix, total, bill, nonbill) {
+  if (bill && nonbill) return prefix + " " + fmtDur(total) + " (billable " + fmtDur(bill) + ", non-billable " + fmtDur(nonbill) + ")";
+  return prefix + " " + fmtDur(total);
+}
+function entryDesc(e, withClient) {
+  const c = clientById(e.clientId), o = state.xOpts;
+  let s = jobTypeName(c, e.jobTypeId) || "Job";
+  if (o.ticket && e.ticket) s += " #" + e.ticket;
+  if (o.project && e.project) s += " (" + e.project + ")";
+  if (e.billable === false) s += " [non-billable]";
+  if (o.notes && e.notes) s += " - " + e.notes;
+  return withClient ? (c ? c.name : "Unknown client") + "  " + s : s;
+}
+function buildExportText() {
+  const r = exportRangeKeys(), rows = exportRows(), o = state.xOpts;
+  const multiDay = r[0] !== r[1];
+  const head = multiDay
+    ? "Hours for " + dayDate(r[0]).toLocaleDateString(undefined, { month: "long", day: "numeric" }) + " - " + fmtDayLong(r[1]).replace(/^[^,]+,\s*/, "")
+    : "Hours for " + fmtDayLong(r[0]);
+  const lines = [head];
+  if (state.settings.yourName) lines.push(state.settings.yourName);
+  lines.push("");
+  if (!rows.length) { lines.push("No hours in this range."); return lines.join("\n"); }
+
+  const startW = Math.max.apply(null, rows.map(e => fmtTime(toDate(e.start)).length));
+  const endW   = Math.max.apply(null, rows.map(e => (e.end ? fmtTime(toDate(e.end)) : "running").length));
+  const dateW  = multiDay ? Math.max.apply(null, rows.map(e => fmtDayShort(e.day).length)) : 0;
+  const clientW = Math.max.apply(null, rows.map(e => { const c = clientById(e.clientId); return (c ? c.name : "Unknown client").length; }));
+
+  function timeCol(e) {
+    return (multiDay ? fmtDayShort(e.day).padEnd(dateW) + "  " : "") +
+      fmtTime(toDate(e.start)).padStart(startW) + " - " + (e.end ? fmtTime(toDate(e.end)) : "running").padStart(endW) +
+      "   " + fmtDur(entrySeconds(e));
+  }
+  const sum = list => list.reduce((s, e) => s + entrySeconds(e), 0);
+  const billOf = list => sum(list.filter(e => e.billable !== false));
+  const nonOf  = list => sum(list.filter(e => e.billable === false));
+
+  if (o.group && o.template !== "flat") {
+    const byClient = new Map();
+    rows.forEach(e => { const k = e.clientId; if (!byClient.has(k)) byClient.set(k, []); byClient.get(k).push(e); });
+    const groups = Array.from(byClient.entries()).map(g => ({ c: clientById(g[0]), rows: g[1] }))
+      .sort((a, b) => (a.c ? a.c.name : "").localeCompare(b.c ? b.c.name : ""));
+    groups.forEach(g => {
+      lines.push(g.c ? g.c.name : "Unknown client");
+      g.rows.forEach(e => lines.push("  " + timeCol(e) + "   " + entryDesc(e, false)));
+      lines.push("  " + splitLine("Subtotal", sum(g.rows), billOf(g.rows), nonOf(g.rows)));
+      lines.push("");
+    });
+  } else {
+    rows.forEach(e => {
+      const c = clientById(e.clientId);
+      lines.push(timeCol(e) + "   " + (c ? c.name : "Unknown client").padEnd(clientW) + "   " + entryDesc(e, false));
+    });
+    lines.push("");
+  }
+  lines.push(splitLine("Total", sum(rows), billOf(rows), nonOf(rows)));
+  const ov = overlapSeconds(rows);
+  if (ov >= 60) lines.push("Includes " + fmtDur(ov) + " of time logged alongside another job");
+  return lines.join("\n");
+}
+function paintExport() {
+  const o = state.xOpts;
+  fillSelect($("#xClient"), activeClients().map(c => ({ v: c.id, t: c.name })), "All clients", o.client);
+  $$("#xRange button").forEach(b => b.classList.toggle("on", b.getAttribute("data-r") === o.range));
+  $$("#xBillable button").forEach(b => b.classList.toggle("on", b.getAttribute("data-b") === o.billable));
+  $$("#xTemplate button").forEach(b => b.classList.toggle("on", b.getAttribute("data-t") === o.template));
+  $("#xCustom").hidden = o.range !== "custom";
+  $("#xNotes").checked = o.notes; $("#xProject").checked = o.project; $("#xTicket").checked = o.ticket; $("#xGroup").checked = o.group;
+  $("#xPreview").textContent = buildExportText();
+  const r = exportRangeKeys();
+  store && store.extendWindow && store.extendWindow(r[0]);
+}
+function exportCSVRows() {
+  const rows = exportRows();
+  const head = ["date", "start", "end", "duration_hours", "duration_hm", "client", "job_type", "ticket", "project", "notes", "billable", "miles", "rate", "amount"];
+  const body = rows.map(e => {
+    const c = clientById(e.clientId);
+    const secs = entrySeconds(e);
+    const hours = secs / 3600;
+    const rate = c && c.rate != null ? Number(c.rate) : null;
+    const amount = state.settings.showAmounts && rate != null && e.billable !== false ? (hours * rate) : null;
+    return [
+      e.day, fmtTime(toDate(e.start)), e.end ? fmtTime(toDate(e.end)) : "running",
+      hours.toFixed(2), fmtDur(secs), c ? c.name : "Unknown client", jobTypeName(c, e.jobTypeId) || "",
+      e.ticket || "", e.project || "", e.notes || "", e.billable === false ? "no" : "yes",
+      e.miles != null ? e.miles : "", rate != null ? rate.toFixed(2) : "", amount != null ? amount.toFixed(2) : ""
+    ];
+  });
+  return [head].concat(body);
+}
+function backupObject() {
+  return {
+    schema: 1,
+    app: "Sundial",
+    version: APP_VERSION,
+    exportedAt: new Date().toISOString(),
+    settings: Object.assign({}, state.settings),
+    clients: state.clients.map(c => Object.assign({}, c)),
+    entries: state.entries.map(e => Object.assign({}, e, {
+      start: toDate(e.start) ? toDate(e.start).toISOString() : null,
+      end: toDate(e.end) ? toDate(e.end).toISOString() : null,
+      createdAt: undefined, updatedAt: undefined
+    }))
+  };
+}
+function downloadBackup() {
+  download("sundial-backup-" + dayKey(new Date()) + ".json", JSON.stringify(backupObject(), null, 2), "application/json");
+  toast("Backup downloaded.");
+}
+async function restoreBackupFile(file) {
+  let data;
+  try { data = JSON.parse(await file.text()); }
+  catch (e) { toast("That file is not valid JSON.", true); return; }
+  if (!data || data.schema !== 1) { toast("Unrecognised backup. Sundial expects schema 1.", true); return; }
+  const cl = Array.isArray(data.clients) ? data.clients : [];
+  const en = Array.isArray(data.entries) ? data.entries : [];
+  confirmModal("Restore from backup?",
+    "<p>This file holds " + cl.length + " client" + (cl.length === 1 ? "" : "s") + " and " + en.length + " entr" + (en.length === 1 ? "y" : "ies") +
+    (data.exportedAt ? ", saved " + esc(new Date(data.exportedAt).toLocaleString()) : "") + ".</p>" +
+    "<p>Records are merged by id: anything with a matching id is overwritten, everything else is added. Nothing is deleted.</p>",
+    "Restore " + (cl.length + en.length) + " records", () => {
+      if (data.settings) store.saveSettings(Object.assign({}, DEFAULT_SETTINGS, data.settings));
+      cl.forEach(c => { const id = c.id; const d = Object.assign({}, c); delete d.id; store.upsertClient(id, d); });
+      en.forEach(e => {
+        const id = e.id; const d = Object.assign({}, e); delete d.id;
+        d.start = d.start ? new Date(d.start) : null;
+        d.end = d.end ? new Date(d.end) : null;
+        if (!d.start) return;
+        d.day = d.day || dayKey(d.start);
+        store.setEntry(id, d);
+      });
+      toast("Restored " + (cl.length + en.length) + " records.");
+    });
+}
+
+/* ==============================================================
+   SETTINGS
+   ============================================================== */
+function applyTheme() {
+  const t = state.settings.theme || "system";
+  if (t === "system") document.documentElement.removeAttribute("data-theme");
+  else document.documentElement.setAttribute("data-theme", t);
+}
+function paintSettingsJobTypes() {
+  const list = state.settings.defaultJobTypes || [];
+  $("#sJobTypes").innerHTML = list.length ? list.map(n =>
+    '<span class="chip"><span>' + esc(n) + '</span><span class="x" data-sjt="' + esc(n) + '">&times;</span></span>').join("")
+    : '<span class="hint">No defaults. New clients will start with an empty list.</span>';
+}
+function paintSettings() {
+  const s = state.settings, a = document.activeElement;
+  const set = (id, val) => { const el = $(id); if (el && el !== a) el.value = val; };
+  const chk = (id, val) => { const el = $(id); if (el && el !== a) el.checked = !!val; };
+  set("#sName", s.yourName || "");
+  set("#sTheme", s.theme || "system");
+  set("#sTimeFormat", s.timeFormat || "12h");
+  set("#sWeekStart", s.weekStart || "mon");
+  set("#sRounding", s.rounding || "none");
+  set("#sTemplateSel", s.exportTemplate || "grouped");
+  set("#sCapacity", s.weeklyCapacityHours != null ? s.weeklyCapacityHours : 40);
+  set("#sMileage", s.mileageRate != null ? Number(s.mileageRate).toFixed(2) : "0.70");
+  set("#sDefaultView", s.defaultView || "day");
+  chk("#sShowAmounts", s.showAmounts);
+  chk("#sNewBillable", s.newClientBillable !== false);
+  chk("#sNewConcurrent", s.newClientAllowConcurrent);
+  paintSettingsJobTypes();
+}
+function saveSetting(patch) {
+  Object.assign(state.settings, patch);
+  store.saveSettings(patch);
+  applyTheme();
+  paintAll();
+}
+
+/* ==============================================================
+   ROUTING AND PAINT
+   ============================================================== */
+function setView(v) {
+  state.view = v;
+  $$(".view").forEach(s => s.classList.toggle("on", s.id === "v-" + v));
+  $$("#topNav button").forEach(b => b.classList.toggle("on", b.getAttribute("data-view") === v));
+  $$("#tabbar button").forEach(b => b.classList.toggle("on", b.getAttribute("data-view") === v));
+  window.scrollTo(0, 0);
+}
+function paintAll() {
+  if (!state.user) return;
+  paintClock();
+  paintTimesheet();
+  paintClients();
+  paintExport();
+  paintSettings();
+  paintSync();
+}
+
+/* ==============================================================
+   EVENT WIRING
+   ============================================================== */
+$("#verChip").textContent = "v" + APP_VERSION;
+$("#footVer").textContent = "Sundial v" + APP_VERSION;
+
+$$("#topNav button, #tabbar button").forEach(b => b.addEventListener("click", () => setView(b.getAttribute("data-view"))));
+
+$("#fClient").addEventListener("change", () => { paintClock(); });
+$("#fJob").addEventListener("change", () => { glow($("#fJob")); paintPunchButton(); });
+$("#punchBtn").addEventListener("click", () => startJob(startFields()));
+$("#cancelStartBtn").addEventListener("click", () => { state.startPanelOpen = false; clearStartForm(); paintClock(); });
+$("#switchBtn").addEventListener("click", () => {
+  const r = runningEntries()[0];
+  state.startPanelOpen = true;
+  paintClock();
+  if (r) { $("#fClient").value = r.clientId; paintClock(); }
+  $("#fClient").focus();
+});
+$("#punchOutBtn").addEventListener("click", () => { const r = runningEntries()[0]; if (r) punchOut(r.id); });
+["rTicket", "rProject", "rNotes"].forEach(id => {
+  $("#" + id).addEventListener("blur", () => {
+    const r = runningEntries()[0]; if (!r) return;
+    const patch = {};
+    patch[id === "rTicket" ? "ticket" : id === "rProject" ? "project" : "notes"] = $("#" + id).value.trim();
+    const key = Object.keys(patch)[0];
+    if ((r[key] || "") === patch[key]) return;
+    store.updateEntry(r.id, patch);
+    toast("Saved.");
+  });
+});
+$("#addEntryBtn").addEventListener("click", () => openEntryModal("add", null));
+$("#colsBtn").addEventListener("click", openColumnsModal);
+$("#tsAdd").addEventListener("click", () => {
+  const d = dayDate(state.tsDay); d.setHours(9, 0, 0, 0);
+  openEntryModal("add", { start: d });
+});
+$("#tsPrev").addEventListener("click", () => { state.tsDay = dayKey(addDays(dayDate(state.tsDay), -1)); paintTimesheet(); });
+$("#tsNext").addEventListener("click", () => { state.tsDay = dayKey(addDays(dayDate(state.tsDay), 1)); paintTimesheet(); });
+$("#tsToday").addEventListener("click", () => { state.tsDay = dayKey(new Date()); paintTimesheet(); });
+$("#tsClient").addEventListener("change", e => { state.tsClient = e.target.value; paintTimesheet(); });
+
+$("#clAdd").addEventListener("click", () => openClientModal(null));
+$("#clImport").addEventListener("click", () => $("#clFile").click());
+$("#clFile").addEventListener("change", e => { const f = e.target.files[0]; e.target.value = ""; if (f) importClientsFile(f); });
+$("#clExport").addEventListener("click", exportClients);
+$("#clTemplate").addEventListener("click", downloadTemplate);
+
+$("#xRange").addEventListener("click", e => { const b = e.target.closest("[data-r]"); if (!b) return; state.xOpts.range = b.getAttribute("data-r"); paintExport(); });
+$("#xBillable").addEventListener("click", e => { const b = e.target.closest("[data-b]"); if (!b) return; state.xOpts.billable = b.getAttribute("data-b"); paintExport(); });
+$("#xTemplate").addEventListener("click", e => { const b = e.target.closest("[data-t]"); if (!b) return; state.xOpts.template = b.getAttribute("data-t"); state.xOpts.group = b.getAttribute("data-t") === "grouped"; paintExport(); });
+$("#xFrom").addEventListener("change", e => { state.xOpts.from = e.target.value; paintExport(); });
+$("#xTo").addEventListener("change", e => { state.xOpts.to = e.target.value; paintExport(); });
+$("#xClient").addEventListener("change", e => { state.xOpts.client = e.target.value; paintExport(); });
+["xNotes", "xProject", "xTicket", "xGroup"].forEach(id => $("#" + id).addEventListener("change", e => {
+  state.xOpts[id.slice(1).toLowerCase()] = e.target.checked;
+  if (id === "xGroup") state.xOpts.template = e.target.checked ? "grouped" : "flat";
+  paintExport();
+}));
+$("#xCopy").addEventListener("click", async () => {
+  const text = buildExportText();
+  const rows = exportRows();
+  const total = rows.reduce((s, e) => s + entrySeconds(e), 0);
+  const r = exportRangeKeys();
+  try {
+    await navigator.clipboard.writeText(text);
+    toast("Copied " + fmtDur(total) + " for " + (r[0] === r[1] ? fmtDayShort(r[0]) : fmtDayShort(r[0]) + " - " + fmtDayShort(r[1])));
+  } catch (e) { toast("Could not reach the clipboard. Select the preview and copy it by hand.", true); }
+});
+$("#xCsv").addEventListener("click", () => {
+  const r = exportRangeKeys();
+  download("sundial-hours-" + r[0] + (r[0] === r[1] ? "" : "_to_" + r[1]) + ".csv", "﻿" + buildCSV(exportCSVRows()), "text/csv;charset=utf-8");
+  toast("CSV downloaded.");
+});
+$("#xJson").addEventListener("click", downloadBackup);
+$("#xRestore").addEventListener("click", () => $("#jsonFile").click());
+$("#jsonFile").addEventListener("change", e => { const f = e.target.files[0]; e.target.value = ""; if (f) restoreBackupFile(f); });
+
+$("#sName").addEventListener("change", e => saveSetting({ yourName: e.target.value.trim() }));
+$("#sTheme").addEventListener("change", e => saveSetting({ theme: e.target.value }));
+$("#sTimeFormat").addEventListener("change", e => saveSetting({ timeFormat: e.target.value }));
+$("#sWeekStart").addEventListener("change", e => saveSetting({ weekStart: e.target.value }));
+$("#sRounding").addEventListener("change", e => saveSetting({ rounding: e.target.value }));
+$("#sTemplateSel").addEventListener("change", e => { state.xOpts.template = e.target.value; state.xOpts.group = e.target.value === "grouped"; saveSetting({ exportTemplate: e.target.value }); });
+$("#sCapacity").addEventListener("change", e => saveSetting({ weeklyCapacityHours: parseFloat(e.target.value) || 0 }));
+$("#sMileage").addEventListener("blur", e => {
+  const v = parseFloat(String(e.target.value).replace(/[^0-9.\-]/g, ""));
+  e.target.value = isFinite(v) ? v.toFixed(2) : "0.00";
+  saveSetting({ mileageRate: isFinite(v) ? v : 0 });
+});
+$("#sDefaultView").addEventListener("change", e => saveSetting({ defaultView: e.target.value }));
+$("#sShowAmounts").addEventListener("change", e => saveSetting({ showAmounts: e.target.checked }));
+$("#sNewBillable").addEventListener("change", e => saveSetting({ newClientBillable: e.target.checked }));
+$("#sNewConcurrent").addEventListener("change", e => saveSetting({ newClientAllowConcurrent: e.target.checked }));
+$("#sJobTypeAdd").addEventListener("keydown", e => {
+  if (e.key !== "Enter") return;
+  e.preventDefault();
+  const v = e.target.value.trim(); if (!v) return;
+  const list = (state.settings.defaultJobTypes || []).slice();
+  if (list.some(n => n.toLowerCase() === v.toLowerCase())) { toast("Already in the list."); e.target.value = ""; return; }
+  list.push(v); e.target.value = "";
+  saveSetting({ defaultJobTypes: list });
+});
+$("#sJobTypes").addEventListener("click", e => {
+  const x = e.target.closest("[data-sjt]"); if (!x) return;
+  const name = x.getAttribute("data-sjt");
+  saveSetting({ defaultJobTypes: (state.settings.defaultJobTypes || []).filter(n => n !== name) });
+});
+$("#sRetry").addEventListener("click", async () => { await store.retry(); toast("Asked for a sync."); });
+$("#sClearCache").addEventListener("click", () => {
+  confirmModal("Clear the local cache?",
+    "<p>This throws away the offline copy of the app and reloads it from the network. Your hours live in your account, not in that cache, so nothing is lost.</p>",
+    "Clear and reload", async () => {
+      try {
+        if (window.caches) { const keys = await caches.keys(); await Promise.all(keys.map(k => caches.delete(k))); }
+        if (navigator.serviceWorker) { const regs = await navigator.serviceWorker.getRegistrations(); await Promise.all(regs.map(r => r.unregister())); }
+      } catch (e) { /* ignore */ }
+      location.reload();
+    });
+});
+$("#sBackup").addEventListener("click", downloadBackup);
+$("#sRestore").addEventListener("click", () => $("#jsonFile").click());
+$("#sErase").addEventListener("click", () => {
+  const w = openModal("Erase my data",
+    "<p>This deletes every client and entry in your Sundial account, and your settings. It cannot be undone.</p>" +
+    "<p>Download a backup first if there is any chance you want these hours back.</p>" +
+    '<label class="lab" for="eraseWord">Type ERASE to confirm</label><input class="fld" id="eraseWord" autocomplete="off">',
+    '<button class="btn" data-close>Cancel</button><button class="btn stop" id="eraseGo" disabled>Erase everything</button>');
+  const inp = $("#eraseWord", w), go = $("#eraseGo", w);
+  inp.addEventListener("input", () => { go.disabled = inp.value.trim().toUpperCase() !== "ERASE"; });
+  go.addEventListener("click", async () => {
+    closeModal(w);
+    toast("Erasing...");
+    try { await store.eraseAll(); toast("Everything erased."); }
+    catch (e) { toast("Erase failed: " + (e.message || e), true); }
+  });
+});
+$("#sSignout").addEventListener("click", () => doSignOut());
+
+/* delegated row / card actions */
+document.addEventListener("click", e => {
+  const t = e.target;
+  const hit = sel => { const b = t.closest("[" + sel + "]"); return b ? b.getAttribute(sel) : null; };
+  let id;
+  /* sortable headers: ascending, descending, then back to no sort */
+  const sortKey = hit("data-sort");
+  if (sortKey) {
+    const cur = state.settings.sort || {};
+    const next = cur.key !== sortKey ? { key: sortKey, dir: "asc" }
+               : cur.dir === "asc"   ? { key: sortKey, dir: "desc" } : null;
+    state.settings.sort = next;
+    store.saveSettings({ sort: next });
+    paintAll();
+    return;
+  }
+  if ((id = hit("data-edit")))   { const en = state.entries.find(x => x.id === id); if (en) openEntryModal("edit", en); return; }
+  if ((id = hit("data-dup")))    { const en = state.entries.find(x => x.id === id); if (en) openEntryModal("dup", en); return; }
+  if ((id = hit("data-del")))    { deleteEntryModal(id); return; }
+  if ((id = hit("data-out")))    { punchOut(id); return; }
+  if ((id = hit("data-top")))    { state.mainRunningId = id; paintClock(); toast("Brought to the top."); return; }
+  if ((id = hit("data-tsstart"))){ const en = state.entries.find(x => x.id === id); if (en) startJob({ clientId: en.clientId, jobTypeId: en.jobTypeId, ticket: en.ticket, project: en.project, notes: en.notes }); return; }
+  if ((id = hit("data-recent"))) {
+    const parts = id.split("|");
+    startJob({ clientId: parts[0], jobTypeId: parts[1], ticket: "", project: "", notes: "" });
+    return;
+  }
+  if ((id = hit("data-day")))    { state.tsDay = id; paintTimesheet(); return; }
+  if ((id = hit("data-cedit")))  { const c = clientById(id); if (c) openClientModal(c); return; }
+  if ((id = hit("data-carch")))  { store.upsertClient(id, { archived: true }); toast("Client archived."); return; }
+  if ((id = hit("data-cunarch"))){ store.upsertClient(id, { archived: false }); toast("Client unarchived."); return; }
+});
+
+/* ==============================================================
+   AUTH AND BOOT
+   ============================================================== */
+let authMod = null, authObj = null;
+function doSignOut() {
+  if (MOCK) { location.href = location.pathname; return; }
+  authMod.signOut(authObj);
+}
+function handlers() {
+  return {
+    settings(s) {
+      if (!s) {
+        if (!state.settingsLoaded) {
+          const seed = Object.assign({}, DEFAULT_SETTINGS, { yourName: state.user.name || "" });
+          state.settings = seed;
+          store.saveSettings(seed);
+        }
+      } else {
+        state.settings = Object.assign({}, DEFAULT_SETTINGS, s);
+      }
+      state.settingsLoaded = true;
+      state.xOpts.template = state.settings.exportTemplate || "grouped";
+      state.xOpts.group = state.xOpts.template === "grouped";
+      applyTheme();
+      paintAll();
+    },
+    clients(list) { state.clients = list; paintAll(); },
+    entries(list) { state.entries = list; paintAll(); },
+    sync(s) { state.sync.pending = s.pending || 0; state.sync.online = navigator.onLine; paintSync(); },
+    error(err) { console.error(err); toast("Sync problem: " + (err.message || err), true); }
+  };
+}
+function startApp(user) {
+  state.user = user;
+  $("#signin").style.display = "none";
+  $("#app").hidden = false;
+  $("#userEmail").textContent = user.email;
+  $("#footWho").textContent = "Signed in as " + user.email;
+  store = MOCK ? mockStore() : firestoreStore(user);
+  store.start(handlers());
+  setView("clock");
+  paintSync();
+}
+function stopApp() {
+  if (store) { store.stop(); store = null; }
+  state.user = null; state.clients = []; state.entries = []; state.settingsLoaded = false;
+  state.settings = Object.assign({}, DEFAULT_SETTINGS);
+  $("#app").hidden = true;
+  $("#signin").style.display = "flex";
+}
+
+if (MOCK) {
+  $("#signinBtn").addEventListener("click", () => {});
+  startApp({ uid: "mock", email: "you@" + ALLOWED_DOMAIN, name: "Example User" });
+} else {
+  const mods = await Promise.all([
+    import(SDK + "firebase-app.js"),
+    import(SDK + "firebase-auth.js"),
+    import(SDK + "firebase-firestore.js")
+  ]);
+  const appMod = mods[0]; authMod = mods[1]; const fsMod = mods[2];
+  const fbApp = appMod.initializeApp(firebaseConfig);
+  authObj = authMod.getAuth(fbApp);
+  const db = fsMod.initializeFirestore(fbApp, {
+    localCache: fsMod.persistentLocalCache({ tabManager: fsMod.persistentMultipleTabManager() })
+  });
+  fb = { fs: fsMod, db: db };
+
+  $("#signinBtn").addEventListener("click", async () => {
+    $("#signinErr").hidden = true;
+    try {
+      const provider = new authMod.GoogleAuthProvider();
+      provider.setCustomParameters({ hd: ALLOWED_DOMAIN, prompt: "select_account" });
+      await authMod.signInWithPopup(authObj, provider);
+    } catch (e) {
+      $("#signinErr").textContent = "Sign-in failed: " + (e.message || e);
+      $("#signinErr").hidden = false;
+    }
+  });
+  $("#signoutBtn").addEventListener("click", () => authMod.signOut(authObj));
+
+  authMod.onAuthStateChanged(authObj, async user => {
+    if (!user) { stopApp(); return; }
+    const email = (user.email || "").toLowerCase();
+    if (!email.endsWith("@" + ALLOWED_DOMAIN)) {
+      await authMod.signOut(authObj);
+      $("#signinErr").textContent = "Sign-in must be a @" + ALLOWED_DOMAIN + " account.";
+      $("#signinErr").hidden = false;
+      return;
+    }
+    startApp({ uid: user.uid, email: email, name: user.displayName || "", isOwner: email === OWNER_EMAIL });
+  });
+}
+
+/* ==============================================================
+   SERVICE WORKER
+   ============================================================== */
+if ("serviceWorker" in navigator && location.protocol !== "file:") {
+  navigator.serviceWorker.register("sw.js").catch(err => console.warn("Service worker did not register:", err));
+  navigator.serviceWorker.addEventListener("message", ev => {
+    if (ev.data && ev.data.type === "sundial-update") {
+      toast("New version available, tap to reload", false, () => location.reload());
+    }
+  });
+}
+</script>
+</body>
+</html>
