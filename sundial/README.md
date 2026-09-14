@@ -100,6 +100,31 @@ Nothing is persisted in mock mode; a reload starts over.
 
 ## Changelog
 
+### v0.1.3 - 2026-09-14
+
+Resume from the table, and a Stop button on the running row.
+
+Going back to a job you already logged today meant Duplicate, then Start now,
+two taps and a modal. Every finished row in the today table and the day list now
+has a **Resume** button: it starts the same client, job type, ticket, project and
+notes again from now. It does not ask. Anything already running is stopped,
+unless that timer (or the resumed job) is flagged to run alongside other jobs,
+in which case both keep going. The toast names what was stopped.
+
+The running row's "running" label also gets a small red **Stop** button, so a
+timer can be stopped from the table without scrolling up to the Now card.
+
+And a **Copy today** button above the today table puts the day's hours on the
+clipboard as the same email-ready text the Export screen produces, all clients,
+using whatever notes / project / ticket / grouping options you last chose there.
+End of day is one tap on the Clock screen, no trip to Export.
+
+The today table's columns can be **resized by dragging a header edge**, and a
+dragged width is saved to your account like the column layout. Double-click a
+handle to reset that column. The Client column sizes itself to the longest
+client name in the table so names never wrap, and Notes takes whatever room is
+left. Widths are clamped to the table, so the no-sideways-scroll rule holds.
+
 ### v0.1.2 - 2026-09-14
 
 Start and Stop instead of Punch In and Punch Out.

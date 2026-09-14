@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Sundial v0.1.2</title>
-<meta name="version" content="0.1.2" />
+<title>Sundial v0.1.3</title>
+<meta name="version" content="0.1.3" />
 <meta name="robots" content="noindex, nofollow" />
 <meta name="description" content="Internal hours tracker for Umbrella Automation. Restricted to @umbrellaautomation.com accounts." />
 <meta name="theme-color" content="#1e6fd9" />
@@ -141,6 +141,9 @@ textarea.fld{min-height:64px;resize:vertical}
 .btn.stop{background:var(--stop);border-color:var(--stop);color:#fff}
 .btn.acc{background:var(--accent);border-color:var(--accent);color:var(--onaccent)}
 .btn.sm{padding:5px 10px;font-size:12px;font-weight:600}
+.minibtn{margin-left:6px;padding:1px 8px;font:inherit;font-size:11px;font-weight:600;border-radius:999px;border:1px solid var(--line2);background:var(--card2);color:var(--text);cursor:pointer;vertical-align:middle}
+.minibtn.stop{border-color:var(--stop);color:var(--stop)}
+.minibtn.stop:hover{background:var(--stop);color:#fff}
 .btnrow{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
 .btnrow.end{justify-content:flex-end}
 
@@ -178,7 +181,13 @@ textarea.fld{min-height:64px;resize:vertical}
 .mt{width:100%;border-collapse:collapse;font-size:14px}
 .mt th{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600;border-bottom:1px solid var(--line);padding:8px;text-align:left;white-space:nowrap;cursor:pointer;user-select:none}
 .mt th .ar{color:var(--accent);font-size:9px;margin-left:3px}
+.mt.fixed{table-layout:fixed}
+.mt th{position:relative}
+.mt th .rz{position:absolute;top:0;right:-4px;width:9px;height:100%;cursor:col-resize;user-select:none;touch-action:none;z-index:1}
+.mt th .rz:after{content:"";position:absolute;top:6px;bottom:6px;left:4px;width:1px;background:var(--line)}
+.mt th .rz:hover:after,.mt th .rz.on:after{background:var(--accent);width:2px;left:3px}
 .mt td{padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:top;overflow-wrap:anywhere}
+.mt td.cl{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mt td.t{font-family:var(--mono);white-space:nowrap}
 .mt td.act{white-space:nowrap;text-align:right}
 .mt td.act button{color:var(--muted);background:none;border:0;margin-left:8px;font-size:13px;cursor:pointer;padding:2px}
@@ -246,11 +255,15 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
    otherwise scroll sideways inside its wrapper, which the playbook forbids. */
 @media (max-width:860px){
   .tablewrap{overflow-x:visible}
+  .mt.fixed{table-layout:auto}
+  .mt col{width:auto!important}
+  .mt th .rz{display:none}
+  .mt td.cl{white-space:normal;overflow:visible;text-overflow:clip}
   .mt thead{display:none}
   .mt tbody tr{display:block;border:1px solid var(--line);border-radius:var(--radius);margin-bottom:10px;padding:6px 10px}
   .mt td{display:flex;gap:10px;border:0;padding:4px 0}
   .mt td:before{content:attr(data-l);flex:0 0 76px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding-top:3px}
-  .mt td.act{justify-content:flex-start;text-align:left}
+  .mt td.act{justify-content:flex-start;text-align:left;white-space:normal;flex-wrap:wrap}
   .mt td.act button{margin:0 12px 0 0}
 }
 @media (max-width:640px){
@@ -393,7 +406,7 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
     <div class="tiles" id="todayTiles"></div>
 
     <div class="card">
-      <div class="chead"><h4>Today</h4><span class="sp"><button class="btn sm" id="addEntryBtn">+ Manual entry</button><button class="btn sm" id="colsBtn" title="Pick which columns you want. The layout is saved to your account.">Columns</button></span></div>
+      <div class="chead"><h4>Today</h4><span class="sp"><button class="btn sm acc" id="copyTodayBtn" title="Copies today's hours, all clients, as the same email-ready text the Export screen produces, using your saved export options. Running entries are included as running.">Copy today</button><button class="btn sm" id="addEntryBtn">+ Manual entry</button><button class="btn sm" id="colsBtn" title="Pick which columns you want. The layout is saved to your account.">Columns</button></span></div>
       <div class="tablewrap"><table class="mt" id="todayTable"></table></div>
     </div>
   </section>
@@ -571,12 +584,12 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
 
 <script type="module">
 /* ==============================================================
-   Sundial v0.1.2 - hours tracker
+   Sundial v0.1.3 - hours tracker
    Single file on purpose: no build step, same as Backup Audits.
    Firestore rules for /sundial_users live in ../watchtower/firestore.rules.
    ============================================================== */
 
-const APP_VERSION    = "0.1.2";
+const APP_VERSION    = "0.1.3";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const OWNER_EMAIL    = "frank@umbrellaautomation.com";
 const SDK            = "https://www.gstatic.com/firebasejs/12.13.0/";
@@ -674,7 +687,7 @@ const DEFAULT_SETTINGS = {
   exportTemplate: "grouped", showAmounts: false,
   newClientBillable: true, newClientAllowConcurrent: false,
   weeklyCapacityHours: 40, mileageRate: 0.70, defaultView: "day",
-  theme: "system", columns: DEFAULT_COLUMNS.slice(), sort: null
+  theme: "system", columns: DEFAULT_COLUMNS.slice(), sort: null, colWidths: {}
 };
 
 /* ---------------- state ---------------- */
@@ -1159,7 +1172,8 @@ function entryCellHTML(e, key) {
   const c = clientById(e.clientId);
   switch (key) {
     case "start":  return fmtTime(toDate(e.start));
-    case "end":    return e.end ? fmtTime(toDate(e.end)) : '<span class="pill"><span class="dot"></span>running</span>';
+    case "end":    return e.end ? fmtTime(toDate(e.end))
+                     : '<span class="pill"><span class="dot"></span>running</span><button class="minibtn stop" data-out="' + e.id + '" title="Stop this timer now.">Stop</button>';
     case "dur":    return '<span data-elapsed="' + e.id + '">' + fmtDur(entrySeconds(e)) + "</span>";
     case "client": return '<span class="cdot" style="background:' + esc(clientColor(c)) + '"></span>' + esc(c ? c.name : "Unknown client");
     case "job":    return esc(jobTypeName(c, e.jobTypeId) || "") + (e.billable === false ? '<span class="tagnb">non-billable</span>' : "");
@@ -1169,22 +1183,124 @@ function entryCellHTML(e, key) {
   }
   return "";
 }
+/* ---- column widths ----
+   The table uses a fixed layout so widths are predictable: every visible
+   column gets a pixel width except one flexible column (Notes when shown,
+   otherwise the last data column) which takes whatever is left. The client
+   column defaults to the longest client name in the table so names never
+   wrap; any column can be dragged wider or narrower by its header edge, and
+   a dragged width is saved to the account. Double-click a handle to reset
+   that column. The sum of fixed widths is always kept below the table width
+   minus room for the flexible column, so nothing ever scrolls sideways. */
+const COL_DEFAULT_W = { start: 84, end: 138, dur: 80, job: 122, ticket: 74, project: 122, notes: 160 };
+const FLEX_MIN_W = 120, COL_MIN_W = 48, ACTIONS_W = 214;
+function flexColumnKey(cols) {
+  if (cols.some(c => c.k === "notes")) return "notes";
+  return cols.length ? cols[cols.length - 1].k : null;
+}
+function measureClientWidth(tableEl, rows) {
+  const names = rows.map(e => { const c = clientById(e.clientId); return c ? c.name : "Unknown client"; });
+  if (!names.length) activeClients().forEach(c => names.push(c.name));
+  if (!names.length) return 110;
+  const canvas = measureClientWidth._c || (measureClientWidth._c = document.createElement("canvas"));
+  const ctx = canvas.getContext("2d");
+  const probe = tableEl.querySelector("td") || tableEl;
+  const cs = getComputedStyle(probe);
+  ctx.font = cs.fontWeight + " " + cs.fontSize + " " + cs.fontFamily;
+  const w = Math.max.apply(null, names.map(n => ctx.measureText(n).width));
+  return Math.ceil(w) + 16 + 9 + 6 + 4;   // cell padding, color dot, dot gap, slack
+}
+function columnWidths(tableEl, cols, rows) {
+  const manual = state.settings.colWidths || {};
+  const flex = flexColumnKey(cols);
+  const tableW = (tableEl.parentElement && tableEl.parentElement.clientWidth) || tableEl.clientWidth || 900;
+  const out = {};
+  let fixedSum = ACTIONS_W;
+  cols.forEach(c => {
+    if (c.k === flex) return;
+    let w = manual[c.k];
+    if (!(w > 0)) w = c.k === "client" ? Math.min(measureClientWidth(tableEl, rows), Math.floor(tableW * 0.35)) : (COL_DEFAULT_W[c.k] || 100);
+    out[c.k] = Math.max(COL_MIN_W, Math.round(w));
+    fixedSum += out[c.k];
+  });
+  const room = tableW - FLEX_MIN_W;
+  /* Below the card-stack breakpoint the widths are ignored by CSS, and a
+     table painted while hidden reports a tiny width; neither should squash
+     the saved widths. Only clamp when there is a real desktop table. */
+  if (tableW >= 700 && fixedSum > room && fixedSum > 0) {
+    const scale = Math.max(0.3, (room - ACTIONS_W) / (fixedSum - ACTIONS_W));
+    Object.keys(out).forEach(k => { out[k] = Math.max(COL_MIN_W, Math.floor(out[k] * scale)); });
+  }
+  return { widths: out, flex: flex };
+}
 function renderEntryTable(tableEl, rows, opts) {
   const cols = visibleColumns();
   const s = state.settings.sort || {};
+  const cw = columnWidths(tableEl, cols, rows);
+  /* In the card-stacked layout every cell shares one anonymous column, and
+     a colgroup there widens the table past its wrapper. Leave it out. */
+  const stacked = window.matchMedia("(max-width:860px)").matches;
+  tableEl.classList.toggle("fixed", !stacked);
+  const colgroup = stacked ? "" : "<colgroup>" + cols.map(c => c.k === cw.flex ? "<col>" : '<col style="width:' + cw.widths[c.k] + 'px">').join("") +
+    '<col style="width:' + ACTIONS_W + 'px"></colgroup>';
   const head = "<thead><tr>" + cols.map(c =>
-    '<th data-sort="' + c.k + '">' + esc(c.label) + (s.key === c.k ? '<span class="ar">' + (s.dir === "desc" ? "▼" : "▲") + "</span>" : "") + "</th>").join("") +
+    '<th data-sort="' + c.k + '">' + esc(c.label) + (s.key === c.k ? '<span class="ar">' + (s.dir === "desc" ? "▼" : "▲") + "</span>" : "") +
+    (c.k === cw.flex ? "" : '<span class="rz" data-rz="' + c.k + '" title="Drag to resize. Double-click to reset."></span>') + "</th>").join("") +
     "<th></th></tr></thead>";
   const body = "<tbody>" + (rows.length ? sortEntries(rows).map(e =>
     '<tr' + (e.end ? "" : ' class="running"') + '>' +
-    cols.map(c => '<td class="' + (c.k === "start" || c.k === "end" || c.k === "dur" ? "t" : "") + '" data-l="' + esc(c.label) + '">' + entryCellHTML(e, c.k) + "</td>").join("") +
+    cols.map(c => '<td class="' + (c.k === "start" || c.k === "end" || c.k === "dur" ? "t" : c.k === "client" ? "cl" : "") + '" data-l="' + esc(c.label) + '">' + entryCellHTML(e, c.k) + "</td>").join("") +
     '<td class="act" data-l="Actions">' +
+      (e.end ? '<button data-resume="' + e.id + '" title="Starts this same client, job, ticket, project and notes again from now. Stops anything running unless it is allowed to run alongside.">Resume</button>' : "") +
       '<button data-edit="' + e.id + '">Edit</button>' +
       '<button data-dup="' + e.id + '">Duplicate</button>' +
       '<button data-del="' + e.id + '">Delete</button>' +
     "</td></tr>").join("")
     : '<tr><td colspan="' + (cols.length + 1) + '" class="emptyrow">' + esc(opts.empty) + "</td></tr>") + "</tbody>";
-  tableEl.innerHTML = head + body;
+  tableEl.innerHTML = colgroup + head + body;
+  attachResizeHandles(tableEl, cols, cw);
+}
+function attachResizeHandles(tableEl, cols, cw) {
+  const colEls = tableEl.querySelectorAll("colgroup col");
+  tableEl.querySelectorAll("th .rz").forEach(h => {
+    const key = h.getAttribute("data-rz");
+    const idx = cols.findIndex(c => c.k === key);
+    const flexIdx = cols.findIndex(c => c.k === cw.flex);
+    const col = colEls[idx], flexCol = colEls[flexIdx];
+    const th = h.parentElement, flexTh = flexIdx >= 0 ? tableEl.querySelectorAll("thead th")[flexIdx] : null;
+    let startX = 0, startW = 0, maxW = 0, moved = false;
+    h.addEventListener("click", e => { e.stopPropagation(); });          // never sorts the column
+    h.addEventListener("dblclick", e => {
+      e.stopPropagation();
+      const cwid = Object.assign({}, state.settings.colWidths || {}); delete cwid[key];
+      state.settings.colWidths = cwid; store.saveSettings({ colWidths: cwid }); paintTodayTable();
+    });
+    h.addEventListener("pointerdown", e => {
+      if (e.button !== 0) return;
+      e.preventDefault(); e.stopPropagation();
+      startX = e.clientX; startW = th.getBoundingClientRect().width; moved = false;
+      const flexW = flexTh ? flexTh.getBoundingClientRect().width : FLEX_MIN_W;
+      maxW = startW + Math.max(0, flexW - FLEX_MIN_W);           // the flexible column gives up its slack, nothing else moves
+      h.classList.add("on"); h.setPointerCapture(e.pointerId);
+    });
+    h.addEventListener("pointermove", e => {
+      if (!h.classList.contains("on")) return;
+      const w = Math.round(Math.min(maxW, Math.max(COL_MIN_W, startW + (e.clientX - startX))));
+      if (Math.abs(e.clientX - startX) > 2) moved = true;
+      col.style.width = w + "px";
+    });
+    const finish = e => {
+      if (!h.classList.contains("on")) return;
+      h.classList.remove("on");
+      try { h.releasePointerCapture(e.pointerId); } catch (_) {}
+      if (!moved) return;
+      const w = parseInt(col.style.width, 10);
+      const cwid = Object.assign({}, state.settings.colWidths || {}); cwid[key] = w;
+      state.settings.colWidths = cwid; store.saveSettings({ colWidths: cwid });
+    };
+    h.addEventListener("pointerup", finish);
+    h.addEventListener("pointercancel", finish);
+  });
 }
 function paintTodayTable() {
   renderEntryTable($("#todayTable"), entriesForDay(dayKey(new Date())), { empty: "Nothing logged today yet." });
@@ -1254,6 +1370,35 @@ function startJob(fields) {
 function clearStartForm() {
   $("#fTicket").value = ""; $("#fProject").value = ""; $("#fNotes").value = "";
   setTimesOpen(false);
+}
+/* Resume: start the same client / job / ticket / project / notes again from
+   now, without asking. Anything already running is stopped unless it, or the
+   resumed job, is flagged to run alongside other jobs. */
+function resumeEntry(id) {
+  const src = state.entries.find(x => x.id === id);
+  if (!src) return;
+  if (!src.end) { toast("That entry is already running.", true); return; }
+  const c = clientById(src.clientId), jt = jobTypeById(c, src.jobTypeId);
+  if (!c || c.archived) { toast("That client is archived. Unarchive it to resume.", true); return; }
+  if (!jt || jt.archived) { toast("That job type is archived. Edit the entry to pick another.", true); return; }
+  const now = new Date();
+  const stopped = [];
+  runningEntries().forEach(r => {
+    const rc = clientById(r.clientId);
+    const alongside = effConcurrent(c, jt) || effConcurrent(rc, jobTypeById(rc, r.jobTypeId));
+    if (!alongside) { store.updateEntry(r.id, { end: now }); stopped.push(entryLabel(r)); }
+  });
+  state.startPanelOpen = false;
+  const newId = store.addEntry({
+    clientId: src.clientId, jobTypeId: src.jobTypeId,
+    project: src.project || "", ticket: src.ticket || "", notes: src.notes || "",
+    billable: src.billable != null ? !!src.billable : effBillable(c, jt), miles: null, mileageNote: "", limitOverride: null,
+    start: now, end: null, day: dayKey(now)
+  });
+  state.mainRunningId = newId;
+  paintClock();
+  toast("Resumed " + c.name + (stopped.length ? ". Stopped " + stopped.join(", ") + "." : "."));
+  return newId;
 }
 function setTimesOpen(open) {
   const row = $("#timesRow"), tog = $("#timesToggle");
@@ -1491,7 +1636,7 @@ function paintTimesheet() {
         '<div class="meta">' + meta.join(" &middot; ") + "</div>" +
         (e.notes ? '<div class="meta">' + esc(e.notes) + "</div>" : "") + "</div>" +
       '<div class="right"><span class="dur" data-elapsed="' + e.id + '">' + esc(fmtDur(entrySeconds(e))) + "</span>" +
-        (e.end ? '<button class="btn sm" data-tsstart="' + e.id + '" title="Duplicates this entry and starts it now.">Start</button>'
+        (e.end ? '<button class="btn sm" data-tsstart="' + e.id + '" title="Starts this same client, job, ticket, project and notes again from now. Stops anything running unless it is allowed to run alongside.">Resume</button>'
                : '<button class="btn sm stop" data-out="' + e.id + '">Stop</button>') +
         '<button class="btn sm" data-edit="' + e.id + '">Edit</button></div></div>';
   }).join("") : '<div class="emptyrow">Nothing logged on this day.</div>';
@@ -2142,6 +2287,22 @@ $("#fJob").addEventListener("change", () => { glow($("#fJob")); paintPunchButton
 $("#punchBtn").addEventListener("click", () => startJob(startFields()));
 $("#timesToggle").addEventListener("click", () => setTimesOpen($("#timesRow").hidden));
 ["fStartD", "fStartT", "fEndD", "fEndT"].forEach(id => $("#" + id).addEventListener("input", paintPunchButton));
+/* Column widths are clamped to the table width, so re-lay the table when its
+   wrapper changes width (window resize, sidebar, or first becoming visible). */
+(function () {
+  const wrap = $("#todayTable").parentElement;
+  let timer = null, lastW = -1;
+  const relayout = () => {
+    const w = wrap.clientWidth;
+    if (Math.abs(w - lastW) < 3) return;
+    lastW = w;
+    if (state.user || MOCK) paintTodayTable();
+  };
+  const kick = () => { clearTimeout(timer); timer = setTimeout(relayout, 120); };
+  if (window.ResizeObserver) new ResizeObserver(kick).observe(wrap);
+  window.addEventListener("resize", kick);
+  window.addEventListener("orientationchange", kick);
+})();
 $("#cancelStartBtn").addEventListener("click", () => { state.startPanelOpen = false; clearStartForm(); paintClock(); });
 $("#switchBtn").addEventListener("click", () => {
   const r = runningEntries()[0];
@@ -2190,7 +2351,7 @@ $("#xClient").addEventListener("change", e => { state.xOpts.client = e.target.va
   if (id === "xGroup") state.xOpts.template = e.target.checked ? "grouped" : "flat";
   paintExport();
 }));
-$("#xCopy").addEventListener("click", async () => {
+async function copyExportText() {
   const text = buildExportText();
   const rows = exportRows();
   const total = rows.reduce((s, e) => s + entrySeconds(e), 0);
@@ -2198,7 +2359,18 @@ $("#xCopy").addEventListener("click", async () => {
   try {
     await navigator.clipboard.writeText(text);
     toast("Copied " + fmtDur(total) + " for " + (r[0] === r[1] ? fmtDayShort(r[0]) : fmtDayShort(r[0]) + " - " + fmtDayShort(r[1])));
-  } catch (e) { toast("Could not reach the clipboard. Select the preview and copy it by hand.", true); }
+    return true;
+  } catch (e) { toast("Could not reach the clipboard. Open Export, select the preview and copy it by hand.", true); return false; }
+}
+$("#xCopy").addEventListener("click", copyExportText);
+/* Copy today from the Clock screen: same text as Export with range Today,
+   all clients, all billable states; the other export options (notes,
+   project, ticket, grouping, template) are whatever you last chose. */
+$("#copyTodayBtn").addEventListener("click", async () => {
+  const saved = Object.assign({}, state.xOpts);
+  Object.assign(state.xOpts, { range: "today", client: "", billable: "all" });
+  try { await copyExportText(); }
+  finally { Object.assign(state.xOpts, saved); }
 });
 $("#xCsv").addEventListener("click", () => {
   const r = exportRangeKeys();
@@ -2291,7 +2463,8 @@ document.addEventListener("click", e => {
   if ((id = hit("data-del")))    { deleteEntryModal(id); return; }
   if ((id = hit("data-out")))    { punchOut(id); return; }
   if ((id = hit("data-top")))    { state.mainRunningId = id; paintClock(); toast("Brought to the top."); return; }
-  if ((id = hit("data-tsstart"))){ const en = state.entries.find(x => x.id === id); if (en) startJob({ clientId: en.clientId, jobTypeId: en.jobTypeId, ticket: en.ticket, project: en.project, notes: en.notes }); return; }
+  if ((id = hit("data-tsstart"))){ resumeEntry(id); return; }
+  if ((id = hit("data-resume"))) { resumeEntry(id); return; }
   if ((id = hit("data-recent"))) {
     const parts = id.split("|");
     startJob({ clientId: parts[0], jobTypeId: parts[1], ticket: "", project: "", notes: "" });
