@@ -100,6 +100,12 @@ Nothing is persisted in mock mode; a reload starts over.
 
 ## Changelog
 
+### v0.1.6 - 2026-09-14
+
+The play and stop buttons in the End column now sit in one fixed slot at the
+right edge of the cell, vertically centered, instead of trailing the time text.
+They line up straight down the column whatever the time reads.
+
 ### v0.1.5 - 2026-09-14
 
 Several tickets on one entry, a play button to resume, and a clock icon.

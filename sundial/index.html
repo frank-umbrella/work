@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Sundial v0.1.5</title>
-<meta name="version" content="0.1.5" />
+<title>Sundial v0.1.6</title>
+<meta name="version" content="0.1.6" />
 <meta name="robots" content="noindex, nofollow" />
 <meta name="description" content="Internal hours tracker for Umbrella Automation. Restricted to @umbrellaautomation.com accounts." />
 <meta name="theme-color" content="#1e6fd9" />
@@ -147,6 +147,12 @@ textarea.fld{min-height:64px;resize:vertical}
 .minibtn.play{border-color:var(--ok);color:var(--ok)}
 .minibtn.play:hover{background:var(--ok);color:#fff}
 .minibtn.play svg{margin-left:1px}
+/* End column: time or "running" on the left, the play / stop button in a
+   fixed slot at the right edge, vertically centered, so every button in the
+   column lines up regardless of how wide the time text is. */
+.mt.fixed td.endc{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.mt.fixed td.endc .endt{min-width:0}
+.mt.fixed td.endc .minibtn{margin-left:auto;flex:0 0 22px}
 .btnrow{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
 .btnrow.end{justify-content:flex-end}
 
@@ -591,12 +597,12 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
 
 <script type="module">
 /* ==============================================================
-   Sundial v0.1.5 - hours tracker
+   Sundial v0.1.6 - hours tracker
    Single file on purpose: no build step, same as Backup Audits.
    Firestore rules for /sundial_users live in ../watchtower/firestore.rules.
    ============================================================== */
 
-const APP_VERSION    = "0.1.5";
+const APP_VERSION    = "0.1.6";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const OWNER_EMAIL    = "frank@umbrellaautomation.com";
 const SDK            = "https://www.gstatic.com/firebasejs/12.13.0/";
@@ -1187,9 +1193,9 @@ function entryCellHTML(e, key) {
   switch (key) {
     case "start":  return fmtTime(toDate(e.start));
     case "end":    return e.end
-                     ? fmtTime(toDate(e.end)) + '<button class="minibtn play" data-resume="' + e.id + '" title="Resume: start this same client, job, tickets, project and notes again from now. Stops anything running unless it is allowed to run alongside." aria-label="Resume this entry">' +
+                     ? '<span class="endt">' + fmtTime(toDate(e.end)) + '</span><button class="minibtn play" data-resume="' + e.id + '" title="Resume: start this same client, job, tickets, project and notes again from now. Stops anything running unless it is allowed to run alongside." aria-label="Resume this entry">' +
                        '<svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true"><path d="M2 1 L9 5 L2 9 Z" fill="currentColor"/></svg></button>'
-                     : '<span class="pill"><span class="dot"></span>running</span><button class="minibtn stop" data-out="' + e.id + '" title="Stop this timer now." aria-label="Stop this timer">' +
+                     : '<span class="endt"><span class="pill"><span class="dot"></span>running</span></span><button class="minibtn stop" data-out="' + e.id + '" title="Stop this timer now." aria-label="Stop this timer">' +
                        '<svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true"><rect width="10" height="10" rx="1.5" fill="currentColor"/></svg></button>';
     case "dur":    return '<span data-elapsed="' + e.id + '">' + fmtDur(entrySeconds(e)) + "</span>";
     case "client": return '<span class="cdot" style="background:' + esc(clientColor(c)) + '"></span>' + esc(c ? c.name : "Unknown client");
@@ -1266,7 +1272,7 @@ function renderEntryTable(tableEl, rows, opts) {
     "<th></th></tr></thead>";
   const body = "<tbody>" + (rows.length ? sortEntries(rows).map(e =>
     '<tr' + (e.end ? "" : ' class="running"') + '>' +
-    cols.map(c => '<td class="' + (c.k === "start" || c.k === "end" || c.k === "dur" ? "t" : c.k === "client" ? "cl" : "") + '" data-l="' + esc(c.label) + '">' + entryCellHTML(e, c.k) + "</td>").join("") +
+    cols.map(c => '<td class="' + (c.k === "end" ? "t endc" : c.k === "start" || c.k === "dur" ? "t" : c.k === "client" ? "cl" : "") + '" data-l="' + esc(c.label) + '">' + entryCellHTML(e, c.k) + "</td>").join("") +
     '<td class="act" data-l="Actions">' +
       '<button data-edit="' + e.id + '">Edit</button>' +
       '<button data-dup="' + e.id + '">Duplicate</button>' +
