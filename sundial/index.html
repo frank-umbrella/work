@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Sundial v0.1.4</title>
-<meta name="version" content="0.1.4" />
+<title>Sundial v0.1.5</title>
+<meta name="version" content="0.1.5" />
 <meta name="robots" content="noindex, nofollow" />
 <meta name="description" content="Internal hours tracker for Umbrella Automation. Restricted to @umbrellaautomation.com accounts." />
 <meta name="theme-color" content="#1e6fd9" />
@@ -144,6 +144,9 @@ textarea.fld{min-height:64px;resize:vertical}
 .minibtn{margin-left:6px;width:22px;height:22px;padding:0;display:inline-grid;place-items:center;font:inherit;border-radius:50%;border:1px solid var(--line2);background:var(--card2);color:var(--text);cursor:pointer;vertical-align:middle}
 .minibtn.stop{border-color:var(--stop);color:var(--stop)}
 .minibtn.stop:hover{background:var(--stop);color:#fff}
+.minibtn.play{border-color:var(--ok);color:var(--ok)}
+.minibtn.play:hover{background:var(--ok);color:#fff}
+.minibtn.play svg{margin-left:1px}
 .btnrow{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
 .btnrow.end{justify-content:flex-end}
 
@@ -313,9 +316,13 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
 <header class="top">
   <div class="brand">
     <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <circle cx="32" cy="40" r="19" fill="none" stroke="currentColor" stroke-width="5"/>
-      <path d="M32 40 L32 14" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
-      <path d="M32 40 L48 30" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
+      <circle cx="32" cy="32" r="24" fill="none" stroke="currentColor" stroke-width="5"/>
+      <g stroke="currentColor" stroke-width="4" stroke-linecap="round">
+        <path d="M32 11 V16"/><path d="M53 32 H48"/><path d="M32 53 V48"/><path d="M11 32 H16"/>
+      </g>
+      <path d="M32 32 L32 18" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
+      <path d="M32 32 L42 38" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
+      <circle cx="32" cy="32" r="3" fill="currentColor"/>
     </svg>
     Sundial <span class="v" id="verChip"></span>
   </div>
@@ -357,7 +364,7 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
           <div id="runEdit" hidden>
             <h4 style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:0 0 2px">Running entry</h4>
             <div class="g2">
-              <div><label class="lab" for="rTicket">Ticket # <span class="q" title="The ticket this time belongs to. It becomes a link in tables and exports when the client has a ticket URL pattern.">?</span></label><input class="fld" id="rTicket" autocomplete="off"></div>
+              <div><label class="lab" for="rTicket">Ticket #s <span class="q" title="The ticket or tickets this time belongs to. Separate several with commas. Each becomes a link in tables and exports when the client has a ticket URL pattern.">?</span></label><input class="fld" id="rTicket" autocomplete="off"></div>
               <div><label class="lab" for="rProject">Project <span class="q" title="An optional label so recurring work groups together in exports. Suggestions come from this client past entries.">?</span></label><input class="fld" id="rProject" list="projList" autocomplete="off"></div>
             </div>
             <label class="lab" for="rNotes">Notes <span class="q" title="What you did. This is the line that goes in the email, so write it for the client.">?</span></label>
@@ -372,7 +379,7 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
             <label class="lab" for="fJob">Job type <span class="q" title="The kind of work under this client. It carries the billable and can-run-alongside flags the entry starts with.">?</span></label>
             <select class="fld" id="fJob" disabled></select>
             <div class="g2">
-              <div><label class="lab" for="fTicket">Ticket # <span class="q" title="Optional. Free text so INC-0042 works as well as 5421. Links up when the client has a ticket URL pattern.">?</span></label><input class="fld" id="fTicket" autocomplete="off"></div>
+              <div><label class="lab" for="fTicket">Ticket #s <span class="q" title="Optional. Free text so INC-0042 works as well as 5421. Several tickets? Separate them with commas. Each links up when the client has a ticket URL pattern.">?</span></label><input class="fld" id="fTicket" autocomplete="off"></div>
               <div><label class="lab" for="fProject">Project <span class="q" title="Optional label that keeps recurring work together in exports. Suggestions come from this client past entries.">?</span></label><input class="fld" id="fProject" list="projList" autocomplete="off"></div>
             </div>
             <label class="lab" for="fNotes">Notes <span class="q" title="What you are doing. Written for the client, because this is the line that lands in the email.">?</span></label>
@@ -584,12 +591,12 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
 
 <script type="module">
 /* ==============================================================
-   Sundial v0.1.4 - hours tracker
+   Sundial v0.1.5 - hours tracker
    Single file on purpose: no build step, same as Backup Audits.
    Firestore rules for /sundial_users live in ../watchtower/firestore.rules.
    ============================================================== */
 
-const APP_VERSION    = "0.1.4";
+const APP_VERSION    = "0.1.5";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const OWNER_EMAIL    = "frank@umbrellaautomation.com";
 const SDK            = "https://www.gstatic.com/firebasejs/12.13.0/";
@@ -951,13 +958,20 @@ function entriesForDay(day) {
   return state.entries.filter(e => e.day === day).sort((a, b) => toDate(a.start) - toDate(b.start));
 }
 function clientColor(c) { return (c && c.color) || "#5a6b7d"; }
+/* An entry can carry several tickets: the field is free text and any commas,
+   semicolons or whitespace split it into separate numbers. Stored as typed,
+   rendered one link per ticket. */
+function ticketList(s) {
+  return String(s || "").split(/[,;\s]+/).map(t => t.replace(/^#/, "").trim()).filter(Boolean);
+}
+function ticketText(s) { return ticketList(s).map(t => "#" + t).join(" "); }
 function ticketHTML(client, ticket) {
-  if (!ticket) return "";
+  const list = ticketList(ticket);
+  if (!list.length) return "";
   const pat = client && client.ticketUrl;
-  if (pat && pat.indexOf("{n}") >= 0) {
-    return '<a href="' + esc(pat.replace("{n}", encodeURIComponent(ticket))) + '" target="_blank" rel="noopener">#' + esc(ticket) + "</a>";
-  }
-  return "#" + esc(ticket);
+  return list.map(t => (pat && pat.indexOf("{n}") >= 0)
+    ? '<a href="' + esc(pat.replace("{n}", encodeURIComponent(t))) + '" target="_blank" rel="noopener">#' + esc(t) + "</a>"
+    : "#" + esc(t)).join(" ");
 }
 function overlaps(start, end, exceptId) {
   const s = start.getTime(), e = (end || new Date()).getTime();
@@ -1005,7 +1019,7 @@ function paintClock() {
   if (main) {
     const c = clientById(main.clientId), jt = jobTypeById(c, main.jobTypeId);
     const bits = [c ? c.name : "Unknown client", jobTypeName(c, main.jobTypeId) || "Job"];
-    if (main.ticket) bits.push("#" + main.ticket);
+    if (ticketList(main.ticket).length) bits.push(ticketText(main.ticket));
     $("#runPill").innerHTML = '<span class="dot"></span> Running &middot; ' + esc(bits.join(" / ")) +
       (effBillable(c, jt) ? "" : '<span class="tagnb">non-billable</span>');
     $("#runSince").textContent = "Since " + fmtTime(toDate(main.start));
@@ -1172,7 +1186,9 @@ function entryCellHTML(e, key) {
   const c = clientById(e.clientId);
   switch (key) {
     case "start":  return fmtTime(toDate(e.start));
-    case "end":    return e.end ? fmtTime(toDate(e.end))
+    case "end":    return e.end
+                     ? fmtTime(toDate(e.end)) + '<button class="minibtn play" data-resume="' + e.id + '" title="Resume: start this same client, job, tickets, project and notes again from now. Stops anything running unless it is allowed to run alongside." aria-label="Resume this entry">' +
+                       '<svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true"><path d="M2 1 L9 5 L2 9 Z" fill="currentColor"/></svg></button>'
                      : '<span class="pill"><span class="dot"></span>running</span><button class="minibtn stop" data-out="' + e.id + '" title="Stop this timer now." aria-label="Stop this timer">' +
                        '<svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true"><rect width="10" height="10" rx="1.5" fill="currentColor"/></svg></button>';
     case "dur":    return '<span data-elapsed="' + e.id + '">' + fmtDur(entrySeconds(e)) + "</span>";
@@ -1194,7 +1210,7 @@ function entryCellHTML(e, key) {
    that column. The sum of fixed widths is always kept below the table width
    minus room for the flexible column, so nothing ever scrolls sideways. */
 const COL_DEFAULT_W = { start: 84, end: 138, dur: 80, job: 122, ticket: 74, project: 122, notes: 160 };
-const FLEX_MIN_W = 120, COL_MIN_W = 48, ACTIONS_W = 214;
+const FLEX_MIN_W = 120, COL_MIN_W = 48, ACTIONS_W = 172;
 function flexColumnKey(cols) {
   if (cols.some(c => c.k === "notes")) return "notes";
   return cols.length ? cols[cols.length - 1].k : null;
@@ -1252,7 +1268,6 @@ function renderEntryTable(tableEl, rows, opts) {
     '<tr' + (e.end ? "" : ' class="running"') + '>' +
     cols.map(c => '<td class="' + (c.k === "start" || c.k === "end" || c.k === "dur" ? "t" : c.k === "client" ? "cl" : "") + '" data-l="' + esc(c.label) + '">' + entryCellHTML(e, c.k) + "</td>").join("") +
     '<td class="act" data-l="Actions">' +
-      (e.end ? '<button data-resume="' + e.id + '" title="Starts this same client, job, ticket, project and notes again from now. Stops anything running unless it is allowed to run alongside.">Resume</button>' : "") +
       '<button data-edit="' + e.id + '">Edit</button>' +
       '<button data-dup="' + e.id + '">Duplicate</button>' +
       '<button data-del="' + e.id + '">Delete</button>' +
@@ -1443,7 +1458,7 @@ function openEntryModal(mode, src) {
         '<select class="fld" id="eJob"></select></div>' +
     "</div>" +
     '<div class="g2">' +
-      '<div><label class="lab" for="eTicket">Ticket # <span class="q" title="Free text. Becomes a link when this client has a ticket URL pattern.">?</span></label>' +
+      '<div><label class="lab" for="eTicket">Ticket #s <span class="q" title="Free text. Separate several tickets with commas. Each becomes a link when this client has a ticket URL pattern.">?</span></label>' +
         '<input class="fld" id="eTicket" autocomplete="off"></div>' +
       '<div><label class="lab" for="eProject">Project <span class="q" title="Optional label that keeps recurring work together in exports.">?</span></label>' +
         '<input class="fld" id="eProject" list="eProjList" autocomplete="off"><datalist id="eProjList"></datalist></div>' +
@@ -2087,7 +2102,7 @@ function splitLine(prefix, total, bill, nonbill) {
 function entryDesc(e, withClient) {
   const c = clientById(e.clientId), o = state.xOpts;
   let s = jobTypeName(c, e.jobTypeId) || "Job";
-  if (o.ticket && e.ticket) s += " #" + e.ticket;
+  if (o.ticket && ticketList(e.ticket).length) s += " " + ticketText(e.ticket);
   if (o.project && e.project) s += " (" + e.project + ")";
   if (e.billable === false) s += " [non-billable]";
   if (o.notes && e.notes) s += " - " + e.notes;

@@ -376,8 +376,10 @@ first time; it is cached by the service worker after that.
 
 ## 7. Ticket numbers
 
-- Optional `Ticket #` field on every entry, next to Project. Free text so it
-  accepts `5421`, `INC-0042`, or a Help Desk id.
+- Optional `Ticket #s` field on every entry, next to Project. Free text so it
+  accepts `5421`, `INC-0042`, or a Help Desk id. Several tickets on one entry
+  are allowed, separated by commas (built in v0.1.5); each renders as its own
+  link and time limits count per ticket.
 - Per client, an optional **ticket URL pattern** with `{n}`. When set, the
   ticket shows as a link in the tables, the Calendar block, and the email
   export. When not set it is plain text.

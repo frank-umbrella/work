@@ -100,6 +100,25 @@ Nothing is persisted in mock mode; a reload starts over.
 
 ## Changelog
 
+### v0.1.5 - 2026-09-14
+
+Several tickets on one entry, a play button to resume, and a clock icon.
+
+One block of work often covers more than one ticket, and splitting the entry
+just to satisfy a single field was the wrong trade. The Ticket field on every
+form now takes several numbers separated by commas (spaces or semicolons work
+too). Each one becomes its own link in the tables and the email export, and the
+running pill and text export list them all.
+
+Resume moved out of the Actions column and into the End column as a small green
+play button, right where the red stop square sits on the running row. Same
+behavior as before: it starts the same client, job, tickets, project and notes
+from now and stops anything running unless it may run alongside.
+
+The favicon, home-screen icons and the header mark are now a clock face with
+hands and four ticks instead of the sundial gnomon, so the tab reads as a time
+tool at a glance. The OG card was regenerated to match.
+
 ### v0.1.4 - 2026-09-14
 
 The small Stop button on the running row is now a stop square icon in a round
