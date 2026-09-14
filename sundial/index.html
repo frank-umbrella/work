@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Sundial v0.1.0</title>
-<meta name="version" content="0.1.0" />
+<title>Sundial v0.1.1</title>
+<meta name="version" content="0.1.1" />
 <meta name="robots" content="noindex, nofollow" />
 <meta name="description" content="Internal hours tracker for Umbrella Automation. Restricted to @umbrellaautomation.com accounts." />
 <meta name="theme-color" content="#1e6fd9" />
@@ -127,6 +127,8 @@ textarea.fld{min-height:64px;resize:vertical}
 .g2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:0 14px}
 .g3{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,170px),1fr));gap:0 14px}
 .hint{font-size:12px;color:var(--muted);margin:4px 0 0}
+.linkbtn{background:none;border:0;padding:0;margin:10px 0 0;font:inherit;font-size:13px;color:var(--accent);cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.linkbtn[aria-expanded="true"]{color:var(--muted);text-decoration:none}
 .ck{display:flex;align-items:center;gap:8px;font-size:14px;margin:8px 0;cursor:pointer}
 .ck input{width:16px;height:16px;accent-color:var(--accent);flex:none}
 
@@ -239,13 +241,10 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
 .tabbar button{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;color:var(--muted);background:none;border:0;padding:5px 0;cursor:pointer;min-width:0}
 .tabbar button b{font-size:17px;font-weight:400;line-height:1}
 .tabbar button.on{color:var(--accent)}
-@media (max-width:640px){
-  .nav,.who .em{display:none}
-  .tabbar{display:flex}
-  main{padding:12px}
-  .timer{font-size:46px}
-  .fld{font-size:16px}
-  .top{padding:9px 12px}
+/* Tables card-stack well before the phone breakpoint: the eight-column today
+   table needs about 740px of card width, so between 640 and 860 it would
+   otherwise scroll sideways inside its wrapper, which the playbook forbids. */
+@media (max-width:860px){
   .tablewrap{overflow-x:visible}
   .mt thead{display:none}
   .mt tbody tr{display:block;border:1px solid var(--line);border-radius:var(--radius);margin-bottom:10px;padding:6px 10px}
@@ -253,6 +252,14 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
   .mt td:before{content:attr(data-l);flex:0 0 76px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding-top:3px}
   .mt td.act{justify-content:flex-start;text-align:left}
   .mt td.act button{margin:0 12px 0 0}
+}
+@media (max-width:640px){
+  .nav,.who .em{display:none}
+  .tabbar{display:flex}
+  main{padding:12px}
+  .timer{font-size:46px}
+  .fld{font-size:16px}
+  .top{padding:9px 12px}
   .daystrip{gap:3px}
   .daystrip button{padding:6px 1px}
   .btnrow .btn{flex:1 1 auto}
@@ -358,6 +365,16 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
             <label class="lab" for="fNotes">Notes <span class="q" title="What you are doing. Written for the client, because this is the line that lands in the email.">?</span></label>
             <textarea class="fld" id="fNotes"></textarea>
             <datalist id="projList"></datalist>
+            <button type="button" class="linkbtn" id="timesToggle" aria-expanded="false" title="Forgot to punch in, or want to log a block of time you already finished? Set the times here instead of starting the timer now.">Set start and end times instead</button>
+            <div id="timesRow" hidden>
+              <div class="g2">
+                <div><label class="lab" for="fStartD">Start date</label><input type="date" class="fld" id="fStartD"></div>
+                <div><label class="lab" for="fStartT">Start time <span class="q" title="Earlier than now is fine. With no end time the entry keeps running from this start, so the timer shows the real elapsed time.">?</span></label><input type="time" class="fld" id="fStartT"></div>
+                <div><label class="lab" for="fEndD">End date</label><input type="date" class="fld" id="fEndD"></div>
+                <div><label class="lab" for="fEndT">End time <span class="q" title="Set an end to log a finished entry straight from here without running the timer. Leave blank to start it running.">?</span></label><input type="time" class="fld" id="fEndT"></div>
+              </div>
+              <div class="hint" id="timesHint"></div>
+            </div>
             <div class="btnrow">
               <button class="btn big go" id="punchBtn">Punch In</button>
               <button class="btn" id="cancelStartBtn" hidden>Cancel</button>
@@ -554,12 +571,12 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
 
 <script type="module">
 /* ==============================================================
-   Sundial v0.1.0 - hours tracker
+   Sundial v0.1.1 - hours tracker
    Single file on purpose: no build step, same as Backup Audits.
    Firestore rules for /sundial_users live in ../watchtower/firestore.rules.
    ============================================================== */
 
-const APP_VERSION    = "0.1.0";
+const APP_VERSION    = "0.1.1";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const OWNER_EMAIL    = "frank@umbrellaautomation.com";
 const SDK            = "https://www.gstatic.com/firebasejs/12.13.0/";
@@ -1036,10 +1053,50 @@ function paintPunchButton() {
   const running = runningEntries();
   const ok = canStartAlongside(c, jt);
   const btn = $("#punchBtn");
-  btn.textContent = running.length && !ok ? "Switch" : "Punch In";
+  const t = startTimes();
   btn.classList.toggle("go", true);
-  $("#punchHint").textContent = !running.length ? ""
-    : (ok ? "This job may run alongside what is already running." : "Something is already running. Switch punches it out first.");
+  if (t.open && t.start && t.end) {
+    btn.textContent = "Log " + fmtTime(t.start) + " - " + fmtTime(t.end);
+    $("#punchHint").textContent = "Saves a finished entry. Nothing starts running.";
+  } else if (t.open && t.start) {
+    btn.textContent = running.length && !ok ? "Switch, starting at " + fmtTime(t.start) : "Start at " + fmtTime(t.start);
+    $("#punchHint").textContent = !running.length ? "The timer will already show the time since " + fmtTime(t.start) + "."
+      : (ok ? "This job may run alongside what is already running." : "Something is already running. Switch punches it out first.");
+  } else {
+    btn.textContent = running.length && !ok ? "Switch" : "Punch In";
+    $("#punchHint").textContent = !running.length ? ""
+      : (ok ? "This job may run alongside what is already running." : "Something is already running. Switch punches it out first.");
+  }
+  paintTimesHint(t);
+}
+/* Optional explicit times on the start panel. Returns {open, start, end,
+   bad} where bad is a human message when the inputs cannot be used. */
+function startTimes() {
+  const open = !$("#timesRow").hidden;
+  if (!open) return { open: false, start: null, end: null, bad: "" };
+  // Dates default to today when the row opens, so a time field decides
+  // whether that side is "set". A date with no time is ignored.
+  const today = localInput(new Date());
+  const sD = $("#fStartD").value || today, sT = $("#fStartT").value, eD = $("#fEndD").value || sD, eT = $("#fEndT").value;
+  const start = sT ? fromInputs(sD, sT) : null;
+  const end = eT ? fromInputs(eD, eT) : null;
+  let bad = "";
+  if (end && !start) bad = "Set a start time as well.";
+  else if (start && end && end <= start) bad = "End is before start.";
+  else if (start && !end && start > new Date()) bad = "A running entry cannot start in the future. Add an end time to log it ahead of time.";
+  return { open, start, end, bad };
+}
+function paintTimesHint(t) {
+  const h = $("#timesHint");
+  if (!t.open) { h.innerHTML = ""; return; }
+  if (t.bad) { h.innerHTML = '<span class="prob">' + esc(t.bad) + "</span>"; return; }
+  if (!t.start) { h.textContent = "Leave the end blank to start the timer from the start time. Fill both to log a finished block."; return; }
+  const conflicts = overlaps(t.start, t.end, null);
+  let msg = t.end ? "Duration " + fmtDur((t.end - t.start) / 1000) + "." : fmtDur((new Date() - t.start) / 1000) + " so far.";
+  if (conflicts.length) msg += " Overlaps " + entryLabel(conflicts[0]) + " " + fmtTime(toDate(conflicts[0].start)) + " - " +
+    (conflicts[0].end ? fmtTime(toDate(conflicts[0].end)) : "running") + (conflicts.length > 1 ? " and " + (conflicts.length - 1) + " more" : "") +
+    ". Saving is still allowed; overlapping time is counted in full for each entry.";
+  h.textContent = msg;
 }
 
 function paintRecent() {
@@ -1149,17 +1206,20 @@ setInterval(() => { if (state.user) paintTimer(); }, 1000);
 
 /* ---------------- punching ---------------- */
 function doPunchIn(fields) {
-  const now = new Date();
+  const start = fields.start || new Date();
+  const end = fields.end || null;
   const c = clientById(fields.clientId), jt = jobTypeById(c, fields.jobTypeId);
   state.startPanelOpen = false;
   const id = store.addEntry({
     clientId: fields.clientId, jobTypeId: fields.jobTypeId,
     project: fields.project || "", ticket: fields.ticket || "", notes: fields.notes || "",
     billable: effBillable(c, jt), miles: null, mileageNote: "", limitOverride: null,
-    start: now, end: null, day: dayKey(now)
+    start: start, end: end, day: dayKey(start)
   });
   paintClock();
-  toast("Punched in on " + (c ? c.name : "client") + ".");
+  if (end) toast("Logged " + fmtDur((end - start) / 1000) + " for " + (c ? c.name : "client") + ".");
+  else if (fields.start) toast("Started " + (c ? c.name : "client") + " from " + fmtTime(start) + ".");
+  else toast("Punched in on " + (c ? c.name : "client") + ".");
   return id;
 }
 function punchOut(id) {
@@ -1172,7 +1232,11 @@ function startJob(fields) {
   const c = clientById(fields.clientId), jt = jobTypeById(c, fields.jobTypeId);
   if (!c)  { toast("Pick a client first.", true); glow($("#fClient")); return; }
   if (!jt) { toast("Pick a job type first.", true); glow($("#fJob")); return; }
+  const t = startTimes();
+  if (t.bad) { toast(t.bad, true); return; }
+  fields.start = t.start; fields.end = t.end;
   const running = runningEntries();
+  if (fields.end) { doPunchIn(fields); clearStartForm(); return; }   // a finished block never needs to switch
   if (running.length && !canStartAlongside(c, jt)) {
     confirmModal("Something is already running",
       "<p>" + esc(entryLabel(running[0])) + " has been running for " + esc(fmtDur(entrySeconds(running[0]))) + ".</p>" +
@@ -1189,6 +1253,22 @@ function startJob(fields) {
 }
 function clearStartForm() {
   $("#fTicket").value = ""; $("#fProject").value = ""; $("#fNotes").value = "";
+  setTimesOpen(false);
+}
+function setTimesOpen(open) {
+  const row = $("#timesRow"), tog = $("#timesToggle");
+  row.hidden = !open;
+  tog.setAttribute("aria-expanded", open ? "true" : "false");
+  tog.textContent = open ? "Hide times (punch in now instead)" : "Set start and end times instead";
+  if (open) {
+    const today = localInput(new Date());
+    if (!$("#fStartD").value) $("#fStartD").value = today;
+    if (!$("#fEndD").value) $("#fEndD").value = today;
+    $("#fStartT").focus();
+  } else {
+    ["fStartD", "fStartT", "fEndD", "fEndT"].forEach(id => { $("#" + id).value = ""; });
+  }
+  paintPunchButton();
 }
 function startFields() {
   return {
@@ -2060,6 +2140,8 @@ $$("#topNav button, #tabbar button").forEach(b => b.addEventListener("click", ()
 $("#fClient").addEventListener("change", () => { paintClock(); });
 $("#fJob").addEventListener("change", () => { glow($("#fJob")); paintPunchButton(); });
 $("#punchBtn").addEventListener("click", () => startJob(startFields()));
+$("#timesToggle").addEventListener("click", () => setTimesOpen($("#timesRow").hidden));
+["fStartD", "fStartT", "fEndD", "fEndT"].forEach(id => $("#" + id).addEventListener("input", paintPunchButton));
 $("#cancelStartBtn").addEventListener("click", () => { state.startPanelOpen = false; clearStartForm(); paintClock(); });
 $("#switchBtn").addEventListener("click", () => {
   const r = runningEntries()[0];

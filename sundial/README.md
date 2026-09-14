@@ -100,6 +100,23 @@ Nothing is persisted in mock mode; a reload starts over.
 
 ## Changelog
 
+### v0.1.1 - 2026-09-14
+
+Start with explicit times, not only "now".
+
+Punch In always started the clock at the moment you pressed it, which meant a
+forgotten punch-in became a two-step fix (punch in, then edit the start) and a
+block of work already finished had to go through the manual entry modal. The
+start panel now has a "Set start and end times instead" link. A start time
+alone starts the entry running from that time, so the timer shows the real
+elapsed time. A start and an end log a finished entry straight from the Clock
+screen. The button label says which one will happen, overlaps are named before
+you save, and the switch rule still applies to anything that starts running.
+
+Also fixed: between about 640 and 860 pixels wide (a tablet, or a narrow desktop
+window) the today table scrolled sideways inside its card. Tables now switch to
+the stacked card layout below 860 pixels, so nothing scrolls sideways at any width.
+
 ### v0.1.0 - 2026-09-14
 
 The first working version: punch, clients, copy, offline.
