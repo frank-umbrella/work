@@ -100,6 +100,17 @@ Nothing is persisted in mock mode; a reload starts over.
 
 ## Changelog
 
+### v0.1.14 - 2026-09-15
+
+Start a timer from the Clients screen.
+
+Every live client card has a green Start button. It opens a small confirmation:
+pick the job type (ticket and project are optional), and the dialog says
+whether anything already running will be stopped or will keep running
+alongside, using the same rule as Resume. Start now starts the timer at the
+current time and takes you to the Clock. Clients with no job types are asked to
+add one first.
+
 ### v0.1.13 - 2026-09-14
 
 Copy day on the Timesheet.

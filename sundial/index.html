@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Sundial v0.1.13</title>
-<meta name="version" content="0.1.13" />
+<title>Sundial v0.1.14</title>
+<meta name="version" content="0.1.14" />
 <meta name="robots" content="noindex, nofollow" />
 <meta name="description" content="Internal hours tracker for Umbrella Automation. Restricted to @umbrellaautomation.com accounts." />
 <meta name="theme-color" content="#1e6fd9" />
@@ -667,12 +667,12 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
 
 <script type="module">
 /* ==============================================================
-   Sundial v0.1.13 - hours tracker
+   Sundial v0.1.14 - hours tracker
    Single file on purpose: no build step, same as Backup Audits.
    Firestore rules for /sundial_users live in ../watchtower/firestore.rules.
    ============================================================== */
 
-const APP_VERSION    = "0.1.13";
+const APP_VERSION    = "0.1.14";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const OWNER_EMAIL    = "frank@umbrellaautomation.com";
 const SDK            = "https://www.gstatic.com/firebasejs/12.13.0/";
@@ -1812,7 +1812,8 @@ function paintClients() {
       '<div class="st"><span>This month <b>' + esc(fmtDur(st.secs)) + "</b></span><span>Entries <b>" + st.count + "</b></span>" +
         (state.settings.showAmounts ? "<span>Rate <b>" + (c.rate != null ? "$" + Number(c.rate).toFixed(2) : "-") + "</b></span>" : "") +
         (c.ticketUrl ? '<span title="' + esc(c.ticketUrl) + '">Ticket links <b>on</b></span>' : "") + "</div>" +
-      '<div class="btnrow" style="margin-top:4px"><button class="btn sm" data-cedit="' + c.id + '">Edit</button>' +
+      '<div class="btnrow" style="margin-top:4px"><button class="btn sm go" data-cstart="' + c.id + '" title="Start a timer for this client right now. Asks for the job type first and tells you what will be stopped.">Start</button>' +
+        '<button class="btn sm" data-cedit="' + c.id + '">Edit</button>' +
         '<button class="btn sm" data-carch="' + c.id + '" title="Keeps every entry and export intact, and takes the client out of the start lists.">Archive</button></div>' +
       "</div>";
   }).join("") : '<div class="card"><div class="emptyrow">No clients yet. Add one, or import a list.</div></div>';
@@ -2412,6 +2413,50 @@ function saveSetting(patch) {
 /* ==============================================================
    ROUTING AND PAINT
    ============================================================== */
+/* Start from a client card: confirm the job type (and optional ticket /
+   project), say what will be stopped, then start at the current time and
+   jump to the Clock. Same alongside rule as Resume: running timers stop
+   unless they, or the new job, may run alongside. */
+function startFromClientModal(c) {
+  const jts = activeJobTypes(c);
+  if (!jts.length) { toast("Add a job type to " + c.name + " first (Edit).", true); return; }
+  const running = runningEntries();
+  const willStop = jt => running.filter(r => {
+    const rc = clientById(r.clientId);
+    return !(effConcurrent(c, jt) || effConcurrent(rc, jobTypeById(rc, r.jobTypeId)));
+  });
+  const body =
+    '<p style="margin:0 0 8px">Start a timer for <b>' + esc(c.name) + '</b> at ' + esc(fmtTime(new Date())) + '.</p>' +
+    '<label class="lab" for="csJob">Job type <span class="q" title="The kind of work. It sets billable and can-run-alongside for the entry.">?</span></label>' +
+    '<select class="fld" id="csJob">' + jts.map(j => '<option value="' + esc(j.id) + '">' + esc(j.name) + "</option>").join("") + "</select>" +
+    '<div class="g2">' +
+      '<div><label class="lab" for="csTicket">Ticket #s</label><input class="fld" id="csTicket" autocomplete="off" placeholder="optional"></div>' +
+      '<div><label class="lab" for="csProject">Project</label><input class="fld" id="csProject" autocomplete="off" placeholder="optional"></div>' +
+    "</div>" +
+    '<div class="hint" id="csEffect" style="margin-top:10px"></div>';
+  const w = openModal("Start " + c.name, body,
+    '<button class="btn" data-close>Cancel</button><button class="btn go" data-go>Start now</button>');
+  const sel = $("#csJob", w), eff = $("#csEffect", w);
+  const paintEffect = () => {
+    const jt = jobTypeById(c, sel.value);
+    const stops = willStop(jt);
+    eff.textContent = !running.length ? "Nothing else is running."
+      : stops.length ? "Will stop " + stops.map(entryLabel).join(", ") + " first."
+      : "Runs alongside " + running.map(entryLabel).join(", ") + ".";
+  };
+  sel.addEventListener("change", paintEffect); paintEffect();
+  $("[data-go]", w).addEventListener("click", () => {
+    const jt = jobTypeById(c, sel.value);
+    const now = new Date();
+    const stopped = willStop(jt);
+    stopped.forEach(r => store.updateEntry(r.id, { end: now }));
+    closeModal(w);
+    const id = doPunchIn({ clientId: c.id, jobTypeId: jt.id, ticket: $("#csTicket", w).value.trim(), project: $("#csProject", w).value.trim(), notes: "" });
+    state.mainRunningId = id;
+    setView("clock");
+    if (stopped.length) toast("Started " + c.name + ". Stopped " + stopped.map(entryLabel).join(", ") + ".");
+  });
+}
 function setView(v) {
   state.view = v;
   $$(".view").forEach(s => s.classList.toggle("on", s.id === "v-" + v));
@@ -2648,6 +2693,7 @@ document.addEventListener("click", e => {
   }
   if ((id = hit("data-day")))    { state.tsDay = id; paintTimesheet(); return; }
   if ((id = hit("data-cedit")))  { const c = clientById(id); if (c) openClientModal(c); return; }
+  if ((id = hit("data-cstart"))) { const c = clientById(id); if (c) startFromClientModal(c); return; }
   if ((id = hit("data-carch")))  { store.upsertClient(id, { archived: true }); toast("Client archived."); return; }
   if ((id = hit("data-cunarch"))){ store.upsertClient(id, { archived: false }); toast("Client unarchived."); return; }
 });
