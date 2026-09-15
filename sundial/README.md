@@ -100,6 +100,16 @@ Nothing is persisted in mock mode; a reload starts over.
 
 ## Changelog
 
+### v0.1.13 - 2026-09-14
+
+Copy day on the Timesheet.
+
+The Clock screen's Copy today only ever copied today. The Timesheet day view now
+has a Copy day button that copies whichever day is selected in the strip, in
+the same email-ready text, following the day view's client filter and your
+saved export options. Yesterday's hours are one tap away without a trip to
+Export.
+
 ### v0.1.12 - 2026-09-14
 
 Notes as a sub-row under each entry.
