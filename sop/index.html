@@ -6,7 +6,7 @@
 <title>Standard Operating Procedures</title>
 <meta name="description" content="Umbrella Automation standard operating procedures: numbered, versioned, and downloadable as PDF.">
 <meta name="robots" content="noindex">
-<meta name="version" content="0.1.0">
+<meta name="version" content="0.2.0">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -167,10 +167,40 @@
     </div>
   </section>
 
+  <section class="panel" id="sop-002">
+    <div class="panel-head">
+      <div>
+        <span class="tag">Security &middot; Incident response</span>
+        <h2><span class="sop-id">SOP-002</span>SentinelOne Threat Response &amp; Malware Remediation Verification</h2>
+      </div>
+      <div class="panel-side">
+        <span class="badge badge-ok">Active</span>
+      </div>
+    </div>
+    <p class="meta-line">Version <strong>1.0</strong> &middot; Effective <strong>2026-09-15</strong> &middot; Review <strong>annual</strong></p>
+    <p class="purpose">What to do after SentinelOne reports a significant threat: don't take the console's &ldquo;mitigated&rdquo; status as the final word. Regain access to the PC, stage tools in C:\IT, review running processes and recent installs, then verify with Malwarebytes, AdwCleaner, and ESET scans &mdash; results saved with dated filenames &mdash; followed by SFC, browser/proxy checks, an admin-rights review, and full Windows Updates.</p>
+    <ul class="covers">
+      <li>S1 status verification</li>
+      <li>C:\IT tool staging</li>
+      <li>Task Manager triage</li>
+      <li>Three-scanner sweep</li>
+      <li>SFC</li>
+      <li>Extensions &amp; proxy</li>
+      <li>Admin-rights review</li>
+      <li>Windows Updates</li>
+      <li>Scan documentation</li>
+    </ul>
+    <div class="actions">
+      <a class="btn-open" href="s1-threat-remediation.html">Open SOP-002</a>
+      <a class="btn-pdf" href="s1-threat-remediation.html?print=1">Download PDF</a>
+      <span class="hint">Opens the print dialog &mdash; choose &ldquo;Save as PDF.&rdquo;</span>
+    </div>
+  </section>
+
 </main>
 
 <footer class="page">
-  <p>SOP library <span class="version">v0.1.0</span> &middot; 1 SOP &middot; to add one, copy an existing SOP page, take the next number, and add a card here.</p>
+  <p>SOP library <span class="version">v0.2.0</span> &middot; 2 SOPs &middot; to add one, copy an existing SOP page, take the next number, and add a card here.</p>
 </footer>
 
 </body>

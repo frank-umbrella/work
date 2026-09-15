@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SOP-002 &middot; SentinelOne Threat Response &amp; Malware Remediation Verification</title>
+<meta name="description" content="Standard Operating Procedure: verifying and remediating SentinelOne threat detections with independent malware scans.">
+<meta name="robots" content="noindex">
+<meta name="version" content="0.1.0">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Saira:wght@900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --surface: #ffffff;
+    --ink: #1a1f2b;
+    --ink-soft: #475063;
+    --line: #e3e6ec;
+    --line-strong: #c9cfdb;
+    --accent: #1a56db;
+    --accent-soft: #eaf0fc;
+    --ok: #0f7b3f;
+    --ok-soft: #e7f5ec;
+    --warn: #9a6700;
+    --warn-soft: #fbf3df;
+    --radius: 12px;
+    --shadow: 0 1px 2px rgba(20, 25, 40, 0.04), 0 4px 14px rgba(20, 25, 40, 0.05);
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "Cascadia Mono", Consolas, "Liberation Mono", monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  header.site {
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+    padding: 22px 24px 20px;
+  }
+  header.site .wrap {
+    max-width: 1160px; margin: 0 auto;
+    display: flex; justify-content: space-between; align-items: center; gap: 18px; flex-wrap: wrap;
+  }
+  .crumb { font-size: 13px; color: var(--ink-soft); margin: 0 0 6px; }
+  .crumb a { font-weight: 600; }
+  header.site h1 { font-size: 24px; margin: 0; letter-spacing: -0.01em; line-height: 1.25; }
+  .sop-id {
+    display: inline-block; margin-right: 8px; vertical-align: 2px;
+    font-size: 12px; font-weight: 700; letter-spacing: 0.05em; color: var(--accent);
+    background: var(--accent-soft); border-radius: 6px; padding: 2px 8px;
+  }
+  .btn-pdf {
+    flex-shrink: 0; display: inline-block; cursor: pointer;
+    font: inherit; font-size: 13.5px; font-weight: 600; white-space: nowrap;
+    background: var(--accent); color: #fff; border: 1px solid var(--accent);
+    border-radius: 8px; padding: 9px 16px;
+  }
+  .btn-pdf:hover { background: #1647b8; border-color: #1647b8; }
+  .btn-pdf::after { content: " \2193"; }
+  .pdf-hint { font-size: 11.5px; color: var(--ink-soft); margin: 6px 0 0; text-align: right; }
+
+  main { max-width: 1160px; margin: 0 auto; padding: 26px 24px 64px; }
+  .layout { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 34px; align-items: start; }
+  .content { min-width: 0; }
+  nav.toc { position: sticky; top: 20px; }
+  nav.toc h2 { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: var(--ink-soft); margin: 0 0 10px; }
+  nav.toc ul { list-style: none; margin: 0; padding: 0; }
+  nav.toc a { display: block; padding: 6px 11px; border-left: 2px solid var(--line); color: var(--ink-soft); font-size: 13px; font-weight: 500; line-height: 1.3; transition: color .12s ease, border-color .12s ease, background .12s ease; }
+  nav.toc a.sub { padding-left: 22px; font-size: 12.5px; }
+  nav.toc a:hover { color: var(--accent); background: var(--accent-soft); text-decoration: none; }
+  nav.toc a.active { color: var(--accent); border-left-color: var(--accent); font-weight: 600; }
+  @media (max-width: 880px) {
+    .layout { grid-template-columns: 1fr; gap: 0; }
+    nav.toc { position: static; margin-bottom: 22px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); padding: 14px 16px; }
+    nav.toc a { border-left: 0; padding: 5px 0; }
+    nav.toc a.sub { padding-left: 14px; }
+  }
+
+  /* ============ The document ============ */
+  .doc {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: var(--radius); box-shadow: var(--shadow);
+    padding: 40px 46px 44px;
+  }
+  @media (max-width: 640px) { .doc { padding: 24px 20px 28px; } }
+
+  .doc-brand {
+    display: flex; justify-content: space-between; align-items: flex-start; gap: 18px; flex-wrap: wrap;
+    padding-bottom: 18px; border-bottom: 2px solid var(--ink); margin-bottom: 18px;
+  }
+  .doc-brand svg.logo { height: 42px; width: auto; display: block; }
+  .doc-brand .doc-kind { text-align: right; }
+  .doc-brand .doc-kind .kind { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; color: var(--ink-soft); }
+  .doc-brand .doc-kind .num { font-size: 20px; font-weight: 800; letter-spacing: 0.02em; color: var(--ink); }
+
+  .doc h2.doc-title { font-size: 26px; line-height: 1.25; letter-spacing: -0.01em; margin: 0 0 20px; padding-top: 0; border-top: 0; }
+
+  .doc-meta {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    border: 1px solid var(--line); border-radius: 8px; overflow: hidden; margin: 0 0 30px;
+  }
+  .doc-meta > div { padding: 9px 13px; border-top: 1px solid var(--line); }
+  .doc-meta > div:nth-child(-n+4) { border-top: 0; }
+  .doc-meta dt { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-soft); margin: 0 0 1px; }
+  .doc-meta dd { font-size: 13.5px; font-weight: 600; margin: 0; }
+  .doc-meta .status { color: var(--ok); }
+
+  .doc h2 {
+    font-size: 19px; letter-spacing: -0.005em; margin: 34px 0 10px;
+    padding-top: 22px; border-top: 1px solid var(--line);
+  }
+  .doc h2 .no, .doc h3 .no { color: var(--accent); margin-right: 8px; }
+  .doc h3 { font-size: 16px; margin: 24px 0 8px; }
+  .doc h4 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--ink-soft); margin: 18px 0 6px; }
+  .doc p { margin: 0 0 12px; max-width: 76ch; }
+  .doc p.soft { color: var(--ink-soft); font-size: 14.5px; }
+  .doc ul, .doc ol { margin: 0 0 14px; padding-left: 22px; }
+  .doc li { margin-bottom: 5px; }
+  .doc li > ul { margin: 5px 0 0; }
+  .doc code { font-family: var(--mono); font-size: 13px; background: var(--bg); border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; }
+
+  .path {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+    font-size: 13px; margin: 4px 0 14px;
+  }
+  .path .lbl { font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-soft); margin-right: 2px; }
+  .path .seg {
+    font-weight: 600; color: var(--ink);
+    background: var(--bg); border: 1px solid var(--line-strong);
+    border-radius: 6px; padding: 2px 9px; white-space: nowrap;
+  }
+  .path .sep { color: var(--line-strong); font-weight: 700; }
+
+  .callout {
+    border-left: 3px solid var(--accent); background: var(--accent-soft);
+    border-radius: 0 8px 8px 0; padding: 11px 15px; margin: 0 0 14px;
+    font-size: 14px; max-width: 76ch;
+  }
+  .callout.warn { border-left-color: var(--warn); background: var(--warn-soft); }
+  .callout .t { font-weight: 700; }
+
+  .tablewrap { overflow-x: auto; margin: 0 0 16px; }
+  table.spec { border-collapse: collapse; width: 100%; font-size: 14px; }
+  table.spec th, table.spec td { border: 1px solid var(--line); padding: 7px 12px; text-align: left; vertical-align: top; }
+  table.spec th { background: var(--bg); font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-soft); }
+  table.spec td.val { font-weight: 600; }
+
+  ul.check { list-style: none; padding-left: 2px; }
+  ul.check li { position: relative; padding-left: 28px; margin-bottom: 7px; }
+  ul.check li::before {
+    content: ""; position: absolute; left: 0; top: 3px;
+    width: 14px; height: 14px; border: 1.6px solid var(--line-strong); border-radius: 3px;
+    background: var(--surface);
+  }
+
+  .print-footer { display: none; }
+
+  footer.page { max-width: 1160px; margin: 0 auto; padding: 0 24px 36px; color: var(--ink-soft); font-size: 12.5px; }
+  footer.page .version {
+    display: inline-block; padding: 1px 7px; border: 1px solid var(--line-strong);
+    border-radius: 999px; font-size: 11.5px; font-weight: 600; color: var(--ink-soft);
+    background: var(--surface); margin: 0 2px;
+  }
+
+  /* ============ Print / PDF ============ */
+  @media print {
+    @page { size: letter; margin: 0.65in 0.7in; }
+    body { background: #fff; font-size: 10.5pt; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    header.site, nav.toc, footer.page, .pdf-hint { display: none; }
+    main { max-width: none; padding: 0; }
+    .layout { display: block; }
+    .doc { border: 0; border-radius: 0; box-shadow: none; padding: 0; }
+    .doc h2 { break-after: avoid; page-break-after: avoid; }
+    .doc h3, .doc h4 { break-after: avoid; page-break-after: avoid; }
+    .doc li, .doc-meta, .callout, table.spec tr { break-inside: avoid; page-break-inside: avoid; }
+    .doc-brand { break-after: avoid; }
+    a { color: inherit; }
+    .print-footer {
+      display: block; margin-top: 26px; padding-top: 10px;
+      border-top: 1px solid var(--line-strong);
+      font-size: 8.5pt; color: var(--ink-soft);
+      display: flex; justify-content: space-between; gap: 12px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap">
+    <div>
+      <p class="crumb"><a href="../index.html">Work Hub</a> / <a href="index.html">SOPs</a></p>
+      <h1><span class="sop-id">SOP-002</span>SentinelOne Threat Response &amp; Malware Remediation Verification</h1>
+    </div>
+    <div>
+      <button type="button" class="btn-pdf" onclick="window.print()">Download PDF</button>
+      <p class="pdf-hint">In the print dialog, choose <strong>Save as PDF</strong>.</p>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="layout">
+  <nav class="toc" aria-label="On this page">
+    <h2>Contents</h2>
+    <ul>
+      <li><a href="#purpose">1. Purpose</a></li>
+      <li><a href="#scope">2. Scope</a></li>
+      <li><a href="#definitions">3. Definitions</a></li>
+      <li><a href="#procedure">4. Procedure</a></li>
+      <li><a class="sub" href="#s4-1">4.1 Confirm access &amp; S1 status</a></li>
+      <li><a class="sub" href="#s4-2">4.2 Prepare the scan tools</a></li>
+      <li><a class="sub" href="#s4-3">4.3 Task Manager review</a></li>
+      <li><a class="sub" href="#s4-4">4.4 Recently installed programs</a></li>
+      <li><a class="sub" href="#s4-5">4.5 Disk Cleanup</a></li>
+      <li><a class="sub" href="#s4-6">4.6 Malwarebytes</a></li>
+      <li><a class="sub" href="#s4-7">4.7 AdwCleaner</a></li>
+      <li><a class="sub" href="#s4-8">4.8 ESET Online Scanner</a></li>
+      <li><a class="sub" href="#s4-9">4.9 System File Checker</a></li>
+      <li><a class="sub" href="#s4-10">4.10 Extensions &amp; proxy check</a></li>
+      <li><a class="sub" href="#s4-11">4.11 Admin access review</a></li>
+      <li><a class="sub" href="#s4-12">4.12 Windows Updates</a></li>
+      <li><a class="sub" href="#s4-13">4.13 Scan documentation</a></li>
+      <li><a href="#summary">5. Completion checklist</a></li>
+      <li><a href="#history">6. Revision history</a></li>
+    </ul>
+  </nav>
+
+  <div class="content">
+  <article class="doc" id="doc">
+
+    <div class="doc-brand">
+      <svg class="logo" viewBox="0 0 1300 280" role="img" aria-label="Umbrella Automation" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="sop-house" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#dde0e3"/>
+            <stop offset="1" stop-color="#7e8489"/>
+          </linearGradient>
+          <linearGradient id="sop-blue" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#26a6e6"/>
+            <stop offset="1" stop-color="#0c5e9c"/>
+          </linearGradient>
+          <linearGradient id="sop-gray" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#c8c8c8"/>
+            <stop offset="1" stop-color="#6e6e6e"/>
+          </linearGradient>
+        </defs>
+        <svg x="0" y="20" width="240" height="240" viewBox="70 92 116 102">
+          <path d="M 126.48 98.88 C 127.20 98.96 127.92 99.04 128.64 99.12 C 145.99 114.08 163.36 129.04 180.72 144.00 C 180.72 146.32 180.72 148.64 180.72 150.96 C 162.88 135.68 145.04 120.40 127.20 105.12 C 127.04 105.12 126.88 105.12 126.72 105.12 C 109.84 119.28 92.96 133.44 76.08 147.60 C 76.08 145.20 76.08 142.80 76.08 140.40 C 93.77 127.76 108.93 111.87 126.48 98.88 Z" fill="url(#sop-house)"/>
+          <path d="M 91.68 183.60 C 115.28 183.60 138.88 183.60 162.48 183.60 C 162.48 170.48 162.48 157.36 162.48 144.24 C 164.32 146.08 166.16 147.92 168.00 149.76 C 168.00 159.52 168.00 169.28 168.00 179.04 C 168.00 181.41 168.81 187.66 167.28 188.64 C 165.78 189.94 150.75 189.12 147.36 189.12 C 133.36 189.12 119.36 189.12 105.36 189.12 C 99.28 189.12 91.39 189.95 86.16 188.64 C 86.08 179.04 86.00 169.44 85.92 159.84 C 87.84 157.92 89.76 156.00 91.68 154.08 C 91.68 163.92 91.68 173.76 91.68 183.60 Z" fill="url(#sop-house)"/>
+          <g stroke="#1A9BE8" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none">
+            <path d="M 130 142 L 137 149 L 161 149"/>
+            <line x1="93" y1="163" x2="120" y2="163"/>
+            <line x1="132" y1="174" x2="161" y2="174"/>
+          </g>
+          <circle cx="128" cy="140" r="4.4" fill="#1A9BE8"/>
+          <circle cx="118" cy="163" r="4.4" fill="#1A9BE8"/>
+          <circle cx="134" cy="174" r="4.4" fill="#1A9BE8"/>
+        </svg>
+        <text x="280" y="130" font-family='"Saira","Eurostile","Eurostile LT W01","Microgramma D","Aldrich",system-ui,sans-serif' font-weight="900" font-size="130" letter-spacing="3.5" fill="url(#sop-blue)">UMBRELLA</text>
+        <text x="280" y="240" font-family='"Saira","Eurostile","Eurostile LT W01","Microgramma D","Aldrich",system-ui,sans-serif' font-weight="900" font-size="130" letter-spacing="3.5" fill="url(#sop-gray)">AUTOMATION</text>
+      </svg>
+      <div class="doc-kind">
+        <div class="kind">Standard Operating Procedure</div>
+        <div class="num">SOP-002</div>
+      </div>
+    </div>
+
+    <h2 class="doc-title">SentinelOne Threat Response &amp; Malware Remediation Verification</h2>
+
+    <dl class="doc-meta">
+      <div><dt>Version</dt><dd>1.0</dd></div>
+      <div><dt>Effective date</dt><dd>2026-09-15</dd></div>
+      <div><dt>Owner</dt><dd>Umbrella Automation</dd></div>
+      <div><dt>Status</dt><dd class="status">Active</dd></div>
+      <div><dt>Applies to</dt><dd>Significant SentinelOne threat detections on client PCs</dd></div>
+      <div><dt>Review cycle</dt><dd>Annual</dd></div>
+      <div><dt>Next review</dt><dd>2027-09-15</dd></div>
+      <div><dt>Classification</dt><dd>Internal</dd></div>
+    </dl>
+
+    <h2 id="purpose" style="margin-top:0; padding-top:0; border-top:0;"><span class="no">1.</span>Purpose</h2>
+    <p>This SOP establishes the standard process for responding to a SentinelOne (S1) threat detection on a client PC. SentinelOne is effective at discovering threats, but its own mitigation status is not yet trusted as the final word on whether a machine is clean. For any significant threat, independent malware scans and verification are required once we have hands-on access to the machine.</p>
+    <div class="callout warn"><span class="t">Why this exists:</span> in a recent incident, a threat was initially believed mitigated based on S1 status &mdash; but the affected PC had actually been offline in LogMeIn for several hours. An S1 console status is not proof the machine has been remediated. Verify on the machine itself.</div>
+
+    <h2 id="scope"><span class="no">2.</span>Scope</h2>
+    <p>This procedure applies to client Windows PCs where SentinelOne reports a significant threat: anything that executed or was active, ransomware or credential-theft indicators, repeated detections, threats of unknown origin, or any detection where the machine was offline or unreachable when S1 reported mitigation.</p>
+    <p class="soft">A single quarantined PUP or a known false positive does not require the full process &mdash; use judgment. When in doubt, run the full process.</p>
+
+    <h2 id="definitions"><span class="no">3.</span>Definitions</h2>
+    <div class="tablewrap"><table class="spec">
+      <tr><th style="width:30%;">Term</th><th>Meaning</th></tr>
+      <tr><td class="val">SentinelOne (S1)</td><td>The endpoint detection and response (EDR) agent deployed on client machines. Detects and attempts to mitigate threats automatically.</td></tr>
+      <tr><td class="val">Mitigated (S1 status)</td><td>SentinelOne's own claim that it killed, quarantined, or remediated a threat. Treated as a starting point, not a conclusion.</td></tr>
+      <tr><td class="val">PUP</td><td>Potentially Unwanted Program &mdash; adware, bundlers, and similar software that is unwanted but not always classed as malware.</td></tr>
+      <tr><td class="val">SFC</td><td>System File Checker (<code>sfc /scannow</code>) &mdash; the built-in Windows tool that verifies and repairs protected system files.</td></tr>
+      <tr><td class="val">C:\IT</td><td>The standard local working folder on client PCs for our tools and scan results.</td></tr>
+    </table></div>
+
+    <h2 id="procedure"><span class="no">4.</span>Procedure</h2>
+
+    <h3 id="s4-1"><span class="no">4.1</span>Confirm Access and Actual Machine State</h3>
+    <ol>
+      <li>Review the S1 console: what was detected, when, what action S1 says it took, and whether the agent is currently online.</li>
+      <li>Confirm the PC is actually online and reachable in LogMeIn before trusting any mitigation status. A machine that has been offline cannot have been remediated, regardless of what the console shows.</li>
+      <li>Note the gap, if any, between the detection time and when we actually gained access to the machine.</li>
+      <li>Regain access to the PC (LogMeIn, or on-site if necessary) before proceeding.</li>
+    </ol>
+
+    <h3 id="s4-2"><span class="no">4.2</span>Prepare the Scan Tools</h3>
+    <ol>
+      <li>Check the root of the C:\ drive for an IT folder. If it does not already exist, create <code>C:\IT</code>.</li>
+      <li>Download the required tools from their official websites:</li>
+    </ol>
+    <div class="tablewrap"><table class="spec">
+      <tr><th style="width:34%;">Tool</th><th style="width:33%;">Official source</th><th>Used for</th></tr>
+      <tr><td class="val">Malwarebytes (free/personal)</td><td><code>malwarebytes.com</code></td><td>Full malware scan</td></tr>
+      <tr><td class="val">AdwCleaner</td><td><code>malwarebytes.com/adwcleaner</code></td><td>Adware, PUPs, browser-related threats</td></tr>
+      <tr><td class="val">ESET Online Scanner</td><td><code>eset.com</code> (Online Scanner)</td><td>Deep second-opinion scan</td></tr>
+    </table></div>
+    <ol start="3">
+      <li>If downloading directly on the affected PC is not practical or advisable, download the tools on your own computer and use LogMeIn File Transfer to move them to the affected PC.</li>
+      <li>Place all three utilities/installers in <code>C:\IT</code>.</li>
+      <li>Run the programs from the local <code>C:\IT</code> folder &mdash; not from a mapped drive, Google Drive, or another network location.</li>
+    </ol>
+
+    <h3 id="s4-3"><span class="no">4.3</span>Check Task Manager for Suspicious Processes</h3>
+    <p>Before running any cleanup tools or scans, look at what is actively running on the machine.</p>
+    <ol>
+      <li>Open <strong>Task Manager</strong> &rarr; <strong>Processes</strong>.</li>
+      <li>Look for anything unfamiliar or suspicious, especially processes using unusually high CPU, memory, disk, or network &mdash; anything dominating system resources or behaving abnormally.</li>
+      <li>Look for unfamiliar remote-access tools, command-line processes, scripts, unusually named executables, or programs that do not appear to belong on the computer.</li>
+      <li>For anything questionable, use <strong>Open file location</strong> and check the executable's location and publisher when possible.</li>
+      <li>Document anything suspicious <em>before</em> terminating or removing it, so there is a record of what was running.</li>
+    </ol>
+    <div class="callout"><span class="t">Keep perspective:</span> high resource usage alone does not mean a process is malicious. The goal here is to identify anything that deserves further investigation before we begin changing the system.</div>
+
+    <h3 id="s4-4"><span class="no">4.4</span>Check Recently Installed Programs</h3>
+    <ol>
+      <li>Press <strong>Windows key + R</strong>, enter <code>appwiz.cpl</code>.</li>
+      <li>Sort the installed programs list by <strong>Installed On</strong> so the most recent installs are easy to identify.</li>
+      <li>Look for unfamiliar, suspicious, or unexpected software &mdash; particularly anything installed around the time of the incident: unwanted applications, remote-access utilities, PUPs, or anything installed as part of the compromise.</li>
+      <li>Document anything suspicious before removing it, so there is a record of what was found.</li>
+    </ol>
+
+    <h3 id="s4-5"><span class="no">4.5</span>Run Disk Cleanup Before Scanning</h3>
+    <p>Clear temporary and discarded files first so scan time is not wasted on files that can simply be removed.</p>
+    <ol>
+      <li>Open <strong>Disk Cleanup</strong> and select the C:\ drive.</li>
+      <li>Click <strong>Clean up system files</strong>, and select the C:\ drive again if prompted.</li>
+      <li>Select the applicable temporary/system categories &mdash; temporary files, cached files, and other unnecessary files that can safely be removed.</li>
+      <li>Run the cleanup and let it complete before starting the malware scans.</li>
+    </ol>
+    <div class="callout"><span class="t">Shortcut:</span> the <a href="../scripts/index.html#disk-cleanup">PC Scripts page</a> has <code>Open-DiskCleanup.ps1</code> (with a <code>-SystemFiles</code> switch) that opens the elevated system-files view directly.</div>
+
+    <h3 id="s4-6"><span class="no">4.6</span>Scan 1 &mdash; Malwarebytes (Free / Personal Edition)</h3>
+    <ol>
+      <li>Install Malwarebytes and run a <strong>full scan</strong>.</li>
+      <li>Review and address anything detected.</li>
+      <li>Export/save the scan results to <code>C:\IT</code> with the date in the filename &mdash; e.g. <code>Malwarebytes_2026-09-09.txt</code> (see <a href="#s4-13">4.13</a>).</li>
+      <li>Afterward, disable Malwarebytes from starting automatically with Windows, so the user is not repeatedly prompted about the trial ending.</li>
+    </ol>
+    <div class="callout"><span class="t">Shortcut:</span> the <a href="../scripts/index.html#malwarebytes">PC Scripts page</a> has <code>Disable-Malwarebytes-Startup.ps1</code> for the startup step, plus the manual click-path for the in-app toggle.</div>
+
+    <h3 id="s4-7"><span class="no">4.7</span>Scan 2 &mdash; AdwCleaner</h3>
+    <ol>
+      <li>Run AdwCleaner directly from <code>C:\IT</code> &mdash; it is a lightweight, portable Malwarebytes utility (no install) that targets adware, PUPs, browser-related threats, and similar items.</li>
+      <li>Review and address anything detected.</li>
+      <li>Save/export the scan results to <code>C:\IT</code> with the date in the filename &mdash; e.g. <code>AdwCleaner_2026-09-09.txt</code>.</li>
+    </ol>
+
+    <h3 id="s4-8"><span class="no">4.8</span>Scan 3 &mdash; ESET Online Scanner</h3>
+    <p>ESET has produced the best results so far and has found threats the other tools missed, including items located in other user profiles.</p>
+    <ol>
+      <li>Run a <strong>Custom Scan</strong> and scan only the machine's <strong>physical drives</strong>.</li>
+      <li>Exclude Google Drive, mapped/network drives, and other virtual drives &mdash; otherwise the scan can take several hours because of the amount of data stored in those locations.</li>
+      <li>Review and address anything detected.</li>
+      <li>Save/export the scan results to <code>C:\IT</code> with the date in the filename &mdash; e.g. <code>ESET_2026-09-09.txt</code>.</li>
+      <li>When closing ESET Online Scanner, make sure <strong>&ldquo;Delete application data on closing&rdquo;</strong> is selected, so ESET removes its application data and does not remain on the PC after the scan.</li>
+    </ol>
+    <div class="callout"><span class="t">If that option was missed:</span> ESET's periodic-scan leftovers survive on the PC and re-run at startup. The <a href="../scripts/index.html#eset-cleanup">PC Scripts page</a> has <code>Remove-ESETOnlineScanner.ps1</code> to clean them up.</div>
+
+    <h3 id="s4-9"><span class="no">4.9</span>Run System File Checker</h3>
+    <p>Once the malware scans are complete and any detected threats have been addressed, check for damaged or modified Windows system files:</p>
+    <ol>
+      <li>Open <strong>Command Prompt as Administrator</strong>.</li>
+      <li>Run <code>sfc /scannow</code> and allow the scan to reach 100%.</li>
+      <li>Review the result to determine whether Windows found and repaired any corrupted system files.</li>
+      <li>Restart the computer if needed.</li>
+    </ol>
+
+    <h3 id="s4-10"><span class="no">4.10</span>Browser Extensions and Proxy Check</h3>
+    <ol>
+      <li>Check both <strong>Google Chrome</strong> and <strong>Microsoft Edge</strong> for unfamiliar, suspicious, or malicious extensions. Remove any extension that is not recognized or approved.</li>
+      <li>Check <strong>Internet Options / Windows proxy settings</strong> for any proxy configuration that should not be there.</li>
+      <li>If a proxy has been manually configured and is not part of the client's normal setup, remove it and verify that internet connectivity works normally afterward.</li>
+    </ol>
+
+    <h3 id="s4-11"><span class="no">4.11</span>Review the User's Administrator Access</h3>
+    <ol>
+      <li>Verify whether the affected user's Windows account is a member of the local <strong>Administrators</strong> group.</li>
+      <li>If the user has administrator access, determine and document why they require it.</li>
+      <li>If there is no legitimate business or application requirement, review and remove the local admin rights according to the client's normal access policies.</li>
+    </ol>
+    <p class="soft">A compromised account with unnecessary administrative privileges can make an incident significantly worse. Limiting users to standard access wherever possible reduces what malicious software or an attacker can change on the machine.</p>
+
+    <h3 id="s4-12"><span class="no">4.12</span>Run Windows Updates</h3>
+    <p>Once the scans and security checks are complete, bring the computer fully up to date.</p>
+    <div class="path"><span class="lbl">Navigate to</span><span class="seg">Settings</span><span class="sep">&rsaquo;</span><span class="seg">Windows Update</span><span class="sep">&rsaquo;</span><span class="seg">Advanced options</span></div>
+    <p>Verify that the following are <strong>enabled</strong> (both are disabled by default on many systems):</p>
+    <ul>
+      <li><strong>Receive updates for other Microsoft products when you update Windows</strong></li>
+      <li><strong>Notify me when a restart is required to finish updating</strong> &mdash; so the user is properly notified when a restart is needed.</li>
+    </ul>
+    <div class="path"><span class="lbl">Then</span><span class="seg">Windows Update</span><span class="sep">&rsaquo;</span><span class="seg">Advanced options</span><span class="sep">&rsaquo;</span><span class="seg">Optional updates</span></div>
+    <ol>
+      <li>Check for and install all applicable driver updates.</li>
+      <li>Install any other applicable optional Windows updates.</li>
+      <li>Restart the computer when required.</li>
+      <li>Keep checking Windows Update after each restart until no applicable updates remain.</li>
+    </ol>
+    <div class="callout"><span class="t">If Windows Update seems stuck:</span> pause updates, resume/unpause, then check for updates again. This often forces Windows Update to refresh and begin checking normally. The <a href="../scripts/index.html#wu-options">PC Scripts page</a> has <code>Set-WindowsUpdateOptions.ps1</code> for the two toggles and <code>Open-WindowsUpdate.ps1</code> for the pause/resume/check routine.</div>
+
+    <h3 id="s4-13"><span class="no">4.13</span>Scan Documentation</h3>
+    <p>For every malware-remediation incident, the results from all three scanners must be saved to <code>C:\IT</code> with the date in each filename, so there is a record of what was found and when each scan was performed.</p>
+    <div class="tablewrap"><table class="spec">
+      <tr><th style="width:34%;">Tool</th><th>Filename format</th></tr>
+      <tr><td class="val">Malwarebytes</td><td><code>Malwarebytes_YYYY-MM-DD.txt</code></td></tr>
+      <tr><td class="val">AdwCleaner</td><td><code>AdwCleaner_YYYY-MM-DD.txt</code></td></tr>
+      <tr><td class="val">ESET Online Scanner</td><td><code>ESET_YYYY-MM-DD.txt</code></td></tr>
+    </table></div>
+    <p class="soft">If multiple scans are performed on the same day, add an identifier or the time to the filename so previous results are not overwritten.</p>
+
+    <h2 id="summary"><span class="no">5.</span>Completion Checklist</h2>
+    <p>For any significant S1 threat, the incident is not closed until every step below is done. This provides a layer of verification beyond S1's own status, and a record of scan results, suspicious processes, recently installed software, configuration issues, permission problems, browser changes, system-file issues, and patching gaps that may have contributed to the incident.</p>
+    <ul class="check">
+      <li>S1 detection reviewed; detection time vs. machine-online time noted</li>
+      <li>PC confirmed online and access regained (LogMeIn or on-site)</li>
+      <li><code>C:\IT</code> created or confirmed; tools downloaded from official sources and run locally</li>
+      <li>Task Manager reviewed; anything suspicious documented before removal</li>
+      <li>Recently installed programs reviewed in <code>appwiz.cpl</code> (sorted by Installed On)</li>
+      <li>Disk Cleanup + Clean up system files completed</li>
+      <li>Malwarebytes full scan run; findings addressed; results saved; auto-start disabled</li>
+      <li>AdwCleaner run; findings addressed; results saved</li>
+      <li>ESET custom scan run (physical drives only); findings addressed; results saved; application data deleted on close</li>
+      <li><code>sfc /scannow</code> completed and result reviewed</li>
+      <li>Chrome and Edge extensions reviewed; unapproved extensions removed</li>
+      <li>Proxy settings verified clean; connectivity confirmed</li>
+      <li>User's local administrator access reviewed and documented (removed if unjustified)</li>
+      <li>Windows Update toggles verified; all updates including optional/driver updates installed; restarted as required</li>
+      <li>All three scan results in <code>C:\IT</code> with dated filenames</li>
+      <li>Machine verified fully updated and clean; incident closed</li>
+    </ul>
+
+    <h2 id="history"><span class="no">6.</span>Revision History</h2>
+    <div class="tablewrap"><table class="spec">
+      <tr><th style="width:14%;">Version</th><th style="width:22%;">Date</th><th>Change</th></tr>
+      <tr><td class="val">1.0</td><td>2026-09-15</td><td>Initial release.</td></tr>
+    </table></div>
+
+    <div class="print-footer">
+      <span>Umbrella Automation &middot; SOP-002 v1.0 &middot; Internal</span>
+      <span>Effective 2026-09-15</span>
+    </div>
+
+  </article>
+  </div>
+  </div>
+</main>
+
+<footer class="page">
+  <p><a href="index.html">SOP library</a> &middot; SOP page <span class="version">v0.1.0</span> &middot; use <strong>Download PDF</strong> above (or Ctrl+P) and choose &ldquo;Save as PDF.&rdquo;</p>
+</footer>
+
+<script>
+(() => {
+  // Highlight the TOC entry for the section in view
+  const links = Array.from(document.querySelectorAll('nav.toc a'));
+  const byId = new Map(links.map(a => [a.getAttribute('href').slice(1), a]));
+  const targets = Array.from(byId.keys()).map(id => document.getElementById(id)).filter(Boolean);
+  let active = null;
+  const setActive = (a) => {
+    if (a === active) return;
+    if (active) active.classList.remove('active');
+    active = a;
+    if (active) active.classList.add('active');
+  };
+  const onScroll = () => {
+    let current = targets[0];
+    for (const t of targets) {
+      if (t.getBoundingClientRect().top <= 90) current = t; else break;
+    }
+    if (current) setActive(byId.get(current.id));
+  };
+  document.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+
+  // ?print=1 opens the print dialog once fonts have loaded (used by the library's Download PDF links)
+  if (new URLSearchParams(location.search).has('print')) {
+    const go = () => setTimeout(() => window.print(), 250);
+    (document.fonts && document.fonts.ready) ? document.fonts.ready.then(go) : window.addEventListener('load', go);
+  }
+})();
+</script>
+
+</body>
+</html>
