@@ -218,6 +218,21 @@ the tables with the reason on hover, gains a line under it in the text export
 line in the Notes cell of the email table. The hour past the limit ends up
 with its explanation attached rather than an argument a month later.
 
+A Warnings panel in Settings, and the only permission prompt in the app.
+
+An on-screen toast only reaches you when Sundial is the tab you are looking
+at, which is exactly not the case when a job has quietly run long. Settings
+has a **Warnings** panel with one switch: also warn with a system
+notification when the app is in the background. Turning it on is the only
+thing in Sundial that ever asks your browser for notification permission -
+nothing asks on first open, where a permission prompt is noise from an app
+you have not decided to trust yet - and the line under it says where you
+stand afterwards: Granted, Blocked, or Not supported, with the note that an
+iPhone needs Sundial added to the home screen before a notification can
+reach it at all. Notifications only ever fire for limit warnings, only while
+the tab is hidden, and everything about them is guarded, so a browser with no
+notifications at all just carries on with the on-screen warning.
+
 ### v0.2.0 - 2026-09-15
 
 Copy for email, and Open in email.

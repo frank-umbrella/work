@@ -794,6 +794,14 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
     </div>
 
     <div class="card">
+      <h4>Warnings</h4>
+      <div class="hint" style="font-size:13.5px">A job type with a time limit warns you on screen while Sundial is the tab you are looking at. A system notification is what reaches you when it is not.</div>
+      <label class="ck"><input type="checkbox" id="sNotify"> Also warn with a system notification when the app is in the background
+        <span class="q" title="Only fires for time-limit warnings, and only while this tab is hidden. Turning it on is the only thing that ever asks your browser for notification permission: Sundial never asks on first open.">?</span></label>
+      <div id="notifyState" class="hint" style="font-size:13.5px"></div>
+    </div>
+
+    <div class="card">
       <h4>Offline</h4>
       <div id="offlineStatus" class="hint" style="font-size:13.5px"></div>
       <div class="btnrow">
@@ -948,7 +956,7 @@ const DEFAULT_SETTINGS = {
   defaultJobTypes: DEFAULT_JOB_TYPES.slice(),
   exportTemplate: "grouped", showAmounts: false,
   newClientBillable: true, newClientAllowConcurrent: false,
-  weeklyCapacityHours: 40, mileageRate: 0.70, defaultView: "day",
+  weeklyCapacityHours: 40, mileageRate: 0.70, defaultView: "day", notify: false,
   theme: "system", columns: DEFAULT_COLUMNS.slice(), sort: null, colWidths: {}
 };
 
@@ -3791,7 +3799,26 @@ function paintSettings() {
   chk("#sShowAmounts", s.showAmounts);
   chk("#sNewBillable", s.newClientBillable !== false);
   chk("#sNewConcurrent", s.newClientAllowConcurrent);
+  chk("#sNotify", s.notify && notifyPermission() === "granted");
+  paintNotifyState();
   paintSettingsJobTypes();
+}
+/* Notification may not exist at all (an old browser, an embedded view, a
+   file:// page), so every read of it is guarded. */
+function notifyPermission() {
+  try { return typeof Notification === "undefined" ? "unsupported" : Notification.permission; }
+  catch (_) { return "unsupported"; }
+}
+function paintNotifyState() {
+  const el = $("#notifyState");
+  if (!el) return;
+  const p = notifyPermission();
+  const ios = " On an iPhone or iPad this only works when Sundial has been added to the home screen; a notification cannot reach you from a Safari tab.";
+  el.textContent =
+    p === "unsupported" ? "Not supported - this browser has no notifications. The on-screen warning still works."
+    : p === "granted" ? "Granted." + ios
+    : p === "denied"  ? "Blocked - your browser is refusing notifications for this site. Allow them in the site settings and come back; Sundial cannot ask twice."
+    : "Not asked yet. Switching this on is what asks." + ios;
 }
 function saveSetting(patch) {
   Object.assign(state.settings, patch);
@@ -4104,6 +4131,29 @@ $("#sDefaultView").addEventListener("change", e => { saveSetting({ defaultView: 
 $("#sShowAmounts").addEventListener("change", e => saveSetting({ showAmounts: e.target.checked }));
 $("#sNewBillable").addEventListener("change", e => saveSetting({ newClientBillable: e.target.checked }));
 $("#sNewConcurrent").addEventListener("change", e => saveSetting({ newClientAllowConcurrent: e.target.checked }));
+/* The only place Sundial ever asks for notification permission, and only on
+   this click - never on first open, where a permission prompt is noise from
+   an app you have not decided to trust yet. */
+$("#sNotify").addEventListener("change", async e => {
+  if (!e.target.checked) { saveSetting({ notify: false }); paintNotifyState(); return; }
+  let p = notifyPermission();
+  if (p === "unsupported") {
+    e.target.checked = false; saveSetting({ notify: false }); paintNotifyState();
+    toast("This browser has no notifications. The on-screen warning still works.", true);
+    return;
+  }
+  if (p === "default") {
+    try { p = await Notification.requestPermission(); } catch (_) { p = notifyPermission(); }
+  }
+  if (p !== "granted") {
+    e.target.checked = false; saveSetting({ notify: false }); paintNotifyState();
+    toast("Notifications are blocked for this site. Allow them in your browser's site settings.", true);
+    return;
+  }
+  saveSetting({ notify: true });
+  paintNotifyState();
+  toast("Limit warnings will also arrive as notifications.");
+});
 $("#sJobTypeAdd").addEventListener("keydown", e => {
   if (e.key !== "Enter") return;
   e.preventDefault();
