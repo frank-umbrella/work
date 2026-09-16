@@ -383,6 +383,20 @@ textarea.fld{min-height:64px;resize:vertical}
 .limbox{margin-top:8px;padding:10px 12px;border:1px solid var(--line2);border-radius:var(--radius);background:var(--card2)}
 
 /* ---------- export ---------- */
+/* The mileage table is not sortable and has no Columns manager - it is six
+   fixed columns of an expense claim - so its headers lose the pointer that
+   the entry tables use to advertise sorting. It card-stacks with the same
+   rules as every other .mt table below 860px. */
+.milet th{cursor:default}
+.milet td.num{font-family:var(--mono);white-space:nowrap;text-align:right}
+.milet th.num{text-align:right}
+.milet tfoot td{border-bottom:0;border-top:1px solid var(--line2);font-weight:700;padding-top:10px}
+@media (max-width:860px){
+  .milet td.num,.milet th.num{text-align:left}
+  .milet tfoot tr{display:block;border:1px solid var(--line2);border-radius:var(--radius);padding:6px 10px}
+  .milet tfoot td{display:flex;gap:10px;border:0;padding:4px 0}
+  .milet tfoot td:before{content:attr(data-l);flex:0 0 76px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding-top:3px}
+}
 .exp{display:grid;grid-template-columns:minmax(0,300px) minmax(0,1fr);gap:16px}
 @media (max-width:880px){.exp{grid-template-columns:minmax(0,1fr)}}
 pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-radius:calc(var(--radius) - 2px);padding:14px 16px;font:13px/1.5 var(--mono);white-space:pre-wrap;overflow-wrap:anywhere;color:var(--text);max-width:100%;min-height:120px}
@@ -643,7 +657,12 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
   <section class="view" id="v-export">
     <div class="exp">
       <div class="card">
-        <h4>Range</h4>
+        <h4>Export</h4>
+        <span class="seg" id="xMode">
+          <button data-xm="hours" class="on" title="The hours block you send to a client or keep for your own records.">Hours</button>
+          <button data-xm="mileage" title="Just the travel entries and their miles, priced at the mileage rate in Settings. This is the expense report attachment.">Mileage</button>
+        </span>
+        <label class="lab">Range</label>
         <span class="seg" id="xRange">
           <button data-r="today" class="on">Today</button>
           <button data-r="yesterday">Yesterday</button>
@@ -658,6 +677,7 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
         </div>
         <label class="lab" for="xClient">Client <span class="q" title="Pick one client to send them only their own hours. All clients is for your own records.">?</span></label>
         <select class="fld" id="xClient"></select>
+        <div id="xHoursOpts">
         <label class="lab">Billable <span class="q" title="Billable only gives a clean block to forward to a client. All tags non-billable lines and splits every subtotal.">?</span></label>
         <span class="seg" id="xBillable">
           <button data-b="all" class="on">All</button>
@@ -683,8 +703,10 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
           <button data-t="flat">Flat</button>
         </span>
         <div class="hint">Time is always stored raw. Rounding happens here, on the way out.</div>
+        </div>
+        <div class="hint" id="xMileHint" hidden>Mileage lists every entry whose job type is flagged travel, priced at the rate in Settings. Rounding, billable filters and templates belong to hours, so they sit this one out.</div>
       </div>
-      <div class="card">
+      <div class="card" id="xHoursCard">
         <div class="chead"><h4>Preview</h4><span class="sp">
           <button class="btn sm acc" id="xCopy">Copy as text</button>
           <button class="btn sm acc" id="xCopyHtml" title="Copies the same hours as a table. Gmail and Outlook paste it as rows and columns, with ticket numbers as links where the client has a ticket URL pattern. The plain text goes on the clipboard at the same time, so anywhere that cannot take a table still gets the block.">Copy for email</button>
@@ -696,6 +718,15 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
         </span></div>
         <pre class="prev" id="xPreview"></pre>
         <div class="hint">The preview is exactly the text that gets copied.</div>
+      </div>
+      <div class="card" id="xMileageCard" hidden>
+        <div class="chead"><h4>Mileage</h4><span class="sp">
+          <button class="btn sm acc" id="xMileCopy" title="A short plain block for pasting straight into an expense form: one line per trip and a total.">Copy as text</button>
+          <button class="btn sm" id="xMileCsv" title="One row per travel entry with the rate and the amount worked out, UTF-8 with a byte-order mark so Excel opens it correctly.">CSV</button>
+          <button class="btn sm" id="xMileXlsx" title="The same rows in a real workbook, so the accounts package gets the columns right with no import wizard. Needs the network the first time, to fetch the spreadsheet library.">XLSX</button>
+        </span></div>
+        <div class="tablewrap"><table class="mt milet" id="xMileTable"></table></div>
+        <div class="hint" id="xMileFoot"></div>
       </div>
     </div>
   </section>
@@ -722,7 +753,7 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
       </div>
       <div class="g2">
         <div><label class="lab" for="sCapacity">Weekly capacity hours <span class="q" title="The full week you are measuring against. The utilization bar on the Clock and the Timesheet shows the week against it, so you can see how full it is before Friday.">?</span></label><input class="fld" id="sCapacity" type="number" min="0" step="0.5"></div>
-        <div><label class="lab" for="sMileage">Mileage rate <span class="q" title="Dollars per mile for the travel export. Set it once a year; it is stored now and used in v0.3.">?</span></label><span class="money"><input class="fld" id="sMileage" inputmode="decimal"></span></div>
+        <div><label class="lab" for="sMileage">Mileage rate <span class="q" title="IRS standard mileage rate; set it once a year. Dollars per mile, and it is what the Mileage export multiplies your travel entries by, so a stale rate quietly underpays every claim.">?</span></label><span class="money"><input class="fld" id="sMileage" inputmode="decimal"></span></div>
       </div>
       <div class="g2">
         <div><label class="lab" for="sDefaultView">Default timesheet view <span class="q" title="Which timesheet view a device that has never chosen one opens with. Each device then remembers whichever view you last picked on it, because the phone wants the day list and the desktop wants the week grid.">?</span></label><select class="fld" id="sDefaultView"><option value="day">Day list</option><option value="week">Week grid</option><option value="calendar">Calendar</option></select></div>
@@ -918,7 +949,9 @@ const state = {
   runEditId: null,
   /* xOpts.rounding null means "follow the Settings default, and let a client
      override win"; a value pins that increment on every client. */
-  xOpts: { range: "today", from: "", to: "", client: "", billable: "all", notes: true, project: true, ticket: true, group: true, amounts: true, rounding: null, template: "grouped" }
+  /* mode picks which half of the Export screen is showing: the hours block
+     or the mileage claim. Range and client filter are shared. */
+  xOpts: { mode: "hours", range: "today", from: "", to: "", client: "", billable: "all", notes: true, project: true, ticket: true, group: true, amounts: true, rounding: null, template: "grouped" }
 };
 let store = null;
 
@@ -3241,6 +3274,129 @@ function openInEmail() {
   toast("Opening your mail app.");
 }
 
+/* ==============================================================
+   MILEAGE
+   The same range and client filter as the hours export, but only the
+   entries whose job type is flagged travel, priced at the rate in
+   Settings. The billable filter, rounding and templates belong to hours
+   and deliberately do not apply: a drive is a distance, not a duration.
+   ============================================================== */
+function mileageRows() {
+  const r = exportRangeKeys(), o = state.xOpts;
+  return state.entries.filter(e => {
+    if (e.day < r[0] || e.day > r[1]) return false;
+    if (o.client && e.clientId !== o.client) return false;
+    return isTravelEntry(e);
+  }).sort((a, b) => toDate(a.start) - toDate(b.start));
+}
+function mileageRate() {
+  const n = Number(state.settings.mileageRate);
+  return isFinite(n) && n > 0 ? n : 0;
+}
+function mileageAmount(e) {
+  if (e.miles == null) return null;
+  const r = mileageRate();
+  return r ? Number(e.miles) * r : null;
+}
+function milesText(n) { return Number(n).toFixed(1); }
+function mileageTotals(rows) {
+  let miles = 0, amount = 0, missing = 0;
+  rows.forEach(e => {
+    if (e.miles == null) { missing++; return; }
+    miles += Number(e.miles);
+    const a = mileageAmount(e); if (a != null) amount += a;
+  });
+  return { miles: miles, amount: amount, missing: missing };
+}
+function mileageNoteOf(e) { return e.mileageNote || e.notes || ""; }
+function paintMileage() {
+  const rows = mileageRows(), t = mileageTotals(rows), rate = mileageRate();
+  const cols = [
+    { k: "date",   label: "Date" },
+    { k: "client", label: "Client" },
+    { k: "ticket", label: "Ticket" },
+    { k: "note",   label: "Note" },
+    { k: "miles",  label: "Miles", num: true },
+    { k: "amount", label: "Amount", num: true }
+  ];
+  const cell = (e, k) => {
+    const c = clientById(e.clientId);
+    switch (k) {
+      case "date":   return esc(fmtDayShort(e.day));
+      case "client": return '<span class="cdot" style="background:' + esc(clientColor(c)) + '"></span>' + esc(exportClientName(c));
+      case "ticket": return ticketHTML(c, e.ticket);
+      case "note":   return esc(mileageNoteOf(e));
+      case "miles":  return e.miles == null
+                       ? '<span class="tagnb" title="Add miles from Edit on this entry.">no miles</span>'
+                       : esc(milesText(e.miles));
+      case "amount": { const a = mileageAmount(e); return a == null ? "" : esc(money(a)); }
+    }
+    return "";
+  };
+  const head = "<thead><tr>" + cols.map(c => '<th' + (c.num ? ' class="num"' : "") + ">" + esc(c.label) + "</th>").join("") + "</tr></thead>";
+  const body = "<tbody>" + (rows.length ? rows.map(e =>
+    "<tr>" + cols.map(c => '<td class="' + (c.num ? "num" : c.k === "date" ? "t" : "") + '" data-l="' + esc(c.label) + '">' + cell(e, c.k) + "</td>").join("") + "</tr>").join("")
+    : '<tr><td colspan="' + cols.length + '" class="emptyrow">No travel entries in this range. A job type has to be flagged travel for its time to land here.</td></tr>') + "</tbody>";
+  const foot = rows.length
+    /* the label cell carries no data-l: in the stacked layout it would only
+       repeat the word Total back at itself */
+    ? '<tfoot><tr><td colspan="4" data-l="">Total' + (t.missing ? " (" + t.missing + " entr" + (t.missing === 1 ? "y" : "ies") + " with no miles)" : "") + "</td>" +
+      '<td class="num" data-l="Miles">' + esc(milesText(t.miles)) + '</td>' +
+      '<td class="num" data-l="Amount">' + (rate ? esc(money(t.amount)) : "") + "</td></tr></tfoot>"
+    : "";
+  /* colspan 4 collapses to one block in the stacked layout, which is what
+     the Total label is for. */
+  $("#xMileTable").innerHTML = head + body + foot;
+  $("#xMileFoot").textContent = rate
+    ? milesText(t.miles) + " miles at " + money(rate) + " a mile" + (t.missing ? ", plus " + t.missing + " entr" + (t.missing === 1 ? "y" : "ies") + " still waiting for miles." : ".")
+    : "Set a mileage rate in Settings to price these miles.";
+}
+function buildMileageText() {
+  const rows = mileageRows(), t = mileageTotals(rows), rate = mileageRate();
+  const lines = ["Mileage for " + exportRangeLabel()];
+  if (state.settings.yourName) lines.push(state.settings.yourName);
+  lines.push("");
+  if (!rows.length) { lines.push("No travel entries in this range."); return lines.join("\n"); }
+  const dateW  = Math.max.apply(null, rows.map(e => fmtDayShort(e.day).length));
+  const cliW   = Math.max.apply(null, rows.map(e => exportClientName(clientById(e.clientId)).length));
+  const tkW    = Math.max.apply(null, rows.map(e => ticketText(e.ticket).length));
+  const noteW  = Math.max.apply(null, rows.map(e => mileageNoteOf(e).length));
+  rows.forEach(e => {
+    const c = clientById(e.clientId);
+    const a = mileageAmount(e);
+    const tail = e.miles == null ? "(no miles)"
+      : milesText(e.miles) + " mi" + (a != null ? "  " + money(a) : "");
+    lines.push([
+      fmtDayShort(e.day).padEnd(dateW),
+      exportClientName(c).padEnd(cliW),
+      ticketText(e.ticket).padEnd(tkW),
+      mileageNoteOf(e).padEnd(noteW),
+      tail
+    ].join("  ").replace(/\s+$/, ""));
+  });
+  lines.push("");
+  lines.push("Total " + milesText(t.miles) + " mi" + (rate ? "  " + money(t.amount) + " at " + money(rate) + " a mile" : "") +
+    (t.missing ? "  (" + t.missing + " entr" + (t.missing === 1 ? "y" : "ies") + " with no miles)" : ""));
+  return lines.join("\n");
+}
+function mileageCSVRows() {
+  const rate = mileageRate();
+  const head = ["date", "client", "client_id", "ticket", "note", "miles", "rate", "amount"];
+  const body = mileageRows().map(e => {
+    const c = clientById(e.clientId), a = mileageAmount(e);
+    return [
+      e.day, c ? c.name : "Unknown client", c && c.code ? c.code : "", ticketText(e.ticket),
+      mileageNoteOf(e), e.miles != null ? milesText(e.miles) : "",
+      rate ? rate.toFixed(2) : "", a != null ? a.toFixed(2) : ""
+    ];
+  });
+  return [head].concat(body);
+}
+function mileageFileBase() {
+  const r = exportRangeKeys();
+  return "sundial-mileage-" + r[0] + (r[0] === r[1] ? "" : "_to_" + r[1]);
+}
+
 function paintExport() {
   const o = state.xOpts;
   fillSelect($("#xClient"), activeClients().map(c => ({ v: c.id, t: c.name })), "All clients", o.client);
@@ -3262,6 +3418,15 @@ function paintExport() {
   $("#xAmountsRow").hidden = !state.settings.showAmounts;
   $("#xAmounts").checked = o.amounts !== false;
   $("#xPreview").textContent = buildExportText();
+  /* Hours or Mileage: one card on the right at a time, and the options that
+     only mean something for hours go with it. */
+  const mileage = o.mode === "mileage";
+  $$("#xMode button").forEach(b => b.classList.toggle("on", (b.getAttribute("data-xm") === "mileage") === mileage));
+  $("#xHoursOpts").hidden  = mileage;
+  $("#xMileHint").hidden   = !mileage;
+  $("#xHoursCard").hidden  = mileage;
+  $("#xMileageCard").hidden = !mileage;
+  if (mileage) paintMileage();
   const r = exportRangeKeys();
   store && store.extendWindow && store.extendWindow(r[0]);
 }
@@ -3554,6 +3719,7 @@ $("#clFile").addEventListener("change", e => { const f = e.target.files[0]; e.ta
 $("#clExport").addEventListener("click", exportClients);
 $("#clTemplate").addEventListener("click", downloadTemplate);
 
+$("#xMode").addEventListener("click", e => { const b = e.target.closest("[data-xm]"); if (!b) return; state.xOpts.mode = b.getAttribute("data-xm"); paintExport(); });
 $("#xRange").addEventListener("click", e => { const b = e.target.closest("[data-r]"); if (!b) return; state.xOpts.range = b.getAttribute("data-r"); paintExport(); });
 $("#xBillable").addEventListener("click", e => { const b = e.target.closest("[data-b]"); if (!b) return; state.xOpts.billable = b.getAttribute("data-b"); paintExport(); });
 $("#xTemplate").addEventListener("click", e => { const b = e.target.closest("[data-t]"); if (!b) return; state.xOpts.template = b.getAttribute("data-t"); state.xOpts.group = b.getAttribute("data-t") === "grouped"; paintExport(); });
@@ -3622,6 +3788,32 @@ $("#xXlsx").addEventListener("click", () => {
     X.utils.book_append_sheet(wb, X.utils.aoa_to_sheet(rows), "Hours");
     X.writeFile(wb, hoursFileBase() + ".xlsx");
     toast("XLSX downloaded.");
+  }).catch(e => toast(e.message || e, true));
+});
+/* ---- mileage buttons ---- */
+$("#xMileCopy").addEventListener("click", async () => {
+  const rows = mileageRows();
+  if (!rows.length) { toast("No travel entries in this range.", true); return; }
+  const t = mileageTotals(rows);
+  try {
+    await navigator.clipboard.writeText(buildMileageText());
+    toast("Copied " + milesText(t.miles) + " mi for " + exportRangeShort());
+  } catch (e) { toast("Could not reach the clipboard. Select the table and copy it by hand.", true); }
+});
+$("#xMileCsv").addEventListener("click", () => {
+  const rows = mileageCSVRows();
+  if (rows.length < 2) { toast("No travel entries in this range.", true); return; }
+  download(mileageFileBase() + ".csv", "﻿" + buildCSV(rows), "text/csv;charset=utf-8");
+  toast("Mileage CSV downloaded.");
+});
+$("#xMileXlsx").addEventListener("click", () => {
+  const rows = mileageCSVRows();
+  if (rows.length < 2) { toast("No travel entries in this range.", true); return; }
+  ensureXLSX().then(X => {
+    const wb = X.utils.book_new();
+    X.utils.book_append_sheet(wb, X.utils.aoa_to_sheet(rows), "Mileage");
+    X.writeFile(wb, mileageFileBase() + ".xlsx");
+    toast("Mileage XLSX downloaded.");
   }).catch(e => toast(e.message || e, true));
 });
 $("#xJson").addEventListener("click", downloadBackup);

@@ -55,8 +55,9 @@ device that never has needs one online sign-in. The sign-in wall says so.
 
 ## How exports work
 
-The Export screen has a range picker (Today, Yesterday, This week, Last week,
-This month, Custom), a client filter, a billable filter, a rounding control, and
+The Export screen has an **Hours / Mileage** switch at the top, a range picker
+(Today, Yesterday, This week, Last week, This month, Custom) and a client filter
+that both halves share. Hours adds a billable filter, a rounding control, and
 switches for notes, project, ticket number, grouping and amounts. The preview is
 exactly the text that gets copied - nothing is generated a second time on the
 way to the clipboard.
@@ -76,6 +77,12 @@ way to the clipboard.
   and entries - as `schema: 1`.
 - **Restore from JSON** validates the schema, shows what the file holds, and
   merges by id after you confirm. Nothing is ever deleted.
+
+**Mileage** is the other half of the switch: the range's travel entries as a
+table (date, client with its Client ID, tickets, the mileage note, miles, and
+the amount at the Settings rate) with a total, and Copy as text, CSV and XLSX
+beside it. Entries with no miles on them are listed and tagged rather than
+dropped, so nothing gets forgotten on the way to an expense report.
 
 Durations everywhere in an export are rounded first and then added up, to the
 increment the rounding control shows. That control starts on the Settings
@@ -152,6 +159,23 @@ sheet should be a reminder and not a hole. Miles and the mileage note are
 also editable any time from Edit, where the two fields appear only for a
 travel job type and disappear again if you change the entry to something
 else - miles on a phone call would only ever be a mistake.
+
+A Mileage tab on Export, which is the expense report attachment.
+
+The Export screen opens with an **Hours / Mileage** switch at the top. Mileage
+keeps the range picker and the client filter - the two things that decide
+which trips you are claiming - and puts everything else away, because
+rounding, billable filters and templates are about durations and a drive is a
+distance. What you get is a table of the range's travel entries: date,
+client with its Client ID, the tickets, the note you wrote in the Miles
+sheet, the miles, and the amount at the mileage rate from Settings, with a
+total line under it. Entries you skipped are listed with a **no miles** tag
+rather than dropped, so the claim shows you what is still missing instead of
+quietly shrinking. **Copy as text** gives a short plain block that pastes
+into an expense form, and **CSV** and **XLSX** write `date, client,
+client_id, ticket, note, miles, rate, amount` for anything that wants the
+numbers. The Settings mileage rate is a proper money field now, and its
+tooltip says what it actually is: the IRS standard rate, set once a year.
 
 ### v0.2.0 - 2026-09-15
 
