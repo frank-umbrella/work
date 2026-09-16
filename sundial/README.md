@@ -233,6 +233,14 @@ reach it at all. Notifications only ever fire for limit warnings, only while
 the tab is hidden, and everything about them is guarded, so a browser with no
 notifications at all just carries on with the on-screen warning.
 
+Everything new in this release was walked through in dark mode as well as
+light, at a phone, a tablet and a desktop width, and nothing scrolls
+sideways anywhere. The one accidental thing that turned up was a class name:
+the limit line under the timer was borrowing the styling of the warning box
+inside modals by sharing the word `warn` with it. It has its own names and
+its own deliberate amber and red chips now, so changing one can no longer
+change the other by surprise.
+
 ### v0.2.0 - 2026-09-15
 
 Copy for email, and Open in email.

@@ -360,6 +360,14 @@ with BOM for Excel; XLSX via SheetJS.
 One row per travel entry: `date, client, ticket, note, miles, rate, amount`,
 plus a total. Text version is a short block for pasting into an expense form.
 
+Built in v0.3.0 with two changes. A **client_id** column sits after client,
+matching the hours CSV, which gained one in v0.1.9 - an expense claim that
+cannot be matched to an accounting code is a claim someone has to look up by
+hand. And the mileage half of the screen deliberately **ignores the billable
+filter, the rounding control and the template**: those shape durations, and a
+drive is a distance. The range picker and the client filter are shared,
+because those are the two things that decide which trips you are claiming.
+
 ### JSON backup
 Settings, clients, and entries for the signed-in user with `schema: 1`.
 Restore validates the schema and asks before merging.
@@ -425,6 +433,18 @@ first time; it is cached by the service worker after that.
   (section 5). The rate comes from Settings; set it once a year.
 - Not doing: GPS tracking or automatic odometer. See section 10.
 
+Built in v0.3.0, with three decisions the plan did not settle. "At Punch Out"
+turned out to mean **seven** places - the Now card's Stop, the running
+strip's Stop, the table's red square, Switch, Resume, Start from a client
+card, and the entry form putting an end on a running entry - so all of them
+now go through one `endEntry()` helper rather than each writing an end of its
+own; that is the only way the sheet cannot be skipped by route. Two travel
+entries can stop in the same instant (a Switch closes everything running), so
+the sheets **queue** and the second waits for the first instead of stacking
+dialogs. And the "no miles" marker is only put on a **finished** travel
+entry: a running one has not been asked yet, and tagging it would be nagging
+about an answer that is not due.
+
 ## 9. Time-limit warnings
 
 Per job type, optional: **Warn at** and **Hard limit** in minutes (the
@@ -451,6 +471,27 @@ sittings still trips at two hours total). Tooltip explains that difference.
 - Team tier (section 10): the same thresholds gain **Notify manager** and
   **Require approval to continue**, where Continue becomes Request approval
   and the manager's decision comes back through the Who's Working dashboard.
+
+Built in v0.3.0. Four decisions the plan did not settle:
+
+- **Each warning fires once per entry, and the memory is session state**, not
+  a field on the entry. A warning is something that happened to you while the
+  app was open; it is not a fact about the hours, and it should not travel to
+  the phone in a sync. Closing the hard-limit modal with the X counts as
+  having answered it - it will not come back a second later, because a modal
+  that reappears every tick is not a prompt, it is a trap.
+- **A passive toast cannot evict the warning.** "Saved." can be missed;
+  "you are about to pass a limit" cannot, so an ordinary toast is dropped
+  while a sticky warning is still waiting for an answer.
+- **Punch out now ends the entry at the limit moment**, computed as now minus
+  however far past the limit the measurement already is - not start plus the
+  hard limit, which is only the same number when the limit is measured on the
+  entry's own elapsed time. When a ticket was already over its limit before
+  this sitting began, that moment is earlier than the entry's own start, and
+  the entry is stopped where it is instead.
+- **The popover requires warn below hard, both above zero**, and clearing
+  both boxes removes the limit. A warn point at or past the hard limit is a
+  setting with no effect, which is worse than no setting at all.
 
 ## 10. Roadmap and feature sort
 
