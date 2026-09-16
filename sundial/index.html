@@ -144,9 +144,10 @@ textarea.fld{min-height:64px;resize:vertical}
    into a card the way the entry tables do rather than scrolling sideways.
    The time inputs are given room to show a whole 12-hour time with its AM
    and its spinner, because a truncated time field is unreadable. */
-.avhead,.avrow{display:grid;grid-template-columns:minmax(0,1fr);gap:2px 12px}
+.avhead,.avrow{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px 12px}
 .avhead{display:none}
 .avrow{padding:10px 0;border-bottom:1px solid var(--line);align-items:start}
+.avrow .ck,.avrow .avcell.nolab,.avrow .avbad{grid-column:1 / -1}
 .avrow:last-of-type{border-bottom:0}
 .avrow .ck{margin:0 0 2px}
 .avcell{min-width:0}
@@ -167,6 +168,8 @@ textarea.fld{min-height:64px;resize:vertical}
   .avhead{display:grid;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding-bottom:6px;border-bottom:1px solid var(--line2)}
   .avcell:before{display:none}
   .avcell.nolab{margin-top:0}
+  /* back to one cell per column; only the error note still spans the row */
+  .avrow .ck,.avrow .avcell.nolab{grid-column:auto}
   .avrow .ck{margin:0}
 }
 
