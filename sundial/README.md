@@ -146,6 +146,15 @@ carries an amount. There is also a Show amounts checkbox among the export
 options, so you can send the same hours without the money without going back to
 Settings; it only appears when the Settings toggle is on.
 
+An XLSX button sits beside CSV.
+
+The hours CSV has always needed Excel to guess at what the columns were. XLSX
+writes the same rows as a real workbook - one `Hours` sheet, no import wizard,
+no date column turning into something else - using the same spreadsheet library
+the client import and export already load on demand, so nothing new is
+downloaded until the first time you press it. The file lands as
+`sundial-hours-2026-09-14.xlsx`, or with `_to_` and the end date for a range.
+
 ### v0.1.14 - 2026-09-15
 
 Start a timer from the Clients screen.

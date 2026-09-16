@@ -582,7 +582,8 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
           <button class="btn sm acc" id="xCopy">Copy as text</button>
           <button class="btn sm acc" id="xCopyHtml" title="Copies the same hours as a table. Gmail and Outlook paste it as rows and columns, with ticket numbers as links where the client has a ticket URL pattern. The plain text goes on the clipboard at the same time, so anywhere that cannot take a table still gets the block.">Copy for email</button>
           <button class="btn sm" id="xMail" title="Opens your device's mail app with the subject and the plain text already filled in, addressed to the client when you have picked one and they have an email. A mailto link cannot carry the table: for the rich version use Copy for email and paste.">Open in email</button>
-          <button class="btn sm" id="xCsv" title="One row per entry, UTF-8 with a byte-order mark so Excel opens it correctly.">Download CSV</button>
+          <button class="btn sm" id="xCsv" title="One row per entry, UTF-8 with a byte-order mark so Excel opens it correctly.">CSV</button>
+          <button class="btn sm" id="xXlsx" title="The same rows as the CSV in a real workbook, so Excel opens it with no import wizard and no guessing about dates. Needs the network the first time, to fetch the spreadsheet library.">XLSX</button>
           <button class="btn sm" id="xJson" title="Everything in your account as one file: settings, clients and entries. Keep it somewhere safe.">Download JSON backup</button>
           <button class="btn sm" id="xRestore" title="Merges a backup file back in by id. Nothing is deleted; matching records are overwritten.">Restore from JSON</button>
         </span></div>
@@ -2820,10 +2821,26 @@ $("#copyTodayHtmlBtn").addEventListener("click", () => withOpts(TODAY_OPTS(), co
    client filter, all billable states, same text as Export. */
 $("#copyDayBtn").addEventListener("click", () => withOpts(TS_DAY_OPTS(), copyExportText));
 $("#copyDayHtmlBtn").addEventListener("click", () => withOpts(TS_DAY_OPTS(), copyExportRich));
-$("#xCsv").addEventListener("click", () => {
+function hoursFileBase() {
   const r = exportRangeKeys();
-  download("sundial-hours-" + r[0] + (r[0] === r[1] ? "" : "_to_" + r[1]) + ".csv", "﻿" + buildCSV(exportCSVRows()), "text/csv;charset=utf-8");
+  return "sundial-hours-" + r[0] + (r[0] === r[1] ? "" : "_to_" + r[1]);
+}
+$("#xCsv").addEventListener("click", () => {
+  download(hoursFileBase() + ".csv", "﻿" + buildCSV(exportCSVRows()), "text/csv;charset=utf-8");
   toast("CSV downloaded.");
+});
+/* XLSX uses the same rows as the CSV and the same lazily loaded SheetJS the
+   client export uses, so there is one copy of the library and one shape of
+   the data. */
+$("#xXlsx").addEventListener("click", () => {
+  const rows = exportCSVRows();
+  if (rows.length < 2) { toast("No hours in this range.", true); return; }
+  ensureXLSX().then(X => {
+    const wb = X.utils.book_new();
+    X.utils.book_append_sheet(wb, X.utils.aoa_to_sheet(rows), "Hours");
+    X.writeFile(wb, hoursFileBase() + ".xlsx");
+    toast("XLSX downloaded.");
+  }).catch(e => toast(e.message || e, true));
 });
 $("#xJson").addEventListener("click", downloadBackup);
 $("#xRestore").addEventListener("click", () => $("#jsonFile").click());
