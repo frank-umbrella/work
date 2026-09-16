@@ -56,19 +56,45 @@ device that never has needs one online sign-in. The sign-in wall says so.
 ## How exports work
 
 The Export screen has a range picker (Today, Yesterday, This week, Last week,
-This month, Custom), a client filter, a billable filter, and switches for notes,
-project, ticket number and grouping. The preview is exactly the text that gets
-copied - nothing is generated a second time on the way to the clipboard.
+This month, Custom), a client filter, a billable filter, a rounding control, and
+switches for notes, project, ticket number, grouping and amounts. The preview is
+exactly the text that gets copied - nothing is generated a second time on the
+way to the clipboard.
 
 - **Copy as text** puts the preview on the clipboard and confirms with a toast
   naming the hours and the date.
-- **Download CSV** writes one row per entry (`date, start, end, duration_hours,
-  duration_hm, client, job_type, ticket, project, notes, billable, miles, rate,
-  amount`), UTF-8 with a byte-order mark so Excel opens it without a wizard.
+- **Copy for email** puts the same hours on the clipboard twice at once: as an
+  HTML table that Gmail and Outlook paste as rows and columns, and as the plain
+  text for anything that cannot take one.
+- **Open in email** opens the device's mail app with the subject and the plain
+  text filled in, addressed to the client when one is picked and has an email.
+- **CSV** writes one row per entry (`date, start, end, duration_hours,
+  duration_hm, client, client_id, job_type, ticket, project, notes, billable,
+  miles, rate, amount`), UTF-8 with a byte-order mark so Excel opens it without
+  a wizard. **XLSX** writes the same rows as a workbook.
 - **Download JSON backup** writes everything in the account - settings, clients
   and entries - as `schema: 1`.
 - **Restore from JSON** validates the schema, shows what the file holds, and
   merges by id after you confirm. Nothing is ever deleted.
+
+Durations everywhere in an export are rounded first and then added up, to the
+increment the rounding control shows. That control starts on the Settings
+default, and while it sits there a client with its own rounding override wins
+for that client's hours. Stored times are never rounded.
+
+## The three timesheet views
+
+**Day** lists the selected day's entries with Resume and Edit on each.
+**Week** is a grid: one row per client and job type used that week (a ticket
+number makes its own row), seven day columns you can type durations straight
+into, row and day totals, and + Add row for a client you have not logged yet.
+**Calendar** draws the week on a time axis with a block per entry, side by side
+where two jobs overlapped, editable by dragging on a desktop.
+
+Which view you are on is remembered on the device, so the phone and the desktop
+can sit on different ones; Settings' "Default timesheet view" is what a device
+that has never chosen starts with. Above the views, a utilization bar shows the
+week against the weekly capacity in Settings, billable and non-billable split.
 
 With the billable filter on All, non-billable lines are tagged `[non-billable]`
 and every subtotal splits into billable and non-billable. When entries in the
