@@ -124,6 +124,28 @@ client's email already in the To line when the Client filter is set to one
 client that has one. A mailto link cannot carry a table, which is what the
 button's tooltip says, so the rich version stays a copy and a paste.
 
+Rounding finally does something, and amounts arrive with it.
+
+Rounding has been stored since v0.1 - in Settings as a default, on each client
+as an override - and it has been quietly ignored until now. The Export screen
+has a **None / 6 min / 15 min** control that starts on your Settings default;
+while it sits there a client with its own override wins for that client's
+hours, and tapping a different increment forces it on everybody for that one
+export. Each entry is rounded on its own, half up, never down to nothing, and
+then the rounded durations are added up - so the subtotals a client checks
+actually add to the total printed under them. Your stored times are untouched:
+the Clock and the Timesheet always show the real elapsed minutes, because the
+honest record and the invoice are two different documents.
+
+When **Show amounts** is on in Settings, exports gain money. Subtotal lines in
+the text pick up `- $636.00`, a `Total amount` line closes it out, the email
+table gains an Amount column with the subtotal and total amounts in it, and the
+CSV's rate and amount columns compute from the **rounded** billable hours so
+the money always matches the hours printed beside it. Non-billable time never
+carries an amount. There is also a Show amounts checkbox among the export
+options, so you can send the same hours without the money without going back to
+Settings; it only appears when the Settings toggle is on.
+
 ### v0.1.14 - 2026-09-15
 
 Start a timer from the Clients screen.

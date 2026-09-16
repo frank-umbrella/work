@@ -557,17 +557,25 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
           <button data-b="yes">Billable only</button>
           <button data-b="no">Non-billable only</button>
         </span>
+        <label class="lab">Rounding <span class="q" title="Rounds each entry up or down to the nearest increment before anything is added up. Your stored times never change: the Clock and the Timesheet always show what actually happened. Starts on your Settings default, where a client with its own rounding wins; pick a different increment here to force it on everyone for this export.">?</span></label>
+        <span class="seg" id="xRounding">
+          <button data-rd="none">None</button>
+          <button data-rd="6">6 min</button>
+          <button data-rd="15">15 min</button>
+        </span>
+        <div class="hint" id="xRoundHint"></div>
         <label class="lab">Options</label>
         <label class="ck"><input type="checkbox" id="xNotes" checked> Include notes <span class="q" title="Turn off when you only want the shape of the day and not the detail.">?</span></label>
         <label class="ck"><input type="checkbox" id="xProject" checked> Include project</label>
         <label class="ck"><input type="checkbox" id="xTicket" checked> Include ticket #</label>
         <label class="ck"><input type="checkbox" id="xGroup" checked> Group by client <span class="q" title="Off gives one line per entry with the client in front, which pastes into a spreadsheet more cleanly.">?</span></label>
+        <label class="ck" id="xAmountsRow" hidden><input type="checkbox" id="xAmounts" checked> Show amounts <span class="q" title="Money from the client's hourly rate and the rounded billable hours. Non-billable time never carries an amount. Turn it off to send the same hours without the money.">?</span></label>
         <label class="lab">Template</label>
         <span class="seg" id="xTemplate">
           <button data-t="grouped" class="on">Grouped</button>
           <button data-t="flat">Flat</button>
         </span>
-        <div class="hint">Time is stored raw. Rounding and amounts arrive in v0.2.</div>
+        <div class="hint">Time is always stored raw. Rounding happens here, on the way out.</div>
       </div>
       <div class="card">
         <div class="chead"><h4>Preview</h4><span class="sp">
@@ -601,7 +609,7 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
     <div class="card">
       <h4>Tracking</h4>
       <div class="g2">
-        <div><label class="lab" for="sRounding">Default rounding <span class="q" title="Stored time is never rounded. This will round exports in v0.2; it is saved now so the choice survives.">?</span></label><select class="fld" id="sRounding"><option value="none">None</option><option value="6">6 minutes</option><option value="15">15 minutes</option></select></div>
+        <div><label class="lab" for="sRounding">Default rounding <span class="q" title="The increment every export rounds each entry to before adding anything up. Stored time is never rounded, and a client can override this on its own card.">?</span></label><select class="fld" id="sRounding"><option value="none">None</option><option value="6">6 minutes</option><option value="15">15 minutes</option></select></div>
         <div><label class="lab" for="sTemplateSel">Export template <span class="q" title="The layout the Export screen opens with.">?</span></label><select class="fld" id="sTemplateSel"><option value="grouped">Grouped by client</option><option value="flat">Flat, one line per entry</option></select></div>
       </div>
       <div class="g2">
@@ -794,7 +802,9 @@ const state = {
   runEditOpen: false,
   mainRunningId: null,
   runEditId: null,
-  xOpts: { range: "today", from: "", to: "", client: "", billable: "all", notes: true, project: true, ticket: true, group: true, template: "grouped" }
+  /* xOpts.rounding null means "follow the Settings default, and let a client
+     override win"; a value pins that increment on every client. */
+  xOpts: { range: "today", from: "", to: "", client: "", billable: "all", notes: true, project: true, ticket: true, group: true, amounts: true, rounding: null, template: "grouped" }
 };
 let store = null;
 
@@ -1851,13 +1861,13 @@ function openClientModal(client) {
     '<div class="hint">Closes only with the X, Cancel or Save. Clicking outside does nothing.</div>' +
     '<div class="g2">' +
       '<div><label class="lab" for="cName">Name <span class="q" title="How this client appears everywhere, including the text you paste into an email.">?</span></label><input class="fld" id="cName"></div>' +
-      '<div><label class="lab" for="cEmail">Email <span class="q" title="Used as the To address when a per-client export gets sent, from v0.2.">?</span></label><input class="fld" id="cEmail" autocomplete="off"></div>' +
+      '<div><label class="lab" for="cEmail">Email <span class="q" title="Used as the To address when Open in email is used with this client picked in the Export filter.">?</span></label><input class="fld" id="cEmail" autocomplete="off"></div>' +
     "</div>" +
     (state.settings.showAmounts
       ? '<div class="g2"><div><label class="lab" for="cRate">Hourly rate <span class="q" title="Only used when Show amounts is on. Amounts are computed from billable time only.">?</span></label><span class="money"><input class="fld" id="cRate" inputmode="decimal"></span></div>' +
-        '<div><label class="lab" for="cRounding">Rounding <span class="q" title="Overrides the Settings default for this client. Stored time is never rounded; rounding applies at export from v0.2.">?</span></label>' +
+        '<div><label class="lab" for="cRounding">Rounding <span class="q" title="Overrides the Settings default for this client on every export. Stored time is never rounded; the Export screen can still force one increment on everyone.">?</span></label>' +
         '<select class="fld" id="cRounding"><option value="">Use default</option><option value="none">None</option><option value="6">6 minutes</option><option value="15">15 minutes</option></select></div></div>'
-      : '<label class="lab" for="cRounding">Rounding <span class="q" title="Overrides the Settings default for this client. Stored time is never rounded; rounding applies at export from v0.2.">?</span></label>' +
+      : '<label class="lab" for="cRounding">Rounding <span class="q" title="Overrides the Settings default for this client on every export. Stored time is never rounded; the Export screen can still force one increment on everyone.">?</span></label>' +
         '<select class="fld" id="cRounding"><option value="">Use default</option><option value="none">None</option><option value="6">6 minutes</option><option value="15">15 minutes</option></select>') +
     '<label class="lab" for="cTicketUrl">Ticket URL pattern <span class="q" title="Paste a ticket link and replace the number with {n}. Ticket numbers then become links in tables and exports.">?</span></label>' +
     '<input class="fld" id="cTicketUrl" placeholder="https://helpdesk.example/tickets/{n}" autocomplete="off">' +
@@ -2220,6 +2230,53 @@ function exportRows() {
     return true;
   }).sort((a, b) => toDate(a.start) - toDate(b.start));
 }
+/* ---- rounding, applied only on the way out ----
+   Stored seconds are never touched: the Clock, the Timesheet and every table
+   show the real elapsed time. Exports round each entry's duration first and
+   then add the rounded durations up, which is what a client expects when they
+   check the arithmetic on the invoice.
+
+   The Export screen's control starts on the Settings default. While it is on
+   that default a client with its own rounding wins for that client's entries;
+   pick a different increment and it applies to everyone for this export. */
+function roundingDefault() { return state.settings.rounding || "none"; }
+function roundingForClient(clientId) {
+  if (state.xOpts.rounding != null) return state.xOpts.rounding;
+  const c = clientById(clientId);
+  if (c && c.rounding) return c.rounding;
+  return roundingDefault();
+}
+function roundSeconds(secs, mode) {
+  const inc = mode === "6" ? 360 : mode === "15" ? 900 : 0;
+  secs = Math.max(0, Math.floor(secs));
+  if (!inc || secs === 0) return secs;
+  return Math.max(1, Math.round(secs / inc)) * inc;   // half up, and never zero out real time
+}
+function exportSeconds(e) { return roundSeconds(entrySeconds(e), roundingForClient(e.clientId)); }
+/* Whether a client's rounding is actually in play, for the hint line. */
+function clientRoundingInPlay() {
+  return state.xOpts.rounding == null && exportRows().some(e => { const c = clientById(e.clientId); return c && c.rounding; });
+}
+
+/* ---- amounts ----
+   Behind the Settings toggle, and behind the export option that only appears
+   when that toggle is on. Billable time only, at the client's rate, from the
+   ROUNDED hours so the money matches the hours printed next to it. */
+function showAmountsInExport() { return !!state.settings.showAmounts && state.xOpts.amounts !== false; }
+function entryAmount(e) {
+  if (!showAmountsInExport() || e.billable === false) return null;
+  const c = clientById(e.clientId);
+  const rate = c && c.rate != null ? Number(c.rate) : null;
+  if (rate == null || !isFinite(rate)) return null;
+  return (exportSeconds(e) / 3600) * rate;
+}
+function amountOf(list) {
+  let any = false, sum = 0;
+  list.forEach(e => { const a = entryAmount(e); if (a != null) { any = true; sum += a; } });
+  return any ? sum : null;
+}
+function money(n) { return "$" + Number(n).toFixed(2); }
+
 function overlapSeconds(rows) {
   const iv = rows.map(e => [toDate(e.start).getTime(), (toDate(e.end) || new Date()).getTime()]).sort((a, b) => a[0] - b[0]);
   let unionEnd = null, union = 0, sum = 0;
@@ -2232,9 +2289,12 @@ function overlapSeconds(rows) {
   });
   return Math.max(0, (sum - union) / 1000);
 }
-function splitLine(prefix, total, bill, nonbill) {
-  if (bill && nonbill) return prefix + " " + fmtDur(total) + " (billable " + fmtDur(bill) + ", non-billable " + fmtDur(nonbill) + ")";
-  return prefix + " " + fmtDur(total);
+function splitLine(prefix, total, bill, nonbill, amount) {
+  let s = (bill && nonbill)
+    ? prefix + " " + fmtDur(total) + " (billable " + fmtDur(bill) + ", non-billable " + fmtDur(nonbill) + ")"
+    : prefix + " " + fmtDur(total);
+  if (amount != null) s += " - " + money(amount);
+  return s;
 }
 function entryDesc(e, withClient) {
   const c = clientById(e.clientId), o = state.xOpts;
@@ -2264,9 +2324,9 @@ function buildExportText() {
   function timeCol(e) {
     return (multiDay ? fmtDayShort(e.day).padEnd(dateW) + "  " : "") +
       fmtTime(toDate(e.start)).padStart(startW) + " - " + (e.end ? fmtTime(toDate(e.end)) : "running").padStart(endW) +
-      "   " + fmtDur(entrySeconds(e));
+      "   " + fmtDur(exportSeconds(e));
   }
-  const sum = list => list.reduce((s, e) => s + entrySeconds(e), 0);
+  const sum = list => list.reduce((s, e) => s + exportSeconds(e), 0);
   const billOf = list => sum(list.filter(e => e.billable !== false));
   const nonOf  = list => sum(list.filter(e => e.billable === false));
 
@@ -2278,7 +2338,7 @@ function buildExportText() {
     groups.forEach(g => {
       lines.push(g.c ? g.c.name + (g.c.code ? " (" + g.c.code + ")" : "") : "Unknown client");
       g.rows.forEach(e => lines.push("  " + timeCol(e) + "   " + entryDesc(e, false)));
-      lines.push("  " + splitLine("Subtotal", sum(g.rows), billOf(g.rows), nonOf(g.rows)));
+      lines.push("  " + splitLine("Subtotal", sum(g.rows), billOf(g.rows), nonOf(g.rows), amountOf(g.rows)));
       lines.push("");
     });
   } else {
@@ -2289,6 +2349,8 @@ function buildExportText() {
     lines.push("");
   }
   lines.push(splitLine("Total", sum(rows), billOf(rows), nonOf(rows)));
+  const amt = amountOf(rows);
+  if (amt != null) lines.push("Total amount " + money(amt));
   const ov = overlapSeconds(rows);
   if (ov >= 60) lines.push("Includes " + fmtDur(ov) + " of time logged alongside another job");
   return lines.join("\n");
@@ -2313,9 +2375,10 @@ function exportColumns(multiDay) {
   if (o.ticket)  cols.push("ticket");
   if (o.project) cols.push("project");
   if (o.notes)   cols.push("notes");
+  if (showAmountsInExport()) cols.push("amount");
   return cols;
 }
-const XH_LABEL = { date: "Date", client: "Client", time: "Time", dur: "Duration", job: "Job type", ticket: "Ticket", project: "Project", notes: "Notes" };
+const XH_LABEL = { date: "Date", client: "Client", time: "Time", dur: "Duration", job: "Job type", ticket: "Ticket", project: "Project", notes: "Notes", amount: "Amount" };
 function exportClientName(c) {
   if (!c) return "Unknown client";
   return c.name + (c.code ? " (" + c.code + ")" : "");
@@ -2340,24 +2403,32 @@ function buildExportHTML() {
       case "date":    return esc(fmtDayShort(e.day));
       case "client":  return esc(exportClientName(c));
       case "time":    return esc(fmtTime(toDate(e.start)) + " - " + (e.end ? fmtTime(toDate(e.end)) : "running"));
-      case "dur":     return esc(fmtDur(entrySeconds(e)));
+      case "dur":     return esc(fmtDur(exportSeconds(e)));
       case "job":     return esc(jobTypeName(c, e.jobTypeId) || "Job") +
                              (e.billable === false ? ' <span style="color:#777">[non-billable]</span>' : "");
       case "ticket":  return ticketHTML(c, e.ticket);
       case "project": return esc(e.project || "");
       case "notes":   return esc(e.notes || "");
+      case "amount":  { const a = entryAmount(e); return a == null ? "" : esc(money(a)); }
     }
     return "";
   };
+  const numeric = k => k === "time" || k === "dur" || k === "date" || k === "amount";
   const tr = e => "<tr>" + cols.map(k =>
-    '<td style="' + (k === "time" || k === "dur" || k === "date" ? XH_NUM : XH_CELL) + '">' + cell(e, k) + "</td>").join("") + "</tr>";
-  const sum   = list => list.reduce((s, e) => s + entrySeconds(e), 0);
+    '<td style="' + (numeric(k) ? XH_NUM : XH_CELL) + (k === "amount" ? ";text-align:right" : "") + '">' + cell(e, k) + "</td>").join("") + "</tr>";
+  const sum   = list => list.reduce((s, e) => s + exportSeconds(e), 0);
   const billOf = list => sum(list.filter(e => e.billable !== false));
   const nonOf  = list => sum(list.filter(e => e.billable === false));
+  const withAmt = showAmountsInExport();
   const totalRow = (label, list, bold) => {
     const t = sum(list), b = billOf(list), n = nonOf(list);
     const txt = label + " " + fmtDur(t) + (b && n ? " (billable " + fmtDur(b) + ", non-billable " + fmtDur(n) + ")" : "");
-    return '<tr><td colspan="' + span + '" style="' + XH_CELL + (bold ? ";background:#f7f7f7" : "") + ';font-weight:700">' + esc(txt) + "</td></tr>";
+    const bg = bold ? ";background:#f7f7f7" : "";
+    const amt = withAmt ? amountOf(list) : null;
+    return "<tr>" +
+      '<td colspan="' + (withAmt ? span - 1 : span) + '" style="' + XH_CELL + bg + ';font-weight:700">' + esc(txt) + "</td>" +
+      (withAmt ? '<td style="' + XH_NUM + bg + ';font-weight:700;text-align:right">' + (amt == null ? "" : esc(money(amt))) + "</td>" : "") +
+      "</tr>";
   };
 
   out.push('<table cellspacing="0" cellpadding="0" style="' + XH_FONT + ';border-collapse:collapse;max-width:100%">');
@@ -2394,7 +2465,7 @@ function exportRangeShort() {
    block that has always been there. */
 async function copyExportRich() {
   const text = buildExportText();
-  const total = exportRows().reduce((s, e) => s + entrySeconds(e), 0);
+  const total = exportRows().reduce((s, e) => s + exportSeconds(e), 0);
   try {
     if (window.ClipboardItem && navigator.clipboard && navigator.clipboard.write) {
       await navigator.clipboard.write([new ClipboardItem({
@@ -2439,6 +2510,18 @@ function paintExport() {
   $$("#xTemplate button").forEach(b => b.classList.toggle("on", b.getAttribute("data-t") === o.template));
   $("#xCustom").hidden = o.range !== "custom";
   $("#xNotes").checked = o.notes; $("#xProject").checked = o.project; $("#xTicket").checked = o.ticket; $("#xGroup").checked = o.group;
+  /* Rounding: the lit segment is the chosen increment, or the Settings
+     default while nothing has been chosen here. */
+  const rd = o.rounding != null ? o.rounding : roundingDefault();
+  $$("#xRounding button").forEach(b => b.classList.toggle("on", b.getAttribute("data-rd") === rd));
+  $("#xRoundHint").textContent = o.rounding != null
+    ? "Forced on every client for this export. Tap " + (roundingDefault() === "none" ? "None" : roundingDefault() + " min") + " to go back to your default."
+    : (clientRoundingInPlay()
+       ? "Your default. A client with its own rounding override wins for that client's entries."
+       : "Your Settings default.");
+  /* The amounts option only exists at all when Settings has amounts on. */
+  $("#xAmountsRow").hidden = !state.settings.showAmounts;
+  $("#xAmounts").checked = o.amounts !== false;
   $("#xPreview").textContent = buildExportText();
   const r = exportRangeKeys();
   store && store.extendWindow && store.extendWindow(r[0]);
@@ -2448,10 +2531,10 @@ function exportCSVRows() {
   const head = ["date", "start", "end", "duration_hours", "duration_hm", "client", "client_id", "job_type", "ticket", "project", "notes", "billable", "miles", "rate", "amount"];
   const body = rows.map(e => {
     const c = clientById(e.clientId);
-    const secs = entrySeconds(e);
+    const secs = exportSeconds(e);          // same rounding the text and the table use
     const hours = secs / 3600;
     const rate = c && c.rate != null ? Number(c.rate) : null;
-    const amount = state.settings.showAmounts && rate != null && e.billable !== false ? (hours * rate) : null;
+    const amount = entryAmount(e);          // rounded billable hours x rate, or nothing
     return [
       e.day, fmtTime(toDate(e.start)), e.end ? fmtTime(toDate(e.end)) : "running",
       hours.toFixed(2), fmtDur(secs), c ? c.name : "Unknown client", c && c.code ? c.code : "", jobTypeName(c, e.jobTypeId) || "",
@@ -2694,19 +2777,26 @@ $("#xTemplate").addEventListener("click", e => { const b = e.target.closest("[da
 $("#xFrom").addEventListener("change", e => { state.xOpts.from = e.target.value; paintExport(); });
 $("#xTo").addEventListener("change", e => { state.xOpts.to = e.target.value; paintExport(); });
 $("#xClient").addEventListener("change", e => { state.xOpts.client = e.target.value; paintExport(); });
-["xNotes", "xProject", "xTicket", "xGroup"].forEach(id => $("#" + id).addEventListener("change", e => {
+["xNotes", "xProject", "xTicket", "xGroup", "xAmounts"].forEach(id => $("#" + id).addEventListener("change", e => {
   state.xOpts[id.slice(1).toLowerCase()] = e.target.checked;
   if (id === "xGroup") state.xOpts.template = e.target.checked ? "grouped" : "flat";
   paintExport();
 }));
+/* Picking the increment that is already the Settings default puts the control
+   back on "default", which is what lets a per-client override apply again. */
+$("#xRounding").addEventListener("click", e => {
+  const b = e.target.closest("[data-rd]"); if (!b) return;
+  const v = b.getAttribute("data-rd");
+  state.xOpts.rounding = v === roundingDefault() ? null : v;
+  paintExport();
+});
 async function copyExportText() {
   const text = buildExportText();
   const rows = exportRows();
-  const total = rows.reduce((s, e) => s + entrySeconds(e), 0);
-  const r = exportRangeKeys();
+  const total = rows.reduce((s, e) => s + exportSeconds(e), 0);
   try {
     await navigator.clipboard.writeText(text);
-    toast("Copied " + fmtDur(total) + " for " + (r[0] === r[1] ? fmtDayShort(r[0]) : fmtDayShort(r[0]) + " - " + fmtDayShort(r[1])));
+    toast("Copied " + fmtDur(total) + " for " + exportRangeShort());
     return true;
   } catch (e) { toast("Could not reach the clipboard. Open Export, select the preview and copy it by hand.", true); return false; }
 }

@@ -65,7 +65,7 @@ client so recurring projects stay consistent without another management screen.
 | Ticket number | Optional free-text field on every entry; the client can hold a URL pattern that turns it into a link | Most MSP work hangs off a ticket. The pattern makes `5421` clickable in the table and the email export. Ties into the Help Desk project later. |
 | Travel and mileage | Job types flagged **Travel** ask for miles at punch-out; a mileage export exists for expense reports | Drive time is billable hours plus a reimbursable expense; capturing both at the same moment avoids the end-of-month reconstruction. |
 | Time-limit warnings | Optional per job type: warn at X, hard limit at Y; the hard limit asks for a reason to continue and logs it on the entry | Support tickets should not quietly become four-hour jobs. Single-user v1 is self-enforcing; manager approval is the team-tier version. |
-| Raw vs rounded | Store raw seconds; round only at export | Rounding (none / 6 min / 15 min) is an export option and a per-client default. |
+| Raw vs rounded | Store raw seconds; round only at export | Rounding (none / 6 min / 15 min) is an export option and a per-client default. Built in v0.2.0: the Export control sits on the Settings default, where a per-client override wins; tapping a different increment pins it on every client for that export, and tapping the default increment again releases it. Each entry rounds half up with a one-increment floor, then the rounded durations are added up, so the printed subtotals always add to the printed total. |
 | Timer survives reload | Yes | Running entry stores its start timestamp; elapsed is computed, not counted. |
 | Manual entries | Yes | Add or edit start and end directly; overlap shows a warning, not a block. |
 | Money | Optional, off by default | Rate per client and a "show amounts" toggle in Settings. Playbook money fields (`$` inside, 2 decimals). |
@@ -324,6 +324,12 @@ amount line is added.
 The same content as an HTML table (Client, Time, Duration, Job type, Ticket,
 Project, Notes, bold subtotal rows) written to the clipboard as `text/html`
 with the plain text as `text/plain`. Gmail and Outlook paste the table.
+
+Built in v0.2.0 with two changes from the list above. A **Date** column is
+added in front when the range covers more than one day, matching what the text
+export already does - a week's table with no dates is unreadable. And an
+**Amount** column is added at the end when amounts are on, with the subtotal
+and total amounts in that column rather than appended to the label.
 
 ### Open in email
 `mailto:` with Subject "Hours for Mon, Sep 14, 2026" and the plain text as the
