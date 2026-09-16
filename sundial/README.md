@@ -155,6 +155,19 @@ the client import and export already load on demand, so nothing new is
 downloaded until the first time you press it. The file lands as
 `sundial-hours-2026-09-14.xlsx`, or with `_to_` and the end date for a range.
 
+A utilization bar, so the week is visible before Friday.
+
+"This week 9h 35m of 40h" now sits under the tiles on the Clock and above the
+views on the Timesheet, with a stacked bar - billable in the accent color,
+non-billable in the same color faded - measured against the weekly capacity you
+set in Settings. The Clock always shows the current week; the Timesheet shows
+the week containing whichever day is selected, and says "Week of Sep 7" instead
+of "This week" when that is not the current one. Going over capacity is called
+out rather than hidden by a full bar. These numbers are raw time, never
+rounded: the bar is the honest picture of the week, and rounding belongs to the
+invoice. With no capacity set, the bar still shows the billable split and the
+line tells you where to set one.
+
 ### v0.1.14 - 2026-09-15
 
 Start a timer from the Clients screen.
