@@ -289,9 +289,10 @@ textarea.fld{min-height:64px;resize:vertical}
    The paused line sits above it, in amber, for the same reason: it belongs
    under the timer, not wedged between the timer and the buttons. */
 .nowhead .pausedline{order:5;flex-basis:100%;margin:0;color:var(--glow);font-weight:600}
-.nowhead .availline{order:6;flex-basis:100%;margin:0}
-.nowhead .since.meta{order:7;flex-basis:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.nowhead #alsoList{order:8;flex-basis:100%}
+.nowhead .budline{order:6;flex-basis:100%;margin:0}
+.nowhead .availline{order:7;flex-basis:100%;margin:0}
+.nowhead .since.meta{order:8;flex-basis:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nowhead #alsoList{order:9;flex-basis:100%}
 .nowhead .btnrow{order:4;margin:0 0 0 auto;flex-wrap:nowrap}
 .nowhead .btnrow .btn.big{flex:0 0 auto;font-size:15px;padding:10px 24px}
 .frow{display:grid;grid-template-columns:repeat(var(--n,4),minmax(0,1fr));gap:0 12px}
@@ -341,6 +342,9 @@ textarea.fld{min-height:64px;resize:vertical}
 .ubar i{display:block;height:100%;min-width:0}
 .ubar .b,.ukey .b{background:var(--accent)}
 .ubar .nb,.ukey .nb{background:var(--accent);opacity:.35}
+/* a budget bar: the accent until it is nearly gone, then amber, then red */
+.ubar .bw{background:var(--glow)}
+.ubar .bo{background:var(--stop)}
 .ukey{display:flex;gap:8px 16px;font-size:12px;color:var(--muted);flex-wrap:wrap}
 .ukey span{display:inline-flex;align-items:center;gap:6px;min-width:0}
 .ukey i{width:10px;height:10px;border-radius:3px;flex:none}
@@ -652,6 +656,7 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
             <div class="since" id="runSince"></div>
             <div class="since availline" id="runAvail" hidden></div>
             <div class="since limline" id="runLimit" hidden></div>
+            <div class="since limline budline" id="runBudget" hidden></div>
             <div class="since meta" id="runMeta" hidden></div>
             <div id="alsoList"></div>
             <div class="btnrow">
@@ -921,6 +926,13 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
     </div>
 
     <div class="card">
+      <h4>Budgets</h4>
+      <div class="hint" style="font-size:13.5px">An hours cap for a client, or for one project label inside a client, with optional dates around it. The Clock says where a running entry stands against it, the Export preview lists every budget that touches the range, and you get one warning at 80% and one when it is used up. Nothing is ever blocked: a budget is somebody else's number, agreed in advance, and the useful thing is knowing where you are in it.</div>
+      <div id="budgetList"></div>
+      <div class="btnrow"><button class="btn sm acc" id="budAdd">+ Add budget</button></div>
+    </div>
+
+    <div class="card">
       <h4>Warnings</h4>
       <div class="hint" style="font-size:13.5px">A job type with a time limit warns you on screen while Sundial is the tab you are looking at. A system notification is what reaches you when it is not.</div>
       <label class="ck"><input type="checkbox" id="sNotify"> Also warn with a system notification when the app is in the background
@@ -1130,6 +1142,8 @@ const DEFAULT_SETTINGS = {
   newClientBillable: true, newClientAllowConcurrent: false,
   weeklyCapacityHours: 40, mileageRate: 0.70, defaultView: "day", notify: false,
   availability: defaultAvailability(),
+  /* hours caps per client or per project label - see the BUDGETS section */
+  budgets: [],
   /* The unpaid-break rule. Off by default, and applied on the way out only:
      stored time is never touched by it, exactly like rounding. */
   autoBreak: { on: false, minutes: 30, overHours: 6 },
@@ -1169,6 +1183,8 @@ const state = {
      is something that happened to you while the app was open, not a fact
      about the hours. */
   limitWarned: {}, limitHard: {},
+  /* the same idea for budgets, keyed entry|budget: 80% once, 100% once */
+  budgetWarned: {}, budgetHard: {},
   /* xOpts.rounding null means "follow the Settings default, and let a client
      override win"; a value pins that increment on every client. */
   /* mode picks which half of the Export screen is showing: the hours block
@@ -1400,7 +1416,15 @@ function mockStore() {
     ];
     /* a default availability so the Clock line, the calendar shading and the
        week grid markers all have something to say in mock mode */
-    data.settings = Object.assign({}, DEFAULT_SETTINGS, { yourName: "Example User", availability: defaultAvailability() });
+    /* one budget with room left and one already past 80%, so both sides of
+       the warning can be seen without waiting for a week to go by */
+    const budgetList = [
+      { id: uid(), clientId: c1.id, project: "", hours: 40, from: "", to: "", note: "Monthly retainer" },
+      { id: uid(), clientId: c3.id, project: "M365 migration", hours: 6, from: "", to: "", note: "Quoted at 6 hours" }
+    ];
+    data.settings = Object.assign({}, DEFAULT_SETTINGS, {
+      yourName: "Example User", availability: defaultAvailability(), budgets: budgetList
+    });
   }
   seed();
   return {
@@ -1931,6 +1955,103 @@ function effectiveCapacitySeconds() {
 }
 
 /* ==============================================================
+   BUDGETS
+   An hours cap on a client, or on one project label inside a client, with an
+   optional pair of dates around it. The same warn-then-warn-again shape the
+   ticket limits use, one step softer: a budget never asks for a reason and
+   never offers to stop anything. It is somebody else's number, agreed in
+   advance, and the only useful thing to do about it is know where you are.
+
+   Stored on the settings document as settings.budgets, because a budget is a
+   fact about an arrangement rather than about any one entry.
+   ============================================================== */
+function budgets() {
+  const list = Array.isArray(state.settings.budgets) ? state.settings.budgets : [];
+  return list.filter(b => b && b.clientId).map(b => ({
+    id: b.id || uid(),
+    clientId: b.clientId,
+    project: String(b.project == null ? "" : b.project).trim(),
+    hours: Number(b.hours) > 0 ? Number(b.hours) : 0,
+    from: b.from || "", to: b.to || "",
+    note: String(b.note == null ? "" : b.note)
+  })).filter(b => b.hours > 0);
+}
+/* A blank project means every hour of that client's. A project only matches
+   itself, so "Festivus pole install" and "festivus pole install" are the same
+   project and "Festivus poles" is not. */
+function budgetMatches(b, e) {
+  if (!e || !b || e.clientId !== b.clientId) return false;
+  if (b.project && String(e.project == null ? "" : e.project).trim().toLowerCase() !== b.project.toLowerCase()) return false;
+  if (b.from && e.day < b.from) return false;
+  if (b.to && e.day > b.to) return false;
+  return true;
+}
+function budgetUsedSeconds(b, now) {
+  return state.entries.reduce((s, e) => budgetMatches(b, e) ? s + entrySeconds(e, now) : s, 0);
+}
+function budgetsFor(e) { return budgets().filter(b => budgetMatches(b, e)); }
+function budgetLabel(b) {
+  const c = clientById(b.clientId);
+  return (c ? c.name : "Unknown client") + (b.project ? " / " + b.project : "");
+}
+function budgetRangeLabel(b) {
+  if (!b.from && !b.to) return "all time";
+  if (b.from && b.to) return fmtDayShort(b.from) + " - " + fmtDayShort(b.to);
+  return b.from ? "from " + fmtDayShort(b.from) : "up to " + fmtDayShort(b.to);
+}
+function budgetPct(used, capSecs) { return capSecs > 0 ? used / capSecs : 0; }
+/* The line under the running timer. With more than one budget covering the
+   same entry the tightest one is the one worth saying out loud - the others
+   are not the one you are about to run out of. */
+function paintRunBudget(main, now) {
+  const el = $("#runBudget");
+  if (!el) return;
+  const list = main ? budgetsFor(main) : [];
+  if (!list.length) { el.hidden = true; el.className = "since limline budline"; return; }
+  let worst = null;
+  list.forEach(b => {
+    const used = budgetUsedSeconds(b, now);
+    const pct = budgetPct(used, b.hours * 3600);
+    if (!worst || pct > worst.pct) worst = { b: b, used: used, pct: pct };
+  });
+  const cap = worst.b.hours * 3600;
+  el.hidden = false;
+  el.className = "since limline budline" + (worst.pct >= 1 ? " lhard" : worst.pct >= 0.8 ? " lwarn" : "");
+  el.innerHTML = '<span class="lchip">' + esc("Budget: " + fmtDur(worst.used) + " of " + capLabel(cap) + " used" +
+    (list.length > 1 ? " (tightest of " + list.length + ")" : "")) + "</span>";
+  el.title = budgetLabel(worst.b) + ", " + budgetRangeLabel(worst.b) +
+    ". Counted across every entry that falls inside the budget, running time included. Set in Settings > Budgets.";
+}
+/* Two warnings per entry per budget, at 80% and again at 100%, sticky so they
+   are still there when you look up. Neither one offers to do anything: a
+   budget is not yours to stop work over. */
+function checkBudgets(now) {
+  runningEntries().forEach(e => {
+    budgetsFor(e).forEach(b => {
+      const cap = b.hours * 3600;
+      const used = budgetUsedSeconds(b, now);
+      const key = e.id + "|" + b.id;
+      if (used >= cap) { budgetWarning(key, b, used, cap, true); return; }
+      if (used >= cap * 0.8) budgetWarning(key, b, used, cap, false);
+    });
+  });
+}
+function budgetWarning(key, b, used, cap, full) {
+  const flags = full ? state.budgetHard : state.budgetWarned;
+  if (flags[key]) return;
+  flags[key] = true;
+  /* a budget that is already full has nothing left to be 80% of */
+  if (full) state.budgetWarned[key] = true;
+  const msg = full
+    ? "Budget used up: " + budgetLabel(b) + " is at " + fmtDur(used) + " against " + capLabel(cap) + " (" + budgetRangeLabel(b) + ")."
+    : Math.floor(budgetPct(used, cap) * 100) + "% of budget: " + budgetLabel(b) + " has " + fmtDur(used) +
+      " of " + capLabel(cap) + " (" + budgetRangeLabel(b) + ").";
+  /* the flag above is set synchronously, so this fires once; the toast waits
+     a tick so whatever started the timer has put its own message up first */
+  setTimeout(() => stickyToast(msg, []), 0);
+}
+
+/* ==============================================================
    UTILIZATION BAR
    How full the week is against the weekly capacity in Settings. Raw time,
    not rounded: this is the honest picture of the week, not an invoice.
@@ -2382,7 +2503,9 @@ function paintTimer() {
   paintPausedLine(main || null, now);
   paintAvailLine(now);
   paintRunLimit(main || null, now);
+  paintRunBudget(main || null, now);
   checkLimits(now);
+  checkBudgets(now);
   $$("[data-elapsed]").forEach(el => {
     const e = state.entries.find(x => x.id === el.getAttribute("data-elapsed"));
     if (!e || e.end) return;
@@ -4110,7 +4233,27 @@ function buildExportText() {
   if (amt != null) lines.push("Total amount " + money(Math.max(0, amt - dedAmount(deds))));
   const ov = overlapSeconds(rows);
   if (ov >= 60) lines.push("Includes " + fmtDur(ov) + " of time logged alongside another job");
+  exportBudgetLines(rows).forEach(l => lines.push(l));
   return lines.join("\n");
+}
+/* Every budget belonging to a client that appears in this export, with where
+   it stands. The used figure is the budget's own - counted across its whole
+   span, not just the range being exported - because half a budget is not a
+   useful thing to be told, and the line says so once at the bottom. */
+function exportBudgetLines(rows) {
+  if (!rows.length) return [];
+  const ids = {};
+  rows.forEach(e => { ids[e.clientId] = true; });
+  const list = budgets().filter(b => ids[b.clientId]).sort((a, b) => budgetLabel(a).localeCompare(budgetLabel(b)));
+  if (!list.length) return [];
+  const out = ["", "Budgets"];
+  list.forEach(b => {
+    const cap = b.hours * 3600, used = budgetUsedSeconds(b);
+    out.push("  " + budgetLabel(b) + " - " + fmtDur(used) + " of " + capLabel(cap) + " used (" +
+      Math.round(budgetPct(used, cap) * 100) + "%, " + budgetRangeLabel(b) + ")");
+  });
+  out.push("  Counted over each budget's own dates, not only the range above.");
+  return out;
 }
 /* ---- Copy for email ----
    The same content as buildExportText as an HTML table. Email clients throw
@@ -5203,6 +5346,119 @@ function paintCapacityField() {
   } else if (hint) hint.textContent = "";
 }
 
+/* ---- the Budgets panel ---- */
+function paintBudgets() {
+  const box = $("#budgetList");
+  if (!box) return;
+  const list = budgets();
+  if (!list.length) {
+    box.innerHTML = '<div class="emptyrow">No budgets yet. Add one to keep an eye on a fixed block of hours - a retainer, a quoted project, a month.</div>';
+    return;
+  }
+  box.innerHTML = list.slice().sort((a, b) => budgetLabel(a).localeCompare(budgetLabel(b))).map(b => {
+    const cap = b.hours * 3600, used = budgetUsedSeconds(b);
+    const pct = budgetPct(used, cap);
+    const cls = pct >= 1 ? "bo" : pct >= 0.8 ? "bw" : "b";
+    return '<div class="tsrow"><div>' +
+      '<div class="ttl"><span class="cdot" style="background:' + esc(clientColor(clientById(b.clientId))) + '"></span>' + esc(budgetLabel(b)) + "</div>" +
+      '<div class="meta">' + esc(fmtDur(used) + " of " + capLabel(cap) + " used (" + Math.round(pct * 100) + "%) - " + budgetRangeLabel(b)) +
+        (b.note ? " - " + esc(b.note) : "") + "</div>" +
+      '<div class="ubar" style="margin-top:6px" role="img" aria-label="' + esc(Math.round(pct * 100) + "% of budget used") + '">' +
+        '<i class="' + cls + '" style="width:' + Math.min(100, pct * 100).toFixed(1) + '%"></i></div>' +
+      "</div>" +
+      '<div class="right">' +
+        '<button class="btn sm" data-budedit="' + esc(b.id) + '">Edit</button>' +
+        '<button class="btn sm" data-buddel="' + esc(b.id) + '" title="Removes the budget. No entry and no hour is touched.">Delete</button>' +
+      "</div></div>";
+  }).join("");
+}
+function saveBudgets(list) {
+  state.settings.budgets = list;
+  store.saveSettings({ budgets: list });
+  paintAll();
+}
+function openBudgetModal(existing) {
+  const cs = activeClients();
+  if (!cs.length) { toast("Add a client first.", true); return; }
+  const isNew = !existing;
+  const b = existing || { id: uid(), clientId: "", project: "", hours: "", from: "", to: "", note: "" };
+  const w = openModal(isNew ? "Add budget" : "Edit budget",
+    '<div class="hint">Closes only with the X, Cancel or Save. Clicking outside does nothing.</div>' +
+    '<div class="g2">' +
+      '<div><label class="lab" for="bdClient">Client <span class="q" title="Whose hours this budget counts. A budget always belongs to one client.">?</span></label>' +
+        '<select class="fld" id="bdClient"></select></div>' +
+      '<div><label class="lab" for="bdProject">Project <span class="q" title="Leave blank to budget every hour of this client\'s. Fill it in to budget one project label only - it has to match the Project on the entries exactly, ignoring case. Suggestions come from what you have already logged.">?</span></label>' +
+        '<input class="fld" id="bdProject" list="bdProjList" autocomplete="off" placeholder="all of this client\'s hours"><datalist id="bdProjList"></datalist></div>' +
+    "</div>" +
+    '<div class="g3">' +
+      '<div><label class="lab" for="bdHours">Budget hours <span class="q" title="The cap the used hours are measured against. Raw time, never rounded: this is the honest picture, not an invoice.">?</span></label>' +
+        '<input class="fld" id="bdHours" type="number" min="0.5" step="0.5" placeholder="40"></div>' +
+      '<div><label class="lab" for="bdFrom">From <span class="q" title="Optional. Entries before this day do not count. Leave both dates blank for a budget that runs from the beginning.">?</span></label>' +
+        '<input class="fld" id="bdFrom" type="date"></div>' +
+      '<div><label class="lab" for="bdTo">To <span class="q" title="Optional. Entries after this day do not count - useful for a month or a quoted phase.">?</span></label>' +
+        '<input class="fld" id="bdTo" type="date"></div>' +
+    "</div>" +
+    '<label class="lab" for="bdNote">Note <span class="q" title="What this budget is, for the you that reads it in three months. It shows on the budget in Settings.">?</span></label>' +
+    '<input class="fld" id="bdNote" autocomplete="off" placeholder="Quoted at 40 hours, PO 118">' +
+    '<div class="hint" id="bdUsed" style="margin-top:10px"></div>',
+    '<button class="btn" data-close>Cancel</button><button class="btn acc" id="bdSave">Save</button>', { wide: true });
+
+  const cSel = $("#bdClient", w);
+  fillSelect(cSel, cs.map(c => ({ v: c.id, t: c.name })), "Pick a client", b.clientId || "");
+  $("#bdProject", w).value = b.project || "";
+  $("#bdHours", w).value = b.hours === "" || b.hours == null ? "" : String(b.hours);
+  $("#bdFrom", w).value = b.from || "";
+  $("#bdTo", w).value = b.to || "";
+  $("#bdNote", w).value = b.note || "";
+
+  function read() {
+    return {
+      id: b.id, clientId: cSel.value, project: $("#bdProject", w).value.trim(),
+      hours: parseFloat($("#bdHours", w).value), from: $("#bdFrom", w).value, to: $("#bdTo", w).value,
+      note: $("#bdNote", w).value.trim()
+    };
+  }
+  function refresh() {
+    glow(cSel);
+    const seen = [];
+    state.entries.filter(e => e.clientId === cSel.value && e.project)
+      .sort((a, b2) => toDate(b2.start) - toDate(a.start))
+      .forEach(e => { if (seen.indexOf(e.project) < 0) seen.push(e.project); });
+    $("#bdProjList", w).innerHTML = seen.slice(0, 20).map(p => '<option value="' + esc(p) + '"></option>').join("");
+    const f = read();
+    const el = $("#bdUsed", w);
+    if (!f.clientId) { el.textContent = "Pick a client to see what is already logged against this."; return; }
+    if (!(f.hours > 0)) { el.textContent = "Set the budget hours to see how much of it is already gone."; return; }
+    const used = budgetUsedSeconds(f);
+    const pct = Math.round(budgetPct(used, f.hours * 3600) * 100);
+    el.innerHTML = esc(fmtDur(used) + " already logged against this, " + pct + "% of " + capLabel(f.hours * 3600) + ".") +
+      (f.from || f.to ? "" : " " + esc("With no dates it counts everything ever logged."));
+  }
+  cSel.addEventListener("change", refresh);
+  ["bdProject", "bdHours", "bdFrom", "bdTo"].forEach(id => $("#" + id, w).addEventListener("input", refresh));
+  refresh();
+
+  $("#bdSave", w).addEventListener("click", () => {
+    const f = read();
+    if (!f.clientId) { toast("Pick a client.", true); glow(cSel); return; }
+    if (!(f.hours > 0)) { toast("Budget hours has to be a number above zero.", true); $("#bdHours", w).focus(); return; }
+    if (f.from && f.to && f.from > f.to) { toast("From is after To.", true); return; }
+    const list = budgets().filter(x => x.id !== f.id);
+    list.push(f);
+    saveBudgets(list);
+    closeModal(w);
+    toast(isNew ? "Budget added." : "Budget saved.");
+  });
+}
+function deleteBudgetModal(id) {
+  const b = budgets().find(x => x.id === id);
+  if (!b) return;
+  confirmModal("Delete this budget?",
+    "<p><b>" + esc(budgetLabel(b)) + "</b> - " + esc(capLabel(b.hours * 3600) + ", " + budgetRangeLabel(b)) + "</p>" +
+    "<p>Only the budget goes. Every entry, hour and export stays exactly as it is.</p>",
+    "Delete budget", () => { saveBudgets(budgets().filter(x => x.id !== id)); toast("Budget deleted."); }, true);
+}
+
 function paintSettings() {
   const s = state.settings, a = document.activeElement;
   const set = (id, val) => { const el = $(id); if (el && el !== a) el.value = val; };
@@ -5236,6 +5492,7 @@ function paintSettings() {
   paintCapacityField();
   paintNotifyState();
   paintGcal();
+  paintBudgets();
   paintSettingsJobTypes();
 }
 /* Notification may not exist at all (an old browser, an embedded view, a
@@ -5799,6 +6056,8 @@ $("#gcalMonth").addEventListener("click", () => {
   gcalBackfill(dayKey(new Date(n.getFullYear(), n.getMonth(), 1)), dayKey(new Date(n.getFullYear(), n.getMonth() + 1, 0)), "This month");
 });
 
+$("#budAdd").addEventListener("click", () => openBudgetModal(null));
+
 $("#sRetry").addEventListener("click", async () => { await store.retry(); toast("Asked for a sync."); });
 $("#sClearCache").addEventListener("click", () => {
   confirmModal("Clear the local cache?",
@@ -5866,6 +6125,8 @@ document.addEventListener("click", e => {
     state.wgExtra = state.wgExtra.filter(x => wgRowKey(x.clientId, x.jobTypeId, x.ticket) !== id);
     paintTimesheet(); return;
   }
+  if ((id = hit("data-budedit"))){ const b = budgets().find(x => x.id === id); if (b) openBudgetModal(b); return; }
+  if ((id = hit("data-buddel"))) { deleteBudgetModal(id); return; }
   if ((id = hit("data-cedit")))  { const c = clientById(id); if (c) openClientModal(c); return; }
   if ((id = hit("data-cstart"))) { const c = clientById(id); if (c) startFromClientModal(c); return; }
   if ((id = hit("data-carch")))  { store.upsertClient(id, { archived: true }); toast("Client archived."); return; }

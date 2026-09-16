@@ -133,6 +133,24 @@ Two things worth knowing about how it looks:
 The entry form lists the breaks on an entry and can remove one, which puts its
 time back.
 
+## Budgets
+
+A budget is an hours cap on a client, or on one project label inside a client,
+with optional dates around it. They live in Settings > Budgets, stored on the
+settings document rather than on any entry, because a budget is a fact about an
+arrangement.
+
+- **The Clock** shows the running entry's tightest budget under the timer,
+  amber past 80 per cent and red past 100.
+- **One warning at 80 per cent, one when it is used up**, per entry per budget,
+  sticky and dismiss-only. Nothing is blocked and nothing is offered: a budget
+  is somebody else's number.
+- **The Export preview** ends with every budget belonging to a client in the
+  range, and where it stands over the budget's own dates - not only the
+  exported range.
+
+Used hours are raw time, never rounded, and they include whatever is running.
+
 ## Overtime
 
 Two thresholds in Settings > Tracking, a day (8 hours) and a week (40), each
@@ -360,6 +378,30 @@ that gates mock mode gates it.
 ## Changelog
 
 ### v0.6.1 - 2026-09-16
+
+Budgets, for the hours somebody already agreed to.
+
+A retainer, a quoted project, a month with a number on it - Sundial could
+record every hour of one and never once mention that there were only forty.
+Settings has a **Budgets** panel now. A budget is a client, an optional project
+label, a number of hours, and optionally a pair of dates around it; leave the
+project blank and it covers everything that client has. Each one shows what has
+gone against it with a bar that turns amber near the end and red past it.
+
+Where it actually earns its place is the Clock. Start a timer that falls inside
+a budget and a line under it reads **Budget: 12h 30m of 40h used**, amber past
+80 per cent and red past 100, counting the running time as it goes. If two
+budgets cover the same entry it shows the tightest one, because the other is
+not the one you are about to run out of. You get one warning at 80 per cent and
+one when it is used up, both sticky so they are still there when you look up
+from what you were doing - and neither offers to do anything about it. A budget
+is somebody else's number, agreed in advance. Stopping work over it is a
+conversation, not a button.
+
+The Export preview ends with a **Budgets** block listing every budget belonging
+to a client in the range and where it stands. Those figures are the budget's
+own - counted over its whole span, not just the range above, which the last line
+says out loud, because half a budget is not a useful thing to be told.
 
 Adding a default job type now offers to add it where you wanted it.
 
