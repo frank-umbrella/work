@@ -139,6 +139,16 @@ switched off reads **Day off** - amber too, if something is running on it. It
 ticks with the timer, so it is right to the minute rather than right when the
 page was last painted.
 
+The Timesheet shows the same thing without a word. In the **Calendar** view the
+hours outside your working window are shaded on every day column, and a day
+switched off is shaded top to bottom, so the shape of the week reads at a
+glance; the time axis stretches to hold your working hours as well as your
+entries, so an early start is never shaded off the bottom of the screen. It is
+decoration only - blocks still drag, empty space still adds an entry. In the
+**Week** grid, a day that is off carries a small muted **off** under its date,
+and the day totals are untouched: a day off with hours on it is a fact, not an
+error.
+
 None of it ever blocks a timer. Working hours are there so the screen can tell
 you - and later a team dashboard can tell someone else - when you are expected
 to be working; a job that runs at 11 PM still starts, stops and exports exactly

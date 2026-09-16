@@ -368,6 +368,9 @@ textarea.fld{min-height:64px;resize:vertical}
 .wg{width:100%;border-collapse:collapse;font-size:13px;table-layout:fixed}
 .wg th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;border-bottom:1px solid var(--line);padding:6px 3px;text-align:center;line-height:1.2}
 .wg th small{display:block;font-weight:400;font-size:11px;letter-spacing:0;text-transform:none;font-family:var(--mono)}
+/* a day switched off in Working hours, marked under the date */
+.wg th small.wgoff{font-family:var(--sans);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.wgdh .wgoff{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:400}
 .wg th.rk,.wg td.rk{text-align:left;width:29%;padding-left:6px}
 .wg th.tot,.wg td.tot{width:9%}
 .wg th.actc,.wg td.actc{width:5%}
@@ -413,6 +416,13 @@ textarea.fld{min-height:64px;resize:vertical}
 .calcol.todayc{background-color:rgba(30,111,217,.05)}
 :root[data-theme="dark"] .calcol.todayc{background-color:rgba(90,162,245,.08)}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .calcol.todayc{background-color:rgba(90,162,245,.08)}}
+/* Everything outside the working hours for that day is shaded: a lighter wash
+   with a fine diagonal stripe, both drawn from theme tokens so it reads the
+   same in dark mode. Purely visual - it is behind the blocks, takes no
+   pointer events, and changes no behavior. */
+.calshade{position:absolute;left:0;right:0;z-index:0;pointer-events:none;
+  background-color:var(--card2);opacity:.6;
+  background-image:repeating-linear-gradient(135deg,var(--line) 0 1px,transparent 1px 7px)}
 .calblk{position:absolute;border-radius:6px;color:#fff;font-size:11px;line-height:1.25;padding:3px 5px;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.25);cursor:pointer;min-width:0;text-shadow:0 1px 1px rgba(0,0,0,.25);touch-action:none}
 .calblk b{display:block;font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .calblk span.jt{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -1688,6 +1698,7 @@ function availWeekSeconds(av) {
   return DAY_KEYS.reduce((s, k) => s + availDaySeconds(a.days[k]), 0);
 }
 function availForDate(d, av) { return (av || availability()).days[DAY_KEYS[new Date(d).getDay()]]; }
+function availDayOff(d, av) { const a = availForDate(d, av); return !!a && !a.on; }
 /* The weekday keys in the order the app is using, so the Settings rows start
    on the same day the timesheet strip does. */
 function weekOrderKeys() {
@@ -2744,6 +2755,7 @@ function paintWeekGrid(ws) {
       const live = rows.map((r, i) => ({ r: r, i: i })).filter(x => cellState(x.r, k).secs > 0 || rowTotal(x.r) === 0);
       return '<div class="wgday' + (k === todayKey ? " todayc" : "") + '">' +
         '<div class="wgdh"><b>' + esc(d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })) + "</b>" +
+        (availDayOff(d) ? '<span class="wgoff" title="A day off in Settings > Working hours.">off</span>' : "") +
         '<span class="t">' + esc(dayTotal(k) ? fmtHM(dayTotal(k)) : "-") + "</span></div>" +
         (live.length ? live.map(x => '<div class="wgline"><div class="rk">' + rowLabelHTML(x.r) + "</div>" + cellHTML(x.r, k, x.i) + "</div>").join("")
           : '<div class="hint">Nothing on this day.</div>') + "</div>";
@@ -2753,8 +2765,10 @@ function paintWeekGrid(ws) {
   }
 
   const head = '<thead><tr><th class="rk">Client &middot; Job type &middot; Ticket</th>' +
-    days.map(d => '<th' + (dayKey(d) === todayKey ? ' class="todayc"' : "") + ">" +
-      esc(d.toLocaleDateString(undefined, { weekday: "short" })) + "<small>" + d.getDate() + "</small></th>").join("") +
+    days.map(d => '<th' + (dayKey(d) === todayKey ? ' class="todayc"' : "") +
+      (availDayOff(d) ? ' title="A day off in Settings &gt; Working hours."' : "") + ">" +
+      esc(d.toLocaleDateString(undefined, { weekday: "short" })) + "<small>" + d.getDate() + "</small>" +
+      (availDayOff(d) ? '<small class="wgoff">off</small>' : "") + "</th>").join("") +
     '<th class="tot">Total</th><th class="actc"></th></tr></thead>';
   const body = "<tbody>" + rows.map((r, i) =>
     '<tr><td class="rk">' + rowLabelHTML(r) + "</td>" +
@@ -2859,6 +2873,18 @@ function calEntries(day) {
 function calBounds(days) {
   let h0 = CAL_DAY0, h1 = CAL_DAY1;
   const now = new Date();
+  /* working hours are part of what the axis has to hold: a 7:00 AM start is
+     shaded down to 7, and shading an hour that is off the axis shades
+     nothing */
+  const av = availability();
+  days.forEach(d => {
+    const a = availForDate(d, av);
+    if (!a || !a.on) return;
+    const s = hmToMin(a.start), e = hmToMin(a.end);
+    if (s == null || e == null || e <= s) return;
+    h0 = Math.min(h0, Math.floor(s / 60));
+    h1 = Math.max(h1, Math.ceil(e / 60));
+  });
   days.forEach(d => calEntries(dayKey(d)).forEach(e => {
     const s = toDate(e.start), en = toDate(e.end) || now;
     h0 = Math.min(h0, s.getHours());
@@ -2921,6 +2947,21 @@ function calBlockHTML(it, h0, now) {
     (tiny ? "" : "<b>" + esc(c ? c.name : "Unknown client") + '</b><span class="jt">' + esc((jobTypeName(c, e.jobTypeId) || "Job") + tickets) + "</span>") +
     (e.end ? '<div class="blkrz" title="Drag to change the end time. Snaps to five minutes."></div>' : "") + "</div>";
 }
+/* The shaded parts of one day column: the whole column on a day off, and the
+   two ends of the axis outside the working window on a day that is on. */
+function calShadeHTML(dayK, b, colH, av) {
+  const a = availForDate(dayDate(dayK), av);
+  if (!a) return "";
+  const shade = (top, h) => h > 0.5
+    ? '<div class="calshade" style="top:' + top.toFixed(1) + "px;height:" + h.toFixed(1) + 'px"></div>' : "";
+  if (!a.on) return shade(0, colH);
+  const s = hmToMin(a.start), e = hmToMin(a.end);
+  if (s == null || e == null || e <= s) return "";
+  const px = min => ((min - b.h0 * 60) / 60) * CAL_HPX;
+  const top = Math.max(0, Math.min(colH, px(s)));
+  const bot = Math.max(0, Math.min(colH, px(e)));
+  return shade(0, top) + shade(bot, colH - bot);
+}
 function paintCalendar(ws) {
   const days = calDays(ws);
   const b = calBounds(days);
@@ -2941,13 +2982,16 @@ function paintCalendar(ws) {
       "<small>" + esc(d.getDate() + (t ? " · " + fmtHM(t) : "")) + "</small></div>";
   }).join("");
 
+  const av = availability();
   const cols = days.map(d => {
     const k = dayKey(d);
     const items = calLayout(calEntries(k), now);
+    const a = availForDate(d, av);
     const nowTop = k === todayKey ? ((now.getHours() * 60 + now.getMinutes()) - b.h0 * 60) / 60 * CAL_HPX : null;
-    return '<div class="calcol' + (k === todayKey ? " todayc" : "") + '" data-calcol="' + k + '"' +
+    return '<div class="calcol' + (k === todayKey ? " todayc" : "") + (a && !a.on ? " dayoff" : "") + '" data-calcol="' + k + '"' +
       ' style="height:' + colH + "px;background-image:repeating-linear-gradient(to bottom,transparent 0 " + (CAL_HPX - 1) + "px,var(--line) " + (CAL_HPX - 1) + "px " + CAL_HPX + 'px)"' +
-      ' title="Click an empty spot to add a half hour of work starting there.">' +
+      ' title="' + (a && !a.on ? "A day off in Working hours. " : "") + 'Click an empty spot to add a half hour of work starting there.">' +
+      calShadeHTML(k, b, colH, av) +
       items.map(it => calBlockHTML(it, b.h0, now)).join("") +
       (nowTop != null && nowTop >= 0 && nowTop <= colH ? '<div class="nowline" style="top:' + nowTop.toFixed(1) + 'px"></div>' : "") +
       "</div>";
