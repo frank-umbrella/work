@@ -506,6 +506,33 @@ warnings (self-enforcing), billable and can-run-alongside flags, client
 import/export/template, email-ready exports, XLSX exports, PWA install,
 calendar view, notifications for limit warnings.
 
+### Shipped in v0.4.0 (not on the list below when this plan was written)
+
+**Google Calendar mirroring.** A finished entry becomes an event on a
+calendar called Sundial in the signed-in Google account; editing the entry
+patches the event, deleting it deletes the event, and a running timer is
+never mirrored until it stops. Backfill buttons cover this week and this
+month.
+
+Three things worth remembering about how it is built:
+
+- **The scope is `calendar.app.created` and nothing else.** It covers
+  calendars this app created itself, so Sundial can make and write the
+  Sundial calendar and is structurally incapable of reading the account's
+  other calendars. Asking for full calendar access to write one calendar
+  would have been the easy version and the wrong one.
+- **Client-side, no backend.** Firebase Auth hands back a token for
+  Firebase, not one the Calendar API takes, so the grant comes from Google
+  Identity Services in the page, loaded lazily on the first Connect. The
+  OAuth client ID lives in Settings as a public identifier; no client
+  secret, no key and no worker is involved, which keeps this consistent
+  with the rest of Sundial having no server of its own.
+- **The token is memory-only.** It is never written to Firestore,
+  localStorage or a cookie, is re-requested silently when it expires, and
+  only escalates to a Reconnect toast - never an unprompted popup - when
+  Google wants consent again. Writes that cannot go up flag the entry and
+  flush on the next connection.
+
 ### Near (single user, after v0.3, in this order)
 1. **Project budgets** - hours cap per client or per project label, with the
    same warn / hard pattern as ticket limits. Cheap once section 9 exists.

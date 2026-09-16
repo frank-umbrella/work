@@ -113,6 +113,103 @@ columns. **Template** downloads a workbook with example rows and a "How to fill"
 sheet; **Import** shows a preview of what will be created, what will be updated
 by name, and which rows have problems, and applies nothing until you confirm.
 
+## Google Calendar
+
+Finished entries can be mirrored into a calendar called **Sundial** in the
+Google account you signed in with, so the week shows up next to your meetings.
+It is off until you switch it on, and it is set up entirely in Settings.
+
+### What the owner has to do once, in the Google Cloud console
+
+The Firebase sign-in does not hand back a token the Calendar API will accept,
+so the calendar needs its own OAuth client. Everything below is in the console
+for the **`watchtower-6fbe1`** project, the same project Watchtower, Backup
+Audits and Sundial already share.
+
+1. **APIs & Services > Library** - search for **Google Calendar API** and press
+   Enable. Nothing works until this is on.
+2. **APIs & Services > Credentials** - use the **OAuth 2.0 Client ID** of type
+   *Web application* that Firebase created for you ("Web client (auto created
+   by Google Service)"), or press Create credentials and make a new Web
+   application client. Open it and add to **Authorized JavaScript origins**:
+
+       https://frank-umbrella.github.io
+       http://127.0.0.1:3497
+
+   (the second one only matters for local testing). Copy the **Client ID** -
+   the long `...apps.googleusercontent.com` string.
+3. **APIs & Services > OAuth consent screen** - Internal is fine, since this is
+   a Workspace account and nobody outside the domain will ever sign in. Add the
+   scope `https://www.googleapis.com/auth/calendar.app.created`.
+4. In Sundial: **Settings > Google Calendar**, paste the client ID into
+   **Google OAuth client ID**, press **Connect**, and accept Google's
+   permission window. Sundial finds or creates the **Sundial** calendar and
+   remembers which one it is.
+
+Nothing secret is involved. A browser OAuth client ID is a public identifier -
+it is visible to anyone who opens the page - and no client secret, API key or
+server is needed anywhere in this feature.
+
+### What it can and cannot see
+
+The only permission asked for is `calendar.app.created`, which covers calendars
+this app created itself. Sundial can create the Sundial calendar and read and
+write events on it. It **cannot** list, read or change your work calendar, your
+personal calendar, or anything else in the account, and it never touches an
+event that does not carry its own entry id. The access token lives in a
+variable for as long as the page is open and is never written to Firestore,
+`localStorage` or a cookie; closing the tab throws it away. A token that has
+expired is asked for again silently, and only if Google insists on a fresh
+consent does a toast appear with a **Reconnect** button on it - a permission
+window that opens without you pressing anything is a popup, not a feature.
+
+### What gets mirrored
+
+One event per **finished** entry:
+
+- **Title** - `Client - Job type`, with the ticket numbers on the end
+  (`Acme Dental - Remote support #5421 #INC-0042`).
+- **Description** - Project, Tickets, Notes, `Billable: yes/no`, the
+  "continued past the limit" line when there is one, and a last line reading
+  `sundial:<entry id>`.
+- **Times** - the entry's own start and end with this device's time zone, so
+  9:02 AM stays 9:02 AM wherever the calendar is read.
+- **Color** - the nearest of Google's eleven event colors to the client's own
+  color, so a day on the calendar is scannable the same way the app is.
+
+A **running** timer is never mirrored - it has no end, and a calendar cannot
+draw that honestly. It becomes an event the moment you stop it. Editing a
+mirrored entry (times, client, job type, tickets, project, notes, billable)
+updates the event it already made rather than adding a second one, and deleting
+the entry deletes the event. An entry edited back into a running one loses its
+event until it stops again.
+
+**Mirror entries automatically** is on once connected. Turning it off stops new
+events being created, but entries already on the calendar are still kept in
+step, because a calendar showing times you have since corrected is worse than
+no calendar at all.
+
+**Sync this week** and **Sync this month** walk that range one entry at a time -
+creating what is missing, updating what is there - and finish with a
+`3 created, 12 updated, 0 skipped` toast. Running timers are skipped.
+
+### When there is no signal
+
+A write that cannot reach Google does not hold up the hours: the entry is
+flagged and the status line says how many are waiting. They go up on the next
+successful connection - when the browser comes back online, when you reconnect,
+or when you press **Sync now**.
+
+### Disconnect
+
+**Disconnect** hands the permission back to Google and forgets which calendar
+was in use. Nothing is deleted: the Sundial calendar and every event on it stay
+where they are, the client ID stays in Settings, and entries keep the id of the
+event they created - so connecting again to the same calendar carries on
+instead of making a second copy of everything. (Erasing your Sundial data does
+not remove the calendar either; delete it in Google Calendar if you want it
+gone.)
+
 ## Development
 
 Serve the folder over HTTP (a `file://` page cannot register a service worker):
@@ -131,7 +228,72 @@ account, and it is inert anywhere else because of the hostname check:
 
 Nothing is persisted in mock mode; a reload starts over.
 
+Mock mode also replaces the Google Calendar layer with a fake one behind the
+same internal interface: a fake token client and an in-memory calendar and
+event store, so Connect, mirroring, editing, deleting, backfill and the offline
+path can all be exercised without a client ID and without touching a real
+account. Anything - `x` will do - is accepted as the client ID. The fake store
+is on `window.__sundialGcal` for poking at from the console:
+
+    __sundialGcal.calendars            the calendars "created"
+    __sundialGcal.events[calendarId]   the events written to one
+    __sundialGcal.offline = true       every call fails the way no signal does
+    __sundialGcal.denyToken = true     Google refuses the grant
+    __sundialGcal.clearToken()         throws the current token away
+
+`denyToken` plus `clearToken()` is how the "Reconnect" toast is reproduced. The
+real Google layer is chosen everywhere else, because the same hostname check
+that gates mock mode gates it.
+
 ## Changelog
+
+### v0.4.0 - 2026-09-16
+
+Finished hours can mirror themselves into a Google Calendar.
+
+The hours were only ever visible inside Sundial, which meant the honest record
+of where the week went sat in one tab while the calendar everyone else looks at
+sat in another. Settings has a **Google Calendar** panel now: connect it once
+and every entry you stop turns into an event on a calendar called **Sundial**
+in your own account, titled `Client - Job type #5421`, colored to match the
+client, with the project, tickets, notes and whether it was billable in the
+description. Editing the entry moves the event, deleting the entry deletes it,
+and a running timer stays out of it until you stop it, because a block with no
+end is not something a calendar can draw truthfully.
+
+The permission is the narrow one on purpose. Sundial asks Google only for
+`calendar.app.created`, which covers calendars this app made itself - it can
+write on the Sundial calendar and it cannot see, read or change your work
+calendar or your personal one. The access token is held in memory for as long
+as the tab is open and is never stored anywhere, and when it expires Sundial
+asks for a new one quietly; only if Google wants a fresh consent does a toast
+appear with a **Reconnect** button, rather than a permission window opening
+while you are typing a note.
+
+Connecting takes one number. Because the Firebase sign-in cannot hand over a
+token the Calendar API accepts, the calendar needs its own OAuth client ID from
+the Google Cloud console - a public identifier, no secret, no server, no key.
+The README's new Google Calendar section names the three console screens: turn
+the Calendar API on, copy the Web application client ID and add this site to
+its authorized origins, and add the scope to the consent screen. Paste the ID
+into Settings, press Connect, and Sundial finds or creates the calendar itself
+and asks nothing else.
+
+There is a **Sync this week** and a **Sync this month** for the hours that were
+already logged before any of this existed; they create what is missing, update
+what is there, skip anything still running, and report the three numbers when
+they finish. **Mirror entries automatically** can be switched off if you would
+rather push weeks up by hand - entries already on the calendar are still kept
+in step, since a calendar showing times you have since corrected is worse than
+no calendar. And an entry stopped in a server closet with no signal is not
+lost: it is flagged, the status line says how many are waiting, and they go up
+the next time the connection or the permission comes back, by themselves or
+with **Sync now**.
+
+**Disconnect** is deliberately gentle. It hands the permission back and forgets
+which calendar was in use, but deletes nothing and keeps the event ids on the
+entries, so connecting again later carries on with the same calendar instead of
+producing a second copy of the month.
 
 ### v0.3.2 - 2026-09-16
 
