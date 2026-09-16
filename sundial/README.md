@@ -133,6 +133,19 @@ Two things worth knowing about how it looks:
 The entry form lists the breaks on an entry and can remove one, which puts its
 time back.
 
+## Overtime
+
+Two thresholds in Settings > Tracking, a day (8 hours) and a week (40), each
+with its own switch and both off by default. A total past one gets an amber
+**OT +1h 20m** in the Week grid, the Clock's Today tile says **over 8h**, and
+the text export adds a line under the day.
+
+It is a flag and nothing else. No pay is worked out, and no timer is ever
+blocked or delayed - a long day is a fact about the week, not a thing to
+prevent. Overtime is separate from **Weekly capacity**: capacity is what the
+utilization bar measures fullness against, overtime is the line past which a
+day or a week is worth remarking on.
+
 **The unpaid break rule** in Settings > Tracking is separate and off by default:
 on a day over H hours, the export deducts N minutes once for that day, prints a
 line saying so, and takes it off billable hours first. Nothing stored changes -
@@ -345,6 +358,32 @@ real Google layer is chosen everywhere else, because the same hostname check
 that gates mock mode gates it.
 
 ## Changelog
+
+### v0.6.1 - 2026-09-16
+
+A long day says so.
+
+Sundial could tell you a week was 46 hours and never once suggest that was
+worth noticing. Settings > Tracking has **Overtime** now: a daily threshold
+(8 hours) and a weekly one (40), each with its own switch and both off until
+you turn them on. When they are on, a day total past the daily figure gets an
+amber **OT +1h 20m** beside it in the Week grid - in the seven-column table and
+in the phone's stacked list - the week total gets the same treatment against
+the weekly figure, the Clock's **Today** tile says **over 8h**, and the text
+export adds **Overtime: 1h 20m over the 8h day** under the day it belongs to.
+
+That is the whole feature, deliberately. No pay is worked out: Sundial has no
+idea what your ninth hour is worth and guessing would be worse than silence.
+Nothing is blocked, delayed or refused either - a long day is a fact about the
+week you have already had, not something to be prevented at half past five. The
+export's flag is computed from the same numbers printed above it, rounded and
+after any unpaid break has come off, so the note and the hours can never
+disagree.
+
+Overtime is a separate idea from **Weekly capacity**, which is what the
+utilization bar measures fullness against. One answers "how full is this week",
+the other "was that day longer than it should have been", and they are allowed
+to be different numbers.
 
 ### v0.6.0 - 2026-09-16
 

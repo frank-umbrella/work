@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Sundial v0.6.0</title>
-<meta name="version" content="0.6.0" />
+<title>Sundial v0.6.1</title>
+<meta name="version" content="0.6.1" />
 <meta name="robots" content="noindex, nofollow" />
 <meta name="description" content="Internal hours tracker for Umbrella Automation. Restricted to @umbrellaautomation.com accounts." />
 <meta name="theme-color" content="#1e6fd9" />
@@ -240,6 +240,14 @@ textarea.fld{min-height:64px;resize:vertical}
 /* An entry that was carried past its hard limit keeps an amber flag, so a
    week later the reason is one hover away instead of lost. */
 .tagover{display:inline-block;font-size:11px;padding:1px 7px;border-radius:999px;background:rgba(224,163,0,.14);border:1px solid var(--glow);color:var(--glow);margin-left:6px;white-space:nowrap;cursor:help}
+/* Overtime: an amber note beside a total that has gone past a threshold. It
+   has to sit in a seven-column week grid cell without widening it, so inside
+   the grid it drops onto its own line under the number and is allowed to
+   wrap; everywhere else it reads inline. */
+.otflag{display:inline-block;margin-left:6px;font-size:11px;font-weight:600;color:var(--glow);cursor:help;overflow-wrap:anywhere}
+.wg .otflag,.tile .otflag{display:block;margin-left:0;font-size:10px;line-height:1.25;white-space:normal}
+.tile .otflag{margin-top:2px}
+.wgdh .otflag{display:inline-block;margin-left:6px;font-size:11px}
 /* How much of the limit is gone, under the running timer. Quiet until it
    matters, then an amber chip past the warn point and a red one past the
    hard limit, so the state is readable without reading the numbers. Its own
@@ -879,6 +887,15 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
         <div><label class="lab" for="sAutoBreakMin">Minutes to deduct <span class="q" title="Taken off once per day, never per entry. It comes off billable time first, because that is the hour somebody would otherwise be charged for.">?</span></label><input class="fld" id="sAutoBreakMin" type="number" min="0" max="240" step="5"></div>
         <div><label class="lab" for="sAutoBreakOver">On days over (hours) <span class="q" title="Days at or under this are left alone. A four-hour morning has no lunch in it to take out.">?</span></label><input class="fld" id="sAutoBreakOver" type="number" min="0" max="24" step="0.5"></div>
       </div>
+      <label class="lab">Overtime <span class="q" title="Puts an amber tag on a day or a week that has gone past the hours you set, in the Week grid and on the Clock, and a line in the text export. That is all it does: no pay is worked out, and no timer is ever blocked or delayed. Both halves start switched off.">?</span></label>
+      <div class="g2">
+        <div><label class="ck"><input type="checkbox" id="sOtDayOn"> Flag long days</label>
+          <label class="lab" for="sOtDay">Daily hours <span class="q" title="A day past this gets an OT tag on its total in the Week grid and on the Clock's Today tile, and a line in the text export.">?</span></label>
+          <input class="fld" id="sOtDay" type="number" min="1" max="24" step="0.5"></div>
+        <div><label class="ck"><input type="checkbox" id="sOtWeekOn"> Flag long weeks</label>
+          <label class="lab" for="sOtWeek">Weekly hours <span class="q" title="A week past this gets an OT tag on the week total in the Week grid. Separate from Weekly capacity, which is what the utilization bar measures fullness against.">?</span></label>
+          <input class="fld" id="sOtWeek" type="number" min="1" max="168" step="0.5"></div>
+      </div>
       <label class="lab">Default job types <span class="q" title="The list a brand new client starts with. Changing it never touches clients you already have.">?</span></label>
       <div class="chips" id="sJobTypes"></div>
       <input class="fld" id="sJobTypeAdd" placeholder="Add a job type and press Enter" style="margin-top:8px">
@@ -980,12 +997,12 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
 
 <script type="module">
 /* ==============================================================
-   Sundial v0.6.0 - hours tracker
+   Sundial v0.6.1 - hours tracker
    Single file on purpose: no build step, same as Backup Audits.
    Firestore rules for /sundial_users live in ../watchtower/firestore.rules.
    ============================================================== */
 
-const APP_VERSION    = "0.6.0";
+const APP_VERSION    = "0.6.1";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const OWNER_EMAIL    = "frank@umbrellaautomation.com";
 const SDK            = "https://www.gstatic.com/firebasejs/12.13.0/";
@@ -1114,6 +1131,9 @@ const DEFAULT_SETTINGS = {
   /* The unpaid-break rule. Off by default, and applied on the way out only:
      stored time is never touched by it, exactly like rounding. */
   autoBreak: { on: false, minutes: 30, overHours: 6 },
+  /* Overtime thresholds. A flag and nothing else: no pay is worked out, no
+     timer is ever refused, and both halves start switched off. */
+  overtime: { daily: { on: false, hours: 8 }, weekly: { on: false, hours: 40 } },
   theme: "system", columns: DEFAULT_COLUMNS.slice(), sort: null, colWidths: {},
   /* Google Calendar mirroring. clientId is a public identifier, calendarId
      and email are what Connect found. No token is ever stored here, or
@@ -1737,11 +1757,43 @@ function paintTiles() {
   const ws = startOfWeek(new Date(), state.settings.weekStart);
   const wsKey = dayKey(ws), weKey = dayKey(addDays(ws, 6));
   const week = state.entries.filter(e => e.day >= wsKey && e.day <= weKey).reduce((s, e) => s + entrySeconds(e), 0);
+  const otDay = otDayOver(total);
   $("#todayTiles").innerHTML =
-    tile("Today", fmtDur(total)) + tile("Billable", fmtDur(bill)) +
+    tile("Today", fmtDur(total), otDay
+      ? '<span class="otflag" title="' + esc(fmtDur(otDay) + " past it. A flag and nothing else - no pay is worked out and nothing was blocked. Set in Settings > Tracking.") +
+        '">over ' + esc(otThresholdLabel("day")) + "</span>"
+      : "") +
+    tile("Billable", fmtDur(bill)) +
     tile("Entries", String(rows.length)) + tile("Clients", String(clients)) + tile("This week", fmtDur(week));
 }
-function tile(k, n) { return '<div class="tile"><div class="k">' + esc(k) + '</div><div class="n">' + esc(n) + "</div></div>"; }
+function tile(k, n, flag) { return '<div class="tile"><div class="k">' + esc(k) + '</div><div class="n">' + esc(n) + "</div>" + (flag || "") + "</div>"; }
+
+/* ==============================================================
+   OVERTIME
+   Two thresholds, a day and a week, each switchable. All they ever do is put
+   an amber tag on a total that has gone past one and add a line to the text
+   export. No pay is worked out - Sundial does not know what an hour of yours
+   is worth after the eighth - and nothing is ever refused: a long day is a
+   fact about the week, not a thing to be prevented at half past five.
+   ============================================================== */
+function overtimeCfg() {
+  const o = state.settings.overtime || {};
+  const d = o.daily || {}, w = o.weekly || {};
+  const num = (v, dflt) => { const n = Number(v); return isFinite(n) && n > 0 ? n : dflt; };
+  return { daily: { on: !!d.on, hours: num(d.hours, 8) }, weekly: { on: !!w.on, hours: num(w.hours, 40) } };
+}
+function otDayOver(secs) { const c = overtimeCfg().daily; return c.on && secs > c.hours * 3600 ? secs - c.hours * 3600 : 0; }
+function otWeekOver(secs) { const c = overtimeCfg().weekly; return c.on && secs > c.hours * 3600 ? secs - c.hours * 3600 : 0; }
+function otThresholdLabel(which) {
+  const c = overtimeCfg();
+  return limLabel((which === "week" ? c.weekly.hours : c.daily.hours) * 60);
+}
+function otFlagHTML(over, which) {
+  if (!over) return "";
+  return '<span class="otflag" title="' + esc(fmtDur(over) + " past the " + otThresholdLabel(which) + " " + which +
+    " set in Settings > Tracking. A flag and nothing else: no pay is worked out and nothing was blocked.") +
+    '">OT +' + esc(fmtDur(over)) + "</span>";
+}
 
 /* ==============================================================
    AVAILABILITY - the hours you are normally working
@@ -2994,11 +3046,11 @@ function paintWeekGrid(ws) {
       return '<div class="wgday' + (k === todayKey ? " todayc" : "") + '">' +
         '<div class="wgdh"><b>' + esc(d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })) + "</b>" +
         (availDayOff(d) ? '<span class="wgoff" title="A day off in Settings > Working hours.">off</span>' : "") +
-        '<span class="t">' + esc(dayTotal(k) ? fmtHM(dayTotal(k)) : "-") + "</span></div>" +
+        '<span class="t">' + esc(dayTotal(k) ? fmtHM(dayTotal(k)) : "-") + otFlagHTML(otDayOver(dayTotal(k)), "day") + "</span></div>" +
         (live.length ? live.map(x => '<div class="wgline"><div class="rk">' + rowLabelHTML(x.r) + "</div>" + cellHTML(x.r, k, x.i) + "</div>").join("")
           : '<div class="hint">Nothing on this day.</div>') + "</div>";
     }).join("") +
-      '<div class="daytotal">Week total ' + esc(fmtHM(weekTotal)) + "</div>";
+      '<div class="daytotal">Week total ' + esc(fmtHM(weekTotal)) + otFlagHTML(otWeekOver(weekTotal), "week") + "</div>";
     return;
   }
 
@@ -3016,8 +3068,11 @@ function paintWeekGrid(ws) {
       ? '<button class="ibtn" data-wgdrop="' + esc(r.key) + '" title="Remove this empty row. It has no time on it, so nothing is deleted." aria-label="Remove row">' + ICONS.del + "</button>"
       : "") + "</td></tr>").join("") + "</tbody>";
   const foot = '<tfoot><tr><td class="rk">Day totals</td>' +
-    days.map(d => '<td' + (dayKey(d) === todayKey ? ' class="todayc"' : "") + ">" + esc(dayTotal(dayKey(d)) ? fmtHM(dayTotal(dayKey(d))) : "0") + "</td>").join("") +
-    '<td class="tot">' + esc(fmtHM(weekTotal)) + '</td><td class="actc"></td></tr></tfoot>';
+    days.map(d => {
+      const t = dayTotal(dayKey(d));
+      return '<td' + (dayKey(d) === todayKey ? ' class="todayc"' : "") + ">" + esc(t ? fmtHM(t) : "0") + otFlagHTML(otDayOver(t), "day") + "</td>";
+    }).join("") +
+    '<td class="tot">' + esc(fmtHM(weekTotal)) + otFlagHTML(otWeekOver(weekTotal), "week") + '</td><td class="actc"></td></tr></tfoot>';
   box.innerHTML = '<table class="wg">' + head + body + foot + "</table>";
 }
 /* Typing a duration into a cell. Empty leaves the entry alone; the box is
@@ -3921,6 +3976,22 @@ function autoBreakDeductions(rows) {
   return out;
 }
 function autoBreakLine(d) { return "Unpaid break deducted: " + limLabel(d.secs / 60) + " (" + fmtDayShort(d.day) + ")"; }
+/* The overtime note for the text export, worked out on the same numbers the
+   export prints - rounded, and after any unpaid break has come off - so the
+   flag and the hours above it can never disagree. */
+function overtimeExportLines(rows, deds) {
+  const cfg = overtimeCfg();
+  if (!cfg.daily.on) return [];
+  const byDay = new Map();
+  rows.forEach(e => { if (!byDay.has(e.day)) byDay.set(e.day, 0); byDay.set(e.day, byDay.get(e.day) + exportSeconds(e)); });
+  (deds || []).forEach(d => { if (byDay.has(d.day)) byDay.set(d.day, Math.max(0, byDay.get(d.day) - d.secs)); });
+  const out = [];
+  Array.from(byDay.keys()).sort().forEach(day => {
+    const over = byDay.get(day) - cfg.daily.hours * 3600;
+    if (over > 0) out.push("Overtime: " + fmtDur(over) + " over the " + limLabel(cfg.daily.hours * 60) + " day (" + fmtDayShort(day) + ")");
+  });
+  return out;
+}
 function dedSeconds(list) { return (list || []).reduce((s, d) => s + d.secs, 0); }
 /* Take a deduction off the billable side first: an unpaid lunch comes out of
    the hours somebody is being charged for, not out of the admin time. */
@@ -4028,6 +4099,7 @@ function buildExportText() {
     lines.push("");
     deds.forEach(d => tail.push(autoBreakLine(d)));
   }
+  overtimeExportLines(rows, deds).forEach(l => tail.push(l));
   tail.forEach(t => lines.push(t));
   if (tail.length) lines.push("");
   const sp = lessSplit(sum(rows), billOf(rows), nonOf(rows), dedSeconds(deds));
@@ -5148,6 +5220,13 @@ function paintSettings() {
   set("#sAutoBreakMin", String(ab.minutes || 30));
   set("#sAutoBreakOver", String(ab.overHours));
   ["#sAutoBreakMin", "#sAutoBreakOver"].forEach(id => { const el = $(id); if (el) el.disabled = !ab.on; });
+  const ot = overtimeCfg();
+  chk("#sOtDayOn", ot.daily.on);
+  chk("#sOtWeekOn", ot.weekly.on);
+  set("#sOtDay", String(ot.daily.hours));
+  set("#sOtWeek", String(ot.weekly.hours));
+  { const el = $("#sOtDay"); if (el) el.disabled = !ot.daily.on; }
+  { const el = $("#sOtWeek"); if (el) el.disabled = !ot.weekly.on; }
   chk("#sNewBillable", s.newClientBillable !== false);
   chk("#sNewConcurrent", s.newClientAllowConcurrent);
   chk("#sNotify", s.notify && notifyPermission() === "granted");
@@ -5508,6 +5587,30 @@ $("#sAutoBreakOver").addEventListener("change", e => {
   const v = Math.max(0, Math.min(24, parseFloat(e.target.value) || 0));
   e.target.value = String(v);
   saveAutoBreak({ overHours: v });
+});
+/* Overtime: two independent halves, each with its own switch, so flagging
+   long days does not force you to have an opinion about long weeks. */
+function saveOvertime(patch) {
+  const cur = overtimeCfg();
+  saveSetting({ overtime: { daily: Object.assign({}, cur.daily, patch.daily), weekly: Object.assign({}, cur.weekly, patch.weekly) } });
+}
+$("#sOtDayOn").addEventListener("change", e => {
+  saveOvertime({ daily: { on: e.target.checked } });
+  toast(e.target.checked ? "Days over " + otThresholdLabel("day") + " will be flagged." : "Long days are no longer flagged.");
+});
+$("#sOtWeekOn").addEventListener("change", e => {
+  saveOvertime({ weekly: { on: e.target.checked } });
+  toast(e.target.checked ? "Weeks over " + otThresholdLabel("week") + " will be flagged." : "Long weeks are no longer flagged.");
+});
+$("#sOtDay").addEventListener("change", e => {
+  const v = Math.max(1, Math.min(24, parseFloat(e.target.value) || 8));
+  e.target.value = String(v);
+  saveOvertime({ daily: { hours: v } });
+});
+$("#sOtWeek").addEventListener("change", e => {
+  const v = Math.max(1, Math.min(168, parseFloat(e.target.value) || 40));
+  e.target.value = String(v);
+  saveOvertime({ weekly: { hours: v } });
 });
 $("#sNewBillable").addEventListener("change", e => saveSetting({ newClientBillable: e.target.checked }));
 $("#sNewConcurrent").addEventListener("change", e => saveSetting({ newClientAllowConcurrent: e.target.checked }));
