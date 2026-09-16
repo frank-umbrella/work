@@ -168,6 +168,34 @@ rounded: the bar is the honest picture of the week, and rounding belongs to the
 invoice. With no capacity set, the bar still shows the billable split and the
 line tells you where to set one.
 
+The Week grid, for filling a missed day in from memory.
+
+The Timesheet's Day / Week / Calendar control has had Week greyed out since
+v0.1. It works now: one row per client and job type used that week (a ticket
+number makes its own row, because that is how the hours get reported), seven
+day columns, row totals down the right, day totals along the bottom and the
+week total in the corner. Today's column is tinted.
+
+The point of it is that the cells are typing boxes. Put `1:30` into an empty
+one and it logs ninety minutes on that day starting at 9:00 AM; `1.5`, `90m`
+and `1h 30m` all mean the same thing. Type into a cell that already holds one
+entry and it moves that entry's end time instead. A cell holding several
+entries, or a running timer, is not a box you can type in - there is no
+sensible way to split one number across them - so it becomes a button that
+opens the day view, and says so on hover. **+ Add row** puts an empty row in
+for a client and job type you have not touched this week; an empty row can be
+removed again with the bin on the right, and since it has no time on it,
+nothing is deleted. The prev / next arrows step a week at a time here, and
+Today becomes This week.
+
+Phones do not get a seven-column table - it would scroll sideways, which this
+app does not do. They get one block per day instead, with the day's total and
+the rows that have time on it underneath, and the same typing boxes.
+
+Which view you are in is remembered on the device, not in your account, so the
+phone can sit on the day list while the desktop sits on the week grid. The
+Settings field now sets the starting view for a device that has never chosen.
+
 ### v0.1.14 - 2026-09-15
 
 Start a timer from the Clients screen.

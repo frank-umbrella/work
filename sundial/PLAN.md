@@ -212,6 +212,15 @@ The chosen view is remembered per device.
   visible at a glance. The running entry grows live. Drag the bottom edge to
   change End, drag the block to move it, click empty space to add a manual
   entry at that time. Blocks under 15 minutes show only the color.
+  Built in v0.2.0 with three decisions the plan did not settle. A cell holding
+  a **running** timer is read-only like a multi-entry cell, because setting an
+  end time from a grid would silently stop the clock. An empty typing box is
+  left alone rather than treated as a delete, so a stray click cannot remove
+  time. And the chosen view is remembered in `localStorage` per device rather
+  than in the account, so the phone can hold the day list while the desktop
+  holds the week grid; `defaultView` in Settings is what a device that has
+  never chosen starts on.
+
 - **Utilization bar.** Above the Week grid and Calendar: "This week 21h 40m
   of 40h" with a stacked bar, billable in the accent blue and non-billable in
   the pale blue, against the weekly capacity from Settings. Same idea as

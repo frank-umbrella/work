@@ -298,6 +298,46 @@ textarea.fld{min-height:64px;resize:vertical}
 .tsrow .dur{font-family:var(--mono);font-weight:700;white-space:nowrap}
 .daytotal{display:flex;justify-content:flex-end;gap:10px;font-family:var(--mono);font-weight:700;padding-top:12px}
 
+/* ---------- week grid ----------
+   Fixed layout so the seven day columns are predictable and the whole table
+   always fits its card: percentages, never pixels, and every cell control is
+   width:100% with min-width:0 so nothing can push the table wider. Under
+   860px the table is replaced entirely by a per-day stacked list (the
+   playbook's no-sideways-scroll rule; a seven-column grid cannot card-stack
+   the way an entry table does). */
+.wg{width:100%;border-collapse:collapse;font-size:13px;table-layout:fixed}
+.wg th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600;border-bottom:1px solid var(--line);padding:6px 3px;text-align:center;line-height:1.2}
+.wg th small{display:block;font-weight:400;font-size:11px;letter-spacing:0;text-transform:none;font-family:var(--mono)}
+.wg th.rk,.wg td.rk{text-align:left;width:29%;padding-left:6px}
+.wg th.tot,.wg td.tot{width:9%}
+.wg th.actc,.wg td.actc{width:5%}
+.wg td{padding:5px 3px;border-bottom:1px solid var(--line);text-align:center;vertical-align:middle;min-width:0}
+.wg td.rk{overflow-wrap:anywhere}
+.wg td.rk b{font-weight:600}
+.wg td.rk small{display:block;color:var(--muted);font-size:12px}
+.wg .todayc{background:rgba(30,111,217,.06)}
+:root[data-theme="dark"] .wg .todayc{background:rgba(90,162,245,.1)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .wg .todayc{background:rgba(90,162,245,.1)}}
+.wgc{display:block;width:100%;max-width:100%;min-width:0;height:30px;padding:0 2px;border:1px solid var(--line2);border-radius:6px;background:var(--card2);color:var(--text);font:inherit;font-family:var(--mono);font-size:13px;text-align:center}
+.wgc:focus{outline:2px solid var(--accent);outline-offset:1px}
+.wgc.ro{cursor:pointer;border-style:dashed;color:var(--accent)}
+.wgc.ro:hover{border-color:var(--accent)}
+.wg td.tot{font-family:var(--mono);font-weight:700}
+.wg tfoot td{font-family:var(--mono);font-weight:600;border-bottom:0;padding-top:10px}
+.wg tfoot td.rk{font-family:var(--sans);font-weight:400;color:var(--muted);font-size:12px}
+.wg td.actc .ibtn{width:22px;height:22px;padding:0;display:inline-grid;place-items:center;border:1px solid var(--line2);border-radius:50%;background:var(--card2);color:var(--muted);cursor:pointer}
+.wg td.actc .ibtn:hover{color:var(--stop);border-color:var(--stop)}
+/* stacked: one block per day */
+.wgday{border:1px solid var(--line);border-radius:var(--radius);padding:8px 10px;margin-bottom:10px;min-width:0}
+.wgday.todayc{border-color:var(--accent)}
+.wgdh{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:6px;margin-bottom:6px}
+.wgdh b{font-size:14px}
+.wgdh .t{margin-left:auto;font-family:var(--mono);font-weight:700}
+.wgline{display:grid;grid-template-columns:minmax(0,1fr) 92px;gap:10px;align-items:center;padding:5px 0}
+.wgline .rk{min-width:0;overflow-wrap:anywhere;font-size:13.5px}
+.wgline .rk small{display:block;color:var(--muted);font-size:12px}
+@media (max-width:640px){.wgc{font-size:16px}}
+
 /* ---------- clients ---------- */
 .clients{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:14px}
 .cl h5{margin:0 0 2px;font-size:17px;overflow-wrap:anywhere}
@@ -517,7 +557,11 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
       <div class="chead">
         <span class="seg"><button id="tsPrev" title="Previous day">&#8592;</button><button id="tsToday">Today</button><button id="tsNext" title="Next day">&#8594;</button></span>
         <select class="fld" id="tsClient" style="width:auto;min-width:min(100%,170px)" title="Show only one client, for example when you are checking what to bill them."></select>
-        <span class="sp"><span class="seg"><button class="on" id="tsvDay">Day</button><button disabled title="Coming in v0.2">Week</button><button disabled title="Coming in v0.2">Calendar</button></span></span>
+        <span class="sp"><span class="seg" id="tsViews">
+          <button data-tsv="day" class="on" title="One row per entry for the selected day, with Resume and Edit on each.">Day</button>
+          <button data-tsv="week" title="The whole week as a grid: one row per client and job type, one column per day. Type a duration into a cell to fill a day in from memory.">Week</button>
+          <button data-tsv="calendar" disabled title="Next up in v0.2.">Calendar</button>
+        </span></span>
       </div>
       <div class="daystrip" id="tsStrip"></div>
     </div>
@@ -526,6 +570,18 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
       <div class="chead"><h4 id="tsTitle">Day</h4><span class="sp"><button class="btn sm acc" id="copyDayBtn" title="Copies this day's hours as the same email-ready text the Export screen produces. Follows the client filter above and your saved export options.">Copy day</button><button class="btn sm" id="copyDayHtmlBtn" title="Copies the same day as a table, so Gmail and Outlook paste rows and columns instead of a block of text. The plain text goes on the clipboard too, for anywhere that cannot take a table.">Copy for email</button><button class="btn sm" id="tsAdd">+ Manual entry</button></span></div>
       <div id="tsRows"></div>
       <div class="daytotal" id="tsTotal"></div>
+    </div>
+    <div class="card" id="tsWeekCard" hidden>
+      <div class="chead"><h4 id="tsWeekTitle">Week</h4><span class="sp">
+        <button class="btn sm" id="wgAdd" title="Adds an empty row for a client and job type you have not logged yet this week, so you can type the hours straight into the day columns.">+ Add row</button>
+      </span></div>
+      <div id="wgBody"></div>
+      <div class="hint" id="wgHint">Type a duration into an empty cell to log it for that day: 1:30, 1.5, 90m and 1h 30m all mean the same thing. New entries start at 9:00 AM; open the day to move them.</div>
+    </div>
+    <div class="card" id="tsCalCard" hidden>
+      <div class="chead"><h4 id="tsCalTitle">Calendar</h4></div>
+      <div id="calBody"></div>
+      <div class="hint" id="calHint"></div>
     </div>
   </section>
 
@@ -636,7 +692,7 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
         <div><label class="lab" for="sMileage">Mileage rate <span class="q" title="Dollars per mile for the travel export. Set it once a year; it is stored now and used in v0.3.">?</span></label><span class="money"><input class="fld" id="sMileage" inputmode="decimal"></span></div>
       </div>
       <div class="g2">
-        <div><label class="lab" for="sDefaultView">Default timesheet view <span class="q" title="Which timesheet view opens first. Week and Calendar arrive in v0.2; the choice is stored now.">?</span></label><select class="fld" id="sDefaultView"><option value="day">Day list</option><option value="week">Week grid</option><option value="calendar">Calendar</option></select></div>
+        <div><label class="lab" for="sDefaultView">Default timesheet view <span class="q" title="Which timesheet view a device that has never chosen one opens with. Each device then remembers whichever view you last picked on it, because the phone wants the day list and the desktop wants the week grid.">?</span></label><select class="fld" id="sDefaultView"><option value="day">Day list</option><option value="week">Week grid</option><option value="calendar">Calendar</option></select></div>
         <div><label class="lab">Show amounts <span class="q" title="Off by default. On shows hourly rates on clients and money in exports.">?</span></label><label class="ck"><input type="checkbox" id="sShowAmounts"> Show rates and amounts</label></div>
       </div>
       <label class="lab">Default job types <span class="q" title="The list a brand new client starts with. Changing it never touches clients you already have.">?</span></label>
@@ -816,6 +872,12 @@ const state = {
   view: "clock",
   tsDay: dayKey(new Date()),
   tsClient: "",
+  /* Which timesheet view is showing. Remembered per device (localStorage),
+     not per account: the phone wants the day list and the desktop wants the
+     week grid, and they are the same account. Settings still holds the
+     starting choice for a device that has never picked one. */
+  tsView: "day",
+  wgExtra: [], wgExtraWeek: "",
   sync: { pending: 0, online: navigator.onLine },
   startPanelOpen: true,
   runEditOpen: false,
@@ -1824,13 +1886,249 @@ function openColumnsModal() {
 }
 
 /* ==============================================================
-   TIMESHEET (v0.1 = Day list; Week and Calendar land in v0.2)
+   TIMESHEET - Day list, Week grid, Calendar
    ============================================================== */
+const TS_VIEW_KEY = "sundial.tsView";
+function loadTsView() {
+  let v = null;
+  try { v = localStorage.getItem(TS_VIEW_KEY); } catch (_) { /* private window */ }
+  if (["day", "week", "calendar"].indexOf(v) < 0) v = state.settings.defaultView || "day";
+  return v;
+}
+function setTsView(v) {
+  state.tsView = v;
+  try { localStorage.setItem(TS_VIEW_KEY, v); } catch (_) {}
+  paintTimesheet();
+}
+function isPhoneLayout() { return window.matchMedia("(max-width:860px)").matches; }
+/* h:mm, the shape a week grid reads in: 2:30, not "2h 30m". */
+function fmtHM(sec) {
+  sec = Math.max(0, Math.floor(sec));
+  return Math.floor(sec / 3600) + ":" + p2(Math.floor((sec % 3600) / 60));
+}
+/* "1:30", "1.5", "90m", "1h 30m" and "1h" all mean ninety minutes.
+   Returns seconds, null for an empty box, NaN for something unreadable. */
+function parseDuration(text) {
+  const s = String(text == null ? "" : text).trim().toLowerCase().replace(/\s+/g, " ");
+  if (!s) return null;
+  let m = /^(\d+):([0-5]?\d)$/.exec(s);
+  if (m) return (+m[1]) * 3600 + (+m[2]) * 60;
+  m = /^(?:(\d+(?:\.\d+)?)\s*h)\s*(?:(\d+(?:\.\d+)?)\s*m?)?$/.exec(s);
+  if (m) return parseFloat(m[1]) * 3600 + (m[2] ? parseFloat(m[2]) * 60 : 0);
+  m = /^(\d+(?:\.\d+)?)\s*m(?:in)?$/.exec(s);
+  if (m) return parseFloat(m[1]) * 60;
+  m = /^(\d+(?:\.\d+)?)$/.exec(s);
+  if (m) return parseFloat(m[1]) * 3600;
+  return NaN;
+}
+function weekLabel(ws) {
+  const we = addDays(ws, 6);
+  const a = ws.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  const b = we.getMonth() === ws.getMonth()
+    ? String(we.getDate())
+    : we.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  return a + " - " + b;
+}
+/* A week grid row is one client + job type + ticket string. Two tickets for
+   the same client and job are separate rows, because that is how the hours
+   get reported. Rows added by hand this week ride along with no entries. */
+function wgRowKey(clientId, jobTypeId, ticket) { return clientId + "|" + jobTypeId + "|" + ticketList(ticket).join(","); }
+function weekRows(ws) {
+  const wsKey = dayKey(ws), weKey = dayKey(addDays(ws, 6));
+  const map = new Map();
+  const put = (clientId, jobTypeId, ticket) => {
+    const k = wgRowKey(clientId, jobTypeId, ticket);
+    if (!map.has(k)) map.set(k, { key: k, clientId: clientId, jobTypeId: jobTypeId, ticket: ticketList(ticket).join(", "), days: {} });
+    return map.get(k);
+  };
+  state.entries.forEach(e => {
+    if (e.day < wsKey || e.day > weKey) return;
+    if (state.tsClient && e.clientId !== state.tsClient) return;
+    const r = put(e.clientId, e.jobTypeId, e.ticket);
+    (r.days[e.day] || (r.days[e.day] = [])).push(e);
+  });
+  if (state.wgExtraWeek === wsKey) {
+    state.wgExtra.forEach(x => {
+      if (state.tsClient && x.clientId !== state.tsClient) return;
+      put(x.clientId, x.jobTypeId, x.ticket);
+    });
+  }
+  return Array.from(map.values()).sort((a, b) => {
+    const ca = clientById(a.clientId), cb = clientById(b.clientId);
+    const n = (ca ? ca.name : "").localeCompare(cb ? cb.name : "");
+    if (n) return n;
+    const j = (jobTypeName(ca, a.jobTypeId) || "").localeCompare(jobTypeName(cb, b.jobTypeId) || "");
+    return j || a.ticket.localeCompare(b.ticket);
+  });
+}
+function rowLabelHTML(r) {
+  const c = clientById(r.clientId);
+  const bits = [esc(jobTypeName(c, r.jobTypeId) || "Job")];
+  if (r.ticket) bits.push(ticketHTML(c, r.ticket));
+  return '<b><span class="cdot" style="background:' + esc(clientColor(c)) + '"></span>' + esc(c ? c.name : "Unknown client") + "</b>" +
+    "<small>" + bits.join(" &middot; ") + "</small>";
+}
+/* A cell holds the entries for one row on one day. Nothing, or exactly one
+   finished entry, can be typed into. Several entries, or a running one, are
+   read-only: adjusting them from a grid would be guesswork, so the cell
+   sends you to the day view instead. */
+function cellState(r, day) {
+  const list = r.days[day] || [];
+  const secs = list.reduce((s, e) => s + entrySeconds(e), 0);
+  const running = list.some(e => !e.end);
+  return { list: list, secs: secs, editable: list.length <= 1 && !running, running: running };
+}
+function cellHTML(r, day, rowIdx) {
+  const cs = cellState(r, day);
+  const val = cs.secs ? fmtHM(cs.secs) : "";
+  if (cs.editable) {
+    return '<input class="wgc" inputmode="text" autocomplete="off" data-wgc="' + rowIdx + "|" + day + '" value="' + esc(val) + '"' +
+      ' aria-label="' + esc(fmtDayShort(day)) + '" title="' + esc(cs.list.length
+        ? "Type a new duration to move this entry's end time. 1:30, 1.5, 90m and 1h 30m all work."
+        : "Type a duration to log it on " + fmtDayShort(day) + ", starting at 9:00 AM. 1:30, 1.5, 90m and 1h 30m all work.") + '">';
+  }
+  return '<button type="button" class="wgc ro" data-wgopen="' + day + '" title="' + esc(cs.running
+    ? "A timer is running in this cell, so it cannot be edited here. Opens the day view."
+    : cs.list.length + " entries on this day, so there is nothing to adjust in one box. Opens the day view.") + '">' + esc(val || "-") + "</button>";
+}
+function paintWeekGrid(ws) {
+  const rows = weekRows(ws);
+  const days = []; for (let i = 0; i < 7; i++) days.push(addDays(ws, i));
+  const todayKey = dayKey(new Date());
+  const dayTotal = k => rows.reduce((s, r) => s + cellState(r, k).secs, 0);
+  const rowTotal = r => days.reduce((s, d) => s + cellState(r, dayKey(d)).secs, 0);
+  const weekTotal = rows.reduce((s, r) => s + rowTotal(r), 0);
+  const box = $("#wgBody");
+  $("#tsWeekTitle").textContent = "Week of " + weekLabel(ws);
+
+  if (!rows.length) {
+    box.innerHTML = '<div class="emptyrow">Nothing logged this week' + (state.tsClient ? " for this client" : "") +
+      '. Use + Add row to put a client and job type in, then type the hours into the day columns.</div>';
+    return;
+  }
+
+  if (isPhoneLayout()) {
+    /* Phones get one block per day rather than a seven-column table: the
+       rows that have time that day, plus any row added by hand this week so
+       a brand new row is reachable. */
+    box.innerHTML = days.map(d => {
+      const k = dayKey(d);
+      const live = rows.map((r, i) => ({ r: r, i: i })).filter(x => cellState(x.r, k).secs > 0 || rowTotal(x.r) === 0);
+      return '<div class="wgday' + (k === todayKey ? " todayc" : "") + '">' +
+        '<div class="wgdh"><b>' + esc(d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })) + "</b>" +
+        '<span class="t">' + esc(dayTotal(k) ? fmtHM(dayTotal(k)) : "-") + "</span></div>" +
+        (live.length ? live.map(x => '<div class="wgline"><div class="rk">' + rowLabelHTML(x.r) + "</div>" + cellHTML(x.r, k, x.i) + "</div>").join("")
+          : '<div class="hint">Nothing on this day.</div>') + "</div>";
+    }).join("") +
+      '<div class="daytotal">Week total ' + esc(fmtHM(weekTotal)) + "</div>";
+    return;
+  }
+
+  const head = '<thead><tr><th class="rk">Client &middot; Job type &middot; Ticket</th>' +
+    days.map(d => '<th' + (dayKey(d) === todayKey ? ' class="todayc"' : "") + ">" +
+      esc(d.toLocaleDateString(undefined, { weekday: "short" })) + "<small>" + d.getDate() + "</small></th>").join("") +
+    '<th class="tot">Total</th><th class="actc"></th></tr></thead>';
+  const body = "<tbody>" + rows.map((r, i) =>
+    '<tr><td class="rk">' + rowLabelHTML(r) + "</td>" +
+    days.map(d => '<td' + (dayKey(d) === todayKey ? ' class="todayc"' : "") + ">" + cellHTML(r, dayKey(d), i) + "</td>").join("") +
+    '<td class="tot">' + esc(rowTotal(r) ? fmtHM(rowTotal(r)) : "-") + "</td>" +
+    '<td class="actc">' + (rowTotal(r) === 0
+      ? '<button class="ibtn" data-wgdrop="' + esc(r.key) + '" title="Remove this empty row. It has no time on it, so nothing is deleted." aria-label="Remove row">' + ICONS.del + "</button>"
+      : "") + "</td></tr>").join("") + "</tbody>";
+  const foot = '<tfoot><tr><td class="rk">Day totals</td>' +
+    days.map(d => '<td' + (dayKey(d) === todayKey ? ' class="todayc"' : "") + ">" + esc(dayTotal(dayKey(d)) ? fmtHM(dayTotal(dayKey(d))) : "0") + "</td>").join("") +
+    '<td class="tot">' + esc(fmtHM(weekTotal)) + '</td><td class="actc"></td></tr></tfoot>';
+  box.innerHTML = '<table class="wg">' + head + body + foot + "</table>";
+}
+/* Typing a duration into a cell. Empty leaves the entry alone; the box is
+   put back to what it was so nothing silently disappears. */
+function applyCellEdit(input) {
+  const parts = input.getAttribute("data-wgc").split("|");
+  const ws = startOfWeek(dayDate(state.tsDay), state.settings.weekStart);
+  const r = weekRows(ws)[parseInt(parts[0], 10)];
+  const day = parts[1];
+  if (!r) { paintTimesheet(); return; }
+  const cs = cellState(r, day);
+  const secs = parseDuration(input.value);
+  if (secs === null || (cs.list.length === 1 && Math.abs(secs - cs.secs) < 30)) { paintTimesheet(); return; }
+  if (!isFinite(secs) || secs <= 0) { toast("Could not read that duration. Try 1:30, 1.5, 90m or 1h 30m.", true); paintTimesheet(); return; }
+  if (secs > 24 * 3600) { toast("That is more than a day. Split it across days instead.", true); paintTimesheet(); return; }
+  if (cs.list.length === 1) {
+    const e = cs.list[0];
+    const start = toDate(e.start);
+    store.updateEntry(e.id, { end: new Date(start.getTime() + secs * 1000) });
+    toast("Set to " + fmtDur(secs) + " on " + fmtDayShort(day) + ".");
+  } else {
+    const c = clientById(r.clientId), jt = jobTypeById(c, r.jobTypeId);
+    const start = dayDate(day); start.setHours(9, 0, 0, 0);
+    store.addEntry({
+      clientId: r.clientId, jobTypeId: r.jobTypeId, project: "", ticket: r.ticket, notes: "",
+      billable: effBillable(c, jt), miles: null, mileageNote: "", limitOverride: null,
+      start: start, end: new Date(start.getTime() + secs * 1000), day: day
+    });
+    toast("Logged " + fmtDur(secs) + " on " + fmtDayShort(day) + " from 9:00 AM.");
+  }
+  paintTimesheet();
+}
+function openAddRowModal() {
+  const cs = activeClients();
+  if (!cs.length) { toast("Add a client first.", true); return; }
+  const w = openModal("Add a row",
+    '<p class="hint" style="font-size:13.5px">Puts an empty row in this week\'s grid so you can type the hours into the day columns. Nothing is saved until a cell gets a duration.</p>' +
+    '<div class="g2">' +
+      '<div><label class="lab" for="wgClient">Client</label><select class="fld" id="wgClient"></select></div>' +
+      '<div><label class="lab" for="wgJob">Job type</label><select class="fld" id="wgJob" disabled></select></div>' +
+    "</div>" +
+    '<label class="lab" for="wgTicket">Ticket #s <span class="q" title="Optional. A ticket makes this its own row, so two tickets for the same client and job stay apart in the grid and in exports.">?</span></label>' +
+    '<input class="fld" id="wgTicket" autocomplete="off" placeholder="optional">',
+    '<button class="btn" data-close>Cancel</button><button class="btn acc" id="wgGo">Add row</button>');
+  const cSel = $("#wgClient", w), jSel = $("#wgJob", w);
+  fillSelect(cSel, cs.map(c => ({ v: c.id, t: c.name })), "Pick a client", state.tsClient || "");
+  const refresh = () => {
+    const c = clientById(cSel.value);
+    jSel.disabled = !c;
+    fillSelect(jSel, activeJobTypes(c).map(j => ({ v: j.id, t: j.name })), c ? "Pick a job type" : "Pick a client first", "");
+    glow(cSel); glow(jSel);
+  };
+  refresh();
+  cSel.addEventListener("change", refresh);
+  jSel.addEventListener("change", () => glow(jSel));
+  $("#wgGo", w).addEventListener("click", () => {
+    if (!cSel.value) { toast("Pick a client.", true); glow(cSel); return; }
+    if (!jSel.value) { toast("Pick a job type.", true); glow(jSel); return; }
+    const wsKey = dayKey(startOfWeek(dayDate(state.tsDay), state.settings.weekStart));
+    if (state.wgExtraWeek !== wsKey) { state.wgExtraWeek = wsKey; state.wgExtra = []; }
+    const row = { clientId: cSel.value, jobTypeId: jSel.value, ticket: $("#wgTicket", w).value.trim() };
+    const key = wgRowKey(row.clientId, row.jobTypeId, row.ticket);
+    if (!state.wgExtra.some(x => wgRowKey(x.clientId, x.jobTypeId, x.ticket) === key)) state.wgExtra.push(row);
+    closeModal(w);
+    paintTimesheet();
+    toast("Row added. Type the hours into a day column.");
+  });
+}
+
+/* filled in by the calendar view */
+function paintCalendar() {}
+
 function paintTimesheet() {
   const sel = $("#tsClient");
   fillSelect(sel, activeClients().map(c => ({ v: c.id, t: c.name })), "All clients", state.tsClient);
   const ws = startOfWeek(dayDate(state.tsDay), state.settings.weekStart);
   const todayKey = dayKey(new Date());
+  /* view switch: one card visible at a time, and the prev / next control
+     steps by a day in the day view and by a week in the other two */
+  const v = state.tsView;
+  $$("#tsViews button").forEach(b => b.classList.toggle("on", b.getAttribute("data-tsv") === v));
+  $("#tsDayCard").hidden = v !== "day";
+  $("#tsWeekCard").hidden = v !== "week";
+  $("#tsCalCard").hidden = v !== "calendar";
+  const byWeek = v !== "day";
+  $("#tsToday").textContent = byWeek ? "This week" : "Today";
+  $("#tsPrev").title = byWeek ? "Previous week" : "Previous day";
+  $("#tsNext").title = byWeek ? "Next week" : "Next day";
+  $("#tsToday").title = byWeek ? "Jump to the week containing today." : "Jump to today.";
+  if (v === "week") paintWeekGrid(ws);
+  if (v === "calendar") paintCalendar(ws);
   let stripHTML = "";
   for (let i = 0; i < 7; i++) {
     const d = addDays(ws, i), k = dayKey(d);
@@ -2830,10 +3128,42 @@ $("#tsAdd").addEventListener("click", () => {
   const d = dayDate(state.tsDay); d.setHours(9, 0, 0, 0);
   openEntryModal("add", { start: d });
 });
-$("#tsPrev").addEventListener("click", () => { state.tsDay = dayKey(addDays(dayDate(state.tsDay), -1)); paintTimesheet(); });
-$("#tsNext").addEventListener("click", () => { state.tsDay = dayKey(addDays(dayDate(state.tsDay), 1)); paintTimesheet(); });
+const tsStep = () => (state.tsView === "day" ? 1 : 7);
+$("#tsPrev").addEventListener("click", () => { state.tsDay = dayKey(addDays(dayDate(state.tsDay), -tsStep())); paintTimesheet(); });
+$("#tsNext").addEventListener("click", () => { state.tsDay = dayKey(addDays(dayDate(state.tsDay), tsStep())); paintTimesheet(); });
 $("#tsToday").addEventListener("click", () => { state.tsDay = dayKey(new Date()); paintTimesheet(); });
 $("#tsClient").addEventListener("change", e => { state.tsClient = e.target.value; paintTimesheet(); });
+$("#tsViews").addEventListener("click", e => {
+  const b = e.target.closest("[data-tsv]"); if (!b || b.disabled) return;
+  setTsView(b.getAttribute("data-tsv"));
+});
+$("#wgAdd").addEventListener("click", openAddRowModal);
+/* Week grid cells: commit on Enter or when the box loses focus. Escape puts
+   the box back without writing anything. */
+$("#wgBody").addEventListener("keydown", e => {
+  const inp = e.target.closest("[data-wgc]"); if (!inp) return;
+  if (e.key === "Enter") { e.preventDefault(); inp.blur(); }
+  else if (e.key === "Escape") { e.preventDefault(); paintTimesheet(); }
+});
+$("#wgBody").addEventListener("focusout", e => {
+  const inp = e.target.closest("[data-wgc]"); if (!inp) return;
+  applyCellEdit(inp);
+});
+/* Re-lay the week grid when the window crosses the stacked breakpoint. */
+(function () {
+  let t = null, phone = null;
+  const kick = () => {
+    clearTimeout(t);
+    t = setTimeout(() => {
+      const now = isPhoneLayout();
+      if (now === phone) return;
+      phone = now;
+      if (state.user) paintTimesheet();
+    }, 120);
+  };
+  window.addEventListener("resize", kick);
+  window.addEventListener("orientationchange", kick);
+})();
 
 $("#clAdd").addEventListener("click", () => openClientModal(null));
 $("#clImport").addEventListener("click", () => $("#clFile").click());
@@ -2935,7 +3265,7 @@ $("#sMileage").addEventListener("blur", e => {
   e.target.value = isFinite(v) ? v.toFixed(2) : "0.00";
   saveSetting({ mileageRate: isFinite(v) ? v : 0 });
 });
-$("#sDefaultView").addEventListener("change", e => saveSetting({ defaultView: e.target.value }));
+$("#sDefaultView").addEventListener("change", e => { saveSetting({ defaultView: e.target.value }); setTsView(e.target.value); });
 $("#sShowAmounts").addEventListener("change", e => saveSetting({ showAmounts: e.target.checked }));
 $("#sNewBillable").addEventListener("change", e => saveSetting({ newClientBillable: e.target.checked }));
 $("#sNewConcurrent").addEventListener("change", e => saveSetting({ newClientAllowConcurrent: e.target.checked }));
@@ -3013,6 +3343,11 @@ document.addEventListener("click", e => {
     return;
   }
   if ((id = hit("data-day")))    { state.tsDay = id; paintTimesheet(); return; }
+  if ((id = hit("data-wgopen"))) { state.tsDay = id; setTsView("day"); return; }
+  if ((id = hit("data-wgdrop"))) {
+    state.wgExtra = state.wgExtra.filter(x => wgRowKey(x.clientId, x.jobTypeId, x.ticket) !== id);
+    paintTimesheet(); return;
+  }
   if ((id = hit("data-cedit")))  { const c = clientById(id); if (c) openClientModal(c); return; }
   if ((id = hit("data-cstart"))) { const c = clientById(id); if (c) startFromClientModal(c); return; }
   if ((id = hit("data-carch")))  { store.upsertClient(id, { archived: true }); toast("Client archived."); return; }
@@ -3042,6 +3377,7 @@ function handlers() {
       state.settingsLoaded = true;
       state.xOpts.template = state.settings.exportTemplate || "grouped";
       state.xOpts.group = state.xOpts.template === "grouped";
+      if (!handlers._tsViewDone) { handlers._tsViewDone = true; state.tsView = loadTsView(); }
       applyTheme();
       paintAll();
     },
