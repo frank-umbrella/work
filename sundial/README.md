@@ -133,6 +133,24 @@ Two things worth knowing about how it looks:
 The entry form lists the breaks on an entry and can remove one, which puts its
 time back.
 
+## Locations
+
+Each client carries a list of locations - **On-site** and **Remote** to start
+with - and an entry carries the one you picked. It rides through the start
+panel, the running entry, the entry form, the Start dialog on a client card,
+Resume and Duplicate; it is an optional Location column in the tables, `@
+On-site` in the text export, a Location column in the email table when anything
+in the range has one, and a `location` field in the hours CSV and XLSX. Client
+import, export and the template carry a pipe-separated `locations` column.
+
+**There is no GPS.** No map, no lookup, nothing that knows where you are. It is
+a label you pick from a list you wrote, which is the part anybody actually
+wanted; location *tracking* is in PLAN.md under "Not planned" and stays there.
+
+A client that has never been given locations reads as having the default two.
+Nothing is written until you save that client's form, so an account that has
+not thought about locations does not acquire a field it never asked for.
+
 ## Budgets
 
 A budget is an hours cap on a client, or on one project label inside a client,
@@ -378,6 +396,33 @@ that gates mock mode gates it.
 ## Changelog
 
 ### v0.6.1 - 2026-09-16
+
+An hour can say where it happened.
+
+An hour on-site and an hour on the phone are the same hour in a timesheet and
+very much not the same hour to the person paying for it. Clients now carry a
+list of **locations** - a new one starts with **On-site** and **Remote**, and a
+client that has never had any reads as having those two without anything being
+written down - and an entry carries whichever one you picked. It is in the start
+panel, in the running entry's details, in the entry form, in the Start dialog on
+a client card, and it comes along when you Resume or Duplicate. The Today table
+has a **Location** column in the Columns manager, off by default because a
+column nobody asked for is a column in the way. The text export prints **@
+On-site** after the job type, the email table grows a Location column when
+anything in the range has one, and the hours CSV and XLSX get a `location`
+field. Client import, export and the template gain a `locations` column, pipe
+separated, exactly like job types.
+
+What it is not: there is no GPS, no map, no lookup and nothing that knows where
+you are. PLAN.md put location tracking under **Not planned** and meant it - a
+browser cannot do it reliably and it is more than an hours log should know about
+a person. This is a label you pick from a list you wrote. That is the entire
+feature, and it answers the question anybody actually had.
+
+While adding the `locations` column to the client template, the example rows
+turned out to have been one cell short since `client_id` was added: every value
+in them sat one column to the left of its heading, so anyone filling the
+template in by example was filling in the wrong boxes. Fixed.
 
 Budgets, for the hours somebody already agreed to.
 

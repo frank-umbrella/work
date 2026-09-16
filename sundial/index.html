@@ -297,7 +297,9 @@ textarea.fld{min-height:64px;resize:vertical}
 .nowhead .btnrow .btn.big{flex:0 0 auto;font-size:15px;padding:10px 24px}
 .frow{display:grid;grid-template-columns:repeat(var(--n,4),minmax(0,1fr));gap:0 12px}
 .frow.r4{--n:4}
+.frow.r5{--n:5}
 .frow.r6{--n:6}
+.frow.r7{--n:7}
 .frow .wide{grid-column:span 2}
 .frow textarea.fld{min-height:40px;height:40px;resize:vertical}
 #runCol{display:grid;grid-template-rows:0fr;transition:grid-template-rows .22s ease}
@@ -307,8 +309,9 @@ textarea.fld{min-height:64px;resize:vertical}
 #startPanel .btnrow{margin-top:8px}
 #startPanel .btnrow .btn.big{flex:0 0 auto;min-width:220px}
 @media (max-width:1180px){
-  .frow.r6{--n:4}
-  .frow.r6 .wide{grid-column:1 / -1}
+  .frow.r6,.frow.r7{--n:4}
+  .frow.r5{--n:4}
+  .frow.r5 .wide,.frow.r6 .wide,.frow.r7 .wide{grid-column:1 / -1}
 }
 @media (max-width:860px){
   .nowhead #outLeft,.nowhead #inLeft{display:block}
@@ -316,8 +319,8 @@ textarea.fld{min-height:64px;resize:vertical}
   .nowhead .since{margin:6px 0 12px}
   .nowhead .btnrow{margin:0;flex-wrap:wrap}
   .nowhead .btnrow .btn.big{flex:1 1 auto;font-size:17px;padding:15px 26px}
-  .frow,.frow.r6{grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr))}
-  .frow .wide,.frow.r6 .wide{grid-column:1 / -1}
+  .frow,.frow.r5,.frow.r6,.frow.r7{grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr))}
+  .frow .wide,.frow.r5 .wide,.frow.r6 .wide,.frow.r7 .wide{grid-column:1 / -1}
   .frow textarea.fld{min-height:64px;height:auto}
   #startPanel .btnrow .btn.big{flex:1 1 auto;min-width:0}
 }
@@ -670,9 +673,10 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
         <div id="runCol" hidden>
           <div id="runEdit" hidden>
             <h4 style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:0 0 2px">Running entry</h4>
-            <div class="frow r4">
+            <div class="frow r5">
               <div><label class="lab" for="rTicket">Ticket #s <span class="q" title="The ticket or tickets this time belongs to. Separate several with commas. Each becomes a link in tables and exports when the client has a ticket URL pattern.">?</span></label><input class="fld" id="rTicket" autocomplete="off"></div>
               <div><label class="lab" for="rProject">Project <span class="q" title="An optional label so recurring work groups together in exports. Suggestions come from this client past entries.">?</span></label><input class="fld" id="rProject" list="projList" autocomplete="off"></div>
+              <div><label class="lab" for="rLocation">Location <span class="q" title="Where this was done, as a label you pick: On-site, Remote, whatever this client's list says. It goes in the exports so a client reading their hours can tell a visit from a phone call. No GPS and no map - Sundial never knows where you are.">?</span></label><select class="fld" id="rLocation"></select></div>
               <div class="wide"><label class="lab" for="rNotes">Notes <span class="q" title="What you did. This is the line that goes in the email, so write it for the client.">?</span></label><textarea class="fld" id="rNotes" rows="1"></textarea></div>
             </div>
             <div class="hint">Saves when you click away. Everything is editable later from the table.</div>
@@ -681,11 +685,13 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
 
           <div id="startPanel">
             <h4 id="startTitle" style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:0 0 2px" hidden>Start another job</h4>
-            <div class="frow r6">
+            <div class="frow r7">
               <div><label class="lab" for="fClient">Client <span class="q" title="Who the work is for. Exports group and filter by this, so pick it before the timer starts.">?</span></label>
               <select class="fld" id="fClient"></select></div>
               <div><label class="lab" for="fJob">Job type <span class="q" title="The kind of work under this client. It carries the billable and can-run-alongside flags the entry starts with.">?</span></label>
               <select class="fld" id="fJob" disabled></select></div>
+              <div><label class="lab" for="fLocation">Location <span class="q" title="Optional label for where this is being done - On-site, Remote, or whatever this client's list says. It rides along into the tables and the exports, so a client can tell a visit from a phone call. No GPS and no map: Sundial never knows where you are, it only records what you picked.">?</span></label>
+              <select class="fld" id="fLocation" disabled></select></div>
               <div><label class="lab" for="fTicket">Ticket #s <span class="q" title="Optional. Free text so INC-0042 works as well as 5421. Several tickets? Separate them with commas. Each links up when the client has a ticket URL pattern.">?</span></label><input class="fld" id="fTicket" autocomplete="off"></div>
               <div><label class="lab" for="fProject">Project <span class="q" title="Optional label that keeps recurring work together in exports. Suggestions come from this client past entries.">?</span></label><input class="fld" id="fProject" list="projList" autocomplete="off"></div>
               <div class="wide"><label class="lab" for="fNotes">Notes <span class="q" title="What you are doing. Written for the client, because this is the line that lands in the email.">?</span></label><textarea class="fld" id="fNotes" rows="1"></textarea></div>
@@ -1104,16 +1110,23 @@ function fromInputs(dateStr, timeStr) {
 
 /* ---------------- defaults ---------------- */
 const DEFAULT_JOB_TYPES = ["Remote support", "On-site", "Project", "Travel", "Admin"];
+/* Locations are a label you pick, not a place the app looks up. There is no
+   GPS here, no map and nothing that knows where you are - see the "Not
+   planned" list in PLAN.md, which says exactly that and means it. */
+const DEFAULT_LOCATIONS = ["On-site", "Remote"];
+/* Location is off by default: it is new, and a column nobody asked for is a
+   column in the way. */
 const DEFAULT_COLUMNS   = ["start", "end", "dur", "client", "job", "ticket", "project", "notes"];
 const COLUMN_DEFS = [
-  { k: "start",   label: "Start" },
-  { k: "end",     label: "End" },
-  { k: "dur",     label: "Duration" },
-  { k: "client",  label: "Client" },
-  { k: "job",     label: "Job type" },
-  { k: "ticket",  label: "Ticket" },
-  { k: "project", label: "Project" },
-  { k: "notes",   label: "Notes" }
+  { k: "start",    label: "Start" },
+  { k: "end",      label: "End" },
+  { k: "dur",      label: "Duration" },
+  { k: "client",   label: "Client" },
+  { k: "job",      label: "Job type" },
+  { k: "location", label: "Location" },
+  { k: "ticket",   label: "Ticket" },
+  { k: "project",  label: "Project" },
+  { k: "notes",    label: "Notes" }
 ];
 const PALETTE = ["#1e6fd9", "#d3403a", "#1c9d63", "#8a5bb8", "#d08a1e", "#3a9ea5", "#c2557a", "#5a6b7d"];
 /* ---- availability: the hours you are normally working ----
@@ -1371,7 +1384,7 @@ function mockStore() {
     const mk = (name, color, jts) => ({
       id: uid(), name, email: name.toLowerCase().replace(/[^a-z]+/g, "") + "@example.com", color,
       rate: null, archived: false, billable: true, allowConcurrent: false, ticketUrl: "", code: "",
-      rounding: null, jobTypes: jts, createdAt: now, updatedAt: now
+      rounding: null, jobTypes: jts, locations: DEFAULT_LOCATIONS.slice(), createdAt: now, updatedAt: now
     });
     const jt = (n, o) => Object.assign({ id: uid(), name: n, archived: false, billable: null, allowConcurrent: null, travel: false, limit: null }, o || {});
     const c1 = mk("Example Co", "#1e6fd9", [jt("Remote support"), jt("On-site"), jt("Admin", { billable: false }),
@@ -1393,6 +1406,7 @@ function mockStore() {
       const j = c.jobTypes[jIdx];
       return {
         id: uid(), clientId: c.id, jobTypeId: j.id, project: project || "", ticket: ticket || "", notes: notes || "",
+        location: jIdx === 1 ? "On-site" : "Remote",
         billable: j.billable == null ? c.billable : j.billable, miles: null, mileageNote: "", limitOverride: null, breaks: [],
         start: t[0], end: t[1], day: dayKey(t[0]), createdAt: now, updatedAt: now
       };
@@ -1561,6 +1575,14 @@ function runningEntries() {
   if (i > 0) list.unshift(list.splice(i, 1)[0]);
   return list;
 }
+/* A client that has never been given locations reads as having the two obvious
+   ones. Read time only: nothing is written, so an account that has not thought
+   about locations does not quietly acquire a field it never asked for. The
+   client form saves them for real the first time it is used. */
+function clientLocations(c) {
+  const list = c && Array.isArray(c.locations) ? c.locations.map(x => String(x == null ? "" : x).trim()).filter(Boolean) : [];
+  return list.length ? list : DEFAULT_LOCATIONS.slice();
+}
 function activeClients() { return state.clients.filter(c => !c.archived).sort((a, b) => a.name.localeCompare(b.name)); }
 function activeJobTypes(c) { return c && Array.isArray(c.jobTypes) ? c.jobTypes.filter(j => !j.archived) : []; }
 function entriesForDay(day) {
@@ -1609,6 +1631,16 @@ function fillSelect(sel, items, placeholder, keep) {
   else if (want && !items.some(i => i.v === want)) sel.value = "";
 }
 function glow(sel) { sel.classList.toggle("glow", !sel.value && !sel.disabled); }
+/* A client's locations, plus whatever the entry already carries even if the
+   client has since dropped it - an entry must never lose a label because
+   somebody tidied a list months later. */
+function fillLocationSelect(sel, client, keep) {
+  if (!sel) return;
+  const list = client ? clientLocations(client) : [];
+  const cur = String(keep == null ? "" : keep).trim();
+  if (cur && list.indexOf(cur) < 0) list.push(cur);
+  fillSelect(sel, list.map(l => ({ v: l, t: l })), client ? "No location" : "Pick a client first", keep);
+}
 
 /* ==============================================================
    CLOCK
@@ -1653,11 +1685,16 @@ function paintClock() {
     $("#runMeta").textContent = meta.join(" · ");
     $("#runMeta").title = meta.join("\n");
     $("#runMeta").hidden = !meta.length;
+    /* the running entry's own location list comes from its client, plus
+       whatever it already carries, so an entry never loses a label because
+       the client's list changed underneath it */
+    fillLocationSelect($("#rLocation"), c, main.location);
     if (state.runEditId !== main.id) {
       state.runEditId = main.id;
       $("#rTicket").value  = main.ticket  || "";
       $("#rProject").value = main.project || "";
       $("#rNotes").value   = main.notes   || "";
+      $("#rLocation").value = main.location || "";
     }
     const others = running.slice(1);
     $("#alsoList").innerHTML = others.map(e =>
@@ -1679,6 +1716,11 @@ function paintClock() {
   const fj = $("#fJob");
   fj.disabled = !c;
   fillSelect(fj, activeJobTypes(c).map(j => ({ v: j.id, t: j.name })), c ? "Pick a job type" : "Pick a client first");
+  const fl = $("#fLocation");
+  fl.disabled = !c;
+  fillLocationSelect(fl, c, fl.value);
+  /* Location is optional, so it never gets the attention glow: the amber ring
+     means "this has to be answered", and this one does not. */
   glow(fc); glow(fj);
   paintProjectList(fc.value);
   paintPunchButton();
@@ -2109,6 +2151,7 @@ function sortEntries(rows) {
       case "dur":    return entrySeconds(e);
       case "client": return (c ? c.name : "").toLowerCase();
       case "job":    return (jobTypeName(c, e.jobTypeId) || "").toLowerCase();
+      case "location": return (e.location || "").toLowerCase();
       case "ticket": return (e.ticket || "").toLowerCase();
       case "project":return (e.project || "").toLowerCase();
       case "notes":  return (e.notes || "").toLowerCase();
@@ -2171,6 +2214,7 @@ function entryCellHTML(e, key) {
         (travel && e.end && e.miles == null ? '<span class="tagnb" title="Add miles from Edit">no miles</span>' : "") +
         (e.limitOverride ? '<span class="tagover" title="' + esc(overrideTitle(e)) + '">over limit</span>' : "");
     }
+    case "location": return esc(e.location || "");
     case "ticket": return ticketHTML(c, e.ticket);
     case "project":return esc(e.project || "");
     case "notes":  return e.notes ? '<span class="notebox"><span class="note" title="Click to show the whole note.">' + esc(e.notes) + "</span></span>" : "";
@@ -2195,7 +2239,7 @@ const ICONS = {
    a dragged width is saved to the account. Double-click a handle to reset
    that column. The sum of fixed widths is always kept below the table width
    minus room for the flexible column, so nothing ever scrolls sideways. */
-const COL_DEFAULT_W = { start: 84, end: 138, dur: 80, job: 122, ticket: 74, project: 122, notes: 160 };
+const COL_DEFAULT_W = { start: 84, end: 138, dur: 80, job: 122, location: 104, ticket: 74, project: 122, notes: 160 };
 const FLEX_MIN_W = 200, COL_MIN_W = 48, ACTIONS_W = 96;
 function flexColumnKey(cols) {
   if (cols.some(c => c.k === "project")) return "project";   // notes live in a sub-row, so Project absorbs the slack
@@ -2541,6 +2585,7 @@ function doPunchIn(fields, atStart) {
   const id = store.addEntry({
     clientId: fields.clientId, jobTypeId: fields.jobTypeId,
     project: fields.project || "", ticket: fields.ticket || "", notes: fields.notes || "",
+    location: fields.location || "",
     billable: effBillable(c, jt), miles: null, mileageNote: "", limitOverride: null, breaks: [],
     start: start, end: end, day: dayKey(start)
   });
@@ -2726,6 +2771,7 @@ function resumeEntry(id) {
   const newId = store.addEntry({
     clientId: src.clientId, jobTypeId: src.jobTypeId,
     project: src.project || "", ticket: src.ticket || "", notes: src.notes || "",
+    location: src.location || "",
     billable: src.billable != null ? !!src.billable : effBillable(c, jt), miles: null, mileageNote: "", limitOverride: null, breaks: [],
     start: now, end: null, day: dayKey(now)
   });
@@ -2752,7 +2798,8 @@ function setTimesOpen(open) {
 function startFields() {
   return {
     clientId: $("#fClient").value, jobTypeId: $("#fJob").value,
-    ticket: $("#fTicket").value.trim(), project: $("#fProject").value.trim(), notes: $("#fNotes").value.trim()
+    ticket: $("#fTicket").value.trim(), project: $("#fProject").value.trim(), notes: $("#fNotes").value.trim(),
+    location: $("#fLocation").value
   };
 }
 
@@ -2780,6 +2827,8 @@ function openEntryModal(mode, src) {
         '<input class="fld" id="eTicket" autocomplete="off"></div>' +
       '<div><label class="lab" for="eProject">Project <span class="q" title="Optional label that keeps recurring work together in exports.">?</span></label>' +
         '<input class="fld" id="eProject" list="eProjList" autocomplete="off"><datalist id="eProjList"></datalist></div>' +
+      '<div><label class="lab" for="eLocation">Location <span class="q" title="Where this was done, as a label from this client\'s list. It shows in the tables and the exports so a visit reads differently from a phone call. A label only: no GPS, no map, nothing that knows where you were.">?</span></label>' +
+        '<select class="fld" id="eLocation"></select></div>' +
     "</div>" +
     '<label class="lab" for="eNotes">Notes <span class="q" title="Written for the client: this is the line that lands in the email export.">?</span></label>' +
     '<textarea class="fld" id="eNotes"></textarea>' +
@@ -2823,6 +2872,10 @@ function openEntryModal(mode, src) {
     state.entries.filter(e => e.clientId === eClient.value && e.project).sort((a, b) => toDate(b.start) - toDate(a.start))
       .forEach(e => { if (seen.indexOf(e.project) < 0) seen.push(e.project); });
     $("#eProjList", w).innerHTML = seen.slice(0, 20).map(p => '<option value="' + esc(p) + '"></option>').join("");
+    /* the location list follows the client, and keeps whatever this entry
+       already carries even if that client has since dropped it */
+    const keepLoc = $("#eLocation", w) ? $("#eLocation", w).value || (isDup ? base.location : base.location) : base.location;
+    fillLocationSelect($("#eLocation", w), c, keepLoc || "");
   }
   /* Miles ride with the job type, not with the entry: pick a travel type and
      the two fields slide in, pick anything else and they go away again. */
@@ -2835,6 +2888,8 @@ function openEntryModal(mode, src) {
   $("#eTicket", w).value  = base.ticket  || "";
   $("#eProject", w).value = base.project || "";
   $("#eNotes", w).value   = base.notes   || "";
+  /* A duplicate is the same job again, so it keeps the location too. */
+  $("#eLocation", w).value = base.location || "";
   const c0 = clientById(eClient.value);
   $("#eBillable", w).checked = base.billable != null && !isDup ? base.billable !== false
     : effBillable(c0, jobTypeById(c0, eJob.value));
@@ -2897,6 +2952,7 @@ function openEntryModal(mode, src) {
     return {
       clientId: eClient.value, jobTypeId: eJob.value,
       ticket: $("#eTicket", w).value.trim(), project: $("#eProject", w).value.trim(), notes: $("#eNotes", w).value.trim(),
+      location: $("#eLocation", w).value,
       billable: $("#eBillable", w).checked, start: s, end: en, nudged: nudged
     };
   }
@@ -2950,6 +3006,7 @@ function openEntryModal(mode, src) {
     const travel = !!(jt && jt.travel);
     return {
       clientId: f.clientId, jobTypeId: f.jobTypeId, project: f.project, ticket: f.ticket, notes: f.notes,
+      location: f.location,
       billable: f.billable,
       /* Miles belong to a travel job type. Switch an entry off travel and its
          miles go with it, so a mileage export cannot bill a phone call. */
@@ -3004,7 +3061,7 @@ function openEntryModal(mode, src) {
     if (!f.clientId) { toast("Pick a client.", true); glow(eClient); return; }
     if (!f.jobTypeId) { toast("Pick a job type.", true); glow(eJob); return; }
     closeModal(w);
-    startJob({ clientId: f.clientId, jobTypeId: f.jobTypeId, ticket: f.ticket, project: f.project, notes: f.notes });
+    startJob({ clientId: f.clientId, jobTypeId: f.jobTypeId, ticket: f.ticket, project: f.project, notes: f.notes, location: f.location });
   });
 }
 
@@ -3225,7 +3282,7 @@ function applyCellEdit(input) {
     const c = clientById(r.clientId), jt = jobTypeById(c, r.jobTypeId);
     const start = dayDate(day); start.setHours(9, 0, 0, 0);
     store.addEntry({
-      clientId: r.clientId, jobTypeId: r.jobTypeId, project: "", ticket: r.ticket, notes: "",
+      clientId: r.clientId, jobTypeId: r.jobTypeId, project: "", ticket: r.ticket, notes: "", location: "",
       billable: effBillable(c, jt), miles: null, mileageNote: "", limitOverride: null, breaks: [],
       start: start, end: new Date(start.getTime() + secs * 1000), day: day
     });
@@ -3633,10 +3690,14 @@ function openClientModal(client) {
     billable: state.settings.newClientBillable !== false,
     allowConcurrent: !!state.settings.newClientAllowConcurrent,
     ticketUrl: "", code: "", rounding: null,
-    jobTypes: (state.settings.defaultJobTypes || DEFAULT_JOB_TYPES).map(newJobType)
+    jobTypes: (state.settings.defaultJobTypes || DEFAULT_JOB_TYPES).map(newJobType),
+    locations: DEFAULT_LOCATIONS.slice()
   };
   if (!Array.isArray(c.jobTypes)) c.jobTypes = [];
   let jts = c.jobTypes.map(j => Object.assign({}, j));
+  /* clientLocations fills in On-site / Remote for a client that has never had
+     any, so the form shows them and saving is what writes them down */
+  let locs = clientLocations(c);
   let limitOpenId = null;
 
   const body =
@@ -3665,6 +3726,10 @@ function openClientModal(client) {
     '<div class="chips" id="cJts"></div>' +
     '<div id="cLimBox"></div>' +
     '<input class="fld" id="cJtAdd" placeholder="Add a job type and press Enter" style="margin-top:8px" autocomplete="off">' +
+    '<label class="lab">Locations <span class="q" title="The places this client\'s work happens, as labels you pick when you start a timer. They land in the tables and the exports, so a client reading their hours can tell a visit from a phone call. This is a label and nothing more: there is no GPS, no map and no lookup, and Sundial never knows where you are.">?</span></label>' +
+    '<div class="hint" style="margin:0 0 8px">A new client starts with <b>On-site</b> and <b>Remote</b>. Add your own - Main office, Warehouse, whatever this client calls its sites. Removing one here leaves every entry that already carries it exactly as it is.</div>' +
+    '<div class="chips" id="cLocs"></div>' +
+    '<input class="fld" id="cLocAdd" placeholder="Add a location and press Enter" style="margin-top:8px" autocomplete="off">' +
     '<label class="lab">Color <span class="q" title="The dot beside this client everywhere, so a day of entries is scannable at a glance.">?</span></label>' +
     '<div class="swatches" id="cColors"></div>';
 
@@ -3751,6 +3816,27 @@ function openClientModal(client) {
       paintJts();
     }
   });
+  function paintLocs() {
+    $("#cLocs", w).innerHTML = locs.map(l =>
+      '<span class="chip"><span>' + esc(l) + "</span>" +
+      '<span class="x" data-rmloc="' + esc(l) + '" title="Takes it off the picker. Entries that already carry it keep it.">&times;</span></span>').join("") ||
+      '<span class="hint">No locations. The picker will be empty until you add one.</span>';
+  }
+  paintLocs();
+  $("#cLocs", w).addEventListener("click", e => {
+    const x = e.target.closest("[data-rmloc]"); if (!x) return;
+    const name = x.getAttribute("data-rmloc");
+    locs = locs.filter(l => l !== name);
+    paintLocs();
+  });
+  $("#cLocAdd", w).addEventListener("keydown", e => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    const v = e.target.value.trim(); if (!v) return;
+    if (locs.some(l => l.toLowerCase() === v.toLowerCase())) { toast("That location is already there."); e.target.value = ""; return; }
+    locs.push(v); e.target.value = ""; paintLocs();
+  });
+
   $("#cJtAdd", w).addEventListener("keydown", e => {
     if (e.key !== "Enter") return;
     e.preventDefault();
@@ -3796,7 +3882,8 @@ function openClientModal(client) {
       ticketUrl: $("#cTicketUrl", w).value.trim(),
       code: $("#cCode", w).value.trim(),
       rounding: $("#cRounding", w).value || null,
-      jobTypes: jts
+      jobTypes: jts,
+      locations: locs
     };
     store.upsertClient(isNew ? null : c.id, data);
     closeModal(w);
@@ -3820,7 +3907,10 @@ function ensureXLSX() {
   });
   return _xlsxPromise;
 }
-const TEMPLATE_COLS = ["name", "client_id", "email", "rate", "color", "billable", "concurrent", "ticket_url", "job_types", "rounding", "archived"];
+const TEMPLATE_COLS = ["name", "client_id", "email", "rate", "color", "billable", "concurrent", "ticket_url", "job_types", "locations", "rounding", "archived"];
+/* Locations travel the same way job types do: one cell, pipe-separated. */
+function locationsToText(list) { return (list || []).join(" | "); }
+function locationsFromText(text) { return String(text == null ? "" : text).split("|").map(x => x.trim()).filter(Boolean); }
 function jobTypesToText(jts) {
   return (jts || []).map(j => {
     const flags = [];
@@ -3881,7 +3971,7 @@ function clientRows() {
   return state.clients.slice().sort((a, b) => a.name.localeCompare(b.name)).map(c => [
     c.name, c.code || "", c.email || "", c.rate != null ? Number(c.rate).toFixed(2) : "", c.color || "",
     c.billable === false ? "no" : "yes", c.allowConcurrent ? "yes" : "no",
-    c.ticketUrl || "", jobTypesToText(c.jobTypes), c.rounding || "default", c.archived ? "yes" : "no"
+    c.ticketUrl || "", jobTypesToText(c.jobTypes), locationsToText(clientLocations(c)), c.rounding || "default", c.archived ? "yes" : "no"
   ]);
 }
 function pickFormat(title, onCSV, onXLSX) {
@@ -3902,11 +3992,15 @@ function exportClients() {
       toast("Clients exported.");
     }).catch(e => toast(e.message || e, true)));
 }
+/* One cell per column in TEMPLATE_COLS, in that order. The example rows had
+   been a cell short since client_id was added, which silently pushed every
+   value one column left in the downloaded template - so anyone filling it in
+   by example was filling in the wrong boxes. */
 const TEMPLATE_EXAMPLES = [
-  ["Example Co", "office@example.com", "75.00", "#1e6fd9", "yes", "no", "https://helpdesk.example/tickets/{n}",
-   "Remote support | On-site | Admin[nonbillable] | Monitoring[concurrent]", "default", "no"],
-  ["Example Dental", "it@example.com", "", "#d3403a", "yes", "no", "",
-   "Project | Travel[travel] | Support Ticket[limit=105/120]", "15", "no"]
+  ["Example Co", "EXCO-01", "office@example.com", "75.00", "#1e6fd9", "yes", "no", "https://helpdesk.example/tickets/{n}",
+   "Remote support | On-site | Admin[nonbillable] | Monitoring[concurrent]", "On-site | Remote | Main office", "default", "no"],
+  ["Example Dental", "EXDN-01", "it@example.com", "", "#d3403a", "yes", "no", "",
+   "Project | Travel[travel] | Support Ticket[limit=105/120]", "On-site | Remote", "15", "no"]
 ];
 const TEMPLATE_HELP = [
   ["Column", "Required", "Allowed values", "Notes"],
@@ -3919,6 +4013,7 @@ const TEMPLATE_HELP = [
   ["concurrent", "no", "yes or no", "Can run alongside other jobs. Blank means no."],
   ["ticket_url", "no", "a link with {n}", "Replace the ticket number in the link with {n} and ticket numbers become links."],
   ["job_types", "no", "names separated by |", "Per-type flags in brackets: Admin[nonbillable], Monitoring[concurrent], Travel[travel], Support Ticket[limit=105/120] where the numbers are warn minutes / hard minutes."],
+  ["locations", "no", "names separated by |", "The places this client's work happens, as labels you pick when starting a timer - On-site | Remote | Warehouse. Blank leaves an existing client's list alone and gives a new one On-site and Remote. No GPS is involved; it is a label."],
   ["rounding", "no", "default, none, 6 or 15", "Overrides the Settings default for this client."],
   ["archived", "no", "yes or no", "Archived clients keep their entries but leave the start lists."]
 ];
@@ -3968,7 +4063,11 @@ async function importClientsFile(file) {
       code: String(r.client_id || "").trim(),
       rounding: !roundRaw || roundRaw === "default" ? null : roundRaw,
       archived: yesNo(r.archived, false),
-      jobTypes: jobTypesFromText(r.job_types, existing ? existing.jobTypes : null)
+      jobTypes: jobTypesFromText(r.job_types, existing ? existing.jobTypes : null),
+      /* an import with no locations column leaves what is there alone, and
+         a brand new client falls back to the two defaults */
+      locations: locationsFromText(r.locations).length ? locationsFromText(r.locations)
+        : (existing ? clientLocations(existing) : DEFAULT_LOCATIONS.slice())
     };
     if (!data.jobTypes.length) data.jobTypes = existing ? existing.jobTypes : (state.settings.defaultJobTypes || DEFAULT_JOB_TYPES).map(newJobType);
     if (existing) {
@@ -4161,6 +4260,7 @@ function splitLine(prefix, total, bill, nonbill, amount) {
 function entryDesc(e, withClient) {
   const c = clientById(e.clientId), o = state.xOpts;
   let s = jobTypeName(c, e.jobTypeId) || "Job";
+  if (e.location) s += " @ " + e.location;
   if (o.ticket && ticketList(e.ticket).length) s += " " + ticketText(e.ticket);
   if (o.project && e.project) s += " (" + e.project + ")";
   if (e.billable === false) s += " [non-billable]";
@@ -4272,13 +4372,16 @@ function exportColumns(multiDay) {
   const cols = [];
   if (multiDay) cols.push("date");
   cols.push("client", "time", "dur", "job");
+  /* Location only becomes a column when something in the range has one: an
+     empty column in a client's email is a question they have to ask. */
+  if (exportRows().some(e => e.location)) cols.push("location");
   if (o.ticket)  cols.push("ticket");
   if (o.project) cols.push("project");
   if (o.notes)   cols.push("notes");
   if (showAmountsInExport()) cols.push("amount");
   return cols;
 }
-const XH_LABEL = { date: "Date", client: "Client", time: "Time", dur: "Duration", job: "Job type", ticket: "Ticket", project: "Project", notes: "Notes", amount: "Amount" };
+const XH_LABEL = { date: "Date", client: "Client", time: "Time", dur: "Duration", job: "Job type", location: "Location", ticket: "Ticket", project: "Project", notes: "Notes", amount: "Amount" };
 function exportClientName(c) {
   if (!c) return "Unknown client";
   return c.name + (c.code ? " (" + c.code + ")" : "");
@@ -4306,6 +4409,7 @@ function buildExportHTML() {
       case "dur":     return esc(fmtDur(exportSeconds(e)));
       case "job":     return esc(jobTypeName(c, e.jobTypeId) || "Job") +
                              (e.billable === false ? ' <span style="color:#777">[non-billable]</span>' : "");
+      case "location": return esc(e.location || "");
       case "ticket":  return ticketHTML(c, e.ticket);
       case "project": return esc(e.project || "");
       /* the limit override rides in the Notes cell, on its own line, so the
@@ -4563,7 +4667,7 @@ function paintExport() {
 }
 function exportCSVRows() {
   const rows = exportRows();
-  const head = ["date", "start", "end", "duration_hours", "duration_hm", "client", "client_id", "job_type", "ticket", "project", "notes", "billable", "miles", "rate", "amount"];
+  const head = ["date", "start", "end", "duration_hours", "duration_hm", "client", "client_id", "job_type", "location", "ticket", "project", "notes", "billable", "miles", "rate", "amount"];
   const body = rows.map(e => {
     const c = clientById(e.clientId);
     const secs = exportSeconds(e);          // same rounding the text and the table use
@@ -4573,7 +4677,7 @@ function exportCSVRows() {
     return [
       e.day, fmtTime(toDate(e.start)), e.end ? fmtTime(toDate(e.end)) : "running",
       hours.toFixed(2), fmtDur(secs), c ? c.name : "Unknown client", c && c.code ? c.code : "", jobTypeName(c, e.jobTypeId) || "",
-      e.ticket || "", e.project || "", e.notes || "", e.billable === false ? "no" : "yes",
+      e.location || "", e.ticket || "", e.project || "", e.notes || "", e.billable === false ? "no" : "yes",
       e.miles != null ? e.miles : "", rate != null ? rate.toFixed(2) : "", amount != null ? amount.toFixed(2) : ""
     ];
   });
@@ -5538,6 +5642,8 @@ function startFromClientModal(c) {
     '<p style="margin:0 0 8px">Start a timer for <b>' + esc(c.name) + '</b> at ' + esc(fmtTime(new Date())) + '.</p>' +
     '<label class="lab" for="csJob">Job type <span class="q" title="The kind of work. It sets billable and can-run-alongside for the entry.">?</span></label>' +
     '<select class="fld" id="csJob">' + jts.map(j => '<option value="' + esc(j.id) + '">' + esc(j.name) + "</option>").join("") + "</select>" +
+    '<label class="lab" for="csLocation">Location <span class="q" title="Optional label for where this is happening, from this client\'s own list. It shows in the tables and the exports. No GPS: it is only what you pick.">?</span></label>' +
+    '<select class="fld" id="csLocation"></select>' +
     '<div class="g2">' +
       '<div><label class="lab" for="csTicket">Ticket #s</label><input class="fld" id="csTicket" autocomplete="off" placeholder="optional"></div>' +
       '<div><label class="lab" for="csProject">Project</label><input class="fld" id="csProject" autocomplete="off" placeholder="optional"></div>' +
@@ -5554,13 +5660,15 @@ function startFromClientModal(c) {
       : "Runs alongside " + running.map(entryLabel).join(", ") + ".";
   };
   sel.addEventListener("change", paintEffect); paintEffect();
+  fillLocationSelect($("#csLocation", w), c, "");
   $("[data-go]", w).addEventListener("click", () => {
     const jt = jobTypeById(c, sel.value);
     const now = new Date();
     const stopped = willStop(jt);
     stopped.forEach(r => endEntryForNewStart(r.id, now));
     closeModal(w);
-    const id = doPunchIn({ clientId: c.id, jobTypeId: jt.id, ticket: $("#csTicket", w).value.trim(), project: $("#csProject", w).value.trim(), notes: "" }, now);
+    const id = doPunchIn({ clientId: c.id, jobTypeId: jt.id, ticket: $("#csTicket", w).value.trim(),
+      project: $("#csProject", w).value.trim(), notes: "", location: $("#csLocation", w).value }, now);
     state.mainRunningId = id;
     setView("clock");
     if (stopped.length) toast("Started " + c.name + ". Stopped " + stopped.map(entryLabel).join(", ") + ".");
@@ -5640,6 +5748,14 @@ $("#pauseBtn").addEventListener("click", () => {
     store.updateEntry(r.id, patch);
     toast("Saved.");
   });
+});
+/* A select has no useful blur: it is answered the moment it changes. */
+$("#rLocation").addEventListener("change", () => {
+  const r = runningEntries()[0]; if (!r) return;
+  const v = $("#rLocation").value;
+  if ((r.location || "") === v) return;
+  store.updateEntry(r.id, { location: v });
+  toast(v ? "Location set to " + v + "." : "Location cleared.");
 });
 $("#addEntryBtn").addEventListener("click", () => openEntryModal("add", null));
 $("#colsBtn").addEventListener("click", openColumnsModal);
