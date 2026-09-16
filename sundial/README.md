@@ -302,6 +302,18 @@ that gates mock mode gates it.
 
 ### v0.5.0 - 2026-09-16
 
+Google Calendar: Connect actually connects, and the calendar gets a link.
+
+The first real Connect against Google failed quietly with "Failed to open popup
+window". The cause: the app fetched Google's sign-in script only after the
+click, and by the time the script was ready and asked to open the sign-in
+window, Chrome no longer counted it as something the click had asked for and
+blocked it. Google's script is now loaded as soon as the Settings panel shows,
+so the click opens the window at once. If a browser still blocks it, the toast
+says so and explains where to allow pop-ups. The status line, once connected,
+also names the calendar in bold and links straight to it in Google Calendar so
+you can confirm the mirrored entries for yourself.
+
 Sundial knows when you are meant to be working.
 
 Everything in here has been about hours already spent. Nothing said when the

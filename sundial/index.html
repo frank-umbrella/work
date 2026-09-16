@@ -4274,7 +4274,12 @@ function realGcalLayer() {
         tokenExp = Date.now() + (Number(resp.expires_in || 3600) * 1000);
         settle(null, token);
       },
-      error_callback: err => settle(gcalErr((err && err.message) || "The Google permission window was closed.", "auth"))
+      error_callback: err => {
+        const m = (err && (err.message || err.type)) || "";
+        settle(gcalErr(/popup/i.test(m) && !/closed/i.test(m)
+          ? "Your browser blocked the Google sign-in window. Allow pop-ups for this site (the icon at the right end of the address bar), then press Connect again."
+          : (m || "The Google permission window was closed."), "auth"));
+      }
     });
     return tokenClient;
   }
@@ -4317,6 +4322,11 @@ function realGcalLayer() {
   }
   return {
     mock: false,
+    /* Load Google's script and build the token client ahead of the click.
+       Chrome only lets a pop-up open in the moments right after a click;
+       fetching the script first used up that window and the sign-in
+       pop-up came back "Failed to open popup window". */
+    preload() { return client().catch(() => {}); },
     hasToken() { return !!(token && Date.now() < tokenExp - 60000); },
     getToken: getToken,
     async revoke() {
@@ -4375,6 +4385,7 @@ function mockGcalLayer() {
   window.__sundialGcal = db;
   return {
     mock: true,
+    preload() { return Promise.resolve(); },
     hasToken() { return !!(token && Date.now() < tokenExp - 60000); },
     getToken: need,
     async revoke() { token = null; tokenExp = 0; },
@@ -4631,7 +4642,12 @@ function gcalStatusHTML() {
   if (!g.calendarId) return "Not connected. Press Connect to give Sundial permission and create the " + esc(GCAL_NAME) + " calendar.";
   const waiting = state.entries.filter(e => e.gcalDirty && e.end).length + gcalPendingDeletes.length;
   const mirrored = state.entries.filter(e => e.gcalEventId).length;
-  return '<span class="st"><i></i>Connected' + (g.email ? " as " + esc(g.email) : "") + ', calendar "' + esc(GCAL_NAME) + '".</span> ' +
+  /* Google Calendar opens a specific calendar from a "cid" that is the
+     base64 of its id, which is how a "view this calendar" link is built. */
+  const cid = btoa(unescape(encodeURIComponent(g.calendarId))).replace(/=+$/, "");
+  const link = GCAL.mock ? "" :
+    ' <a href="https://calendar.google.com/calendar/u/0/r?cid=' + esc(cid) + '" target="_blank" rel="noopener" title="Opens Google Calendar with the Sundial calendar, so you can see the mirrored entries for yourself.">Open it in Google Calendar</a>.';
+  return '<span class="st"><i></i>Connected' + (g.email ? " as " + esc(g.email) : "") + ', calendar "<b>' + esc(GCAL_NAME) + '</b>".</span>' + link + " " +
     mirrored + " entr" + (mirrored === 1 ? "y" : "ies") + " mirrored" +
     (waiting ? ", " + waiting + " waiting to go up - press Sync now." : ".") +
     (GCAL.mock ? " Mock mode: nothing reaches Google." : "");
@@ -4653,6 +4669,8 @@ function paintGcal() {
   set("#gcalMonth", !on);
   const c = $("#gcalConnect");
   if (c) c.textContent = on ? "Reconnect" : "Connect";
+  /* warm up Google's script now so a click on Connect opens its window at once */
+  if (g.clientId && GCAL && typeof GCAL.preload === "function") GCAL.preload();
 }
 
 /* ==============================================================
