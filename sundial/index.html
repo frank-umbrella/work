@@ -4116,6 +4116,29 @@ const GCAL = MOCK ? mockGcalLayer() : realGcalLayer();
    cannot call itself. A failure never blocks the hours: the entry is
    flagged dirty and the next successful token flushes it. */
 function rawStore() { return (store && store.raw) || store; }
+/* Background writes go up one at a time with a small gap between them. A
+   restore from JSON, a bulk import or a week typed into the grid can put
+   dozens of entries through in one go, and firing dozens of requests at
+   Google in the same millisecond is how a quota gets spent and how the
+   order of two edits to the same event stops being the order you made
+   them in. */
+let gcalChain = Promise.resolve();
+function gcalQueue(fn) {
+  gcalChain = gcalChain
+    .then(fn)
+    .catch(() => {})
+    .then(() => new Promise(r => setTimeout(r, 80)));
+  return gcalChain;
+}
+/* The same queue, for a caller that needs the answer: a backfill has to know
+   whether each entry was created, updated or refused, but it must not run
+   beside the automatic writes or the two could both insert an event for the
+   same entry. */
+function gcalRun(fn) {
+  return new Promise((resolve, reject) => {
+    gcalQueue(() => Promise.resolve().then(fn).then(resolve, reject));
+  });
+}
 let gcalAuthToastAt = 0;
 let gcalPendingDeletes = [];     // events whose entry is already gone
 function gcalAuthToast(msg) {
@@ -4172,22 +4195,27 @@ function gcalOnEntryChanged(entry) {
     if (entry.gcalEventId) {
       const id = entry.gcalEventId;
       rawStore().updateEntry(entry.id, { gcalEventId: null, gcalSyncedAt: null, gcalDirty: false });
-      gcalDropEvent(g.calendarId, id).catch(err => gcalProblem(err, null));
+      gcalQueue(() => gcalDropEvent(g.calendarId, id).catch(err => gcalProblem(err, null)));
     }
     return;
   }
   /* With automatic mirroring off nothing new is created, but an entry that
      is already on the calendar is kept honest. */
   if (!g.auto && !entry.gcalEventId) return;
-  gcalPushEntry(entry, false).catch(err => gcalProblem(err, entry));
+  gcalQueue(() => {
+    /* whatever the entry looks like by the time its turn comes up */
+    const fresh = state.entries.find(x => x.id === entry.id) || entry;
+    if (!fresh.end) return null;
+    return gcalPushEntry(fresh, false).catch(err => gcalProblem(err, fresh));
+  });
 }
 function gcalOnEntryDeleted(entry) {
   if (!entry || !entry.gcalEventId || !gcalConnected()) return;
   const calId = gcalCfg().calendarId, evId = entry.gcalEventId;
-  gcalDropEvent(calId, evId).catch(err => {
+  gcalQueue(() => gcalDropEvent(calId, evId).catch(err => {
     gcalPendingDeletes.push({ calendarId: calId, eventId: evId });
     gcalProblem(err, null);
-  });
+  }));
 }
 /* Everything that could not be written earlier: entries flagged dirty and
    events whose entry was deleted with no connection. */
@@ -4200,16 +4228,15 @@ async function gcalFlush(opts) {
   let done = 0, failed = 0;
   gcalPendingDeletes = [];
   for (const d of drops) {
-    try { await gcalDropEvent(d.calendarId, d.eventId); done++; }
+    try { await gcalRun(() => gcalDropEvent(d.calendarId, d.eventId)); done++; }
     catch (err) { failed++; gcalPendingDeletes.push(d); if (err.kind === "auth") { gcalAuthToast(err.message); return; } }
   }
   for (const e of dirty) {
-    try { await gcalPushEntry(e, false); done++; }
+    try { await gcalRun(() => gcalPushEntry(state.entries.find(x => x.id === e.id) || e, false)); done++; }
     catch (err) {
       failed++;
       if (err.kind === "auth") { gcalAuthToast(err.message); return; }
     }
-    await new Promise(r => setTimeout(r, 120));
   }
   if (!quiet || done) toast(failed ? done + " sent, " + failed + " still waiting." : done + " sent to Google Calendar.");
 }
@@ -4277,7 +4304,7 @@ async function gcalBackfill(fromKey, toKey, label) {
     for (const e of finished) {
       const fresh = state.entries.find(x => x.id === e.id) || e;
       try {
-        const what = await gcalPushEntry(fresh, false);
+        const what = await gcalRun(() => gcalPushEntry(state.entries.find(x => x.id === fresh.id) || fresh, false));
         if (what === "created") created++; else if (what === "updated") updated++; else skipped++;
       } catch (err) {
         if (err.kind === "auth") {
@@ -4290,7 +4317,6 @@ async function gcalBackfill(fromKey, toKey, label) {
       }
       n++;
       if (n % 3 === 0) toast("Mirroring " + n + " of " + finished.length + "...");
-      await new Promise(r => setTimeout(r, 120));
     }
     toast(label + ": " + created + " created, " + updated + " updated, " + skipped + " skipped.");
   } finally {
