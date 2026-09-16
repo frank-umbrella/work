@@ -414,6 +414,17 @@ textarea.fld{min-height:64px;resize:vertical}
 @media (max-width:880px){.exp{grid-template-columns:minmax(0,1fr)}}
 pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-radius:calc(var(--radius) - 2px);padding:14px 16px;font:13px/1.5 var(--mono);white-space:pre-wrap;overflow-wrap:anywhere;color:var(--text);max-width:100%;min-height:120px}
 
+/* ---------- google calendar panel ----------
+   The client ID is a long unbroken string and the status line can carry an
+   email and a calendar name, so both are told to wrap anywhere rather than
+   push the card sideways. */
+.gcalid{font-family:var(--mono)}
+.gcalwrap{overflow-wrap:anywhere}
+.gcalwrap b{overflow-wrap:anywhere}
+.gcalwrap .st{display:inline-flex;align-items:center;gap:6px}
+.gcalwrap .st i{width:8px;height:8px;border-radius:50%;background:var(--muted);flex:none}
+.gcalwrap.on .st i{background:var(--ok)}
+
 /* ---------- modals ---------- */
 .modal{position:fixed;inset:0;background:rgba(10,15,25,.5);display:flex;align-items:flex-start;justify-content:center;padding:20px;z-index:70;overflow-y:auto}
 .mbox{background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:var(--radius);width:min(100%,560px);padding:18px 20px;box-shadow:var(--shadow);margin:auto;min-width:0}
@@ -802,6 +813,25 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
     </div>
 
     <div class="card">
+      <h4>Google Calendar</h4>
+      <div class="hint" style="font-size:13.5px">Finished entries can be mirrored into a calendar called <b>Sundial</b> in your own Google account, so the week shows up next to your meetings. Sundial only ever asks for the permission that covers calendars it created itself: it cannot see, read or change any of your other calendars, and it never touches an event it did not write.</div>
+      <label class="lab" for="sGcalClient">Google OAuth client ID <span class="q" title="The public identifier for this page in your Google Cloud project. It is not a secret and nothing else is needed here: no key, no password, no server. The README's Google Calendar section says exactly which console screens to visit and what to switch on.">?</span></label>
+      <input class="fld gcalid" id="sGcalClient" autocomplete="off" spellcheck="false" placeholder="000000000000-xxxxxxxx.apps.googleusercontent.com">
+      <div class="hint gcalwrap">Google Cloud console, project <b>watchtower-6fbe1</b>: enable the Google Calendar API, then copy the Web application client ID from Credentials and add this site to its authorized JavaScript origins. Full steps are in the README.</div>
+      <div id="gcalStatus" class="hint gcalwrap" style="font-size:13.5px;margin-top:10px"></div>
+      <label class="ck"><input type="checkbox" id="sGcalAuto"> Mirror entries automatically
+        <span class="q" title="On: a finished entry goes to the calendar the moment it stops, and an edit updates the event it already made. Off: nothing new is created, but entries already mirrored are kept in step, so the calendar never shows times you have since corrected.">?</span></label>
+      <div class="btnrow">
+        <button class="btn sm acc" id="gcalConnect" title="Asks Google for permission, then finds or creates the Sundial calendar in your account. Nothing else is set up.">Connect</button>
+        <button class="btn sm" id="gcalDisconnect" title="Hands the access back to Google and forgets which calendar was in use. The calendar and its events stay exactly where they are.">Disconnect</button>
+        <button class="btn sm" id="gcalFlush" title="Sends anything that could not reach Google earlier - an entry stopped with no signal, or with the permission expired.">Sync now</button>
+        <button class="btn sm" id="gcalWeek" title="Walks this week's finished entries and creates or updates an event for each one. Running timers are left alone until they stop.">Sync this week</button>
+        <button class="btn sm" id="gcalMonth" title="The same as Sync this week over the current calendar month. It runs one entry at a time, so a long month takes a few seconds.">Sync this month</button>
+      </div>
+      <div class="hint">Only finished entries are mirrored. A running timer is added when you stop it, deleting an entry deletes its event, and nothing outside the Sundial calendar is ever read or written.</div>
+    </div>
+
+    <div class="card">
       <h4>Offline</h4>
       <div id="offlineStatus" class="hint" style="font-size:13.5px"></div>
       <div class="btnrow">
@@ -957,7 +987,11 @@ const DEFAULT_SETTINGS = {
   exportTemplate: "grouped", showAmounts: false,
   newClientBillable: true, newClientAllowConcurrent: false,
   weeklyCapacityHours: 40, mileageRate: 0.70, defaultView: "day", notify: false,
-  theme: "system", columns: DEFAULT_COLUMNS.slice(), sort: null, colWidths: {}
+  theme: "system", columns: DEFAULT_COLUMNS.slice(), sort: null, colWidths: {},
+  /* Google Calendar mirroring. clientId is a public identifier, calendarId
+     and email are what Connect found. No token is ever stored here, or
+     anywhere else on disk - see the GOOGLE CALENDAR section below. */
+  gcal: { clientId: "", calendarId: "", email: "", auto: true }
 };
 
 /* ---------------- state ---------------- */
@@ -3782,6 +3816,496 @@ async function restoreBackupFile(file) {
 }
 
 /* ==============================================================
+   GOOGLE CALENDAR
+   Finished entries are mirrored into one calendar called "Sundial" that
+   this app creates in the signed-in Google account.
+
+   Why this does not ride on the Firebase sign-in: Firebase Auth hands back
+   an ID token for Firebase, not a refreshable Google API token, so the
+   Calendar API needs its own grant. That grant is asked for with Google
+   Identity Services, loaded lazily the first time it is actually needed.
+
+   The scope is calendar.app.created and nothing else: it covers calendars
+   this app made itself, so Sundial can create the Sundial calendar and
+   write events on it, and cannot read, list or change any other calendar
+   in the account. The access token lives in a variable for as long as the
+   page is open and is never written to Firestore, localStorage or a cookie.
+   The client ID in Settings is a public identifier, not a secret.
+   ============================================================== */
+const GCAL_SCOPE = "https://www.googleapis.com/auth/calendar.app.created";
+const GIS_URL    = "https://accounts.google.com/gsi/client";
+const GCAL_API   = "https://www.googleapis.com/calendar/v3";
+const GCAL_NAME  = "Sundial";
+const GCAL_DESC  = "Time entries mirrored from Sundial";
+/* Google gives an event eleven colors and no others, so a client's own hex
+   is matched to the nearest of them by plain RGB distance. Hard-coded
+   because the colors endpoint is not worth a round trip for a fixed list. */
+const GCAL_COLORS = [
+  ["1", "#a4bdfc"], ["2", "#7ae7bf"], ["3", "#dbadff"], ["4", "#ff887c"],
+  ["5", "#fbd75b"], ["6", "#ffb878"], ["7", "#46d6db"], ["8", "#e1e1e1"],
+  ["9", "#5484ed"], ["10", "#51b749"], ["11", "#dc2127"]
+];
+function hexToRGB(hex) {
+  let h = String(hex || "").trim().replace("#", "");
+  if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+  const n = parseInt(h, 16);
+  if (!isFinite(n) || h.length !== 6) return [90, 107, 125];
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+function gcalColorId(hex) {
+  const a = hexToRGB(hex);
+  let best = GCAL_COLORS[0][0], bestD = Infinity;
+  GCAL_COLORS.forEach(p => {
+    const b = hexToRGB(p[1]);
+    const d = (a[0] - b[0]) * (a[0] - b[0]) + (a[1] - b[1]) * (a[1] - b[1]) + (a[2] - b[2]) * (a[2] - b[2]);
+    if (d < bestD) { bestD = d; best = p[0]; }
+  });
+  return best;
+}
+/* RFC3339 with this device's own offset, paired with the IANA zone name, so
+   an entry logged at 9:02 AM is 9:02 AM in the calendar wherever it is read. */
+function rfc3339(d) {
+  const off = -d.getTimezoneOffset(), sign = off >= 0 ? "+" : "-", a = Math.abs(off);
+  return d.getFullYear() + "-" + p2(d.getMonth() + 1) + "-" + p2(d.getDate()) +
+    "T" + p2(d.getHours()) + ":" + p2(d.getMinutes()) + ":" + p2(d.getSeconds()) +
+    sign + p2(Math.floor(a / 60)) + ":" + p2(a % 60);
+}
+function localZone() {
+  try { return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"; } catch (_) { return "UTC"; }
+}
+function gcalCfg() {
+  return Object.assign({ clientId: "", calendarId: "", email: "", auto: true }, state.settings.gcal || {});
+}
+function saveGcalCfg(patch) {
+  const g = Object.assign({}, gcalCfg(), patch);
+  state.settings.gcal = g;
+  store.saveSettings({ gcal: g });
+}
+function gcalConnected() { return !!gcalCfg().calendarId; }
+function gcalErr(msg, kind) { const e = new Error(msg); e.kind = kind || "http"; return e; }
+
+/* One event per finished entry. The last line of the description carries the
+   entry id in plain sight, and the same id rides in a private extended
+   property, which is what lets a later sync find its own events and leave
+   everything else alone. */
+function gcalEventBody(e) {
+  const c = clientById(e.clientId);
+  const tickets = ticketText(e.ticket);
+  const zone = localZone();
+  const desc = [];
+  if (e.project) desc.push("Project: " + e.project);
+  if (tickets)   desc.push("Tickets: " + tickets);
+  if (e.notes)   desc.push("Notes: " + e.notes);
+  desc.push("Billable: " + (e.billable === false ? "no" : "yes"));
+  if (e.limitOverride) desc.push(overrideLine(e));
+  desc.push("sundial:" + e.id);
+  return {
+    summary: (c ? c.name : "Unknown client") + " - " + (jobTypeName(c, e.jobTypeId) || "Job") +
+      (tickets ? " " + tickets : ""),
+    description: desc.join("\n"),
+    start: { dateTime: rfc3339(toDate(e.start)), timeZone: zone },
+    end:   { dateTime: rfc3339(toDate(e.end)),   timeZone: zone },
+    colorId: gcalColorId(clientColor(c)),
+    extendedProperties: { private: { sundialId: e.id } }
+  };
+}
+
+/* ---- the real layer: Google Identity Services + the Calendar REST API ---- */
+function realGcalLayer() {
+  let tokenClient = null, forId = "", token = null, tokenExp = 0, waiting = null;
+
+  function loadGIS() {
+    if (window.google && google.accounts && google.accounts.oauth2) return Promise.resolve();
+    if (loadGIS._p) return loadGIS._p;
+    loadGIS._p = new Promise((resolve, reject) => {
+      const s = document.createElement("script");
+      s.src = GIS_URL; s.async = true; s.defer = true;
+      s.onload = () => resolve();
+      s.onerror = () => { loadGIS._p = null; reject(gcalErr("Could not load Google's sign-in script. It needs the network.", "network")); };
+      document.head.appendChild(s);
+    });
+    return loadGIS._p;
+  }
+  function settle(err, value) {
+    const w = waiting; waiting = null;
+    if (!w) return;
+    if (err) w.reject(err); else w.resolve(value);
+  }
+  async function client() {
+    const cid = (gcalCfg().clientId || "").trim();
+    if (!cid) throw gcalErr("Add your Google OAuth client ID in Settings first.", "config");
+    await loadGIS();
+    if (tokenClient && forId === cid) return tokenClient;
+    forId = cid;
+    tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: cid,
+      scope: GCAL_SCOPE,
+      /* preselects the account you are already signed in to Sundial with,
+         and the domain keeps a personal Google account out of the picker */
+      hint: (state.user && state.user.email) || "",
+      hd: ALLOWED_DOMAIN,
+      callback: resp => {
+        if (!resp || resp.error) { settle(gcalErr(resp && resp.error_description || "Google did not grant access.", "auth")); return; }
+        token = resp.access_token;
+        tokenExp = Date.now() + (Number(resp.expires_in || 3600) * 1000);
+        settle(null, token);
+      },
+      error_callback: err => settle(gcalErr((err && err.message) || "The Google permission window was closed.", "auth"))
+    });
+    return tokenClient;
+  }
+  /* A token is asked for silently first - prompt:"" reuses a grant that is
+     already there. Only a real consent or interaction error becomes an
+     "auth" failure, which is what puts the Reconnect toast on screen
+     instead of opening a window nobody asked for. */
+  async function getToken(interactive) {
+    if (token && Date.now() < tokenExp - 60000) return token;
+    const tc = await client();
+    if (waiting) throw gcalErr("Already waiting for Google.", "auth");
+    return new Promise((resolve, reject) => {
+      waiting = { resolve: resolve, reject: reject };
+      try { tc.requestAccessToken({ prompt: "" }); }
+      catch (err) { settle(gcalErr(err.message || String(err), interactive ? "http" : "auth")); }
+    });
+  }
+  async function call(path, opts, interactive, retried) {
+    const t = await getToken(interactive);
+    let res;
+    try {
+      res = await fetch(GCAL_API + path, Object.assign({}, opts, {
+        headers: Object.assign({ Authorization: "Bearer " + t, "Content-Type": "application/json" }, (opts && opts.headers) || {})
+      }));
+    } catch (err) { throw gcalErr("No connection to Google Calendar.", "network"); }
+    if (res.status === 401 && !retried) { token = null; tokenExp = 0; return call(path, opts, interactive, true); }
+    if (res.status === 401 || res.status === 403) {
+      token = null; tokenExp = 0;
+      throw gcalErr("Google refused the request. Reconnect Google Calendar in Settings.", "auth");
+    }
+    if (res.status === 204) return {};
+    let data = null;
+    try { data = await res.json(); } catch (_) { data = null; }
+    if (!res.ok) {
+      const e = gcalErr((data && data.error && data.error.message) || ("Google Calendar returned " + res.status), "http");
+      e.status = res.status;
+      throw e;
+    }
+    return data || {};
+  }
+  return {
+    mock: false,
+    hasToken() { return !!(token && Date.now() < tokenExp - 60000); },
+    getToken: getToken,
+    async revoke() {
+      const t = token; token = null; tokenExp = 0;
+      if (!t) return;
+      try { if (window.google && google.accounts && google.accounts.oauth2) google.accounts.oauth2.revoke(t, () => {}); } catch (_) {}
+    },
+    listCalendars(interactive) {
+      return call("/users/me/calendarList?minAccessRole=owner&maxResults=250", { method: "GET" }, interactive)
+        .then(d => (d && d.items) || []);
+    },
+    createCalendar(interactive) {
+      return call("/calendars", { method: "POST", body: JSON.stringify({ summary: GCAL_NAME, description: GCAL_DESC }) }, interactive);
+    },
+    insertEvent(calId, body, interactive) {
+      return call("/calendars/" + encodeURIComponent(calId) + "/events", { method: "POST", body: JSON.stringify(body) }, interactive);
+    },
+    patchEvent(calId, eventId, body, interactive) {
+      return call("/calendars/" + encodeURIComponent(calId) + "/events/" + encodeURIComponent(eventId),
+        { method: "PATCH", body: JSON.stringify(body) }, interactive);
+    },
+    deleteEvent(calId, eventId, interactive) {
+      return call("/calendars/" + encodeURIComponent(calId) + "/events/" + encodeURIComponent(eventId),
+        { method: "DELETE" }, interactive);
+    }
+  };
+}
+
+/* ---- the mock layer ----
+   Same surface, no Google. ?mock=1 on localhost gets this one so the whole
+   flow - connect, mirror, edit, delete, backfill, and the offline path -
+   can be walked without a client ID or a real calendar. It is unreachable
+   anywhere else because MOCK is unreachable anywhere else. The store is on
+   window.__sundialGcal so a dev console can see what was written. */
+function mockGcalLayer() {
+  const db = { calendars: [], events: {}, seq: 1, offline: false, denyToken: false };
+  let token = null, tokenExp = 0;
+  const wait = () => new Promise(r => setTimeout(r, 40));
+  function guard() {
+    if (db.offline || !navigator.onLine) throw gcalErr("No connection to Google Calendar.", "network");
+  }
+  async function need(interactive) {
+    guard();
+    if (token && Date.now() < tokenExp - 60000) return token;
+    if (db.denyToken && !interactive) throw gcalErr("Google needs you to grant access again.", "auth");
+    if (db.denyToken) throw gcalErr("Google did not grant access.", "auth");
+    await wait();
+    token = "mock-token-" + Date.now();
+    tokenExp = Date.now() + 3600000;
+    return token;
+  }
+  /* dev hooks: db.offline makes every call fail the way no signal does, and
+     db.denyToken plus db.clearToken() reproduce an expired grant, which is
+     the path the Reconnect toast exists for */
+  db.clearToken = () => { token = null; tokenExp = 0; };
+  window.__sundialGcal = db;
+  return {
+    mock: true,
+    hasToken() { return !!(token && Date.now() < tokenExp - 60000); },
+    getToken: need,
+    async revoke() { token = null; tokenExp = 0; },
+    async listCalendars(i) { await need(i); return db.calendars.map(c => Object.assign({}, c)); },
+    async createCalendar(i) {
+      await need(i);
+      const c = { id: "mockcal-" + (db.seq++), summary: GCAL_NAME, description: GCAL_DESC };
+      db.calendars.push(c); db.events[c.id] = {};
+      return Object.assign({}, c);
+    },
+    async insertEvent(calId, body, i) {
+      await need(i);
+      const ev = Object.assign({ id: "mockev-" + (db.seq++) }, body);
+      (db.events[calId] || (db.events[calId] = {}))[ev.id] = ev;
+      return Object.assign({}, ev);
+    },
+    async patchEvent(calId, eventId, body, i) {
+      await need(i);
+      const bag = db.events[calId] || {};
+      if (!bag[eventId]) { const e = gcalErr("Event not found.", "http"); e.status = 404; throw e; }
+      bag[eventId] = Object.assign({}, bag[eventId], body);
+      return Object.assign({}, bag[eventId]);
+    },
+    async deleteEvent(calId, eventId, i) {
+      await need(i);
+      const bag = db.events[calId] || {};
+      if (!bag[eventId]) { const e = gcalErr("Event not found.", "http"); e.status = 410; throw e; }
+      delete bag[eventId];
+      return {};
+    }
+  };
+}
+/* The real layer off localhost, always. MOCK is already pinned to
+   127.0.0.1 / localhost plus ?mock=1, so a deployed page cannot get the
+   fake one however it is opened. */
+const GCAL = MOCK ? mockGcalLayer() : realGcalLayer();
+
+/* ---- mirroring ----
+   Writes back through the underlying store so the wrapper that calls us
+   cannot call itself. A failure never blocks the hours: the entry is
+   flagged dirty and the next successful token flushes it. */
+function rawStore() { return (store && store.raw) || store; }
+let gcalAuthToastAt = 0;
+let gcalPendingDeletes = [];     // events whose entry is already gone
+function gcalAuthToast(msg) {
+  if (Date.now() - gcalAuthToastAt < 30000) return;
+  gcalAuthToastAt = Date.now();
+  stickyToast(msg || "Google Calendar needs permission again.", [
+    { label: "Not now", title: "Leaves it. Entries are kept and go up the next time you connect." },
+    { label: "Reconnect", accent: true, title: "Opens Google's permission window and sends anything that is waiting.",
+      run: () => gcalConnect(true) }
+  ]);
+}
+function gcalProblem(err, entry) {
+  if (!err) return;
+  if (entry) rawStore().updateEntry(entry.id, { gcalDirty: true });
+  if (err.kind === "auth") gcalAuthToast(err.message);
+  else if (err.kind === "config") { /* nothing to say on a background write */ }
+  else if (err.kind !== "network") console.warn("Google Calendar:", err.message || err);
+}
+async function gcalPushEntry(e, interactive) {
+  const g = gcalCfg();
+  if (!g.calendarId) return "skipped";
+  if (!e || !e.end || !e.start) return "skipped";
+  const body = gcalEventBody(e);
+  if (e.gcalEventId) {
+    try {
+      await GCAL.patchEvent(g.calendarId, e.gcalEventId, body, interactive);
+      rawStore().updateEntry(e.id, { gcalSyncedAt: new Date(), gcalDirty: false });
+      return "updated";
+    } catch (err) {
+      /* the event was deleted in Google: make a new one rather than
+         leaving the entry pointing at nothing */
+      if (err.status !== 404 && err.status !== 410) throw err;
+    }
+  }
+  const ev = await GCAL.insertEvent(g.calendarId, body, interactive);
+  rawStore().updateEntry(e.id, { gcalEventId: ev.id, gcalSyncedAt: new Date(), gcalDirty: false });
+  return "created";
+}
+async function gcalDropEvent(calId, eventId) {
+  try { await GCAL.deleteEvent(calId, eventId, false); }
+  catch (err) {
+    if (err.status === 404 || err.status === 410) return;   // already gone is the outcome we wanted
+    throw err;
+  }
+}
+/* Called for every entry write, whatever it came from: Stop, the entry
+   form, a week-grid cell, a calendar drag, the Miles sheet. */
+function gcalOnEntryChanged(entry) {
+  if (!entry || !gcalConnected()) return;
+  const g = gcalCfg();
+  if (!entry.end) {
+    /* a mirrored entry that went back to running has no end to show, so its
+       event goes away until it stops again */
+    if (entry.gcalEventId) {
+      const id = entry.gcalEventId;
+      rawStore().updateEntry(entry.id, { gcalEventId: null, gcalSyncedAt: null, gcalDirty: false });
+      gcalDropEvent(g.calendarId, id).catch(err => gcalProblem(err, null));
+    }
+    return;
+  }
+  /* With automatic mirroring off nothing new is created, but an entry that
+     is already on the calendar is kept honest. */
+  if (!g.auto && !entry.gcalEventId) return;
+  gcalPushEntry(entry, false).catch(err => gcalProblem(err, entry));
+}
+function gcalOnEntryDeleted(entry) {
+  if (!entry || !entry.gcalEventId || !gcalConnected()) return;
+  const calId = gcalCfg().calendarId, evId = entry.gcalEventId;
+  gcalDropEvent(calId, evId).catch(err => {
+    gcalPendingDeletes.push({ calendarId: calId, eventId: evId });
+    gcalProblem(err, null);
+  });
+}
+/* Everything that could not be written earlier: entries flagged dirty and
+   events whose entry was deleted with no connection. */
+async function gcalFlush(opts) {
+  const quiet = !(opts && opts.loud);
+  if (!gcalConnected()) { if (!quiet) toast("Connect Google Calendar first.", true); return; }
+  const dirty = state.entries.filter(e => e.gcalDirty && e.end);
+  const drops = gcalPendingDeletes.slice();
+  if (!dirty.length && !drops.length) { if (!quiet) toast("Nothing is waiting for Google Calendar."); return; }
+  let done = 0, failed = 0;
+  gcalPendingDeletes = [];
+  for (const d of drops) {
+    try { await gcalDropEvent(d.calendarId, d.eventId); done++; }
+    catch (err) { failed++; gcalPendingDeletes.push(d); if (err.kind === "auth") { gcalAuthToast(err.message); return; } }
+  }
+  for (const e of dirty) {
+    try { await gcalPushEntry(e, false); done++; }
+    catch (err) {
+      failed++;
+      if (err.kind === "auth") { gcalAuthToast(err.message); return; }
+    }
+    await new Promise(r => setTimeout(r, 120));
+  }
+  if (!quiet || done) toast(failed ? done + " sent, " + failed + " still waiting." : done + " sent to Google Calendar.");
+}
+/* ---- connect ----
+   Get a token, then find the Sundial calendar or make one. With this scope
+   the calendar list only contains calendars this app created, so the search
+   cannot see anything else in the account. */
+async function gcalConnect(interactive) {
+  const g = gcalCfg();
+  if (!g.clientId) { toast("Add your Google OAuth client ID first.", true); $("#sGcalClient").focus(); return; }
+  const btn = $("#gcalConnect");
+  if (btn) btn.disabled = true;
+  try {
+    await GCAL.getToken(interactive !== false);
+    let calId = g.calendarId, email = g.email;
+    const list = await GCAL.listCalendars(true);
+    const mine = list.find(c => c.id === calId) || list.find(c => (c.summary || "") === GCAL_NAME);
+    if (mine) { calId = mine.id; }
+    else {
+      const made = await GCAL.createCalendar(true);
+      calId = made.id;
+    }
+    if (!email) email = (state.user && state.user.email) || "";
+    saveGcalCfg({ calendarId: calId, email: email, auto: g.auto !== false });
+    toast(GCAL.mock ? "Connected (mock). Calendar \"" + GCAL_NAME + "\" ready." : "Connected. Calendar \"" + GCAL_NAME + "\" is ready.");
+    paintSettings();
+    gcalFlush({ loud: false });
+  } catch (err) {
+    if (err.kind === "config") toast(err.message, true);
+    else if (err.kind === "auth") toast(err.message || "Google did not grant access.", true);
+    else toast("Could not reach Google Calendar: " + (err.message || err), true);
+  } finally {
+    if (btn) btn.disabled = false;
+    paintSettings();
+  }
+}
+function gcalDisconnect() {
+  confirmModal("Disconnect Google Calendar?",
+    "<p>Sundial hands its permission back to Google and forgets which calendar it was writing to. Nothing is deleted: the <b>" + esc(GCAL_NAME) +
+    "</b> calendar and every event already on it stay exactly where they are.</p>" +
+    "<p>Entries keep the id of the event they made, so connecting again to the same calendar picks up where this left off instead of creating a second copy of everything.</p>",
+    "Disconnect", async () => {
+      try { await GCAL.revoke(); } catch (_) {}
+      saveGcalCfg({ calendarId: "", email: "" });
+      paintSettings();
+      toast("Google Calendar disconnected.");
+    });
+}
+/* ---- backfill ----
+   One request at a time with a small gap, because a month of entries fired
+   at once is how an API quota gets spent. The first permission failure
+   stops the run: carrying on would just repeat it a hundred times. */
+let gcalBusy = false;
+async function gcalBackfill(fromKey, toKey, label) {
+  if (!gcalConnected()) { toast("Connect Google Calendar first.", true); return; }
+  if (gcalBusy) { toast("A sync is already running."); return; }
+  const rows = state.entries.filter(e => e.day >= fromKey && e.day <= toKey)
+    .sort((a, b) => toDate(a.start) - toDate(b.start));
+  const finished = rows.filter(e => e.end && e.start);
+  if (!finished.length) { toast("Nothing finished in " + label + " to mirror."); return; }
+  gcalBusy = true;
+  let created = 0, updated = 0, skipped = rows.length - finished.length, n = 0;
+  toast("Mirroring " + finished.length + " entr" + (finished.length === 1 ? "y" : "ies") + " to Google Calendar...");
+  try {
+    for (const e of finished) {
+      const fresh = state.entries.find(x => x.id === e.id) || e;
+      try {
+        const what = await gcalPushEntry(fresh, false);
+        if (what === "created") created++; else if (what === "updated") updated++; else skipped++;
+      } catch (err) {
+        if (err.kind === "auth") {
+          gcalAuthToast(err.message);
+          toast("Stopped at " + n + " of " + finished.length + ". Google needs permission again.", true);
+          return;
+        }
+        skipped++;
+        rawStore().updateEntry(fresh.id, { gcalDirty: true });
+      }
+      n++;
+      if (n % 3 === 0) toast("Mirroring " + n + " of " + finished.length + "...");
+      await new Promise(r => setTimeout(r, 120));
+    }
+    toast(label + ": " + created + " created, " + updated + " updated, " + skipped + " skipped.");
+  } finally {
+    gcalBusy = false;
+    paintSettings();
+  }
+}
+function gcalStatusHTML() {
+  const g = gcalCfg();
+  if (!g.clientId) return "Not connected. Paste the client ID above, then press Connect.";
+  if (!g.calendarId) return "Not connected. Press Connect to give Sundial permission and create the " + esc(GCAL_NAME) + " calendar.";
+  const waiting = state.entries.filter(e => e.gcalDirty && e.end).length + gcalPendingDeletes.length;
+  const mirrored = state.entries.filter(e => e.gcalEventId).length;
+  return '<span class="st"><i></i>Connected' + (g.email ? " as " + esc(g.email) : "") + ', calendar "' + esc(GCAL_NAME) + '".</span> ' +
+    mirrored + " entr" + (mirrored === 1 ? "y" : "ies") + " mirrored" +
+    (waiting ? ", " + waiting + " waiting to go up - press Sync now." : ".") +
+    (GCAL.mock ? " Mock mode: nothing reaches Google." : "");
+}
+function paintGcal() {
+  const g = gcalCfg(), a = document.activeElement;
+  const idEl = $("#sGcalClient");
+  if (idEl && idEl !== a) idEl.value = g.clientId || "";
+  const auto = $("#sGcalAuto");
+  if (auto && auto !== a) auto.checked = g.auto !== false;
+  if (auto) auto.disabled = !gcalConnected();
+  const st = $("#gcalStatus");
+  if (st) { st.innerHTML = gcalStatusHTML(); st.classList.toggle("on", gcalConnected()); }
+  const on = gcalConnected();
+  const set = (id, disabled) => { const b = $(id); if (b) b.disabled = disabled; };
+  set("#gcalDisconnect", !on);
+  set("#gcalFlush", !on);
+  set("#gcalWeek", !on);
+  set("#gcalMonth", !on);
+  const c = $("#gcalConnect");
+  if (c) c.textContent = on ? "Reconnect" : "Connect";
+}
+
+/* ==============================================================
    SETTINGS
    ============================================================== */
 function applyTheme() {
@@ -3821,6 +4345,7 @@ function paintSettings() {
   chk("#sNewConcurrent", s.newClientAllowConcurrent);
   chk("#sNotify", s.notify && notifyPermission() === "granted");
   paintNotifyState();
+  paintGcal();
   paintSettingsJobTypes();
 }
 /* Notification may not exist at all (an old browser, an embedded view, a
@@ -4188,6 +4713,34 @@ $("#sJobTypes").addEventListener("click", e => {
   const name = x.getAttribute("data-sjt");
   saveSetting({ defaultJobTypes: (state.settings.defaultJobTypes || []).filter(n => n !== name) });
 });
+/* ---- Google Calendar panel ---- */
+$("#sGcalClient").addEventListener("change", e => {
+  const v = e.target.value.trim();
+  if (v === (gcalCfg().clientId || "")) return;
+  /* A different client ID is a different app as far as Google is concerned,
+     so the calendar found under the old one is no longer ours to write to. */
+  const wasConnected = gcalConnected();
+  saveGcalCfg(wasConnected ? { clientId: v, calendarId: "", email: "" } : { clientId: v });
+  paintSettings();
+  toast(v ? (wasConnected ? "Client ID changed. Press Connect again." : "Client ID saved. Press Connect.") : "Client ID cleared.");
+});
+$("#sGcalAuto").addEventListener("change", e => {
+  saveGcalCfg({ auto: e.target.checked });
+  paintSettings();
+  toast(e.target.checked ? "New entries will be mirrored when they stop." : "Automatic mirroring off. Entries already on the calendar stay in step.");
+});
+$("#gcalConnect").addEventListener("click", () => gcalConnect(true));
+$("#gcalDisconnect").addEventListener("click", gcalDisconnect);
+$("#gcalFlush").addEventListener("click", () => gcalFlush({ loud: true }));
+$("#gcalWeek").addEventListener("click", () => {
+  const ws = startOfWeek(new Date(), state.settings.weekStart);
+  gcalBackfill(dayKey(ws), dayKey(addDays(ws, 6)), "This week");
+});
+$("#gcalMonth").addEventListener("click", () => {
+  const n = new Date();
+  gcalBackfill(dayKey(new Date(n.getFullYear(), n.getMonth(), 1)), dayKey(new Date(n.getFullYear(), n.getMonth() + 1, 0)), "This month");
+});
+
 $("#sRetry").addEventListener("click", async () => { await store.retry(); toast("Asked for a sync."); });
 $("#sClearCache").addEventListener("click", () => {
   confirmModal("Clear the local cache?",
