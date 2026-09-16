@@ -196,6 +196,28 @@ Which view you are in is remembered on the device, not in your account, so the
 phone can sit on the day list while the desktop sits on the week grid. The
 Settings field now sets the starting view for a device that has never chosen.
 
+The Calendar, for seeing where the day actually went.
+
+The third view draws the week on a time axis: 6 AM to 8 PM by default, stretched
+automatically to hold anything that started earlier or ran later, and stretched
+again to keep the red "now" line on screen when you are working at an odd hour.
+One column per day on a desktop, one column - the day the strip has selected -
+on a phone. Each entry is a block in its client's color with the job type and
+ticket inside; anything shorter than fifteen minutes is just the color, with
+the details on hover, because four lines of text in a nine-pixel block help
+nobody. Two jobs running at the same time sit side by side rather than on top
+of each other, which is the entire argument for having this view: an overlap
+you cannot see is an overlap you will not fix. The running block grows every
+second.
+
+On a desktop the blocks are editable by hand. Click one to open the entry form.
+Drag its bottom edge to change the end time, or drag the block itself to move
+it, keeping its length; both snap to five minutes and nothing is written until
+you let go. Click an empty spot in a column to add half an hour starting right
+there, with the day and time already filled in. Phones get tap-to-edit and
+tap-empty-space-to-add, and the hint under the calendar says that dragging is a
+desktop thing rather than leaving you poking at it.
+
 ### v0.1.14 - 2026-09-15
 
 Start a timer from the Clients screen.

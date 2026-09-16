@@ -212,6 +212,13 @@ The chosen view is remembered per device.
   visible at a glance. The running entry grows live. Drag the bottom edge to
   change End, drag the block to move it, click empty space to add a manual
   entry at that time. Blocks under 15 minutes show only the color.
+
+  Built in v0.2.0. Two decisions the plan left open: the axis defaults to
+  6 AM - 8 PM and stretches to hold any entry outside it *and* to keep the
+  now line visible, so a late night is not silently clipped off the bottom;
+  and drag editing is desktop only (blocks are tap-to-edit under 860px),
+  because a drag handle competes with scrolling on a touch screen. The
+  running entry is never draggable - it has no end to move.
   Built in v0.2.0 with three decisions the plan did not settle. A cell holding
   a **running** timer is read-only like a multi-entry cell, because setting an
   end time from a grid would silently stop the clock. An empty typing box is

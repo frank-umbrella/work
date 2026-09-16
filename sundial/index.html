@@ -338,6 +338,34 @@ textarea.fld{min-height:64px;resize:vertical}
 .wgline .rk small{display:block;color:var(--muted);font-size:12px}
 @media (max-width:640px){.wgc{font-size:16px}}
 
+/* ---------- calendar ----------
+   One column per day of the week on desktop, one column (the selected day)
+   on phones. Columns are minmax(0,1fr) so seven of them always fit the card,
+   and every block is positioned in percentages inside its own column, so
+   nothing can push the grid wider than its card. */
+.cal{display:grid;grid-template-columns:52px repeat(var(--cols,7),minmax(0,1fr));gap:0 4px;min-width:0}
+.calh{font-size:12.5px;font-weight:600;text-align:center;padding:4px 2px 8px;border-bottom:1px solid var(--line);min-width:0;overflow-wrap:anywhere;line-height:1.25}
+.calh small{display:block;font-weight:400;color:var(--muted);font-family:var(--mono);font-size:11px}
+.calh.todayc{color:var(--accent)}
+.calaxis{display:grid;font-size:11px;color:var(--muted);text-align:right;padding-right:6px;min-width:0;font-family:var(--mono)}
+.calaxis span{line-height:1;transform:translateY(-5px)}
+.calcol{position:relative;border-left:1px solid var(--line);min-width:0;touch-action:pan-y}
+.calcol.todayc{background-color:rgba(30,111,217,.05)}
+:root[data-theme="dark"] .calcol.todayc{background-color:rgba(90,162,245,.08)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .calcol.todayc{background-color:rgba(90,162,245,.08)}}
+.calblk{position:absolute;border-radius:6px;color:#fff;font-size:11px;line-height:1.25;padding:3px 5px;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.25);cursor:pointer;min-width:0;text-shadow:0 1px 1px rgba(0,0,0,.25);touch-action:none}
+.calblk b{display:block;font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.calblk span.jt{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.calblk.run{outline:2px dashed rgba(255,255,255,.75);outline-offset:-3px}
+.calblk.tiny{padding:0}
+.calblk.drag{opacity:.85;z-index:6;box-shadow:var(--shadow)}
+.blkrz{position:absolute;left:0;right:0;bottom:0;height:8px;cursor:ns-resize;touch-action:none}
+.nowline{position:absolute;left:0;right:0;height:2px;background:var(--stop);z-index:4;pointer-events:none}
+.nowline:before{content:"";position:absolute;left:-4px;top:-4px;width:9px;height:9px;border-radius:50%;background:var(--stop)}
+/* Drag editing is desktop only, so phones lose the resize grip and keep
+   normal touch scrolling over a block. */
+@media (max-width:860px){.blkrz{display:none}.calblk{touch-action:auto}}
+
 /* ---------- clients ---------- */
 .clients{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:14px}
 .cl h5{margin:0 0 2px;font-size:17px;overflow-wrap:anywhere}
@@ -560,7 +588,7 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
         <span class="sp"><span class="seg" id="tsViews">
           <button data-tsv="day" class="on" title="One row per entry for the selected day, with Resume and Edit on each.">Day</button>
           <button data-tsv="week" title="The whole week as a grid: one row per client and job type, one column per day. Type a duration into a cell to fill a day in from memory.">Week</button>
-          <button data-tsv="calendar" disabled title="Next up in v0.2.">Calendar</button>
+          <button data-tsv="calendar" title="The week drawn on a time axis, so gaps and jobs running alongside each other are visible at a glance.">Calendar</button>
         </span></span>
       </div>
       <div class="daystrip" id="tsStrip"></div>
@@ -1595,6 +1623,13 @@ function paintTimer() {
     if (!e || e.end) return;
     el.textContent = el.closest(".also") ? fmtClock(entrySeconds(e)) : fmtDur(entrySeconds(e));
   });
+  /* a running calendar block grows on the tick instead of waiting for a
+     repaint, which is the whole point of drawing the day on an axis */
+  $$("[data-calrun]").forEach(el => {
+    const e = state.entries.find(x => x.id === el.getAttribute("data-calrun"));
+    if (!e || e.end) return;
+    el.style.height = Math.max(4, (entrySeconds(e) / 3600) * CAL_HPX).toFixed(1) + "px";
+  });
   /* the week fills up while a timer runs, so the bars follow it, but only
      once a minute - nothing in them changes faster than that */
   if (main && new Date().getSeconds() === 0) {
@@ -2107,8 +2142,211 @@ function openAddRowModal() {
   });
 }
 
-/* filled in by the calendar view */
-function paintCalendar() {}
+/* ==============================================================
+   CALENDAR
+   The week on a time axis. Entries are blocks in their day's column,
+   side by side when they overlap, so a job running alongside another is
+   visible instead of hidden inside a total.
+   ============================================================== */
+const CAL_HPX = 48;            // pixels per hour
+const CAL_SNAP = 5;            // minutes a drag lands on
+const CAL_DAY0 = 6, CAL_DAY1 = 20;   // the axis starts at 6 AM and ends at 8 PM unless an entry needs more
+function calDays(ws) {
+  if (isPhoneLayout()) return [dayDate(state.tsDay)];
+  const out = []; for (let i = 0; i < 7; i++) out.push(addDays(ws, i));
+  return out;
+}
+function calEntries(day) {
+  return state.entries
+    .filter(e => e.day === day && (!state.tsClient || e.clientId === state.tsClient))
+    .sort((a, b) => toDate(a.start) - toDate(b.start));
+}
+/* The axis grows to hold whatever is actually there: an entry that started
+   at 5:40 AM or ran to 11 PM must be on screen, not clipped off it. */
+function calBounds(days) {
+  let h0 = CAL_DAY0, h1 = CAL_DAY1;
+  const now = new Date();
+  days.forEach(d => calEntries(dayKey(d)).forEach(e => {
+    const s = toDate(e.start), en = toDate(e.end) || now;
+    h0 = Math.min(h0, s.getHours());
+    h1 = Math.max(h1, en.getHours() + (en.getMinutes() || en.getSeconds() ? 1 : 0));
+  }));
+  /* keep the now line on the axis when today is one of the columns, so an
+     early morning or a late night still shows where you are */
+  if (days.some(d => dayKey(d) === dayKey(now))) {
+    h0 = Math.min(h0, now.getHours());
+    h1 = Math.max(h1, now.getHours() + 1);
+  }
+  return { h0: Math.max(0, h0), h1: Math.min(24, Math.max(h0 + 1, h1)) };
+}
+function calAxisLabel(h) {
+  if (state.settings.timeFormat === "24h") return p2(h % 24) + ":00";
+  const x = h % 24;
+  const n = x % 12 === 0 ? 12 : x % 12;
+  return (x === 0 || x === 12 || h === CAL_DAY0) ? n + " " + (x < 12 ? "AM" : "PM") : String(n);
+}
+/* Lay a day out in lanes: entries that overlap in time share the column
+   width instead of covering each other. */
+function calLayout(list, now) {
+  const items = list.map(e => {
+    const s = toDate(e.start), en = toDate(e.end) || now;
+    return { e: e, s: s.getTime(), en: Math.max(en.getTime(), s.getTime() + 60000) };
+  }).sort((a, b) => a.s - b.s || a.en - b.en);
+  let cluster = [], clusterEnd = -Infinity;
+  const flush = () => {
+    if (!cluster.length) return;
+    const laneEnds = [];
+    cluster.forEach(it => {
+      let i = 0;
+      while (i < laneEnds.length && laneEnds[i] > it.s) i++;
+      if (i === laneEnds.length) laneEnds.push(it.en); else laneEnds[i] = it.en;
+      it.lane = i;
+    });
+    cluster.forEach(it => { it.lanes = laneEnds.length; });
+    cluster = []; clusterEnd = -Infinity;
+  };
+  items.forEach(it => { if (cluster.length && it.s >= clusterEnd) flush(); cluster.push(it); clusterEnd = Math.max(clusterEnd, it.en); });
+  flush();
+  return items;
+}
+function calBlockHTML(it, h0, now) {
+  const e = it.e, c = clientById(e.clientId);
+  const s = toDate(e.start), en = toDate(e.end) || now;
+  const top = ((s.getHours() * 60 + s.getMinutes()) - h0 * 60) / 60 * CAL_HPX;
+  const mins = Math.max(1, (en - s) / 60000);
+  const h = Math.max(4, mins / 60 * CAL_HPX);
+  const w = 100 / (it.lanes || 1), left = (it.lane || 0) * w;
+  const tickets = ticketList(e.ticket).length ? " " + ticketText(e.ticket) : "";
+  const title = (c ? c.name : "Unknown client") + " / " + (jobTypeName(c, e.jobTypeId) || "Job") + tickets + ", " +
+    fmtTime(s) + " - " + (e.end ? fmtTime(en) : "running") + ", " + fmtDur((en - s) / 1000) +
+    (e.notes ? "\n" + e.notes : "");
+  const tiny = mins < 15;
+  return '<div class="calblk' + (e.end ? "" : " run") + (tiny ? " tiny" : "") + '" data-calblk="' + e.id + '"' +
+    (e.end ? "" : ' data-calrun="' + e.id + '"') +
+    ' style="top:' + top.toFixed(1) + "px;height:" + h.toFixed(1) + "px;left:" + left.toFixed(3) + "%;width:" + (w - 1).toFixed(3) + "%;background:" + esc(clientColor(c)) + '"' +
+    ' title="' + esc(title) + '" role="button" tabindex="0" aria-label="' + esc(title.replace(/\n/g, ". ")) + '">' +
+    (tiny ? "" : "<b>" + esc(c ? c.name : "Unknown client") + '</b><span class="jt">' + esc((jobTypeName(c, e.jobTypeId) || "Job") + tickets) + "</span>") +
+    (e.end ? '<div class="blkrz" title="Drag to change the end time. Snaps to five minutes."></div>' : "") + "</div>";
+}
+function paintCalendar(ws) {
+  const days = calDays(ws);
+  const b = calBounds(days);
+  const now = new Date(), todayKey = dayKey(now);
+  const colH = (b.h1 - b.h0) * CAL_HPX;
+  const phone = isPhoneLayout();
+  $("#tsCalTitle").textContent = phone ? fmtDayLong(state.tsDay) : "Week of " + weekLabel(ws);
+
+  let axis = '<div class="calaxis" style="grid-auto-rows:' + CAL_HPX + 'px">';
+  for (let h = b.h0; h < b.h1; h++) axis += "<span>" + esc(calAxisLabel(h)) + "</span>";
+  axis += "</div>";
+
+  const heads = days.map(d => {
+    const k = dayKey(d);
+    const t = calEntries(k).reduce((s, e) => s + entrySeconds(e, now), 0);
+    return '<div class="calh' + (k === todayKey ? " todayc" : "") + '">' +
+      esc(d.toLocaleDateString(undefined, phone ? { weekday: "long" } : { weekday: "short" })) +
+      "<small>" + esc(d.getDate() + (t ? " · " + fmtHM(t) : "")) + "</small></div>";
+  }).join("");
+
+  const cols = days.map(d => {
+    const k = dayKey(d);
+    const items = calLayout(calEntries(k), now);
+    const nowTop = k === todayKey ? ((now.getHours() * 60 + now.getMinutes()) - b.h0 * 60) / 60 * CAL_HPX : null;
+    return '<div class="calcol' + (k === todayKey ? " todayc" : "") + '" data-calcol="' + k + '"' +
+      ' style="height:' + colH + "px;background-image:repeating-linear-gradient(to bottom,transparent 0 " + (CAL_HPX - 1) + "px,var(--line) " + (CAL_HPX - 1) + "px " + CAL_HPX + 'px)"' +
+      ' title="Click an empty spot to add a half hour of work starting there.">' +
+      items.map(it => calBlockHTML(it, b.h0, now)).join("") +
+      (nowTop != null && nowTop >= 0 && nowTop <= colH ? '<div class="nowline" style="top:' + nowTop.toFixed(1) + 'px"></div>' : "") +
+      "</div>";
+  }).join("");
+
+  $("#calBody").innerHTML = '<div class="cal" style="--cols:' + days.length + '" data-h0="' + b.h0 + '">' +
+    '<div class="calh"></div>' + heads + axis + cols + "</div>";
+  $("#calHint").textContent = phone
+    ? "Tap a block to edit it, or an empty spot to add half an hour there. Dragging blocks around is a desktop thing; the day strip above picks the day."
+    : "Click a block to edit it, drag its body to move it, or drag its bottom edge to change the end time - both snap to five minutes. Click an empty spot to add half an hour starting there. Blocks side by side are jobs that ran alongside each other.";
+}
+/* ---- dragging ----
+   Pointer events with capture, so a fast drag that leaves the block still
+   tracks. Nothing is written until the pointer comes up, and a drag that
+   never moved is treated as a click and opens the entry. */
+let calDrag = null;
+function calMinsFromPx(px) { return Math.round((px / CAL_HPX) * 60 / CAL_SNAP) * CAL_SNAP; }
+function calDown(e) {
+  if (isPhoneLayout() || e.button !== 0) return;
+  const blk = e.target.closest("[data-calblk]"); if (!blk) return;
+  const en = state.entries.find(x => x.id === blk.getAttribute("data-calblk"));
+  if (!en || !en.end) return;                 // a running entry has no end to drag
+  const col = blk.parentElement;
+  calDrag = {
+    id: en.id, mode: e.target.classList.contains("blkrz") ? "resize" : "move",
+    y0: e.clientY, top0: blk.offsetTop, h0: blk.offsetHeight, colH: col.clientHeight,
+    blk: blk, moved: false, pid: e.pointerId
+  };
+  try { blk.setPointerCapture(e.pointerId); } catch (_) {}
+  blk.classList.add("drag");
+  e.preventDefault();
+}
+function calMove(e) {
+  if (!calDrag || e.pointerId !== calDrag.pid) return;
+  const dy = e.clientY - calDrag.y0;
+  if (Math.abs(dy) > 2) calDrag.moved = true;
+  const snapPx = (CAL_SNAP / 60) * CAL_HPX;
+  const snap = v => Math.round(v / snapPx) * snapPx;
+  if (calDrag.mode === "resize") {
+    calDrag.blk.style.height = Math.max(snapPx, Math.min(calDrag.colH - calDrag.top0, snap(calDrag.h0 + dy))) + "px";
+  } else {
+    calDrag.blk.style.top = Math.max(0, Math.min(calDrag.colH - calDrag.h0, snap(calDrag.top0 + dy))) + "px";
+  }
+}
+/* When a drag ends the browser still sends a click. A timestamp rather than
+   a sticky flag, so a drag that somehow never produces that click cannot
+   swallow the next real one. */
+let calDragEndAt = 0;
+function calUp(e) {
+  if (!calDrag || (e && e.pointerId !== calDrag.pid)) return;
+  const d = calDrag; calDrag = null;
+  d.blk.classList.remove("drag");
+  try { d.blk.releasePointerCapture(d.pid); } catch (_) {}
+  const en = state.entries.find(x => x.id === d.id);
+  if (!en) { paintTimesheet(); return; }
+  /* A press that never moved is a click: the click handler below opens the
+     entry, so nothing happens here. */
+  if (!d.moved) { paintTimesheet(); return; }
+  calDragEndAt = Date.now();
+  const h0 = parseInt($("#calBody").querySelector(".cal").getAttribute("data-h0"), 10);
+  const start = toDate(en.start), end = toDate(en.end);
+  const durMs = end - start;
+  if (d.mode === "resize") {
+    const mins = Math.max(CAL_SNAP, calMinsFromPx(parseFloat(d.blk.style.height)));
+    store.updateEntry(en.id, { end: new Date(start.getTime() + mins * 60000) });
+    toast("End moved to " + fmtTime(new Date(start.getTime() + mins * 60000)) + ".");
+  } else {
+    const mins = calMinsFromPx(parseFloat(d.blk.style.top)) + h0 * 60;
+    const ns = dayDate(en.day); ns.setHours(0, mins, 0, 0);
+    store.updateEntry(en.id, { start: ns, end: new Date(ns.getTime() + durMs), day: dayKey(ns) });
+    toast("Moved to " + fmtTime(ns) + ".");
+  }
+  paintTimesheet();
+}
+/* A click on a block edits it; a click on empty space in a column adds half
+   an hour starting there. The flag stops the click that ends a real drag
+   from also opening the entry. */
+function calClick(e) {
+  if (Date.now() - calDragEndAt < 400) return;
+  const blk = e.target.closest("[data-calblk]");
+  if (blk) {
+    const en = state.entries.find(x => x.id === blk.getAttribute("data-calblk"));
+    if (en) openEntryModal("edit", en);
+    return;
+  }
+  const col = e.target.closest("[data-calcol]");
+  if (!col || e.target !== col) return;
+  const h0 = parseInt($("#calBody").querySelector(".cal").getAttribute("data-h0"), 10);
+  const mins = calMinsFromPx(e.clientY - col.getBoundingClientRect().top) + h0 * 60;
+  const s = dayDate(col.getAttribute("data-calcol")); s.setHours(0, mins, 0, 0);
+  openEntryModal("add", { start: s, end: new Date(s.getTime() + 30 * 60000), clientId: state.tsClient || "" });
+}
 
 function paintTimesheet() {
   const sel = $("#tsClient");
@@ -3138,6 +3376,18 @@ $("#tsViews").addEventListener("click", e => {
   setTsView(b.getAttribute("data-tsv"));
 });
 $("#wgAdd").addEventListener("click", openAddRowModal);
+$("#calBody").addEventListener("pointerdown", calDown);
+$("#calBody").addEventListener("pointermove", calMove);
+$("#calBody").addEventListener("pointerup", calUp);
+$("#calBody").addEventListener("pointercancel", calUp);
+$("#calBody").addEventListener("click", calClick);
+$("#calBody").addEventListener("keydown", e => {
+  const blk = e.target.closest("[data-calblk]");
+  if (!blk || (e.key !== "Enter" && e.key !== " ")) return;
+  e.preventDefault();
+  const en = state.entries.find(x => x.id === blk.getAttribute("data-calblk"));
+  if (en) openEntryModal("edit", en);
+});
 /* Week grid cells: commit on Enter or when the box loses focus. Escape puts
    the box back without writing anything. */
 $("#wgBody").addEventListener("keydown", e => {
