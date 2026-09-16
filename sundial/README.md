@@ -130,6 +130,15 @@ Timesheet. While it is on, the Weekly capacity hours field in Tracking shows the
 computed number and cannot be typed into. It is off until you switch it on, so
 nothing about the bar changes on its own.
 
+The Clock carries a line under the timer (or under the "pick a client" line
+when nothing is running) that says where you are in the day: **Working hours
+today 9:00 AM - 5:00 PM - ends in 2h 10m** inside the window, **starts in 40m**
+before it, and how long ago it ended after it. A timer running before or after
+the window turns that line amber and says **Outside working hours**, and a day
+switched off reads **Day off** - amber too, if something is running on it. It
+ticks with the timer, so it is right to the minute rather than right when the
+page was last painted.
+
 None of it ever blocks a timer. Working hours are there so the screen can tell
 you - and later a team dashboard can tell someone else - when you are expected
 to be working; a job that runs at 11 PM still starts, stops and exports exactly
@@ -289,6 +298,16 @@ or a break as long as the day, gets a red line under that row and is **not
 saved** - the day keeps the last hours that made sense, so a half-typed time can
 never quietly become your normal week. New accounts start Monday to Friday, 9 to
 5, with no break.
+
+The Clock says where you are in it. Under the timer there is now a quiet line
+reading **Working hours today 9:00 AM - 5:00 PM - ends in 2h 10m**, counting
+down on the same one-second tick the timer uses; before the day starts it says
+**starts in 40m**, and afterwards how long ago it ended. Start a timer outside
+that window and the line turns amber and says so - **Outside working hours
+(today 9:00 AM - 5:00 PM)** - and on a day switched off it simply reads **Day
+off**, amber if a timer is running on it. It is a statement, not a rule: it has
+no button on it and it cannot stop, delay or flag a thing. Working late is
+allowed; not noticing you are is the part worth fixing.
 
 The utilization bar can follow the panel instead of a fixed number. **Weekly
 capacity follows working hours** takes the computed week - 40h 00m, or 37h 30m

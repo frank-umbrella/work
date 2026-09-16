@@ -232,6 +232,11 @@ textarea.fld{min-height:64px;resize:vertical}
    matters, then an amber chip past the warn point and a red one past the
    hard limit, so the state is readable without reading the numbers. Its own
    class names on purpose: .warn already means the box inside a modal. */
+/* Where you are in your own working day, under the timer. Amber only when it
+   is telling you something: a timer running outside the window, or on a day
+   that is switched off. */
+.availline{overflow-wrap:anywhere;cursor:help}
+.availline.avwarn{color:var(--glow);font-weight:600}
 .limline{overflow-wrap:anywhere}
 .limline .lchip{display:inline-block;padding:3px 10px;border-radius:999px;border:1px solid var(--line2);background:var(--card2);font-weight:600}
 .limline.lwarn .lchip{border-color:var(--glow);color:var(--glow);background:rgba(224,163,0,.12)}
@@ -259,8 +264,11 @@ textarea.fld{min-height:64px;resize:vertical}
 .nowhead .pill{order:1}
 .nowhead .timer{order:2;font-size:40px;margin:0}
 .nowhead .since{order:3;margin:0}
-.nowhead .since.meta{order:5;flex-basis:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.nowhead #alsoList{order:6;flex-basis:100%}
+/* the working-hours line gets its own full-width line under the timer row,
+   so it can say where you are in the day without crowding the buttons */
+.nowhead .availline{order:5;flex-basis:100%;margin:0}
+.nowhead .since.meta{order:6;flex-basis:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nowhead #alsoList{order:7;flex-basis:100%}
 .nowhead .btnrow{order:4;margin:0 0 0 auto;flex-wrap:nowrap}
 .nowhead .btnrow .btn.big{flex:0 0 auto;font-size:15px;padding:10px 24px}
 .frow{display:grid;grid-template-columns:repeat(var(--n,4),minmax(0,1fr));gap:0 12px}
@@ -596,11 +604,13 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
             <span class="pill" style="background:var(--card2);color:var(--muted)">Not running</span>
             <div class="timer">00:00:00</div>
             <div class="since" id="outSince">Pick a client and a job type, then start.</div>
+            <div class="since availline" id="outAvail" hidden></div>
           </div>
           <div id="inLeft" hidden>
             <span class="pill" id="runPill"></span>
             <div class="timer" id="runTimer">00:00:00</div>
             <div class="since" id="runSince"></div>
+            <div class="since availline" id="runAvail" hidden></div>
             <div class="since limline" id="runLimit" hidden></div>
             <div class="since meta" id="runMeta" hidden></div>
             <div id="alsoList"></div>
@@ -1698,6 +1708,45 @@ function availRowProblem(day) {
   if (br >= e - s) return "The break is as long as the day itself.";
   return "";
 }
+/* "2h 10m", "40m" - a gap spoken the way a person says it, not padded out
+   the way a duration is tabulated. */
+function fmtSpan(sec) {
+  const m = Math.max(0, Math.round(sec / 60));
+  if (m < 1) return "under a minute";
+  if (m < 60) return m + "m";
+  const h = Math.floor(m / 60), r = m % 60;
+  return r ? h + "h " + r + "m" : h + "h";
+}
+/* The line under the timer. It never refuses anything - it says where you are
+   in your own day, and goes amber when a timer is running outside it. */
+const AVAIL_TIP = "Set in Settings > Working hours. Informational only; timers are never blocked.";
+function availLineFor(now) {
+  const day = availForDate(now);
+  const running = runningEntries().length > 0;
+  if (!day) return null;
+  if (!day.on) return { text: "Day off", warn: running };
+  const s = hmToMin(day.start), e = hmToMin(day.end);
+  if (s == null || e == null || e <= s) return null;    // a row that never made sense says nothing
+  const window = fmtMinTime(s) + " - " + fmtMinTime(e);
+  const mins = now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60;
+  if (mins >= s && mins < e) return { text: "Working hours today " + window + " · ends in " + fmtSpan((e - mins) * 60), warn: false };
+  if (running) return { text: "Outside working hours (today " + window + ")", warn: true };
+  if (mins < s) return { text: "Working hours today " + window + " · starts in " + fmtSpan((s - mins) * 60), warn: false };
+  return { text: "Working hours today " + window + " · ended " + fmtSpan((mins - e) * 60) + " ago", warn: false };
+}
+function paintAvailLine(now) {
+  const info = availLineFor(now || new Date());
+  ["#outAvail", "#runAvail"].forEach(sel => {
+    const el = $(sel);
+    if (!el) return;
+    el.hidden = !info;
+    if (!info) return;
+    if (el.textContent !== info.text) el.textContent = info.text;
+    el.title = AVAIL_TIP;
+    el.classList.toggle("avwarn", !!info.warn);
+  });
+}
+
 /* The capacity the utilization bar measures against: the working hours when
    that switch is on, otherwise the fixed field in Tracking. */
 function effectiveCapacitySeconds() {
@@ -2136,6 +2185,7 @@ function paintTimer() {
   const main = running[0];
   const now = new Date();
   if (main) $("#runTimer").textContent = fmtClock(entrySeconds(main, now));
+  paintAvailLine(now);
   paintRunLimit(main || null, now);
   checkLimits(now);
   $$("[data-elapsed]").forEach(el => {
