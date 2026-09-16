@@ -361,6 +361,25 @@ that gates mock mode gates it.
 
 ### v0.6.1 - 2026-09-16
 
+Adding a default job type now offers to add it where you wanted it.
+
+**Default job types** in Settings seed a brand new client, and that is all they
+ever did. Add **Backup Audits** to the list and it appears on the Clock for
+precisely no one: every client you already have keeps the types it already had,
+so the new type sits in Settings looking added and is not in a single job-type
+picker. The name of the setting is honest and the behaviour was still wrong,
+because nobody types a job type into a box in order to use it later on a client
+that does not exist yet.
+
+So it asks. Adding a default now counts the active clients that have no type of
+that name, lists them, and offers **Add to existing clients** or **New clients
+only**. Nothing is renamed or removed, no entry or export changes, and a client
+that already has a type of that name - even an archived one - is left alone,
+because archiving it was a decision and re-adding it would quietly undo one.
+Under the chips there is now a line saying plainly that these seed new clients,
+with **Add all defaults to existing clients** beside it for catching everything
+up in one press.
+
 A long day says so.
 
 Sundial could tell you a week was 46 hours and never once suggest that was

@@ -899,6 +899,8 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
       <label class="lab">Default job types <span class="q" title="The list a brand new client starts with. Changing it never touches clients you already have.">?</span></label>
       <div class="chips" id="sJobTypes"></div>
       <input class="fld" id="sJobTypeAdd" placeholder="Add a job type and press Enter" style="margin-top:8px">
+      <div class="hint" id="sJtHint">These seed a <b>new</b> client. Clients you already have keep the job types they already have, so adding one here does not put it on their Clock by itself.
+        <button class="btn sm" id="sJtBackfill" style="margin-top:6px" title="Gives every active client any default job type it is missing, matched by name and ignoring case. Nothing is renamed or removed, and no entry or export changes.">Add all defaults to existing clients</button></div>
       <label class="lab">Defaults for new clients <span class="q" title="Applied when a client is created. Changing them never touches existing clients.">?</span></label>
       <label class="ck"><input type="checkbox" id="sNewBillable"> Billable</label>
       <label class="ck"><input type="checkbox" id="sNewConcurrent"> Can run alongside other jobs</label>
@@ -5682,6 +5684,50 @@ $("#sAvailCap").addEventListener("change", e => {
     ? "Weekly capacity now follows your working hours."
     : "Weekly capacity is back to the number in Tracking.");
 });
+/* ---- default job types and the clients you already have ----
+   A default seeds a NEW client and nothing else, which is not what anybody
+   means when they add one: the type was added to be used, and it does not
+   appear on the Clock for a single existing client. So adding one offers to
+   catch the others up, and says how many it would touch before it does. */
+function jobTypeNamesOf(c) {
+  return (c.jobTypes || []).map(j => String(j.name == null ? "" : j.name).trim().toLowerCase());
+}
+function clientsMissingJobType(name) {
+  const n = String(name || "").trim().toLowerCase();
+  if (!n) return [];
+  /* an archived type of that name still counts as having it: the client made
+     a decision about this job type once and re-adding it would undo it */
+  return activeClients().filter(c => jobTypeNamesOf(c).indexOf(n) < 0);
+}
+function addJobTypesToClients(names, list) {
+  let added = 0, touched = 0;
+  (list || activeClients()).forEach(c => {
+    const have = jobTypeNamesOf(c);
+    const add = names.filter(n => have.indexOf(String(n).trim().toLowerCase()) < 0);
+    if (!add.length) return;
+    store.upsertClient(c.id, { jobTypes: (c.jobTypes || []).concat(add.map(newJobType)) });
+    added += add.length; touched++;
+  });
+  return { added: added, touched: touched };
+}
+function offerJobTypeToClients(name) {
+  const missing = clientsMissingJobType(name);
+  if (!missing.length) return;
+  const total = activeClients().length;
+  const w = openModal('Add "' + name + '" to your existing clients too?',
+    "<p>Default job types seed a <b>new</b> client. " + esc(String(missing.length)) + " of your " + esc(String(total)) +
+      " active client" + (total === 1 ? "" : "s") + " ha" + (missing.length === 1 ? "s" : "ve") + " no job type called <b>" +
+      esc(name) + "</b>, so it will not show up on the Clock for " + (missing.length === 1 ? "it" : "them") + ".</p>" +
+    '<div class="scrolly">' + missing.map(c => "<div>" + esc(c.name) + "</div>").join("") + "</div>" +
+    '<div class="hint">Adding it leaves every existing job type, entry and export exactly as it is. Any one client can drop it again from its own Edit form.</div>',
+    '<button class="btn" data-close title="Leaves your existing clients alone. The new default still applies to the next client you add.">New clients only</button>' +
+    '<button class="btn acc" id="jtAll" title="Adds it as an ordinary job type to each client listed above.">Add to existing clients</button>');
+  $("#jtAll", w).addEventListener("click", () => {
+    const r = addJobTypesToClients([name], missing);
+    closeModal(w);
+    toast("Added " + name + " to " + r.touched + " client" + (r.touched === 1 ? "" : "s") + ".");
+  });
+}
 $("#sJobTypeAdd").addEventListener("keydown", e => {
   if (e.key !== "Enter") return;
   e.preventDefault();
@@ -5690,6 +5736,28 @@ $("#sJobTypeAdd").addEventListener("keydown", e => {
   if (list.some(n => n.toLowerCase() === v.toLowerCase())) { toast("Already in the list."); e.target.value = ""; return; }
   list.push(v); e.target.value = "";
   saveSetting({ defaultJobTypes: list });
+  offerJobTypeToClients(v);
+});
+$("#sJtBackfill").addEventListener("click", () => {
+  const names = (state.settings.defaultJobTypes || []).slice();
+  if (!names.length) { toast("There are no default job types to add.", true); return; }
+  const cs = activeClients();
+  if (!cs.length) { toast("There are no active clients to add them to.", true); return; }
+  let missing = 0, clients = 0;
+  cs.forEach(c => {
+    const have = jobTypeNamesOf(c);
+    const n = names.filter(x => have.indexOf(String(x).trim().toLowerCase()) < 0).length;
+    if (n) { missing += n; clients++; }
+  });
+  if (!missing) { toast("Every active client already has all of them."); return; }
+  confirmModal("Add the default job types to existing clients?",
+    "<p><b>" + missing + "</b> job type" + (missing === 1 ? "" : "s") + " will be added across <b>" + clients + "</b> client" +
+      (clients === 1 ? "" : "s") + ", matched by name and ignoring case.</p>" +
+    "<p>Nothing is renamed or removed, no entry changes, and no export changes. A client that already has a type of that name - even an archived one - is left alone.</p>",
+    "Add them", () => {
+      const r = addJobTypesToClients(names, cs);
+      toast("Added " + r.added + " job type" + (r.added === 1 ? "" : "s") + " across " + r.touched + " client" + (r.touched === 1 ? "" : "s") + ".");
+    });
 });
 $("#sJobTypes").addEventListener("click", e => {
   const x = e.target.closest("[data-sjt]"); if (!x) return;
