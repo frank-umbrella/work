@@ -1268,6 +1268,24 @@ function mockStore() {
   };
 }
 
+/* ---------------- calendar mirror wrapper ----------------
+   Every entry write in the app goes through store.addEntry / setEntry /
+   updateEntry / deleteEntry, so wrapping those four is what guarantees the
+   Google Calendar mirror sees a Stop, an edit from any screen, and a delete
+   without every call site having to remember. The mirror writes its own
+   bookkeeping (gcalEventId, gcalSyncedAt, gcalDirty) through store.raw, so
+   it cannot call itself. */
+function mirrorStore(s) {
+  const merged = (id, patch) => Object.assign({}, state.entries.find(x => x.id === id) || { id: id }, patch, { id: id });
+  return Object.assign({}, s, {
+    raw: s,
+    addEntry(d) { const id = s.addEntry(d); gcalOnEntryChanged(Object.assign({ id: id }, d)); return id; },
+    setEntry(id, d) { s.setEntry(id, d); gcalOnEntryChanged(Object.assign({ id: id }, d)); return id; },
+    updateEntry(id, patch) { const after = merged(id, patch); s.updateEntry(id, patch); gcalOnEntryChanged(after); },
+    deleteEntry(id) { const before = state.entries.find(x => x.id === id); s.deleteEntry(id); gcalOnEntryDeleted(before); }
+  });
+}
+
 /* ---------------- sync pill ---------------- */
 function syncLabel() {
   if (!state.sync.online) return state.sync.pending ? "Offline, " + state.sync.pending + " pending" : "Offline";
@@ -1287,7 +1305,12 @@ function paintSync() {
       (MOCK ? "Mock mode: nothing is stored." : "Your hours are cached on this device, so the app opens and records time without a connection.");
   }
 }
-window.addEventListener("online",  () => { state.sync.online = true;  paintSync(); });
+window.addEventListener("online",  () => {
+  state.sync.online = true;  paintSync();
+  /* the connection coming back is the natural moment to send whatever was
+     stopped or edited while it was gone */
+  if (state.user && gcalConnected()) gcalFlush({ loud: false });
+});
 window.addEventListener("offline", () => { state.sync.online = false; paintSync(); });
 
 /* ==============================================================
@@ -4851,7 +4874,7 @@ function startApp(user) {
   $("#app").hidden = false;
   $("#userEmail").textContent = user.email;
   $("#footWho").textContent = "Signed in as " + user.email;
-  store = MOCK ? mockStore() : firestoreStore(user);
+  store = mirrorStore(MOCK ? mockStore() : firestoreStore(user));
   store.start(handlers());
   setView("clock");
   paintSync();
