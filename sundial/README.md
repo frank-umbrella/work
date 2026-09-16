@@ -113,6 +113,28 @@ columns. **Template** downloads a workbook with example rows and a "How to fill"
 sheet; **Import** shows a preview of what will be created, what will be updated
 by name, and which rows have problems, and applies nothing until you confirm.
 
+## Working hours
+
+**Settings > Working hours** is where you say when you are normally working:
+one row per weekday in whatever order your week start puts them, each with a
+switch, a start time, an end time and an unpaid break in minutes, and the hours
+that row comes to. A **Copy to other days** button puts one row's times on every
+other day that is switched on, so a normal week takes about ten seconds to
+describe. A row that cannot be true - an end before its start, or a break as
+long as the day - says so in red under the row and is simply not saved until it
+is fixed; the day keeps the last hours that made sense.
+
+Under the rows, **Normal week** adds the days up, and **Weekly capacity follows
+working hours** hands that number to the utilization bar on the Clock and the
+Timesheet. While it is on, the Weekly capacity hours field in Tracking shows the
+computed number and cannot be typed into. It is off until you switch it on, so
+nothing about the bar changes on its own.
+
+None of it ever blocks a timer. Working hours are there so the screen can tell
+you - and later a team dashboard can tell someone else - when you are expected
+to be working; a job that runs at 11 PM still starts, stops and exports exactly
+as it always did.
+
 ## Google Calendar
 
 Finished entries can be mirrored into a calendar called **Sundial** in the
@@ -246,6 +268,37 @@ real Google layer is chosen everywhere else, because the same hostname check
 that gates mock mode gates it.
 
 ## Changelog
+
+### v0.5.0 - 2026-09-16
+
+Sundial knows when you are meant to be working.
+
+Everything in here has been about hours already spent. Nothing said when the
+day was supposed to start or finish, which is the first thing anyone wants to
+know when they look at somebody else's clock - and the first thing a team
+screen will have to answer when there is more than one person in this. Settings
+has a **Working hours** panel now: a row per weekday with a switch, a start, an
+end, and an unpaid break in minutes, with the hours that row comes to printed
+beside it and a **Normal week** total under them all. The rows start on whatever
+day your week starts on, and **Copy to other days** puts one row's times onto
+every other working day, because five identical rows typed five times is not a
+setting, it is a chore.
+
+A day that cannot be true is caught where you typed it. An end before its start,
+or a break as long as the day, gets a red line under that row and is **not
+saved** - the day keeps the last hours that made sense, so a half-typed time can
+never quietly become your normal week. New accounts start Monday to Friday, 9 to
+5, with no break.
+
+The utilization bar can follow the panel instead of a fixed number. **Weekly
+capacity follows working hours** takes the computed week - 40h 00m, or 37h 30m
+once you have taken lunch out of it - and measures the bar on the Clock and the
+Timesheet against that, so changing a working day changes the target with it
+rather than leaving two numbers to disagree. It is **off by default**, and the
+old Weekly capacity hours field carries on exactly as it did until you turn it
+on; when you do, that field shows the computed number and stops accepting typing,
+since a box that ignores what you type into it is worse than one that is clearly
+read-only.
 
 ### v0.4.0 - 2026-09-16
 

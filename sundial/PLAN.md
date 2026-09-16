@@ -90,6 +90,17 @@ client so recurring projects stay consistent without another management screen.
   mileageRate       0.70              $/mile for the mileage export; set yearly
   defaultView       "day" | "week" | "calendar"
   columns, sort     saved table layout
+  availability      { days: { sun..sat: {on, start "09:00", end "17:00", breakMin} },
+                      capacityFromHours: bool }
+                    added in v0.5.0. The hours you are normally working, one
+                    row per weekday. breakMin is an unpaid gap (0-240) taken
+                    out of that day's span. capacityFromHours on makes the
+                    utilization bar measure against the computed week instead
+                    of weeklyCapacityHours, which then shows read-only.
+                    Informational everywhere: nothing about it blocks a timer.
+                    Missing on an older account = Mon-Fri 9-5, no break,
+                    capacityFromHours false, so nothing changes until it is
+                    deliberately switched on.
   updatedAt
 
 /sundial_users/{uid}/clients/{clientId}
@@ -532,6 +543,13 @@ Three things worth remembering about how it is built:
   only escalates to a Reconnect toast - never an unprompted popup - when
   Google wants consent again. Writes that cannot go up flag the entry and
   flush on the next connection.
+
+### Shipped in v0.5.0
+
+**Availability.** Working hours per weekday in Settings, shown on the Clock,
+shaded in the Calendar and marked in the Week grid, optionally driving the
+weekly capacity. Informational only, and deliberately shaped so the team tier's
+Who's Working dashboard (below) can read the same field per person.
 
 ### Near (single user, after v0.3, in this order)
 1. **Project budgets** - hours cap per client or per project label, with the

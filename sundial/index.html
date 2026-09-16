@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Sundial v0.4.0</title>
-<meta name="version" content="0.4.0" />
+<title>Sundial v0.5.0</title>
+<meta name="version" content="0.5.0" />
 <meta name="robots" content="noindex, nofollow" />
 <meta name="description" content="Internal hours tracker for Umbrella Automation. Restricted to @umbrellaautomation.com accounts." />
 <meta name="theme-color" content="#1e6fd9" />
@@ -124,6 +124,7 @@ select.fld{appearance:none;background-image:linear-gradient(45deg,transparent 50
 .fld:focus{outline:2px solid var(--accent);outline-offset:1px}
 .fld.glow{border-color:var(--glow);box-shadow:0 0 0 3px rgba(224,163,0,.22)}
 .fld[disabled]{opacity:.55;cursor:not-allowed}
+.fld[readonly]{background:var(--bg2);color:var(--muted);cursor:default}
 textarea.fld{min-height:64px;resize:vertical}
 .money{position:relative;display:block}
 .money .fld{padding-left:24px}
@@ -135,6 +136,39 @@ textarea.fld{min-height:64px;resize:vertical}
 .linkbtn[aria-expanded="true"]{color:var(--muted);text-decoration:none}
 .ck{display:flex;align-items:center;gap:8px;font-size:14px;margin:8px 0;cursor:pointer}
 .ck input{width:16px;height:16px;accent-color:var(--accent);flex:none}
+
+/* ---------- working hours (availability) ----------
+   One row per weekday, in the configured week-start order. On a desktop the
+   row is a grid with a header row of column labels above it; under 760px the
+   header goes away and every cell carries its own label, so the row stacks
+   into a card the way the entry tables do rather than scrolling sideways.
+   The time inputs are given room to show a whole 12-hour time with its AM
+   and its spinner, because a truncated time field is unreadable. */
+.avhead,.avrow{display:grid;grid-template-columns:minmax(0,1fr);gap:2px 12px}
+.avhead{display:none}
+.avrow{padding:10px 0;border-bottom:1px solid var(--line);align-items:start}
+.avrow:last-of-type{border-bottom:0}
+.avrow .ck{margin:0 0 2px}
+.avcell{min-width:0}
+.avcell:before{content:attr(data-l);display:block;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:6px 0 2px}
+.avcell.nolab:before{display:none}
+.avcell.nolab{margin-top:8px}
+.avcell .fld{min-width:0}
+.avh{font-family:var(--mono);font-weight:700;white-space:nowrap}
+.avrow.off .avh{color:var(--muted);font-weight:400}
+.avbad{grid-column:1 / -1;margin-top:4px;font-size:12.5px}
+.avfoot{display:flex;flex-wrap:wrap;align-items:center;gap:8px 20px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line2);min-width:0}
+.avfoot .avtot{font-size:14px;overflow-wrap:anywhere}
+.avfoot .avtot b{font-family:var(--mono)}
+.avfoot .ck{margin:0}
+.avrow .avcopy{width:100%;white-space:normal;padding:5px 8px}
+@media (min-width:820px){
+  .avhead,.avrow{grid-template-columns:minmax(0,1fr) minmax(0,116px) minmax(0,116px) minmax(0,86px) minmax(0,74px) minmax(0,112px);align-items:center;gap:6px 12px}
+  .avhead{display:grid;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding-bottom:6px;border-bottom:1px solid var(--line2)}
+  .avcell:before{display:none}
+  .avcell.nolab{margin-top:0}
+  .avrow .ck{margin:0}
+}
 
 /* ---------- buttons ---------- */
 .btn{border:1px solid var(--line2);background:var(--card2);color:var(--text);border-radius:calc(var(--radius) - 1px);padding:10px 16px;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap}
@@ -789,7 +823,7 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
         <div><label class="lab" for="sTemplateSel">Export template <span class="q" title="The layout the Export screen opens with.">?</span></label><select class="fld" id="sTemplateSel"><option value="grouped">Grouped by client</option><option value="flat">Flat, one line per entry</option></select></div>
       </div>
       <div class="g2">
-        <div><label class="lab" for="sCapacity">Weekly capacity hours <span class="q" title="The full week you are measuring against. The utilization bar on the Clock and the Timesheet shows the week against it, so you can see how full it is before Friday.">?</span></label><input class="fld" id="sCapacity" type="number" min="0" step="0.5"></div>
+        <div><label class="lab" for="sCapacity">Weekly capacity hours <span class="q" title="The full week you are measuring against. The utilization bar on the Clock and the Timesheet shows the week against it, so you can see how full it is before Friday.">?</span></label><input class="fld" id="sCapacity" type="number" min="0" step="0.5"><div class="hint" id="sCapacityHint"></div></div>
         <div><label class="lab" for="sMileage">Mileage rate <span class="q" title="IRS standard mileage rate; set it once a year. Dollars per mile, and it is what the Mileage export multiplies your travel entries by, so a stale rate quietly underpays every claim.">?</span></label><span class="money"><input class="fld" id="sMileage" inputmode="decimal"></span></div>
       </div>
       <div class="g2">
@@ -802,6 +836,20 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
       <label class="lab">Defaults for new clients <span class="q" title="Applied when a client is created. Changing them never touches existing clients.">?</span></label>
       <label class="ck"><input type="checkbox" id="sNewBillable"> Billable</label>
       <label class="ck"><input type="checkbox" id="sNewConcurrent"> Can run alongside other jobs</label>
+    </div>
+
+    <div class="card">
+      <h4>Working hours</h4>
+      <div class="hint" style="font-size:13.5px">The hours you are normally working. Sundial shows them on the Clock and shades the rest of the day in the Calendar, so anyone looking at the screen can tell whether you are inside your day. Nothing here ever blocks a timer.</div>
+      <div class="avhead" aria-hidden="true">
+        <span>Day</span><span>Start</span><span>End</span><span>Break</span><span>Hours</span><span></span>
+      </div>
+      <div id="availRows"></div>
+      <div class="avfoot">
+        <div class="avtot" id="availTotal"></div>
+        <label class="ck"><input type="checkbox" id="sAvailCap"> Weekly capacity follows working hours
+          <span class="q" title="On: the utilization bar measures the week against the hours set here, so changing a working day changes the target with it. Off: the fixed Weekly capacity hours field in Tracking is used instead.">?</span></label>
+      </div>
     </div>
 
     <div class="card">
@@ -883,12 +931,12 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
 
 <script type="module">
 /* ==============================================================
-   Sundial v0.4.0 - hours tracker
+   Sundial v0.5.0 - hours tracker
    Single file on purpose: no build step, same as Backup Audits.
    Firestore rules for /sundial_users live in ../watchtower/firestore.rules.
    ============================================================== */
 
-const APP_VERSION    = "0.4.0";
+const APP_VERSION    = "0.5.0";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const OWNER_EMAIL    = "frank@umbrellaautomation.com";
 const SDK            = "https://www.gstatic.com/firebasejs/12.13.0/";
@@ -981,12 +1029,32 @@ const COLUMN_DEFS = [
   { k: "notes",   label: "Notes" }
 ];
 const PALETTE = ["#1e6fd9", "#d3403a", "#1c9d63", "#8a5bb8", "#d08a1e", "#3a9ea5", "#c2557a", "#5a6b7d"];
+/* ---- availability: the hours you are normally working ----
+   A new account starts Monday to Friday, 9 to 5, with no break and with
+   capacityFromHours off, so the weekly capacity field keeps working exactly
+   as it did until it is deliberately switched over. */
+const DAY_KEYS  = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+const DAY_NAMES = { sun: "Sunday", mon: "Monday", tue: "Tuesday", wed: "Wednesday", thu: "Thursday", fri: "Friday", sat: "Saturday" };
+const DEFAULT_AVAILABILITY = {
+  days: {
+    sun: { on: false, start: "09:00", end: "17:00", breakMin: 0 },
+    mon: { on: true,  start: "09:00", end: "17:00", breakMin: 0 },
+    tue: { on: true,  start: "09:00", end: "17:00", breakMin: 0 },
+    wed: { on: true,  start: "09:00", end: "17:00", breakMin: 0 },
+    thu: { on: true,  start: "09:00", end: "17:00", breakMin: 0 },
+    fri: { on: true,  start: "09:00", end: "17:00", breakMin: 0 },
+    sat: { on: false, start: "09:00", end: "17:00", breakMin: 0 }
+  },
+  capacityFromHours: false
+};
+function defaultAvailability() { return JSON.parse(JSON.stringify(DEFAULT_AVAILABILITY)); }
 const DEFAULT_SETTINGS = {
   yourName: "", timeFormat: "12h", weekStart: "sun", rounding: "none",
   defaultJobTypes: DEFAULT_JOB_TYPES.slice(),
   exportTemplate: "grouped", showAmounts: false,
   newClientBillable: true, newClientAllowConcurrent: false,
   weeklyCapacityHours: 40, mileageRate: 0.70, defaultView: "day", notify: false,
+  availability: defaultAvailability(),
   theme: "system", columns: DEFAULT_COLUMNS.slice(), sort: null, colWidths: {},
   /* Google Calendar mirroring. clientId is a public identifier, calendarId
      and email are what Connect found. No token is ever stored here, or
@@ -1245,7 +1313,9 @@ function mockStore() {
         { miles: 18.4, mileageNote: "Office to Example Dental and back" }),
       ent(c2, 2, 2, 8, 20, 8, 55, "", "", "Parts run.")
     ];
-    data.settings = Object.assign({}, DEFAULT_SETTINGS, { yourName: "Example User" });
+    /* a default availability so the Clock line, the calendar shading and the
+       week grid markers all have something to say in mock mode */
+    data.settings = Object.assign({}, DEFAULT_SETTINGS, { yourName: "Example User", availability: defaultAvailability() });
   }
   seed();
   return {
@@ -1560,6 +1630,84 @@ function paintTiles() {
 function tile(k, n) { return '<div class="tile"><div class="k">' + esc(k) + '</div><div class="n">' + esc(n) + "</div></div>"; }
 
 /* ==============================================================
+   AVAILABILITY - the hours you are normally working
+   Stored per weekday as {on, start "09:00", end "17:00", breakMin}. It is
+   informational: the Clock says where you are in the day, the Calendar
+   shades the rest of it, and the week grid marks the days off. Nothing here
+   ever refuses a timer - a job at 11 PM is still a job.
+   ============================================================== */
+function availability() {
+  const stored = state.settings.availability || {};
+  const days = {};
+  DAY_KEYS.forEach(k => {
+    const d = (stored.days && stored.days[k]) || {};
+    const dflt = DEFAULT_AVAILABILITY.days[k];
+    const br = Number(d.breakMin);
+    days[k] = {
+      on: d.on != null ? !!d.on : dflt.on,
+      start: typeof d.start === "string" && d.start ? d.start : dflt.start,
+      end:   typeof d.end   === "string" && d.end   ? d.end   : dflt.end,
+      breakMin: isFinite(br) ? Math.max(0, Math.min(240, Math.round(br))) : 0
+    };
+  });
+  return { days: days, capacityFromHours: !!stored.capacityFromHours };
+}
+function availSig() { return JSON.stringify(availability()); }
+/* "09:00" to minutes past midnight, and back. null for anything unreadable,
+   which is what the inline validation reads. */
+function hmToMin(s) {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(s == null ? "" : s).trim());
+  if (!m) return null;
+  const h = +m[1], mi = +m[2];
+  if (h > 23 || mi > 59) return null;
+  return h * 60 + mi;
+}
+function fmtMinTime(min) { return fmtTime(new Date(2000, 0, 1, Math.floor(min / 60), min % 60, 0, 0)); }
+/* What a day is worth: the span, less the unpaid break. A day off, or a row
+   that does not make sense, is worth nothing. */
+function availDaySeconds(day) {
+  if (!day || !day.on) return 0;
+  const s = hmToMin(day.start), e = hmToMin(day.end);
+  if (s == null || e == null || e <= s) return 0;
+  const br = Math.max(0, Math.min(240, Number(day.breakMin) || 0));
+  if (br >= e - s) return 0;
+  return (e - s - br) * 60;
+}
+function availWeekSeconds(av) {
+  const a = av || availability();
+  return DAY_KEYS.reduce((s, k) => s + availDaySeconds(a.days[k]), 0);
+}
+function availForDate(d, av) { return (av || availability()).days[DAY_KEYS[new Date(d).getDay()]]; }
+/* The weekday keys in the order the app is using, so the Settings rows start
+   on the same day the timesheet strip does. */
+function weekOrderKeys() {
+  const first = WEEKDAY_INDEX[state.settings.weekStart] != null ? WEEKDAY_INDEX[state.settings.weekStart] : 0;
+  const out = [];
+  for (let i = 0; i < 7; i++) out.push(DAY_KEYS[(first + i) % 7]);
+  return out;
+}
+/* One row's problem in a sentence, or "" when it is fine. */
+function availRowProblem(day) {
+  if (!day || !day.on) return "";
+  const s = hmToMin(day.start), e = hmToMin(day.end);
+  if (s == null) return "Start time is missing.";
+  if (e == null) return "End time is missing.";
+  if (e <= s) return "End has to be after start.";
+  const br = Number(day.breakMin);
+  if (!isFinite(br) || br < 0 || br > 240) return "Break has to be between 0 and 240 minutes.";
+  if (br >= e - s) return "The break is as long as the day itself.";
+  return "";
+}
+/* The capacity the utilization bar measures against: the working hours when
+   that switch is on, otherwise the fixed field in Tracking. */
+function effectiveCapacitySeconds() {
+  const a = availability();
+  if (a.capacityFromHours) return availWeekSeconds(a);
+  const capH = Number(state.settings.weeklyCapacityHours);
+  return (isFinite(capH) && capH > 0 ? capH : 0) * 3600;
+}
+
+/* ==============================================================
    UTILIZATION BAR
    How full the week is against the weekly capacity in Settings. Raw time,
    not rounded: this is the honest picture of the week, not an invoice.
@@ -1569,8 +1717,7 @@ function weekTotals(weekStartDate) {
   const rows = state.entries.filter(e => e.day >= wsKey && e.day <= weKey);
   const bill = rows.filter(e => e.billable !== false).reduce((s, e) => s + entrySeconds(e), 0);
   const non  = rows.filter(e => e.billable === false).reduce((s, e) => s + entrySeconds(e), 0);
-  const capH = Number(state.settings.weeklyCapacityHours);
-  return { bill: bill, non: non, total: bill + non, cap: (isFinite(capH) && capH > 0 ? capH : 0) * 3600, wsKey: wsKey, weKey: weKey };
+  return { bill: bill, non: non, total: bill + non, cap: effectiveCapacitySeconds(), wsKey: wsKey, weKey: weKey };
 }
 function capLabel(secs) {
   const h = secs / 3600;
@@ -4376,6 +4523,126 @@ function paintSettingsJobTypes() {
     '<span class="chip"><span>' + esc(n) + '</span><span class="x" data-sjt="' + esc(n) + '">&times;</span></span>').join("")
     : '<span class="hint">No defaults. New clients will start with an empty list.</span>';
 }
+/* ---- Working hours panel ----
+   The rows are built once and then only their derived parts are updated, so
+   a repaint triggered by a save (or by a snapshot arriving) can never pull
+   the cursor out of a time box mid-edit. availDraft is what is typed;
+   settings hold what has been accepted. */
+let availDraft = null, availBuiltFor = "", availSyncedFrom = "", availSaveTimer = null;
+function availRowHTML(k, d) {
+  const nm = DAY_NAMES[k];
+  return '<div class="avrow" data-avrow="' + k + '">' +
+    '<label class="ck"><input type="checkbox" data-avon="' + k + '"' + (d.on ? " checked" : "") +
+      ' title="Off means a day you are not normally working."> ' + esc(nm) + "</label>" +
+    '<div class="avcell" data-l="Start"><input type="time" class="fld" data-avstart="' + k + '" value="' + esc(d.start) +
+      '" aria-label="' + esc(nm + " start time") + '"></div>' +
+    '<div class="avcell" data-l="End"><input type="time" class="fld" data-avend="' + k + '" value="' + esc(d.end) +
+      '" aria-label="' + esc(nm + " end time") + '"></div>' +
+    '<div class="avcell" data-l="Break"><input type="number" min="0" max="240" step="5" class="fld" data-avbreak="' + k + '" value="' +
+      esc(String(d.breakMin)) + '" aria-label="' + esc(nm + " break minutes") +
+      '" title="Unpaid gap in the middle of the day, so the day\'s hours come out right."></div>' +
+    '<div class="avcell" data-l="Hours"><span class="avh" data-avh="' + k + '"></span></div>' +
+    '<div class="avcell nolab"><button type="button" class="btn sm avcopy" data-avcopy="' + k +
+      '" title="Puts this start, end and break on every other day that is switched on.">Copy to other days</button></div>' +
+    '<div class="avbad prob" data-avbad="' + k + '" hidden></div>' +
+  "</div>";
+}
+function paintAvailDerived() {
+  const box = $("#availRows");
+  if (!box || !availDraft) return;
+  DAY_KEYS.forEach(k => {
+    const row = box.querySelector('[data-avrow="' + k + '"]');
+    if (!row) return;
+    const d = availDraft.days[k];
+    const problem = availRowProblem(d);
+    row.classList.toggle("off", !d.on);
+    const h = row.querySelector('[data-avh="' + k + '"]');
+    if (h) h.textContent = !d.on ? "-" : problem ? "-" : fmtDur(availDaySeconds(d));
+    const bad = row.querySelector('[data-avbad="' + k + '"]');
+    if (bad) { bad.textContent = problem ? problem + " This day is not saved until it is fixed." : ""; bad.hidden = !problem; }
+    ["avstart", "avend", "avbreak"].forEach(attr => {
+      const el = row.querySelector("[data-" + attr + '="' + k + '"]');
+      if (el) el.disabled = !d.on;
+    });
+    const cp = row.querySelector('[data-avcopy="' + k + '"]');
+    if (cp) cp.disabled = !d.on || !!problem;
+  });
+  const total = DAY_KEYS.reduce((s, k) => s + availDaySeconds(availDraft.days[k]), 0);
+  const anyBad = DAY_KEYS.some(k => availRowProblem(availDraft.days[k]));
+  const el = $("#availTotal");
+  if (el) el.innerHTML = "Normal week: <b>" + esc(fmtDur(total)) + "</b>" +
+    (anyBad ? ' <span class="prob">- one day still needs fixing</span>' : "");
+  const cap = $("#sAvailCap");
+  if (cap && cap !== document.activeElement) cap.checked = !!availDraft.capacityFromHours;
+}
+function paintAvailability() {
+  const box = $("#availRows");
+  if (!box) return;
+  const order = weekOrderKeys(), sig = order.join(","), stored = availSig();
+  const focusInside = box.contains(document.activeElement);
+  let rebuild = availBuiltFor !== sig || !box.firstElementChild;
+  if (!availDraft) { availDraft = availability(); availSyncedFrom = stored; }
+  else if (!focusInside && availSyncedFrom !== stored) { availDraft = availability(); availSyncedFrom = stored; rebuild = true; }
+  if (rebuild) {
+    box.innerHTML = order.map(k => availRowHTML(k, availDraft.days[k])).join("");
+    availBuiltFor = sig;
+  }
+  paintAvailDerived();
+}
+function readAvailRow(k) {
+  const box = $("#availRows");
+  const row = box && box.querySelector('[data-avrow="' + k + '"]');
+  if (!row || !availDraft) return;
+  const d = availDraft.days[k];
+  const on = row.querySelector('[data-avon="' + k + '"]');
+  const st = row.querySelector('[data-avstart="' + k + '"]');
+  const en = row.querySelector('[data-avend="' + k + '"]');
+  const br = row.querySelector('[data-avbreak="' + k + '"]');
+  if (on) d.on = on.checked;
+  if (st) d.start = st.value;
+  if (en) d.end = en.value;
+  if (br) d.breakMin = String(br.value).trim() === "" ? 0 : Number(br.value);
+}
+/* A row that does not make sense is left at whatever was last accepted, so
+   half-typed hours never reach the utilization bar or the Clock line. */
+function saveAvailability() {
+  if (!availDraft || !store) return;
+  const stored = availability();
+  const av = { days: {}, capacityFromHours: !!availDraft.capacityFromHours };
+  DAY_KEYS.forEach(k => {
+    const d = availDraft.days[k];
+    av.days[k] = availRowProblem(d)
+      ? Object.assign({}, stored.days[k], { on: !!d.on })
+      : { on: !!d.on, start: d.start, end: d.end, breakMin: Math.max(0, Math.min(240, Math.round(Number(d.breakMin) || 0))) };
+  });
+  state.settings.availability = av;
+  availSyncedFrom = availSig();
+  store.saveSettings({ availability: av });
+  /* the things that read it, updated now rather than at the next full paint */
+  paintUtil($("#clockUtil"), startOfWeek(new Date(), state.settings.weekStart));
+  paintUtil($("#tsUtil"), startOfWeek(dayDate(state.tsDay), state.settings.weekStart));
+  paintCapacityField();
+}
+function queueAvailSave(immediate) {
+  clearTimeout(availSaveTimer);
+  if (immediate) { saveAvailability(); return; }
+  availSaveTimer = setTimeout(saveAvailability, 350);
+}
+/* The fixed capacity field becomes a read-only mirror while the working
+   hours are driving it: still a number you can read, not one you can type
+   into and wonder why nothing happened. */
+function paintCapacityField() {
+  const el = $("#sCapacity"), hint = $("#sCapacityHint");
+  if (!el) return;
+  const a = availability();
+  el.readOnly = !!a.capacityFromHours;
+  if (a.capacityFromHours) {
+    const h = availWeekSeconds(a) / 3600;
+    if (el !== document.activeElement) el.value = String(Math.round(h * 100) / 100);
+    if (hint) hint.textContent = "Following your working hours below. Switch that off to type a number here again.";
+  } else if (hint) hint.textContent = "";
+}
+
 function paintSettings() {
   const s = state.settings, a = document.activeElement;
   const set = (id, val) => { const el = $(id); if (el && el !== a) el.value = val; };
@@ -4393,6 +4660,8 @@ function paintSettings() {
   chk("#sNewBillable", s.newClientBillable !== false);
   chk("#sNewConcurrent", s.newClientAllowConcurrent);
   chk("#sNotify", s.notify && notifyPermission() === "granted");
+  paintAvailability();
+  paintCapacityField();
   paintNotifyState();
   paintGcal();
   paintSettingsJobTypes();
@@ -4747,6 +5016,51 @@ $("#sNotify").addEventListener("change", async e => {
   saveSetting({ notify: true });
   paintNotifyState();
   toast("Limit warnings will also arrive as notifications.");
+});
+/* ---- Working hours ----
+   Typing saves as you go (debounced), leaving a field saves at once, and a
+   row that does not make sense keeps its red note instead of being written. */
+function availKeyOf(el) {
+  return el.getAttribute("data-avon") || el.getAttribute("data-avstart") ||
+         el.getAttribute("data-avend") || el.getAttribute("data-avbreak");
+}
+["input", "change"].forEach(evt => $("#availRows").addEventListener(evt, e => {
+  const el = e.target.closest("[data-avon],[data-avstart],[data-avend],[data-avbreak]");
+  if (!el) return;
+  const k = availKeyOf(el);
+  if (!k) return;
+  readAvailRow(k);
+  paintAvailDerived();
+  queueAvailSave(evt === "change");
+}));
+$("#availRows").addEventListener("click", e => {
+  const b = e.target.closest("[data-avcopy]");
+  if (!b) return;
+  const k = b.getAttribute("data-avcopy");
+  readAvailRow(k);
+  const src = availDraft.days[k];
+  if (!src.on) { toast("Switch " + DAY_NAMES[k] + " on first.", true); return; }
+  const problem = availRowProblem(src);
+  if (problem) { toast(problem, true); return; }
+  const targets = DAY_KEYS.filter(x => x !== k && availDraft.days[x].on);
+  if (!targets.length) { toast("No other working days to copy to."); return; }
+  targets.forEach(x => {
+    const d = availDraft.days[x];
+    d.start = src.start; d.end = src.end; d.breakMin = src.breakMin;
+  });
+  availBuiltFor = "";                     // several rows changed at once: redraw the boxes
+  paintAvailability();
+  queueAvailSave(true);
+  toast(DAY_NAMES[k] + " copied to " + targets.length + " other working day" + (targets.length === 1 ? "" : "s") + ".");
+});
+$("#sAvailCap").addEventListener("change", e => {
+  if (!availDraft) availDraft = availability();
+  availDraft.capacityFromHours = e.target.checked;
+  queueAvailSave(true);
+  paintAvailDerived();
+  toast(e.target.checked
+    ? "Weekly capacity now follows your working hours."
+    : "Weekly capacity is back to the number in Tracking.");
 });
 $("#sJobTypeAdd").addEventListener("keydown", e => {
   if (e.key !== "Enter") return;
