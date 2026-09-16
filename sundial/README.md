@@ -319,6 +319,20 @@ off**, amber if a timer is running on it. It is a statement, not a rule: it has
 no button on it and it cannot stop, delay or flag a thing. Working late is
 allowed; not noticing you are is the part worth fixing.
 
+A block of work that starts and stops inside the same minute is an entry like
+any other now. The date and time fields have no seconds box, so re-reading one
+used to throw the seconds away and the Edit form would refuse its own entry
+with "End must be after start" - a twenty-second phone call could be recorded
+but never edited. A field nobody touches now keeps the seconds it already had,
+and only a time somebody actually types snaps to the whole minute. When there
+are no seconds left to keep and the two times still land in the same minute,
+the entry is given length by moving its **start** back a minute, with a toast
+saying so, rather than by refusing to save. The same rule settles a Switch, a
+Resume or a Start from a client card that lands in the minute the old timer
+began: the new task always keeps the minute it started in, and the old one is
+nudged a minute earlier so it reads as a minute of work instead of nothing.
+Nothing the app itself created is ever refused by the form that edits it.
+
 The utilization bar can follow the panel instead of a fixed number. **Weekly
 capacity follows working hours** takes the computed week - 40h 00m, or 37h 30m
 once you have taken lunch out of it - and measures the bar on the Clock and the

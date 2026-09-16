@@ -1029,6 +1029,13 @@ function fmtDayShort(k) {
 }
 function localInput(d) { return d ? d.getFullYear() + "-" + p2(d.getMonth() + 1) + "-" + p2(d.getDate()) : ""; }
 function localTimeInput(d) { return d ? p2(d.getHours()) + ":" + p2(d.getMinutes()) : ""; }
+/* Two moments inside the same clock minute. The date and time inputs have no
+   seconds box, so this is what tells a field that was merely re-read from an
+   entry apart from one somebody actually typed. */
+function sameMinute(a, b) {
+  return !!a && !!b && a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate() && a.getHours() === b.getHours() && a.getMinutes() === b.getMinutes();
+}
 function fromInputs(dateStr, timeStr) {
   if (!dateStr || !timeStr) return null;
   const a = dateStr.split("-").map(Number), b = timeStr.split(":").map(Number);
@@ -2221,8 +2228,10 @@ function paintTimer() {
 setInterval(() => { if (state.user) paintTimer(); }, 1000);
 
 /* ---------------- punching ---------------- */
-function doPunchIn(fields) {
-  const start = fields.start || new Date();
+/* atStart is the moment a Switch or a Resume already used to stop whatever was
+   running, so both entries meet at exactly the same instant. */
+function doPunchIn(fields, atStart) {
+  const start = fields.start || atStart || new Date();
   const end = fields.end || null;
   const c = clientById(fields.clientId), jt = jobTypeById(c, fields.jobTypeId);
   state.startPanelOpen = false;
@@ -2257,6 +2266,24 @@ function endEntry(id, end) {
   store.updateEntry(id, { end: end || new Date() });
   queueMiles(id);
   return e;
+}
+/* Stopping one task because another is starting - a Switch, a Resume, a Start
+   from a client card. The new task always keeps the minute it started in. If
+   the old entry began inside that same minute, moving the new one would be a
+   lie about when you started it, so the OLD one's start is moved back a
+   minute instead and it reads as a one-minute entry rather than nothing at
+   all. Nothing is ever refused. */
+function endEntryForNewStart(id, newStart) {
+  const e = state.entries.find(x => x.id === id);
+  if (!e || e.end) return null;
+  const s = toDate(e.start);
+  if (s && sameMinute(s, newStart)) {
+    const ns = new Date(newStart.getTime() - 60000);
+    store.updateEntry(id, { start: ns, end: new Date(newStart.getTime()), day: dayKey(ns) });
+    queueMiles(id);
+    return e;
+  }
+  return endEntry(id, newStart);
 }
 /* One sheet at a time. A Switch or a Resume can close two travel entries at
    once; the second one waits its turn instead of stacking modals. */
@@ -2329,8 +2356,8 @@ function startJob(fields) {
       "<p>" + esc(c.name + " / " + jt.name) + " is not flagged to run alongside another job, so it cannot start on its own.</p>",
       "Stop current and start new", () => {
         const now = new Date();
-        running.forEach(r => endEntry(r.id, now));
-        doPunchIn(fields);
+        running.forEach(r => endEntryForNewStart(r.id, now));
+        doPunchIn(fields, now);
         clearStartForm();
       });
     return;
@@ -2357,7 +2384,7 @@ function resumeEntry(id) {
   runningEntries().forEach(r => {
     const rc = clientById(r.clientId);
     const alongside = effConcurrent(c, jt) || effConcurrent(rc, jobTypeById(rc, r.jobTypeId));
-    if (!alongside) { endEntry(r.id, now); stopped.push(entryLabel(r)); }
+    if (!alongside) { endEntryForNewStart(r.id, now); stopped.push(entryLabel(r)); }
   });
   state.startPanelOpen = false;
   const newId = store.addEntry({
@@ -2485,14 +2512,30 @@ function openEntryModal(mode, src) {
   $("#eMileNote", w).value = !isDup ? (base.mileageNote || "") : "";
   refreshTravel();
 
+  /* ---- seconds, and entries that live inside one minute ----
+     A time input has no seconds box, so re-reading one would throw away the
+     seconds an entry already had - and an entry that ran from 10:00:10 to
+     10:00:40 would come back as zero length and refuse to save. A field
+     nobody touched therefore keeps its original seconds; only a time that was
+     actually typed snaps to :00. When there are no original seconds left to
+     keep and the two still land in the same minute, the entry is given length
+     by moving its START back a minute, never by refusing the save. */
+  let startTouched = false, endTouched = false;
   function readForm() {
-    const s = fromInputs($("#eStartD", w).value, $("#eStartT", w).value);
+    let s = fromInputs($("#eStartD", w).value, $("#eStartT", w).value);
     const eD = $("#eEndD", w).value, eT = $("#eEndT", w).value;
-    const en = (eD && eT) ? fromInputs(eD, eT) : null;
+    let en = (eD && eT) ? fromInputs(eD, eT) : null;
+    let nudged = false;
+    if (isEdit) {
+      const os = toDate(base.start), oe = toDate(base.end);
+      if (s && !startTouched && sameMinute(s, os)) s = new Date(os.getTime());
+      if (en && !endTouched && sameMinute(en, oe)) en = new Date(oe.getTime());
+    }
+    if (s && en && en <= s && sameMinute(en, s)) { s = new Date(en.getTime() - 60000); nudged = true; }
     return {
       clientId: eClient.value, jobTypeId: eJob.value,
       ticket: $("#eTicket", w).value.trim(), project: $("#eProject", w).value.trim(), notes: $("#eNotes", w).value.trim(),
-      billable: $("#eBillable", w).checked, start: s, end: en
+      billable: $("#eBillable", w).checked, start: s, end: en, nudged: nudged
     };
   }
   function refreshDur() {
@@ -2502,6 +2545,7 @@ function openEntryModal(mode, src) {
     if (f.end && f.end <= f.start) { dur.innerHTML = '<span class="prob">End is before start.</span>'; warn.innerHTML = ""; return; }
     dur.textContent = f.end ? "Duration " + fmtDur((f.end - f.start) / 1000)
                             : "Running - this entry will have no end time. " + fmtDur((new Date() - f.start) / 1000) + " so far.";
+    if (f.nudged) dur.innerHTML += ' <span style="color:var(--muted)">Start and end land in the same minute, so the start moves back a minute to give the entry length.</span>';
     if (f.end && f.end > new Date()) {
       dur.innerHTML += ' <span class="prob">That end is ' + esc(fmtDur((f.end - new Date()) / 1000)) + " in the future - it has not happened yet. Saving will ask first.</span>";
     }
@@ -2524,7 +2568,10 @@ function openEntryModal(mode, src) {
     $("#eBillable", w).checked = effBillable(c, jobTypeById(c, eJob.value));
     glow(eJob); refreshTravel(); refreshDur();
   });
-  ["eStartD", "eStartT", "eEndD", "eEndT"].forEach(id => $("#" + id, w).addEventListener("input", refreshDur));
+  ["eStartD", "eStartT", "eEndD", "eEndT"].forEach(id => $("#" + id, w).addEventListener("input", () => {
+    if (id === "eStartD" || id === "eStartT") startTouched = true; else endTouched = true;
+    refreshDur();
+  }));
   refreshDur();
 
   function validate(f) {
@@ -2570,7 +2617,8 @@ function openEntryModal(mode, src) {
         isTravelEntry({ clientId: f.clientId, jobTypeId: f.jobTypeId });
       if (isEdit) store.updateEntry(base.id, p); else store.addEntry(p);
       closeModal(w);
-      toast(isEdit ? "Entry updated." : "Entry added.");
+      toast(f.nudged ? "Start moved back a minute so the entry has length."
+                     : isEdit ? "Entry updated." : "Entry added.");
       if (closingTravel) queueMiles(base.id);
     });
   });
@@ -2580,7 +2628,7 @@ function openEntryModal(mode, src) {
     confirmFuture(f, () => {
       store.addEntry(payload(f));
       closeModal(w);
-      toast("Entry added.");
+      toast(f.nudged ? "Start moved back a minute so the entry has length." : "Entry added.");
     });
   });
   const punchNow = $("#ePunch", w);
@@ -4823,9 +4871,9 @@ function startFromClientModal(c) {
     const jt = jobTypeById(c, sel.value);
     const now = new Date();
     const stopped = willStop(jt);
-    stopped.forEach(r => endEntry(r.id, now));
+    stopped.forEach(r => endEntryForNewStart(r.id, now));
     closeModal(w);
-    const id = doPunchIn({ clientId: c.id, jobTypeId: jt.id, ticket: $("#csTicket", w).value.trim(), project: $("#csProject", w).value.trim(), notes: "" });
+    const id = doPunchIn({ clientId: c.id, jobTypeId: jt.id, ticket: $("#csTicket", w).value.trim(), project: $("#csProject", w).value.trim(), notes: "" }, now);
     state.mainRunningId = id;
     setView("clock");
     if (stopped.length) toast("Started " + c.name + ". Stopped " + stopped.map(entryLabel).join(", ") + ".");
