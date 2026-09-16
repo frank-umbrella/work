@@ -1118,7 +1118,7 @@ const DEFAULT_SETTINGS = {
   /* Google Calendar mirroring. clientId is a public identifier, calendarId
      and email are what Connect found. No token is ever stored here, or
      anywhere else on disk - see the GOOGLE CALENDAR section below. */
-  gcal: { clientId: "", calendarId: "", email: "", auto: true }
+  gcal: { clientId: "", calendarId: "", email: "", auto: true, connected: true }
 };
 
 /* ---------------- state ---------------- */
@@ -4473,7 +4473,7 @@ function localZone() {
   try { return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"; } catch (_) { return "UTC"; }
 }
 function gcalCfg() {
-  const g = Object.assign({ clientId: "", calendarId: "", email: "", auto: true }, state.settings.gcal || {});
+  const g = Object.assign({ clientId: "", calendarId: "", email: "", auto: true, connected: true }, state.settings.gcal || {});
   if (!String(g.clientId || "").trim()) g.clientId = GCAL_DEFAULT_CLIENT_ID;
   return g;
 }
@@ -4482,7 +4482,12 @@ function saveGcalCfg(patch) {
   state.settings.gcal = g;
   store.saveSettings({ gcal: g });
 }
-function gcalConnected() { return !!gcalCfg().calendarId; }
+/* Disconnected keeps the calendar id on purpose. Without a calendar list
+   there is no way to find the Sundial calendar again by name, so throwing the
+   id away would make the next Connect build a second one beside the first.
+   `connected` is what says whether Sundial is writing to it. Settings written
+   before this flag existed have an id and no flag, and they were connected. */
+function gcalConnected() { const g = gcalCfg(); return !!g.calendarId && g.connected !== false; }
 function gcalErr(msg, kind) { const e = new Error(msg); e.kind = kind || "http"; return e; }
 
 /* One event per finished entry. The last line of the description carries the
@@ -4584,8 +4589,20 @@ function realGcalLayer() {
     } catch (err) { throw gcalErr("No connection to Google Calendar.", "network"); }
     if (res.status === 401 && !retried) { token = null; tokenExp = 0; return call(path, opts, interactive, true); }
     if (res.status === 401 || res.status === 403) {
+      /* Google says why it refused, in the body, and a refusal that only ever
+         reads "Google refused the request" is a bug report with the evidence
+         thrown away. The reason rides along in the toast. */
+      let why = "";
+      try {
+        const body = await res.json();
+        const err = body && body.error;
+        const first = err && Array.isArray(err.errors) && err.errors[0];
+        why = [(first && first.reason) || "", (err && err.message) || ""].filter(Boolean).join(": ");
+      } catch (_) { /* no body worth reading */ }
       token = null; tokenExp = 0;
-      throw gcalErr("Google refused the request. Reconnect Google Calendar in Settings.", "auth");
+      const e = gcalErr("Google refused the request" + (why ? " - " + why : "") + ". Reconnect Google Calendar in Settings.", "auth");
+      e.status = res.status;
+      throw e;
     }
     if (res.status === 204) return {};
     let data = null;
@@ -4611,9 +4628,11 @@ function realGcalLayer() {
       if (!t) return;
       try { if (window.google && google.accounts && google.accounts.oauth2) google.accounts.oauth2.revoke(t, () => {}); } catch (_) {}
     },
-    listCalendars(interactive) {
-      return call("/users/me/calendarList?minAccessRole=owner&maxResults=250", { method: "GET" }, interactive)
-        .then(d => (d && d.items) || []);
+    /* One calendar, by the id we stored. calendars.get is inside
+       calendar.app.created for a calendar this app made; calendarList.list is
+       not, which is what the 403 in production was. */
+    getCalendar(calId, interactive) {
+      return call("/calendars/" + encodeURIComponent(calId), { method: "GET" }, interactive);
     },
     createCalendar(interactive) {
       return call("/calendars", { method: "POST", body: JSON.stringify({ summary: GCAL_NAME, description: GCAL_DESC }) }, interactive);
@@ -4666,7 +4685,12 @@ function mockGcalLayer() {
     hasToken() { return !!(token && Date.now() < tokenExp - 60000); },
     getToken: need,
     async revoke() { token = null; tokenExp = 0; },
-    async listCalendars(i) { await need(i); return db.calendars.map(c => Object.assign({}, c)); },
+    async getCalendar(calId, i) {
+      await need(i);
+      const c = db.calendars.find(x => x.id === calId);
+      if (!c) { const e = gcalErr("Calendar not found.", "http"); e.status = 404; throw e; }
+      return Object.assign({}, c);
+    },
     async createCalendar(i) {
       await need(i);
       const c = { id: "mockcal-" + (db.seq++), summary: GCAL_NAME, description: GCAL_DESC };
@@ -4841,15 +4865,27 @@ async function gcalConnect(interactive) {
   try {
     await GCAL.getToken(interactive !== false);
     let calId = g.calendarId, email = g.email;
-    const list = await GCAL.listCalendars(true);
-    const mine = list.find(c => c.id === calId) || list.find(c => (c.summary || "") === GCAL_NAME);
-    if (mine) { calId = mine.id; }
-    else {
+    /* ---- no calendar list, ever ----
+       calendar.app.created covers calendars this app created. It does NOT
+       cover calendarList.list, which came back 403 insufficientPermissions
+       the first time a real account connected. So the stored id is checked by
+       asking for that one calendar - calendars.get is inside the scope - and
+       only a 4xx that is not a permission problem is read as "that calendar
+       is gone", in which case a new one is made. */
+    if (calId) {
+      try { await GCAL.getCalendar(calId, true); }
+      catch (err) {
+        if (err.kind === "auth" || err.kind === "network") throw err;
+        if (!(err.status >= 400 && err.status < 500)) throw err;
+        calId = "";
+      }
+    }
+    if (!calId) {
       const made = await GCAL.createCalendar(true);
       calId = made.id;
     }
     if (!email) email = (state.user && state.user.email) || "";
-    saveGcalCfg({ calendarId: calId, email: email, auto: g.auto !== false });
+    saveGcalCfg({ calendarId: calId, email: email, auto: g.auto !== false, connected: true });
     toast(GCAL.mock ? "Connected (mock). Calendar \"" + GCAL_NAME + "\" ready." : "Connected. Calendar \"" + GCAL_NAME + "\" is ready.");
     paintSettings();
     gcalFlush({ loud: false });
@@ -4864,12 +4900,12 @@ async function gcalConnect(interactive) {
 }
 function gcalDisconnect() {
   confirmModal("Disconnect Google Calendar?",
-    "<p>Sundial hands its permission back to Google and forgets which calendar it was writing to. Nothing is deleted: the <b>" + esc(GCAL_NAME) +
+    "<p>Sundial hands its permission back to Google and stops writing. Nothing is deleted: the <b>" + esc(GCAL_NAME) +
     "</b> calendar and every event already on it stay exactly where they are.</p>" +
-    "<p>Entries keep the id of the event they made, so connecting again to the same calendar picks up where this left off instead of creating a second copy of everything.</p>",
+    "<p>Which calendar it was is remembered, and entries keep the id of the event they made, so pressing Connect again picks up where this left off instead of building a second copy of everything.</p>",
     "Disconnect", async () => {
       try { await GCAL.revoke(); } catch (_) {}
-      saveGcalCfg({ calendarId: "", email: "" });
+      saveGcalCfg({ connected: false, email: "" });
       paintSettings();
       toast("Google Calendar disconnected.");
     });
@@ -4917,6 +4953,7 @@ function gcalStatusHTML() {
   const g = gcalCfg();
   if (!g.clientId) return "Not connected. Paste the client ID above, then press Connect.";
   if (!g.calendarId) return "Not connected. Press Connect to give Sundial permission and create the " + esc(GCAL_NAME) + " calendar.";
+  if (g.connected === false) return "Disconnected. The <b>" + esc(GCAL_NAME) + "</b> calendar it made is remembered, so Connect goes back to that one rather than starting a second.";
   const waiting = state.entries.filter(e => e.gcalDirty && e.end).length + gcalPendingDeletes.length;
   const mirrored = state.entries.filter(e => e.gcalEventId).length;
   /* Google Calendar opens a specific calendar from a "cid" that is the
@@ -5565,9 +5602,13 @@ $("#sGcalClient").addEventListener("change", e => {
   /* A different client ID is a different app as far as Google is concerned,
      so the calendar found under the old one is no longer ours to write to. */
   const wasConnected = gcalConnected();
-  saveGcalCfg(wasConnected ? { clientId: v, calendarId: "", email: "" } : { clientId: v });
+  /* Dropping the stored calendar is the one thing that makes a second Sundial
+     calendar, since there is no list to find the old one with. It only
+     happens here, where the app itself has changed as far as Google is
+     concerned, and the toast says what it means. */
+  saveGcalCfg(wasConnected ? { clientId: v, calendarId: "", email: "", connected: true } : { clientId: v });
   paintSettings();
-  toast(v ? (wasConnected ? "Client ID changed. Press Connect again." : "Client ID saved. Press Connect.")
+  toast(v ? (wasConnected ? "Client ID changed. Press Connect again - it will make a new Sundial calendar." : "Client ID saved. Press Connect.")
           : "Back to the client ID Sundial ships with.");
 });
 $("#sGcalAuto").addEventListener("change", e => {

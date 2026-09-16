@@ -278,14 +278,35 @@ flagged and the status line says how many are waiting. They go up on the next
 successful connection - when the browser comes back online, when you reconnect,
 or when you press **Sync now**.
 
+### Finding the calendar again: by id, never by list
+
+The `calendar.app.created` scope covers calendars this app created. It does
+**not** cover listing calendars - `calendarList.list` comes back `403
+insufficientPermissions` even for a calendar the app made itself. So Sundial
+never asks for a list. It stores the calendar's id and, on every Connect, asks
+for that one calendar by id (`calendars.get`, which the scope does cover). If
+Google says that calendar is gone, a new one is made; a permission or network
+problem is reported rather than quietly treated as "gone", because making a
+second calendar over a dropped connection would be the wrong answer.
+
+Two consequences worth knowing:
+
+- **The stored id is how the calendar is found.** Nothing matches on the name
+  "Sundial", so two calendars with that name would both be invisible to each
+  other.
+- **Changing the OAuth client ID, or erasing your data, drops the stored id**,
+  and the next Connect makes a second `Sundial` calendar beside the first. That
+  is recoverable in ten seconds - delete the old one in Google Calendar - but
+  it is worth knowing before you do it.
+
 ### Disconnect
 
-**Disconnect** hands the permission back to Google and forgets which calendar
-was in use. Nothing is deleted: the Sundial calendar and every event on it stay
-where they are, the client ID stays in Settings, and entries keep the id of the
-event they created - so connecting again to the same calendar carries on
-instead of making a second copy of everything. (Erasing your Sundial data does
-not remove the calendar either; delete it in Google Calendar if you want it
+**Disconnect** hands the permission back to Google and stops writing. Nothing
+is deleted: the Sundial calendar and every event on it stay where they are, the
+client ID stays in Settings, and entries keep the id of the event they created.
+**Which calendar it was is remembered on purpose**, so pressing Connect again
+goes back to that one rather than building a second. (Erasing your Sundial data
+does not remove the calendar either; delete it in Google Calendar if you want it
 gone.)
 
 ## Development
@@ -326,6 +347,32 @@ that gates mock mode gates it.
 ## Changelog
 
 ### v0.6.0 - 2026-09-16
+
+Google Calendar: Connect works against a real account.
+
+The first real Connect got its permission from Google and then failed on the
+very next request with `403 insufficientPermissions`. The cause was a wrong
+assumption in v0.4.0: Sundial looked for its calendar by fetching the account's
+calendar list. The `calendar.app.created` scope covers calendars this app
+created, and listing calendars is not one of the things it covers - not even to
+list the app's own. The obvious fix, asking for a wider scope, would have meant
+requesting read access to somebody's entire calendar in order to write one
+calendar, which is the trade this feature was built to avoid.
+
+So the list is gone. Sundial remembers its calendar's **id** and asks for that
+one calendar by id, which the scope does allow. If Google says it is gone, a new
+one is made; a permission or network failure is reported instead, because
+silently creating a second calendar over a dropped connection is the wrong
+answer to "I could not reach Google". **Disconnect now keeps the id** - without a
+list there is no way to find that calendar by name again, so forgetting the id
+was the one thing guaranteed to produce a second `Sundial` calendar. It stops
+writing and remembers where it was writing, and Connect goes straight back
+there. Changing the OAuth client ID still drops the id, because to Google that
+is a different app, and the toast now says so before you find out later.
+
+And a refusal from Google now says what Google said. The 403 toast carries the
+reason and message out of the response body, so the next problem of this kind
+is diagnosable from the screen instead of from a network tab.
 
 You can step away from a timer without lying about it.
 
