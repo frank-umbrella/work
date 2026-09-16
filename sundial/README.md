@@ -358,6 +358,41 @@ goes back to that one rather than building a second. (Erasing your Sundial data
 does not remove the calendar either; delete it in Google Calendar if you want it
 gone.)
 
+## Demo
+
+**`?demo=1`** opens Sundial with no sign-in, on any origin including the live
+page, against a dataset held entirely in memory. A banner across the top says
+**Demo - fictional data, nothing is saved, reload to reset** and links back out;
+the footer carries a **Try the demo** link the other way.
+
+    https://frank-umbrella.github.io/work/sundial/?demo=1
+
+**Nothing in it is real and nothing in it is saved.** The clients, people,
+tickets, projects and notes are all references to a television programme, every
+address is at `example.com`, and the hours belong to Cosmo Kramer. That is the
+requirement rather than a flourish: a demo is a thing you send to somebody, and
+a demo carrying a real client list is not a demo.
+
+**Nothing in it can reach anything, either**, and that is structural rather than
+a matter of care:
+
+- The Firebase modules are **not imported** on the demo path, so there is no
+  object through which a write to Firestore could happen.
+- The real Google Calendar layer is **never constructed**; the fake one is, with
+  a calendar that exists only inside the page and already reads as connected.
+- The **service worker is not registered**. A page somebody opens once from a
+  link has no business leaving a worker and a shell cache on their device.
+
+The dataset is deliberately complete: two weeks of entries, a timer already
+running when the page opens, a drive with miles, an entry with a break taken out
+of the middle, one carried past its limit with a reason, three budgets, working
+hours Monday to Friday, and a day long enough to trip the overtime flag.
+
+`?demo=1` and `?mock=1` share the in-memory store and the fake Google layer.
+They differ in two ways: `?mock=1` is localhost-only and seeded with dull
+example data for development, and `?demo=1` works anywhere and is meant to be
+looked at.
+
 ## Roadmap
 
 `roadmap.html` sits beside `index.html` and holds four lists: **Shipped**, one
@@ -415,6 +450,37 @@ that gates mock mode gates it.
 ## Changelog
 
 ### v0.6.1 - 2026-09-16
+
+There is a demo you can send somebody.
+
+Showing Sundial to anyone meant signing in, which meant showing them real client
+names and real hours - so mostly it meant not showing them. **`?demo=1`** now
+opens the app on any origin, live page included, with no sign-in wall, the whole
+thing running inside the page and a banner across the top reading **Demo -
+fictional data, nothing is saved, reload to reset**, with a **Leave demo** link
+back to the ordinary app. The footer has a **Try the demo** link.
+
+Nothing in demo mode can reach anything. That is a fact about the code rather
+than a promise about behaviour: on the demo path the Firebase modules are never
+imported, the real Google Calendar layer is never constructed, and the service
+worker is never registered - a demo somebody opens once from a link has no
+business leaving a worker and a shell cache behind on their device. The
+calendar panel shows itself connected to a calendar that exists only in the
+page.
+
+The data is Seinfeld. Vandelay Industries, Kramerica, Pendant Publishing, Monk's
+Cafe, the J. Peterman Catalog and Kruger Industrial Smoothing; latex sales,
+importing and exporting, bagel service, rickshaw logistics, catalog copy and
+industrial smoothing; tickets FEST-0023, YADA-0421 and SOUP-0007; a Festivus
+pole install and a puffy shirt recall. Every address is at `example.com`. The
+hours belong to Cosmo Kramer. Two weeks of them, including a timer that is
+running when you open it, a drive with miles on it, an entry with a break taken
+out of the middle, one that was carried past its limit with a reason, three
+budgets and a day long enough to trip the overtime flag - so every feature in
+the app has something to demonstrate itself with.
+
+None of it is real, and that is the requirement, not a detail. A demo is a thing
+you send to somebody. A demo carrying an actual client list is not a demo.
 
 There is a page that says where this is going.
 

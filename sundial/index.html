@@ -85,6 +85,17 @@ a{color:var(--accent)}
 .signin-card .offline-note{margin-top:14px;font-size:12.5px;color:var(--muted);border-top:1px solid var(--line);padding-top:12px;text-align:left}
 .err{margin-top:12px;color:var(--stop);font-size:13px}
 
+/* ---------- demo banner ----------
+   Amber across the top with its text colour pinned, so it reads the same in
+   both themes rather than inheriting a token that moves under it. It scrolls
+   away with the page on purpose: the sticky header underneath it is the thing
+   that has to stay, and two stacked sticky bars on a phone is most of the
+   screen gone. The footer says the same thing again for anyone who scrolled. */
+.demobar{display:flex;align-items:center;justify-content:center;gap:8px 18px;flex-wrap:wrap;
+  padding:8px 16px;background:var(--glow);color:#1a2233;font-size:13.5px;font-weight:600;
+  text-align:center;overflow-wrap:anywhere}
+.demobar a{color:#1a2233;text-decoration:underline;text-underline-offset:3px;white-space:nowrap}
+
 /* ---------- app chrome ---------- */
 .top{display:flex;align-items:center;gap:12px;padding:10px 16px;background:var(--topbar);color:var(--toptext);border-bottom:1px solid var(--line);flex-wrap:wrap;position:sticky;top:0;z-index:20}
 .brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:19px;letter-spacing:.02em;min-width:0}
@@ -611,6 +622,10 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
 
 <!-- ============ APP ============ -->
 <div id="app" hidden>
+<div class="demobar" id="demoBar" hidden>
+  <span>Demo - fictional data, nothing is saved, reload to reset</span>
+  <a href="./" id="demoLeave" title="Goes back to the ordinary app, which asks you to sign in. Nothing from the demo is kept.">Leave demo</a>
+</div>
 <header class="top">
   <div class="brand">
     <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -999,6 +1014,8 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
   <span id="footWho"></span>
   <span id="footSync"></span>
   <span><a href="roadmap.html" title="What has shipped, what is next, and what Sundial is deliberately not going to do.">Roadmap</a></span>
+  <span id="footDemoLink"><a href="?demo=1" title="Opens Sundial on a made-up dataset with no sign-in. Nothing in it is saved and nothing in it is real.">Try the demo</a></span>
+  <span id="footDemoNote" hidden>Demo - fictional data, nothing is saved.</span>
 </footer>
 
 <nav class="tabbar" id="tabbar">
@@ -1044,11 +1061,25 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-/* Local development hook: ?mock=1 on 127.0.0.1 / localhost skips Firebase
-   entirely and runs the whole app against an in-memory store. Harmless
-   anywhere else because of the hostname check. Documented in README. */
-const MOCK = new URLSearchParams(location.search).get("mock") === "1" &&
+/* Two ways to run without an account, and one difference between them.
+
+   ?mock=1 is the development hook: localhost only, seeded with three
+   deliberately dull example clients, for exercising the signed-in UI.
+
+   ?demo=1 works anywhere, including the live page, and opens the app with no
+   sign-in wall on a Seinfeld-themed dataset that is entirely fictional. That is
+   the whole reason it exists: a demo has to be shareable, and a demo that
+   ships somebody's actual clients is not a demo, it is a leak.
+
+   Both use the same in-memory store and the same fake Google layer, which is
+   what FAKE selects. Neither can reach Firestore or Google, because in neither
+   case is the real thing ever constructed. */
+const QUERY = new URLSearchParams(location.search);
+const MOCK = QUERY.get("mock") === "1" &&
              ["127.0.0.1", "localhost", ""].includes(location.hostname);
+const DEMO = QUERY.get("demo") === "1";
+const FAKE = MOCK || DEMO;
+const DEMO_CAL_ID = "demo-sundial-calendar";
 
 const $  = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
@@ -1441,7 +1472,131 @@ function mockStore() {
       yourName: "Example User", availability: defaultAvailability(), budgets: budgetList
     });
   }
-  seed();
+  /* ---- the demo dataset ----
+     ?demo=1 opens on this. Every client, person, ticket and note here is a
+     reference to a television programme and none of it is anybody's real
+     customer - which is the entire point, because a demo is meant to be shared
+     and a demo carrying a real client list is not a demo, it is a leak. Every
+     address is at example.com, which the RFCs reserve for exactly this.
+     The hours belong to Cosmo Kramer. */
+  function seedDemo() {
+    const now = new Date();
+    const jt = (n, o) => Object.assign({ id: uid(), name: n, archived: false, billable: null, allowConcurrent: null, travel: false, limit: null }, o || {});
+    const mk = (name, code, email, color, jts, locs, ticketUrl) => ({
+      id: uid(), name: name, code: code, email: email, color: color,
+      rate: null, archived: false, billable: true, allowConcurrent: false,
+      ticketUrl: ticketUrl || "", rounding: null, jobTypes: jts, locations: locs,
+      createdAt: now, updatedAt: now
+    });
+
+    const van = mk("Vandelay Industries", "VAN-01", "vandelay@example.com", "#1e6fd9",
+      [jt("Latex sales"), jt("Importing"), jt("Exporting"), jt("Remote support"), jt("On-site"), jt("Admin", { billable: false })],
+      ["On-site", "Remote", "Main office"], "https://helpdesk.example/tickets/{n}");
+    const kra = mk("Kramerica Industries", "KRA-01", "kramerica@example.com", "#d3403a",
+      [jt("Rickshaw logistics"), jt("Prototype testing", { travel: true }), jt("Remote support"), jt("Monitoring", { allowConcurrent: true })],
+      ["On-site", "Remote", "Warehouse"]);
+    const pen = mk("Pendant Publishing", "PEN-01", "pendant@example.com", "#1c9d63",
+      [jt("Editing systems"), jt("Proofing"), jt("Remote support"), jt("On-site")],
+      ["On-site", "Remote", "Main office"], "https://helpdesk.example/tickets/{n}");
+    const mnk = mk("Monk's Cafe", "MNK-01", "monks@example.com", "#d08a1e",
+      [jt("Bagel service"), jt("Point of sale"), jt("On-site"), jt("Remote support")],
+      ["On-site", "Remote"]);
+    const jpc = mk("J. Peterman Catalog", "JPC-01", "peterman@example.com", "#8a5bb8",
+      [jt("Catalog copy"), jt("Importing"), jt("Remote support")],
+      ["On-site", "Remote", "Main office"]);
+    /* a job type with a limit on it, so the "continued past the limit" flag
+       has something honest to hang on in the demo */
+    const kis = mk("Kruger Industrial Smoothing", "KIS-01", "kruger@example.com", "#3a9ea5",
+      [jt("Industrial smoothing", { limit: { warnMin: 105, hardMin: 120 } }), jt("Remote support"), jt("Admin", { billable: false })],
+      ["On-site", "Remote", "Warehouse"]);
+    data.clients = [van, kra, pen, mnk, jpc, kis];
+
+    const atDay = (dayOff, hh, mm) => { const d = addDays(now, -dayOff); d.setHours(hh, mm, 0, 0); return d; };
+    const ent = (c, jobName, dayOff, h1, m1, h2, m2, extra) => {
+      const s = atDay(dayOff, h1, m1);
+      const j = c.jobTypes.find(x => x.name === jobName) || c.jobTypes[0];
+      return Object.assign({
+        id: uid(), clientId: c.id, jobTypeId: j.id, project: "", ticket: "", notes: "",
+        location: "Remote", billable: j.billable == null ? c.billable : j.billable,
+        miles: null, mileageNote: "", limitOverride: null, breaks: [],
+        start: s, end: h2 == null ? null : atDay(dayOff, h2, m2), day: dayKey(s),
+        createdAt: now, updatedAt: now
+      }, extra || {});
+    };
+    /* the running one starts from the clock rather than an hour of the day, so
+       the demo always opens with a timer that is genuinely running */
+    const runStart = new Date(now.getTime() - 47 * 60000);
+
+    data.entries = [
+      /* today */
+      ent(van, "Latex sales", 0, 9, 5, 10, 40, { ticket: "FEST-0023", project: "Festivus pole install",
+        notes: "Chased the aluminium pole quote. No tinsel, as specified - distracting.", location: "Remote" }),
+      ent(mnk, "Bagel service", 0, 11, 0, 11, 50, { ticket: "SOUP-0007", location: "On-site",
+        notes: "Register printer jammed mid-rush. Cleared, cleaned and tested against a full queue." }),
+      Object.assign(ent(kra, "Rickshaw logistics", 0, 0, 0, null, null, { ticket: "YADA-0421", project: "Bottle deposit run",
+        notes: "Mapping the Michigan run. The deposit only pays if the load is big enough to bother.", location: "Remote" }),
+        { start: runStart, end: null, day: dayKey(runStart) }),
+
+      /* yesterday - one entry with a break in the middle of it */
+      ent(pen, "Editing systems", 1, 9, 0, 12, 15, { project: "Coffee table book", location: "On-site",
+        notes: "Manuscript server restored from Friday's backup. The book that turns into a little table.",
+        breaks: [{ start: atDay(1, 10, 30), end: atDay(1, 10, 55) }] }),
+      ent(jpc, "Catalog copy", 1, 13, 10, 15, 40, { project: "Puffy shirt recall", location: "Remote",
+        notes: "Rebuilt the copy deck after the shirt piece was pulled." }),
+      /* the travel entry, with its miles filled in */
+      ent(kra, "Prototype testing", 1, 16, 0, 16, 50, { location: "On-site", miles: 18.4,
+        mileageNote: "Office to the Kramerica loft and back", notes: "Levels checked on the prototype. Twice." }),
+
+      /* two days ago - the one that ran past its limit */
+      ent(kis, "Industrial smoothing", 2, 9, 0, 12, 10, { location: "On-site",
+        notes: "Smoothing line diagnostics. Nobody at Kruger was in a hurry about it.",
+        limitOverride: { at: atDay(2, 11, 0), reason: "Waiting on Kruger to decide whether it mattered." } }),
+      ent(van, "Importing", 2, 13, 0, 15, 30, { ticket: "FEST-0023", location: "Remote",
+        notes: "Import paperwork reconciled against the manifest." }),
+
+      /* three and four days ago */
+      ent(van, "Exporting", 3, 9, 15, 11, 45, { project: "Festivus pole install", location: "Main office",
+        notes: "Export schedule rebuilt for the December run." }),
+      ent(mnk, "Point of sale", 3, 13, 0, 14, 20, { ticket: "SOUP-0007", location: "On-site",
+        notes: "Card reader swap. The soup line cannot stop." }),
+      ent(jpc, "Catalog copy", 3, 15, 0, 19, 10, { project: "Puffy shirt recall", location: "Remote",
+        notes: "Long evening on the recall notice wording." }),
+      ent(kis, "Admin", 4, 9, 0, 9, 40, { location: "Remote", notes: "Monthly asset list tidied." }),
+      ent(pen, "Proofing", 4, 10, 0, 12, 30, { project: "Coffee table book", location: "Remote",
+        notes: "Proofing workflow rebuilt so the coasters stop losing their place." }),
+      ent(kra, "Monitoring", 4, 13, 0, 17, 0, { location: "Remote",
+        notes: "Watching the loft rig while doing other things. Runs alongside." }),
+
+      /* last week, so the Week grid and the utilization bar have a week behind
+         them rather than a handful of days */
+      ent(van, "Remote support", 7, 9, 0, 11, 30, { ticket: "FEST-0023", location: "Remote", notes: "Mailbox rules reset after the pole announcement went out twice." }),
+      ent(mnk, "On-site", 7, 13, 0, 16, 15, { location: "On-site", notes: "Back-office switch replaced." }),
+      ent(pen, "Editing systems", 8, 9, 30, 13, 0, { project: "Coffee table book", location: "On-site", notes: "Font licensing sorted out with the printer." }),
+      ent(kis, "Industrial smoothing", 8, 14, 0, 16, 0, { location: "Warehouse", notes: "Second smoothing bay brought online." }),
+      ent(van, "Latex sales", 9, 9, 0, 12, 0, { ticket: "FEST-0023", project: "Festivus pole install", location: "Remote", notes: "Quarterly latex figures pulled for the sales meeting." }),
+      ent(jpc, "Importing", 9, 13, 30, 15, 0, { location: "Remote", notes: "Supplier portal access restored." }),
+      ent(kra, "Rickshaw logistics", 10, 10, 0, 15, 45, { ticket: "YADA-0421", project: "Bottle deposit run", location: "Warehouse", notes: "Route planning, load limits, and a long argument about tolls." }),
+      ent(mnk, "Bagel service", 11, 9, 0, 11, 0, { ticket: "SOUP-0007", location: "On-site", notes: "Ordering terminal reimaged." })
+    ];
+
+    data.settings = Object.assign({}, DEFAULT_SETTINGS, {
+      yourName: "Cosmo Kramer",
+      availability: defaultAvailability(),          /* Monday to Friday, 9 to 5 */
+      columns: DEFAULT_COLUMNS.concat(["location"]),
+      overtime: { daily: { on: true, hours: 8 }, weekly: { on: true, hours: 40 } },
+      budgets: [
+        { id: uid(), clientId: van.id, project: "", hours: 40, from: "", to: "", note: "Monthly retainer" },
+        { id: uid(), clientId: jpc.id, project: "Puffy shirt recall", hours: 8, from: "", to: "", note: "Quoted at eight hours" },
+        { id: uid(), clientId: kra.id, project: "Bottle deposit run", hours: 20, from: "", to: "", note: "Until the trucks are booked" }
+      ],
+      /* the calendar is already "connected" in the fake layer, so the Google
+         panel shows its connected state without anybody pressing Connect and
+         without a single request leaving the page */
+      gcal: { clientId: "demo", calendarId: DEMO_CAL_ID, email: "cosmo@example.com", auto: true, connected: true }
+    });
+  }
+
+  if (DEMO) seedDemo(); else seed();
   return {
     start(handlers) { h = handlers; setTimeout(push, 0); },
     stop() {},
@@ -1496,7 +1651,9 @@ function paintSync() {
   if (os) {
     os.textContent = (state.sync.online ? "Online. " : "Offline. ") +
       (state.sync.pending ? state.sync.pending + " change" + (state.sync.pending === 1 ? "" : "s") + " waiting to sync. " : "Nothing waiting to sync. ") +
-      (MOCK ? "Mock mode: nothing is stored." : "Your hours are cached on this device, so the app opens and records time without a connection.");
+      (DEMO ? "Demo mode: everything is in this page and nothing is saved. Reload to start over."
+            : MOCK ? "Mock mode: nothing is stored."
+            : "Your hours are cached on this device, so the app opens and records time without a connection.");
   }
 }
 window.addEventListener("online",  () => {
@@ -4977,7 +5134,7 @@ function realGcalLayer() {
    Same surface, no Google. ?mock=1 on localhost gets this one so the whole
    flow - connect, mirror, edit, delete, backfill, and the offline path -
    can be walked without a client ID or a real calendar. It is unreachable
-   anywhere else because MOCK is unreachable anywhere else. The store is on
+   anywhere else because the real layer is what everything else gets. The store is on
    window.__sundialGcal so a dev console can see what was written. */
 function mockGcalLayer() {
   const db = { calendars: [], events: {}, seq: 1, offline: false, denyToken: false };
@@ -5000,6 +5157,10 @@ function mockGcalLayer() {
      db.denyToken plus db.clearToken() reproduce an expired grant, which is
      the path the Reconnect toast exists for */
   db.clearToken = () => { token = null; tokenExp = 0; };
+  /* In demo mode the calendar already exists and the settings already point
+     at it, so the Google panel shows its connected state with nobody
+     pressing Connect - and it is still entirely inside this page. */
+  if (DEMO) { db.calendars.push({ id: DEMO_CAL_ID, summary: GCAL_NAME, description: GCAL_DESC }); db.events[DEMO_CAL_ID] = {}; }
   window.__sundialGcal = db;
   return {
     mock: true,
@@ -5041,10 +5202,10 @@ function mockGcalLayer() {
     }
   };
 }
-/* The real layer off localhost, always. MOCK is already pinned to
-   127.0.0.1 / localhost plus ?mock=1, so a deployed page cannot get the
-   fake one however it is opened. */
-const GCAL = MOCK ? mockGcalLayer() : realGcalLayer();
+/* The fake layer for ?mock=1 and ?demo=1, the real one for everything else.
+   The real layer is not merely unused in those two modes - it is never
+   constructed, so there is no path by which a demo could reach Google. */
+const GCAL = FAKE ? mockGcalLayer() : realGcalLayer();
 
 /* ---- mirroring ----
    Writes back through the underlying store so the wrapper that calls us
@@ -5208,7 +5369,7 @@ async function gcalConnect(interactive) {
     }
     if (!email) email = (state.user && state.user.email) || "";
     saveGcalCfg({ calendarId: calId, email: email, auto: g.auto !== false, connected: true });
-    toast(GCAL.mock ? "Connected (mock). Calendar \"" + GCAL_NAME + "\" ready." : "Connected. Calendar \"" + GCAL_NAME + "\" is ready.");
+    toast(GCAL.mock ? "Connected (" + (DEMO ? "demo" : "mock") + "). Calendar \"" + GCAL_NAME + "\" ready." : "Connected. Calendar \"" + GCAL_NAME + "\" is ready.");
     paintSettings();
     gcalFlush({ loud: false });
   } catch (err) {
@@ -5286,7 +5447,7 @@ function gcalStatusHTML() {
   return '<span class="st"><i></i>Connected' + (g.email ? " as " + esc(g.email) : "") + ', calendar "<b>' + esc(GCAL_NAME) + '</b>".</span>' + link + " " +
     mirrored + " entr" + (mirrored === 1 ? "y" : "ies") + " mirrored" +
     (waiting ? ", " + waiting + " waiting to go up - press Sync now." : ".") +
-    (GCAL.mock ? " Mock mode: nothing reaches Google." : "");
+    (GCAL.mock ? (DEMO ? " Demo: nothing reaches Google." : " Mock mode: nothing reaches Google.") : "");
 }
 function paintGcal() {
   const g = gcalCfg(), a = document.activeElement;
@@ -5714,7 +5875,7 @@ $("#timesToggle").addEventListener("click", () => setTimesOpen($("#timesRow").hi
     const w = wrap.clientWidth;
     if (Math.abs(w - lastW) < 3) return;
     lastW = w;
-    if (state.user || MOCK) paintTodayTable();
+    if (state.user || FAKE) paintTodayTable();
   };
   const kick = () => { clearTimeout(timer); timer = setTimeout(relayout, 120); };
   if (window.ResizeObserver) new ResizeObserver(kick).observe(wrap);
@@ -6255,7 +6416,7 @@ document.addEventListener("click", e => {
    ============================================================== */
 let authMod = null, authObj = null;
 function doSignOut() {
-  if (MOCK) { location.href = location.pathname; return; }
+  if (FAKE) { location.href = location.pathname; return; }
   authMod.signOut(authObj);
 }
 function handlers() {
@@ -6288,8 +6449,13 @@ function startApp(user) {
   $("#signin").style.display = "none";
   $("#app").hidden = false;
   $("#userEmail").textContent = user.email;
-  $("#footWho").textContent = "Signed in as " + user.email;
-  store = mirrorStore(MOCK ? mockStore() : firestoreStore(user));
+  $("#footWho").textContent = DEMO ? "Demo account - " + user.name : "Signed in as " + user.email;
+  /* the banner, and the footer's demo note in place of the demo link */
+  $("#demoBar").hidden = !DEMO;
+  $("#demoLeave").href = location.pathname;
+  $("#footDemoLink").hidden = DEMO;
+  $("#footDemoNote").hidden = !DEMO;
+  store = mirrorStore(FAKE ? mockStore() : firestoreStore(user));
   store.start(handlers());
   setView("clock");
   paintSync();
@@ -6302,9 +6468,14 @@ function stopApp() {
   $("#signin").style.display = "flex";
 }
 
-if (MOCK) {
+if (FAKE) {
+  /* No Firebase module is ever imported on this path, which is what makes
+     "nothing in demo mode can reach Firestore" a fact about the code rather
+     than a promise about behaviour. */
   $("#signinBtn").addEventListener("click", () => {});
-  startApp({ uid: "mock", email: "you@" + ALLOWED_DOMAIN, name: "Example User" });
+  startApp(DEMO
+    ? { uid: "demo", email: "cosmo@example.com", name: "Cosmo Kramer" }
+    : { uid: "mock", email: "you@" + ALLOWED_DOMAIN, name: "Example User" });
 } else {
   const mods = await Promise.all([
     import(SDK + "firebase-app.js"),
@@ -6348,7 +6519,10 @@ if (MOCK) {
 /* ==============================================================
    SERVICE WORKER
    ============================================================== */
-if ("serviceWorker" in navigator && location.protocol !== "file:") {
+/* Demo mode registers nothing. A demo is a thing somebody opens once from a
+   link; leaving a service worker and a shell cache behind on their device
+   afterwards would be taking a liberty. */
+if ("serviceWorker" in navigator && location.protocol !== "file:" && !DEMO) {
   navigator.serviceWorker.register("sw.js").catch(err => console.warn("Service worker did not register:", err));
   navigator.serviceWorker.addEventListener("message", ev => {
     if (ev.data && ev.data.type === "sundial-update") {
