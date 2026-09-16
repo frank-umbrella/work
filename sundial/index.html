@@ -191,6 +191,19 @@ textarea.fld{min-height:64px;resize:vertical}
 .tagnb{display:inline-block;font-size:11px;padding:1px 7px;border-radius:999px;background:var(--card2);border:1px solid var(--line);color:var(--muted);margin-left:6px;white-space:nowrap}
 /* A travel job type carries a car beside its name so the entry that will ask
    for miles is obvious before it is stopped, not after. */
+/* An entry that was carried past its hard limit keeps an amber flag, so a
+   week later the reason is one hover away instead of lost. */
+.tagover{display:inline-block;font-size:11px;padding:1px 7px;border-radius:999px;background:rgba(224,163,0,.14);border:1px solid var(--glow);color:var(--glow);margin-left:6px;white-space:nowrap;cursor:help}
+/* How much of the limit is gone, under the running timer. Quiet until it
+   matters, then an amber chip past the warn point and a red one past the
+   hard limit, so the state is readable without reading the numbers. Its own
+   class names on purpose: .warn already means the box inside a modal. */
+.limline{overflow-wrap:anywhere}
+.limline .lchip{display:inline-block;padding:3px 10px;border-radius:999px;border:1px solid var(--line2);background:var(--card2);font-weight:600}
+.limline.lwarn .lchip{border-color:var(--glow);color:var(--glow);background:rgba(224,163,0,.12)}
+.limline.lhard .lchip{border-color:var(--stop);color:var(--stop);background:rgba(211,64,58,.12);font-weight:700}
+:root[data-theme="dark"] .limline.lhard .lchip{background:rgba(224,101,94,.16)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .limline.lhard .lchip{background:rgba(224,101,94,.16)}}
 .carico{display:inline-flex;align-items:center;vertical-align:-2px;margin-left:5px;color:var(--muted)}
 .carico svg{display:block}
 .pill .carico{color:inherit;opacity:.85}
@@ -417,6 +430,18 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto}
 .toast.bad{border-color:var(--stop)}
 .toast.tap{cursor:pointer}
+/* A sticky toast stays until it is dismissed, so it stops being a pill and
+   becomes a small card: a message, its own close x, and the one or two
+   buttons that answer it. A limit warning must not vanish while you are
+   still reading it. */
+.toast.sticky{border-radius:var(--radius);padding:12px 14px;text-align:left;font-weight:500;line-height:1.45;
+  display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 10px;width:min(440px,calc(100% - 28px));max-width:calc(100% - 28px);
+  border-color:var(--glow);cursor:default}
+.toast.sticky .tmsg{min-width:0;overflow-wrap:anywhere}
+.toast.sticky .tx{width:26px;height:26px;padding:0;flex:none;border-radius:50%;border:1px solid var(--line2);background:var(--card2);color:var(--muted);cursor:pointer;font-size:15px;line-height:1}
+.toast.sticky .tx:hover{color:var(--stop);border-color:var(--stop)}
+.toast.sticky .tacts{grid-column:1 / -1;display:flex;gap:8px;flex-wrap:wrap;min-width:0}
+.toast.sticky .tacts .btn{flex:1 1 auto;min-width:0}
 
 /* ---------- phone ---------- */
 .tabbar{display:none;position:sticky;bottom:0;background:var(--card);border-top:1px solid var(--line);padding:6px 4px calc(6px + env(safe-area-inset-bottom));z-index:20}
@@ -531,6 +556,7 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
             <span class="pill" id="runPill"></span>
             <div class="timer" id="runTimer">00:00:00</div>
             <div class="since" id="runSince"></div>
+            <div class="since limline" id="runLimit" hidden></div>
             <div class="since meta" id="runMeta" hidden></div>
             <div id="alsoList"></div>
             <div class="btnrow">
@@ -947,6 +973,11 @@ const state = {
   runEditOpen: false,
   mainRunningId: null,
   runEditId: null,
+  /* Which entries have already had their limit warning and their hard-limit
+     modal, so neither repeats every second. Session state on purpose: this
+     is something that happened to you while the app was open, not a fact
+     about the hours. */
+  limitWarned: {}, limitHard: {},
   /* xOpts.rounding null means "follow the Settings default, and let a client
      override win"; a value pins that increment on every client. */
   /* mode picks which half of the Export screen is showing: the hours block
@@ -955,16 +986,52 @@ const state = {
 };
 let store = null;
 
-/* ---------------- toast ---------------- */
+/* ---------------- toast ----------------
+   Top-center and passive. The ordinary one fades itself out; a sticky one
+   stays until it is dismissed and carries its own close x plus the buttons
+   that answer it, which is what a limit warning needs - it must still be
+   there when you look up from what you were doing. */
+function hideToast() {
+  const t = $("#toast");
+  clearTimeout(toast._t);
+  t.classList.remove("show", "tap", "sticky", "bad");
+  t.onclick = null;
+}
 function toast(msg, bad = false, onTap = null) {
   const t = $("#toast");
+  /* A passive confirmation never evicts a warning that is still waiting for
+     an answer. "Saved." can be missed; "you are about to pass a limit"
+     cannot. */
+  if (t.classList.contains("sticky") && t.classList.contains("show")) return;
+  clearTimeout(toast._t);
+  t.classList.remove("sticky");
   t.textContent = msg;
   t.classList.toggle("bad", !!bad);
   t.classList.toggle("tap", !!onTap);
   t.onclick = onTap || null;
   t.classList.add("show");
-  clearTimeout(toast._t);
   toast._t = setTimeout(() => { t.classList.remove("show"); t.onclick = null; }, onTap ? 12000 : 2800);
+}
+/* actions: [{label, title, accent, run}] - each one dismisses first, then runs. */
+function stickyToast(msg, actions) {
+  const t = $("#toast");
+  clearTimeout(toast._t);
+  t.onclick = null;
+  t.classList.remove("bad", "tap");
+  t.classList.add("sticky");
+  const list = actions || [];
+  t.innerHTML =
+    '<div class="tmsg">' + esc(msg) + "</div>" +
+    '<button type="button" class="tx" title="Dismiss this warning. It will not come back for this entry." aria-label="Dismiss">&times;</button>' +
+    (list.length ? '<div class="tacts">' + list.map((a, i) =>
+      '<button type="button" class="btn sm' + (a.accent ? " acc" : "") + '" data-ta="' + i + '"' +
+      (a.title ? ' title="' + esc(a.title) + '"' : "") + ">" + esc(a.label) + "</button>").join("") + "</div>" : "");
+  t.classList.add("show");
+  t.querySelector(".tx").addEventListener("click", hideToast);
+  list.forEach((a, i) => {
+    const b = t.querySelector('[data-ta="' + i + '"]');
+    if (b) b.addEventListener("click", () => { hideToast(); if (a.run) a.run(); });
+  });
 }
 
 /* ---------------- modal system ----------------
@@ -1100,7 +1167,11 @@ function mockStore() {
       rounding: null, jobTypes: jts, createdAt: now, updatedAt: now
     });
     const jt = (n, o) => Object.assign({ id: uid(), name: n, archived: false, billable: null, allowConcurrent: null, travel: false, limit: null }, o || {});
-    const c1 = mk("Example Co", "#1e6fd9", [jt("Remote support"), jt("On-site"), jt("Admin", { billable: false }), jt("Monitoring", { allowConcurrent: true })]);
+    const c1 = mk("Example Co", "#1e6fd9", [jt("Remote support"), jt("On-site"), jt("Admin", { billable: false }),
+      jt("Monitoring", { allowConcurrent: true }),
+      /* a job type with a limit on it, so the warn and hard paths are
+         reachable in mock mode by backdating a start */
+      jt("Support Ticket", { limit: { warnMin: 105, hardMin: 120 } })]);
     const c2 = mk("Example Dental", "#d3403a", [jt("Remote support"), jt("Project"), jt("Travel", { travel: true })]);
     const c3 = mk("Example Legal", "#1c9d63", [jt("Project"), jt("Consulting")]);
     c2.ticketUrl = "https://helpdesk.example/tickets/{n}";
@@ -1490,6 +1561,18 @@ function sortEntries(rows) {
   };
   return rows.slice().sort((a, b) => { const x = val(a), y = val(b); return x < y ? -dir : x > y ? dir : 0; });
 }
+/* The one sentence a limit override is worth, reused by the table tooltip,
+   the text export and the email table so they cannot drift apart. */
+function overrideLine(e) {
+  if (!e.limitOverride) return "";
+  const lim = jobLimit(e);
+  return "Continued past " + (lim ? "the " + limLabel(lim.hardMin) + " limit" : "the limit") + ": " +
+    (e.limitOverride.reason || "no reason given");
+}
+function overrideTitle(e) {
+  const at = toDate(e.limitOverride && e.limitOverride.at);
+  return overrideLine(e) + (at ? " (" + fmtTime(at) + ")" : "");
+}
 function carIconHTML() {
   return '<span class="carico" title="Travel: this job type asks for miles when it stops, and its entries feed the Mileage export.">' + ICONS.car + "</span>";
 }
@@ -1512,7 +1595,8 @@ function entryCellHTML(e, key) {
         (e.billable === false ? '<span class="tagnb">non-billable</span>' : "") +
         /* only a finished travel entry is nagged about miles: a running one
            has not been asked yet */
-        (travel && e.end && e.miles == null ? '<span class="tagnb" title="Add miles from Edit">no miles</span>' : "");
+        (travel && e.end && e.miles == null ? '<span class="tagnb" title="Add miles from Edit">no miles</span>' : "") +
+        (e.limitOverride ? '<span class="tagover" title="' + esc(overrideTitle(e)) + '">over limit</span>' : "");
     }
     case "ticket": return ticketHTML(c, e.ticket);
     case "project":return esc(e.project || "");
@@ -1675,12 +1759,173 @@ function paintTodayTable() {
   renderEntryTable($("#todayTable"), entriesForDay(dayKey(new Date())), { empty: "Nothing logged today yet." });
 }
 
+/* ==============================================================
+   TIME LIMITS
+   A job type can carry {warnMin, hardMin}. What gets measured against them
+   depends on the entry: with no ticket number it is the running entry's own
+   elapsed time, and with one or more tickets it is everything ever logged
+   against any of those tickets plus the time running now - so a ticket
+   worked in three sittings trips at the total rather than three times at
+   nothing. Everything is computed from timestamps on the one-second tick,
+   which means a limit crossed while the app was closed shows up the moment
+   it opens again, with the real elapsed time.
+   ============================================================== */
+function jobLimit(e) {
+  const c = clientById(e.clientId), jt = jobTypeById(c, e.jobTypeId);
+  const l = jt && jt.limit;
+  return l && l.hardMin > 0 ? l : null;
+}
+function limitSeconds(e, now) {
+  const tickets = ticketList(e.ticket).map(t => t.toLowerCase());
+  if (!tickets.length) return entrySeconds(e, now);
+  return state.entries.reduce((s, x) => {
+    if (x.id !== e.id && !ticketList(x.ticket).some(t => tickets.indexOf(t.toLowerCase()) >= 0)) return s;
+    return s + entrySeconds(x, now);
+  }, 0);
+}
+/* "2h", "45m", "1h 30m" - the way a limit is spoken, not the way a duration
+   is tabulated. */
+function limLabel(min) {
+  min = Math.max(0, Math.round(min));
+  if (min < 60) return min + "m";
+  const h = Math.floor(min / 60), m = min % 60;
+  return m ? h + "h " + m + "m" : h + "h";
+}
+function limitSubject(e) {
+  const c = clientById(e.clientId);
+  const tk = ticketText(e.ticket);
+  return tk || (jobTypeName(c, e.jobTypeId) || "this job");
+}
+/* The line under the running timer: "1h 12m of 2h limit", amber past the
+   warn point and red past the hard one. */
+function paintRunLimit(main, now) {
+  const el = $("#runLimit");
+  if (!el) return;
+  const lim = main ? jobLimit(main) : null;
+  if (!lim) { el.hidden = true; el.className = "since limline"; return; }
+  const secs = limitSeconds(main, now);
+  const byTicket = ticketList(main.ticket).length > 0;
+  el.hidden = false;
+  el.className = "since limline" +
+    (secs >= lim.hardMin * 60 ? " lhard" : lim.warnMin > 0 && secs >= lim.warnMin * 60 ? " lwarn" : "");
+  el.innerHTML = '<span class="lchip">' + esc(fmtDur(secs) + " of " + limLabel(lim.hardMin) + " limit" +
+    (main.limitOverride ? " - continued past it" : "")) + "</span>";
+  el.title = byTicket
+    ? "Counted across every entry carrying " + ticketText(main.ticket) + ", on any day, plus the time running now."
+    : "This entry has no ticket number, so the limit counts its own elapsed time only.";
+}
+/* Fired once per entry each. The flags live in state rather than on the
+   entry, because a warning is a thing that happened to you in this session,
+   not a fact about the hours. */
+function checkLimits(now) {
+  runningEntries().forEach(e => {
+    const lim = jobLimit(e);
+    if (!lim) return;
+    const secs = limitSeconds(e, now);
+    if (secs >= lim.hardMin * 60) {
+      if (!e.limitOverride) showHardLimit(e, lim, secs);
+      return;
+    }
+    if (lim.warnMin > 0 && secs >= lim.warnMin * 60) showLimitWarning(e, lim, secs);
+  });
+}
+function showLimitWarning(e, lim, secs) {
+  if (state.limitWarned[e.id]) return;
+  state.limitWarned[e.id] = true;
+  const c = clientById(e.clientId);
+  const msg = "Approaching the " + limLabel(lim.hardMin) + " limit for " + (jobTypeName(c, e.jobTypeId) || "this job") + ". " +
+    limitSubject(e) + " has " + fmtDur(secs) + " logged.";
+  /* The flag is set above, synchronously, so this only ever fires once; the
+     toast itself waits a tick so that whatever started the timer has already
+     put its own passive confirmation up and out of the way. */
+  setTimeout(() => stickyToast(msg, [
+    { label: "Keep going", title: "Dismisses this. You will still be asked for a reason at the hard limit." },
+    { label: "Switch task", accent: true, title: "Opens the start panel on the Clock with this client already picked, so you can move to something else.",
+      run: () => {
+        setView("clock");
+        state.startPanelOpen = true;
+        paintClock();
+        const sel = $("#fClient");
+        if (sel && e.clientId) { sel.value = e.clientId; paintClock(); }
+        if (sel) sel.focus();
+      } }
+  ]), 0);
+  notifyLimit(msg);
+}
+/* A system notification only when the app is in the background, only when
+   Settings asked for it, and only when permission is already granted -
+   nothing here ever raises a permission prompt. */
+function notifyLimit(text) {
+  if (!state.settings.notify) return;
+  if (typeof Notification === "undefined" || Notification.permission !== "granted") return;
+  if (!document.hidden) return;
+  try {
+    if (navigator.serviceWorker && navigator.serviceWorker.ready) {
+      navigator.serviceWorker.ready.then(reg => {
+        if (reg && reg.showNotification) reg.showNotification("Sundial", {
+          body: text, tag: "sundial-limit", icon: "icon-192.png", badge: "favicon-32.png"
+        });
+      }).catch(() => {});
+    }
+  } catch (_) { /* a browser without notifications is not an error */ }
+}
+/* The hard limit is a decision, so it is a modal. The entry keeps running
+   while it is open: the clock is computed from timestamps, and stopping it
+   behind your back would be the one thing worse than running over. */
+function showHardLimit(e, lim, secs) {
+  if (state.limitHard[e.id]) return;
+  state.limitHard[e.id] = true;
+  /* Flag set synchronously so the tick cannot open a second copy; the modal
+     itself waits a tick, out of the middle of the repaint that found it. */
+  setTimeout(() => openHardLimitModal(e, lim, secs), 0);
+}
+function openHardLimitModal(e, lim, secs) {
+  hideToast();
+  const c = clientById(e.clientId);
+  const tk = ticketText(e.ticket);
+  const body =
+    "<p><b>" + esc(c ? c.name : "Unknown client") + "</b> / " + esc(jobTypeName(c, e.jobTypeId) || "Job") +
+      (tk ? " &middot; " + esc(tk) : "") + "</p>" +
+    "<p>" + esc(fmtDur(secs)) + " logged" + (ticketList(e.ticket).length ? " against " + esc(tk) + " across every entry that carries it" : " on this entry") +
+      ", against a " + esc(limLabel(lim.hardMin)) + " limit. Running since " + esc(fmtTime(toDate(e.start))) + ".</p>" +
+    '<label class="lab" for="limReason">Reason <span class="q" title="Required. It is stored on the entry and printed in the export, so the hour past the limit has an explanation attached to it rather than an argument later.">?</span></label>' +
+    '<textarea class="fld" id="limReason" placeholder="Waiting on a vendor callback"></textarea>' +
+    '<div class="hint">The timer is still running. Nothing is written until you pick one.</div>';
+  const w = openModal(limLabel(lim.hardMin) + " limit reached" + (tk ? " for " + tk : ""), body,
+    '<button class="btn stop" id="limStopNow" title="Ends the entry at the moment the limit was reached, so the logged time is exactly the limit.">Stop now</button>' +
+    '<button class="btn acc" id="limContinue" title="Keeps the timer running and records why, on the entry and in the export.">Continue</button>');
+  $("#limContinue", w).addEventListener("click", () => {
+    const reason = $("#limReason", w).value.trim();
+    if (!reason) { toast("A reason is required to continue past the limit.", true); $("#limReason", w).focus(); return; }
+    store.updateEntry(e.id, { limitOverride: { at: new Date(), reason: reason } });
+    closeModal(w);
+    toast("Continuing past the " + limLabel(lim.hardMin) + " limit.");
+  });
+  $("#limStopNow", w).addEventListener("click", () => {
+    closeModal(w);
+    const now = new Date();
+    const s = toDate(e.start);
+    /* End exactly at the limit moment: now minus however far past it we
+       already are. If the ticket was already over before this entry began,
+       that moment is before its start, and the honest answer is to stop it
+       where it is. */
+    const over = Math.max(0, secs - lim.hardMin * 60);
+    let end = new Date(now.getTime() - over * 1000);
+    if (end <= s) end = now;
+    endEntry(e.id, end);
+    toast("Stopped at the limit. " + fmtDur((end - s) / 1000) + " logged.");
+  });
+}
+
 /* live one-second tick: the timer is computed from the stored start
    timestamp, so it survives a reload and a closed laptop lid. */
 function paintTimer() {
   const running = runningEntries();
   const main = running[0];
-  if (main) $("#runTimer").textContent = fmtClock(entrySeconds(main));
+  const now = new Date();
+  if (main) $("#runTimer").textContent = fmtClock(entrySeconds(main, now));
+  paintRunLimit(main || null, now);
+  checkLimits(now);
   $$("[data-elapsed]").forEach(el => {
     const e = state.entries.find(x => x.id === el.getAttribute("data-elapsed"));
     if (!e || e.end) return;
@@ -2650,7 +2895,7 @@ function openClientModal(client) {
       '<label class="ck"><input type="checkbox" id="cConcurrent"> Can run alongside other jobs <span class="q" title="Lets this client work run while another job is running instead of asking you to switch. For background work like migrations or monitoring.">?</span></label>' +
     "</div>" +
     '<label class="lab">Job types <span class="q" title="Sub-categories of work for this client. Type one and press Enter. Each type carries four markers you can tap.">?</span></label>' +
-    '<div class="hint" style="margin:0 0 8px"><b>billable</b> counts toward billable hours; <b>alongside</b> may run at the same time as another job; <b>travel</b> asks for miles when stopped; <b>limit</b> sets a time limit. ' +
+    '<div class="hint" style="margin:0 0 8px"><b>billable</b> counts toward billable hours; <b>alongside</b> may run at the same time as another job; <b>travel</b> asks for miles when stopped; <b>limit</b> warns and then asks for a reason past a time limit, counted across every entry carrying the same ticket rather than per sitting. ' +
     'Tap a marker to change it: <span class="mk">dashed</span> follows the client setting, <span class="mk on">blue</span> is on, <span class="mk off">red</span> is off.</div>' +
     '<div class="chips" id="cJts"></div>' +
     '<div id="cLimBox"></div>' +
@@ -2695,7 +2940,7 @@ function openClientModal(client) {
       '<em class="' + mkClass(j.billable) + '" data-cyc="billable" title="' + esc(mkTitle("Billable", j.billable)) + '. Tap to cycle.">billable</em>' +
       '<em class="' + mkClass(j.allowConcurrent) + '" data-cyc="allowConcurrent" title="' + esc(mkTitle("Can run alongside another job", j.allowConcurrent)) + '. Tap to cycle.">alongside</em>' +
       '<em class="mk' + (j.travel ? " on" : "") + '" data-travel="1" title="Travel: ' + (j.travel ? "yes" : "no") + '. A travel job type asks for miles when it stops, and its entries feed the Mileage export. Tap to toggle.">travel</em>' +
-      '<em class="mk' + (j.limit ? " on" : "") + '" data-limit="1" title="Time limit' + (j.limit ? ": warn at " + j.limit.warnMin + " min, hard limit " + j.limit.hardMin + " min" : ": none") + '. Stored now, enforced in v0.3. Tap to set.">limit</em>' +
+      '<em class="mk' + (j.limit ? " on" : "") + '" data-limit="1" title="Time limit' + (j.limit ? ": warn at " + j.limit.warnMin + " min, hard limit " + j.limit.hardMin + " min" : ": none") + '. Counted across every entry with the same ticket. Tap to set.">limit</em>' +
       '<span class="x" data-rm="1" title="Removes it from the picker. Old entries keep working because the type is archived, not deleted.">&times;</span></span>').join("") ||
       '<span class="hint">No job types yet. Add one below.</span>';
     paintLimBox();
@@ -2705,14 +2950,22 @@ function openClientModal(client) {
     const j = jts.find(x => x.id === limitOpenId);
     if (!j) { box.innerHTML = ""; return; }
     box.innerHTML = '<div class="limbox"><b style="font-size:13px">Time limit for ' + esc(j.name) + "</b>" +
-      '<div class="hint">Warn at a soft threshold, then require a reason past the hard limit. Counted across every entry with the same ticket. Stored in v0.1, enforced in v0.3.</div>' +
-      '<div class="g2"><div><label class="lab" for="limWarn">Warn at (minutes)</label><input type="number" min="0" class="fld" id="limWarn" value="' + (j.limit ? j.limit.warnMin : "") + '"></div>' +
-      '<div><label class="lab" for="limHard">Hard limit (minutes)</label><input type="number" min="0" class="fld" id="limHard" value="' + (j.limit ? j.limit.hardMin : "") + '"></div></div>' +
+      '<div class="hint">A toast at the warn point, then a modal that wants a reason past the hard limit. ' +
+      '<b>What gets measured depends on the entry:</b> with no ticket number it is that one timer\'s own elapsed time, and with a ticket on it the limit counts everything ever logged against that ticket, on any day, plus the time running now - so a ticket picked up three times still trips at the total rather than three times at nothing. ' +
+      'Clear both boxes to remove the limit.</div>' +
+      '<div class="g2"><div><label class="lab" for="limWarn">Warn at (minutes) <span class="q" title="The nudge. It has to be less than the hard limit, or there is nothing left to warn about.">?</span></label><input type="number" min="1" class="fld" id="limWarn" value="' + (j.limit ? j.limit.warnMin : "") + '"></div>' +
+      '<div><label class="lab" for="limHard">Hard limit (minutes) <span class="q" title="Where the modal appears and a reason is required to keep going.">?</span></label><input type="number" min="1" class="fld" id="limHard" value="' + (j.limit ? j.limit.hardMin : "") + '"></div></div>' +
       '<div class="btnrow"><button class="btn sm" id="limClear">Clear</button><button class="btn sm" id="limClose">Close</button><button class="btn sm acc" id="limSave">Set limit</button></div></div>';
     $("#limSave", w).addEventListener("click", () => {
-      const wv = parseInt($("#limWarn", w).value, 10), hv = parseInt($("#limHard", w).value, 10);
-      if (!isFinite(hv) || hv <= 0) { toast("A hard limit in minutes is required.", true); return; }
-      j.limit = { warnMin: isFinite(wv) && wv > 0 ? wv : Math.max(1, Math.round(hv * 0.875)), hardMin: hv };
+      const wraw = $("#limWarn", w).value.trim(), hraw = $("#limHard", w).value.trim();
+      /* Both boxes empty means "no limit", which is how a limit gets removed
+         without hunting for a Clear button. */
+      if (!wraw && !hraw) { j.limit = null; limitOpenId = null; paintJts(); return; }
+      const wv = parseInt(wraw, 10), hv = parseInt(hraw, 10);
+      if (!isFinite(hv) || hv <= 0) { toast("The hard limit has to be a number of minutes above zero.", true); return; }
+      if (!isFinite(wv) || wv <= 0) { toast("The warn point has to be a number of minutes above zero. Clear both boxes to remove the limit.", true); return; }
+      if (wv >= hv) { toast("Warn at has to be less than the hard limit.", true); return; }
+      j.limit = { warnMin: wv, hardMin: hv };
       limitOpenId = null; paintJts();
     });
     $("#limClear", w).addEventListener("click", () => { j.limit = null; limitOpenId = null; paintJts(); });
@@ -3109,7 +3362,10 @@ function buildExportText() {
       .sort((a, b) => (a.c ? a.c.name : "").localeCompare(b.c ? b.c.name : ""));
     groups.forEach(g => {
       lines.push(g.c ? g.c.name + (g.c.code ? " (" + g.c.code + ")" : "") : "Unknown client");
-      g.rows.forEach(e => lines.push("  " + timeCol(e) + "   " + entryDesc(e, false)));
+      g.rows.forEach(e => {
+        lines.push("  " + timeCol(e) + "   " + entryDesc(e, false));
+        if (e.limitOverride) lines.push("    " + overrideLine(e));
+      });
       lines.push("  " + splitLine("Subtotal", sum(g.rows), billOf(g.rows), nonOf(g.rows), amountOf(g.rows)));
       lines.push("");
     });
@@ -3117,6 +3373,7 @@ function buildExportText() {
     rows.forEach(e => {
       const c = clientById(e.clientId);
       lines.push(timeCol(e) + "   " + (c ? c.name : "Unknown client").padEnd(clientW) + "   " + entryDesc(e, false));
+      if (e.limitOverride) lines.push("    " + overrideLine(e));
     });
     lines.push("");
   }
@@ -3180,7 +3437,10 @@ function buildExportHTML() {
                              (e.billable === false ? ' <span style="color:#777">[non-billable]</span>' : "");
       case "ticket":  return ticketHTML(c, e.ticket);
       case "project": return esc(e.project || "");
-      case "notes":   return esc(e.notes || "");
+      /* the limit override rides in the Notes cell, on its own line, so the
+         table says the same thing the text export does */
+      case "notes":   return esc(e.notes || "") +
+                             (e.limitOverride ? (e.notes ? "<br>" : "") + '<span style="color:#777">' + esc(overrideLine(e)) + "</span>" : "");
       case "amount":  { const a = entryAmount(e); return a == null ? "" : esc(money(a)); }
     }
     return "";

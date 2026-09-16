@@ -177,6 +177,47 @@ client_id, ticket, note, miles, rate, amount` for anything that wants the
 numbers. The Settings mileage rate is a proper money field now, and its
 tooltip says what it actually is: the IRS standard rate, set once a year.
 
+Time limits, which finally do something.
+
+A job type has been able to carry a **warn at** and a **hard limit** since
+v0.1, and until now the numbers just sat there. They are enforced on the same
+one-second tick that draws the timer, which means they are computed from
+timestamps: a limit crossed while the laptop lid was shut shows up the moment
+you open it again, with the real elapsed time and not a guess.
+
+What gets measured is the interesting part. An entry with no ticket number is
+measured against its own elapsed time. An entry **with** a ticket is measured
+against everything ever logged against that ticket, on any day, plus the time
+running right now - so a ticket picked up three afternoons in a row trips at
+two hours in total instead of three times at nothing, which is the case the
+whole feature exists for. The popover where you set the numbers says so, and
+it now refuses a warn point that is not below the hard limit; clearing both
+boxes removes the limit.
+
+While a limited job runs, the line under the timer reads "1h 12m of 2h
+limit", quiet until it matters and then amber, then red. At the warn point a
+toast appears that **stays until you dismiss it** - "Approaching the 2h limit
+for Support Ticket. #5421 has 1h 45m logged." - with **Keep going** and
+**Switch task** on it, and it is not allowed to be pushed off the screen by
+an ordinary "Saved." confirmation. If notifications are switched on in
+Settings and the app is in the background, the same sentence arrives as a
+system notification.
+
+The hard limit is not a toast, because it is a decision. A modal says how
+much is logged against what, asks for a **reason**, and will not take an
+empty one. **Continue** records the reason on the entry and lets the timer
+run; **Stop now** ends the entry at the exact moment the limit was reached,
+so the logged time is the limit and not the limit plus however long the
+dialog sat there. The timer keeps running the whole time the modal is open -
+the clock is computed from timestamps, and stopping it behind your back would
+be worse than running over.
+
+An entry that was carried past its limit keeps an amber **over limit** tag in
+the tables with the reason on hover, gains a line under it in the text export
+("Continued past the 2h limit: waiting on a vendor callback"), and the same
+line in the Notes cell of the email table. The hour past the limit ends up
+with its explanation attached rather than an argument a month later.
+
 ### v0.2.0 - 2026-09-15
 
 Copy for email, and Open in email.
