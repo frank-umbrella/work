@@ -885,7 +885,7 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
       <div class="hint" style="font-size:13.5px">Finished entries can be mirrored into a calendar called <b>Sundial</b> in your own Google account, so the week shows up next to your meetings. Sundial only ever asks for the permission that covers calendars it created itself: it cannot see, read or change any of your other calendars, and it never touches an event it did not write.</div>
       <label class="lab" for="sGcalClient">Google OAuth client ID <span class="q" title="The public identifier for this page in your Google Cloud project. It is not a secret and nothing else is needed here: no key, no password, no server. The README's Google Calendar section says exactly which console screens to visit and what to switch on.">?</span></label>
       <input class="fld gcalid" id="sGcalClient" autocomplete="off" spellcheck="false" placeholder="000000000000-xxxxxxxx.apps.googleusercontent.com">
-      <div class="hint gcalwrap">Google Cloud console, project <b>watchtower-6fbe1</b>: enable the Google Calendar API, then copy the Web application client ID from Credentials and add this site to its authorized JavaScript origins. Full steps are in the README.</div>
+      <div class="hint gcalwrap">Already filled in with the Web application client ID for project <b>watchtower-6fbe1</b>, so there is nothing to set up here: press Connect. A browser client ID is a public identifier, not a secret. Replace it only if this app moves to another Google Cloud project; emptying the box comes back to the built-in one. Full steps are in the README.</div>
       <div id="gcalStatus" class="hint gcalwrap" style="font-size:13.5px;margin-top:10px"></div>
       <label class="ck"><input type="checkbox" id="sGcalAuto"> Mirror entries automatically
         <span class="q" title="On: a finished entry goes to the calendar the moment it stops, and an edit updates the event it already made. Off: nothing new is created, but entries already mirrored are kept in step, so the calendar never shows times you have since corrected.">?</span></label>
@@ -4145,6 +4145,13 @@ async function restoreBackupFile(file) {
    The client ID in Settings is a public identifier, not a secret.
    ============================================================== */
 const GCAL_SCOPE = "https://www.googleapis.com/auth/calendar.app.created";
+/* The Web application OAuth client for this page in the watchtower-6fbe1
+   project. A browser client ID is a public identifier - it is visible to
+   anyone who opens the page, there is no secret beside it, and it only works
+   from the origins listed against it in the console. It ships as the default
+   so no device has to be set up by hand; the Settings field still overrides
+   it, and emptying that field comes back to this one. */
+const GCAL_DEFAULT_CLIENT_ID = "637038228926-ldh8judi0h4q4fkscvgnsnqv84mogfeu.apps.googleusercontent.com";
 const GIS_URL    = "https://accounts.google.com/gsi/client";
 const GCAL_API   = "https://www.googleapis.com/calendar/v3";
 const GCAL_NAME  = "Sundial";
@@ -4186,7 +4193,9 @@ function localZone() {
   try { return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"; } catch (_) { return "UTC"; }
 }
 function gcalCfg() {
-  return Object.assign({ clientId: "", calendarId: "", email: "", auto: true }, state.settings.gcal || {});
+  const g = Object.assign({ clientId: "", calendarId: "", email: "", auto: true }, state.settings.gcal || {});
+  if (!String(g.clientId || "").trim()) g.clientId = GCAL_DEFAULT_CLIENT_ID;
+  return g;
 }
 function saveGcalCfg(patch) {
   const g = Object.assign({}, gcalCfg(), patch);
@@ -5221,13 +5230,16 @@ $("#sJobTypes").addEventListener("click", e => {
 /* ---- Google Calendar panel ---- */
 $("#sGcalClient").addEventListener("change", e => {
   const v = e.target.value.trim();
-  if (v === (gcalCfg().clientId || "")) return;
+  const cur = gcalCfg().clientId || "";
+  /* An empty box means "use the one built in", not "no client ID". */
+  if ((v || GCAL_DEFAULT_CLIENT_ID) === cur) { e.target.value = cur; return; }
   /* A different client ID is a different app as far as Google is concerned,
      so the calendar found under the old one is no longer ours to write to. */
   const wasConnected = gcalConnected();
   saveGcalCfg(wasConnected ? { clientId: v, calendarId: "", email: "" } : { clientId: v });
   paintSettings();
-  toast(v ? (wasConnected ? "Client ID changed. Press Connect again." : "Client ID saved. Press Connect.") : "Client ID cleared.");
+  toast(v ? (wasConnected ? "Client ID changed. Press Connect again." : "Client ID saved. Press Connect.")
+          : "Back to the client ID Sundial ships with.");
 });
 $("#sGcalAuto").addEventListener("change", e => {
   saveGcalCfg({ auto: e.target.checked });

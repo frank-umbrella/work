@@ -160,6 +160,18 @@ Finished entries can be mirrored into a calendar called **Sundial** in the
 Google account you signed in with, so the week shows up next to your meetings.
 It is off until you switch it on, and it is set up entirely in Settings.
 
+**The client ID is already filled in.** Since v0.5.0 Sundial ships with the
+Web application client ID for the `watchtower-6fbe1` project in the box, so a
+new device needs nothing pasted into it: open Settings > Google Calendar and
+press **Connect**. A browser OAuth client ID is a public identifier - it is
+visible to anyone who opens the page, there is no secret beside it, and it only
+works from the origins listed against it in the console - so shipping it is the
+same kind of thing as shipping the Firebase `apiKey` that is already in the
+file. The field stays editable for the day this app moves to another Google
+Cloud project; emptying it comes back to the built-in one. The console steps
+below are the record of how that client was set up, and what to repeat if a new
+one is ever needed.
+
 ### What the owner has to do once, in the Google Cloud console
 
 The Firebase sign-in does not hand back a token the Calendar API will accept,
@@ -318,6 +330,11 @@ that window and the line turns amber and says so - **Outside working hours
 off**, amber if a timer is running on it. It is a statement, not a rule: it has
 no button on it and it cannot stop, delay or flag a thing. Working late is
 allowed; not noticing you are is the part worth fixing.
+
+Google Calendar no longer asks for a client ID: the one for this project is
+built in and filled into the Settings field, so connecting a new device is one
+press of **Connect**. It is a public identifier with no secret attached, the
+box stays editable, and emptying it comes back to the built-in one.
 
 A block of work that starts and stops inside the same minute is an entry like
 any other now. The date and time fields have no seconds box, so re-reading one
