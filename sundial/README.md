@@ -113,6 +113,31 @@ columns. **Template** downloads a workbook with example rows and a "How to fill"
 sheet; **Import** shows a preview of what will be created, what will be updated
 by name, and which rows have problems, and applies nothing until you confirm.
 
+## Breaks
+
+A running entry can be paused. **Pause** opens a gap on the entry
+(`breaks: [{start, end}]`, with `end` null while it is open) and **Resume**
+closes it; stopping while paused closes it at the stop time. The gap is taken
+out of the entry's duration everywhere, because every screen computes a
+duration through one function.
+
+Two things worth knowing about how it looks:
+
+- **The timer stands still while a break is open.** It counts worked time. The
+  amber line under it - "Paused 12m - since 2:40 PM" - is the part that keeps
+  moving.
+- **A calendar block keeps its place on the axis.** It spans start to end,
+  breaks and all, with each break hatched out of it. Shrinking the block would
+  move it off the hours it actually occupied.
+
+The entry form lists the breaks on an entry and can remove one, which puts its
+time back.
+
+**The unpaid break rule** in Settings > Tracking is separate and off by default:
+on a day over H hours, the export deducts N minutes once for that day, prints a
+line saying so, and takes it off billable hours first. Nothing stored changes -
+it is an export-time rule, exactly like rounding.
+
 ## Working hours
 
 **Settings > Working hours** is where you say when you are normally working:
@@ -299,6 +324,48 @@ real Google layer is chosen everywhere else, because the same hostname check
 that gates mock mode gates it.
 
 ## Changelog
+
+### v0.6.0 - 2026-09-16
+
+You can step away from a timer without lying about it.
+
+Until now the only two things a running entry could do were carry on and stop.
+A twenty-minute interruption left you with three bad options: let it run and
+bill time you did not work, stop and start again and end up with two entries
+where there was one job, or fix it up afterwards from memory. There is a
+**Pause** button beside Stop now, and a small pause square on the running row
+in the Today table. Pausing records a gap on the entry itself - a start and an
+end, nothing more - and Resume closes it. Stopping while paused closes the gap
+at the stop time, so a break can never outlive the entry it belongs to.
+
+The gap comes out of the duration **everywhere**, because every screen asks the
+same function how long an entry took: the timer, the Today table, the day list,
+the week grid, the utilization bar, the calendar and every export. While a
+break is open the big timer stands still - it is counting worked time, and no
+work is happening - and an amber line under it says **Paused 12m - since 2:40
+PM**, growing on the same one-second tick. The pill reads **Paused** and its dot
+stops blinking, because a blinking dot on something that is not counting is a
+lie told once a second.
+
+In the Calendar the block stays exactly where it was. A block has to sit on the
+time axis where the work actually happened, so it still spans start to end, and
+each break is **hatched out of it** instead of shrinking it. The block says when;
+its duration says how long. The entry form lists every break with its times and
+an **x** to remove one, which puts that time straight back into the entry - a
+Pause you forgot to Resume is a mistake, not a record.
+
+And the lunch nobody presses Pause for. Settings > Tracking has **Auto-deduct an
+unpaid break of N minutes on days over H hours**, off by default and set to 30
+minutes over 6 hours when you switch it on. Like rounding, it happens on the way
+out and never touches a stored time: the export takes the minutes off once for
+that day, prints **Unpaid break deducted: 30m (Sep 15)** so the person reading it
+can see what happened, and comes off billable hours first, because that is the
+hour somebody would otherwise be charged for. A day's deduction only comes off a
+client's subtotal when every hour on that day belongs to that one client; split a
+day between two clients and there is no honest way to say whose lunch it was, so
+it comes off the total alone and the line says so. Entries with real breaks on
+them print **(breaks 25m)** after their duration, so the hours and the clock
+times in the same row can be reconciled by whoever reads them.
 
 ### v0.5.0 - 2026-09-16
 

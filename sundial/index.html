@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Sundial v0.5.0</title>
-<meta name="version" content="0.5.0" />
+<title>Sundial v0.6.0</title>
+<meta name="version" content="0.6.0" />
 <meta name="robots" content="noindex, nofollow" />
 <meta name="description" content="Internal hours tracker for Umbrella Automation. Restricted to @umbrellaautomation.com accounts." />
 <meta name="theme-color" content="#1e6fd9" />
@@ -188,6 +188,8 @@ textarea.fld{min-height:64px;resize:vertical}
 .minibtn.play{border-color:var(--ok);color:var(--ok)}
 .minibtn.play:hover{background:var(--ok);color:#fff}
 .minibtn.play svg{margin-left:1px}
+.minibtn.pausebtn{border-color:var(--glow);color:var(--glow)}
+.minibtn.pausebtn:hover{background:var(--glow);color:#fff}
 /* Notes: two lines with an ellipsis, click to expand. The wrapper exists so
    that in the stacked layout (where the cell is a flex row) the clamped box
    is not itself a flex item, which would blockify it and defeat the clamp. */
@@ -210,7 +212,9 @@ textarea.fld{min-height:64px;resize:vertical}
    column lines up regardless of how wide the time text is. */
 .mt.fixed td.endc{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .mt.fixed td.endc .endt{min-width:0}
-.mt.fixed td.endc .minibtn{margin-left:auto;flex:0 0 22px}
+.mt.fixed td.endc .endb{margin-left:auto;flex:none}
+.endb{display:inline-flex;align-items:center;gap:4px}
+.endb .minibtn{margin-left:0;flex:0 0 22px}
 .btnrow{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
 .btnrow.end{justify-content:flex-end}
 
@@ -225,6 +229,11 @@ textarea.fld{min-height:64px;resize:vertical}
 .chip .mk.off{border-style:solid;border-color:var(--stop);color:var(--stop);text-decoration:line-through}
 .pill{display:inline-flex;align-items:center;gap:7px;padding:4px 11px;border-radius:999px;background:var(--chip);color:var(--chiptext);font-size:13px;font-weight:600;max-width:100%;flex-wrap:wrap}
 .pill .dot{width:8px;height:8px;border-radius:50%;background:var(--go);flex:none;animation:blink 1.6s infinite}
+/* Paused: the same pill in amber with the dot held still, because a blinking
+   dot on something that is not counting is a lie told once a second. */
+.pill.paused{background:rgba(224,163,0,.14);color:var(--glow)}
+.pill.paused .dot{background:var(--glow);animation:none}
+.tagpaused{display:inline-block;font-size:11px;padding:1px 7px;border-radius:999px;background:rgba(224,163,0,.14);border:1px solid var(--glow);color:var(--glow);white-space:nowrap}
 .tagnb{display:inline-block;font-size:11px;padding:1px 7px;border-radius:999px;background:var(--card2);border:1px solid var(--line);color:var(--muted);margin-left:6px;white-space:nowrap}
 /* A travel job type carries a car beside its name so the entry that will ask
    for miles is obvious before it is stopped, not after. */
@@ -268,10 +277,13 @@ textarea.fld{min-height:64px;resize:vertical}
 .nowhead .timer{order:2;font-size:40px;margin:0}
 .nowhead .since{order:3;margin:0}
 /* the working-hours line gets its own full-width line under the timer row,
-   so it can say where you are in the day without crowding the buttons */
-.nowhead .availline{order:5;flex-basis:100%;margin:0}
-.nowhead .since.meta{order:6;flex-basis:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.nowhead #alsoList{order:7;flex-basis:100%}
+   so it can say where you are in the day without crowding the buttons.
+   The paused line sits above it, in amber, for the same reason: it belongs
+   under the timer, not wedged between the timer and the buttons. */
+.nowhead .pausedline{order:5;flex-basis:100%;margin:0;color:var(--glow);font-weight:600}
+.nowhead .availline{order:6;flex-basis:100%;margin:0}
+.nowhead .since.meta{order:7;flex-basis:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nowhead #alsoList{order:8;flex-basis:100%}
 .nowhead .btnrow{order:4;margin:0 0 0 auto;flex-wrap:nowrap}
 .nowhead .btnrow .btn.big{flex:0 0 auto;font-size:15px;padding:10px 24px}
 .frow{display:grid;grid-template-columns:repeat(var(--n,4),minmax(0,1fr));gap:0 12px}
@@ -427,12 +439,18 @@ textarea.fld{min-height:64px;resize:vertical}
   background-color:var(--card2);opacity:.6;
   background-image:repeating-linear-gradient(135deg,var(--line) 0 1px,transparent 1px 7px)}
 .calblk{position:absolute;border-radius:6px;color:#fff;font-size:11px;line-height:1.25;padding:3px 5px;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.25);cursor:pointer;min-width:0;text-shadow:0 1px 1px rgba(0,0,0,.25);touch-action:none}
-.calblk b{display:block;font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.calblk span.jt{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.calblk b{display:block;font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;position:relative;z-index:2}
+.calblk span.jt{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;position:relative;z-index:2}
 .calblk.run{outline:2px dashed rgba(255,255,255,.75);outline-offset:-3px}
 .calblk.tiny{padding:0}
 .calblk.drag{opacity:.85;z-index:6;box-shadow:var(--shadow)}
-.blkrz{position:absolute;left:0;right:0;bottom:0;height:8px;cursor:ns-resize;touch-action:none}
+/* A break inside an entry. The block keeps the place on the axis that the
+   work actually occupied and the gap is hatched out of it, so a paused hour
+   still reads as that hour while its duration says what was worked in it. */
+.blkgap{position:absolute;left:0;right:0;z-index:1;pointer-events:none;border-radius:2px;
+  background-color:rgba(0,0,0,.22);
+  background-image:repeating-linear-gradient(135deg,rgba(255,255,255,.6) 0 1px,transparent 1px 6px)}
+.blkrz{position:absolute;left:0;right:0;bottom:0;height:8px;cursor:ns-resize;touch-action:none;z-index:3}
 .nowline{position:absolute;left:0;right:0;height:2px;background:var(--stop);z-index:4;pointer-events:none}
 .nowline:before{content:"";position:absolute;left:-4px;top:-4px;width:9px;height:9px;border-radius:50%;background:var(--stop)}
 /* Drag editing is desktop only, so phones lose the resize grip and keep
@@ -622,6 +640,7 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
           <div id="inLeft" hidden>
             <span class="pill" id="runPill"></span>
             <div class="timer" id="runTimer">00:00:00</div>
+            <div class="since pausedline" id="runPaused" hidden></div>
             <div class="since" id="runSince"></div>
             <div class="since availline" id="runAvail" hidden></div>
             <div class="since limline" id="runLimit" hidden></div>
@@ -629,6 +648,7 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
             <div id="alsoList"></div>
             <div class="btnrow">
               <button class="btn" id="runEditBtn" aria-expanded="false" title="Slides open the ticket, project and notes fields for the running entry.">Edit details</button>
+              <button class="btn big" id="pauseBtn" title="Step away without losing the entry. The gap is recorded on it and comes out of the duration everywhere - the tables, the week and every export. Resume closes the gap; stopping while paused closes it at the stop time.">Pause</button>
               <button class="btn big stop" id="punchOutBtn">Stop</button>
               <button class="btn big" id="switchBtn" title="Stop what is running and start a new job, with this client already picked.">Switch client</button>
             </div>
@@ -853,6 +873,12 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
         <div><label class="lab" for="sDefaultView">Default timesheet view <span class="q" title="Which timesheet view a device that has never chosen one opens with. Each device then remembers whichever view you last picked on it, because the phone wants the day list and the desktop wants the week grid.">?</span></label><select class="fld" id="sDefaultView"><option value="day">Day list</option><option value="week">Week grid</option><option value="calendar">Calendar</option></select></div>
         <div><label class="lab">Show amounts <span class="q" title="Off by default. On shows hourly rates on clients and money in exports.">?</span></label><label class="ck"><input type="checkbox" id="sShowAmounts"> Show rates and amounts</label></div>
       </div>
+      <label class="lab">Unpaid break <span class="q" title="A lunch you never pressed Pause for. On a day past the threshold, the export takes the minutes off once for that day and prints a line saying so, so the block you send is honest without you having to remember. Stored time is never changed: like rounding, this happens on the way out.">?</span></label>
+      <label class="ck"><input type="checkbox" id="sAutoBreak"> Auto-deduct an unpaid break on long days</label>
+      <div class="g2">
+        <div><label class="lab" for="sAutoBreakMin">Minutes to deduct <span class="q" title="Taken off once per day, never per entry. It comes off billable time first, because that is the hour somebody would otherwise be charged for.">?</span></label><input class="fld" id="sAutoBreakMin" type="number" min="0" max="240" step="5"></div>
+        <div><label class="lab" for="sAutoBreakOver">On days over (hours) <span class="q" title="Days at or under this are left alone. A four-hour morning has no lunch in it to take out.">?</span></label><input class="fld" id="sAutoBreakOver" type="number" min="0" max="24" step="0.5"></div>
+      </div>
       <label class="lab">Default job types <span class="q" title="The list a brand new client starts with. Changing it never touches clients you already have.">?</span></label>
       <div class="chips" id="sJobTypes"></div>
       <input class="fld" id="sJobTypeAdd" placeholder="Add a job type and press Enter" style="margin-top:8px">
@@ -954,12 +980,12 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
 
 <script type="module">
 /* ==============================================================
-   Sundial v0.5.0 - hours tracker
+   Sundial v0.6.0 - hours tracker
    Single file on purpose: no build step, same as Backup Audits.
    Firestore rules for /sundial_users live in ../watchtower/firestore.rules.
    ============================================================== */
 
-const APP_VERSION    = "0.5.0";
+const APP_VERSION    = "0.6.0";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const OWNER_EMAIL    = "frank@umbrellaautomation.com";
 const SDK            = "https://www.gstatic.com/firebasejs/12.13.0/";
@@ -1085,6 +1111,9 @@ const DEFAULT_SETTINGS = {
   newClientBillable: true, newClientAllowConcurrent: false,
   weeklyCapacityHours: 40, mileageRate: 0.70, defaultView: "day", notify: false,
   availability: defaultAvailability(),
+  /* The unpaid-break rule. Off by default, and applied on the way out only:
+     stored time is never touched by it, exactly like rounding. */
+  autoBreak: { on: false, minutes: 30, overHours: 6 },
   theme: "system", columns: DEFAULT_COLUMNS.slice(), sort: null, colWidths: {},
   /* Google Calendar mirroring. clientId is a public identifier, calendarId
      and email are what Connect found. No token is ever stored here, or
@@ -1326,15 +1355,19 @@ function mockStore() {
       const j = c.jobTypes[jIdx];
       return {
         id: uid(), clientId: c.id, jobTypeId: j.id, project: project || "", ticket: ticket || "", notes: notes || "",
-        billable: j.billable == null ? c.billable : j.billable, miles: null, mileageNote: "", limitOverride: null,
+        billable: j.billable == null ? c.billable : j.billable, miles: null, mileageNote: "", limitOverride: null, breaks: [],
         start: t[0], end: t[1], day: dayKey(t[0]), createdAt: now, updatedAt: now
       };
     };
+    /* a gap inside one entry, so Pause / Resume and everything that takes
+       breaks out of a duration can be seen without recording one first */
+    const brk = (dayOff, h1, m1, h2, m2) => { const t = at(dayOff, h1, m1, h2, m2); return { start: t[0], end: t[1] }; };
     data.entries = [
       ent(c1, 0, 0, 9, 2, 10, 47, "5421", "Printer replacement", "Printer queue stuck on front desk PC; cleared spooler, updated driver."),
       ent(c3, 0, 0, 10, 55, 12, 40, "", "M365 migration", "Moved 6 mailboxes, verified Outlook profiles."),
       ent(c1, 2, 0, 12, 40, 13, 0, "", "", "Updated asset list."),
-      ent(c2, 1, 1, 13, 15, 15, 30, "INC-0042", "Server refresh", "Racked and imaged the replacement host."),
+      Object.assign(ent(c2, 1, 1, 13, 15, 15, 30, "INC-0042", "Server refresh", "Racked and imaged the replacement host."),
+        { breaks: [brk(1, 14, 0, 14, 25)] }),
       ent(c3, 0, 2, 9, 0, 12, 30, "", "M365 migration", "Cutover planning call and DNS prep."),
       /* two travel entries so the Mileage tab has something to show in mock
          mode: one with miles on it and one without, which is the case the
@@ -1427,7 +1460,50 @@ function effConcurrent(client, jt) {
   if (jt && jt.allowConcurrent != null) return !!jt.allowConcurrent;
   return client ? !!client.allowConcurrent : false;
 }
+/* ---- breaks ----
+   A break is a gap inside one entry: {start, end}, with end null for as long
+   as the timer is paused. Everything the app says about how long something
+   took goes through entrySeconds - the timer, every table, the week grid, the
+   utilization bar, every export - so taking the breaks out here takes them
+   out everywhere at once, and nothing has to remember to ask. */
+function entryBreaks(e) {
+  if (!e || !Array.isArray(e.breaks)) return [];
+  return e.breaks.map(b => ({ start: toDate(b && b.start), end: toDate(b && b.end) })).filter(b => !!b.start);
+}
+/* How much of a window [s, en] the breaks in this list cover. Clamped at both
+   ends, so a break that somehow reaches past the entry cannot take out more
+   time than the entry has. */
+function breaksSecondsIn(list, s, en) {
+  if (!s || !en) return 0;
+  let total = 0;
+  (list || []).forEach(b => {
+    if (!b || !b.start) return;
+    const bs = Math.max(b.start.getTime(), s.getTime());
+    const be = Math.min((b.end || en).getTime(), en.getTime());
+    if (be > bs) total += (be - bs) / 1000;
+  });
+  return total;
+}
+function breakSeconds(e, now) {
+  const s = toDate(e && e.start); if (!s) return 0;
+  return breaksSecondsIn(entryBreaks(e), s, toDate(e.end) || (now || new Date()));
+}
+/* The break that has not been closed yet, if there is one. */
+function openBreak(e) {
+  const list = entryBreaks(e);
+  for (let i = list.length - 1; i >= 0; i--) if (!list[i].end) return list[i];
+  return null;
+}
+function isPaused(e) { return !!e && !e.end && !!openBreak(e); }
 function entrySeconds(e, now) {
+  const s = toDate(e.start); if (!s) return 0;
+  const en = toDate(e.end) || (now || new Date());
+  return Math.max(0, (en - s) / 1000 - breakSeconds(e, now));
+}
+/* Wall-clock span, breaks and all: what the entry occupied rather than what
+   was worked in it. The calendar draws blocks with this, because a block has
+   to land on the time axis where it actually happened. */
+function entrySpanSeconds(e, now) {
   const s = toDate(e.start); if (!s) return 0;
   const en = toDate(e.end) || (now || new Date());
   return Math.max(0, (en - s) / 1000);
@@ -1512,8 +1588,16 @@ function paintClock() {
     const bits = [esc(c ? c.name : "Unknown client"),
       esc(jobTypeName(c, main.jobTypeId) || "Job") + (jt && jt.travel ? carIconHTML() : "")];
     if (ticketList(main.ticket).length) bits.push(esc(ticketText(main.ticket)));
-    $("#runPill").innerHTML = '<span class="dot"></span> Running &middot; ' + bits.join(" / ") +
+    const paused = isPaused(main);
+    $("#runPill").className = "pill" + (paused ? " paused" : "");
+    $("#runPill").innerHTML = '<span class="dot"></span> ' + (paused ? "Paused" : "Running") + " &middot; " + bits.join(" / ") +
       (effBillable(c, jt) ? "" : '<span class="tagnb">non-billable</span>');
+    const pb = $("#pauseBtn");
+    pb.textContent = paused ? "Resume" : "Pause";
+    pb.classList.toggle("acc", paused);
+    pb.title = paused
+      ? "Close the break and put this entry back on the clock."
+      : "Step away without losing the entry. The gap is recorded on it and comes out of the duration everywhere - the tables, the week and every export. Stopping while paused closes the gap at the stop time.";
     $("#runSince").textContent = "Since " + fmtTime(toDate(main.start));
     /* one-line summary of what is recorded, so the details can stay folded */
     const meta = [];
@@ -1768,6 +1852,21 @@ function paintAvailLine(now) {
   });
 }
 
+/* The amber line under the timer while a break is open. The tick carries on
+   running, so the number beside "paused" grows even though the timer above it
+   is standing still - which is exactly the thing worth being told. */
+function paintPausedLine(main, now) {
+  const el = $("#runPaused");
+  if (!el) return;
+  const b = main ? openBreak(main) : null;
+  el.hidden = !b;
+  if (!b) return;
+  const secs = Math.max(0, ((now || new Date()) - b.start) / 1000);
+  const txt = "Paused " + fmtSpan(secs) + " - since " + fmtTime(b.start);
+  if (el.textContent !== txt) el.textContent = txt;
+  el.title = "The break started at " + fmtTime(b.start) + " and is coming out of this entry's duration. Resume closes it; stopping closes it at the stop time.";
+}
+
 /* The capacity the utilization bar measures against: the working hours when
    that switch is on, otherwise the fixed field in Tracking. */
 function effectiveCapacitySeconds() {
@@ -1862,12 +1961,29 @@ function entryCellHTML(e, key) {
   const c = clientById(e.clientId);
   switch (key) {
     case "start":  return fmtTime(toDate(e.start));
-    case "end":    return e.end
-                     ? '<span class="endt">' + fmtTime(toDate(e.end)) + '</span><button class="minibtn play" data-resume="' + e.id + '" title="Resume: start this same client, job, tickets, project and notes again from now. Stops anything running unless it is allowed to run alongside." aria-label="Resume this entry">' +
-                       '<svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true"><path d="M2 1 L9 5 L2 9 Z" fill="currentColor"/></svg></button>'
-                     : '<span class="endt"><span class="pill"><span class="dot"></span>running</span></span><button class="minibtn stop" data-out="' + e.id + '" title="Stop this timer now." aria-label="Stop this timer">' +
-                       '<svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true"><rect width="10" height="10" rx="1.5" fill="currentColor"/></svg></button>';
-    case "dur":    return '<span data-elapsed="' + e.id + '">' + fmtDur(entrySeconds(e)) + "</span>";
+    case "end": {
+      if (e.end) return '<span class="endt">' + fmtTime(toDate(e.end)) + '</span><span class="endb">' +
+        '<button class="minibtn play" data-resume="' + e.id + '" title="Resume: start this same client, job, tickets, project and notes again from now. Stops anything running unless it is allowed to run alongside." aria-label="Resume this entry">' +
+        ICONS.play + "</button></span>";
+      const paused = isPaused(e);
+      return '<span class="endt"><span class="pill' + (paused ? " paused" : "") + '"><span class="dot"></span>' +
+        (paused ? "paused" : "running") + "</span></span>" +
+        '<span class="endb">' +
+        (paused
+          ? '<button class="minibtn play" data-unpause="' + e.id + '" title="Close the break and put this entry back on the clock." aria-label="Resume this timer">' + ICONS.play + "</button>"
+          : '<button class="minibtn pausebtn" data-pause="' + e.id + '" title="Pause this timer. The gap is recorded on the entry and comes out of its duration everywhere." aria-label="Pause this timer">' + ICONS.pause + "</button>") +
+        '<button class="minibtn stop" data-out="' + e.id + '" title="Stop this timer now." aria-label="Stop this timer">' + ICONS.square + "</button>" +
+        "</span>";
+    }
+    case "dur": {
+      const br = breakSeconds(e);
+      /* the title, not another chip: the number in the cell is already the
+         worked time, and the break only has to be one hover away */
+      return '<span data-elapsed="' + e.id + '"' +
+        (br >= 60 ? ' title="' + esc(limLabel(br / 60) + " of breaks taken out. The entry ran " +
+          fmtTime(toDate(e.start)) + " - " + (e.end ? fmtTime(toDate(e.end)) : "now") + ".") + '"' : "") +
+        ">" + fmtDur(entrySeconds(e)) + "</span>";
+    }
     case "client": return '<span class="cdot" style="background:' + esc(clientColor(c)) + '"></span>' + esc(c ? c.name : "Unknown client");
     case "job": {
       const jt = jobTypeById(c, e.jobTypeId);
@@ -1890,7 +2006,10 @@ const ICONS = {
   edit: '<svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M11.5 2.5 L13.5 4.5 L6 12 L3 13 L4 10 Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>',
   dup:  '<svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10.5 5.5 V3.5 A1 1 0 0 0 9.5 2.5 H3.5 A1 1 0 0 0 2.5 3.5 V9.5 A1 1 0 0 0 3.5 10.5 H5.5" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>',
   del:  '<svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M3 4.5 H13 M6.5 4.5 V3 H9.5 V4.5 M4.5 4.5 L5.2 13.5 H10.8 L11.5 4.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/></svg>',
-  car:  '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M2.4 10.6 V8.3 L3.9 4.9 A1.1 1.1 0 0 1 4.9 4.3 H11.1 A1.1 1.1 0 0 1 12.1 4.9 L13.6 8.3 V10.6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M2.4 8.4 H13.6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="5" cy="10.7" r="1.2" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="11" cy="10.7" r="1.2" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>'
+  car:  '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M2.4 10.6 V8.3 L3.9 4.9 A1.1 1.1 0 0 1 4.9 4.3 H11.1 A1.1 1.1 0 0 1 12.1 4.9 L13.6 8.3 V10.6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M2.4 8.4 H13.6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="5" cy="10.7" r="1.2" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="11" cy="10.7" r="1.2" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>',
+  play:   '<svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true"><path d="M2 1 L9 5 L2 9 Z" fill="currentColor"/></svg>',
+  pause:  '<svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true"><rect x="1.2" y="1" width="2.6" height="8" rx="0.8" fill="currentColor"/><rect x="6.2" y="1" width="2.6" height="8" rx="0.8" fill="currentColor"/></svg>',
+  square: '<svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true"><rect width="10" height="10" rx="1.5" fill="currentColor"/></svg>'
 };
 /* ---- column widths ----
    The table uses a fixed layout so widths are predictable: every visible
@@ -2206,6 +2325,7 @@ function paintTimer() {
   const main = running[0];
   const now = new Date();
   if (main) $("#runTimer").textContent = fmtClock(entrySeconds(main, now));
+  paintPausedLine(main || null, now);
   paintAvailLine(now);
   paintRunLimit(main || null, now);
   checkLimits(now);
@@ -2219,7 +2339,10 @@ function paintTimer() {
   $$("[data-calrun]").forEach(el => {
     const e = state.entries.find(x => x.id === el.getAttribute("data-calrun"));
     if (!e || e.end) return;
-    el.style.height = Math.max(4, (entrySeconds(e) / 3600) * CAL_HPX).toFixed(1) + "px";
+    /* the block follows the clock, not the worked time: it has to stay where
+       it is on the axis, and the hatched gap inside it is what says a break
+       happened */
+    el.style.height = Math.max(4, (entrySpanSeconds(e) / 3600) * CAL_HPX).toFixed(1) + "px";
   });
   /* the week fills up while a timer runs, so the bars follow it, but only
      once a minute - nothing in them changes faster than that */
@@ -2241,7 +2364,7 @@ function doPunchIn(fields, atStart) {
   const id = store.addEntry({
     clientId: fields.clientId, jobTypeId: fields.jobTypeId,
     project: fields.project || "", ticket: fields.ticket || "", notes: fields.notes || "",
-    billable: effBillable(c, jt), miles: null, mileageNote: "", limitOverride: null,
+    billable: effBillable(c, jt), miles: null, mileageNote: "", limitOverride: null, breaks: [],
     start: start, end: end, day: dayKey(start)
   });
   paintClock();
@@ -2263,12 +2386,44 @@ function isTravelEntry(e) {
   const jt = jobTypeById(c, e.jobTypeId);
   return !!(jt && jt.travel);
 }
+/* Stopping while paused closes the open break at the stop time, so the gap
+   ends where the entry does instead of running on forever. */
+function closedBreaksPatch(e, at) {
+  if (!openBreak(e)) return {};
+  return { breaks: entryBreaks(e).map(b => ({ start: b.start, end: b.end || at })) };
+}
 function endEntry(id, end) {
   const e = state.entries.find(x => x.id === id);
   if (!e || e.end) return null;
-  store.updateEntry(id, { end: end || new Date() });
+  const at = end || new Date();
+  store.updateEntry(id, Object.assign({ end: at }, closedBreaksPatch(e, at)));
   queueMiles(id);
   return e;
+}
+/* ---- Pause and Resume ----
+   Pause opens a break; Resume closes the same one. The timer is never stopped
+   and never rewound: the entry keeps the start it always had, and the gap is
+   recorded beside it, which is what lets a paused hour still read as the hour
+   it occupied while its duration says what was actually worked. */
+function pauseEntry(id) {
+  const e = state.entries.find(x => x.id === id);
+  if (!e || e.end) { toast("That entry is not running.", true); return; }
+  if (openBreak(e)) return;
+  const list = entryBreaks(e).concat([{ start: new Date(), end: null }]);
+  store.updateEntry(id, { breaks: list });
+  paintClock();
+  toast("Paused. The clock stops until you resume.");
+}
+function resumeFromBreak(id) {
+  const e = state.entries.find(x => x.id === id);
+  if (!e) return;
+  const b = openBreak(e);
+  if (!b) return;
+  const at = new Date();
+  const list = entryBreaks(e).map(x => ({ start: x.start, end: x.end || at }));
+  store.updateEntry(id, { breaks: list });
+  paintClock();
+  toast("Back on the clock. " + fmtSpan((at - b.start) / 1000) + " off it.");
 }
 /* Stopping one task because another is starting - a Switch, a Resume, a Start
    from a client card. The new task always keeps the minute it started in. If
@@ -2282,7 +2437,8 @@ function endEntryForNewStart(id, newStart) {
   const s = toDate(e.start);
   if (s && sameMinute(s, newStart)) {
     const ns = new Date(newStart.getTime() - 60000);
-    store.updateEntry(id, { start: ns, end: new Date(newStart.getTime()), day: dayKey(ns) });
+    store.updateEntry(id, Object.assign({ start: ns, end: new Date(newStart.getTime()), day: dayKey(ns) },
+      closedBreaksPatch(e, new Date(newStart.getTime()))));
     queueMiles(id);
     return e;
   }
@@ -2393,7 +2549,7 @@ function resumeEntry(id) {
   const newId = store.addEntry({
     clientId: src.clientId, jobTypeId: src.jobTypeId,
     project: src.project || "", ticket: src.ticket || "", notes: src.notes || "",
-    billable: src.billable != null ? !!src.billable : effBillable(c, jt), miles: null, mileageNote: "", limitOverride: null,
+    billable: src.billable != null ? !!src.billable : effBillable(c, jt), miles: null, mileageNote: "", limitOverride: null, breaks: [],
     start: now, end: null, day: dayKey(now)
   });
   state.mainRunningId = newId;
@@ -2469,6 +2625,7 @@ function openEntryModal(mode, src) {
       '<div><label class="lab" for="eEndD">End date <span class="q" title="Leave the end blank to save this as the running entry.">?</span></label><input type="date" class="fld" id="eEndD"></div>' +
       '<div><label class="lab" for="eEndT">End time</label><input type="time" class="fld" id="eEndT"></div>' +
     "</div>" +
+    '<div id="eBreaks"></div>' +
     '<div class="hint" id="eDur" style="font-size:13.5px;margin-top:8px"></div>' +
     '<div id="eWarn"></div>';
 
@@ -2523,6 +2680,31 @@ function openEntryModal(mode, src) {
      actually typed snaps to :00. When there are no original seconds left to
      keep and the two still land in the same minute, the entry is given length
      by moving its START back a minute, never by refusing the save. */
+  /* ---- breaks on this entry ----
+     A duplicate is a fresh block of work, so it starts with none. Removing
+     one here puts its time straight back into the entry, which is the whole
+     reason the x is there: a Pause you forgot to Resume is a mistake, not a
+     record. */
+  let brks = isDup ? [] : entryBreaks(base);
+  function paintBreaksList() {
+    const box = $("#eBreaks", w);
+    if (!box) return;
+    if (!brks.length) { box.innerHTML = ""; return; }
+    box.innerHTML =
+      '<label class="lab">Breaks <span class="q" title="Gaps recorded with Pause. They are taken out of this entry\'s duration everywhere - the tables, the week grid and every export. Remove one to put its time back.">?</span></label>' +
+      '<div class="chips">' + brks.map((b, i) =>
+        '<span class="chip"><span>' + esc(fmtTime(b.start) + " - " + (b.end ? fmtTime(b.end) : "still paused") +
+          (b.end ? " (" + fmtSpan((b.end - b.start) / 1000) + ")" : "")) + "</span>" +
+        '<span class="x" data-brm="' + i + '" title="Remove this break. Its time goes back into the entry.">&times;</span></span>').join("") +
+      "</div>";
+  }
+  $("#eBreaks", w).addEventListener("click", ev => {
+    const x = ev.target.closest("[data-brm]"); if (!x) return;
+    brks.splice(parseInt(x.getAttribute("data-brm"), 10), 1);
+    paintBreaksList(); refreshDur();
+  });
+  paintBreaksList();
+
   let startTouched = false, endTouched = false;
   function readForm() {
     let s = fromInputs($("#eStartD", w).value, $("#eStartT", w).value);
@@ -2546,8 +2728,10 @@ function openEntryModal(mode, src) {
     const dur = $("#eDur", w), warn = $("#eWarn", w);
     if (!f.start) { dur.textContent = "Set a start date and time."; warn.innerHTML = ""; return; }
     if (f.end && f.end <= f.start) { dur.innerHTML = '<span class="prob">End is before start.</span>'; warn.innerHTML = ""; return; }
-    dur.textContent = f.end ? "Duration " + fmtDur((f.end - f.start) / 1000)
-                            : "Running - this entry will have no end time. " + fmtDur((new Date() - f.start) / 1000) + " so far.";
+    const brSecs = breaksSecondsIn(brks, f.start, f.end || new Date());
+    const less = brSecs >= 60 ? ", less " + limLabel(brSecs / 60) + " of breaks" : "";
+    dur.textContent = f.end ? "Duration " + fmtDur((f.end - f.start) / 1000 - brSecs) + less
+                            : "Running - this entry will have no end time. " + fmtDur((new Date() - f.start) / 1000 - brSecs) + " so far" + less + ".";
     if (f.nudged) dur.innerHTML += ' <span style="color:var(--muted)">Start and end land in the same minute, so the start moves back a minute to give the entry length.</span>';
     if (f.end && f.end > new Date()) {
       dur.innerHTML += ' <span class="prob">That end is ' + esc(fmtDur((f.end - new Date()) / 1000)) + " in the future - it has not happened yet. Saving will ask first.</span>";
@@ -2595,6 +2779,9 @@ function openEntryModal(mode, src) {
       miles: travel ? parseMiles($("#eMiles", w).value) : null,
       mileageNote: travel ? $("#eMileNote", w).value.trim() : "",
       limitOverride: isEdit ? (base.limitOverride || null) : null,
+      /* an entry that is being given an end closes any break that is still
+         open, at that end, so no gap can outlive the entry it belongs to */
+      breaks: brks.map(b => ({ start: b.start, end: b.end || (f.end ? new Date(f.end.getTime()) : null) })),
       start: f.start, end: f.end, day: dayKey(f.start)
     };
   }
@@ -2849,14 +3036,17 @@ function applyCellEdit(input) {
   if (cs.list.length === 1) {
     const e = cs.list[0];
     const start = toDate(e.start);
-    store.updateEntry(e.id, { end: new Date(start.getTime() + secs * 1000) });
+    /* the number typed here is worked time, so any break on the entry is
+       added back on when the end is moved - otherwise a paused entry would
+       come out short of the number that was just typed into it */
+    store.updateEntry(e.id, { end: new Date(start.getTime() + (secs + breakSeconds(e)) * 1000) });
     toast("Set to " + fmtDur(secs) + " on " + fmtDayShort(day) + ".");
   } else {
     const c = clientById(r.clientId), jt = jobTypeById(c, r.jobTypeId);
     const start = dayDate(day); start.setHours(9, 0, 0, 0);
     store.addEntry({
       clientId: r.clientId, jobTypeId: r.jobTypeId, project: "", ticket: r.ticket, notes: "",
-      billable: effBillable(c, jt), miles: null, mileageNote: "", limitOverride: null,
+      billable: effBillable(c, jt), miles: null, mileageNote: "", limitOverride: null, breaks: [],
       start: start, end: new Date(start.getTime() + secs * 1000), day: day
     });
     toast("Logged " + fmtDur(secs) + " on " + fmtDayShort(day) + " from 9:00 AM.");
@@ -2987,14 +3177,25 @@ function calBlockHTML(it, h0, now) {
   const h = Math.max(4, mins / 60 * CAL_HPX);
   const w = 100 / (it.lanes || 1), left = (it.lane || 0) * w;
   const tickets = ticketList(e.ticket).length ? " " + ticketText(e.ticket) : "";
+  const brSecs = breakSeconds(e, now);
   const title = (c ? c.name : "Unknown client") + " / " + (jobTypeName(c, e.jobTypeId) || "Job") + tickets + ", " +
-    fmtTime(s) + " - " + (e.end ? fmtTime(en) : "running") + ", " + fmtDur((en - s) / 1000) +
+    fmtTime(s) + " - " + (e.end ? fmtTime(en) : "running") + ", " + fmtDur(entrySeconds(e, now)) +
+    (brSecs >= 60 ? " (" + limLabel(brSecs / 60) + " of breaks taken out)" : "") +
     (e.notes ? "\n" + e.notes : "");
+  /* Each break drawn where it happened, hatched out of the block. */
+  const gaps = entryBreaks(e).map(b => {
+    const bs = Math.max(b.start.getTime(), s.getTime());
+    const be = Math.min((b.end || en).getTime(), en.getTime());
+    if (be <= bs) return "";
+    return '<div class="blkgap" style="top:' + (((bs - s) / 60000) / 60 * CAL_HPX).toFixed(1) +
+      "px;height:" + Math.max(2, ((be - bs) / 60000) / 60 * CAL_HPX).toFixed(1) + 'px"></div>';
+  }).join("");
   const tiny = mins < 15;
   return '<div class="calblk' + (e.end ? "" : " run") + (tiny ? " tiny" : "") + '" data-calblk="' + e.id + '"' +
     (e.end ? "" : ' data-calrun="' + e.id + '"') +
     ' style="top:' + top.toFixed(1) + "px;height:" + h.toFixed(1) + "px;left:" + left.toFixed(3) + "%;width:" + (w - 1).toFixed(3) + "%;background:" + esc(clientColor(c)) + '"' +
     ' title="' + esc(title) + '" role="button" tabindex="0" aria-label="' + esc(title.replace(/\n/g, ". ")) + '">' +
+    gaps +
     (tiny ? "" : "<b>" + esc(c ? c.name : "Unknown client") + '</b><span class="jt">' + esc((jobTypeName(c, e.jobTypeId) || "Job") + tickets) + "</span>") +
     (e.end ? '<div class="blkrz" title="Drag to change the end time. Snaps to five minutes."></div>' : "") + "</div>";
 }
@@ -3112,7 +3313,11 @@ function calUp(e) {
   } else {
     const mins = calMinsFromPx(parseFloat(d.blk.style.top)) + h0 * 60;
     const ns = dayDate(en.day); ns.setHours(0, mins, 0, 0);
-    store.updateEntry(en.id, { start: ns, end: new Date(ns.getTime() + durMs), day: dayKey(ns) });
+    /* breaks belong to the entry, so moving it moves them by the same amount:
+       leaving them behind would take time out of hours nobody paused in */
+    const shift = ns.getTime() - start.getTime();
+    const moved = entryBreaks(en).map(b => ({ start: new Date(b.start.getTime() + shift), end: b.end ? new Date(b.end.getTime() + shift) : null }));
+    store.updateEntry(en.id, { start: ns, end: new Date(ns.getTime() + durMs), day: dayKey(ns), breaks: moved });
     toast("Moved to " + fmtTime(ns) + ".");
   }
   paintTimesheet();
@@ -3184,7 +3389,10 @@ function paintTimesheet() {
         (e.notes ? '<div class="meta">' + esc(e.notes) + "</div>" : "") + "</div>" +
       '<div class="right"><span class="dur" data-elapsed="' + e.id + '">' + esc(fmtDur(entrySeconds(e))) + "</span>" +
         (e.end ? '<button class="btn sm" data-tsstart="' + e.id + '" title="Starts this same client, job, ticket, project and notes again from now. Stops anything running unless it is allowed to run alongside.">Resume</button>'
-               : '<button class="btn sm stop" data-out="' + e.id + '">Stop</button>') +
+               : (isPaused(e)
+                   ? '<button class="btn sm" data-unpause="' + e.id + '" title="Close the break and put this entry back on the clock.">Resume timer</button>'
+                   : '<button class="btn sm" data-pause="' + e.id + '" title="Pause this timer. The gap is recorded on the entry and comes out of its duration everywhere.">Pause</button>') +
+                 '<button class="btn sm stop" data-out="' + e.id + '">Stop</button>') +
         '<button class="btn sm" data-edit="' + e.id + '">Edit</button></div></div>';
   }).join("") : '<div class="emptyrow">Nothing logged on this day.</div>';
 
@@ -3679,6 +3887,62 @@ function amountOf(list) {
 }
 function money(n) { return "$" + Number(n).toFixed(2); }
 
+/* ---- the unpaid-break rule ----
+   A lunch nobody pressed Pause for. Worked out per day over the rows that are
+   actually in this export, taken off once, and never written to an entry:
+   stored time stays exactly what happened, the same promise rounding makes.
+
+   A day's deduction only comes off a client's subtotal when every hour on
+   that day belongs to that one client. Split a day between two clients and
+   there is no honest way to say whose lunch it was, so it comes off the
+   total alone and says so. */
+function autoBreakCfg() {
+  const a = Object.assign({ on: false, minutes: 30, overHours: 6 }, state.settings.autoBreak || {});
+  const m = Number(a.minutes), h = Number(a.overHours);
+  return {
+    on: !!a.on,
+    minutes: isFinite(m) && m > 0 ? Math.min(600, Math.round(m)) : 0,
+    overHours: isFinite(h) && h >= 0 ? h : 0
+  };
+}
+function autoBreakDeductions(rows) {
+  const cfg = autoBreakCfg();
+  if (!cfg.on || !cfg.minutes) return [];
+  const byDay = new Map();
+  rows.forEach(e => { if (!byDay.has(e.day)) byDay.set(e.day, []); byDay.get(e.day).push(e); });
+  const out = [];
+  Array.from(byDay.keys()).sort().forEach(day => {
+    const list = byDay.get(day);
+    const secs = list.reduce((s, e) => s + exportSeconds(e), 0);
+    if (secs <= cfg.overHours * 3600) return;
+    const ids = Array.from(new Set(list.map(e => e.clientId)));
+    out.push({ day: day, secs: Math.min(cfg.minutes * 60, secs), clientId: ids.length === 1 ? ids[0] : null });
+  });
+  return out;
+}
+function autoBreakLine(d) { return "Unpaid break deducted: " + limLabel(d.secs / 60) + " (" + fmtDayShort(d.day) + ")"; }
+function dedSeconds(list) { return (list || []).reduce((s, d) => s + d.secs, 0); }
+/* Take a deduction off the billable side first: an unpaid lunch comes out of
+   the hours somebody is being charged for, not out of the admin time. */
+function lessSplit(total, bill, non, less) {
+  less = Math.max(0, Math.min(less || 0, total));
+  const b = Math.min(bill, less);
+  return { total: total - less, bill: bill - b, non: Math.max(0, non - (less - b)) };
+}
+/* What a deduction is worth in money, so an amount cannot disagree with the
+   hours printed beside it. Only a deduction that belongs to one client can be
+   priced, because only then is there a rate to price it at. */
+function dedAmount(list) {
+  if (!showAmountsInExport()) return 0;
+  let sum = 0;
+  (list || []).forEach(d => {
+    const c = d.clientId ? clientById(d.clientId) : null;
+    const rate = c && c.rate != null ? Number(c.rate) : null;
+    if (rate != null && isFinite(rate)) sum += (d.secs / 3600) * rate;
+  });
+  return sum;
+}
+
 function overlapSeconds(rows) {
   const iv = rows.map(e => [toDate(e.start).getTime(), (toDate(e.end) || new Date()).getTime()]).sort((a, b) => a[0] - b[0]);
   let unionEnd = null, union = 0, sum = 0;
@@ -3724,13 +3988,16 @@ function buildExportText() {
   const clientW = Math.max.apply(null, rows.map(e => { const c = clientById(e.clientId); return (c ? c.name : "Unknown client").length; }));
 
   function timeCol(e) {
+    const br = breakSeconds(e);
     return (multiDay ? fmtDayShort(e.day).padEnd(dateW) + "  " : "") +
       fmtTime(toDate(e.start)).padStart(startW) + " - " + (e.end ? fmtTime(toDate(e.end)) : "running").padStart(endW) +
-      "   " + fmtDur(exportSeconds(e));
+      "   " + fmtDur(exportSeconds(e)) + (br >= 60 ? " (breaks " + limLabel(br / 60) + ")" : "");
   }
   const sum = list => list.reduce((s, e) => s + exportSeconds(e), 0);
   const billOf = list => sum(list.filter(e => e.billable !== false));
   const nonOf  = list => sum(list.filter(e => e.billable === false));
+  const deds = autoBreakDeductions(rows);
+  const tail = [];     // the lines that belong under the day's totals, before the Total
 
   if (o.group && o.template !== "flat") {
     const byClient = new Map();
@@ -3743,9 +4010,15 @@ function buildExportText() {
         lines.push("  " + timeCol(e) + "   " + entryDesc(e, false));
         if (e.limitOverride) lines.push("    " + overrideLine(e));
       });
-      lines.push("  " + splitLine("Subtotal", sum(g.rows), billOf(g.rows), nonOf(g.rows), amountOf(g.rows)));
+      const mine = deds.filter(d => g.c && d.clientId === g.c.id);
+      mine.forEach(d => lines.push("  " + autoBreakLine(d)));
+      const sp = lessSplit(sum(g.rows), billOf(g.rows), nonOf(g.rows), dedSeconds(mine));
+      const gAmt = amountOf(g.rows);
+      lines.push("  " + splitLine("Subtotal", sp.total, sp.bill, sp.non,
+        gAmt == null ? null : Math.max(0, gAmt - dedAmount(mine))));
       lines.push("");
     });
+    deds.filter(d => !d.clientId).forEach(d => tail.push(autoBreakLine(d) + " - split across clients, so it comes off the total only"));
   } else {
     rows.forEach(e => {
       const c = clientById(e.clientId);
@@ -3753,10 +4026,14 @@ function buildExportText() {
       if (e.limitOverride) lines.push("    " + overrideLine(e));
     });
     lines.push("");
+    deds.forEach(d => tail.push(autoBreakLine(d)));
   }
-  lines.push(splitLine("Total", sum(rows), billOf(rows), nonOf(rows)));
+  tail.forEach(t => lines.push(t));
+  if (tail.length) lines.push("");
+  const sp = lessSplit(sum(rows), billOf(rows), nonOf(rows), dedSeconds(deds));
+  lines.push(splitLine("Total", sp.total, sp.bill, sp.non));
   const amt = amountOf(rows);
-  if (amt != null) lines.push("Total amount " + money(amt));
+  if (amt != null) lines.push("Total amount " + money(Math.max(0, amt - dedAmount(deds))));
   const ov = overlapSeconds(rows);
   if (ov >= 60) lines.push("Includes " + fmtDur(ov) + " of time logged alongside another job");
   return lines.join("\n");
@@ -4829,6 +5106,11 @@ function paintSettings() {
   set("#sMileage", s.mileageRate != null ? Number(s.mileageRate).toFixed(2) : "0.70");
   set("#sDefaultView", s.defaultView || "day");
   chk("#sShowAmounts", s.showAmounts);
+  const ab = autoBreakCfg();
+  chk("#sAutoBreak", ab.on);
+  set("#sAutoBreakMin", String(ab.minutes || 30));
+  set("#sAutoBreakOver", String(ab.overHours));
+  ["#sAutoBreakMin", "#sAutoBreakOver"].forEach(id => { const el = $(id); if (el) el.disabled = !ab.on; });
   chk("#sNewBillable", s.newClientBillable !== false);
   chk("#sNewConcurrent", s.newClientAllowConcurrent);
   chk("#sNotify", s.notify && notifyPermission() === "granted");
@@ -4969,6 +5251,10 @@ $("#switchBtn").addEventListener("click", () => {
   $("#fClient").focus();
 });
 $("#punchOutBtn").addEventListener("click", () => { const r = runningEntries()[0]; if (r) punchOut(r.id); });
+$("#pauseBtn").addEventListener("click", () => {
+  const r = runningEntries()[0]; if (!r) return;
+  if (isPaused(r)) resumeFromBreak(r.id); else pauseEntry(r.id);
+});
 ["rTicket", "rProject", "rNotes"].forEach(id => {
   $("#" + id).addEventListener("blur", () => {
     const r = runningEntries()[0]; if (!r) return;
@@ -5164,6 +5450,28 @@ $("#sMileage").addEventListener("blur", e => {
 });
 $("#sDefaultView").addEventListener("change", e => { saveSetting({ defaultView: e.target.value }); setTsView(e.target.value); });
 $("#sShowAmounts").addEventListener("change", e => saveSetting({ showAmounts: e.target.checked }));
+/* Unpaid break: the two numbers only mean anything while the switch is on, so
+   they are disabled until it is. */
+function saveAutoBreak(patch) {
+  saveSetting({ autoBreak: Object.assign({}, autoBreakCfg(), patch) });
+}
+$("#sAutoBreak").addEventListener("change", e => {
+  saveAutoBreak({ on: e.target.checked });
+  const cfg = autoBreakCfg();
+  toast(e.target.checked
+    ? "Exports will take " + limLabel(cfg.minutes) + " off a day over " + cfg.overHours + "h."
+    : "Unpaid break rule off. Exports show the hours as logged.");
+});
+$("#sAutoBreakMin").addEventListener("change", e => {
+  const v = Math.max(0, Math.min(600, Math.round(parseFloat(e.target.value) || 0)));
+  e.target.value = String(v);
+  saveAutoBreak({ minutes: v });
+});
+$("#sAutoBreakOver").addEventListener("change", e => {
+  const v = Math.max(0, Math.min(24, parseFloat(e.target.value) || 0));
+  e.target.value = String(v);
+  saveAutoBreak({ overHours: v });
+});
 $("#sNewBillable").addEventListener("change", e => saveSetting({ newClientBillable: e.target.checked }));
 $("#sNewConcurrent").addEventListener("change", e => saveSetting({ newClientAllowConcurrent: e.target.checked }));
 /* The only place Sundial ever asks for notification permission, and only on
@@ -5330,6 +5638,8 @@ document.addEventListener("click", e => {
   if ((id = hit("data-dup")))    { const en = state.entries.find(x => x.id === id); if (en) openEntryModal("dup", en); return; }
   if ((id = hit("data-del")))    { deleteEntryModal(id); return; }
   if ((id = hit("data-out")))    { punchOut(id); return; }
+  if ((id = hit("data-pause")))  { pauseEntry(id); return; }
+  if ((id = hit("data-unpause"))){ resumeFromBreak(id); return; }
   if ((id = hit("data-top")))    { state.mainRunningId = id; paintClock(); toast("Brought to the top."); return; }
   if ((id = hit("data-tsstart"))){ resumeEntry(id); return; }
   if ((id = hit("data-resume"))) { resumeEntry(id); return; }
