@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Sundial v0.3.1</title>
-<meta name="version" content="0.3.1" />
+<title>Sundial v0.3.2</title>
+<meta name="version" content="0.3.2" />
 <meta name="robots" content="noindex, nofollow" />
 <meta name="description" content="Internal hours tracker for Umbrella Automation. Restricted to @umbrellaautomation.com accounts." />
 <meta name="theme-color" content="#1e6fd9" />
@@ -853,12 +853,12 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
 
 <script type="module">
 /* ==============================================================
-   Sundial v0.3.1 - hours tracker
+   Sundial v0.3.2 - hours tracker
    Single file on purpose: no build step, same as Backup Audits.
    Firestore rules for /sundial_users live in ../watchtower/firestore.rules.
    ============================================================== */
 
-const APP_VERSION    = "0.3.1";
+const APP_VERSION    = "0.3.2";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const OWNER_EMAIL    = "frank@umbrellaautomation.com";
 const SDK            = "https://www.gstatic.com/firebasejs/12.13.0/";
@@ -2211,7 +2211,9 @@ function openEntryModal(mode, src) {
     : effBillable(c0, jobTypeById(c0, eJob.value));
   $("#eStartD", w).value = localInput(start);
   $("#eStartT", w).value = localTimeInput(start);
-  $("#eEndD", w).value   = end ? localInput(end) : "";
+  /* no end yet (running, duplicate, manual add): the end date starts on the
+     start date so only the time has to be typed */
+  $("#eEndD", w).value   = end ? localInput(end) : (start ? localInput(start) : "");
   $("#eEndT", w).value   = end ? localTimeInput(end) : "";
   /* A duplicate is a fresh drive, so it starts with no miles on it. */
   $("#eMiles", w).value    = !isDup && base.miles != null ? String(base.miles) : "";
@@ -2235,6 +2237,9 @@ function openEntryModal(mode, src) {
     if (f.end && f.end <= f.start) { dur.innerHTML = '<span class="prob">End is before start.</span>'; warn.innerHTML = ""; return; }
     dur.textContent = f.end ? "Duration " + fmtDur((f.end - f.start) / 1000)
                             : "Running - this entry will have no end time. " + fmtDur((new Date() - f.start) / 1000) + " so far.";
+    if (f.end && f.end > new Date()) {
+      dur.innerHTML += ' <span class="prob">That end is ' + esc(fmtDur((f.end - new Date()) / 1000)) + " in the future - it has not happened yet. Saving will ask first.</span>";
+    }
     const conflicts = overlaps(f.start, f.end, isEdit ? base.id : null);
     warn.innerHTML = conflicts.length
       ? '<div class="warn">Overlaps ' + esc(entryLabel(conflicts[0])) + " " +
@@ -2278,25 +2283,40 @@ function openEntryModal(mode, src) {
       start: f.start, end: f.end, day: dayKey(f.start)
     };
   }
+  /* An end in the future has not happened yet. It is allowed (planned time,
+     or a clock that is wrong) but never silently. */
+  function confirmFuture(f, go) {
+    const now = new Date();
+    if (!f.end || f.end <= now) { go(); return; }
+    confirmModal("End time is in the future",
+      "<p>That end is <b>" + esc(fmtTime(f.end)) + (dayKey(f.end) !== dayKey(now) ? " on " + esc(fmtDayLong(dayKey(f.end))) : "") +
+      "</b>, which is " + esc(fmtDur((f.end - now) / 1000)) + " from now. It has not happened yet.</p>" +
+      "<p>Save it anyway, or go back and fix the time.</p>",
+      "Save anyway", go);
+  }
   const saveBtn = $("#eSave", w);
   if (saveBtn) saveBtn.addEventListener("click", () => {
     const f = readForm(); if (!validate(f)) return;
-    const p = payload(f);
-    /* Putting an end on a running travel entry is a Stop like any other, so it
-       gets the Miles sheet too - unless the form already filled the miles in. */
-    const closingTravel = isEdit && !base.end && !!f.end && p.miles == null &&
-      isTravelEntry({ clientId: f.clientId, jobTypeId: f.jobTypeId });
-    if (isEdit) store.updateEntry(base.id, p); else store.addEntry(p);
-    closeModal(w);
-    toast(isEdit ? "Entry updated." : "Entry added.");
-    if (closingTravel) queueMiles(base.id);
+    confirmFuture(f, () => {
+      const p = payload(f);
+      /* Putting an end on a running travel entry is a Stop like any other, so it
+         gets the Miles sheet too - unless the form already filled the miles in. */
+      const closingTravel = isEdit && !base.end && !!f.end && p.miles == null &&
+        isTravelEntry({ clientId: f.clientId, jobTypeId: f.jobTypeId });
+      if (isEdit) store.updateEntry(base.id, p); else store.addEntry(p);
+      closeModal(w);
+      toast(isEdit ? "Entry updated." : "Entry added.");
+      if (closingTravel) queueMiles(base.id);
+    });
   });
   const saveTimes = $("#eSaveTimes", w);
   if (saveTimes) saveTimes.addEventListener("click", () => {
     const f = readForm(); if (!validate(f)) return;
-    store.addEntry(payload(f));
-    closeModal(w);
-    toast("Entry added.");
+    confirmFuture(f, () => {
+      store.addEntry(payload(f));
+      closeModal(w);
+      toast("Entry added.");
+    });
   });
   const punchNow = $("#ePunch", w);
   if (punchNow) punchNow.addEventListener("click", () => {

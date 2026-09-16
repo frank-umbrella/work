@@ -133,6 +133,17 @@ Nothing is persisted in mock mode; a reload starts over.
 
 ## Changelog
 
+### v0.3.2 - 2026-09-16
+
+Editing a running entry: end date pre-filled, future end times ask first.
+
+When an entry has no end yet (it is running, or it is a duplicate or manual
+entry being typed), the End date now starts on the Start date, so only the time
+needs typing. And an end time that is later than right now shows a note under
+the duration ("that end is 2h 10m in the future") and asks before saving, since
+it has not happened yet. Saving is still allowed after the prompt, for planned
+time or a device with the wrong clock.
+
 ### v0.3.1 - 2026-09-16
 
 Clearer names on the copy buttons.

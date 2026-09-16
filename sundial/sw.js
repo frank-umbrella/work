@@ -1,7 +1,7 @@
 /* Sundial service worker.
    The cache name carries the app version, so a release replaces the shell
    cleanly and the page gets told to offer a reload. */
-const APP_VERSION = "0.3.1";
+const APP_VERSION = "0.3.2";
 const SHELL_CACHE = "sundial-shell-v" + APP_VERSION;
 const LIB_CACHE   = "sundial-lib-v" + APP_VERSION;
 
