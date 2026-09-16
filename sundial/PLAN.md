@@ -551,24 +551,45 @@ shaded in the Calendar and marked in the Week grid, optionally driving the
 weekly capacity. Informational only, and deliberately shaped so the team tier's
 Who's Working dashboard (below) can read the same field per person.
 
+### Shipped in v0.6.0 / v0.6.1
+
+**Break policies.** Pause and Resume on a running entry, recording the gap as
+`breaks: [{start, end}]` and taking it out of every duration through the one
+function every screen computes durations with. Plus the optional unpaid-break
+rule, applied at export time only.
+
+**Overtime.** Daily and weekly thresholds, each switchable, flagging a total in
+the Week grid, on the Clock's Today tile and in the text export. No pay math,
+exactly as planned.
+
+**Project budgets.** Hours cap per client or per project label, with optional
+dates, warning once at 80% and once at 100%, shown on the Clock and listed at
+the bottom of the Export preview.
+
+**Location label per entry.** A client carries a list of labels (On-site,
+Remote, and whatever else) and an entry carries the one that was picked. This is
+the part of "location" worth having - see **Not planned** below, which rules out
+everything that would involve actually knowing where somebody is.
+
+**A roadmap page.** `roadmap.html` beside the app, static and noindexed, holding
+these four lists for a human reader. It is linked from the app footer only.
+
 ### Near (single user, after v0.3, in this order)
-1. **Project budgets** - hours cap per client or per project label, with the
-   same warn / hard pattern as ticket limits. Cheap once section 9 exists.
+1. ~~**Project budgets**~~ - shipped in v0.6.1.
 2. **Billing rates per job type** - today rate is per client; on-site vs
    remote often differ. Rate override on the job type, amounts follow.
 3. **Client profitability lite** - billable hours and amount per client per
    month, a table plus the utilization bar per client. Reports tab.
-4. **Break policies** - a Break button that pauses the running entry and
-   records the gap, with an optional "auto-deduct 30 min over 6h" rule per
-   day. Useful for the export honesty line.
-5. **Overtime** - daily and weekly thresholds with a highlight in the Week
-   grid and a line in the export. No pay math, just the flag.
+4. ~~**Break policies**~~ - shipped in v0.6.0.
+5. ~~**Overtime**~~ - shipped in v0.6.1.
 6. **QuickBooks export** - IIF or CSV in the QuickBooks Time import shape,
    from the same rows as the hours CSV. Sync (API) is the team tier.
 7. **Scheduling lite** - planned blocks in the Calendar view (grey outline)
-   that a punch fills in. Answers "what was I supposed to do today".
+   that a timer fills in. Answers "what was I supposed to do today".
 8. **PTO** - a Time off job type under an internal "Umbrella" client, with a
    daily-hours default. Shows in the Week grid and the utilization bar.
+9. **Submit and lock a week** - mark a week done so it stops changing
+   underneath you. Worth having alone; approval is the team-tier version.
 
 ### Later (team tier, needs a manager role and per-user capacity)
 - **Who's Working dashboard** - current client, current task, clock-in time,
@@ -589,7 +610,12 @@ Who's Working dashboard (below) can read the same field per person.
 - **GPS, geofencing, auto clock-in on arrival** - Workyard and Jibble
   territory; a browser PWA cannot track location in the background reliably,
   and it is more than an MSP hours log should know. Mileage by entry covers
-  the expense need without location data.
+  the expense need without location data, and the **location label** shipped in
+  v0.6.1 covers the reporting need: a word you pick, never a place the app
+  looks up.
+- **Overtime pay math** - the overtime flag says a day was long and nothing
+  about what it is worth. Payroll rules belong in a payroll system, and getting
+  them subtly wrong is worse than not having them.
 - **Kiosk mode** - for shared-terminal crews, not remote MSP work.
 - **Native mobile apps** - the PWA covers home-screen install, offline, and
   notifications. Native only if push notifications on iOS turn out to be

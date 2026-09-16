@@ -9,6 +9,7 @@ const LIB_CACHE   = "sundial-lib-v" + APP_VERSION;
 const SHELL = [
   "./",
   "./index.html",
+  "./roadmap.html",
   "./manifest.json",
   "./favicon.svg",
   "./favicon-32.png",

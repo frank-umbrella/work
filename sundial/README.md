@@ -358,6 +358,25 @@ goes back to that one rather than building a second. (Erasing your Sundial data
 does not remove the calendar either; delete it in Google Calendar if you want it
 gone.)
 
+## Roadmap
+
+`roadmap.html` sits beside `index.html` and holds four lists: **Shipped**, one
+line per release; **Next**, the single-user work in the order it is worth doing;
+**Later**, the team tier and the two things it needs first; and **Not planned**,
+each with the reason it was ruled out.
+
+The last list is the point of the page. A roadmap that only ever says yes is a
+wish list, and the questions people actually ask - is it going to track where I
+am, will it invoice - are answered there in one line each.
+
+It is a static page: same design tokens as the app, its own light/dark toggle
+remembered on the device, `noindex, nofollow`, no Firebase and no account. The
+app footer links to it and nothing else does. It is precached by `sw.js`, so it
+opens offline like the rest of the shell.
+
+Its source of truth is section 10 of `PLAN.md` and the changelog below. When a
+release changes either, the page changes in the same commit.
+
 ## Development
 
 Serve the folder over HTTP (a `file://` page cannot register a service worker):
@@ -396,6 +415,23 @@ that gates mock mode gates it.
 ## Changelog
 
 ### v0.6.1 - 2026-09-16
+
+There is a page that says where this is going.
+
+Everything anybody knows about Sundial's direction has been in `PLAN.md`, which
+is a build document: fifteen sections of data model and phases, written to be
+worked from rather than read. `roadmap.html` is the readable version - four
+lists, linked from the app footer and nowhere else. **Shipped** is one line per
+release, newest first. **Next** is the single-user work in the order it is worth
+doing. **Later** is the team tier, with the two things it needs before any of it
+is possible. And **Not planned** is each ruled-out idea with the reason beside
+it, because a roadmap that only ever says yes is a wish list, and the questions
+people actually ask - will it track where I am, will it do invoices, will it
+work out overtime pay - deserve an answer in one line rather than a silence.
+
+It is a static page with the app's own design tokens, its own light and dark
+toggle remembered on the device, and no Firebase or account behind it. The
+service worker precaches it, so it opens with no signal like the rest of the app.
 
 An hour can say where it happened.
 

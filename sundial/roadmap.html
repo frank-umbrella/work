@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Sundial roadmap v0.6.1</title>
+<meta name="version" content="0.6.1" />
+<meta name="robots" content="noindex, nofollow" />
+<meta name="description" content="What Sundial has shipped, what is next, what is later, and what it is deliberately not going to do." />
+<meta name="theme-color" content="#1e6fd9" />
+
+<link rel="icon" type="image/svg+xml" href="favicon.svg" />
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
+<link rel="apple-touch-icon" href="apple-touch-icon.png" />
+<style>
+/* ---------------------------------------------------------------
+   The same Ledger palette as index.html, copied rather than shared:
+   this page has no build step and no script worth loading a
+   stylesheet for. Light is the base set on :root; dark redefines the
+   same tokens under prefers-color-scheme AND [data-theme="dark"],
+   and [data-theme="light"] forces light back on regardless of the OS.
+   --------------------------------------------------------------- */
+:root{
+  --bg:#f4f6f9; --bg2:#e9edf3; --card:#ffffff; --card2:#f1f4f8;
+  --text:#1a2233; --muted:#5b6675; --accent:#1e6fd9; --accent2:#155cb8;
+  --go:#1e6fd9; --stop:#d3403a; --ok:#1c9d63; --line:rgba(26,34,51,.12);
+  --line2:rgba(26,34,51,.22);
+  --chip:#e3ecfa; --chiptext:#1b4f9c; --onaccent:#ffffff;
+  --topbar:#ffffff; --toptext:#1a2233; --topmuted:#5b6675; --glow:#e0a300;
+  --shadow:0 6px 22px rgba(40,55,75,.14);
+  --radius:8px;
+  --mono:Consolas,ui-monospace,SFMono-Regular,Menlo,"Courier New",monospace;
+  --sans:"Segoe UI",system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#11151c; --bg2:#161c25; --card:#1a212b; --card2:#212a36;
+    --text:#e6ebf2; --muted:#94a1b2; --accent:#5aa2f5; --accent2:#7cb8ff;
+    --go:#3f86e0; --stop:#e0655e; --ok:#3ecf8e; --line:rgba(255,255,255,.12);
+    --line2:rgba(255,255,255,.2);
+    --chip:#1b3a5c; --chiptext:#bcd8ff; --onaccent:#0b1420;
+    --topbar:#141a23; --toptext:#e6ebf2; --topmuted:#94a1b2; --glow:#e6b13a;
+    --shadow:0 6px 24px rgba(0,0,0,.5);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#11151c; --bg2:#161c25; --card:#1a212b; --card2:#212a36;
+  --text:#e6ebf2; --muted:#94a1b2; --accent:#5aa2f5; --accent2:#7cb8ff;
+  --go:#3f86e0; --stop:#e0655e; --ok:#3ecf8e; --line:rgba(255,255,255,.12);
+  --line2:rgba(255,255,255,.2);
+  --chip:#1b3a5c; --chiptext:#bcd8ff; --onaccent:#0b1420;
+  --topbar:#141a23; --toptext:#e6ebf2; --topmuted:#94a1b2; --glow:#e6b13a;
+  --shadow:0 6px 24px rgba(0,0,0,.5);
+}
+
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;max-width:100%}
+body{font-family:var(--sans);font-size:15px;line-height:1.55;background:var(--bg);color:var(--text);-webkit-text-size-adjust:100%}
+h1,h2,h3,h4{margin:0}
+a{color:var(--accent)}
+button{font:inherit}
+
+/* ---------- header, the same shape the app uses ---------- */
+.top{display:flex;align-items:center;gap:12px;padding:10px 16px;background:var(--topbar);color:var(--toptext);border-bottom:1px solid var(--line);flex-wrap:wrap;position:sticky;top:0;z-index:20}
+.brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:19px;letter-spacing:.02em;min-width:0}
+.brand svg{width:26px;height:26px;flex:none;color:var(--accent)}
+.brand .v{font:12px var(--mono);color:var(--topmuted);margin-left:2px;font-weight:400}
+.back{margin-left:auto;font-size:13px;color:var(--accent);text-decoration:none;white-space:nowrap}
+.back:hover{text-decoration:underline}
+.themebtn{width:30px;height:30px;padding:0;display:inline-grid;place-items:center;border:1px solid var(--line);border-radius:50%;background:transparent;color:var(--topmuted);cursor:pointer;flex:0 0 auto}
+.themebtn:hover{color:var(--accent);border-color:var(--accent)}
+html[data-eff="dark"] .themebtn .moon{display:none}
+html:not([data-eff="dark"]) .themebtn .sun{display:none}
+
+main{padding:16px;display:grid;gap:16px;max-width:900px;margin:0 auto;width:100%;min-width:0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;min-width:0}
+.card h2{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:600;margin:0 0 4px}
+.card .lede{color:var(--muted);font-size:13.5px;margin:0 0 12px;overflow-wrap:anywhere}
+.intro{font-size:15px;overflow-wrap:anywhere}
+.intro p{margin:0 0 10px}
+.intro p:last-child{margin:0}
+
+/* ---------- an item in a list ----------
+   Two columns on a desktop - a label and the thing itself - and one
+   stacked column on a phone, so nothing has to be squeezed or scrolled
+   sideways. minmax(0,1fr) throughout for the same reason. */
+.items{display:grid;gap:0}
+.item{display:grid;grid-template-columns:minmax(0,1fr);gap:2px 16px;padding:10px 0;border-bottom:1px solid var(--line);min-width:0}
+.item:last-child{border-bottom:0}
+.item .k{font-family:var(--mono);font-size:12.5px;color:var(--muted);white-space:nowrap}
+.item .t{font-weight:600;overflow-wrap:anywhere}
+.item .d{color:var(--muted);font-size:13.5px;overflow-wrap:anywhere;grid-column:1 / -1}
+@media (min-width:720px){
+  .item{grid-template-columns:minmax(0,150px) minmax(0,1fr)}
+  .item .d{grid-column:2}
+}
+.ship .k{color:var(--accent)}
+.tag{display:inline-block;font-size:11px;padding:1px 8px;border-radius:999px;background:var(--card2);border:1px solid var(--line);color:var(--muted);margin-left:6px;white-space:nowrap;vertical-align:1px}
+.tag.now{border-color:var(--accent);color:var(--accent)}
+.tag.no{border-color:var(--stop);color:var(--stop)}
+
+.foot{padding:14px 18px 26px;font-size:12px;color:var(--muted);display:flex;gap:14px;flex-wrap:wrap;max-width:900px;margin:0 auto;width:100%}
+@media (max-width:640px){main{padding:12px}}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="brand">
+    <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <circle cx="32" cy="32" r="24" fill="none" stroke="currentColor" stroke-width="5"/>
+      <g stroke="currentColor" stroke-width="4" stroke-linecap="round">
+        <path d="M32 11 V16"/><path d="M53 32 H48"/><path d="M32 53 V48"/><path d="M11 32 H16"/>
+      </g>
+      <path d="M32 32 L32 18" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
+      <path d="M32 32 L42 38" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
+      <circle cx="32" cy="32" r="3" fill="currentColor"/>
+    </svg>
+    Sundial <span class="v">roadmap</span>
+  </div>
+  <a class="back" href="index.html">Back to Sundial</a>
+  <button class="themebtn" id="themeToggle" type="button" title="Switch this page between light and dark. It is remembered on this device only." aria-label="Toggle light or dark theme">
+    <svg class="sun" viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><circle cx="8" cy="8" r="3.2" fill="none" stroke="currentColor" stroke-width="1.6"/><g stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M8 1.5V3.2"/><path d="M8 12.8V14.5"/><path d="M1.5 8H3.2"/><path d="M12.8 8H14.5"/><path d="M3.4 3.4L4.6 4.6"/><path d="M11.4 11.4L12.6 12.6"/><path d="M3.4 12.6L4.6 11.4"/><path d="M11.4 4.6L12.6 3.4"/></g></svg>
+    <svg class="moon" viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path d="M13.5 10.2A6 6 0 0 1 5.8 2.5a6 6 0 1 0 7.7 7.7z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+  </button>
+</header>
+
+<main>
+  <div class="card intro">
+    <h1 style="font-size:22px;margin:0 0 8px">Where Sundial is going</h1>
+    <p>Four lists: what is already in the app, what is being built next, what waits
+      for a second person to use it, and what is deliberately never going to happen.
+      The last list is the useful one - a roadmap that only ever says yes is a wish,
+      not a plan.</p>
+    <p>This page is written by hand and kept beside the app. It is static: no account,
+      no data, nothing to sign in to.</p>
+  </div>
+
+  <div class="card">
+    <h2>Shipped</h2>
+    <p class="lede">Newest first, one line per release. The full story of each one is in the
+      README changelog, which explains why rather than only what.</p>
+    <div class="items ship">
+      <div class="item"><span class="k">v0.6.1 &middot; Sep 16</span><span class="t">Overtime flags, project budgets, a location label per entry</span>
+        <span class="d">Day and week overtime thresholds; hours budgets per client or project with warnings at 80 and 100 per cent; a per-entry location label with no GPS behind it; default job types that offer to reach the clients you already have; and this page.</span></div>
+      <div class="item"><span class="k">v0.6.0 &middot; Sep 16</span><span class="t">Pause and Resume, and a Google Calendar connect that works</span>
+        <span class="d">Breaks recorded on the entry and taken out of every duration everywhere; an unpaid-break rule applied at export time only; and Connect no longer asks Google for a calendar list, which its scope never permitted.</span></div>
+      <div class="item"><span class="k">v0.5.0 &middot; Sep 16</span><span class="t">Working hours</span>
+        <span class="d">Hours per weekday in Settings, shown on the Clock, shaded in the Calendar and marked in the Week grid, optionally driving the weekly capacity. Entries that start and stop inside one minute are editable at last.</span></div>
+      <div class="item"><span class="k">v0.4.0 &middot; Sep 16</span><span class="t">Google Calendar mirroring</span>
+        <span class="d">A finished entry becomes an event on a calendar this app creates, under a scope that is structurally incapable of reading any other calendar in the account.</span></div>
+      <div class="item"><span class="k">v0.3.2 &middot; Sep 16</span><span class="t">Editing a running entry</span>
+        <span class="d">The end date arrives pre-filled, and an end time in the future asks before it is saved.</span></div>
+      <div class="item"><span class="k">v0.3.1 &middot; Sep 16</span><span class="t">Clearer names on the copy buttons</span></div>
+      <div class="item"><span class="k">v0.3.0 &middot; Sep 15</span><span class="t">Travel, mileage and time limits</span>
+        <span class="d">Travel job types ask for the miles while you still remember them; a job type can carry a warn point and a hard limit counted across every entry on the same ticket; notifications; a dark mode pass.</span></div>
+      <div class="item"><span class="k">v0.2.0 &middot; Sep 15</span><span class="t">Views and sending</span>
+        <span class="d">The Week grid, the Calendar, the utilization bar, Copy for email and Open in email, rounding, and amounts behind a Settings switch.</span></div>
+      <div class="item"><span class="k">v0.1.14 &middot; Sep 15</span><span class="t">Start a timer from the Clients screen</span></div>
+      <div class="item"><span class="k">v0.1.13 &middot; Sep 14</span><span class="t">Copy day on the Timesheet</span></div>
+      <div class="item"><span class="k">v0.1.12 &middot; Sep 14</span><span class="t">Notes as a sub-row under each entry</span></div>
+      <div class="item"><span class="k">v0.1.11 &middot; Sep 14</span><span class="t">The Now card became a stack of short rows</span></div>
+      <div class="item"><span class="k">v0.1.10 &middot; Sep 14</span><span class="t">A shorter Now card while a timer runs</span></div>
+      <div class="item"><span class="k">v0.1.9 &middot; Sep 14</span><span class="t">Week start on any day, a Client ID per client, readable job-type markers</span></div>
+      <div class="item"><span class="k">v0.1.8 &middot; Sep 14</span><span class="t">A light / dark button in the header</span></div>
+      <div class="item"><span class="k">v0.1.7 &middot; Sep 14</span><span class="t">More room for Notes, folded notes, and icon actions</span></div>
+      <div class="item"><span class="k">v0.1.6 &middot; Sep 14</span><span class="t">The End column's buttons line up in one fixed slot</span></div>
+      <div class="item"><span class="k">v0.1.5 &middot; Sep 14</span><span class="t">Several tickets on one entry, and a play button to resume</span></div>
+      <div class="item"><span class="k">v0.1.4 &middot; Sep 14</span><span class="t">The running row's Stop became a square in a round button</span></div>
+      <div class="item"><span class="k">v0.1.3 &middot; Sep 14</span><span class="t">Resume from the table, and a Stop button on the running row</span></div>
+      <div class="item"><span class="k">v0.1.2 &middot; Sep 14</span><span class="t">Start and Stop instead of Punch In and Punch Out</span>
+        <span class="d">The word "punch" is gone from the whole app and is not coming back.</span></div>
+      <div class="item"><span class="k">v0.1.1 &middot; Sep 14</span><span class="t">Start with explicit times, not only "now"</span></div>
+      <div class="item"><span class="k">v0.1.0 &middot; Sep 14</span><span class="t">The first working version</span>
+        <span class="d">Start and stop, clients and job types, copy as text, and offline that actually works.</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Next</h2>
+    <p class="lede">Single-user work, roughly in the order it is worth doing. Everything here
+      fits the app as it stands and needs nothing new underneath it.</p>
+    <div class="items">
+      <div class="item"><span class="k">Rates</span><span class="t">Billing rates per job type <span class="tag now">next</span></span>
+        <span class="d">A rate lives on the client today. On-site and remote work are often priced differently, so the job type needs to be able to override it and the amounts need to follow.</span></div>
+      <div class="item"><span class="k">Reports</span><span class="t">Client profitability, lightly</span>
+        <span class="d">Billable hours and amount per client per month, a table and the utilization bar per client. A Reports tab, not a second app.</span></div>
+      <div class="item"><span class="k">Timesheets</span><span class="t">Submit and lock a week</span>
+        <span class="d">Mark a week as done and stop it changing underneath you. Useful on your own well before there is anybody to approve it; approval is the team version, further down.</span></div>
+      <div class="item"><span class="k">Export</span><span class="t">QuickBooks export</span>
+        <span class="d">IIF or CSV in the QuickBooks Time import shape, out of the same rows the hours CSV already builds. The API sync is a team-tier problem.</span></div>
+      <div class="item"><span class="k">Calendar</span><span class="t">Scheduling, lightly</span>
+        <span class="d">Planned blocks drawn in grey outline in the Calendar view that a real timer fills in. Answers "what was I supposed to be doing today", which is the other half of "what did I do".</span></div>
+      <div class="item"><span class="k">Time off</span><span class="t">PTO</span>
+        <span class="d">A Time off job type under an internal client, with a daily-hours default, showing in the Week grid and the utilization bar so a week with a holiday in it stops looking like a bad week.</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Later</h2>
+    <p class="lede">The team tier. All of it needs two things Sundial does not have: a manager
+      role in the security rules, and a capacity per person. None of it is worth building
+      for one person, and all of it is easy once those two exist.</p>
+    <div class="items">
+      <div class="item"><span class="k">Dashboard</span><span class="t">Who's working</span>
+        <span class="d">Current client, current task, start time, today's total and scheduled end, per person, live. Working hours were built in the shape this will need.</span></div>
+      <div class="item"><span class="k">Limits</span><span class="t">Manager notifications and approvals</span>
+        <span class="d">A time limit that tells somebody other than the person running over it, and an approval instead of a typed reason.</span></div>
+      <div class="item"><span class="k">Capacity</span><span class="t">Team capacity bar</span>
+        <span class="d">The utilization bar per person and in total.</span></div>
+      <div class="item"><span class="k">Timesheets</span><span class="t">Submission and approval</span>
+        <span class="d">Submit a week for approval, with locked weeks once it is approved.</span></div>
+      <div class="item"><span class="k">Notifications</span><span class="t">Beyond limits</span>
+        <span class="d">A timer left running at the end of the day, a week that has not been submitted.</span></div>
+      <div class="item"><span class="k">Chat</span><span class="t">Slack and Teams</span>
+        <span class="d">Post the daily export to a channel, send limit warnings as a DM.</span></div>
+      <div class="item"><span class="k">Integration</span><span class="t">API and webhooks</span>
+        <span class="d">A read-only entries feed for the other Umbrella tools.</span></div>
+      <div class="item"><span class="k">Accounting</span><span class="t">Xero and QuickBooks sync</span>
+        <span class="d">Once invoicing is real somewhere. Exporting into it comes first.</span></div>
+      <div class="item"><span class="k">Forecasting</span><span class="t">Scheduled versus actual over weeks</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Not planned</h2>
+    <p class="lede">Decided against, with the reason. These are not "someday" - they are the
+      shape of the thing, and changing one of them would make it a different product.</p>
+    <div class="items">
+      <div class="item"><span class="k">Location</span><span class="t">GPS, geofencing, auto clock-in on arrival <span class="tag no">no</span></span>
+        <span class="d">A browser cannot track location in the background reliably, and it is more than an hours log should know about a person. The location label per entry covers what anyone actually wanted; mileage per entry covers the expense.</span></div>
+      <div class="item"><span class="k">Kiosk</span><span class="t">A shared-terminal kiosk mode <span class="tag no">no</span></span>
+        <span class="d">For crews clocking in at one screen. This is remote work for an MSP; there is no shared screen.</span></div>
+      <div class="item"><span class="k">Apps</span><span class="t">Native mobile apps <span class="tag no">no</span></span>
+        <span class="d">The PWA already does home-screen install, offline and notifications. Native only if push on iOS turns out to be unreliable in practice.</span></div>
+      <div class="item"><span class="k">Money</span><span class="t">Invoicing, card payments, expenses with receipts <span class="tag no">no</span></span>
+        <span class="d">Invoicing belongs in the accounting system. Sundial exports into it and stops there.</span></div>
+      <div class="item"><span class="k">Accounts</span><span class="t">SSO <span class="tag no">done</span></span>
+        <span class="d">Already covered: Google Workspace sign-in restricted to the domain is the single sign-on.</span></div>
+      <div class="item"><span class="k">Pay</span><span class="t">Overtime pay maths <span class="tag no">no</span></span>
+        <span class="d">Overtime flags a long day and says nothing about what it is worth. Payroll rules are a payroll system's job and getting them subtly wrong is worse than not having them.</span></div>
+    </div>
+  </div>
+</main>
+
+<footer class="foot">
+  <span>Sundial v0.6.1</span>
+  <span><a href="index.html">Back to Sundial</a></span>
+</footer>
+
+<script>
+/* The only script on this page. The app keeps its theme in the account;
+   this page has no account, so it keeps its own on the device and starts
+   from whatever the device prefers. */
+(function () {
+  var KEY = "sundial.roadmapTheme";
+  var root = document.documentElement;
+  function stored() {
+    try { return localStorage.getItem(KEY); } catch (e) { return null; }
+  }
+  function apply(t) {
+    if (t === "light" || t === "dark") root.setAttribute("data-theme", t);
+    else root.removeAttribute("data-theme");
+    var dark = t === "dark" || (t !== "light" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    root.setAttribute("data-eff", dark ? "dark" : "light");
+    var b = document.getElementById("themeToggle");
+    if (b) b.title = (dark ? "Switch to light." : "Switch to dark.") + " Remembered on this device only.";
+  }
+  apply(stored());
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function () {
+    if (!stored()) apply(null);
+  });
+  document.getElementById("themeToggle").addEventListener("click", function () {
+    var next = root.getAttribute("data-eff") === "dark" ? "light" : "dark";
+    try { localStorage.setItem(KEY, next); } catch (e) { /* private window */ }
+    apply(next);
+  });
+})();
+</script>
+</body>
+</html>
