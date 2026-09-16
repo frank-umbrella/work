@@ -126,6 +126,33 @@ Nothing is persisted in mock mode; a reload starts over.
 
 ## Changelog
 
+### v0.3.0 - 2026-09-15
+
+Travel job types ask for the miles while you still remember them.
+
+Drive time has always been recordable - a job type could be flagged **travel**
+since v0.1 - but the miles that go with it were not, and reconstructing a
+month of trips from a calendar at expense-report time is exactly the kind of
+evening this app exists to avoid. Stopping an entry whose job type is flagged
+travel now logs the time immediately and then slides a small **Miles for
+&lt;client&gt;** sheet up: the distance, and an optional note saying where you
+drove ("Office to Acme Dental and back"). Save records both, **Skip** leaves
+them blank. It does not matter which Stop you used - the big button on the
+Now card, the red square in the table, a Switch, a Resume, starting a timer
+from a client card, or putting an end time on the running entry in the entry
+form - they all end up in the same place, so there is no route that quietly
+loses a drive. If two travel timers stop at the same moment the second sheet
+waits for the first rather than stacking dialogs on top of each other.
+
+A travel job type now carries a small car beside its name in the running
+pill and in the tables, so you can see which timer is going to ask for miles
+before you stop it rather than after. A finished travel entry with no miles
+on it gets a quiet **no miles** tag in the same place, because a skipped
+sheet should be a reminder and not a hole. Miles and the mileage note are
+also editable any time from Edit, where the two fields appear only for a
+travel job type and disappear again if you change the entry to something
+else - miles on a phone call would only ever be a mistake.
+
 ### v0.2.0 - 2026-09-15
 
 Copy for email, and Open in email.
