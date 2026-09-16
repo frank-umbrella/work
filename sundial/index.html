@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Sundial v0.1.14</title>
-<meta name="version" content="0.1.14" />
+<title>Sundial v0.2.0</title>
+<meta name="version" content="0.2.0" />
 <meta name="robots" content="noindex, nofollow" />
 <meta name="description" content="Internal hours tracker for Umbrella Automation. Restricted to @umbrellaautomation.com accounts." />
 <meta name="theme-color" content="#1e6fd9" />
@@ -489,7 +489,7 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
     <div class="tiles" id="todayTiles"></div>
 
     <div class="card">
-      <div class="chead"><h4>Today</h4><span class="sp"><button class="btn sm acc" id="copyTodayBtn" title="Copies today's hours, all clients, as the same email-ready text the Export screen produces, using your saved export options. Running entries are included as running.">Copy today</button><button class="btn sm" id="addEntryBtn">+ Manual entry</button><button class="btn sm" id="colsBtn" title="Pick which columns you want. The layout is saved to your account.">Columns</button></span></div>
+      <div class="chead"><h4>Today</h4><span class="sp"><button class="btn sm acc" id="copyTodayBtn" title="Copies today's hours, all clients, as the same email-ready text the Export screen produces, using your saved export options. Running entries are included as running.">Copy today</button><button class="btn sm" id="copyTodayHtmlBtn" title="Copies the same day as a table, so Gmail and Outlook paste rows and columns instead of a block of text. The plain text goes on the clipboard too, for anywhere that cannot take a table.">Copy for email</button><button class="btn sm" id="addEntryBtn">+ Manual entry</button><button class="btn sm" id="colsBtn" title="Pick which columns you want. The layout is saved to your account.">Columns</button></span></div>
       <div class="tablewrap"><table class="mt" id="todayTable"></table></div>
     </div>
   </section>
@@ -505,7 +505,7 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
       <div class="daystrip" id="tsStrip"></div>
     </div>
     <div class="card">
-      <div class="chead"><h4 id="tsTitle">Day</h4><span class="sp"><button class="btn sm acc" id="copyDayBtn" title="Copies this day's hours as the same email-ready text the Export screen produces. Follows the client filter above and your saved export options.">Copy day</button><button class="btn sm" id="tsAdd">+ Manual entry</button></span></div>
+      <div class="chead"><h4 id="tsTitle">Day</h4><span class="sp"><button class="btn sm acc" id="copyDayBtn" title="Copies this day's hours as the same email-ready text the Export screen produces. Follows the client filter above and your saved export options.">Copy day</button><button class="btn sm" id="copyDayHtmlBtn" title="Copies the same day as a table, so Gmail and Outlook paste rows and columns instead of a block of text. The plain text goes on the clipboard too, for anywhere that cannot take a table.">Copy for email</button><button class="btn sm" id="tsAdd">+ Manual entry</button></span></div>
       <div id="tsRows"></div>
       <div class="daytotal" id="tsTotal"></div>
     </div>
@@ -572,6 +572,8 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
       <div class="card">
         <div class="chead"><h4>Preview</h4><span class="sp">
           <button class="btn sm acc" id="xCopy">Copy as text</button>
+          <button class="btn sm acc" id="xCopyHtml" title="Copies the same hours as a table. Gmail and Outlook paste it as rows and columns, with ticket numbers as links where the client has a ticket URL pattern. The plain text goes on the clipboard at the same time, so anywhere that cannot take a table still gets the block.">Copy for email</button>
+          <button class="btn sm" id="xMail" title="Opens your device's mail app with the subject and the plain text already filled in, addressed to the client when you have picked one and they have an email. A mailto link cannot carry the table: for the rich version use Copy for email and paste.">Open in email</button>
           <button class="btn sm" id="xCsv" title="One row per entry, UTF-8 with a byte-order mark so Excel opens it correctly.">Download CSV</button>
           <button class="btn sm" id="xJson" title="Everything in your account as one file: settings, clients and entries. Keep it somewhere safe.">Download JSON backup</button>
           <button class="btn sm" id="xRestore" title="Merges a backup file back in by id. Nothing is deleted; matching records are overwritten.">Restore from JSON</button>
@@ -664,15 +666,18 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
 
 <div id="modalRoot"></div>
 <div class="toast" id="toast"></div>
+<!-- Open in email sets this link's href and clicks it, so the mail app opens
+     without the page navigating anywhere. -->
+<a id="mailtoLink" href="mailto:" hidden aria-hidden="true" tabindex="-1"></a>
 
 <script type="module">
 /* ==============================================================
-   Sundial v0.1.14 - hours tracker
+   Sundial v0.2.0 - hours tracker
    Single file on purpose: no build step, same as Backup Audits.
    Firestore rules for /sundial_users live in ../watchtower/firestore.rules.
    ============================================================== */
 
-const APP_VERSION    = "0.1.14";
+const APP_VERSION    = "0.2.0";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const OWNER_EMAIL    = "frank@umbrellaautomation.com";
 const SDK            = "https://www.gstatic.com/firebasejs/12.13.0/";
@@ -2288,6 +2293,144 @@ function buildExportText() {
   if (ov >= 60) lines.push("Includes " + fmtDur(ov) + " of time logged alongside another job");
   return lines.join("\n");
 }
+/* ---- Copy for email ----
+   The same content as buildExportText as an HTML table. Email clients throw
+   stylesheets away, so every rule is an inline style attribute: thin grey
+   borders, a 13px system stack, and one light grey header row. Nothing else
+   is colored, because a table that inherits the reader's own colors survives
+   dark mode in Outlook and Gmail. */
+/* single quotes around the family on purpose: this string lands inside a
+   double-quoted style attribute, and a double quote there ends it early */
+const XH_FONT  = "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:13px";
+const XH_CELL  = 'padding:5px 9px;border:1px solid #d9d9d9;vertical-align:top';
+const XH_HEAD  = XH_CELL + ';background:#f1f1f1;text-align:left;font-weight:600;white-space:nowrap';
+const XH_NUM   = XH_CELL + ';white-space:nowrap';
+function exportColumns(multiDay) {
+  const o = state.xOpts;
+  const cols = [];
+  if (multiDay) cols.push("date");
+  cols.push("client", "time", "dur", "job");
+  if (o.ticket)  cols.push("ticket");
+  if (o.project) cols.push("project");
+  if (o.notes)   cols.push("notes");
+  return cols;
+}
+const XH_LABEL = { date: "Date", client: "Client", time: "Time", dur: "Duration", job: "Job type", ticket: "Ticket", project: "Project", notes: "Notes" };
+function exportClientName(c) {
+  if (!c) return "Unknown client";
+  return c.name + (c.code ? " (" + c.code + ")" : "");
+}
+function buildExportHTML() {
+  const r = exportRangeKeys(), rows = exportRows(), o = state.xOpts;
+  const multiDay = r[0] !== r[1];
+  const head = multiDay
+    ? "Hours for " + dayDate(r[0]).toLocaleDateString(undefined, { month: "long", day: "numeric" }) + " - " + fmtDayLong(r[1]).replace(/^[^,]+,\s*/, "")
+    : "Hours for " + fmtDayLong(r[0]);
+  const out = ['<div style="' + XH_FONT + '">'];
+  out.push('<p style="margin:0 0 2px;font-size:15px;font-weight:600">' + esc(head) + "</p>");
+  if (state.settings.yourName) out.push('<p style="margin:0 0 10px;color:#555">' + esc(state.settings.yourName) + "</p>");
+  else out.push('<p style="margin:0 0 10px"></p>');
+  if (!rows.length) { out.push("<p>No hours in this range.</p></div>"); return out.join(""); }
+
+  const cols = exportColumns(multiDay);
+  const span = cols.length;
+  const cell = (e, k) => {
+    const c = clientById(e.clientId);
+    switch (k) {
+      case "date":    return esc(fmtDayShort(e.day));
+      case "client":  return esc(exportClientName(c));
+      case "time":    return esc(fmtTime(toDate(e.start)) + " - " + (e.end ? fmtTime(toDate(e.end)) : "running"));
+      case "dur":     return esc(fmtDur(entrySeconds(e)));
+      case "job":     return esc(jobTypeName(c, e.jobTypeId) || "Job") +
+                             (e.billable === false ? ' <span style="color:#777">[non-billable]</span>' : "");
+      case "ticket":  return ticketHTML(c, e.ticket);
+      case "project": return esc(e.project || "");
+      case "notes":   return esc(e.notes || "");
+    }
+    return "";
+  };
+  const tr = e => "<tr>" + cols.map(k =>
+    '<td style="' + (k === "time" || k === "dur" || k === "date" ? XH_NUM : XH_CELL) + '">' + cell(e, k) + "</td>").join("") + "</tr>";
+  const sum   = list => list.reduce((s, e) => s + entrySeconds(e), 0);
+  const billOf = list => sum(list.filter(e => e.billable !== false));
+  const nonOf  = list => sum(list.filter(e => e.billable === false));
+  const totalRow = (label, list, bold) => {
+    const t = sum(list), b = billOf(list), n = nonOf(list);
+    const txt = label + " " + fmtDur(t) + (b && n ? " (billable " + fmtDur(b) + ", non-billable " + fmtDur(n) + ")" : "");
+    return '<tr><td colspan="' + span + '" style="' + XH_CELL + (bold ? ";background:#f7f7f7" : "") + ';font-weight:700">' + esc(txt) + "</td></tr>";
+  };
+
+  out.push('<table cellspacing="0" cellpadding="0" style="' + XH_FONT + ';border-collapse:collapse;max-width:100%">');
+  out.push("<thead><tr>" + cols.map(k => '<th style="' + XH_HEAD + '">' + esc(XH_LABEL[k]) + "</th>").join("") + "</tr></thead><tbody>");
+  if (o.group && o.template !== "flat") {
+    const byClient = new Map();
+    rows.forEach(e => { if (!byClient.has(e.clientId)) byClient.set(e.clientId, []); byClient.get(e.clientId).push(e); });
+    Array.from(byClient.entries()).map(g => ({ c: clientById(g[0]), rows: g[1] }))
+      .sort((a, b) => (a.c ? a.c.name : "").localeCompare(b.c ? b.c.name : ""))
+      .forEach(g => { g.rows.forEach(e => out.push(tr(e))); out.push(totalRow("Subtotal", g.rows, false)); });
+  } else {
+    rows.forEach(e => out.push(tr(e)));
+  }
+  out.push(totalRow("Total", rows, true));
+  const ov = overlapSeconds(rows);
+  if (ov >= 60) out.push('<tr><td colspan="' + span + '" style="' + XH_CELL + ';color:#666">' +
+    esc("Includes " + fmtDur(ov) + " of time logged alongside another job") + "</td></tr>");
+  out.push("</tbody></table></div>");
+  return out.join("");
+}
+/* The label the toast and the mailto subject use: "Mon, Sep 14, 2026" for a
+   single day, "Sep 14 - Sep 20, 2026" for a range. */
+function exportRangeLabel() {
+  const r = exportRangeKeys();
+  if (r[0] === r[1]) return dayDate(r[0]).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+  return fmtDayShort(r[0]) + " - " + fmtDayShort(r[1]) + ", " + dayDate(r[1]).getFullYear();
+}
+function exportRangeShort() {
+  const r = exportRangeKeys();
+  return r[0] === r[1] ? fmtDayShort(r[0]) : fmtDayShort(r[0]) + " - " + fmtDayShort(r[1]);
+}
+/* Writes both flavors at once: text/html so Gmail and Outlook paste the
+   table, text/plain (exactly buildExportText) so anything else gets the
+   block that has always been there. */
+async function copyExportRich() {
+  const text = buildExportText();
+  const total = exportRows().reduce((s, e) => s + entrySeconds(e), 0);
+  try {
+    if (window.ClipboardItem && navigator.clipboard && navigator.clipboard.write) {
+      await navigator.clipboard.write([new ClipboardItem({
+        "text/html":  new Blob([buildExportHTML()], { type: "text/html" }),
+        "text/plain": new Blob([text], { type: "text/plain" })
+      })]);
+    } else {
+      await navigator.clipboard.writeText(text);
+    }
+    toast("Copied " + fmtDur(total) + " for " + exportRangeShort() + " (table)");
+    return true;
+  } catch (e) {
+    toast("Could not reach the clipboard. Open Export, select the preview and copy it by hand.", true);
+    return false;
+  }
+}
+/* mailto: hands the plain text to whatever mail app the device has. The
+   rich table cannot travel through a mailto link, which is what the tooltip
+   on the button says. */
+function buildMailto() {
+  const o = state.xOpts;
+  const c = o.client ? clientById(o.client) : null;
+  const to = c && c.email ? c.email : "";
+  const subject = "Hours for " + exportRangeLabel();
+  const body = buildExportText().replace(/\r?\n/g, "\r\n");
+  return "mailto:" + encodeURIComponent(to) +
+    "?subject=" + encodeURIComponent(subject) +
+    "&body=" + encodeURIComponent(body);
+}
+function openInEmail() {
+  const a = $("#mailtoLink");
+  a.href = buildMailto();
+  a.click();
+  toast("Opening your mail app.");
+}
+
 function paintExport() {
   const o = state.xOpts;
   fillSelect($("#xClient"), activeClients().map(c => ({ v: c.id, t: c.name })), "All clients", o.client);
@@ -2568,23 +2711,25 @@ async function copyExportText() {
   } catch (e) { toast("Could not reach the clipboard. Open Export, select the preview and copy it by hand.", true); return false; }
 }
 $("#xCopy").addEventListener("click", copyExportText);
+$("#xCopyHtml").addEventListener("click", copyExportRich);
+$("#xMail").addEventListener("click", openInEmail);
 /* Copy today from the Clock screen: same text as Export with range Today,
    all clients, all billable states; the other export options (notes,
    project, ticket, grouping, template) are whatever you last chose. */
-$("#copyTodayBtn").addEventListener("click", async () => {
+async function withOpts(patch, fn) {
   const saved = Object.assign({}, state.xOpts);
-  Object.assign(state.xOpts, { range: "today", client: "", billable: "all" });
-  try { await copyExportText(); }
+  Object.assign(state.xOpts, patch);
+  try { return await fn(); }
   finally { Object.assign(state.xOpts, saved); }
-});
+}
+const TODAY_OPTS = () => ({ range: "today", client: "", billable: "all" });
+const TS_DAY_OPTS = () => ({ range: "custom", from: state.tsDay, to: state.tsDay, client: state.tsClient || "", billable: "all" });
+$("#copyTodayBtn").addEventListener("click", () => withOpts(TODAY_OPTS(), copyExportText));
+$("#copyTodayHtmlBtn").addEventListener("click", () => withOpts(TODAY_OPTS(), copyExportRich));
 /* Copy day from the Timesheet: the selected day, honoring the day view's
    client filter, all billable states, same text as Export. */
-$("#copyDayBtn").addEventListener("click", async () => {
-  const saved = Object.assign({}, state.xOpts);
-  Object.assign(state.xOpts, { range: "custom", from: state.tsDay, to: state.tsDay, client: state.tsClient || "", billable: "all" });
-  try { await copyExportText(); }
-  finally { Object.assign(state.xOpts, saved); }
-});
+$("#copyDayBtn").addEventListener("click", () => withOpts(TS_DAY_OPTS(), copyExportText));
+$("#copyDayHtmlBtn").addEventListener("click", () => withOpts(TS_DAY_OPTS(), copyExportRich));
 $("#xCsv").addEventListener("click", () => {
   const r = exportRangeKeys();
   download("sundial-hours-" + r[0] + (r[0] === r[1] ? "" : "_to_" + r[1]) + ".csv", "﻿" + buildCSV(exportCSVRows()), "text/csv;charset=utf-8");

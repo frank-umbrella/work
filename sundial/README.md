@@ -100,6 +100,30 @@ Nothing is persisted in mock mode; a reload starts over.
 
 ## Changelog
 
+### v0.2.0 - 2026-09-15
+
+Copy for email, and Open in email.
+
+Pasting the text export into Gmail gave a wall of monospaced lines that lost
+its alignment the moment the recipient's font was not fixed-width. **Copy for
+email** now puts a real table on the clipboard as well: Client (with the Client
+ID in brackets when you use one), Time, Duration, Job type, Ticket, Project and
+Notes, with a bold subtotal row per client and a bold total, and a Date column
+in front when the range covers more than one day. Ticket numbers are links
+wherever the client has a ticket URL pattern. The whole thing is styled inline,
+because email clients throw stylesheets away, and it is deliberately plain -
+thin grey borders and one light grey header row - so it still reads correctly
+in someone else's dark mode. The plain text goes on the clipboard at the same
+moment, so anything that cannot take a table gets exactly the block it always
+got. The button sits next to Copy as text on Export, next to Copy today on the
+Clock, and next to Copy day on the Timesheet.
+
+**Open in email** hands the same plain text to whatever mail app the device
+has: subject "Hours for Mon, Sep 14, 2026", the export as the body, and the
+client's email already in the To line when the Client filter is set to one
+client that has one. A mailto link cannot carry a table, which is what the
+button's tooltip says, so the rich version stays a copy and a paste.
+
 ### v0.1.14 - 2026-09-15
 
 Start a timer from the Clients screen.
