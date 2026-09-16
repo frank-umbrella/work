@@ -133,6 +133,18 @@ Nothing is persisted in mock mode; a reload starts over.
 
 ## Changelog
 
+### v0.3.1 - 2026-09-16
+
+Clearer names on the copy buttons.
+
+"Copy day" and "Copy for email" sat side by side on the Timesheet (and "Copy
+today" and "Copy for email" on the Clock), and the first of each pair did not
+say what it produced, so one day got pasted as a block of text and the next as
+a table depending on which was pressed. They now read "Copy day as text" /
+"Copy day for email" and "Copy today as text" / "Copy today for email". Nothing
+else changed: the text one is the plain block, the email one is the table with
+the same text underneath for anything that cannot take a table.
+
 ### v0.3.0 - 2026-09-15
 
 Travel job types ask for the miles while you still remember them.

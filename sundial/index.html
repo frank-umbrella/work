@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Sundial v0.3.0</title>
-<meta name="version" content="0.3.0" />
+<title>Sundial v0.3.1</title>
+<meta name="version" content="0.3.1" />
 <meta name="robots" content="noindex, nofollow" />
 <meta name="description" content="Internal hours tracker for Umbrella Automation. Restricted to @umbrellaautomation.com accounts." />
 <meta name="theme-color" content="#1e6fd9" />
@@ -619,7 +619,7 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
     <div class="card"><div class="util" id="clockUtil"></div></div>
 
     <div class="card">
-      <div class="chead"><h4>Today</h4><span class="sp"><button class="btn sm acc" id="copyTodayBtn" title="Copies today's hours, all clients, as the same email-ready text the Export screen produces, using your saved export options. Running entries are included as running.">Copy today</button><button class="btn sm" id="copyTodayHtmlBtn" title="Copies the same day as a table, so Gmail and Outlook paste rows and columns instead of a block of text. The plain text goes on the clipboard too, for anywhere that cannot take a table.">Copy for email</button><button class="btn sm" id="addEntryBtn">+ Manual entry</button><button class="btn sm" id="colsBtn" title="Pick which columns you want. The layout is saved to your account.">Columns</button></span></div>
+      <div class="chead"><h4>Today</h4><span class="sp"><button class="btn sm acc" id="copyTodayBtn" title="Copies today's hours, all clients, as the same email-ready text the Export screen produces, using your saved export options. Running entries are included as running.">Copy today as text</button><button class="btn sm" id="copyTodayHtmlBtn" title="Copies the same day as a table, so Gmail and Outlook paste rows and columns instead of a block of text. The plain text goes on the clipboard too, for anywhere that cannot take a table.">Copy today for email</button><button class="btn sm" id="addEntryBtn">+ Manual entry</button><button class="btn sm" id="colsBtn" title="Pick which columns you want. The layout is saved to your account.">Columns</button></span></div>
       <div class="tablewrap"><table class="mt" id="todayTable"></table></div>
     </div>
   </section>
@@ -640,7 +640,7 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
     </div>
     <div class="card"><div class="util" id="tsUtil"></div></div>
     <div class="card" id="tsDayCard">
-      <div class="chead"><h4 id="tsTitle">Day</h4><span class="sp"><button class="btn sm acc" id="copyDayBtn" title="Copies this day's hours as the same email-ready text the Export screen produces. Follows the client filter above and your saved export options.">Copy day</button><button class="btn sm" id="copyDayHtmlBtn" title="Copies the same day as a table, so Gmail and Outlook paste rows and columns instead of a block of text. The plain text goes on the clipboard too, for anywhere that cannot take a table.">Copy for email</button><button class="btn sm" id="tsAdd">+ Manual entry</button></span></div>
+      <div class="chead"><h4 id="tsTitle">Day</h4><span class="sp"><button class="btn sm acc" id="copyDayBtn" title="Copies this day's hours as the same email-ready text the Export screen produces. Follows the client filter above and your saved export options.">Copy day as text</button><button class="btn sm" id="copyDayHtmlBtn" title="Copies the same day as a table, so Gmail and Outlook paste rows and columns instead of a block of text. The plain text goes on the clipboard too, for anywhere that cannot take a table.">Copy day for email</button><button class="btn sm" id="tsAdd">+ Manual entry</button></span></div>
       <div id="tsRows"></div>
       <div class="daytotal" id="tsTotal"></div>
     </div>
@@ -853,12 +853,12 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
 
 <script type="module">
 /* ==============================================================
-   Sundial v0.3.0 - hours tracker
+   Sundial v0.3.1 - hours tracker
    Single file on purpose: no build step, same as Backup Audits.
    Firestore rules for /sundial_users live in ../watchtower/firestore.rules.
    ============================================================== */
 
-const APP_VERSION    = "0.3.0";
+const APP_VERSION    = "0.3.1";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const OWNER_EMAIL    = "frank@umbrellaautomation.com";
 const SDK            = "https://www.gstatic.com/firebasejs/12.13.0/";
