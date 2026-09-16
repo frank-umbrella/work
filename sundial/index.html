@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Sundial v0.6.1</title>
-<meta name="version" content="0.6.1" />
+<title>Sundial v0.6.2</title>
+<meta name="version" content="0.6.2" />
 <meta name="robots" content="noindex, nofollow" />
 <meta name="description" content="Internal hours tracker for Umbrella Automation. Restricted to @umbrellaautomation.com accounts." />
 <meta name="theme-color" content="#1e6fd9" />
@@ -1035,12 +1035,12 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
 
 <script type="module">
 /* ==============================================================
-   Sundial v0.6.1 - hours tracker
+   Sundial v0.6.2 - hours tracker
    Single file on purpose: no build step, same as Backup Audits.
    Firestore rules for /sundial_users live in ../watchtower/firestore.rules.
    ============================================================== */
 
-const APP_VERSION    = "0.6.1";
+const APP_VERSION    = "0.6.2";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const OWNER_EMAIL    = "frank@umbrellaautomation.com";
 const SDK            = "https://www.gstatic.com/firebasejs/12.13.0/";
@@ -6245,6 +6245,23 @@ function addJobTypesToClients(names, list) {
   });
   return { added: added, touched: touched };
 }
+/* Defaults are meant to be usable, so every active client gets any default it
+   is missing as soon as settings and clients are both in. A client that has a
+   type of that name - even archived - is left alone, so a deliberate removal
+   sticks. Runs on each snapshot and does nothing once everyone has them. */
+function reconcileDefaultJobTypes() {
+  /* the client writes below fire a clients snapshot, which calls back in
+     here: run once per load, and never re-enter while a pass is writing */
+  if (!state.settingsLoaded || !store || !state.clients.length) return;
+  if (reconcileDefaultJobTypes._done || reconcileDefaultJobTypes._busy) return;
+  const names = (state.settings.defaultJobTypes || []).map(n => String(n || "").trim()).filter(Boolean);
+  if (!names.length || !activeClients().length) return;
+  reconcileDefaultJobTypes._busy = true;
+  let r;
+  try { r = addJobTypesToClients(names); }
+  finally { reconcileDefaultJobTypes._busy = false; reconcileDefaultJobTypes._done = true; }
+  if (r.touched) toast("Added " + r.added + " default job type" + (r.added === 1 ? "" : "s") + " to " + r.touched + " client" + (r.touched === 1 ? "" : "s") + ".");
+}
 function offerJobTypeToClients(name) {
   const missing = clientsMissingJobType(name);
   if (!missing.length) return;
@@ -6271,7 +6288,9 @@ $("#sJobTypeAdd").addEventListener("keydown", e => {
   if (list.some(n => n.toLowerCase() === v.toLowerCase())) { toast("Already in the list."); e.target.value = ""; return; }
   list.push(v); e.target.value = "";
   saveSetting({ defaultJobTypes: list });
-  offerJobTypeToClients(v);
+  /* a default is for using, so it reaches every existing client at once */
+  const r = addJobTypesToClients([v]);
+  toast(r.touched ? "Added " + v + " to " + r.touched + " client" + (r.touched === 1 ? "" : "s") + "." : "Added " + v + " to the defaults.");
 });
 $("#sJtBackfill").addEventListener("click", () => {
   const names = (state.settings.defaultJobTypes || []).slice();
@@ -6437,8 +6456,9 @@ function handlers() {
       if (!handlers._tsViewDone) { handlers._tsViewDone = true; state.tsView = loadTsView(); }
       applyTheme();
       paintAll();
+      reconcileDefaultJobTypes();
     },
-    clients(list) { state.clients = list; paintAll(); },
+    clients(list) { state.clients = list; paintAll(); reconcileDefaultJobTypes(); },
     entries(list) { state.entries = list; paintAll(); },
     sync(s) { state.sync.pending = s.pending || 0; state.sync.online = navigator.onLine; paintSync(); },
     error(err) { console.error(err); toast("Sync problem: " + (err.message || err), true); }
@@ -6446,6 +6466,8 @@ function handlers() {
 }
 function startApp(user) {
   state.user = user;
+  /* the mock store pushes its snapshots before this runs, so catch up once */
+  setTimeout(reconcileDefaultJobTypes, 0);
   $("#signin").style.display = "none";
   $("#app").hidden = false;
   $("#userEmail").textContent = user.email;
@@ -6463,6 +6485,7 @@ function startApp(user) {
 function stopApp() {
   if (store) { store.stop(); store = null; }
   state.user = null; state.clients = []; state.entries = []; state.settingsLoaded = false;
+  reconcileDefaultJobTypes._done = false;
   state.settings = Object.assign({}, DEFAULT_SETTINGS);
   $("#app").hidden = true;
   $("#signin").style.display = "flex";

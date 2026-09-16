@@ -449,6 +449,19 @@ that gates mock mode gates it.
 
 ## Changelog
 
+### v0.6.2 - 2026-09-16
+
+Default job types reach every client on their own.
+
+The v0.6.1 button worked but still had to be pressed, and a default that is
+not on a client is a default nobody can use. Now, whenever settings and
+clients are both loaded, every active client that lacks a default job type
+gets it, matched by name and ignoring case, with a toast saying how many were
+added. A client that already has a type of that name, even an archived one,
+is left alone, so dropping a type from one client still sticks. Adding a new
+default in Settings applies it to existing clients immediately instead of
+asking. The button stays as a manual nudge but should rarely be needed.
+
 ### v0.6.1 - 2026-09-16
 
 There is a demo you can send somebody.
