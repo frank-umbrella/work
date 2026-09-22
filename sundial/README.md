@@ -53,6 +53,39 @@ Sign-in itself needs the network once. Firebase Auth keeps the session, so a
 device that has signed in before opens straight to the Clock with no signal; a
 device that never has needs one online sign-in. The sign-in wall says so.
 
+## The Clock
+
+The Now card is the home screen. With nothing running it shows a **Not
+running** pill and, under it, the four fields that decide when the work
+happened: **Start date**, **Start time**, **End date**, **End time**, laid out
+two up where there is room and one up on a narrow phone. They are always
+there - there is no link to press first - because the two things anybody does
+on this screen are "start it now" and "I forgot to start it", and the second
+one should not be hidden behind the first.
+
+- Leave both times blank and the button reads **Start**: the timer begins at
+  the moment you press it.
+- Type a **start time** only and the button reads **Start at 9:02 AM**: the
+  entry runs from then, so the timer opens showing the real elapsed time.
+- Type **both** and it reads **Log 9:02 AM - 10:47 AM**: a finished entry is
+  written and nothing starts running.
+
+Beside the button, in the button's own size, is the duration - `1h 45m` for a
+finished block, `1h 24m so far` for a start time on its own, ticking with the
+clock. It is the number you check before you press the button, so it is not in
+the small print. The line under the fields keeps what the button cannot say: a
+time that cannot be used, an overlap with something already logged, and an end
+that has not happened yet.
+
+The dates sit on today and go back to today after every Start, so the usual
+case is two time boxes and nothing else. To the side (or below, on a phone)
+sits the rest of the entry - client, job type, location, tickets, project and
+notes - and under that the Recent chips, today's tiles, the week's utilization
+bar and the Today table.
+
+While a timer is running the card shows the timer instead, with Pause, Stop
+and Switch client, and the start form becomes **Start another job**.
+
 ## How exports work
 
 The Export screen has an **Hours / Mileage** switch at the top, a range picker
@@ -448,6 +481,35 @@ real Google layer is chosen everywhere else, because the same hostname check
 that gates mock mode gates it.
 
 ## Changelog
+
+### v0.7.0 - 2026-09-22
+
+The times you actually worked are on the Clock, not behind a link.
+
+The idle Now card spent its whole life showing a timer that read `00:00:00`.
+It was decoration: nothing had started, nothing was counting, and the one
+number on the screen was a zero. Meanwhile the fields that answer the question
+people actually arrive at this screen with - "I forgot to start it at nine" -
+sat folded away behind a **Set start and end times instead** link, which you
+had to know was there before it could help you. The zero is gone and the four
+fields have its place: **Start date**, **Start time**, **End date**, **End
+time**, always visible, two up on a desktop and one up on a narrow phone so a
+date is never cut in half. The link, and the `Hide times` half of it, are gone
+with it.
+
+Nothing about what the button does has changed, only how far away it was. No
+times still means Start now. A start time on its own still reads **Start at
+9:02 AM** and runs the timer from then. Both still read **Log 9:02 AM - 10:47
+AM** and write a finished entry without starting anything. The dates sit on
+today and go back to today after each Start, so the ordinary case is two time
+boxes and nothing else to think about.
+
+The duration moved up beside the button, in the button's own size - `1h 45m`
+for a finished block, `1h 24m so far` for a start time on its own, counting up
+on the same tick the running timer uses. It was in the small print underneath,
+which is the wrong place for the number you check before you press Log. The
+hint line keeps the things the button cannot say: a time that cannot be used,
+an overlap with a job already logged, and an end that has not happened yet.
 
 ### v0.6.2 - 2026-09-16
 

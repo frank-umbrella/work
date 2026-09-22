@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Sundial v0.6.2</title>
-<meta name="version" content="0.6.2" />
+<title>Sundial v0.7.0</title>
+<meta name="version" content="0.7.0" />
 <meta name="robots" content="noindex, nofollow" />
 <meta name="description" content="Internal hours tracker for Umbrella Automation. Restricted to @umbrellaautomation.com accounts." />
 <meta name="theme-color" content="#1e6fd9" />
@@ -143,8 +143,6 @@ textarea.fld{min-height:64px;resize:vertical}
 .g2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:0 14px}
 .g3{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,170px),1fr));gap:0 14px}
 .hint{font-size:12px;color:var(--muted);margin:4px 0 0}
-.linkbtn{background:none;border:0;padding:0;margin:10px 0 0;font:inherit;font-size:13px;color:var(--accent);cursor:pointer;text-decoration:underline;text-underline-offset:3px}
-.linkbtn[aria-expanded="true"]{color:var(--muted);text-decoration:none}
 .ck{display:flex;align-items:center;gap:8px;font-size:14px;margin:8px 0;cursor:pointer}
 .ck input{width:16px;height:16px;accent-color:var(--accent);flex:none}
 
@@ -291,7 +289,18 @@ textarea.fld{min-height:64px;resize:vertical}
    r6 = client, job, ticket, project, notes(2). Under 860px everything
    stacks the way a phone expects. */
 .now{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;align-items:start}
-.nowhead #outLeft,.nowhead #inLeft{display:flex;flex-wrap:wrap;align-items:center;gap:6px 18px}
+.nowhead #inLeft{display:flex;flex-wrap:wrap;align-items:center;gap:6px 18px}
+/* Idle: the four time fields stand where the dead 00:00:00 timer used to, so
+   the left block is a short stack rather than a flex row of chips. */
+.nowhead #outLeft{display:block}
+.nowhead #outLeft .availline{margin:6px 0 0}
+/* Start date / Start time over End date / End time. Two columns where there
+   is room and one where there is not, so a date field is never narrow enough
+   to cut its own value in half on a 360px phone. */
+.idletimes{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:0 12px;max-width:440px;margin-top:2px}
+.idletimes .lab{margin:8px 0 3px}
+.idletimes .fld{min-width:0}
+#timesHint{margin-top:6px}
 .nowhead .pill{order:1}
 .nowhead .timer{order:2;font-size:40px;margin:0}
 .nowhead .since{order:3;margin:0}
@@ -317,15 +326,19 @@ textarea.fld{min-height:64px;resize:vertical}
 #runCol.open{grid-template-rows:1fr}
 #runCol > div{overflow:hidden;min-width:0}
 #runCol.open > div{overflow:visible}
-#startPanel .btnrow{margin-top:8px}
+#startPanel .btnrow{margin-top:8px;align-items:center}
 #startPanel .btnrow .btn.big{flex:0 0 auto;min-width:220px}
+/* The duration beside the big Start button, in the button's own type size:
+   the number you are about to log is the thing you check before pressing it,
+   and it was only ever in the small print underneath. */
+#startDur{font-size:17px;font-weight:600;color:var(--text);margin-left:4px;white-space:nowrap}
 @media (max-width:1180px){
   .frow.r6,.frow.r7{--n:4}
   .frow.r5{--n:4}
   .frow.r5 .wide,.frow.r6 .wide,.frow.r7 .wide{grid-column:1 / -1}
 }
 @media (max-width:860px){
-  .nowhead #outLeft,.nowhead #inLeft{display:block}
+  .nowhead #inLeft{display:block}
   .nowhead .timer{font-size:46px;margin:4px 0 8px}
   .nowhead .since{margin:6px 0 12px}
   .nowhead .btnrow{margin:0;flex-wrap:wrap}
@@ -334,6 +347,9 @@ textarea.fld{min-height:64px;resize:vertical}
   .frow .wide,.frow.r5 .wide,.frow.r6 .wide,.frow.r7 .wide{grid-column:1 / -1}
   .frow textarea.fld{min-height:64px;height:auto}
   #startPanel .btnrow .btn.big{flex:1 1 auto;min-width:0}
+  /* the button goes full width here, so the duration takes its own line
+     under it rather than squeezing the button off the edge */
+  #startDur{flex:1 1 100%;margin-left:0;text-align:right}
 }
 @media (max-width:860px){.now{grid-template-columns:minmax(0,1fr)}}
 .timer{font:600 56px/1 var(--mono);letter-spacing:.02em;margin:8px 0;color:var(--text);overflow-wrap:anywhere}
@@ -663,8 +679,17 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
         <div class="nowhead">
           <div id="outLeft">
             <span class="pill" style="background:var(--card2);color:var(--muted)">Not running</span>
-            <div class="timer">00:00:00</div>
-            <div class="since" id="outSince">Pick a client and a job type, then start.</div>
+            <!-- A timer reading 00:00:00 said nothing. The four time fields
+                 stand here instead, always visible: a start time on its own
+                 runs the timer from then, a start and an end log a finished
+                 block, and both were previously a click away behind a link. -->
+            <div class="idletimes">
+              <div><label class="lab" for="fStartD">Start date <span class="q" title="The day the work happened. It sits on today, so most of the time only the times below need typing.">?</span></label><input type="date" class="fld" id="fStartD"></div>
+              <div><label class="lab" for="fStartT">Start time <span class="q" title="Leave it blank to start the timer now. Earlier than now is fine: with no end time the entry keeps running from this start, so the timer shows the real elapsed time.">?</span></label><input type="time" class="fld" id="fStartT"></div>
+              <div><label class="lab" for="fEndD">End date <span class="q" title="The day the work finished, for a block that ran past midnight. It sits on today like the start date.">?</span></label><input type="date" class="fld" id="fEndD"></div>
+              <div><label class="lab" for="fEndT">End time <span class="q" title="Set an end to log a finished entry straight from here without running the timer. Leave it blank to start it running.">?</span></label><input type="time" class="fld" id="fEndT"></div>
+            </div>
+            <div class="hint" id="timesHint"></div>
             <div class="since availline" id="outAvail" hidden></div>
           </div>
           <div id="inLeft" hidden>
@@ -712,18 +737,9 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
               <div class="wide"><label class="lab" for="fNotes">Notes <span class="q" title="What you are doing. Written for the client, because this is the line that lands in the email.">?</span></label><textarea class="fld" id="fNotes" rows="1"></textarea></div>
             </div>
             <datalist id="projList"></datalist>
-            <button type="button" class="linkbtn" id="timesToggle" aria-expanded="false" title="Forgot to start the timer, or want to log a block of time you already finished? Set the times here instead of starting the timer now.">Set start and end times instead</button>
-            <div id="timesRow" hidden>
-              <div class="g2">
-                <div><label class="lab" for="fStartD">Start date</label><input type="date" class="fld" id="fStartD"></div>
-                <div><label class="lab" for="fStartT">Start time <span class="q" title="Earlier than now is fine. With no end time the entry keeps running from this start, so the timer shows the real elapsed time.">?</span></label><input type="time" class="fld" id="fStartT"></div>
-                <div><label class="lab" for="fEndD">End date</label><input type="date" class="fld" id="fEndD"></div>
-                <div><label class="lab" for="fEndT">End time <span class="q" title="Set an end to log a finished entry straight from here without running the timer. Leave blank to start it running.">?</span></label><input type="time" class="fld" id="fEndT"></div>
-              </div>
-              <div class="hint" id="timesHint"></div>
-            </div>
             <div class="btnrow">
               <button class="btn big go" id="punchBtn">Start</button>
+              <span id="startDur" hidden></span>
               <button class="btn" id="cancelStartBtn" hidden>Cancel</button>
             </div>
             <div class="hint" id="punchHint"></div>
@@ -1035,12 +1051,12 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
 
 <script type="module">
 /* ==============================================================
-   Sundial v0.6.2 - hours tracker
+   Sundial v0.7.0 - hours tracker
    Single file on purpose: no build step, same as Backup Audits.
    Firestore rules for /sundial_users live in ../watchtower/firestore.rules.
    ============================================================== */
 
-const APP_VERSION    = "0.6.2";
+const APP_VERSION    = "0.7.0";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const OWNER_EMAIL    = "frank@umbrellaautomation.com";
 const SDK            = "https://www.gstatic.com/firebasejs/12.13.0/";
@@ -1877,6 +1893,18 @@ function paintClock() {
   const fl = $("#fLocation");
   fl.disabled = !c;
   fillLocationSelect(fl, c, fl.value);
+  /* The dates sit on today unless somebody typed another one, so the usual
+     case is two time boxes and nothing else. While a timer is running the
+     block that holds them is off screen, and a time left in an invisible box
+     would quietly change what the next Start means - so it is cleared. */
+  const todayStr = localInput(new Date());
+  if (main) {
+    $("#fStartD").value = todayStr; $("#fStartT").value = "";
+    $("#fEndD").value = todayStr;   $("#fEndT").value = "";
+  } else {
+    if (!$("#fStartD").value) $("#fStartD").value = todayStr;
+    if (!$("#fEndD").value) $("#fEndD").value = todayStr;
+  }
   /* Location is optional, so it never gets the attention glow: the amber ring
      means "this has to be answered", and this one does not. */
   glow(fc); glow(fj);
@@ -1913,10 +1941,10 @@ function paintPunchButton() {
   const btn = $("#punchBtn");
   const t = startTimes();
   btn.classList.toggle("go", true);
-  if (t.open && t.start && t.end) {
+  if (t.start && t.end) {
     btn.textContent = "Log " + fmtTime(t.start) + " - " + fmtTime(t.end);
     $("#punchHint").textContent = "Saves a finished entry. Nothing starts running.";
-  } else if (t.open && t.start) {
+  } else if (t.start) {
     btn.textContent = running.length && !ok ? "Switch, starting at " + fmtTime(t.start) : "Start at " + fmtTime(t.start);
     $("#punchHint").textContent = !running.length ? "The timer will already show the time since " + fmtTime(t.start) + "."
       : (ok ? "This job may run alongside what is already running." : "Something is already running. Switch stops it first.");
@@ -1925,15 +1953,39 @@ function paintPunchButton() {
     $("#punchHint").textContent = !running.length ? ""
       : (ok ? "This job may run alongside what is already running." : "Something is already running. Switch stops it first.");
   }
+  paintStartDur(t);
   paintTimesHint(t);
 }
-/* Optional explicit times on the start panel. Returns {open, start, end,
-   bad} where bad is a human message when the inputs cannot be used. */
+/* The duration beside the button, in the button's own type size. The hint
+   line under it is small print; the number you check before pressing Log is
+   not. Hidden until there is a start time, because until then there is no
+   duration to be right about. */
+function paintStartDur(t) {
+  const el = $("#startDur");
+  if (!el) return;
+  const s = t || startTimes();
+  if (s.start && s.end && s.end > s.start) {
+    el.hidden = false;
+    el.textContent = fmtDur((s.end - s.start) / 1000);
+    el.title = "What this entry will be logged as, from " + fmtTime(s.start) + " to " + fmtTime(s.end) + ".";
+  } else if (s.start && !s.end && !s.bad) {
+    el.hidden = false;
+    el.textContent = fmtDur((new Date() - s.start) / 1000) + " so far";
+    el.title = "How much the timer will already be showing when this entry starts, counted from " + fmtTime(s.start) + ".";
+  } else {
+    el.hidden = true;
+    el.textContent = "";
+    el.removeAttribute("title");
+  }
+}
+/* The explicit times on the idle Now card. They are always on screen now, so
+   there is no open state left to consult: a time field is what decides
+   whether that side is set. Returns {open, start, end, bad} where bad is a
+   human message when the inputs cannot be used. */
 function startTimes() {
-  const open = !$("#timesRow").hidden;
-  if (!open) return { open: false, start: null, end: null, bad: "" };
-  // Dates default to today when the row opens, so a time field decides
-  // whether that side is "set". A date with no time is ignored.
+  const open = true;
+  // Dates sit on today, so a time field decides whether that side is "set".
+  // A date with no time is ignored.
   const today = localInput(new Date());
   const sD = $("#fStartD").value || today, sT = $("#fStartT").value, eD = $("#fEndD").value || sD, eT = $("#fEndT").value;
   const start = sT ? fromInputs(sD, sT) : null;
@@ -1944,17 +1996,22 @@ function startTimes() {
   else if (start && !end && start > new Date()) bad = "A running entry cannot start in the future. Add an end time to log it ahead of time.";
   return { open, start, end, bad };
 }
+/* The small print under the fields. The duration itself has moved up beside
+   the button, so this line keeps only what the button cannot say: a problem
+   with the times, an overlap with something already logged, and an end that
+   has not happened yet. */
 function paintTimesHint(t) {
   const h = $("#timesHint");
-  if (!t.open) { h.innerHTML = ""; return; }
   if (t.bad) { h.innerHTML = '<span class="prob">' + esc(t.bad) + "</span>"; return; }
   if (!t.start) { h.textContent = "Leave the end blank to start the timer from the start time. Fill both to log a finished block."; return; }
   const conflicts = overlaps(t.start, t.end, null);
-  let msg = t.end ? "Duration " + fmtDur((t.end - t.start) / 1000) + "." : fmtDur((new Date() - t.start) / 1000) + " so far.";
-  if (conflicts.length) msg += " Overlaps " + entryLabel(conflicts[0]) + " " + fmtTime(toDate(conflicts[0].start)) + " - " +
+  const bits = [];
+  if (conflicts.length) bits.push("Overlaps " + entryLabel(conflicts[0]) + " " + fmtTime(toDate(conflicts[0].start)) + " - " +
     (conflicts[0].end ? fmtTime(toDate(conflicts[0].end)) : "running") + (conflicts.length > 1 ? " and " + (conflicts.length - 1) + " more" : "") +
-    ". Saving is still allowed; overlapping time is counted in full for each entry.";
-  h.textContent = msg;
+    ". Saving is still allowed; overlapping time is counted in full for each entry.");
+  if (t.end && t.end > new Date()) bits.push("That end is " + fmtDur((t.end - new Date()) / 1000) +
+    " in the future - it has not happened yet.");
+  h.textContent = bits.join(" ");
 }
 
 function paintRecent() {
@@ -2702,6 +2759,9 @@ function paintTimer() {
   const main = running[0];
   const now = new Date();
   if (main) $("#runTimer").textContent = fmtClock(entrySeconds(main, now));
+  /* "1h 24m so far" beside the Start button counts up on the same tick the
+     running timer does, so it is never a number from a minute ago. */
+  if (!main) paintStartDur();
   paintPausedLine(main || null, now);
   paintAvailLine(now);
   paintRunLimit(main || null, now);
@@ -2906,7 +2966,7 @@ function startJob(fields) {
 }
 function clearStartForm() {
   $("#fTicket").value = ""; $("#fProject").value = ""; $("#fNotes").value = "";
-  setTimesOpen(false);
+  clearStartTimes();
 }
 /* Resume: start the same client / job / ticket / project / notes again from
    now, without asking. Anything already running is stopped unless it, or the
@@ -2938,19 +2998,13 @@ function resumeEntry(id) {
   toast("Resumed " + c.name + (stopped.length ? ". Stopped " + stopped.join(", ") + "." : "."));
   return newId;
 }
-function setTimesOpen(open) {
-  const row = $("#timesRow"), tog = $("#timesToggle");
-  row.hidden = !open;
-  tog.setAttribute("aria-expanded", open ? "true" : "false");
-  tog.textContent = open ? "Hide times (start now instead)" : "Set start and end times instead";
-  if (open) {
-    const today = localInput(new Date());
-    if (!$("#fStartD").value) $("#fStartD").value = today;
-    if (!$("#fEndD").value) $("#fEndD").value = today;
-    $("#fStartT").focus();
-  } else {
-    ["fStartD", "fStartT", "fEndD", "fEndT"].forEach(id => { $("#" + id).value = ""; });
-  }
+/* The times used to open and close behind a link, so this used to do both.
+   They are always on the card now, and the only thing anybody ever wanted
+   from the closing half was an empty pair of time boxes on today's date. */
+function clearStartTimes() {
+  const today = localInput(new Date());
+  $("#fStartD").value = today; $("#fStartT").value = "";
+  $("#fEndD").value = today;   $("#fEndT").value = "";
   paintPunchButton();
 }
 function startFields() {
@@ -5864,7 +5918,6 @@ $$("#topNav button, #tabbar button").forEach(b => b.addEventListener("click", ()
 $("#fClient").addEventListener("change", () => { paintClock(); });
 $("#fJob").addEventListener("change", () => { glow($("#fJob")); paintPunchButton(); });
 $("#punchBtn").addEventListener("click", () => startJob(startFields()));
-$("#timesToggle").addEventListener("click", () => setTimesOpen($("#timesRow").hidden));
 ["fStartD", "fStartT", "fEndD", "fEndT"].forEach(id => $("#" + id).addEventListener("input", paintPunchButton));
 /* Column widths are clamped to the table width, so re-lay the table when its
    wrapper changes width (window resize, sidebar, or first becoming visible). */
