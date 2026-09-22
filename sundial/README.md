@@ -1345,6 +1345,9 @@ elapsed time. A start and an end log a finished entry straight from the Clock
 screen. The button label says which one will happen, overlaps are named before
 you save, and the switch rule still applies to anything that starts running.
 
+(The link itself is gone as of v0.7.0: the four fields are always on the idle
+Now card. The three button labels described here are unchanged.)
+
 Also fixed: between about 640 and 860 pixels wide (a tablet, or a narrow desktop
 window) the today table scrolled sideways inside its card. Tables now switch to
 the stacked card layout below 860 pixels, so nothing scrolls sideways at any width.

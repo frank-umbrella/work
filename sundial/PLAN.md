@@ -153,6 +153,10 @@ the header on every screen: Synced / Offline, 3 pending / Syncing.
 - **Now card.** Clocked out: Client select, Job type select (filtered to that
   client), Ticket # field, Project field with autocomplete, Notes, big
   **Punch In**. Unset Client and Job type get the amber attention glow.
+- *v0.7.0:* the idle card carries **Start date / Start time / End date / End
+  time** where the `00:00:00` timer used to be, always visible - the "Set
+  start and end times instead" link from v0.1.1 is gone - with the duration
+  beside the button.
 - Clocked in: big elapsed timer, status pill "Acme Dental / Remote support /
   #5421", Ticket, Project and Notes editable while running (save on blur),
   **Punch Out** (red) and **Switch client** (punch out + fresh Punch In with the
