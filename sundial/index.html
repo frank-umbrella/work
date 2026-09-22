@@ -548,6 +548,11 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
 .mbox .mh b{font-size:17px;overflow-wrap:anywhere}
 .mbox .mh .x{margin-left:auto;width:30px;height:30px;border-radius:50%;border:1px solid var(--line2);background:var(--card2);color:var(--muted);cursor:pointer;flex:none;font-size:16px;line-height:1}
 .warn{margin-top:10px;padding:9px 12px;border:1px solid var(--glow);background:rgba(224,163,0,.12);border-radius:calc(var(--radius) - 2px);font-size:13px}
+/* The unsaved-entry offer above the entry form. Deliberately quiet: it is an
+   offer, not a warning, and nothing is filled in until Restore is pressed. */
+.draftline{display:flex;align-items:center;gap:8px 10px;flex-wrap:wrap;margin:0 0 12px;padding:9px 12px;
+  border:1px solid var(--line2);border-radius:calc(var(--radius) - 2px);background:var(--card2);font-size:13px;min-width:0}
+.draftline .dt{flex:1 1 200px;min-width:0;overflow-wrap:anywhere}
 .prob{color:var(--stop)}
 .scrolly{max-height:38vh;overflow-y:auto;border:1px solid var(--line);border-radius:calc(var(--radius) - 2px);padding:8px 10px;margin-top:8px;font-size:13px}
 
@@ -997,6 +1002,12 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
     </div>
 
     <div class="card">
+      <h4>Drafts</h4>
+      <div class="hint" style="font-size:13.5px">While you are typing a new entry - on the Clock or in the manual entry form - Sundial keeps a copy of it on this device, so a closed tab or a flat battery does not take the note with it. Drafts live in this browser only: they are never written to your account and never reach another device. Each one is deleted the moment its entry is started or saved, and by itself after 48 hours.</div>
+      <div id="draftList"></div>
+    </div>
+
+    <div class="card">
       <h4>Offline</h4>
       <div id="offlineStatus" class="hint" style="font-size:13.5px"></div>
       <div class="btnrow">
@@ -1224,6 +1235,7 @@ const state = {
   settings: Object.assign({}, DEFAULT_SETTINGS),
   settingsLoaded: false,
   clients: [],
+  clientsLoaded: false,
   entries: [],
   view: "clock",
   tsDay: dayKey(new Date()),
@@ -2967,6 +2979,10 @@ function startJob(fields) {
 function clearStartForm() {
   $("#fTicket").value = ""; $("#fProject").value = ""; $("#fNotes").value = "";
   clearStartTimes();
+  /* Whatever this form was holding has become an entry, so the copy kept on
+     the device has nothing left to protect. */
+  deleteDraft("start");
+  paintDrafts();
 }
 /* Resume: start the same client / job / ticket / project / notes again from
    now, without asking. Anything already running is stopped unless it, or the
@@ -3016,9 +3032,219 @@ function startFields() {
 }
 
 /* ==============================================================
+   DRAFTS
+   A copy of whatever is being typed, kept on this device, so a closed tab, a
+   reload or a flat battery does not take the note with it. Two forms are
+   worth keeping: the Clock's start form, and the entry modal while it is
+   adding or duplicating.
+
+   localStorage, never Firestore, and that is deliberate. A draft is not a
+   fact about the hours - it is a half-finished sentence on one device - and
+   syncing half-finished sentences between a phone and a desktop produces two
+   of them and an argument about which is newer. Nothing is written until
+   something meaningful is in the form (a ticket, a project, a note, or a
+   time; picking a client is not typing an entry), and a draft is deleted the
+   moment the entry it describes is started or saved, when it is discarded,
+   or 48 hours later, whichever comes first.
+   ============================================================== */
+const DRAFT_PREFIX   = "sundial-draft:";
+const DRAFT_KINDS    = ["start", "entry"];
+const DRAFT_TTL_MS   = 48 * 60 * 60 * 1000;
+const DRAFT_DEBOUNCE = 1500;
+const DRAFT_LABEL    = { start: "Clock start form", entry: "Manual entry" };
+const draftTimers = {}, draftReaders = {};
+
+function draftKey(kind) { return DRAFT_PREFIX + kind; }
+function draftAge(d) {
+  const t = d && d.updatedAt ? new Date(d.updatedAt).getTime() : NaN;
+  return isFinite(t) ? Date.now() - t : Infinity;
+}
+/* Every read is also the expiry check, so a draft older than two days is
+   gone the first time anything looks for it - on load, and in the panel. */
+function readDraft(kind) {
+  let raw = null;
+  try { raw = localStorage.getItem(draftKey(kind)); } catch (_) { return null; }   // private window
+  if (!raw) return null;
+  let d = null;
+  try { d = JSON.parse(raw); } catch (_) { deleteDraft(kind); return null; }
+  if (!d || d.kind !== kind || !d.fields) { deleteDraft(kind); return null; }
+  if (draftAge(d) > DRAFT_TTL_MS) { deleteDraft(kind); return null; }
+  return d;
+}
+function deleteDraft(kind) {
+  clearTimeout(draftTimers[kind]);
+  try { localStorage.removeItem(draftKey(kind)); } catch (_) {}
+}
+function purgeExpiredDrafts() { DRAFT_KINDS.forEach(readDraft); }
+function draftMeaningful(kind, f) {
+  if (!f) return false;
+  const txt = k => String(f[k] == null ? "" : f[k]).trim();
+  if (txt("ticket") || txt("project") || txt("notes")) return true;
+  if (kind === "start") return !!(txt("startT") || txt("endT"));
+  /* The entry modal opens with a start already filled in, so a start only
+     counts once somebody has actually moved it. */
+  return !!(txt("endT") || txt("miles") || txt("mileageNote") || f.startTouched);
+}
+function writeDraft(kind, fields) {
+  const prev = readDraft(kind);
+  const now = new Date().toISOString();
+  const rec = { kind: kind, fields: fields, savedAt: (prev && prev.savedAt) || now, updatedAt: now };
+  try { localStorage.setItem(draftKey(kind), JSON.stringify(rec)); } catch (_) { /* full, or private */ }
+  return rec;
+}
+/* Typing saves on a 1.5 second pause, so a note is not written to disk on
+   every keystroke and is never more than a sentence behind. */
+function scheduleDraft(kind, read) {
+  draftReaders[kind] = read;
+  clearTimeout(draftTimers[kind]);
+  draftTimers[kind] = setTimeout(() => saveDraftNow(kind), DRAFT_DEBOUNCE);
+}
+function saveDraftNow(kind) {
+  clearTimeout(draftTimers[kind]);
+  const read = draftReaders[kind];
+  if (!read) return;
+  let f = null;
+  try { f = read(); } catch (_) { return; }        // the form went away mid-flight
+  if (!f) return;
+  if (draftMeaningful(kind, f)) writeDraft(kind, f); else deleteDraft(kind);
+  paintDrafts();
+}
+/* A tab closing, a phone switching apps, a browser reclaiming the page: none
+   of them wait 1.5 seconds, so whatever is pending is written out now. */
+function flushDrafts() { DRAFT_KINDS.forEach(k => { if (draftReaders[k]) saveDraftNow(k); }); }
+window.addEventListener("pagehide", flushDrafts);
+document.addEventListener("visibilitychange", () => { if (document.hidden) flushDrafts(); });
+
+/* "14 minutes ago" - a saved-at said the way a person says it. */
+function fmtAgo(when) {
+  const ms = Date.now() - new Date(when).getTime();
+  if (!isFinite(ms) || ms < 45000) return "a moment ago";
+  const m = Math.round(ms / 60000);
+  if (m < 60) return m + " minute" + (m === 1 ? "" : "s") + " ago";
+  const h = Math.round(m / 60);
+  if (h < 24) return h + " hour" + (h === 1 ? "" : "s") + " ago";
+  const d = Math.round(h / 24);
+  return d + " day" + (d === 1 ? "" : "s") + " ago";
+}
+/* Enough of a draft to recognise it by: who it is for, what kind of work,
+   the ticket and project, and the first line of the note. */
+function draftSummary(d) {
+  const f = (d && d.fields) || {};
+  const c = clientById(f.clientId);
+  const bits = [];
+  if (c) bits.push(c.name);
+  const j = jobTypeName(c, f.jobTypeId);
+  if (j) bits.push(j);
+  if (f.ticket) bits.push(ticketText(f.ticket));
+  if (f.project) bits.push(f.project);
+  const note = String(f.notes || "").split(/\r?\n/)[0].trim();
+  if (note) bits.push(note.length > 90 ? note.slice(0, 90) + "..." : note);
+  return bits.join(" · ");
+}
+
+/* ---- the Clock's start form ---- */
+function readStartDraftFields() {
+  return {
+    clientId: $("#fClient").value, jobTypeId: $("#fJob").value, location: $("#fLocation").value,
+    ticket: $("#fTicket").value, project: $("#fProject").value, notes: $("#fNotes").value,
+    startD: $("#fStartD").value, startT: $("#fStartT").value,
+    endD: $("#fEndD").value, endT: $("#fEndT").value
+  };
+}
+function applyStartDraft(f) {
+  if (!f) return;
+  const set = (sel, v) => { const el = $(sel); if (el) el.value = v == null ? "" : v; };
+  set("#fClient", f.clientId);
+  paintClock();                       // the job types follow the client
+  set("#fJob", f.jobTypeId);
+  paintClock();                       // the locations follow the client too
+  set("#fLocation", f.location);
+  set("#fTicket", f.ticket); set("#fProject", f.project); set("#fNotes", f.notes);
+  const today = localInput(new Date());
+  set("#fStartD", f.startD || today); set("#fStartT", f.startT);
+  set("#fEndD", f.endD || today);     set("#fEndT", f.endT);
+  state.startPanelOpen = true;
+  paintClock();
+}
+function discardStartDraft() {
+  deleteDraft("start");
+  ["fClient", "fJob", "fLocation", "fTicket", "fProject", "fNotes"].forEach(id => { $("#" + id).value = ""; });
+  clearStartTimes();
+  paintClock();
+  paintDrafts();
+  toast("Draft discarded.");
+}
+/* Once per load, as soon as there are settings and clients to put it back
+   against. A timer already running means the start form is the "start
+   another job" form, and filling that in with a half-typed entry would be
+   answering a question nobody asked - so the draft waits in Settings. */
+function maybeRestoreStartDraft() {
+  if (maybeRestoreStartDraft._done) return;
+  if (!state.user || !state.settingsLoaded || !state.clientsLoaded) return;
+  maybeRestoreStartDraft._done = true;
+  purgeExpiredDrafts();
+  paintDrafts();
+  const d = readDraft("start");
+  if (!d || runningEntries().length) return;
+  applyStartDraft(d.fields);
+  stickyToast("Draft restored from " + fmtAgo(d.updatedAt) + ". It was kept on this device, not in your account.", [
+    { label: "Discard", title: "Clears the form and deletes the draft from this device.", run: discardStartDraft }
+  ]);
+}
+/* A draft, read back as the entry modal's idea of a source entry. */
+function draftToEntryBase(f) {
+  const start = fromInputs(f.startD, f.startT);
+  return {
+    clientId: f.clientId || "", jobTypeId: f.jobTypeId || "",
+    ticket: f.ticket || "", project: f.project || "", notes: f.notes || "",
+    location: f.location || "", billable: f.billable !== false,
+    miles: f.miles === "" || f.miles == null ? null : parseMiles(f.miles),
+    mileageNote: f.mileageNote || "",
+    start: start || new Date(), end: fromInputs(f.endD, f.endT)
+  };
+}
+function restoreDraft(kind) {
+  const d = readDraft(kind);
+  if (!d) { paintDrafts(); toast("That draft is no longer here.", true); return; }
+  setView("clock");
+  if (kind === "start") {
+    applyStartDraft(d.fields);
+    toast(runningEntries().length
+      ? "Draft put back into the start form. Its times only apply once nothing is running."
+      : "Draft restored into the start form.");
+    return;
+  }
+  openEntryModal("add", draftToEntryBase(d.fields), { fromDraft: true });
+}
+function paintDrafts() {
+  const box = $("#draftList");
+  if (!box) return;
+  const list = DRAFT_KINDS.map(readDraft).filter(Boolean);
+  if (!list.length) {
+    box.innerHTML = '<div class="emptyrow">No drafts. While you type a new entry, a copy is kept here until it is started or saved.</div>';
+    return;
+  }
+  box.innerHTML = list.map(d => {
+    const sum = draftSummary(d);
+    return '<div class="tsrow"><div>' +
+      '<div class="ttl">' + esc(DRAFT_LABEL[d.kind] || "Draft") + "</div>" +
+      '<div class="meta">' + (sum ? esc(sum) + " &middot; " : "") + esc("saved " + fmtAgo(d.updatedAt)) + "</div>" +
+      "</div>" +
+      '<div class="right">' +
+        '<button class="btn sm" data-draftgo="' + esc(d.kind) + '" title="' + esc(d.kind === "start"
+          ? "Puts it back into the start form on the Clock."
+          : "Opens the manual entry form on the Clock with it already filled in.") + '">Restore</button>' +
+        '<button class="btn sm" data-draftno="' + esc(d.kind) +
+          '" title="Deletes this draft from this device. Nothing already logged is touched.">Discard</button>' +
+      "</div></div>";
+  }).join("");
+}
+
+/* ==============================================================
    ENTRY MODAL - one form for add, edit and duplicate
    ============================================================== */
-function openEntryModal(mode, src) {
+function openEntryModal(mode, src, opts) {
+  opts = opts || {};
   const isDup = mode === "dup", isEdit = mode === "edit";
   const now = new Date();
   const base = src || {};
@@ -3028,6 +3254,7 @@ function openEntryModal(mode, src) {
   const clientId = base.clientId || (cs[0] ? "" : "");
 
   const body =
+    '<div id="eDraftOffer"></div>' +
     '<div class="g2">' +
       '<div><label class="lab" for="eClient">Client <span class="q" title="Exports group and filter by client, so this one is not optional.">?</span></label>' +
         '<select class="fld" id="eClient"></select></div>' +
@@ -3071,7 +3298,11 @@ function openEntryModal(mode, src) {
     ? '<button class="btn" data-close>Cancel</button><button class="btn" id="eSaveTimes">Save with times</button><button class="btn acc" id="ePunch">Start now</button>'
     : '<button class="btn" data-close>Cancel</button><button class="btn acc" id="eSave">Save</button>';
 
-  const w = openModal(isEdit ? "Edit entry" : isDup ? "Duplicate entry" : "Add manual entry", body, foot, { wide: true });
+  /* Cancelling keeps the draft: the last debounced save is flushed on the way
+     out. A save deletes it and drops the reader first, so closing afterwards
+     cannot write the form back out again. */
+  const w = openModal(isEdit ? "Edit entry" : isDup ? "Duplicate entry" : "Add manual entry", body, foot,
+    { wide: true, onClose: () => { if (draftReaders.entry) saveDraftNow("entry"); delete draftReaders.entry; } });
 
   const eClient = $("#eClient", w), eJob = $("#eJob", w);
   fillSelect(eClient, cs.map(c => ({ v: c.id, t: c.name })), "Pick a client", base.clientId || "");
@@ -3206,6 +3437,67 @@ function openEntryModal(mode, src) {
   }));
   refreshDur();
 
+  /* ---- the draft this form keeps ----
+     Only while it is adding or duplicating: an edit is a change to an entry
+     that already exists and is already safe. */
+  const draftable = !isEdit;
+  function readEntryDraftFields() {
+    return {
+      mode: mode, clientId: eClient.value, jobTypeId: eJob.value,
+      ticket: $("#eTicket", w).value, project: $("#eProject", w).value, notes: $("#eNotes", w).value,
+      location: $("#eLocation", w).value, billable: $("#eBillable", w).checked,
+      miles: $("#eMiles", w).value, mileageNote: $("#eMileNote", w).value,
+      startD: $("#eStartD", w).value, startT: $("#eStartT", w).value,
+      endD: $("#eEndD", w).value, endT: $("#eEndT", w).value,
+      startTouched: startTouched
+    };
+  }
+  function finishEntryDraft() {
+    if (!draftable) return;
+    delete draftReaders.entry;
+    deleteDraft("entry");
+    paintDrafts();
+  }
+  if (draftable) ["input", "change"].forEach(ev =>
+    w.addEventListener(ev, () => scheduleDraft("entry", readEntryDraftFields)));
+  function applyEntryDraft(f) {
+    if (!f) return;
+    eClient.value = f.clientId || "";
+    refreshJobs(f.jobTypeId || "");
+    eJob.value = f.jobTypeId || "";
+    $("#eTicket", w).value = f.ticket || "";
+    $("#eProject", w).value = f.project || "";
+    $("#eNotes", w).value = f.notes || "";
+    fillLocationSelect($("#eLocation", w), clientById(eClient.value), f.location || "");
+    $("#eLocation", w).value = f.location || "";
+    $("#eBillable", w).checked = f.billable !== false;
+    $("#eMiles", w).value = f.miles == null ? "" : String(f.miles);
+    $("#eMileNote", w).value = f.mileageNote || "";
+    if (f.startD) $("#eStartD", w).value = f.startD;
+    if (f.startT) $("#eStartT", w).value = f.startT;
+    if (f.endD) $("#eEndD", w).value = f.endD;
+    $("#eEndT", w).value = f.endT || "";
+    startTouched = !!f.startTouched;
+    refreshTravel(); refreshDur();
+  }
+  /* An unsaved entry from a previous visit is offered, never applied: this
+     form may well have been opened to type something else entirely, and
+     filling it in underneath somebody is worse than losing the draft. */
+  if (mode === "add" && !opts.fromDraft) {
+    const prev = readDraft("entry");
+    if (prev) {
+      const box = $("#eDraftOffer", w);
+      const sum = draftSummary(prev);
+      box.innerHTML = '<div class="draftline"><span class="dt">You have an unsaved entry from ' +
+        esc(fmtAgo(prev.updatedAt)) + (sum ? " - " + esc(sum.replace(/[.\s]+$/, "")) : "") +
+        ". Nothing here is filled in from it until you press Restore.</span>" +
+        '<button type="button" class="btn sm acc" id="eDraftGo" title="Puts the draft into this form. It is deleted once this entry is saved.">Restore</button>' +
+        '<button type="button" class="btn sm" id="eDraftNo" title="Deletes the draft from this device and leaves this form as it is.">Discard</button></div>';
+      $("#eDraftGo", w).addEventListener("click", () => { applyEntryDraft(prev.fields); box.innerHTML = ""; toast("Draft restored."); });
+      $("#eDraftNo", w).addEventListener("click", () => { deleteDraft("entry"); box.innerHTML = ""; paintDrafts(); toast("Draft discarded."); });
+    }
+  }
+
   function validate(f) {
     if (!f.clientId) { toast("Pick a client.", true); glow(eClient); return false; }
     if (!f.jobTypeId) { toast("Pick a job type.", true); glow(eJob); return false; }
@@ -3252,6 +3544,7 @@ function openEntryModal(mode, src) {
       const closingTravel = isEdit && !base.end && !!f.end && p.miles == null &&
         isTravelEntry({ clientId: f.clientId, jobTypeId: f.jobTypeId });
       if (isEdit) store.updateEntry(base.id, p); else store.addEntry(p);
+      finishEntryDraft();
       closeModal(w);
       toast(f.nudged ? "Start moved back a minute so the entry has length."
                      : isEdit ? "Entry updated." : "Entry added.");
@@ -3263,6 +3556,7 @@ function openEntryModal(mode, src) {
     const f = readForm(); if (!validate(f)) return;
     confirmFuture(f, () => {
       store.addEntry(payload(f));
+      finishEntryDraft();
       closeModal(w);
       toast(f.nudged ? "Start moved back a minute so the entry has length." : "Entry added.");
     });
@@ -3272,6 +3566,7 @@ function openEntryModal(mode, src) {
     const f = readForm();
     if (!f.clientId) { toast("Pick a client.", true); glow(eClient); return; }
     if (!f.jobTypeId) { toast("Pick a job type.", true); glow(eJob); return; }
+    finishEntryDraft();
     closeModal(w);
     startJob({ clientId: f.clientId, jobTypeId: f.jobTypeId, ticket: f.ticket, project: f.project, notes: f.notes, location: f.location });
   });
@@ -5813,6 +6108,7 @@ function paintSettings() {
   paintNotifyState();
   paintGcal();
   paintBudgets();
+  paintDrafts();
   paintSettingsJobTypes();
 }
 /* Notification may not exist at all (an old browser, an embedded view, a
@@ -5919,6 +6215,11 @@ $("#fClient").addEventListener("change", () => { paintClock(); });
 $("#fJob").addEventListener("change", () => { glow($("#fJob")); paintPunchButton(); });
 $("#punchBtn").addEventListener("click", () => startJob(startFields()));
 ["fStartD", "fStartT", "fEndD", "fEndT"].forEach(id => $("#" + id).addEventListener("input", paintPunchButton));
+/* Every field of the start form keeps a draft on this device while it is
+   being typed into. */
+["fClient", "fJob", "fLocation", "fTicket", "fProject", "fNotes", "fStartD", "fStartT", "fEndD", "fEndT"]
+  .forEach(id => ["input", "change"].forEach(ev =>
+    $("#" + id).addEventListener(ev, () => scheduleDraft("start", readStartDraftFields))));
 /* Column widths are clamped to the table width, so re-lay the table when its
    wrapper changes width (window resize, sidebar, or first becoming visible). */
 (function () {
@@ -6475,6 +6776,8 @@ document.addEventListener("click", e => {
     state.wgExtra = state.wgExtra.filter(x => wgRowKey(x.clientId, x.jobTypeId, x.ticket) !== id);
     paintTimesheet(); return;
   }
+  if ((id = hit("data-draftgo"))){ restoreDraft(id); return; }
+  if ((id = hit("data-draftno"))){ deleteDraft(id); paintDrafts(); toast("Draft discarded."); return; }
   if ((id = hit("data-budedit"))){ const b = budgets().find(x => x.id === id); if (b) openBudgetModal(b); return; }
   if ((id = hit("data-buddel"))) { deleteBudgetModal(id); return; }
   if ((id = hit("data-cedit")))  { const c = clientById(id); if (c) openClientModal(c); return; }
@@ -6510,8 +6813,9 @@ function handlers() {
       applyTheme();
       paintAll();
       reconcileDefaultJobTypes();
+      maybeRestoreStartDraft();
     },
-    clients(list) { state.clients = list; paintAll(); reconcileDefaultJobTypes(); },
+    clients(list) { state.clients = list; state.clientsLoaded = true; paintAll(); reconcileDefaultJobTypes(); maybeRestoreStartDraft(); },
     entries(list) { state.entries = list; paintAll(); },
     sync(s) { state.sync.pending = s.pending || 0; state.sync.online = navigator.onLine; paintSync(); },
     error(err) { console.error(err); toast("Sync problem: " + (err.message || err), true); }
@@ -6538,7 +6842,9 @@ function startApp(user) {
 function stopApp() {
   if (store) { store.stop(); store = null; }
   state.user = null; state.clients = []; state.entries = []; state.settingsLoaded = false;
+  state.clientsLoaded = false;
   reconcileDefaultJobTypes._done = false;
+  maybeRestoreStartDraft._done = false;
   state.settings = Object.assign({}, DEFAULT_SETTINGS);
   $("#app").hidden = true;
   $("#signin").style.display = "flex";

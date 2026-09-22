@@ -146,6 +146,36 @@ columns. **Template** downloads a workbook with example rows and a "How to fill"
 sheet; **Import** shows a preview of what will be created, what will be updated
 by name, and which rows have problems, and applies nothing until you confirm.
 
+## Drafts
+
+While a new entry is being typed, Sundial keeps a copy of it on the device.
+Two forms qualify: the Clock's start form, and the entry modal while it is
+adding or duplicating. An edit is not kept, because the entry it is editing
+already exists and is already safe.
+
+- It is written after a second and a half of not typing, and again when the
+  page is hidden or closed, so a draft is never more than a sentence behind.
+- Nothing is written until something meaningful is in the form - a ticket, a
+  project, a note, or a time. Picking a client is not typing an entry.
+- On opening, a start-form draft goes straight back into the form with a
+  **Draft restored from 14 minutes ago** toast and a **Discard** on it. If a
+  timer is already running the form belongs to the next job, so the draft is
+  left in Settings instead of being pushed into it.
+- An entry-modal draft is **offered, not applied**: the next Add manual entry
+  says "You have an unsaved entry from ..." with Restore and Discard, and
+  fills nothing in until Restore is pressed.
+- A draft is deleted the moment its entry is started or saved, when it is
+  discarded, or by itself after 48 hours.
+
+**Settings > Drafts** lists whatever this device is holding, with Restore and
+Discard on each.
+
+Drafts live in `localStorage` and never go near Firestore. A draft is not a
+fact about the hours - it is a half-finished sentence on one device - and
+syncing half-finished sentences between a phone and a desktop produces two of
+them and an argument about which one is newer. The sync pill and the offline
+queue are a separate thing entirely and are untouched by any of this.
+
 ## Breaks
 
 A running entry can be paused. **Pause** opens a gap on the entry
@@ -510,6 +540,35 @@ on the same tick the running timer uses. It was in the small print underneath,
 which is the wrong place for the number you check before you press Log. The
 hint line keeps the things the button cannot say: a time that cannot be used,
 an overlap with a job already logged, and an end that has not happened yet.
+
+A half-typed entry survives a closed tab.
+
+Everything in Sundial is written the instant it exists - a Start is an entry
+before the button has finished animating. The one thing that was not was the
+part that takes the longest to type: the note. Four sentences about what you
+actually did, a phone that decides to reload the tab, and it was four
+sentences you now have to remember. **Drafts** fix that, and only that. While
+you are typing into the Clock's start form or into Add manual entry, a copy
+goes into this browser's own storage a second and a half after you stop
+typing, and again the moment the page is hidden or closed.
+
+It waits until there is something worth keeping - a ticket, a project, a note
+or a time - because picking a client is not typing an entry and a list full of
+"Acme Dental, nothing else" is a list nobody reads. Open the app again and a
+start-form draft is already back in the form, with a **Draft restored from 14
+minutes ago** toast carrying a Discard. An entry-modal draft is offered rather
+than applied: the next Add manual entry says it has one and fills nothing in
+until you press Restore, because that form may well have been opened to type
+something else entirely and writing over somebody mid-thought is worse than
+losing the draft. Each one is deleted the moment its entry is started or
+saved, when it is discarded, or by itself after 48 hours. **Settings >
+Drafts** lists whatever the device is holding.
+
+None of it goes to Firestore, deliberately. A draft is not a fact about the
+hours - it is a half-finished sentence on one device - and syncing
+half-finished sentences between a phone and a desktop gives you two of them
+and an argument about which is newer. The sync pill and the offline queue are
+a different thing and nothing here touches them.
 
 ### v0.6.2 - 2026-09-16
 
