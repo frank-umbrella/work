@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Tack - sticky notes on any site
 // @namespace    https://github.com/frank-umbrella/work
-// @version      0.1.1
-// @description  Post-it style sticky notes pinned on top of any website. Draggable, resizable, collapsible, six skins, six colors. Notes stick to this page, this site, or everywhere. Saved in the browser, with optional backup and sync through your own Google Drive.
+// @version      0.2.0
+// @description  Post-it style sticky notes pinned on top of any website. Draggable, resizable, collapsible, titled, six skins, six colors, with an All-notes list. Notes stick to this page, this site, or everywhere. Saved in the browser, with optional backup and sync through your own Google Drive.
 // @author       Umbrella Automation
 // @match        *://*/*
 // @exclude      *://accounts.google.com/*
@@ -24,8 +24,9 @@
 /*
  * HOW THIS WORKS
  * --------------
- * Every note is a small object { id, text, color, scope, key, x, y, w, h,
- * min, z, created, updated }. All notes live in ONE Tampermonkey value
+ * Every note is a small object { id, title, text, color, scope, key, x, y,
+ * w, h, min, z, created, updated }. An empty title shows the first line of
+ * the text instead. All notes live in ONE Tampermonkey value
  * ("tack.notes") that is shared by every tab, so a note pinned "everywhere"
  * shows up on the next site you open without a reload.
  *
@@ -50,7 +51,7 @@
 (function () {
   'use strict';
 
-  var VERSION = '0.1.1';
+  var VERSION = '0.2.0';
   var AUTH_URL = 'https://frank-umbrella.github.io/work/tack/auth.html';
   var DRIVE_FILE = 'tack-notes.json';
   var COLORS = { yellow: '#fff59d', green: '#c8f7c5', blue: '#bde0fe', pink: '#ffc8dd', purple: '#e0c3fc', orange: '#ffd6a5' };
@@ -70,6 +71,7 @@
     drive: { clientId: '', token: '', exp: 0, fileId: '', auto: true, lastSync: 0, error: '' }
   }, store.get('tack.cfg', {}));
   cfg.drive = Object.assign({ clientId: '', token: '', exp: 0, fileId: '', auto: true, lastSync: 0, error: '' }, cfg.drive || {});
+  cfg.panels = cfg.panels || {};
   var notes = store.get('tack.notes', []);
   var tombstones = store.get('tack.tombstones', {});
 
@@ -79,6 +81,7 @@
     store.set('tack.notes', notes);
     store.set('tack.tombstones', tombstones);
     scheduleBackup();
+    renderList();
   }
 
   // ------------------------------------------------ Drive auth callback page
@@ -113,6 +116,16 @@
     return n.scope === 'all' || (n.scope === 'site' && n.key === siteKey()) || (n.scope === 'page' && n.key === pageKey());
   }
   function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+  function dispTitle(n) {
+    if (n.title && n.title.trim()) return n.title.trim();
+    var first = (n.text || '').split('\n').map(function (l) { return l.trim(); }).filter(Boolean)[0] || '';
+    return first.length > 48 ? first.slice(0, 47) + '\u2026' : (first || 'Untitled');
+  }
+  function whereLabel(n) {
+    if (n.scope === 'all') return 'Everywhere';
+    if (n.scope === 'site') return n.key;
+    try { var u = new URL(n.key); return u.hostname + (u.pathname === '/' ? '' : u.pathname) + u.search; } catch (_) { return n.key; }
+  }
   function ago(t) {
     var s = Math.max(0, (Date.now() - t) / 1000);
     if (s < 45) return 'just now';
@@ -142,6 +155,9 @@
     '.hd b{width:20px;height:20px;display:grid;place-items:center;border-radius:5px;font-weight:400;font-size:13px;cursor:pointer;opacity:.75;flex:none}',
     '.hd b svg{width:14px;height:14px;display:block;pointer-events:none}',
     '.n.min .hd .chev{transform:rotate(180deg)}',
+    '.hd .t{cursor:text}',
+    '.hd input.ti{flex:1;min-width:0;border:0;outline:0;background:rgba(255,255,255,.55);border-radius:4px;padding:1px 4px;font:inherit;font-weight:600;color:inherit}',
+    '.n.flash{outline:3px solid #1A9BE8;outline-offset:2px}',
     '.hd b:hover{opacity:1;background:rgba(0,0,0,.08)}',
     '.hd .dot{width:12px;height:12px;border-radius:50%;border:1.5px solid rgba(0,0,0,.25);margin-right:3px;flex:none;background:var(--c)}',
     '.hd .del{display:none;align-items:center;gap:4px;font-size:11px}',
@@ -169,7 +185,7 @@
     '.menu hr{border:0;border-top:1px solid #e5e7eb;margin:5px 0}',
 
     /* settings panel */
-    '.sp{position:absolute;pointer-events:auto;width:340px;max-width:92vw;max-height:92vh;display:flex;flex-direction:column;background:#fff;color:#1f2430;border-radius:10px;',
+    '.sp{position:absolute;pointer-events:auto;width:340px;height:auto;min-width:280px;min-height:160px;max-width:92vw;max-height:92vh;resize:both;display:flex;flex-direction:column;background:#fff;color:#1f2430;border-radius:10px;',
     '  box-shadow:0 14px 40px rgba(0,0,0,.3),0 0 0 1px rgba(0,0,0,.06);overflow:hidden;font-size:13px}',
     '.sp .hd{background:#f3f4f6;border-bottom:1px solid #e5e7eb;font-weight:600}',
     '.sp .sb{flex:1;min-height:0;overflow-y:auto;padding:10px 14px 14px}',
@@ -184,6 +200,25 @@
     '.sp .sw{display:flex;gap:6px}.sp .sw i{width:20px;height:20px;border-radius:50%;cursor:pointer;border:2px solid rgba(0,0,0,.12)}.sp .sw i.on{border-color:#111}',
     '.sp code{background:#f3f4f6;padding:1px 4px;border-radius:3px;font-size:11px;word-break:break-all}',
     '.sp .hint{font-size:11.5px;color:#6b7280;line-height:1.45;margin:4px 0}',
+    '.sp.ln{width:520px}',
+    '.lb{display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding:8px 10px;border-bottom:1px solid #e5e7eb;background:#fafafa;flex:none}',
+    '.lb input[type=text]{flex:1;min-width:120px;border:1px solid #d1d5db;border-radius:6px;padding:5px 8px;background:#fff}',
+    '.lb select{border:1px solid #d1d5db;border-radius:6px;padding:5px 6px;background:#fff}',
+    '.lb .so{display:flex;gap:2px;align-items:center;font-size:11.5px;color:#6b7280;flex-basis:100%}',
+    '.lb .so button{border:1px solid transparent;background:none;border-radius:5px;padding:2px 7px;cursor:pointer;font-size:11.5px;color:#374151}',
+    '.lb .so button.on{background:#e8f3fc;border-color:#bfdcf3;color:#0C5E9C}',
+    '.ll{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;padding:2px 10px 8px}',
+    '.lr{display:grid;grid-template-columns:14px minmax(0,1fr) auto;gap:4px 10px;align-items:center;padding:7px 0;border-bottom:1px solid #eef0f3}',
+    '.lr i{width:12px;height:12px;border-radius:50%;border:1px solid rgba(0,0,0,.2);display:block}',
+    '.lr .lt{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;min-width:0}',
+    '.lr .lt:hover{color:#0C5E9C}',
+    '.lr .lm{grid-column:2;font-size:11.5px;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}',
+    '.lr .la{grid-row:1/3;grid-column:3;display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}',
+    '.lr .la button{border:1px solid #d1d5db;background:#fff;border-radius:5px;padding:3px 7px;font-size:11.5px;cursor:pointer;white-space:nowrap}',
+    '.lr .la button:hover{background:#f3f4f6}.lr .la button.warn{border-color:#fca5a5;color:#b91c1c}',
+    '.lr.here .lt::after{content:" \u2022 here";font-weight:400;color:#15803d;font-size:11px}',
+    '.lc{font-size:11.5px;color:#6b7280;padding:8px 12px;border-top:1px solid #e5e7eb;flex:none}',
+    '.le{padding:26px 10px;text-align:center;color:#6b7280;font-size:12.5px}',
     '.toast{position:absolute;pointer-events:none;left:50%;top:18px;transform:translateX(-50%);background:#1A1F2B;color:#fff;padding:8px 14px;border-radius:8px;font-size:13px;box-shadow:0 8px 24px rgba(0,0,0,.3);opacity:0;transition:opacity .2s}',
     '.toast.on{opacity:1}',
 
@@ -327,7 +362,7 @@
     handle.addEventListener('pointerdown', function (e) {
       if (e.button !== 0) return;
       var tg = e.target;
-      if (tg.closest('b') || (tg.tagName === 'SPAN' && tg.parentElement.classList.contains('del'))) return;
+      if (tg.closest('b') || tg.tagName === 'INPUT' || (tg.tagName === 'SPAN' && tg.parentElement.classList.contains('del'))) return;
       var sx = e.clientX, sy = e.clientY, ox = box.offsetLeft, oy = box.offsetTop, moved = false;
       handle.setPointerCapture(e.pointerId);
       function mv(ev) {
@@ -345,13 +380,31 @@
     });
   }
 
+  // Restore and persist a panel's position and size under cfg.panels[key].
+  function persistPanel(key, box, hd, defW) {
+    var p = cfg.panels[key] || {};
+    var w = p.w || defW;
+    box.style.left = (p.x != null ? Math.max(0, Math.min(p.x, window.innerWidth - 80)) : Math.max(10, (window.innerWidth - w) / 2)) + 'px';
+    box.style.top = (p.y != null ? Math.max(0, Math.min(p.y, window.innerHeight - 60)) : 60) + 'px';
+    if (p.w) box.style.width = p.w + 'px';
+    if (p.h) box.style.height = p.h + 'px';
+    function saveState() {
+      var r = box.getBoundingClientRect();
+      if (r.width < 50 || r.height < 30) return;
+      cfg.panels[key] = { x: box.offsetLeft, y: box.offsetTop, w: Math.round(r.width), h: Math.round(r.height) };
+      saveCfg();
+    }
+    makeDraggable(hd, box, saveState);
+    box.addEventListener('pointerup', function () { setTimeout(saveState, 0); });
+  }
+
   function bringToFront(n) { n.z = ++maxZ; if (views[n.id]) views[n.id].el.style.zIndex = n.z; }
 
   function buildNote(n) {
     var box = el('div', { class: 'n' + (n.min ? ' min' : ''), 'data-id': n.id });
     box.style.setProperty('--c', COLORS[n.color] || COLORS.yellow);
     var dot = el('span', { class: 'dot' });
-    var title = el('span', { class: 't', text: SCOPE_LABEL[n.scope] || '' });
+    var title = el('span', { class: 't', text: dispTitle(n), title: 'Click to rename' });
     var bColor = el('b', { title: 'Color' }, [svgIcon('color')]);
     var bPin = el('b', { title: 'Pin to: this page / this site / everywhere' }, [svgIcon('pin')]);
     var bMin = el('b', { title: n.min ? 'Expand' : 'Collapse' }, [svgIcon('chev')]);
@@ -362,7 +415,7 @@
     var hd = el('div', { class: 'hd' }, [dot, title, del, bColor, bPin, bMin, bDel]);
     var ta = el('textarea', { placeholder: 'Type a note...', spellcheck: 'true' }); ta.value = n.text || '';
     var bd = el('div', { class: 'bd' }, [ta]);
-    var ft = el('div', { class: 'ft', text: 'Edited ' + ago(n.updated || n.created) });
+    var ft = el('div', { class: 'ft', text: SCOPE_LABEL[n.scope] + ' \u00B7 Edited ' + ago(n.updated || n.created) });
     var pal = el('div', { class: 'pal' }); pal.style.display = 'none';
     Object.keys(COLORS).forEach(function (c) {
       var i = el('i', { class: c === n.color ? 'on' : '', title: c }); i.style.background = COLORS[c];
@@ -377,7 +430,7 @@
     ['page', 'site', 'all'].forEach(function (s) {
       var sp = el('span', { class: s === n.scope ? 'on' : '', text: SCOPE_LABEL[s], title: keyFor(s) });
       sp.addEventListener('click', function () {
-        n.scope = s; n.key = keyFor(s); title.textContent = SCOPE_LABEL[s];
+        n.scope = s; n.key = keyFor(s); ft.textContent = SCOPE_LABEL[s] + ' \u00B7 Edited ' + ago(n.updated || n.created);
         [].forEach.call(pin.children, function (x) { x.classList.toggle('on', x === sp); });
         pin.style.display = 'none'; n.updated = Date.now(); saveNotes(); updateBadge();
       });
@@ -404,9 +457,25 @@
     dn.addEventListener('click', function () { hd.classList.remove('confirm'); });
     dy.addEventListener('click', function () { removeNote(n.id); });
 
+    // Inline rename: click the title, type, Enter or click away to keep, Esc to cancel.
+    title.addEventListener('click', function () {
+      if (hd.querySelector('input.ti')) return;
+      var inp = el('input', { class: 'ti', type: 'text', placeholder: 'Title', maxlength: '80' }); inp.value = n.title || '';
+      hd.replaceChild(inp, title); inp.focus(); inp.select();
+      var done = false;
+      function finish(keep) {
+        if (done) return; done = true;
+        if (keep) { var v = inp.value.trim(); if (v !== (n.title || '')) { n.title = v; n.updated = Date.now(); saveNotes(); } }
+        title.textContent = dispTitle(n); hd.replaceChild(title, inp); renderList();
+      }
+      inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') finish(true); else if (e.key === 'Escape') finish(false); });
+      inp.addEventListener('blur', function () { finish(true); });
+    });
+
     var typing;
     ta.addEventListener('input', function () {
-      n.text = ta.value; n.updated = Date.now(); ft.textContent = 'Edited just now';
+      n.text = ta.value; n.updated = Date.now(); ft.textContent = SCOPE_LABEL[n.scope] + ' \u00B7 Edited just now';
+      if (!n.title) title.textContent = dispTitle(n);
       clearTimeout(typing); typing = setTimeout(saveNotes, 500);
     });
     ta.addEventListener('blur', function () { clearTimeout(typing); if (n.text !== ta.value) { n.text = ta.value; n.updated = Date.now(); } saveNotes(); });
@@ -471,7 +540,7 @@
 
   // Refresh footers every minute; clamp on resize.
   setInterval(function () {
-    notes.forEach(function (n) { if (views[n.id]) views[n.id].ft.textContent = 'Edited ' + ago(n.updated || n.created); });
+    notes.forEach(function (n) { if (views[n.id]) views[n.id].ft.textContent = SCOPE_LABEL[n.scope] + ' \u00B7 Edited ' + ago(n.updated || n.created); });
   }, 60000);
   window.addEventListener('resize', function () {
     notes.forEach(function (n) { if (views[n.id]) { clampPos(n); views[n.id].el.style.left = n.x + 'px'; views[n.id].el.style.top = n.y + 'px'; } });
@@ -502,9 +571,10 @@
         v.el.style.left = n.x + 'px'; v.el.style.top = n.y + 'px';
         if (n.w) v.el.style.width = n.w + 'px';
         v.el.classList.toggle('min', !!n.min);
-        v.title.textContent = SCOPE_LABEL[n.scope] || '';
+        v.title.textContent = dispTitle(n);
+        v.ft.textContent = SCOPE_LABEL[n.scope] + ' \u00B7 Edited ' + ago(n.updated || n.created);
       });
-      render();
+      render(); renderList();
     });
     GM_addValueChangeListener('tack.cfg', function (name, oldV, newV, remote) {
       if (!remote || !newV) return;
@@ -544,6 +614,7 @@
       item('New note for this page', function () { addNote({ scope: 'page' }); }),
       item('New note everywhere', function () { addNote({ scope: 'all' }); }),
       el('hr'),
+      item('All notes (' + notes.length + ')...', openList),
       item(hiddenHere ? 'Show notes on this site' : 'Hide notes on this site', function () {
         if (hiddenHere) delete cfg.hidden[siteKey()]; else cfg.hidden[siteKey()] = true;
         saveCfg(); applyLauncher(); updateBadge();
@@ -569,6 +640,7 @@
 
   try {
     GM_registerMenuCommand('New sticky note', function () { addNote(); });
+    GM_registerMenuCommand('All notes', openList);
     GM_registerMenuCommand('Tack settings', openSettings);
   } catch (_) {}
 
@@ -669,13 +741,124 @@
     body.appendChild(el('div', { class: 'hint', text: 'Google sign-ins last about an hour. When it lapses, the launcher menu shows "reconnect" and you click Connect again. Nothing is lost in between; the browser copy is always the source of truth.' }));
 
     settings = el('div', { class: 'sp' }, [hd, body]);
-    settings.style.left = Math.max(10, (window.innerWidth - 340) / 2) + 'px';
-    settings.style.top = '60px';
     settings.style.zIndex = ++maxZ + 1;
-    makeDraggable(hd, settings);
+    persistPanel('settings', settings, hd, 340);
     root.appendChild(settings);
     stEls = { status: status, connect: connect };
     refreshSettings();
+  }
+
+  // ------------------------------------------------------------- all notes
+  var listEl = null, listBody = null, listCount = null, listQ = '', listFilter = 'all', listSort = { by: 'updated', dir: -1 };
+  var SORTS = [['updated', 'Edited'], ['title', 'Title'], ['where', 'Where'], ['created', 'Created']];
+  function openList() {
+    if (listEl) { listEl.remove(); listEl = null; }
+    var hd = el('div', { class: 'hd' }, [el('span', { class: 't', text: 'All notes' }), el('b', { title: 'Close' }, [svgIcon('x')])]);
+    hd.lastChild.addEventListener('click', function () { listEl.remove(); listEl = null; });
+    var q = el('input', { type: 'text', placeholder: 'Search titles and text', spellcheck: 'false' }); q.value = listQ;
+    q.addEventListener('input', function () { listQ = q.value; renderList(); });
+    var f = el('select');
+    [['all', 'All notes'], ['here', 'On this site'], ['page', 'This page'], ['site', 'Site notes'], ['every', 'Everywhere notes']].forEach(function (o) {
+      var op = el('option', { value: o[0], text: o[1] }); if (o[0] === listFilter) op.selected = true; f.appendChild(op);
+    });
+    f.addEventListener('change', function () { listFilter = f.value; renderList(); });
+    var so = el('div', { class: 'so' }, [el('span', { text: 'Sort:' })]);
+    SORTS.forEach(function (sd) {
+      var b = el('button', { type: 'button', 'data-by': sd[0] });
+      b.addEventListener('click', function () {
+        // asc -> desc -> off cycle, like the tables elsewhere
+        if (listSort.by !== sd[0]) listSort = { by: sd[0], dir: 1 };
+        else if (listSort.dir === 1) listSort.dir = -1;
+        else listSort = { by: 'updated', dir: -1 };
+        renderList();
+      });
+      so.appendChild(b);
+    });
+    var tb = el('div', { class: 'lb' }, [q, f, so]);
+    listBody = el('div', { class: 'll' });
+    listCount = el('div', { class: 'lc' });
+    listEl = el('div', { class: 'sp ln' }, [hd, tb, listBody, listCount]);
+    listEl.style.zIndex = ++maxZ + 1;
+    persistPanel('list', listEl, hd, 520);
+    root.appendChild(listEl);
+    renderList();
+    q.focus();
+  }
+  function renderList() {
+    if (!listEl || !listEl.isConnected) return;
+    [].forEach.call(listEl.querySelectorAll('.so button'), function (b) {
+      var on = b.getAttribute('data-by') === listSort.by;
+      var label = SORTS.filter(function (x) { return x[0] === b.getAttribute('data-by'); })[0][1];
+      b.textContent = label + (on ? (listSort.dir === 1 ? ' \u25B2' : ' \u25BC') : '');
+      b.classList.toggle('on', on);
+    });
+    var ql = listQ.trim().toLowerCase();
+    var rows = notes.filter(function (n) {
+      if (listFilter === 'here' && !isVisible(n)) return false;
+      if (listFilter === 'page' && n.scope !== 'page') return false;
+      if (listFilter === 'site' && n.scope !== 'site') return false;
+      if (listFilter === 'every' && n.scope !== 'all') return false;
+      if (ql && (dispTitle(n) + ' ' + (n.text || '') + ' ' + whereLabel(n)).toLowerCase().indexOf(ql) < 0) return false;
+      return true;
+    });
+    var by = listSort.by, dir = listSort.dir;
+    rows.sort(function (a, b) {
+      var va, vb;
+      if (by === 'title') { va = dispTitle(a).toLowerCase(); vb = dispTitle(b).toLowerCase(); }
+      else if (by === 'where') { va = whereLabel(a).toLowerCase(); vb = whereLabel(b).toLowerCase(); }
+      else { va = a[by] || 0; vb = b[by] || 0; }
+      return va < vb ? -dir : va > vb ? dir : 0;
+    });
+    listBody.textContent = '';
+    if (!rows.length) {
+      listBody.appendChild(el('div', { class: 'le', text: notes.length ? 'Nothing matches.' : 'No notes yet. Click the launcher or press Alt+N.' }));
+    }
+    rows.forEach(function (n) {
+      var here = isVisible(n);
+      var dot = el('i'); dot.style.background = COLORS[n.color] || COLORS.yellow;
+      var lt = el('span', { class: 'lt', text: dispTitle(n), title: here ? 'Show this note' : 'Go to where this note lives' });
+      lt.addEventListener('click', function () { if (here) revealNote(n); else gotoNote(n); });
+      var lm = el('span', { class: 'lm', text: (n.scope === 'all' ? 'Everywhere' : SCOPE_LABEL[n.scope] + ' \u00B7 ' + whereLabel(n)) + ' \u00B7 ' + ago(n.updated || n.created) });
+      var la = el('span', { class: 'la' });
+      if (here) {
+        var bShow = el('button', { type: 'button', text: n.min ? 'Expand' : 'Show' });
+        bShow.addEventListener('click', function () { revealNote(n); });
+        la.appendChild(bShow);
+      } else {
+        if (n.scope !== 'all') {
+          var bGo = el('button', { type: 'button', text: 'Open', title: 'Go to ' + n.key });
+          bGo.addEventListener('click', function () { gotoNote(n); });
+          la.appendChild(bGo);
+        }
+        var bHere = el('button', { type: 'button', text: 'Bring here', title: 'Re-pin this note to ' + SCOPE_LABEL[cfg.defaultScope].toLowerCase() });
+        bHere.addEventListener('click', function () {
+          n.scope = cfg.defaultScope; n.key = keyFor(n.scope); n.min = false; n.updated = Date.now(); clampPos(n);
+          saveNotes(); render(); revealNote(n);
+        });
+        la.appendChild(bHere);
+      }
+      var bDel = el('button', { type: 'button', class: 'warn', text: 'Delete' }), armed = null;
+      bDel.addEventListener('click', function () {
+        if (armed) { clearTimeout(armed); removeNote(n.id); return; }
+        bDel.textContent = 'Sure?'; armed = setTimeout(function () { armed = null; bDel.textContent = 'Delete'; }, 3000);
+      });
+      la.appendChild(bDel);
+      listBody.appendChild(el('div', { class: 'lr' + (here ? ' here' : '') }, [dot, lt, lm, la]));
+    });
+    var hereCount = notes.filter(isVisible).length;
+    listCount.textContent = rows.length + ' of ' + notes.length + ' note' + (notes.length === 1 ? '' : 's') + ' shown \u00B7 ' + hereCount + ' on this page';
+  }
+  function revealNote(n) {
+    var v = views[n.id]; if (!v) return;
+    if (n.min) { n.min = false; v.el.classList.remove('min'); if (n.h) v.el.style.height = n.h + 'px'; saveQuiet(); }
+    if (cfg.hidden[siteKey()]) { delete cfg.hidden[siteKey()]; saveCfg(); applyLauncher(); updateBadge(); }
+    bringToFront(n); saveQuiet();
+    v.el.classList.add('flash'); setTimeout(function () { v.el.classList.remove('flash'); }, 1200);
+    v.ta.focus();
+  }
+  function gotoNote(n) {
+    if (n.scope === 'page') location.href = n.key;
+    else if (n.scope === 'site') location.href = 'https://' + n.key + '/';
   }
 
   // ----------------------------------------------------------------- Drive

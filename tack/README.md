@@ -21,7 +21,8 @@ Install: https://frank-umbrella.github.io/work/tack/tack.user.js
 
 ## How it is built
 
-- All notes live in one Tampermonkey value, `tack.notes`. Settings in `tack.cfg`.
+- All notes live in one Tampermonkey value, `tack.notes`. Settings and panel
+  positions in `tack.cfg`.
   Deletions are recorded in `tack.tombstones` so Drive sync never resurrects
   a note.
 - The UI is a Shadow DOM inside a `<tack-notes>` element that is shown with
@@ -43,6 +44,15 @@ page that defines `GM_getValue`, `GM_setValue`, `GM_addValueChangeListener`,
 is enough) and includes `tack.user.js` with a script tag.
 
 ## Changelog
+
+### 0.2.0 - 2026-09-22
+
+Notes have titles now (click the title to rename; an empty title shows the
+first line of the text), and there is an All notes panel from the launcher
+menu: search, filter by scope, sort by edited, title, where or created, and
+Show, Open, Bring here or Delete per row. The panel and Settings remember
+their position and size. Asked for after the first review, because the
+only overview before this was the count badge on the launcher.
 
 ### 0.1.1 - 2026-09-22
 

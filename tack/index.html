@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Tack v0.1.1 - sticky notes on any site</title>
-<meta name="version" content="0.1.1" />
+<title>Tack v0.2.0 - sticky notes on any site</title>
+<meta name="version" content="0.2.0" />
 <meta name="robots" content="noindex, nofollow" />
 <meta name="description" content="Tack is a Tampermonkey userscript that puts draggable, resizable sticky notes on top of any website, with optional Google Drive backup." />
 <meta name="theme-color" content="#1A9BE8" />
@@ -39,7 +39,7 @@
 <body>
 <header>
   <div class="wrap">
-    <h1>Tack <span class="v">v0.1.1</span></h1>
+    <h1>Tack <span class="v">v0.2.0</span></h1>
     <p>Sticky notes that float on top of any website. Drag them, resize them, collapse them, pin them to a page, a site, or everywhere. They stay in your browser and can back up to your own Google Drive.</p>
     <a class="btn" href="tack.user.js">Install the userscript</a>
     <a class="btn alt" href="design-preview.html">See the six styles</a>
@@ -66,6 +66,8 @@
       <div class="card"><h3>Move, size, collapse</h3><p>Drag the header. Pull the bottom-right corner to resize. The chevron collapses a note to its header.</p></div>
       <div class="card"><h3>Pin scope</h3><p>The pushpin button switches a note between this page, this site, and everywhere. Page notes follow the exact URL.</p></div>
       <div class="card"><h3>Colors and styles</h3><p>Six colors per note. Six note styles for everything, chosen in Settings: Glass (default), Post-it, OneNote, Umbrella, Slate, Paper.</p></div>
+      <div class="card"><h3>Titles</h3><p>Click a note's title to rename it. Without a title, the first line of the text is used, so a note that starts "Call back after 2pm" lists itself that way.</p></div>
+      <div class="card"><h3>All notes</h3><p>Right-click the launcher and choose All notes for a searchable, sortable list of every note: title, where it lives, when it was edited. Show, Open, Bring here, or Delete from there.</p></div>
       <div class="card"><h3>Hide on a site</h3><p>Right-click the launcher and choose "Hide notes on this site" when a site gets crowded. Notes are kept, just tucked away.</p></div>
       <div class="card"><h3>Export and import</h3><p>Settings has Export JSON and Import JSON. Export before reinstalling Tampermonkey or moving to a new PC.</p></div>
     </div>
@@ -102,7 +104,7 @@
     </div>
   </section>
 
-  <footer>Tack v0.1.1. Built for Umbrella Automation. Source: <code>tack.user.js</code> in this folder.</footer>
+  <footer>Tack v0.2.0. Built for Umbrella Automation. Source: <code>tack.user.js</code> in this folder.</footer>
 </div>
 </body>
 </html>
