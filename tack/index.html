@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Tack v0.1.0 - sticky notes on any site</title>
+<meta name="version" content="0.1.0" />
+<meta name="robots" content="noindex, nofollow" />
+<meta name="description" content="Tack is a Tampermonkey userscript that puts draggable, resizable sticky notes on top of any website, with optional Google Drive backup." />
+<meta name="theme-color" content="#1A9BE8" />
+<link rel="icon" type="image/svg+xml" href="favicon.svg" />
+<style>
+  :root { --umb: #1A9BE8; --deep: #0C5E9C; --storm: #1A1F2B; --graphite: #6E6E6E; --cloud: #E8EBEF; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; font-family: "Segoe UI", system-ui, sans-serif; background: #f3f4f6; color: var(--storm); line-height: 1.55; }
+  header { background: #fff; border-bottom: 1px solid var(--cloud); padding: 34px 16px 28px; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 0 16px; }
+  h1 { margin: 0 0 6px; font-size: 30px; display: flex; align-items: center; gap: 12px; }
+  h1 .v { font-size: 13px; font-weight: 500; color: var(--graphite); background: var(--cloud); border-radius: 999px; padding: 2px 10px; }
+  header p { margin: 0 0 18px; color: #374151; max-width: 560px; }
+  .btn { display: inline-block; background: var(--umb); color: #fff; text-decoration: none; padding: 11px 18px; border-radius: 8px; font-weight: 600; }
+  .btn:hover { background: var(--deep); }
+  .btn.alt { background: #fff; color: var(--deep); border: 1px solid #c9d3dd; margin-left: 8px; }
+  section { padding: 26px 0 6px; }
+  h2 { font-size: 18px; margin: 0 0 10px; }
+  .card { background: #fff; border: 1px solid var(--cloud); border-radius: 10px; padding: 18px 20px; margin: 0 0 16px; }
+  ol, ul { padding-left: 22px; margin: 8px 0; }
+  li { margin: 5px 0; }
+  code { background: var(--cloud); padding: 1px 5px; border-radius: 4px; font-size: 13px; word-break: break-all; }
+  kbd { background: #fff; border: 1px solid #c9d3dd; border-bottom-width: 2px; border-radius: 4px; padding: 0 6px; font-size: 12px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+  .grid .card { margin: 0; }
+  .grid h3 { margin: 0 0 4px; font-size: 14px; }
+  .grid p { margin: 0; font-size: 13.5px; color: #374151; }
+  footer { color: var(--graphite); font-size: 13px; padding: 20px 0 40px; }
+  .note { border-left: 4px solid #f59e0b; background: #fffbeb; }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>Tack <span class="v">v0.1.0</span></h1>
+    <p>Sticky notes that float on top of any website. Drag them, resize them, collapse them, pin them to a page, a site, or everywhere. They stay in your browser and can back up to your own Google Drive.</p>
+    <a class="btn" href="tack.user.js">Install the userscript</a>
+    <a class="btn alt" href="design-preview.html">See the six styles</a>
+  </div>
+</header>
+
+<div class="wrap">
+  <section>
+    <h2>Install</h2>
+    <div class="card">
+      <ol>
+        <li>Install the <a href="https://www.tampermonkey.net/" target="_blank" rel="noopener">Tampermonkey</a> extension in the work Chrome profile (or Edge).</li>
+        <li>Click <strong>Install the userscript</strong> above. Tampermonkey opens its install screen; confirm it.</li>
+        <li>Open any site. A round button appears bottom-right. Click it for a new note, right-click it for the menu.</li>
+      </ol>
+      <p>Updates arrive through Tampermonkey automatically. Tampermonkey needs "Allow access to file URLs" only if you want notes on local files.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Using it</h2>
+    <div class="grid">
+      <div class="card"><h3>New note</h3><p>Click the launcher, press <kbd>Alt</kbd>+<kbd>N</kbd>, or use the Tampermonkey menu. New notes stick to the current site by default.</p></div>
+      <div class="card"><h3>Move, size, collapse</h3><p>Drag the header. Pull the bottom-right corner to resize. The dash button collapses a note to its header.</p></div>
+      <div class="card"><h3>Pin scope</h3><p>The triangle button switches a note between this page, this site, and everywhere. Page notes follow the exact URL.</p></div>
+      <div class="card"><h3>Colors and styles</h3><p>Six colors per note. Six note styles for everything, chosen in Settings: Post-it, OneNote, Glass, Umbrella, Slate, Paper.</p></div>
+      <div class="card"><h3>Hide on a site</h3><p>Right-click the launcher and choose "Hide notes on this site" when a site gets crowded. Notes are kept, just tucked away.</p></div>
+      <div class="card"><h3>Export and import</h3><p>Settings has Export JSON and Import JSON. Export before reinstalling Tampermonkey or moving to a new PC.</p></div>
+    </div>
+  </section>
+
+  <section id="drive">
+    <h2>Google Drive backup (optional, one-time setup)</h2>
+    <div class="card note">
+      <p>Tack talks to Google directly from your browser. There is no server in between, so it needs its own OAuth client in a Google Cloud project you control. The Client ID is a public identifier, not a secret. Do this signed in to the work Google account.</p>
+    </div>
+    <div class="card">
+      <ol>
+        <li>Open <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener">Google Cloud Console, APIs &amp; Services, Credentials</a>. Create a project if there is none (any name, for example "Tack").</li>
+        <li>Enable the <strong>Google Drive API</strong> under APIs &amp; Services, Library.</li>
+        <li>Under <strong>OAuth consent screen</strong>, choose Internal if the Workspace offers it (then only company accounts can sign in). Otherwise External, and add your own address as a test user. App name "Tack". No extra scopes need to be listed here.</li>
+        <li>Back in Credentials, <strong>Create credentials, OAuth client ID</strong>, type <strong>Web application</strong>, name "Tack".</li>
+        <li>Under <strong>Authorized JavaScript origins</strong> add <code>https://frank-umbrella.github.io</code>.</li>
+        <li>Under <strong>Authorized redirect URIs</strong> add exactly <code>https://frank-umbrella.github.io/work/tack/auth.html</code>.</li>
+        <li>Copy the Client ID (it ends in <code>.apps.googleusercontent.com</code>). On any site, right-click the Tack launcher, Settings, paste it under Google Drive backup, then click <strong>Connect Google Drive</strong>.</li>
+      </ol>
+      <p>A popup asks you to pick the account and allow "See, edit, create, and delete only the specific Google Drive files you use with this app". That is the narrowest Drive permission Google offers; Tack can only see the one file it creates, <code>tack-notes.json</code>, in the root of My Drive.</p>
+      <p>How syncing works: the browser copy is always the source of truth. With auto-sync on, edits are pushed a few seconds after you stop typing, and a page load pulls once a minute at most. When the same note was changed in two places, the newer change wins. Deleted notes stay deleted on every device. Google sign-ins last about an hour; after that the launcher menu shows "reconnect" and one click brings it back.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Privacy</h2>
+    <div class="card">
+      <ul>
+        <li>Notes are stored in Tampermonkey's storage on this PC. Nothing leaves the browser unless you connect Google Drive.</li>
+        <li>With Drive connected, the only network calls are to <code>www.googleapis.com</code> with your own token.</li>
+        <li>No analytics, no third-party scripts, no fonts loaded from the web.</li>
+      </ul>
+    </div>
+  </section>
+
+  <footer>Tack v0.1.0. Built for Umbrella Automation. Source: <code>tack.user.js</code> in this folder.</footer>
+</div>
+</body>
+</html>

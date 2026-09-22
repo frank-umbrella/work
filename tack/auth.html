@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Tack - connecting Google Drive</title>
+<meta name="robots" content="noindex, nofollow" />
+<link rel="icon" type="image/svg+xml" href="favicon.svg" />
+<style>
+  html, body { margin: 0; min-height: 100%; font-family: "Segoe UI", system-ui, sans-serif; background: #f3f4f6; color: #1A1F2B; }
+  main { max-width: 440px; margin: 12vh auto 0; background: #fff; border-radius: 12px; border-top: 4px solid #1A9BE8; box-shadow: 0 10px 30px rgba(12,94,156,.12); padding: 28px 30px; }
+  h1 { font-size: 18px; margin: 0 0 10px; }
+  p { line-height: 1.5; margin: 8px 0; }
+  #tack-auth-msg { font-weight: 600; }
+  .sub { color: #6E6E6E; font-size: 13px; }
+  a { color: #0C5E9C; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Tack</h1>
+  <p id="tack-auth-msg">Finishing the Google sign-in...</p>
+  <p class="sub" id="tack-auth-help"></p>
+  <p class="sub">This page only hands the sign-in result to the Tack userscript. Nothing is sent anywhere else. <a href="./">About Tack</a></p>
+</main>
+<script>
+  // The userscript reads the token from the URL hash and replaces the message
+  // above. If it never does, the script is not running on this page.
+  setTimeout(function () {
+    var m = document.getElementById('tack-auth-msg');
+    if (m.textContent.indexOf('Finishing') === 0) {
+      m.textContent = 'The Tack userscript did not pick this up.';
+      document.getElementById('tack-auth-help').textContent =
+        'Make sure Tampermonkey is enabled on this site (frank-umbrella.github.io) and that Tack is installed, then close this window and click Connect again.';
+    }
+  }, 3000);
+</script>
+</body>
+</html>

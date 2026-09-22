@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tack - design preview</title>
+<style>
+  :root {
+    --c1: #fff59d; --c2: #c8f7c5; --c3: #bde0fe; --c4: #ffc8dd; --c5: #e0c3fc; --c6: #ffd6a5;
+    --umb: #1A9BE8; --umb-deep: #0C5E9C; --storm: #1A1F2B; --graphite: #6E6E6E; --cloud: #E8EBEF;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; font-family: "Segoe UI", system-ui, sans-serif; background: #202430; color: #e6e8ee; }
+
+  /* ---------- switcher chrome ---------- */
+  #bar { position: fixed; top: 0; left: 0; right: 0; z-index: 50; background: #12151c; border-bottom: 1px solid #2c3140;
+         padding: 10px 16px; display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
+  #bar .title { font-weight: 700; letter-spacing: .04em; margin-right: 6px; }
+  #bar button { background: #262b38; color: #e6e8ee; border: 1px solid #3a4152; border-radius: 6px; padding: 6px 11px;
+                font: inherit; font-size: 13px; cursor: pointer; }
+  #bar button:hover { background: #313747; }
+  #bar button.on { background: var(--umb); border-color: var(--umb); color: #fff; }
+  #bar .sep { width: 1px; height: 22px; background: #2c3140; }
+  #bar .hint { opacity: .6; font-size: 12px; margin-left: auto; }
+  #cap { position: fixed; bottom: 0; left: 0; right: 0; z-index: 50; background: #12151c; border-top: 1px solid #2c3140;
+         padding: 10px 16px; display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+  #cap .name { font-weight: 700; }
+  #cap .tag { background: #262b38; border-radius: 999px; padding: 2px 10px; font-size: 12px; }
+  #cap .desc { opacity: .8; font-size: 13px; }
+  #cap .sw { display: flex; gap: 6px; margin-left: auto; }
+  #cap .sw i { width: 18px; height: 18px; border-radius: 50%; display: block; border: 1px solid rgba(255,255,255,.25); }
+
+  /* ---------- fake host page ---------- */
+  #site { position: absolute; top: 58px; bottom: 50px; left: 0; right: 0; overflow: hidden; background: #f3f4f6; color: #1f2937; }
+  #site.dark { background: #0f1117; color: #d1d5db; }
+  .top { height: 52px; background: #fff; border-bottom: 1px solid #e5e7eb; display: flex; align-items: center; gap: 18px; padding: 0 22px; }
+  #site.dark .top { background: #161a23; border-color: #262b38; }
+  .top b { color: var(--umb); }
+  .top span { opacity: .7; font-size: 14px; }
+  .side { position: absolute; top: 52px; left: 0; bottom: 0; width: 210px; background: #fff; border-right: 1px solid #e5e7eb; padding: 16px 0; }
+  #site.dark .side { background: #161a23; border-color: #262b38; }
+  .side div { padding: 9px 22px; font-size: 14px; opacity: .8; }
+  .side div.on { background: #eef6fd; color: var(--umb-deep); font-weight: 600; opacity: 1; }
+  #site.dark .side div.on { background: #1d2636; color: #7cc4f5; }
+  .main { position: absolute; top: 52px; left: 210px; right: 0; bottom: 0; padding: 26px 30px; overflow: hidden; }
+  .main h1 { margin: 0 0 6px; font-size: 22px; }
+  .main p { max-width: 640px; line-height: 1.55; font-size: 14px; opacity: .8; }
+  .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px 18px; margin: 14px 0; max-width: 640px; }
+  #site.dark .card { background: #161a23; border-color: #262b38; }
+  .card h3 { margin: 0 0 6px; font-size: 15px; }
+  .row { display: flex; gap: 10px; margin-top: 10px; }
+  .row i { display: block; height: 10px; border-radius: 5px; background: #e5e7eb; flex: 1; }
+  #site.dark .row i { background: #262b38; }
+
+  /* ---------- notes: shared layout (theme changes only the skin) ---------- */
+  .note { position: absolute; width: 240px; height: 200px; display: flex; flex-direction: column; overflow: hidden; }
+  .note .hd { display: flex; align-items: center; gap: 4px; padding: 6px 8px; user-select: none; cursor: grab; font-size: 12px; }
+  .note .hd .t { flex: 1; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .note .hd b { width: 20px; height: 20px; display: grid; place-items: center; border-radius: 5px; font-weight: 400; font-size: 13px; cursor: pointer; opacity: .75; }
+  .note .hd b:hover { opacity: 1; background: rgba(0,0,0,.08); }
+  .note .hd .dot { width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid rgba(0,0,0,.25); margin-right: 3px; }
+  .note .bd { flex: 1; min-height: 0; padding: 4px 10px 6px; font-size: 13.5px; line-height: 1.45; white-space: pre-wrap; overflow: auto; }
+  .note .ft { display: flex; align-items: center; padding: 3px 10px 5px; font-size: 10.5px; opacity: .55; }
+  .note .ft .grip { margin-left: auto; width: 12px; height: 12px;
+    background: linear-gradient(135deg, transparent 0 45%, currentColor 45% 52%, transparent 52% 70%, currentColor 70% 77%, transparent 77%); opacity: .8; }
+  .note.min { height: auto !important; }
+  .note.min .bd, .note.min .ft { display: none; }
+  #n1 { left: 300px; top: 90px; }
+  #n2 { left: 590px; top: 150px; width: 220px; height: 150px; }
+  #n3 { left: 400px; top: 330px; width: 200px; }
+  #launch { position: absolute; right: 22px; bottom: 22px; width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center;
+            cursor: pointer; box-shadow: 0 6px 18px rgba(0,0,0,.25); }
+  #launch svg { width: 22px; height: 22px; }
+  #launch em { position: absolute; top: -4px; right: -4px; background: #ef4444; color: #fff; font: 700 10px/16px sans-serif; border-radius: 999px; min-width: 16px; text-align: center; font-style: normal; }
+
+  /* ===== 1. Post-it ===== */
+  [data-theme="postit"] .note { background: var(--c); color: #3b3300; font-family: "Segoe Print", "Bradley Hand", "Comic Sans MS", cursive; border-radius: 2px;
+     box-shadow: 2px 4px 10px rgba(0,0,0,.28), 0 0 0 1px rgba(0,0,0,.04) inset; }
+  [data-theme="postit"] .note::before { content: ""; position: absolute; left: 50%; top: 0; transform: translateX(-50%); width: 70px; height: 12px;
+     background: rgba(255,255,255,.55); box-shadow: 0 1px 2px rgba(0,0,0,.12); pointer-events: none; }
+  [data-theme="postit"] .note .hd { background: rgba(0,0,0,.06); padding-top: 8px; font-family: "Segoe UI", sans-serif; }
+  [data-theme="postit"] .note .bd { font-size: 15px; }
+  [data-theme="postit"] #launch { background: var(--c1); color: #6b5b00; }
+
+  /* ===== 2. OneNote-style sticky ===== */
+  [data-theme="onenote"] .note { background: var(--c); color: #1f1f1f; border-radius: 6px; box-shadow: 0 4px 14px rgba(0,0,0,.22), 0 1px 3px rgba(0,0,0,.15); }
+  [data-theme="onenote"] .note .hd { background: color-mix(in srgb, var(--c) 82%, #000); padding: 7px 8px; }
+  [data-theme="onenote"] .note .hd b:hover { background: rgba(0,0,0,.12); }
+  [data-theme="onenote"] .note .ft { border-top: 1px solid rgba(0,0,0,.08); }
+  [data-theme="onenote"] #launch { background: #7719aa; color: #fff; }
+
+  /* ===== 3. Glass ===== */
+  [data-theme="glass"] .note { background: rgba(255,255,255,.62); backdrop-filter: blur(16px) saturate(1.4); -webkit-backdrop-filter: blur(16px) saturate(1.4);
+     border: 1px solid rgba(255,255,255,.7); border-radius: 14px; color: #1f2430; box-shadow: 0 10px 30px rgba(0,0,0,.18); }
+  #site.dark[data-theme="glass"] .note { background: rgba(30,34,44,.62); border-color: rgba(255,255,255,.14); color: #eef0f4; }
+  [data-theme="glass"] .note .hd { border-bottom: 1px solid rgba(0,0,0,.06); }
+  [data-theme="glass"] .note .hd .dot { width: 10px; height: 10px; border: 0; box-shadow: 0 0 0 3px color-mix(in srgb, var(--c) 45%, transparent); background: var(--c); }
+  [data-theme="glass"] .note::after { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--c); }
+  [data-theme="glass"] #launch { background: rgba(255,255,255,.7); backdrop-filter: blur(12px); color: var(--storm); border: 1px solid rgba(255,255,255,.8); }
+  #site.dark[data-theme="glass"] #launch { background: rgba(30,34,44,.7); color: #fff; border-color: rgba(255,255,255,.14); }
+
+  /* ===== 4. Umbrella card ===== */
+  [data-theme="umbrella"] .note { background: #fff; color: var(--storm); border-radius: 8px; border-top: 4px solid var(--umb);
+     box-shadow: 0 6px 20px rgba(12,94,156,.18), 0 0 0 1px var(--cloud); }
+  [data-theme="umbrella"] .note .hd { background: #f7f9fb; border-bottom: 1px solid var(--cloud); font-family: "Arial Black", "Segoe UI", sans-serif; letter-spacing: .06em; font-size: 11px; text-transform: uppercase; }
+  [data-theme="umbrella"] .note .hd .t { font-weight: 900; color: var(--umb-deep); }
+  [data-theme="umbrella"] .note .hd .dot { border-radius: 3px; border-color: transparent; background: var(--c); }
+  [data-theme="umbrella"] .note .ft { color: var(--graphite); opacity: .9; }
+  [data-theme="umbrella"] #launch { background: linear-gradient(180deg, var(--umb), var(--umb-deep)); color: #fff; }
+
+  /* ===== 5. Slate (dark) ===== */
+  [data-theme="slate"] .note { background: var(--storm); color: #e6e8ee; border-radius: 8px; border-left: 4px solid var(--c);
+     box-shadow: 0 8px 24px rgba(0,0,0,.45), 0 0 0 1px rgba(255,255,255,.06); font-family: Consolas, "Cascadia Mono", monospace; }
+  [data-theme="slate"] .note .hd { background: rgba(255,255,255,.05); font-family: "Segoe UI", sans-serif; }
+  [data-theme="slate"] .note .hd .t { color: var(--c); }
+  [data-theme="slate"] .note .hd b:hover { background: rgba(255,255,255,.1); }
+  [data-theme="slate"] .note .hd .dot { border-color: rgba(255,255,255,.35); }
+  [data-theme="slate"] .note .bd { font-size: 12.5px; }
+  [data-theme="slate"] #launch { background: var(--storm); color: #7cc4f5; border: 1px solid rgba(255,255,255,.12); }
+
+  /* ===== 6. Paper slip ===== */
+  [data-theme="paper"] .note { background: #fffdf5 repeating-linear-gradient(transparent 0 23px, rgba(60,120,200,.18) 23px 24px); background-position: 0 30px;
+     color: #2b2b2b; font-family: Georgia, "Times New Roman", serif; border-radius: 3px; box-shadow: 1px 3px 9px rgba(0,0,0,.25); }
+  [data-theme="paper"] .note::before { content: ""; position: absolute; left: 26px; top: 0; bottom: 0; width: 1px; background: rgba(220,60,60,.35); pointer-events: none; }
+  [data-theme="paper"] .note::after { content: ""; position: absolute; right: 0; bottom: 0; width: 0; height: 0;
+     border-style: solid; border-width: 0 0 18px 18px; border-color: transparent transparent rgba(0,0,0,.12) transparent; }
+  [data-theme="paper"] .note .hd { background: var(--c); font-family: "Segoe UI", sans-serif; border-bottom: 1px solid rgba(0,0,0,.08); }
+  [data-theme="paper"] .note .bd { padding-left: 34px; line-height: 24px; font-size: 14px; }
+  [data-theme="paper"] .note .ft { padding-left: 34px; }
+  [data-theme="paper"] #launch { background: #fffdf5; color: #b91c1c; border: 1px solid rgba(0,0,0,.12); }
+</style>
+</head>
+<body>
+
+<div id="bar">
+  <span class="title">TACK - sticky notes on any site</span>
+  <span class="sep"></span>
+  <span id="themes"></span>
+  <button id="next">Next &rarr;</button>
+  <span class="sep"></span>
+  <button id="site-toggle">Host page: Light</button>
+  <span class="hint">&larr; / &rarr; to switch styles, D to flip the host page</span>
+</div>
+
+<div id="site" data-theme="postit">
+  <div class="top"><b>Umbrella Help Desk</b><span>Tickets</span><span>Clients</span><span>Reports</span></div>
+  <div class="side"><div>Inbox</div><div class="on">Ticket #4821</div><div>My tickets</div><div>Unassigned</div><div>Closed</div></div>
+  <div class="main">
+    <h1>Ticket #4821 - Outlook keeps asking for password</h1>
+    <p>Reported by a Kipling Community user. Modern auth prompt loops after the M365 migration. Waiting on the client to confirm MFA enrollment.</p>
+    <div class="card"><h3>Timeline</h3><div class="row"><i></i><i></i><i style="flex:.4"></i></div><div class="row"><i style="flex:.7"></i><i></i></div></div>
+    <div class="card"><h3>Attachments</h3><div class="row"><i style="flex:.5"></i><i style="flex:.3"></i><i></i></div></div>
+    <div class="card"><h3>Notes</h3><div class="row"><i></i><i style="flex:.6"></i></div><div class="row"><i style="flex:.8"></i><i style="flex:.4"></i><i></i></div></div>
+  </div>
+
+  <div class="note" id="n1" style="--c: var(--c1)">
+    <div class="hd"><span class="dot" style="background:var(--c)"></span><span class="t">This site</span><b title="Color">&#9679;</b><b title="Pin to: page / site / everywhere">&#9650;</b><b title="Collapse">&ndash;</b><b title="Delete">&times;</b></div>
+    <div class="bd">Ask for the MFA enrollment screenshot before escalating.
+
+Creds are in LinkLock, link expires Friday.</div>
+    <div class="ft">Edited 2 min ago<span class="grip"></span></div>
+  </div>
+
+  <div class="note" id="n2" style="--c: var(--c3)">
+    <div class="hd"><span class="dot" style="background:var(--c)"></span><span class="t">This page</span><b>&#9679;</b><b>&#9650;</b><b>&ndash;</b><b>&times;</b></div>
+    <div class="bd">Call back after 2pm - user is in a meeting until then.</div>
+    <div class="ft">Edited yesterday<span class="grip"></span></div>
+  </div>
+
+  <div class="note min" id="n3" style="--c: var(--c4)">
+    <div class="hd"><span class="dot" style="background:var(--c)"></span><span class="t">Everywhere - Standup reminders</span><b>&#9679;</b><b>&#9650;</b><b>+</b><b>&times;</b></div>
+    <div class="bd">collapsed</div>
+    <div class="ft"><span class="grip"></span></div>
+  </div>
+
+  <div id="launch" title="New sticky (Alt+N)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M6 9h12M9 15h6"/></svg>
+    <em>3</em>
+  </div>
+</div>
+
+<div id="cap">
+  <span class="name" id="cap-name"></span><span class="tag" id="cap-tag"></span><span class="desc" id="cap-desc"></span>
+  <span class="sw" id="cap-sw"></span>
+</div>
+
+<script>
+  var THEMES = [
+    { id: 'postit',   name: 'Post-it',   tag: 'classic',  desc: 'Square pastel paper with a tape strip and a handwriting font. The note IS the color.' },
+    { id: 'onenote',  name: 'OneNote',   tag: 'familiar', desc: 'Closest to OneNote Stickies: full-color body, darker header strip, rounded corners, Segoe UI.' },
+    { id: 'glass',    name: 'Glass',     tag: 'modern',   desc: 'Frosted translucent card that adapts to light or dark host pages. Color is a left ribbon and dot.' },
+    { id: 'umbrella', name: 'Umbrella',  tag: 'brand',    desc: 'White card, Umbrella Blue top edge, Storm text, uppercase header. Color is a small chip only.' },
+    { id: 'slate',    name: 'Slate',     tag: 'dark',     desc: 'Dark Storm card with a colored left stripe and monospace body. Reads well on any host page.' },
+    { id: 'paper',    name: 'Paper',     tag: 'lined',    desc: 'Ruled notepad slip with a red margin, folded corner and serif text. Color is the header band.' }
+  ];
+  var SW = ['--c1','--c2','--c3','--c4','--c5','--c6'];
+  var site = document.getElementById('site'), holder = document.getElementById('themes'), idx = 0;
+  var cs = getComputedStyle(document.documentElement);
+  THEMES.forEach(function (t, i) {
+    var b = document.createElement('button'); b.textContent = t.name; b.onclick = function () { pick(i); }; holder.appendChild(b);
+  });
+  function pick(i) {
+    idx = (i + THEMES.length) % THEMES.length; var t = THEMES[idx];
+    site.setAttribute('data-theme', t.id);
+    [].forEach.call(holder.children, function (b, j) { b.classList.toggle('on', j === idx); });
+    document.getElementById('cap-name').textContent = (idx + 1) + ' / ' + THEMES.length + '  ' + t.name;
+    document.getElementById('cap-tag').textContent = t.tag;
+    document.getElementById('cap-desc').textContent = t.desc;
+    var sw = document.getElementById('cap-sw'); sw.textContent = '';
+    SW.forEach(function (v) { var i = document.createElement('i'); i.style.background = cs.getPropertyValue(v); sw.appendChild(i); });
+  }
+  document.getElementById('next').onclick = function () { pick(idx + 1); };
+  document.getElementById('site-toggle').onclick = flip;
+  function flip() { site.classList.toggle('dark'); document.getElementById('site-toggle').textContent = 'Host page: ' + (site.classList.contains('dark') ? 'Dark' : 'Light'); }
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowRight') pick(idx + 1); else if (e.key === 'ArrowLeft') pick(idx - 1); else if (e.key.toLowerCase() === 'd') flip();
+  });
+  // Live drag so the preview feels real.
+  [].forEach.call(document.querySelectorAll('.note'), function (n) {
+    var hd = n.querySelector('.hd'), sx, sy, ox, oy;
+    hd.addEventListener('mousedown', function (e) {
+      if (e.target.tagName === 'B') return; sx = e.clientX; sy = e.clientY; ox = n.offsetLeft; oy = n.offsetTop;
+      function mv(e) { n.style.left = (ox + e.clientX - sx) + 'px'; n.style.top = (oy + e.clientY - sy) + 'px'; }
+      function up() { document.removeEventListener('mousemove', mv); document.removeEventListener('mouseup', up); }
+      document.addEventListener('mousemove', mv); document.addEventListener('mouseup', up); e.preventDefault();
+    });
+    hd.querySelectorAll('b')[2].onclick = function () { n.classList.toggle('min'); this.innerHTML = n.classList.contains('min') ? '+' : '&ndash;'; };
+  });
+  pick(0);
+</script>
+</body>
+</html>
