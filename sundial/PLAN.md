@@ -81,7 +81,14 @@ client so recurring projects stay consistent without another management screen.
   timeFormat        "12h" | "24h"
   weekStart         "mon" | "sun"
   rounding          "none" | "6" | "15"
-  defaultJobTypes   ["Remote support","On-site","Project","Travel","Admin"]
+  defaultJobTypes   [{name, billable: null|bool, allowConcurrent: null|bool,
+                      travel: bool, limit: null|{warnMin, hardMin}}]
+                    since v0.7.0. The list a new client is seeded with, flags
+                    and all; the flags are copied onto the client's own job
+                    type when it is seeded and never reach back into one that
+                    already exists. A plain string is still read as a flagless
+                    default, so older accounts and older backups load
+                    unchanged; the object form is what gets written.
   exportTemplate    "grouped" | "flat"
   showAmounts       false
   newClientBillable         true

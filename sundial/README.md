@@ -196,6 +196,33 @@ Two things worth knowing about how it looks:
 The entry form lists the breaks on an entry and can remove one, which puts its
 time back.
 
+## Job types and the defaults
+
+A job type is a kind of work under one client - Remote support, On-site,
+Admin - and it carries four flags: **billable**, **alongside** (may run at the
+same time as another job), **travel** (asks for miles when it stops) and
+**limit** (a warn point and a hard limit in minutes). Billable and alongside
+are three-state: dashed follows the client's own setting, blue is yes, red is
+no.
+
+**Settings > Default job types** is the list a brand new client starts with,
+and since v0.7.0 those defaults carry the same four flags, edited with the
+same chip. Set Admin to non-billable there and every client that gets Admin
+from then on gets it non-billable, so the flag is recorded once instead of on
+each client in turn.
+
+A client's job type is its own from the moment it is created. Changing a
+flag on a default never reaches back into a type somebody is already logging
+against - that hour was recorded under the rules in force at the time, and
+rewriting them afterwards would quietly change what has already been billed.
+Removing a default only removes it from the list; clients that have it keep
+it.
+
+Defaults still reach clients by themselves: whenever settings and clients are
+both loaded, an active client missing a default gets it, matched by name and
+ignoring case. A client that already has a type of that name - even an
+archived one - is left alone.
+
 ## Locations
 
 Each client carries a list of locations - **On-site** and **Remote** to start
@@ -569,6 +596,29 @@ hours - it is a half-finished sentence on one device - and syncing
 half-finished sentences between a phone and a desktop gives you two of them
 and an argument about which is newer. The sync pill and the offline queue are
 a different thing and nothing here touches them.
+
+A default job type is a whole job type now, not just its name.
+
+**Settings > Default job types** held a list of words. A job type is not a
+word - it is a name and four flags - so "Admin" seeded onto a new client
+arrived billable, because nothing had ever said otherwise, and the fix was to
+open each client in turn and tell it the same thing again. The defaults now
+carry **billable**, **alongside**, **travel** and **limit**, edited with the
+same chip and the same markers the client form uses, so a marker cannot come
+to mean one thing in Settings and another on a client. Set a default
+non-billable once and every client that gets it from then on gets it
+non-billable.
+
+**From then on** is the whole of it. A client's job type belongs to that
+client the moment it is created, and changing a flag on a default never
+reaches back into one somebody is already logging against - those hours were
+recorded under the rules in force at the time, and rewriting them afterwards
+would quietly change what has already been billed. The chips say so on hover.
+Removing a default removes it from the list and from nothing else.
+
+Older accounts and older backups are unaffected: a plain name is still read as
+a default with no flags on it, exactly as it behaved, and the object form is
+what gets written from then on.
 
 ### v0.6.2 - 2026-09-16
 

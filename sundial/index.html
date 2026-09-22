@@ -943,8 +943,11 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
           <label class="lab" for="sOtWeek">Weekly hours <span class="q" title="A week past this gets an OT tag on the week total in the Week grid. Separate from Weekly capacity, which is what the utilization bar measures fullness against.">?</span></label>
           <input class="fld" id="sOtWeek" type="number" min="1" max="168" step="0.5"></div>
       </div>
-      <label class="lab">Default job types <span class="q" title="The list a brand new client starts with. Changing it never touches clients you already have.">?</span></label>
+      <label class="lab">Default job types <span class="q" title="The list a brand new client starts with, flags and all. A client's own job type is its own from the moment it is created: changing a flag here never reaches back into one somebody is already using.">?</span></label>
+      <div class="hint" style="margin:0 0 8px"><b>billable</b> counts toward billable hours; <b>alongside</b> may run at the same time as another job; <b>travel</b> asks for miles when stopped; <b>limit</b> warns and then asks for a reason past a time limit, counted across every entry carrying the same ticket rather than per sitting.
+        Tap a marker to change it: <span class="mk">dashed</span> follows the client setting, <span class="mk on">blue</span> is on, <span class="mk off">red</span> is off. These flags ride along when the type is added to a client.</div>
       <div class="chips" id="sJobTypes"></div>
+      <div id="sLimBox"></div>
       <input class="fld" id="sJobTypeAdd" placeholder="Add a job type and press Enter" style="margin-top:8px">
       <div class="hint" id="sJtHint">These seed a <b>new</b> client. Clients you already have keep the job types they already have, so adding one here does not put it on their Clock by itself.
         <button class="btn sm" id="sJtBackfill" style="margin-top:6px" title="Gives every active client any default job type it is missing, matched by name and ignoring case. Nothing is renamed or removed, and no entry or export changes.">Add all defaults to existing clients</button></div>
@@ -1209,7 +1212,7 @@ const DEFAULT_AVAILABILITY = {
 function defaultAvailability() { return JSON.parse(JSON.stringify(DEFAULT_AVAILABILITY)); }
 const DEFAULT_SETTINGS = {
   yourName: "", timeFormat: "12h", weekStart: "sun", rounding: "none",
-  defaultJobTypes: DEFAULT_JOB_TYPES.slice(),
+  defaultJobTypes: DEFAULT_JOB_TYPES.map(normDefaultJobType),
   exportTemplate: "grouped", showAmounts: false,
   newClientBillable: true, newClientAllowConcurrent: false,
   weeklyCapacityHours: 40, mileageRate: 0.70, defaultView: "day", notify: false,
@@ -1698,6 +1701,57 @@ window.addEventListener("offline", () => { state.sync.online = false; paintSync(
 function clientById(id) { return state.clients.find(c => c.id === id) || null; }
 function jobTypeById(client, id) { return client && Array.isArray(client.jobTypes) ? (client.jobTypes.find(j => j.id === id) || null) : null; }
 function jobTypeName(client, id) { const j = jobTypeById(client, id); return j ? j.name : ""; }
+/* ---- default job types ----
+   A default used to be a bare name, and a name is only half of a job type:
+   "Admin" seeded onto a client arrived billable, because nothing had said
+   otherwise. A default is now {name, billable, allowConcurrent, travel,
+   limit} - the same four flags a client's own job type carries - and the
+   flags ride along when the type is seeded onto a client.
+
+   A plain string is still read as a flagless default, so an account written
+   before this, or an older JSON backup, loads exactly as it did. The object
+   form is what gets written from now on. */
+function normDefaultJobType(x) {
+  if (x == null || typeof x === "string") {
+    const n = String(x == null ? "" : x).trim();
+    return n ? { name: n, billable: null, allowConcurrent: null, travel: false, limit: null } : null;
+  }
+  const n = String(x.name == null ? "" : x.name).trim();
+  if (!n) return null;
+  const tri = v => (v === true ? true : v === false ? false : null);
+  let lim = null;
+  const hard = Number(x.limit && x.limit.hardMin);
+  if (isFinite(hard) && hard > 0) {
+    const warn = Math.round(Number(x.limit.warnMin) || 0);
+    lim = { warnMin: warn > 0 && warn < hard ? warn : Math.max(1, Math.round(hard) - 1), hardMin: Math.round(hard) };
+  }
+  return { name: n, billable: tri(x.billable), allowConcurrent: tri(x.allowConcurrent), travel: !!x.travel, limit: lim };
+}
+/* The list as objects, whatever shape it is stored in, with duplicate names
+   dropped - two defaults of the same name could only disagree. */
+function defaultJobTypes() {
+  const raw = Array.isArray(state.settings.defaultJobTypes) ? state.settings.defaultJobTypes : DEFAULT_JOB_TYPES;
+  const out = [];
+  raw.forEach(x => {
+    const d = normDefaultJobType(x);
+    if (d && !out.some(o => o.name.toLowerCase() === d.name.toLowerCase())) out.push(d);
+  });
+  return out;
+}
+function saveDefaultJobTypes(list) {
+  const clean = [];
+  (list || []).forEach(x => { const d = normDefaultJobType(x); if (d) clean.push(d); });
+  saveSetting({ defaultJobTypes: clean });
+}
+/* A client's copy of a default. It takes the flags it was given and then
+   belongs to that client: changing the default afterwards never reaches back
+   into a job type somebody has already been using. */
+function jobTypeFromDefault(d) {
+  const n = normDefaultJobType(d);
+  return { id: uid(), name: n.name, archived: false,
+    billable: n.billable, allowConcurrent: n.allowConcurrent, travel: n.travel,
+    limit: n.limit ? { warnMin: n.limit.warnMin, hardMin: n.limit.hardMin } : null };
+}
 function effBillable(client, jt) {
   if (jt && jt.billable != null) return !!jt.billable;
   return client ? client.billable !== false : true;
@@ -4190,6 +4244,58 @@ function paintClients() {
 function newJobType(name) {
   return { id: uid(), name: name, archived: false, billable: null, allowConcurrent: null, travel: false, limit: null };
 }
+/* ---- one job-type chip, drawn the same way twice ----
+   The client's own job types and the Settings defaults are the same four
+   flags with the same three states, so they are the same chip: a marker
+   cannot come to mean one thing on a client and another in Settings. The
+   caller says which data attribute carries the chip's identity, because the
+   two lists key on different things - an id on a client, a name in Settings -
+   and supplies its own tooltip for the x, because removing a default and
+   removing a client's job type are not the same act. */
+function mkClass(v) { return v === true ? "mk on" : v === false ? "mk off" : "mk"; }
+function mkTitle(what, v) { return what + ": " + (v === true ? "yes" : v === false ? "no" : "client default"); }
+function jobTypeChipHTML(j, idAttr, idValue, extraTip, rmTip) {
+  const tail = ". Tap to cycle." + (extraTip ? " " + extraTip : "");
+  const tog  = ". Tap to toggle." + (extraTip ? " " + extraTip : "");
+  const set  = ". Tap to set." + (extraTip ? " " + extraTip : "");
+  return '<span class="chip" ' + idAttr + '="' + esc(idValue) + '"><span>' + esc(j.name) + "</span>" +
+    '<em class="' + mkClass(j.billable) + '" data-cyc="billable" title="' + esc(mkTitle("Billable", j.billable) + tail) + '">billable</em>' +
+    '<em class="' + mkClass(j.allowConcurrent) + '" data-cyc="allowConcurrent" title="' +
+      esc(mkTitle("Can run alongside another job", j.allowConcurrent) + tail) + '">alongside</em>' +
+    '<em class="mk' + (j.travel ? " on" : "") + '" data-travel="1" title="' +
+      esc("Travel: " + (j.travel ? "yes" : "no") + ". A travel job type asks for miles when it stops, and its entries feed the Mileage export" + tog) + '">travel</em>' +
+    '<em class="mk' + (j.limit ? " on" : "") + '" data-limit="1" title="' +
+      esc("Time limit" + (j.limit ? ": warn at " + j.limit.warnMin + " min, hard limit " + j.limit.hardMin + " min" : ": none") +
+          ". Counted across every entry with the same ticket" + set) + '">limit</em>' +
+    '<span class="x" data-rm="1" title="' + esc(rmTip) + '">&times;</span></span>';
+}
+/* The warn / hard popover, with its field ids prefixed so the client modal's
+   copy and the Settings copy can never find each other's boxes. */
+function limitBoxHTML(j, p) {
+  return '<div class="limbox"><b style="font-size:13px">Time limit for ' + esc(j.name) + "</b>" +
+    '<div class="hint">A toast at the warn point, then a modal that wants a reason past the hard limit. ' +
+    "<b>What gets measured depends on the entry:</b> with no ticket number it is that one timer's own elapsed time, and with a ticket on it the limit counts everything ever logged against that ticket, on any day, plus the time running now - so a ticket picked up three times still trips at the total rather than three times at nothing. " +
+    'Clear both boxes to remove the limit.</div>' +
+    '<div class="g2"><div><label class="lab" for="' + p + 'Warn">Warn at (minutes) <span class="q" title="The nudge. It has to be less than the hard limit, or there is nothing left to warn about.">?</span></label>' +
+      '<input type="number" min="1" class="fld" id="' + p + 'Warn" value="' + (j.limit ? j.limit.warnMin : "") + '"></div>' +
+    '<div><label class="lab" for="' + p + 'Hard">Hard limit (minutes) <span class="q" title="Where the modal appears and a reason is required to keep going.">?</span></label>' +
+      '<input type="number" min="1" class="fld" id="' + p + 'Hard" value="' + (j.limit ? j.limit.hardMin : "") + '"></div></div>' +
+    '<div class="btnrow"><button class="btn sm" id="' + p + 'Clear">Clear</button>' +
+      '<button class="btn sm" id="' + p + 'Close">Close</button>' +
+      '<button class="btn sm acc" id="' + p + 'Save">Set limit</button></div></div>';
+}
+/* null for "no limit" (both boxes empty, which is how a limit is removed),
+   the limit itself, or undefined when the numbers cannot be used - a toast
+   has already said why. */
+function readLimitBox(root, p) {
+  const wraw = $("#" + p + "Warn", root).value.trim(), hraw = $("#" + p + "Hard", root).value.trim();
+  if (!wraw && !hraw) return null;
+  const wv = parseInt(wraw, 10), hv = parseInt(hraw, 10);
+  if (!isFinite(hv) || hv <= 0) { toast("The hard limit has to be a number of minutes above zero.", true); return undefined; }
+  if (!isFinite(wv) || wv <= 0) { toast("The warn point has to be a number of minutes above zero. Clear both boxes to remove the limit.", true); return undefined; }
+  if (wv >= hv) { toast("Warn at has to be less than the hard limit.", true); return undefined; }
+  return { warnMin: wv, hardMin: hv };
+}
 function openClientModal(client) {
   const isNew = !client;
   const c = client ? JSON.parse(JSON.stringify(client)) : {
@@ -4197,7 +4303,7 @@ function openClientModal(client) {
     billable: state.settings.newClientBillable !== false,
     allowConcurrent: !!state.settings.newClientAllowConcurrent,
     ticketUrl: "", code: "", rounding: null,
-    jobTypes: (state.settings.defaultJobTypes || DEFAULT_JOB_TYPES).map(newJobType),
+    jobTypes: defaultJobTypes().map(jobTypeFromDefault),
     locations: DEFAULT_LOCATIONS.slice()
   };
   if (!Array.isArray(c.jobTypes)) c.jobTypes = [];
@@ -4269,16 +4375,10 @@ function openClientModal(client) {
     color = b.getAttribute("data-color"); paintColors();
   });
 
-  function mkClass(v) { return v === true ? "mk on" : v === false ? "mk off" : "mk"; }
-  function mkTitle(what, v) { return what + ": " + (v === true ? "yes" : v === false ? "no" : "client default"); }
   function paintJts() {
-    $("#cJts", w).innerHTML = jts.filter(j => !j.archived).map((j, i) =>
-      '<span class="chip" data-jt="' + esc(j.id) + '"><span>' + esc(j.name) + "</span>" +
-      '<em class="' + mkClass(j.billable) + '" data-cyc="billable" title="' + esc(mkTitle("Billable", j.billable)) + '. Tap to cycle.">billable</em>' +
-      '<em class="' + mkClass(j.allowConcurrent) + '" data-cyc="allowConcurrent" title="' + esc(mkTitle("Can run alongside another job", j.allowConcurrent)) + '. Tap to cycle.">alongside</em>' +
-      '<em class="mk' + (j.travel ? " on" : "") + '" data-travel="1" title="Travel: ' + (j.travel ? "yes" : "no") + '. A travel job type asks for miles when it stops, and its entries feed the Mileage export. Tap to toggle.">travel</em>' +
-      '<em class="mk' + (j.limit ? " on" : "") + '" data-limit="1" title="Time limit' + (j.limit ? ": warn at " + j.limit.warnMin + " min, hard limit " + j.limit.hardMin + " min" : ": none") + '. Counted across every entry with the same ticket. Tap to set.">limit</em>' +
-      '<span class="x" data-rm="1" title="Removes it from the picker. Old entries keep working because the type is archived, not deleted.">&times;</span></span>').join("") ||
+    $("#cJts", w).innerHTML = jts.filter(j => !j.archived).map(j =>
+      jobTypeChipHTML(j, "data-jt", j.id, "",
+        "Removes it from the picker. Old entries keep working because the type is archived, not deleted.")).join("") ||
       '<span class="hint">No job types yet. Add one below.</span>';
     paintLimBox();
   }
@@ -4286,23 +4386,13 @@ function openClientModal(client) {
     const box = $("#cLimBox", w);
     const j = jts.find(x => x.id === limitOpenId);
     if (!j) { box.innerHTML = ""; return; }
-    box.innerHTML = '<div class="limbox"><b style="font-size:13px">Time limit for ' + esc(j.name) + "</b>" +
-      '<div class="hint">A toast at the warn point, then a modal that wants a reason past the hard limit. ' +
-      '<b>What gets measured depends on the entry:</b> with no ticket number it is that one timer\'s own elapsed time, and with a ticket on it the limit counts everything ever logged against that ticket, on any day, plus the time running now - so a ticket picked up three times still trips at the total rather than three times at nothing. ' +
-      'Clear both boxes to remove the limit.</div>' +
-      '<div class="g2"><div><label class="lab" for="limWarn">Warn at (minutes) <span class="q" title="The nudge. It has to be less than the hard limit, or there is nothing left to warn about.">?</span></label><input type="number" min="1" class="fld" id="limWarn" value="' + (j.limit ? j.limit.warnMin : "") + '"></div>' +
-      '<div><label class="lab" for="limHard">Hard limit (minutes) <span class="q" title="Where the modal appears and a reason is required to keep going.">?</span></label><input type="number" min="1" class="fld" id="limHard" value="' + (j.limit ? j.limit.hardMin : "") + '"></div></div>' +
-      '<div class="btnrow"><button class="btn sm" id="limClear">Clear</button><button class="btn sm" id="limClose">Close</button><button class="btn sm acc" id="limSave">Set limit</button></div></div>';
+    box.innerHTML = limitBoxHTML(j, "lim");
     $("#limSave", w).addEventListener("click", () => {
-      const wraw = $("#limWarn", w).value.trim(), hraw = $("#limHard", w).value.trim();
       /* Both boxes empty means "no limit", which is how a limit gets removed
          without hunting for a Clear button. */
-      if (!wraw && !hraw) { j.limit = null; limitOpenId = null; paintJts(); return; }
-      const wv = parseInt(wraw, 10), hv = parseInt(hraw, 10);
-      if (!isFinite(hv) || hv <= 0) { toast("The hard limit has to be a number of minutes above zero.", true); return; }
-      if (!isFinite(wv) || wv <= 0) { toast("The warn point has to be a number of minutes above zero. Clear both boxes to remove the limit.", true); return; }
-      if (wv >= hv) { toast("Warn at has to be less than the hard limit.", true); return; }
-      j.limit = { warnMin: wv, hardMin: hv };
+      const lim = readLimitBox(w, "lim");
+      if (lim === undefined) return;
+      j.limit = lim;
       limitOpenId = null; paintJts();
     });
     $("#limClear", w).addEventListener("click", () => { j.limit = null; limitOpenId = null; paintJts(); });
@@ -4576,7 +4666,7 @@ async function importClientsFile(file) {
       locations: locationsFromText(r.locations).length ? locationsFromText(r.locations)
         : (existing ? clientLocations(existing) : DEFAULT_LOCATIONS.slice())
     };
-    if (!data.jobTypes.length) data.jobTypes = existing ? existing.jobTypes : (state.settings.defaultJobTypes || DEFAULT_JOB_TYPES).map(newJobType);
+    if (!data.jobTypes.length) data.jobTypes = existing ? existing.jobTypes : defaultJobTypes().map(jobTypeFromDefault);
     if (existing) {
       const keptArchived = (existing.jobTypes || []).filter(j => j.archived && !data.jobTypes.some(n => n.name.toLowerCase() === j.name.toLowerCase()));
       data.jobTypes = data.jobTypes.concat(keptArchived);
@@ -5221,7 +5311,15 @@ async function restoreBackupFile(file) {
     (data.exportedAt ? ", saved " + esc(new Date(data.exportedAt).toLocaleString()) : "") + ".</p>" +
     "<p>Records are merged by id: anything with a matching id is overwritten, everything else is added. Nothing is deleted.</p>",
     "Restore " + (cl.length + en.length) + " records", () => {
-      if (data.settings) store.saveSettings(Object.assign({}, DEFAULT_SETTINGS, data.settings));
+      if (data.settings) {
+        const restored = Object.assign({}, DEFAULT_SETTINGS, data.settings);
+        /* A backup written before v0.7.0 holds default job types as plain
+           names. They come back as flagless defaults rather than the file
+           being refused. */
+        restored.defaultJobTypes = (Array.isArray(restored.defaultJobTypes) ? restored.defaultJobTypes : [])
+          .map(normDefaultJobType).filter(Boolean);
+        store.saveSettings(restored);
+      }
       cl.forEach(c => { const id = c.id; const d = Object.assign({}, c); delete d.id; store.upsertClient(id, d); });
       en.forEach(e => {
         const id = e.id; const d = Object.assign({}, e); delete d.id;
@@ -5835,11 +5933,33 @@ function applyTheme() {
   if (b) b.title = (dark ? "Switch to light." : "Switch to dark.") + " Settings has a third option that follows your device.";
 }
 window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { if ((state.settings.theme || "system") === "system") applyTheme(); });
+/* The defaults list, drawn with the same chip the client modal uses. The
+   extra tooltip is the one thing that differs here, because a flag on a
+   default is a fact about clients that have not been made yet. */
+const DEFAULT_JT_TIP = "Applies to clients that get this type from now on; a client's own job type keeps its own settings.";
+let sLimitOpenName = null;
 function paintSettingsJobTypes() {
-  const list = state.settings.defaultJobTypes || [];
-  $("#sJobTypes").innerHTML = list.length ? list.map(n =>
-    '<span class="chip"><span>' + esc(n) + '</span><span class="x" data-sjt="' + esc(n) + '">&times;</span></span>').join("")
+  const list = defaultJobTypes();
+  $("#sJobTypes").innerHTML = list.length
+    ? list.map(d => jobTypeChipHTML(d, "data-sjt", d.name, DEFAULT_JT_TIP,
+        "Takes it out of the defaults. Clients that already have this job type keep it, exactly as it is.")).join("")
     : '<span class="hint">No defaults. New clients will start with an empty list.</span>';
+  paintSettingsLimBox();
+}
+function paintSettingsLimBox() {
+  const box = $("#sLimBox");
+  if (!box) return;
+  const list = defaultJobTypes();
+  const d = list.find(x => x.name === sLimitOpenName);
+  if (!d) { box.innerHTML = ""; return; }
+  box.innerHTML = limitBoxHTML(d, "sLim");
+  $("#sLimSave").addEventListener("click", () => {
+    const lim = readLimitBox(document, "sLim");
+    if (lim === undefined) return;
+    d.limit = lim; sLimitOpenName = null; saveDefaultJobTypes(list);
+  });
+  $("#sLimClear").addEventListener("click", () => { d.limit = null; sLimitOpenName = null; saveDefaultJobTypes(list); });
+  $("#sLimClose").addEventListener("click", () => { sLimitOpenName = null; paintSettingsJobTypes(); });
 }
 /* ---- Working hours panel ----
    The rows are built once and then only their derived parts are updated, so
@@ -6581,20 +6701,17 @@ $("#sAvailCap").addEventListener("change", e => {
 function jobTypeNamesOf(c) {
   return (c.jobTypes || []).map(j => String(j.name == null ? "" : j.name).trim().toLowerCase());
 }
-function clientsMissingJobType(name) {
-  const n = String(name || "").trim().toLowerCase();
-  if (!n) return [];
-  /* an archived type of that name still counts as having it: the client made
-     a decision about this job type once and re-adding it would undo it */
-  return activeClients().filter(c => jobTypeNamesOf(c).indexOf(n) < 0);
-}
-function addJobTypesToClients(names, list) {
+/* `defs` are default job types, not bare names: the flags come with them, so
+   a default marked non-billable arrives on the client non-billable. An
+   archived type of that name still counts as having it - the client made a
+   decision about this job type once, and re-adding it would undo one. */
+function addJobTypesToClients(defs, list) {
   let added = 0, touched = 0;
   (list || activeClients()).forEach(c => {
     const have = jobTypeNamesOf(c);
-    const add = names.filter(n => have.indexOf(String(n).trim().toLowerCase()) < 0);
+    const add = defs.filter(d => have.indexOf(d.name.toLowerCase()) < 0);
     if (!add.length) return;
-    store.upsertClient(c.id, { jobTypes: (c.jobTypes || []).concat(add.map(newJobType)) });
+    store.upsertClient(c.id, { jobTypes: (c.jobTypes || []).concat(add.map(jobTypeFromDefault)) });
     added += add.length; touched++;
   });
   return { added: added, touched: touched };
@@ -6608,53 +6725,37 @@ function reconcileDefaultJobTypes() {
      here: run once per load, and never re-enter while a pass is writing */
   if (!state.settingsLoaded || !store || !state.clients.length) return;
   if (reconcileDefaultJobTypes._done || reconcileDefaultJobTypes._busy) return;
-  const names = (state.settings.defaultJobTypes || []).map(n => String(n || "").trim()).filter(Boolean);
-  if (!names.length || !activeClients().length) return;
+  const defs = defaultJobTypes();
+  if (!defs.length || !activeClients().length) return;
   reconcileDefaultJobTypes._busy = true;
   let r;
-  try { r = addJobTypesToClients(names); }
+  try { r = addJobTypesToClients(defs); }
   finally { reconcileDefaultJobTypes._busy = false; reconcileDefaultJobTypes._done = true; }
   if (r.touched) toast("Added " + r.added + " default job type" + (r.added === 1 ? "" : "s") + " to " + r.touched + " client" + (r.touched === 1 ? "" : "s") + ".");
-}
-function offerJobTypeToClients(name) {
-  const missing = clientsMissingJobType(name);
-  if (!missing.length) return;
-  const total = activeClients().length;
-  const w = openModal('Add "' + name + '" to your existing clients too?',
-    "<p>Default job types seed a <b>new</b> client. " + esc(String(missing.length)) + " of your " + esc(String(total)) +
-      " active client" + (total === 1 ? "" : "s") + " ha" + (missing.length === 1 ? "s" : "ve") + " no job type called <b>" +
-      esc(name) + "</b>, so it will not show up on the Clock for " + (missing.length === 1 ? "it" : "them") + ".</p>" +
-    '<div class="scrolly">' + missing.map(c => "<div>" + esc(c.name) + "</div>").join("") + "</div>" +
-    '<div class="hint">Adding it leaves every existing job type, entry and export exactly as it is. Any one client can drop it again from its own Edit form.</div>',
-    '<button class="btn" data-close title="Leaves your existing clients alone. The new default still applies to the next client you add.">New clients only</button>' +
-    '<button class="btn acc" id="jtAll" title="Adds it as an ordinary job type to each client listed above.">Add to existing clients</button>');
-  $("#jtAll", w).addEventListener("click", () => {
-    const r = addJobTypesToClients([name], missing);
-    closeModal(w);
-    toast("Added " + name + " to " + r.touched + " client" + (r.touched === 1 ? "" : "s") + ".");
-  });
 }
 $("#sJobTypeAdd").addEventListener("keydown", e => {
   if (e.key !== "Enter") return;
   e.preventDefault();
   const v = e.target.value.trim(); if (!v) return;
-  const list = (state.settings.defaultJobTypes || []).slice();
-  if (list.some(n => n.toLowerCase() === v.toLowerCase())) { toast("Already in the list."); e.target.value = ""; return; }
-  list.push(v); e.target.value = "";
-  saveSetting({ defaultJobTypes: list });
-  /* a default is for using, so it reaches every existing client at once */
-  const r = addJobTypesToClients([v]);
+  const list = defaultJobTypes();
+  if (list.some(d => d.name.toLowerCase() === v.toLowerCase())) { toast("Already in the list."); e.target.value = ""; return; }
+  const added = normDefaultJobType(v);
+  list.push(added); e.target.value = "";
+  saveDefaultJobTypes(list);
+  /* a default is for using, so it reaches every existing client at once,
+     carrying whatever flags it has been given */
+  const r = addJobTypesToClients([added]);
   toast(r.touched ? "Added " + v + " to " + r.touched + " client" + (r.touched === 1 ? "" : "s") + "." : "Added " + v + " to the defaults.");
 });
 $("#sJtBackfill").addEventListener("click", () => {
-  const names = (state.settings.defaultJobTypes || []).slice();
-  if (!names.length) { toast("There are no default job types to add.", true); return; }
+  const defs = defaultJobTypes();
+  if (!defs.length) { toast("There are no default job types to add.", true); return; }
   const cs = activeClients();
   if (!cs.length) { toast("There are no active clients to add them to.", true); return; }
   let missing = 0, clients = 0;
   cs.forEach(c => {
     const have = jobTypeNamesOf(c);
-    const n = names.filter(x => have.indexOf(String(x).trim().toLowerCase()) < 0).length;
+    const n = defs.filter(d => have.indexOf(d.name.toLowerCase()) < 0).length;
     if (n) { missing += n; clients++; }
   });
   if (!missing) { toast("Every active client already has all of them."); return; }
@@ -6663,14 +6764,30 @@ $("#sJtBackfill").addEventListener("click", () => {
       (clients === 1 ? "" : "s") + ", matched by name and ignoring case.</p>" +
     "<p>Nothing is renamed or removed, no entry changes, and no export changes. A client that already has a type of that name - even an archived one - is left alone.</p>",
     "Add them", () => {
-      const r = addJobTypesToClients(names, cs);
+      const r = addJobTypesToClients(defs, cs);
       toast("Added " + r.added + " job type" + (r.added === 1 ? "" : "s") + " across " + r.touched + " client" + (r.touched === 1 ? "" : "s") + ".");
     });
 });
+/* The same four markers the client modal cycles, on the defaults. Editing a
+   flag here changes what the next client gets; it never reaches a job type a
+   client already has, which is what the chip's tooltip says. */
 $("#sJobTypes").addEventListener("click", e => {
-  const x = e.target.closest("[data-sjt]"); if (!x) return;
-  const name = x.getAttribute("data-sjt");
-  saveSetting({ defaultJobTypes: (state.settings.defaultJobTypes || []).filter(n => n !== name) });
+  const chip = e.target.closest("[data-sjt]"); if (!chip) return;
+  const name = chip.getAttribute("data-sjt");
+  const list = defaultJobTypes();
+  const d = list.find(x => x.name === name); if (!d) return;
+  const cyc = e.target.getAttribute("data-cyc");
+  if (cyc) { d[cyc] = d[cyc] == null ? true : d[cyc] === true ? false : null; saveDefaultJobTypes(list); return; }
+  if (e.target.getAttribute("data-travel")) { d.travel = !d.travel; saveDefaultJobTypes(list); return; }
+  if (e.target.getAttribute("data-limit")) {
+    sLimitOpenName = sLimitOpenName === name ? null : name;
+    paintSettingsJobTypes();
+    return;
+  }
+  if (e.target.getAttribute("data-rm")) {
+    if (sLimitOpenName === name) sLimitOpenName = null;
+    saveDefaultJobTypes(list.filter(x => x.name !== name));
+  }
 });
 /* ---- Google Calendar panel ---- */
 $("#sGcalClient").addEventListener("change", e => {
