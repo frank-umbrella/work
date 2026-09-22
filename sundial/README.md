@@ -410,6 +410,29 @@ no calendar at all.
 creating what is missing, updating what is there - and finish with a
 `3 created, 12 updated, 0 skipped` toast. Running timers are skipped.
 
+### The hour-long token, and why a click renews it
+
+Google's access token lasts about an hour, and it is only renewable **during a
+click**. The renewal normally happens through a window that opens and closes
+again by itself in a fraction of a second - but a browser will only allow that
+window while a gesture is still fresh, and every calendar write in Sundial
+happens somewhere else: the mirror queue runs a moment after a Stop, and a
+backfill is several requests deep by the time it needs a token.
+
+So Sundial renews the token **on the click itself**. Start, Stop, Pause,
+Resume, Switch, a Start from a client card, saving or deleting an entry, a
+week-grid cell, a calendar drag, and each of the three Sync buttons all ask
+Google for the token first, before doing anything else, and then carry on
+without waiting for the answer. The write that follows finds the token already
+in hand.
+
+What you may see: a Google window flashing open and closed after the first
+click following a reload, or once an hour. That is the renewal, and there is
+nothing to do about it. If your browser blocks it anyway, a toast says so with
+a **Reconnect** button that asks again from inside your click on that button.
+When entries are waiting and there is no token, the Settings status line says
+**Google needs a click to continue: press Sync now.**
+
 ### When there is no signal
 
 A write that cannot reach Google does not hold up the hours: the entry is
@@ -619,6 +642,30 @@ Removing a default removes it from the list and from nothing else.
 Older accounts and older backups are unaffected: a plain name is still read as
 a default with no flags on it, exactly as it behaved, and the object form is
 what gets written from then on.
+
+Google Calendar was mirroring nothing at all.
+
+With the calendar connected and automatic mirroring on, not one entry was
+reaching it. "Sync this month" found 32 finished entries and mirrored none of
+them. The cause was a rule about pop-ups rather than anything to do with
+calendars: Google's access token lasts an hour, and the window that renews it
+- the one that opens and closes again by itself - may only open while a click
+is still fresh. Sundial never asked during a click. It asked from the mirror
+queue, which runs a moment after a Stop, and from a backfill loop several
+requests deep, so the browser refused the window and every write died with
+"Your browser blocked the Google sign-in window". Nobody saw it, because a
+blocked renewal on a background write is a message in a place nobody is
+looking.
+
+The renewal now rides on the click. Start, Stop, Pause, Resume, Switch, a
+Start from a client card, saving or deleting an entry, a week-grid cell, a
+calendar drag and all three Sync buttons ask Google for the token first, as
+the first thing they do and with nothing awaited in front of it, then carry
+on without waiting for the answer; the write that follows finds the token
+already there. The Reconnect button on the blocked-pop-up toast asks from
+inside its own click for the same reason, and the Settings status line now
+says **Google needs a click to continue: press Sync now** when entries are
+waiting and there is no token - a state that was previously invisible.
 
 Also fixed: the running row in the Today table stood a line taller than every
 other row. The End cell has held a Pause button beside the Stop square since

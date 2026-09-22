@@ -3602,6 +3602,7 @@ function openEntryModal(mode, src, opts) {
   }
   const saveBtn = $("#eSave", w);
   if (saveBtn) saveBtn.addEventListener("click", () => {
+    gcalTouch();
     const f = readForm(); if (!validate(f)) return;
     confirmFuture(f, () => {
       const p = payload(f);
@@ -3619,6 +3620,7 @@ function openEntryModal(mode, src, opts) {
   });
   const saveTimes = $("#eSaveTimes", w);
   if (saveTimes) saveTimes.addEventListener("click", () => {
+    gcalTouch();
     const f = readForm(); if (!validate(f)) return;
     confirmFuture(f, () => {
       store.addEntry(payload(f));
@@ -3629,6 +3631,7 @@ function openEntryModal(mode, src, opts) {
   });
   const punchNow = $("#ePunch", w);
   if (punchNow) punchNow.addEventListener("click", () => {
+    gcalTouch();
     const f = readForm();
     if (!f.clientId) { toast("Pick a client.", true); glow(eClient); return; }
     if (!f.jobTypeId) { toast("Pick a job type.", true); glow(eJob); return; }
@@ -3646,7 +3649,7 @@ function deleteEntryModal(id) {
     "<p>" + esc(fmtDayShort(e.day)) + ", " + esc(fmtTime(toDate(e.start))) + " - " +
     esc(e.end ? fmtTime(toDate(e.end)) : "running") + " &middot; " + esc(fmtDur(entrySeconds(e))) + "</p>" +
     (e.end ? "" : "<p>This is the entry that is running now. Deleting it clears the clock.</p>"),
-    "Delete entry", () => { store.deleteEntry(id); toast("Entry deleted."); }, true);
+    "Delete entry", () => { gcalTouch(); store.deleteEntry(id); toast("Entry deleted."); }, true);
 }
 
 function openColumnsModal() {
@@ -3833,6 +3836,7 @@ function paintWeekGrid(ws) {
 /* Typing a duration into a cell. Empty leaves the entry alone; the box is
    put back to what it was so nothing silently disappears. */
 function applyCellEdit(input) {
+  gcalTouch();
   const parts = input.getAttribute("data-wgc").split("|");
   const ws = startOfWeek(dayDate(state.tsDay), state.settings.weekStart);
   const r = weekRows(ws)[parseInt(parts[0], 10)];
@@ -4104,6 +4108,7 @@ function calMove(e) {
 let calDragEndAt = 0;
 function calUp(e) {
   if (!calDrag || (e && e.pointerId !== calDrag.pid)) return;
+  gcalTouch();
   const d = calDrag; calDrag = null;
   d.blk.classList.remove("drag");
   try { d.blk.releasePointerCapture(d.pid); } catch (_) {}
@@ -5475,11 +5480,8 @@ function realGcalLayer() {
     if (!w) return;
     if (err) w.reject(err); else w.resolve(value);
   }
-  async function client() {
-    const cid = (gcalCfg().clientId || "").trim();
-    if (!cid) throw gcalErr("Add your Google OAuth client ID in Settings first.", "config");
-    await loadGIS();
-    if (tokenClient && forId === cid) return tokenClient;
+  function gisReady() { return !!(window.google && google.accounts && google.accounts.oauth2); }
+  function buildClient(cid) {
     forId = cid;
     tokenClient = google.accounts.oauth2.initTokenClient({
       client_id: cid,
@@ -5503,19 +5505,65 @@ function realGcalLayer() {
     });
     return tokenClient;
   }
-  /* A token is asked for silently first - prompt:"" reuses a grant that is
-     already there. Only a real consent or interaction error becomes an
-     "auth" failure, which is what puts the Reconnect toast on screen
-     instead of opening a window nobody asked for. */
-  async function getToken(interactive) {
-    if (token && Date.now() < tokenExp - 60000) return token;
-    const tc = await client();
-    if (waiting) throw gcalErr("Already waiting for Google.", "auth");
-    return new Promise((resolve, reject) => {
+  async function client() {
+    const cid = (gcalCfg().clientId || "").trim();
+    if (!cid) throw gcalErr("Add your Google OAuth client ID in Settings first.", "config");
+    if (!gisReady()) await loadGIS();
+    if (tokenClient && forId === cid) return tokenClient;
+    return buildClient(cid);
+  }
+  /* The same client, with no await in front of it, for the one caller that
+     cannot afford one: see ensureToken. Returns null when the script is not
+     there yet, and starts fetching it for next time. */
+  function clientSync() {
+    const cid = (gcalCfg().clientId || "").trim();
+    if (!cid) return null;
+    if (!gisReady()) { loadGIS().catch(() => {}); return null; }
+    if (tokenClient && forId === cid) return tokenClient;
+    return buildClient(cid);
+  }
+  /* One outstanding request at a time, and whoever asks next waits on the
+     same promise rather than being told Google is busy - which is what used
+     to happen when a click and a background write raced each other. */
+  let pending = null;
+  function startRequest(tc) {
+    if (pending) return pending;
+    pending = new Promise((resolve, reject) => {
       waiting = { resolve: resolve, reject: reject };
       try { tc.requestAccessToken({ prompt: "" }); }
-      catch (err) { settle(gcalErr(err.message || String(err), interactive ? "http" : "auth")); }
+      catch (err) { settle(gcalErr(err.message || String(err), "auth")); }
     });
+    const clear = () => { pending = null; };
+    pending.then(clear, clear);
+    return pending;
+  }
+  /* ---- the renewal that has to ride on a click ----
+     Google's token lasts an hour, and prompt:"" renews it through a window
+     that opens and closes again by itself - but only while a click is still
+     fresh. Every calendar write in this app happens somewhere else: 80ms
+     after a Stop, or several awaits into a backfill loop, by which time
+     Chrome refuses the window and the write dies with "Your browser blocked
+     the Google sign-in window". So the renewal is fired from the click
+     instead, synchronously, before any await - an await, even one that
+     resolves at once, is enough to spend the permission. It returns nothing
+     and never throws: the queue's own getToken finds the token already in
+     hand a moment later. */
+  function ensureToken() {
+    if (token && Date.now() < tokenExp - 60000) return;
+    const tc = clientSync();
+    if (!tc) return;
+    startRequest(tc).catch(err => gcalProblem(err, null));
+  }
+  /* A token is asked for silently - prompt:"" reuses a grant that is already
+     there. Only a real consent or interaction error becomes an "auth"
+     failure, which is what puts the Reconnect toast on screen instead of
+     opening a window nobody asked for. */
+  async function getToken(interactive) {
+    if (token && Date.now() < tokenExp - 60000) return token;
+    if (pending) return pending;
+    const tc = await client();
+    if (token && Date.now() < tokenExp - 60000) return token;
+    return startRequest(tc);
   }
   async function call(path, opts, interactive, retried) {
     const t = await getToken(interactive);
@@ -5560,6 +5608,7 @@ function realGcalLayer() {
        pop-up came back "Failed to open popup window". */
     preload() { return client().catch(() => {}); },
     hasToken() { return !!(token && Date.now() < tokenExp - 60000); },
+    ensureToken: ensureToken,
     getToken: getToken,
     async revoke() {
       const t = token; token = null; tokenExp = 0;
@@ -5625,6 +5674,9 @@ function mockGcalLayer() {
     mock: true,
     preload() { return Promise.resolve(); },
     hasToken() { return !!(token && Date.now() < tokenExp - 60000); },
+    /* Nothing to keep alive: the fake layer has no pop-up and no expiry
+       anybody has to click through. */
+    ensureToken() {},
     getToken: need,
     async revoke() { token = null; tokenExp = 0; },
     async getCalendar(calId, i) {
@@ -5694,6 +5746,18 @@ function gcalRun(fn) {
     gcalQueue(() => Promise.resolve().then(fn).then(resolve, reject));
   });
 }
+/* ---- keeping the grant alive on a click ----
+   Google hands out an hour-long access token and will only renew it while a
+   user gesture is still fresh. Every write in this app happens away from the
+   click that caused it - the mirror queue fires 80ms after a Stop, a backfill
+   is several awaits deep - so by the time the token is asked for, the window
+   is blocked and the write dies quietly. This is called at the top of every
+   click that can end in a calendar write, does nothing at all when the token
+   is still good, and never blocks the handler it sits in. */
+function gcalTouch() {
+  if (FAKE || !gcalConnected()) return;
+  try { if (GCAL && GCAL.ensureToken) GCAL.ensureToken(); } catch (_) { /* never in the way of a Stop */ }
+}
 let gcalAuthToastAt = 0;
 let gcalPendingDeletes = [];     // events whose entry is already gone
 function gcalAuthToast(msg) {
@@ -5701,8 +5765,10 @@ function gcalAuthToast(msg) {
   gcalAuthToastAt = Date.now();
   stickyToast(msg || "Google Calendar needs permission again.", [
     { label: "Not now", title: "Leaves it. Entries are kept and go up the next time you connect." },
-    { label: "Reconnect", accent: true, title: "Opens Google's permission window and sends anything that is waiting.",
-      run: () => gcalConnect(true) }
+    /* The request goes out inside this click with nothing awaited in front
+       of it, because that is the only moment the window is allowed to open. */
+    { label: "Reconnect", accent: true, title: "Asks Google for the permission again, here and now, and sends anything that is waiting.",
+      run: () => { gcalTouch(); gcalFlush({ loud: true }); } }
   ]);
 }
 function gcalProblem(err, entry) {
@@ -5858,6 +5924,10 @@ function gcalDisconnect() {
    stops the run: carrying on would just repeat it a hundred times. */
 let gcalBusy = false;
 async function gcalBackfill(fromKey, toKey, label) {
+  /* First statement, and called straight from the button's click handler, so
+     the renewal window opens while the gesture is still fresh - before the
+     toast, before the filtering, before anything is awaited. */
+  gcalTouch();
   if (!gcalConnected()) { toast("Connect Google Calendar first.", true); return; }
   if (gcalBusy) { toast("A sync is already running."); return; }
   const rows = state.entries.filter(e => e.day >= fromKey && e.day <= toKey)
@@ -5903,9 +5973,13 @@ function gcalStatusHTML() {
   const cid = btoa(unescape(encodeURIComponent(g.calendarId))).replace(/=+$/, "");
   const link = GCAL.mock ? "" :
     ' <a href="https://calendar.google.com/calendar/u/0/r?cid=' + esc(cid) + '" target="_blank" rel="noopener" title="Opens Google Calendar with the Sundial calendar, so you can see the mirrored entries for yourself.">Open it in Google Calendar</a>.';
+  /* Google will only renew its hour-long token during a click, so entries
+     waiting with no token in hand are waiting on a person, not a network. */
+  const needsClick = waiting > 0 && !GCAL.hasToken();
   return '<span class="st"><i></i>Connected' + (g.email ? " as " + esc(g.email) : "") + ', calendar "<b>' + esc(GCAL_NAME) + '</b>".</span>' + link + " " +
     mirrored + " entr" + (mirrored === 1 ? "y" : "ies") + " mirrored" +
     (waiting ? ", " + waiting + " waiting to go up - press Sync now." : ".") +
+    (needsClick ? " Google needs a click to continue: press Sync now." : "") +
     (GCAL.mock ? (DEMO ? " Demo: nothing reaches Google." : " Mock mode: nothing reaches Google.") : "");
 }
 function paintGcal() {
@@ -6306,6 +6380,7 @@ function startFromClientModal(c) {
   sel.addEventListener("change", paintEffect); paintEffect();
   fillLocationSelect($("#csLocation", w), c, "");
   $("[data-go]", w).addEventListener("click", () => {
+    gcalTouch();
     const jt = jobTypeById(c, sel.value);
     const now = new Date();
     const stopped = willStop(jt);
@@ -6345,7 +6420,7 @@ $$("#topNav button, #tabbar button").forEach(b => b.addEventListener("click", ()
 
 $("#fClient").addEventListener("change", () => { paintClock(); });
 $("#fJob").addEventListener("change", () => { glow($("#fJob")); paintPunchButton(); });
-$("#punchBtn").addEventListener("click", () => startJob(startFields()));
+$("#punchBtn").addEventListener("click", () => { gcalTouch(); startJob(startFields()); });
 ["fStartD", "fStartT", "fEndD", "fEndT"].forEach(id => $("#" + id).addEventListener("input", paintPunchButton));
 /* Every field of the start form keeps a draft on this device while it is
    being typed into. */
@@ -6375,14 +6450,16 @@ $("#runEditBtn").addEventListener("click", () => {
   if (state.runEditOpen) setTimeout(() => { const f = $("#rNotes"); if (f) f.focus(); }, 240);
 });
 $("#switchBtn").addEventListener("click", () => {
+  gcalTouch();
   const r = runningEntries()[0];
   state.startPanelOpen = true;
   paintClock();
   if (r) { $("#fClient").value = r.clientId; paintClock(); }
   $("#fClient").focus();
 });
-$("#punchOutBtn").addEventListener("click", () => { const r = runningEntries()[0]; if (r) punchOut(r.id); });
+$("#punchOutBtn").addEventListener("click", () => { gcalTouch(); const r = runningEntries()[0]; if (r) punchOut(r.id); });
 $("#pauseBtn").addEventListener("click", () => {
+  gcalTouch();
   const r = runningEntries()[0]; if (!r) return;
   if (isPaused(r)) resumeFromBreak(r.id); else pauseEntry(r.id);
 });
@@ -6824,9 +6901,11 @@ $("#sGcalAuto").addEventListener("change", e => {
   paintSettings();
   toast(e.target.checked ? "New entries will be mirrored when they stop." : "Automatic mirroring off. Entries already on the calendar stay in step.");
 });
-$("#gcalConnect").addEventListener("click", () => gcalConnect(true));
+/* Reconnect is a renewal like any other, so the request goes out from inside
+   the click before gcalConnect starts awaiting anything. */
+$("#gcalConnect").addEventListener("click", () => { gcalTouch(); gcalConnect(true); });
 $("#gcalDisconnect").addEventListener("click", gcalDisconnect);
-$("#gcalFlush").addEventListener("click", () => gcalFlush({ loud: true }));
+$("#gcalFlush").addEventListener("click", () => { gcalTouch(); gcalFlush({ loud: true }); });
 $("#gcalWeek").addEventListener("click", () => {
   const ws = startOfWeek(new Date(), state.settings.weekStart);
   gcalBackfill(dayKey(ws), dayKey(addDays(ws, 6)), "This week");
@@ -6888,13 +6967,16 @@ document.addEventListener("click", e => {
   if ((id = hit("data-edit")))   { const en = state.entries.find(x => x.id === id); if (en) openEntryModal("edit", en); return; }
   if ((id = hit("data-dup")))    { const en = state.entries.find(x => x.id === id); if (en) openEntryModal("dup", en); return; }
   if ((id = hit("data-del")))    { deleteEntryModal(id); return; }
-  if ((id = hit("data-out")))    { punchOut(id); return; }
-  if ((id = hit("data-pause")))  { pauseEntry(id); return; }
-  if ((id = hit("data-unpause"))){ resumeFromBreak(id); return; }
+  /* Every one of these ends in a calendar write, so the token renewal goes
+     out while the click is still fresh - see gcalTouch. */
+  if ((id = hit("data-out")))    { gcalTouch(); punchOut(id); return; }
+  if ((id = hit("data-pause")))  { gcalTouch(); pauseEntry(id); return; }
+  if ((id = hit("data-unpause"))){ gcalTouch(); resumeFromBreak(id); return; }
   if ((id = hit("data-top")))    { state.mainRunningId = id; paintClock(); toast("Brought to the top."); return; }
-  if ((id = hit("data-tsstart"))){ resumeEntry(id); return; }
-  if ((id = hit("data-resume"))) { resumeEntry(id); return; }
+  if ((id = hit("data-tsstart"))){ gcalTouch(); resumeEntry(id); return; }
+  if ((id = hit("data-resume"))) { gcalTouch(); resumeEntry(id); return; }
   if ((id = hit("data-recent"))) {
+    gcalTouch();
     const parts = id.split("|");
     startJob({ clientId: parts[0], jobTypeId: parts[1], ticket: "", project: "", notes: "" });
     return;
