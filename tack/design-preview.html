@@ -53,17 +53,17 @@
   #site.dark .row i { background: #262b38; }
 
   /* ---------- notes: shared layout (theme changes only the skin) ---------- */
-  .note { position: absolute; width: 240px; height: 200px; display: flex; flex-direction: column; overflow: hidden; }
+  .note { position: absolute; width: 240px; height: 200px; display: flex; flex-direction: column; overflow: hidden; resize: both; min-width: 150px; min-height: 70px; }
   .note .hd { display: flex; align-items: center; gap: 4px; padding: 6px 8px; user-select: none; cursor: grab; font-size: 12px; }
   .note .hd .t { flex: 1; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .note .hd b { width: 20px; height: 20px; display: grid; place-items: center; border-radius: 5px; font-weight: 400; font-size: 13px; cursor: pointer; opacity: .75; }
   .note .hd b:hover { opacity: 1; background: rgba(0,0,0,.08); }
   .note .hd .dot { width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid rgba(0,0,0,.25); margin-right: 3px; }
   .note .bd { flex: 1; min-height: 0; padding: 4px 10px 6px; font-size: 13.5px; line-height: 1.45; white-space: pre-wrap; overflow: auto; }
-  .note .ft { display: flex; align-items: center; padding: 3px 10px 5px; font-size: 10.5px; opacity: .55; }
-  .note .ft .grip { margin-left: auto; width: 12px; height: 12px;
-    background: linear-gradient(135deg, transparent 0 45%, currentColor 45% 52%, transparent 52% 70%, currentColor 70% 77%, transparent 77%); opacity: .8; }
-  .note.min { height: auto !important; }
+  .note .ft { display: flex; align-items: center; padding: 3px 18px 5px 10px; font-size: 10.5px; opacity: .55; }
+  .note.min { height: auto !important; resize: none; min-height: 0; }
+  .note .hd svg { width: 14px; height: 14px; pointer-events: none; }
+  .note.min .hd .chev { transform: rotate(180deg); }
   .note.min .bd, .note.min .ft { display: none; }
   #n1 { left: 300px; top: 90px; }
   #n2 { left: 590px; top: 150px; width: 220px; height: 150px; }
@@ -139,10 +139,10 @@
   <button id="next">Next &rarr;</button>
   <span class="sep"></span>
   <button id="site-toggle">Host page: Light</button>
-  <span class="hint">&larr; / &rarr; to switch styles, D to flip the host page</span>
+  <span class="hint">&larr; / &rarr; switch styles, D flips the host page. Drag headers, pull the corner to resize, chevron collapses.</span>
 </div>
 
-<div id="site" data-theme="postit">
+<div id="site" data-theme="glass">
   <div class="top"><b>Umbrella Help Desk</b><span>Tickets</span><span>Clients</span><span>Reports</span></div>
   <div class="side"><div>Inbox</div><div class="on">Ticket #4821</div><div>My tickets</div><div>Unassigned</div><div>Closed</div></div>
   <div class="main">
@@ -154,23 +154,23 @@
   </div>
 
   <div class="note" id="n1" style="--c: var(--c1)">
-    <div class="hd"><span class="dot" style="background:var(--c)"></span><span class="t">This site</span><b title="Color">&#9679;</b><b title="Pin to: page / site / everywhere">&#9650;</b><b title="Collapse">&ndash;</b><b title="Delete">&times;</b></div>
+    <div class="hd"><span class="dot" style="background:var(--c)"></span><span class="t">This site</span><b title="Color"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="6"/></svg></b><b title="Pin to: page / site / everywhere"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4h6l-1 6 3 3v1H7v-1l3-3z"/><path d="M12 14v6"/></svg></b><b title="Collapse"><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg></b><b title="Delete"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></b></div>
     <div class="bd">Ask for the MFA enrollment screenshot before escalating.
 
 Creds are in LinkLock, link expires Friday.</div>
-    <div class="ft">Edited 2 min ago<span class="grip"></span></div>
+    <div class="ft">Edited 2 min ago</div>
   </div>
 
   <div class="note" id="n2" style="--c: var(--c3)">
-    <div class="hd"><span class="dot" style="background:var(--c)"></span><span class="t">This page</span><b>&#9679;</b><b>&#9650;</b><b>&ndash;</b><b>&times;</b></div>
+    <div class="hd"><span class="dot" style="background:var(--c)"></span><span class="t">This page</span><b><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="6"/></svg></b><b><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4h6l-1 6 3 3v1H7v-1l3-3z"/><path d="M12 14v6"/></svg></b><b><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg></b><b><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></b></div>
     <div class="bd">Call back after 2pm - user is in a meeting until then.</div>
-    <div class="ft">Edited yesterday<span class="grip"></span></div>
+    <div class="ft">Edited yesterday</div>
   </div>
 
   <div class="note min" id="n3" style="--c: var(--c4)">
-    <div class="hd"><span class="dot" style="background:var(--c)"></span><span class="t">Everywhere - Standup reminders</span><b>&#9679;</b><b>&#9650;</b><b>+</b><b>&times;</b></div>
+    <div class="hd"><span class="dot" style="background:var(--c)"></span><span class="t">Everywhere - Standup reminders</span><b><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="6"/></svg></b><b><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4h6l-1 6 3 3v1H7v-1l3-3z"/><path d="M12 14v6"/></svg></b><b><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg></b><b><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></b></div>
     <div class="bd">collapsed</div>
-    <div class="ft"><span class="grip"></span></div>
+    <div class="ft"></div>
   </div>
 
   <div id="launch" title="New sticky (Alt+N)">
@@ -219,14 +219,14 @@ Creds are in LinkLock, link expires Friday.</div>
   [].forEach.call(document.querySelectorAll('.note'), function (n) {
     var hd = n.querySelector('.hd'), sx, sy, ox, oy;
     hd.addEventListener('mousedown', function (e) {
-      if (e.target.tagName === 'B') return; sx = e.clientX; sy = e.clientY; ox = n.offsetLeft; oy = n.offsetTop;
+      if (e.target.closest('b')) return; sx = e.clientX; sy = e.clientY; ox = n.offsetLeft; oy = n.offsetTop;
       function mv(e) { n.style.left = (ox + e.clientX - sx) + 'px'; n.style.top = (oy + e.clientY - sy) + 'px'; }
       function up() { document.removeEventListener('mousemove', mv); document.removeEventListener('mouseup', up); }
       document.addEventListener('mousemove', mv); document.addEventListener('mouseup', up); e.preventDefault();
     });
-    hd.querySelectorAll('b')[2].onclick = function () { n.classList.toggle('min'); this.innerHTML = n.classList.contains('min') ? '+' : '&ndash;'; };
+    hd.querySelectorAll('b')[2].onclick = function () { n.classList.toggle('min'); };
   });
-  pick(0);
+  pick(2);
 </script>
 </body>
 </html>

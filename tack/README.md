@@ -44,6 +44,14 @@ is enough) and includes `tack.user.js` with a script tag.
 
 ## Changelog
 
+### 0.1.1 - 2026-09-22
+
+Glass is the default style after the preview review. Header buttons are
+now icons that say what they do: a pushpin for the pin scope and a chevron
+for collapse, because the old triangle looked like a collapse arrow. The
+design preview also resizes and collapses for real now, so it behaves like
+the script instead of just looking like it.
+
 ### 0.1.0 - 2026-09-22
 
 First release. Notes with drag, resize, collapse, six colors, three pin

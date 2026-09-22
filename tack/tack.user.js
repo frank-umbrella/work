@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Tack - sticky notes on any site
 // @namespace    https://github.com/frank-umbrella/work
-// @version      0.1.0
+// @version      0.1.1
 // @description  Post-it style sticky notes pinned on top of any website. Draggable, resizable, collapsible, six skins, six colors. Notes stick to this page, this site, or everywhere. Saved in the browser, with optional backup and sync through your own Google Drive.
 // @author       Umbrella Automation
 // @match        *://*/*
@@ -50,7 +50,7 @@
 (function () {
   'use strict';
 
-  var VERSION = '0.1.0';
+  var VERSION = '0.1.1';
   var AUTH_URL = 'https://frank-umbrella.github.io/work/tack/auth.html';
   var DRIVE_FILE = 'tack-notes.json';
   var COLORS = { yellow: '#fff59d', green: '#c8f7c5', blue: '#bde0fe', pink: '#ffc8dd', purple: '#e0c3fc', orange: '#ffd6a5' };
@@ -65,7 +65,7 @@
     set: function (k, v) { try { GM_setValue(k, v); } catch (_) {} }
   };
   var cfg = Object.assign({
-    theme: 'onenote', defaultScope: 'site', defaultColor: 'yellow',
+    theme: 'glass', defaultScope: 'site', defaultColor: 'yellow',
     launcher: true, corner: 'br', hidden: {},
     drive: { clientId: '', token: '', exp: 0, fileId: '', auto: true, lastSync: 0, error: '' }
   }, store.get('tack.cfg', {}));
@@ -140,6 +140,8 @@
     '.hd:active{cursor:grabbing}',
     '.hd .t{flex:1;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
     '.hd b{width:20px;height:20px;display:grid;place-items:center;border-radius:5px;font-weight:400;font-size:13px;cursor:pointer;opacity:.75;flex:none}',
+    '.hd b svg{width:14px;height:14px;display:block;pointer-events:none}',
+    '.n.min .hd .chev{transform:rotate(180deg)}',
     '.hd b:hover{opacity:1;background:rgba(0,0,0,.08)}',
     '.hd .dot{width:12px;height:12px;border-radius:50%;border:1.5px solid rgba(0,0,0,.25);margin-right:3px;flex:none;background:var(--c)}',
     '.hd .del{display:none;align-items:center;gap:4px;font-size:11px}',
@@ -242,12 +244,23 @@
     (kids || []).forEach(function (c) { n.appendChild(c); });
     return n;
   }
-  function svgIcon() {
+  var ICON = {
+    plus: { d: ['M12 3v18M6 9h12M9 15h6'] },
+    color: { d: ['M12 6a6 6 0 1 0 0 12a6 6 0 1 0 0-12z'], fill: true },
+    pin: { d: ['M9 4h6l-1 6 3 3v1H7v-1l3-3z', 'M12 14v6'] },
+    chev: { d: ['M6 15l6-6 6 6'] },
+    x: { d: ['M6 6l12 12M18 6L6 18'] }
+  };
+  function svgIcon(name) {
+    var ic = ICON[name || 'plus'];
     var s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('fill', 'none'); s.setAttribute('stroke', 'currentColor');
-    s.setAttribute('stroke-width', '2.2'); s.setAttribute('stroke-linecap', 'round'); s.setAttribute('stroke-linejoin', 'round');
-    var p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    p.setAttribute('d', 'M12 3v18M6 9h12M9 15h6'); s.appendChild(p); return s;
+    s.setAttribute('viewBox', '0 0 24 24'); s.setAttribute('class', name || 'plus');
+    if (ic.fill) s.setAttribute('fill', 'currentColor');
+    else { s.setAttribute('fill', 'none'); s.setAttribute('stroke', 'currentColor'); s.setAttribute('stroke-width', '2.2'); s.setAttribute('stroke-linecap', 'round'); s.setAttribute('stroke-linejoin', 'round'); }
+    ic.d.forEach(function (path) {
+      var p = document.createElementNS('http://www.w3.org/2000/svg', 'path'); p.setAttribute('d', path); s.appendChild(p);
+    });
+    return s;
   }
   function hostIsDark() {
     try {
@@ -314,7 +327,7 @@
     handle.addEventListener('pointerdown', function (e) {
       if (e.button !== 0) return;
       var tg = e.target;
-      if (tg.tagName === 'B' || tg.tagName === 'SPAN' && tg.parentElement.classList.contains('del')) return;
+      if (tg.closest('b') || (tg.tagName === 'SPAN' && tg.parentElement.classList.contains('del'))) return;
       var sx = e.clientX, sy = e.clientY, ox = box.offsetLeft, oy = box.offsetTop, moved = false;
       handle.setPointerCapture(e.pointerId);
       function mv(ev) {
@@ -339,10 +352,10 @@
     box.style.setProperty('--c', COLORS[n.color] || COLORS.yellow);
     var dot = el('span', { class: 'dot' });
     var title = el('span', { class: 't', text: SCOPE_LABEL[n.scope] || '' });
-    var bColor = el('b', { title: 'Color', text: '●' });
-    var bPin = el('b', { title: 'Pin to: this page / this site / everywhere', text: '▲' });
-    var bMin = el('b', { title: n.min ? 'Expand' : 'Collapse', text: n.min ? '+' : '–' });
-    var bDel = el('b', { title: 'Delete', text: '×' });
+    var bColor = el('b', { title: 'Color' }, [svgIcon('color')]);
+    var bPin = el('b', { title: 'Pin to: this page / this site / everywhere' }, [svgIcon('pin')]);
+    var bMin = el('b', { title: n.min ? 'Expand' : 'Collapse' }, [svgIcon('chev')]);
+    var bDel = el('b', { title: 'Delete' }, [svgIcon('x')]);
     var dy = el('span', { class: 'dy', text: 'Delete' }), dn = el('span', { class: 'dn', text: 'Keep' });
     var del = el('span', { class: 'del' }, [el('span', { text: 'Delete this note?' }), dy, dn]);
     del.firstChild.style.background = 'none'; del.firstChild.style.cursor = 'default';
@@ -383,7 +396,7 @@
     bPin.addEventListener('click', function () { pal.style.display = 'none'; pin.style.display = pin.style.display === 'none' ? 'flex' : 'none'; });
     bMin.addEventListener('click', function () {
       n.min = !n.min; box.classList.toggle('min', n.min);
-      bMin.textContent = n.min ? '+' : '–'; bMin.title = n.min ? 'Expand' : 'Collapse';
+      bMin.title = n.min ? 'Expand' : 'Collapse';
       if (!n.min && n.h) box.style.height = n.h + 'px';
       saveQuiet();
     });
@@ -580,7 +593,7 @@
   }
   function openSettings() {
     if (settings) { settings.remove(); settings = null; }
-    var hd = el('div', { class: 'hd' }, [el('span', { class: 't', text: 'Tack settings  v' + VERSION }), el('b', { text: '×', title: 'Close' })]);
+    var hd = el('div', { class: 'hd' }, [el('span', { class: 't', text: 'Tack settings  v' + VERSION }), el('b', { title: 'Close' }, [svgIcon('x')])]);
     hd.lastChild.addEventListener('click', function () { settings.remove(); settings = null; });
     var body = el('div', { class: 'sb' });
 
