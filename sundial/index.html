@@ -220,8 +220,15 @@ textarea.fld{min-height:64px;resize:vertical}
    fixed slot at the right edge, vertically centered, so every button in the
    column lines up regardless of how wide the time text is. */
 .mt.fixed td.endc{display:flex;align-items:center;justify-content:space-between;gap:8px}
-.mt.fixed td.endc .endt{min-width:0}
-.mt.fixed td.endc .endb{margin-left:auto;flex:none}
+/* The running row's pill sits beside two round buttons in this cell, and a
+   pill that folds its dot onto one line and its word onto the next makes the
+   whole row a line taller than every other row. The buttons never give way,
+   the text gives way first, and it truncates rather than wrapping - so a
+   column somebody has dragged narrow loses the end of a word instead of
+   gaining a line. */
+.mt.fixed td.endc .endt{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mt.fixed td.endc .endb{margin-left:auto;flex:0 0 auto}
+.mt td.endc .pill{white-space:nowrap;flex-wrap:nowrap;max-width:none;padding:3px 10px}
 .endb{display:inline-flex;align-items:center;gap:4px}
 .endb .minibtn{margin-left:0;flex:0 0 22px}
 .btnrow{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
@@ -2520,7 +2527,12 @@ const ICONS = {
    a dragged width is saved to the account. Double-click a handle to reset
    that column. The sum of fixed widths is always kept below the table width
    minus room for the flexible column, so nothing ever scrolls sideways. */
-const COL_DEFAULT_W = { start: 84, end: 138, dur: 80, job: 122, location: 104, ticket: 74, project: 122, notes: 160 };
+/* End is the widest of these on purpose: on a running row it holds the
+   "running" pill and two 22px round buttons, which measures 167px at the
+   table's own font size, so the default sits a few pixels above that. A
+   finished row needs about 108. A width somebody has dragged narrower than
+   either is still theirs - the pill truncates rather than wrapping. */
+const COL_DEFAULT_W = { start: 84, end: 176, dur: 80, job: 122, location: 104, ticket: 74, project: 122, notes: 160 };
 const FLEX_MIN_W = 200, COL_MIN_W = 48, ACTIONS_W = 96;
 function flexColumnKey(cols) {
   if (cols.some(c => c.k === "project")) return "project";   // notes live in a sub-row, so Project absorbs the slack

@@ -620,6 +620,15 @@ Older accounts and older backups are unaffected: a plain name is still read as
 a default with no flags on it, exactly as it behaved, and the object form is
 what gets written from then on.
 
+Also fixed: the running row in the Today table stood a line taller than every
+other row. The End cell has held a Pause button beside the Stop square since
+v0.6.0, and the squeeze folded the **running** pill in half - the dot on one
+line, the word on the next. The pill keeps one line now, the two buttons never
+give way, and the End column's default width has been measured against what
+that row actually needs rather than what a finished row needs. A column
+somebody has dragged narrower is still theirs: the text truncates with an
+ellipsis instead of gaining a line.
+
 ### v0.6.2 - 2026-09-16
 
 Default job types reach every client on their own.
