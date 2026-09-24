@@ -80,11 +80,34 @@ that has not happened yet.
 The dates sit on today and go back to today after every Start, so the usual
 case is two time boxes and nothing else. To the side (or below, on a phone)
 sits the rest of the entry - client, job type, location, tickets, project and
-notes - and under that the Recent chips, today's tiles, the week's utilization
-bar and the Today table.
+notes - and under that the Recent chips, the week card and the Today table.
 
 While a timer is running the card shows the timer instead, with Pause, Stop
 and Switch client, and the start form becomes **Start another job**.
+
+### The week card
+
+One card under the Recent chips answers "how is today going, and how is the
+week going" in three columns:
+
+- **Today** - the day's total as the big number, then the billable part, the
+  number of entries (and of clients, when there is more than one), and while
+  anything runs a **Running** line with the time on the timers, added together
+  if there are several. A day past the overtime threshold gets its amber flag
+  here.
+- **This week** - seven small bars, one per day of the current week starting
+  on your week-start day: the same seven days the Timesheet strip shows. The
+  busiest day is full height and the others are drawn against it; today is in
+  the accent color, and while a timer runs the hatched top of today's bar is
+  the part still counting. Each bar has the day's total over it and in its
+  tooltip, and tapping one opens that day on the Timesheet.
+- **Clients** today, **Avg / day** (the week's total over the days that have
+  time on them, so a day off does not drag it down), and **Capacity** - how
+  full the week is against your weekly capacity, with the billable and
+  non-billable split under it.
+
+The numbers follow a running timer minute by minute. On a tablet the card
+goes to two columns with the bars underneath, and on a phone to one.
 
 ## How exports work
 
@@ -321,7 +344,7 @@ Used hours are raw time, never rounded, and they include whatever is running.
 
 Two thresholds in Settings > Tracking, a day (8 hours) and a week (40), each
 with its own switch and both off by default. A total past one gets an amber
-**OT +1h 20m** in the Week grid, the Clock's Today tile says **over 8h**, and
+**OT +1h 20m** in the Week grid, the Today figure on the Clock says **over 8h**, and
 the text export adds a line under the day.
 
 It is a flag and nothing else. No pay is worked out, and no timer is ever
@@ -347,8 +370,8 @@ long as the day - says so in red under the row and is simply not saved until it
 is fixed; the day keeps the last hours that made sense.
 
 Under the rows, **Normal week** adds the days up, and **Weekly capacity follows
-working hours** hands that number to the utilization bar on the Clock and the
-Timesheet. While it is on, the Weekly capacity hours field in Tracking shows the
+working hours** hands that number to the capacity bar on the Clock and the
+utilization bar on the Timesheet. While it is on, the Weekly capacity hours field in Tracking shows the
 computed number and cannot be typed into. It is off until you switch it on, so
 nothing about the bar changes on its own.
 
@@ -624,6 +647,25 @@ real Google layer is chosen everywhere else, because the same hostname check
 that gates mock mode gates it.
 
 ## Changelog
+
+### v0.8.1 - 2026-09-24
+
+The Clock's stats are one card instead of six boxes.
+
+Five equal tiles - Today, Billable, Entries, Clients, This week - were mostly
+padding: five boxes the same size for numbers of very different weight, and
+the week's capacity bar sat in a card of its own underneath. Now a single card
+says how today is going on the left, shows the week as seven small bars in the
+middle, and keeps the counts and the capacity bar on the right.
+
+The seven bars are the same seven days the Timesheet strip shows, so "how is
+the week going" no longer means leaving the Clock. Today's bar is in the accent
+color, and while a timer runs its top is hatched to show the part still
+counting. Tap any day to open it on the Timesheet. The average per day counts
+only days with time on them, so a day off does not pull it down.
+
+The Today figure, the Running line and today's bar follow the timer minute by
+minute, on the same minute as the running strip. Reports keeps its tiles.
 
 ### v0.8.0 - 2026-09-24
 
