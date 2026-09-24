@@ -115,6 +115,9 @@ html:not([data-eff="dark"]) .themebtn .sun{display:none}
 @keyframes blink{50%{opacity:.3}}
 .who{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--topmuted);min-width:0}
 .who .em{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:26ch}
+/* six nav items plus the email no longer fit one line on a tablet; the
+   footer already says who is signed in, so the email is the thing to drop */
+@media (max-width:1080px){.who .em{display:none}}
 main{padding:16px;display:grid;gap:16px;max-width:1180px;margin:0 auto;width:100%;min-width:0}
 .view{display:none;gap:16px;min-width:0}
 .view.on{display:grid}
