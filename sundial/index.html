@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Sundial v0.7.1</title>
-<meta name="version" content="0.7.1" />
+<title>Sundial v0.8.0</title>
+<meta name="version" content="0.8.0" />
 <meta name="robots" content="noindex, nofollow" />
 <meta name="description" content="Internal hours tracker for Umbrella Automation. Restricted to @umbrellaautomation.com accounts." />
 <meta name="theme-color" content="#1e6fd9" />
@@ -542,6 +542,59 @@ textarea.fld{min-height:64px;resize:vertical}
 @media (max-width:880px){.exp{grid-template-columns:minmax(0,1fr)}}
 pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-radius:calc(var(--radius) - 2px);padding:14px 16px;font:13px/1.5 var(--mono);white-space:pre-wrap;overflow-wrap:anywhere;color:var(--text);max-width:100%;min-height:120px}
 
+/* ---------- reports ----------
+   Filter chips are toggles: lit in the chip colors when the thing is in the
+   report, muted with a faded dot when it is not, so "what am I looking at"
+   reads off the chips without opening anything. The breakdown and entry
+   tables are ordinary .mt tables and card-stack below 860px with the same
+   rules as every other table; the rules here only add the indented
+   second-level rows, the totals row and the share bar. */
+.rlab{display:flex;align-items:center;gap:4px 10px;flex-wrap:wrap}
+.rlinks{display:inline-flex;gap:12px;margin-left:auto;font-weight:400}
+.rlinks .morebtn{margin-top:0}
+.chip.rchip{font:inherit;font-size:13px}
+.chip.rchip.on{border-color:var(--accent);background:var(--chip);color:var(--chiptext);font-weight:600}
+.chip.rchip:not(.on){color:var(--muted)}
+.chip.rchip:not(.on) i.dot{opacity:.35}
+.rsaved{padding:0;gap:0;overflow:hidden;cursor:default}
+.rsaved button{background:none;border:0;font:inherit;color:inherit;cursor:pointer;padding:6px 7px;min-width:0}
+.rsaved .rsname{padding-left:12px;overflow-wrap:anywhere;text-align:left}
+.rsaved .rsico{display:inline-grid;place-items:center;color:var(--muted);flex:none}
+.rsaved .rsico:last-child{padding-right:10px}
+.rsaved .rsico:hover{color:var(--accent)}
+.rsaved .rsico.danger:hover{color:var(--stop)}
+.rsaved.on{border-color:var(--accent);background:var(--chip);color:var(--chiptext);font-weight:600}
+.rpt th.num,.rpt td.num{text-align:right;white-space:nowrap}
+.rpt td.num{font-family:var(--mono)}
+.rpt td.gcell .gl{display:inline-flex;align-items:center;gap:6px;min-width:0;overflow-wrap:anywhere}
+.rpt td.gcell .gl .cdot{margin-right:0}
+.rpt tr.sub td{background:var(--card2);font-size:13.5px}
+.rpt tr.sub td.gcell{padding-left:38px}
+.rpt tr.rtot td{font-weight:700;border-top:1px solid var(--line2);border-bottom:0}
+.rtog{width:22px;height:22px;padding:0;display:inline-grid;place-items:center;border:1px solid var(--line2);border-radius:50%;background:var(--card2);color:var(--muted);cursor:pointer;flex:none}
+.rtog:hover{color:var(--accent);border-color:var(--accent)}
+.rtog svg{transition:transform .15s}
+.rtog[aria-expanded="true"] svg{transform:rotate(90deg)}
+.rtogsp{display:inline-block;width:22px;flex:none}
+.rshare{display:inline-flex;align-items:center;gap:8px;justify-content:flex-end}
+.rsbar{display:inline-block;width:56px;height:7px;border-radius:999px;background:var(--card2);border:1px solid var(--line);overflow:hidden;flex:none}
+.rsbar i{display:block;height:100%;background:var(--accent)}
+.rent th{cursor:default}
+.rent td.t{white-space:normal}
+.rent .nw{white-space:nowrap}
+@media (max-width:860px){
+  .rpt td.num,.rpt th.num{text-align:left}
+  .mt.rpt td:before{flex-basis:112px}
+  .mt.rent td:before{flex-basis:96px}
+  .rpt tbody tr.sub{margin-left:18px;border-style:dashed}
+  .rpt tr.sub td{background:none}
+  .rpt tr.sub td.gcell{padding-left:0}
+  .rpt tbody tr.rtot{border-color:var(--line2);background:var(--card2)}
+  .rpt tr.rtot td{border-top:0}
+  .mt.rpt tr.rtot td.gcell:before{display:none}
+  .rshare{justify-content:flex-start}
+}
+
 /* ---------- google calendar panel ----------
    The client ID is a long unbroken string and the status line can carry an
    email and a calendar name, so both are told to wrap anywhere rather than
@@ -678,6 +731,7 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
     <button data-view="timesheet">Timesheet</button>
     <button data-view="clients">Clients</button>
     <button data-view="export">Export</button>
+    <button data-view="reports">Reports</button>
     <button data-view="settings">Settings</button>
   </nav>
   <span class="sync" id="syncPill" data-s="synced" title="Reads the browser online state plus Firestore pending writes. Start and Stop never wait on the network."><i></i><span id="syncText">Synced</span></span>
@@ -914,6 +968,90 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
     </div>
   </section>
 
+  <!-- ============ REPORTS ============ -->
+  <section class="view" id="v-reports">
+    <div class="card" id="rSavedCard">
+      <div class="chead"><h4>Saved reports</h4></div>
+      <div class="chips" id="rSaved"></div>
+    </div>
+
+    <div class="card" id="rFilters">
+      <div class="chead"><h4>Filters</h4><span class="sp">
+        <button class="btn sm" id="rReset" title="Back to this month, every client, every job type, grouped by client then job type. A saved report is not touched.">Reset filters</button>
+      </span></div>
+      <div class="lab">Range <span class="q" title="The days the report covers, by the day each entry started. Last month and This year are here for the questions Export was never built to answer; All time loads your whole history, however far back it goes.">?</span></div>
+      <span class="seg" id="rRange">
+        <button data-rr="today">Today</button>
+        <button data-rr="yesterday">Yesterday</button>
+        <button data-rr="week">This week</button>
+        <button data-rr="lastweek">Last week</button>
+        <button data-rr="month" class="on">This month</button>
+        <button data-rr="lastmonth">Last month</button>
+        <button data-rr="year">This year</button>
+        <button data-rr="all">All time</button>
+        <button data-rr="custom">Custom</button>
+      </span>
+      <div class="g2" id="rCustom" hidden>
+        <div><label class="lab" for="rFrom">From</label><input type="date" class="fld" id="rFrom"></div>
+        <div><label class="lab" for="rTo">To</label><input type="date" class="fld" id="rTo"></div>
+      </div>
+      <div class="lab rlab">Clients <span class="q" title="Tap a client to take it out of the report and tap again to put it back. Everyone is in to start with, so a report about one client is None and then that one.">?</span>
+        <span class="rlinks"><button type="button" class="morebtn" data-rall="clients" title="Put every client back in.">All</button><button type="button" class="morebtn" data-rnone="clients" title="Take every client out, so you can tap in just the ones you want.">None</button></span></div>
+      <div class="chips" id="rClients"></div>
+      <div class="lab rlab">Job types <span class="q" title="The job types of the clients picked above, each name once: Remote support under three clients is one chip, because the question is usually how much remote support, not whose.">?</span>
+        <span class="rlinks"><button type="button" class="morebtn" data-rall="jobs" title="Put every job type back in.">All</button><button type="button" class="morebtn" data-rnone="jobs" title="Take every job type out, so you can tap in just the ones you want.">None</button></span></div>
+      <div class="chips" id="rJobs"></div>
+      <div id="rLocWrap" hidden>
+        <div class="lab rlab">Location <span class="q" title="The labels on the entries in this range. No location covers entries that were never given one, so leaving it on keeps them in.">?</span>
+          <span class="rlinks"><button type="button" class="morebtn" data-rall="locations" title="Put every location back in.">All</button><button type="button" class="morebtn" data-rnone="locations" title="Take every location out, so you can tap in just the ones you want.">None</button></span></div>
+        <div class="chips" id="rLocs"></div>
+      </div>
+      <div class="lab">Billable <span class="q" title="Billable only is what you could have charged for; Non-billable only is where the rest of the week went.">?</span></div>
+      <span class="seg" id="rBill">
+        <button data-rbl="all" class="on">All</button>
+        <button data-rbl="yes">Billable only</button>
+        <button data-rbl="no">Non-billable only</button>
+      </span>
+      <div class="g3">
+        <div><label class="lab" for="rTicket">Ticket contains <span class="q" title="Part of a ticket number is enough, and a leading # is ignored. It matches anywhere in an entry's tickets, so 5421 finds an entry logged against 5421 and 5430 together.">?</span></label><input class="fld" id="rTicket" autocomplete="off" spellcheck="false"></div>
+        <div><label class="lab" for="rProject">Project contains <span class="q" title="Any part of the project label, ignoring case, so migration finds M365 migration.">?</span></label><input class="fld" id="rProject" autocomplete="off"></div>
+        <div><label class="lab" for="rNotes">Notes contains <span class="q" title="Any word or phrase in the notes, ignoring case - for the question that starts with how long did we spend on that printer.">?</span></label><input class="fld" id="rNotes" autocomplete="off"></div>
+      </div>
+      <div class="g2">
+        <div><label class="lab" for="rG1">Group by <span class="q" title="One row per whatever you pick here in the Breakdown. Day, Week and Month read in date order; the rest start with the biggest.">?</span></label><select class="fld" id="rG1"></select></div>
+        <div><label class="lab" for="rG2">Then by <span class="q" title="Splits each row above into a second level you open with the arrow, for example each client's hours by job type. None keeps the breakdown to one level.">?</span></label><select class="fld" id="rG2"></select></div>
+      </div>
+      <label class="ck"><input type="checkbox" id="rRunning"> Include running entries <span class="q" title="Off by default so a report does not change while you read it. On counts a running timer up to now.">?</span></label>
+      <label class="ck"><input type="checkbox" id="rRaw"> Raw time, no rounding <span class="q" title="Off, durations are rounded the way your exports round them - the Settings default, with a client's own rounding winning - so a report agrees with what was sent. On shows the time exactly as logged.">?</span></label>
+    </div>
+
+    <div class="tiles" id="rTiles"></div>
+
+    <div class="card">
+      <div class="chead" style="margin-bottom:4px"><h4>Report</h4><span class="sp">
+        <button class="btn sm acc" id="rCopy" title="The header, the totals, the breakdown and every matching entry as plain text, in the same style as the Export screen.">Copy as text</button>
+        <button class="btn sm acc" id="rCopyHtml" title="The same report as tables, so Gmail and Outlook paste rows and columns. The plain text goes on the clipboard too, for anywhere that cannot take a table.">Copy for email</button>
+        <button class="btn sm" id="rCsv" title="Either the breakdown or the matching entries as a CSV, UTF-8 with a byte-order mark so Excel opens it correctly.">CSV</button>
+        <button class="btn sm" id="rXlsx" title="One workbook with three sheets - Summary, Breakdown and Entries - with the hours as numbers Excel can add up. Needs the network the first time, to fetch the spreadsheet library.">XLSX</button>
+        <button class="btn sm" id="rSave" title="Keeps this range, these filters and this grouping under a name, so the same question is one tap next time. The numbers are worked out again whenever it is loaded.">Save report</button>
+      </span></div>
+      <div class="hint" id="rHead"></div>
+    </div>
+
+    <div class="card">
+      <div class="chead"><h4>Breakdown</h4><span class="sp">
+        <button class="btn sm" id="rExpand" title="Opens or closes the second level on every row at once.">Expand all</button>
+      </span></div>
+      <div class="tablewrap"><table class="mt rpt" id="rBreak"></table></div>
+      <div class="hint" id="rRoundHint"></div>
+    </div>
+
+    <div class="card">
+      <div class="chead"><h4>Matching entries</h4><span class="sp hint" id="rCount" style="margin:0"></span></div>
+      <div class="tablewrap"><table class="mt rent" id="rEntries"></table></div>
+    </div>
+  </section>
+
   <!-- ============ SETTINGS ============ -->
   <section class="view" id="v-settings">
     <div class="card">
@@ -1067,6 +1205,7 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
   <button data-view="timesheet"><b>&#9776;</b>Timesheet</button>
   <button data-view="clients"><b>&#9679;</b>Clients</button>
   <button data-view="export"><b>&#8593;</b>Export</button>
+  <button data-view="reports"><b>&#8721;</b>Reports</button>
   <button data-view="settings"><b>&#8943;</b>More</button>
 </nav>
 </div>
@@ -1079,12 +1218,12 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
 
 <script type="module">
 /* ==============================================================
-   Sundial v0.7.1 - hours tracker
+   Sundial v0.8.0 - hours tracker
    Single file on purpose: no build step, same as Backup Audits.
    Firestore rules for /sundial_users live in ../watchtower/firestore.rules.
    ============================================================== */
 
-const APP_VERSION    = "0.7.1";
+const APP_VERSION    = "0.8.0";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const OWNER_EMAIL    = "frank@umbrellaautomation.com";
 const SDK            = "https://www.gstatic.com/firebasejs/12.13.0/";
@@ -1252,7 +1391,10 @@ const DEFAULT_SETTINGS = {
   /* Google Calendar mirroring. clientId is a public identifier, calendarId
      and email are what Connect found. No token is ever stored here, or
      anywhere else on disk - see the GOOGLE CALENDAR section below. */
-  gcal: { clientId: "", calendarId: "", email: "", auto: true, connected: true }
+  gcal: { clientId: "", calendarId: "", email: "", auto: true, connected: true },
+  /* Saved reports: [{id, name, filters, group}] - the question, never the
+     answer. The numbers are worked out again every time one is loaded. */
+  reports: []
 };
 
 /* ---------------- state ---------------- */
@@ -1288,7 +1430,10 @@ const state = {
      override win"; a value pins that increment on every client. */
   /* mode picks which half of the Export screen is showing: the hours block
      or the mileage claim. Range and client filter are shared. */
-  xOpts: { mode: "hours", range: "today", from: "", to: "", client: "", billable: "all", notes: true, project: true, ticket: true, group: true, amounts: true, rounding: null, template: "grouped" }
+  xOpts: { mode: "hours", range: "today", from: "", to: "", client: "", billable: "all", notes: true, project: true, ticket: true, group: true, amounts: true, rounding: null, template: "grouped" },
+  /* The Reports screen's filters and grouping. Not persisted on its own:
+     a set worth keeping is kept as a saved report in settings. */
+  rOpts: defaultReportOpts()
 };
 let store = null;
 
@@ -4747,22 +4892,35 @@ async function importClientsFile(file) {
 /* ==============================================================
    EXPORT
    ============================================================== */
-function exportRangeKeys() {
-  const o = state.xOpts, today = new Date();
-  if (o.range === "today")     return [dayKey(today), dayKey(today)];
-  if (o.range === "yesterday") { const k = dayKey(addDays(today, -1)); return [k, k]; }
-  if (o.range === "week")      { const ws = startOfWeek(today, state.settings.weekStart); return [dayKey(ws), dayKey(addDays(ws, 6))]; }
-  if (o.range === "lastweek")  { const ws = startOfWeek(addDays(today, -7), state.settings.weekStart); return [dayKey(ws), dayKey(addDays(ws, 6))]; }
-  if (o.range === "month")     return [dayKey(new Date(today.getFullYear(), today.getMonth(), 1)), dayKey(new Date(today.getFullYear(), today.getMonth() + 1, 0))];
-  if (o.range === "all") {
+/* A named range to [fromKey, toKey], inclusive. Shared by Export and Reports
+   so "This week" can never mean two different weeks on two screens. */
+function rangeKeysFor(range, from, to) {
+  const today = new Date(), y = today.getFullYear(), m = today.getMonth();
+  if (range === "today")     return [dayKey(today), dayKey(today)];
+  if (range === "yesterday") { const k = dayKey(addDays(today, -1)); return [k, k]; }
+  if (range === "week")      { const ws = startOfWeek(today, state.settings.weekStart); return [dayKey(ws), dayKey(addDays(ws, 6))]; }
+  if (range === "lastweek")  { const ws = startOfWeek(addDays(today, -7), state.settings.weekStart); return [dayKey(ws), dayKey(addDays(ws, 6))]; }
+  if (range === "month")     return [dayKey(new Date(y, m, 1)), dayKey(new Date(y, m + 1, 0))];
+  if (range === "lastmonth") return [dayKey(new Date(y, m - 1, 1)), dayKey(new Date(y, m, 0))];
+  if (range === "year")      return [dayKey(new Date(y, 0, 1)), dayKey(new Date(y, 11, 31))];
+  if (range === "all") {
     /* from the earliest entry on record to today (or to the last entry, if
        something was logged ahead of today) */
     let first = dayKey(today), last = dayKey(today);
     state.entries.forEach(e => { if (e.day < first) first = e.day; if (e.day > last) last = e.day; });
     return [first, last];
   }
-  const from = o.from || dayKey(today), to = o.to || dayKey(today);
-  return from <= to ? [from, to] : [to, from];
+  const f = from || dayKey(today), t = to || dayKey(today);
+  return f <= t ? [f, t] : [t, f];
+}
+/* The oldest day a range needs loaded. The account normally holds the last
+   400 days in memory; All time asks for everything, which is the only way
+   "all time" can be true for somebody who has used Sundial longer than that. */
+const ALL_TIME_FROM = "1970-01-01";
+function windowFromFor(range, keys) { return range === "all" ? ALL_TIME_FROM : keys[0]; }
+function exportRangeKeys() {
+  const o = state.xOpts;
+  return rangeKeysFor(o.range, o.from, o.to);
 }
 function exportRows() {
   const r = exportRangeKeys(), o = state.xOpts;
@@ -5318,7 +5476,7 @@ function paintExport() {
   $("#xMileageCard").hidden = !mileage;
   if (mileage) paintMileage();
   const r = exportRangeKeys();
-  store && store.extendWindow && store.extendWindow(r[0]);
+  store && store.extendWindow && store.extendWindow(windowFromFor(o.range, r));
 }
 function exportCSVRows() {
   const rows = exportRows();
@@ -5389,6 +5547,685 @@ async function restoreBackupFile(file) {
       });
       toast("Restored " + (cl.length + en.length) + " records.");
     });
+}
+
+/* ==============================================================
+   REPORTS
+   The question Export was never built for: "how much did I do for this
+   client, on this ticket, this quarter" without a spreadsheet. Export
+   produces the block you send somebody; Reports filters, groups and totals
+   whatever range you ask about, and can then copy or download the answer.
+
+   Durations follow the export rounding by default (Settings default, a
+   client's own override winning) so a report agrees with what was sent;
+   the Raw time switch shows time exactly as logged. Stored times are never
+   touched either way. The unpaid-break rule is an export-time rule about a
+   day's block and deliberately does not apply here.
+   ============================================================== */
+const R_RANGE_NAMES = { today: "Today", yesterday: "Yesterday", week: "This week", lastweek: "Last week",
+  month: "This month", lastmonth: "Last month", year: "This year", all: "All time", custom: "Custom" };
+const R_GROUPS = [
+  { k: "client", label: "Client" }, { k: "job", label: "Job type" }, { k: "project", label: "Project" },
+  { k: "ticket", label: "Ticket" }, { k: "day", label: "Day" }, { k: "week", label: "Week" },
+  { k: "month", label: "Month" }, { k: "location", label: "Location" }, { k: "billable", label: "Billable" }
+];
+const R_CHRONO = { day: true, week: true, month: true };
+const R_ENTRY_CAP = 300;
+/* the key for "no project", "no ticket", "no location"; plain ASCII because
+   it round-trips through a data- attribute */
+const R_NONE = "__none__";
+const R_CHEVRON = '<svg viewBox="0 0 10 10" width="9" height="9" aria-hidden="true"><path d="M3.2 1.5 L7 5 L3.2 8.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+/* clients, jobs and locations are null for "all of them, including any
+   added later", or a list of the ones that are in. */
+function defaultReportOpts() {
+  return { range: "month", from: "", to: "", clients: null, jobs: null, locations: null, billable: "all",
+    ticket: "", project: "", notes: "", running: false, raw: false, g1: "client", g2: "job",
+    sort: null, open: {} };
+}
+function rGroupLabel(k) { const g = R_GROUPS.find(x => x.k === k); return g ? g.label : ""; }
+function rActiveG2() { const o = state.rOpts; return o.g2 && o.g2 !== o.g1 && R_GROUPS.some(g => g.k === o.g2) ? o.g2 : ""; }
+function reportRangeKeys() { const o = state.rOpts; return rangeKeysFor(o.range, o.from, o.to); }
+function rangeSpanLabel(r) {
+  const a = dayDate(r[0]), b = dayDate(r[1]);
+  if (r[0] === r[1]) return a.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+  if (a.getFullYear() === b.getFullYear()) return fmtDayShort(r[0]) + " - " + fmtDayShort(r[1]) + ", " + b.getFullYear();
+  return fmtDayShort(r[0]) + ", " + a.getFullYear() + " - " + fmtDayShort(r[1]) + ", " + b.getFullYear();
+}
+function reportRangeLabel() {
+  const o = state.rOpts, span = rangeSpanLabel(reportRangeKeys());
+  return o.range === "custom" ? span : (R_RANGE_NAMES[o.range] || "Range") + " (" + span + ")";
+}
+
+/* ---- saved reports ---- */
+function rList(v) { return Array.isArray(v) ? v.map(x => String(x)).sort() : null; }
+/* One canonical shape, keys always in the same order, so a report saved to
+   Firestore (which hands maps back in its own key order) can be compared
+   with what is on screen by a plain string compare. */
+function reportSnapshot(src) {
+  const o = src || state.rOpts;
+  const g1 = R_GROUPS.some(g => g.k === o.g1) ? o.g1 : "client";
+  const g2 = o.g2 && o.g2 !== g1 && R_GROUPS.some(g => g.k === o.g2) ? o.g2 : "";
+  return {
+    filters: {
+      range: R_RANGE_NAMES[o.range] ? o.range : "month",
+      /* dates only mean anything on a Custom range; anywhere else they are
+         leftovers and must not make two identical reports look different */
+      from: o.range === "custom" ? String(o.from || "") : "", to: o.range === "custom" ? String(o.to || "") : "",
+      clients: rList(o.clients), jobs: rList(o.jobs), locations: rList(o.locations),
+      billable: o.billable === "yes" || o.billable === "no" ? o.billable : "all",
+      ticket: String(o.ticket || ""), project: String(o.project || ""), notes: String(o.notes || ""),
+      running: !!o.running, raw: !!o.raw
+    },
+    group: { g1: g1, g2: g2 }
+  };
+}
+function savedReports() {
+  const list = Array.isArray(state.settings.reports) ? state.settings.reports : [];
+  return list.filter(x => x && x.id && x.name);
+}
+function savedAsOpts(rec) { return Object.assign({}, rec.filters || {}, rec.group || {}); }
+function matchingSavedReport() {
+  const cur = JSON.stringify(reportSnapshot());
+  return savedReports().find(x => JSON.stringify(reportSnapshot(savedAsOpts(x))) === cur) || null;
+}
+function loadSavedReport(id) {
+  const rec = savedReports().find(x => x.id === id);
+  if (!rec) return;
+  const snap = reportSnapshot(savedAsOpts(rec));
+  state.rOpts = Object.assign(defaultReportOpts(), snap.filters, snap.group);
+  paintReports();
+  toast("Loaded " + rec.name + ".");
+}
+function writeSavedReports(list) { saveSetting({ reports: list }); }
+function openSaveReportModal() {
+  const match = matchingSavedReport();
+  const w = openModal("Save report",
+    '<label class="lab" for="rsName">Name <span class="q" title="What the chip at the top of Reports will say. Saving under a name that is already there replaces that report, after asking.">?</span></label>' +
+    '<input class="fld" id="rsName" maxlength="60" autocomplete="off" value="' + esc(match ? match.name : "") + '">' +
+    '<p class="hint" style="font-size:13px">Saves the range, every filter and the grouping - not the numbers. A saved This month is always the current month when you load it; a Custom range keeps its dates.</p>',
+    '<button class="btn" data-close>Cancel</button><button class="btn acc" data-go>Save</button>');
+  const inp = $("#rsName", w);
+  const go = () => {
+    const name = inp.value.trim();
+    if (!name) { toast("Give the report a name.", true); inp.focus(); return; }
+    const list = savedReports();
+    const snap = reportSnapshot();
+    const same = list.find(x => x.name.toLowerCase() === name.toLowerCase());
+    const write = id => {
+      const rec = { id: id, name: name, filters: snap.filters, group: snap.group };
+      const next = list.some(x => x.id === id) ? list.map(x => (x.id === id ? rec : x)) : list.concat([rec]);
+      writeSavedReports(next);
+      toast((list.some(x => x.id === id) ? "Replaced " : "Saved ") + name + ".");
+    };
+    closeModal(w);
+    if (same) {
+      confirmModal("Replace " + same.name + "?",
+        "<p>A saved report called <b>" + esc(same.name) + "</b> already exists. Saving replaces its range, filters and grouping with the ones on screen now.</p>",
+        "Replace", () => write(same.id));
+    } else write(uid());
+  };
+  $("[data-go]", w).addEventListener("click", go);
+  inp.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); go(); } });
+}
+function openRenameReportModal(id) {
+  const rec = savedReports().find(x => x.id === id);
+  if (!rec) return;
+  const w = openModal("Rename report",
+    '<label class="lab" for="rsRename">Name</label><input class="fld" id="rsRename" maxlength="60" autocomplete="off" value="' + esc(rec.name) + '">',
+    '<button class="btn" data-close>Cancel</button><button class="btn acc" data-go>Rename</button>');
+  const inp = $("#rsRename", w);
+  const go = () => {
+    const name = inp.value.trim();
+    if (!name) { toast("Give the report a name.", true); inp.focus(); return; }
+    const list = savedReports();
+    if (list.some(x => x.id !== id && x.name.toLowerCase() === name.toLowerCase())) {
+      toast("Another saved report already has that name.", true); inp.focus(); return;
+    }
+    closeModal(w);
+    writeSavedReports(list.map(x => (x.id === id ? Object.assign({}, x, { name: name }) : x)));
+    toast("Renamed to " + name + ".");
+  };
+  $("[data-go]", w).addEventListener("click", go);
+  inp.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); go(); } });
+}
+function deleteSavedReportModal(id) {
+  const rec = savedReports().find(x => x.id === id);
+  if (!rec) return;
+  confirmModal("Delete " + rec.name + "?",
+    "<p>This removes the saved report only - the filters and grouping it held. No entry, client or export changes.</p>",
+    "Delete", () => {
+      writeSavedReports(savedReports().filter(x => x.id !== id));
+      toast("Deleted " + rec.name + ".");
+    }, true);
+}
+
+/* ---- what is in the report ---- */
+function rInRange(e, r) { return !!e.day && e.day >= r[0] && e.day <= r[1]; }
+function rJobKey(e) { return (jobTypeName(clientById(e.clientId), e.jobTypeId) || "").trim().toLowerCase(); }
+function rLocKey(e) { const l = String(e.location || "").trim().toLowerCase(); return l || R_NONE; }
+/* Every active client, plus an archived one when it has hours in the range:
+   a report about last quarter still has to be able to find the client you
+   archived last week. */
+function reportClientChoices(r) {
+  const used = {};
+  state.entries.forEach(e => { if (rInRange(e, r)) used[e.clientId] = true; });
+  return state.clients.filter(c => !c.archived || used[c.id]).sort((a, b) => a.name.localeCompare(b.name));
+}
+function reportJobChoices(r) {
+  const o = state.rOpts, seen = new Map();
+  const inClients = id => !o.clients || o.clients.indexOf(id) >= 0;
+  const add = n => { n = String(n == null ? "" : n).trim(); if (n && !seen.has(n.toLowerCase())) seen.set(n.toLowerCase(), n); };
+  state.clients.forEach(c => { if (!c.archived && inClients(c.id)) activeJobTypes(c).forEach(j => add(j.name)); });
+  state.entries.forEach(e => { if (rInRange(e, r) && inClients(e.clientId)) add(jobTypeName(clientById(e.clientId), e.jobTypeId)); });
+  return Array.from(seen.entries()).map(p => ({ k: p[0], n: p[1] })).sort((a, b) => a.n.localeCompare(b.n));
+}
+/* Locations come from the entries, not the client lists: a client that was
+   never given a list still reads as On-site and Remote, and a chip for a
+   label nothing in the range carries would filter nothing. */
+function reportLocationChoices(r) {
+  const seen = new Map();
+  let none = false;
+  state.entries.forEach(e => {
+    if (!rInRange(e, r)) return;
+    const l = String(e.location || "").trim();
+    if (!l) { none = true; return; }
+    if (!seen.has(l.toLowerCase())) seen.set(l.toLowerCase(), l);
+  });
+  const out = Array.from(seen.entries()).map(p => ({ k: p[0], n: p[1] })).sort((a, b) => a.n.localeCompare(b.n));
+  if (out.length && none) out.push({ k: R_NONE, n: "No location" });
+  return out;
+}
+function reportRows() {
+  const o = state.rOpts, r = reportRangeKeys();
+  const q = s => String(s || "").trim().toLowerCase();
+  const tq = q(o.ticket).replace(/^#/, ""), pq = q(o.project), nq = q(o.notes);
+  return state.entries.filter(e => {
+    if (!rInRange(e, r)) return false;
+    if (!e.end && !o.running) return false;
+    if (o.clients && o.clients.indexOf(e.clientId) < 0) return false;
+    if (o.jobs && o.jobs.indexOf(rJobKey(e)) < 0) return false;
+    if (o.billable === "yes" && e.billable === false) return false;
+    if (o.billable === "no" && e.billable !== false) return false;
+    if (o.locations && o.locations.indexOf(rLocKey(e)) < 0) return false;
+    if (tq && q(e.ticket).indexOf(tq) < 0) return false;
+    if (pq && q(e.project).indexOf(pq) < 0) return false;
+    if (nq && q(e.notes).indexOf(nq) < 0) return false;
+    return true;
+  }).sort((a, b) => toDate(a.start) - toDate(b.start));
+}
+
+/* ---- numbers ---- */
+function reportRounding(clientId) { const c = clientById(clientId); return (c && c.rounding) || roundingDefault(); }
+function reportRoundingInPlay() { return roundingDefault() !== "none" || state.clients.some(c => c.rounding && c.rounding !== "none"); }
+function reportSeconds(e) {
+  const s = entrySeconds(e);
+  return state.rOpts.raw ? Math.floor(s) : roundSeconds(s, reportRounding(e.clientId));
+}
+function reportAmountsOn() { return !!state.settings.showAmounts; }
+/* The same money Export works out: billable time only, at the client's
+   rate, from the same durations printed beside it. */
+function reportAmount(e) {
+  if (!reportAmountsOn() || e.billable === false) return null;
+  const c = clientById(e.clientId);
+  const rate = c && c.rate != null ? Number(c.rate) : null;
+  if (rate == null || !isFinite(rate)) return null;
+  return (reportSeconds(e) / 3600) * rate;
+}
+function reportStats(rows) {
+  let secs = 0, bill = 0, non = 0, amt = 0, anyAmt = false;
+  const days = {};
+  rows.forEach(e => {
+    const s = reportSeconds(e);
+    secs += s;
+    if (e.billable === false) non += s; else bill += s;
+    const a = reportAmount(e);
+    if (a != null) { anyAmt = true; amt += a; }
+    days[e.day] = true;
+  });
+  const nd = Object.keys(days).length;
+  return { secs: secs, bill: bill, non: non, count: rows.length, days: nd, avg: nd ? secs / nd : 0, amount: anyAmt ? amt : null };
+}
+function reportGroupOf(e, g) {
+  const c = clientById(e.clientId);
+  switch (g) {
+    case "client": return { key: c ? c.id : "?" + e.clientId, label: exportClientName(c), dot: clientColor(c) };
+    case "job": { const n = (jobTypeName(c, e.jobTypeId) || "Job").trim(); return { key: n.toLowerCase(), label: n }; }
+    case "project": { const p = String(e.project || "").trim(); return { key: p ? p.toLowerCase() : R_NONE, label: p || "No project" }; }
+    /* an entry against several tickets is one group for that set of
+       tickets, so every entry is counted exactly once and the shares add up
+       to a hundred */
+    case "ticket": { const l = ticketList(e.ticket); return { key: l.length ? l.map(t => t.toLowerCase()).join(" ") : R_NONE, label: l.length ? ticketText(e.ticket) : "No ticket" }; }
+    case "day": return { key: e.day, label: dayDate(e.day).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" }) };
+    case "week": { const ws = dayKey(startOfWeek(dayDate(e.day), state.settings.weekStart)); return { key: ws, label: "Week of " + fmtDayShort(ws) + ", " + dayDate(ws).getFullYear() }; }
+    case "month": { const k = String(e.day).slice(0, 7); return { key: k, label: dayDate(k + "-01").toLocaleDateString(undefined, { month: "long", year: "numeric" }) }; }
+    case "location": { const l = String(e.location || "").trim(); return { key: l ? l.toLowerCase() : R_NONE, label: l || "No location" }; }
+    case "billable": return e.billable === false ? { key: "n", label: "Non-billable" } : { key: "b", label: "Billable" };
+  }
+  return { key: "", label: "" };
+}
+function reportGroups(rows, g) {
+  const map = new Map();
+  rows.forEach(e => {
+    const gi = reportGroupOf(e, g);
+    let x = map.get(gi.key);
+    if (!x) { x = { key: gi.key, label: gi.label, dot: gi.dot || "", rows: [] }; map.set(gi.key, x); }
+    x.rows.push(e);
+  });
+  return Array.from(map.values()).map(x => Object.assign(x, reportStats(x.rows)));
+}
+/* Day, Week and Month read in date order until a header says otherwise;
+   everything else starts with the biggest. A header click sorts asc, then
+   desc, then back to that. */
+function reportSortGroups(list, g) {
+  const s = state.rOpts.sort;
+  const dflt = (a, b) => R_CHRONO[g] ? (a.key < b.key ? -1 : a.key > b.key ? 1 : 0) : (b.secs - a.secs) || a.label.localeCompare(b.label);
+  if (!s || !s.key) return list.slice().sort(dflt);
+  const dir = s.dir === "desc" ? -1 : 1;
+  const val = x => s.key === "group" ? (R_CHRONO[g] ? x.key : x.label.toLowerCase())
+    : s.key === "share" ? x.secs
+    : s.key === "amount" ? (x.amount == null ? -1 : x.amount) : x[s.key];
+  return list.slice().sort((a, b) => { const p = val(a), q = val(b); return p < q ? -dir : p > q ? dir : dflt(a, b); });
+}
+function reportBreakdown(rows) {
+  const o = state.rOpts, g2 = rActiveG2();
+  return reportSortGroups(reportGroups(rows, o.g1), o.g1).map(p =>
+    Object.assign(p, { subs: g2 ? reportSortGroups(reportGroups(p.rows, g2), g2) : [] }));
+}
+function pctText(part, whole) { return whole ? (Math.round((part / whole) * 1000) / 10).toFixed(1) + "%" : "0.0%"; }
+function hoursNum(secs) { return Number((secs / 3600).toFixed(2)); }
+
+/* ---- the words ---- */
+function reportFilterSummary() {
+  const o = state.rOpts, parts = [];
+  const names = (list, lookup, what) => !list ? null : !list.length ? "no " + what
+    : list.length > 3 ? list.length + " " + what : list.map(lookup).join(", ");
+  const cl = names(o.clients, id => { const c = clientById(id); return c ? c.name : "Unknown client"; }, "clients");
+  parts.push(cl == null ? "All clients" : cl);
+  const jobChoices = reportJobChoices(reportRangeKeys());
+  const jb = names(o.jobs, k => { const j = jobChoices.find(x => x.k === k); return j ? j.n : k; }, "job types");
+  if (jb != null) parts.push("Job types: " + jb);
+  if (o.billable === "yes") parts.push("Billable only");
+  if (o.billable === "no") parts.push("Non-billable only");
+  const lc = names(o.locations, k => k === R_NONE ? "No location" : (reportLocationChoices(reportRangeKeys()).find(x => x.k === k) || { n: k }).n, "locations");
+  if (lc != null) parts.push("Location: " + lc);
+  if (o.ticket.trim())  parts.push('Ticket contains "' + o.ticket.trim() + '"');
+  if (o.project.trim()) parts.push('Project contains "' + o.project.trim() + '"');
+  if (o.notes.trim())   parts.push('Notes contains "' + o.notes.trim() + '"');
+  if (o.running) parts.push("running entries included");
+  if (o.raw) parts.push("raw time");
+  return parts.join("; ");
+}
+function reportHeadLine() { return "Report: " + reportRangeLabel() + " - " + reportFilterSummary(); }
+function reportGroupingLabel() {
+  const g2 = rActiveG2();
+  return rGroupLabel(state.rOpts.g1) + (g2 ? ", then " + rGroupLabel(g2) : "");
+}
+function reportTotalLine(t) {
+  return "Total " + fmtDur(t.secs) + " (billable " + fmtDur(t.bill) + ", non-billable " + fmtDur(t.non) + ")";
+}
+function reportStatsLine(t) {
+  return t.count + " entr" + (t.count === 1 ? "y" : "ies") + ", " + t.days + " day" + (t.days === 1 ? "" : "s") +
+    " worked, average " + fmtDur(t.avg) + " per day worked";
+}
+function reportRoundingLine() {
+  if (state.rOpts.raw) return "Raw time, exactly as logged.";
+  if (!reportRoundingInPlay()) return "Raw time, exactly as logged - nothing in Settings or on a client rounds it.";
+  return "Durations rounded the way exports round them" +
+    (roundingDefault() !== "none" ? " (" + roundingDefault() + " min default" : " (no default") +
+    ", a client's own rounding wins). Stored times are never changed.";
+}
+function reportEntryDesc(e) {
+  const c = clientById(e.clientId);
+  let s = jobTypeName(c, e.jobTypeId) || "Job";
+  if (e.location) s += " @ " + e.location;
+  if (ticketList(e.ticket).length) s += " " + ticketText(e.ticket);
+  if (e.project) s += " (" + e.project + ")";
+  if (e.billable === false) s += " [non-billable]";
+  if (e.notes) s += " - " + e.notes;
+  return s;
+}
+/* A plain-text table: first column left-aligned, the rest right-aligned,
+   every column as wide as its widest cell. */
+function textTable(rows) {
+  const w = [];
+  rows.forEach(r => r.forEach((c, i) => { w[i] = Math.max(w[i] || 0, String(c).length); }));
+  return rows.map(r => r.map((c, i) => i === 0 ? String(c).padEnd(w[i]) : String(c).padStart(w[i])).join("  ").replace(/\s+$/, ""));
+}
+function buildReportText() {
+  const rows = reportRows(), t = reportStats(rows), amt = reportAmountsOn();
+  const lines = [reportHeadLine()];
+  if (state.settings.yourName) lines.push(state.settings.yourName);
+  lines.push("");
+  if (!rows.length) { lines.push("Nothing matches these filters."); return lines.join("\n"); }
+  lines.push(reportTotalLine(t));
+  lines.push(reportStatsLine(t).replace(/^./, ch => ch.toUpperCase()));
+  if (amt) lines.push("Amount " + (t.amount == null ? "- (no client in this report has a rate)" : money(t.amount)));
+  if (!state.rOpts.raw && reportRoundingInPlay()) lines.push(reportRoundingLine());
+  lines.push("");
+  lines.push("By " + reportGroupingLabel());
+  const trow = (label, x) => [label, fmtDur(x.secs), fmtDur(x.bill), fmtDur(x.non), pctText(x.secs, t.secs), String(x.count)]
+    .concat(amt ? [x.amount == null ? "" : money(x.amount)] : []);
+  const tab = [["", "Hours", "Billable", "Non-billable", "Share", "Entries"].concat(amt ? ["Amount"] : [])];
+  reportBreakdown(rows).forEach(p => {
+    tab.push(trow("  " + p.label, p));
+    p.subs.forEach(s => tab.push(trow("      " + s.label, s)));
+  });
+  tab.push(trow("  Total", t));
+  textTable(tab).forEach(l => lines.push(l));
+  lines.push("");
+  lines.push("Entries");
+  const dateW  = Math.max.apply(null, rows.map(e => fmtDayShort(e.day).length));
+  const startW = Math.max.apply(null, rows.map(e => fmtTime(toDate(e.start)).length));
+  const endW   = Math.max.apply(null, rows.map(e => (e.end ? fmtTime(toDate(e.end)) : "running").length));
+  const durW   = Math.max.apply(null, rows.map(e => fmtDur(reportSeconds(e)).length));
+  const cliW   = Math.max.apply(null, rows.map(e => exportClientName(clientById(e.clientId)).length));
+  rows.forEach(e => {
+    lines.push("  " + fmtDayShort(e.day).padEnd(dateW) + "  " +
+      fmtTime(toDate(e.start)).padStart(startW) + " - " + (e.end ? fmtTime(toDate(e.end)) : "running").padStart(endW) +
+      "   " + fmtDur(reportSeconds(e)).padStart(durW) + "   " + exportClientName(clientById(e.clientId)).padEnd(cliW) +
+      "   " + reportEntryDesc(e));
+    if (e.limitOverride) lines.push("    " + overrideLine(e));
+  });
+  return lines.join("\n");
+}
+function buildReportHTML() {
+  const rows = reportRows(), t = reportStats(rows), amt = reportAmountsOn();
+  const out = ['<div style="' + XH_FONT + '">'];
+  out.push('<p style="margin:0 0 2px;font-size:15px;font-weight:600">' + esc(reportHeadLine()) + "</p>");
+  out.push('<p style="margin:0 0 10px;color:#555">' + esc(state.settings.yourName || "") + "</p>");
+  if (!rows.length) { out.push("<p>Nothing matches these filters.</p></div>"); return out.join(""); }
+  out.push('<p style="margin:0 0 2px;font-weight:600">' + esc(reportTotalLine(t)) + "</p>");
+  out.push('<p style="margin:0 0 2px">' + esc(reportStatsLine(t).replace(/^./, ch => ch.toUpperCase())) + "</p>");
+  if (amt) out.push('<p style="margin:0 0 2px">' + esc("Amount " + (t.amount == null ? "- (no client in this report has a rate)" : money(t.amount))) + "</p>");
+  if (!state.rOpts.raw && reportRoundingInPlay()) out.push('<p style="margin:0 0 2px;color:#666">' + esc(reportRoundingLine()) + "</p>");
+
+  const num = XH_NUM + ";text-align:right";
+  const bhead = [rGroupLabel(state.rOpts.g1), "Hours", "Billable", "Non-billable", "Share", "Entries"].concat(amt ? ["Amount"] : []);
+  const brow = (label, x, opts) => "<tr>" +
+    '<td style="' + XH_CELL + (opts.pad ? ";padding-left:24px;color:#444" : "") + (opts.bold ? ";font-weight:700;background:#f7f7f7" : "") + '">' + esc(label) + "</td>" +
+    [fmtDur(x.secs), fmtDur(x.bill), fmtDur(x.non), pctText(x.secs, t.secs), String(x.count)].concat(amt ? [x.amount == null ? "" : money(x.amount)] : [])
+      .map(v => '<td style="' + num + (opts.bold ? ";font-weight:700;background:#f7f7f7" : "") + '">' + esc(v) + "</td>").join("") + "</tr>";
+  out.push('<p style="margin:14px 0 6px;font-weight:600">' + esc("By " + reportGroupingLabel()) + "</p>");
+  out.push('<table cellspacing="0" cellpadding="0" style="' + XH_FONT + ';border-collapse:collapse;max-width:100%">');
+  out.push("<thead><tr>" + bhead.map((h, i) => '<th style="' + XH_HEAD + (i ? ";text-align:right" : "") + '">' + esc(h) + "</th>").join("") + "</tr></thead><tbody>");
+  reportBreakdown(rows).forEach(p => {
+    out.push(brow(p.label, p, {}));
+    p.subs.forEach(s => out.push(brow(s.label, s, { pad: true })));
+  });
+  out.push(brow("Total", t, { bold: true }));
+  out.push("</tbody></table>");
+
+  const hasLoc = rows.some(e => e.location);
+  const ecols = ["Date", "Time", "Duration", "Client", "Job type"].concat(hasLoc ? ["Location"] : [], ["Ticket", "Project", "Notes"], amt ? ["Amount"] : []);
+  out.push('<p style="margin:14px 0 6px;font-weight:600">Entries</p>');
+  out.push('<table cellspacing="0" cellpadding="0" style="' + XH_FONT + ';border-collapse:collapse;max-width:100%">');
+  out.push("<thead><tr>" + ecols.map(h => '<th style="' + XH_HEAD + '">' + esc(h) + "</th>").join("") + "</tr></thead><tbody>");
+  rows.forEach(e => {
+    const c = clientById(e.clientId), a = reportAmount(e);
+    const cells = [
+      [XH_NUM, esc(fmtDayShort(e.day))],
+      [XH_NUM, esc(fmtTime(toDate(e.start)) + " - " + (e.end ? fmtTime(toDate(e.end)) : "running"))],
+      [XH_NUM, esc(fmtDur(reportSeconds(e)))],
+      [XH_CELL, esc(exportClientName(c))],
+      [XH_CELL, esc(jobTypeName(c, e.jobTypeId) || "Job") + (e.billable === false ? ' <span style="color:#777">[non-billable]</span>' : "")]
+    ].concat(hasLoc ? [[XH_CELL, esc(e.location || "")]] : [], [
+      [XH_CELL, ticketHTML(c, e.ticket)],
+      [XH_CELL, esc(e.project || "")],
+      [XH_CELL, esc(e.notes || "") + (e.limitOverride ? (e.notes ? "<br>" : "") + '<span style="color:#777">' + esc(overrideLine(e)) + "</span>" : "")]
+    ], amt ? [[num, a == null ? "" : esc(money(a))]] : []);
+    out.push("<tr>" + cells.map(x => '<td style="' + x[0] + '">' + x[1] + "</td>").join("") + "</tr>");
+  });
+  out.push("</tbody></table></div>");
+  return out.join("");
+}
+function reportFileBase() {
+  const r = reportRangeKeys();
+  return "sundial-report-" + r[0] + (r[0] === r[1] ? "" : "_to_" + r[1]);
+}
+function reportSummaryRows() {
+  const rows = reportRows(), t = reportStats(rows), r = reportRangeKeys();
+  const out = [
+    ["Sundial report"],
+    ["Range", reportRangeLabel()], ["From", r[0]], ["To", r[1]],
+    ["Filters", reportFilterSummary()], ["Grouped by", reportGroupingLabel()],
+    ["Durations", state.rOpts.raw ? "Raw time" : reportRoundingLine()],
+    [],
+    ["Total hours", hoursNum(t.secs)], ["Billable hours", hoursNum(t.bill)], ["Non-billable hours", hoursNum(t.non)],
+    ["Entries", t.count], ["Days worked", t.days], ["Average hours per day worked", hoursNum(t.avg)]
+  ];
+  if (reportAmountsOn()) out.push(["Amount", t.amount == null ? "" : Number(t.amount.toFixed(2))]);
+  return out;
+}
+function reportBreakdownRows() {
+  const rows = reportRows(), t = reportStats(rows), g2 = rActiveG2(), amt = reportAmountsOn();
+  const snake = s => s.toLowerCase().replace(/[^a-z]+/g, "_");
+  const head = [snake(rGroupLabel(state.rOpts.g1))].concat(g2 ? [snake(rGroupLabel(g2))] : [],
+    ["hours", "billable_hours", "nonbillable_hours", "share_pct", "entries"], amt ? ["amount"] : []);
+  const line = (a, b, x) => [a].concat(g2 ? [b] : [],
+    [hoursNum(x.secs), hoursNum(x.bill), hoursNum(x.non), t.secs ? Number(((x.secs / t.secs) * 100).toFixed(1)) : 0, x.count],
+    amt ? [x.amount == null ? "" : Number(x.amount.toFixed(2))] : []);
+  const out = [head];
+  reportBreakdown(rows).forEach(p => {
+    out.push(line(p.label, "", p));
+    p.subs.forEach(s => out.push(line(p.label, s.label, s)));
+  });
+  out.push(line("Total", "", t));
+  return out;
+}
+function reportEntryRows() {
+  const head = ["date", "start", "end", "duration_hours", "duration_hm", "client", "client_id", "job_type", "location", "ticket", "project", "notes", "billable", "miles", "rate", "amount"];
+  return [head].concat(reportRows().map(e => {
+    const c = clientById(e.clientId), secs = reportSeconds(e), a = reportAmount(e);
+    const rate = c && c.rate != null ? Number(c.rate) : null;
+    return [
+      e.day, fmtTime(toDate(e.start)), e.end ? fmtTime(toDate(e.end)) : "running",
+      hoursNum(secs), fmtDur(secs), c ? c.name : "Unknown client", c && c.code ? c.code : "", jobTypeName(c, e.jobTypeId) || "",
+      e.location || "", e.ticket || "", e.project || "", e.notes || "", e.billable === false ? "no" : "yes",
+      e.miles != null ? e.miles : "", rate != null && isFinite(rate) ? Number(rate.toFixed(2)) : "", a != null ? Number(a.toFixed(2)) : ""
+    ];
+  }));
+}
+/* numbers stay numbers in the workbook; in a CSV a fraction is written with
+   two decimals so 1.5 hours reads 1.50 */
+function csvFromRows(rows) {
+  return "﻿" + buildCSV(rows.map(r => r.map(v => typeof v === "number" && !Number.isInteger(v) ? v.toFixed(2) : v)));
+}
+async function copyReportText() {
+  const rows = reportRows();
+  if (!rows.length) { toast("Nothing matches these filters.", true); return; }
+  try {
+    await navigator.clipboard.writeText(buildReportText());
+    toast("Copied the report: " + fmtDur(reportStats(rows).secs) + ", " + rangeSpanLabel(reportRangeKeys()));
+  } catch (e) { toast("Could not reach the clipboard. Try Download CSV instead.", true); }
+}
+async function copyReportRich() {
+  const rows = reportRows();
+  if (!rows.length) { toast("Nothing matches these filters.", true); return; }
+  const text = buildReportText();
+  try {
+    if (window.ClipboardItem && navigator.clipboard && navigator.clipboard.write) {
+      await navigator.clipboard.write([new ClipboardItem({
+        "text/html":  new Blob([buildReportHTML()], { type: "text/html" }),
+        "text/plain": new Blob([text], { type: "text/plain" })
+      })]);
+    } else {
+      await navigator.clipboard.writeText(text);
+    }
+    toast("Copied the report as a table: " + fmtDur(reportStats(rows).secs));
+  } catch (e) { toast("Could not reach the clipboard. Try Download CSV instead.", true); }
+}
+function downloadReportCSV() {
+  if (!reportRows().length) { toast("Nothing matches these filters.", true); return; }
+  const w = openModal("Download CSV",
+    '<p class="hint" style="font-size:13.5px">A CSV holds one table. <b>Breakdown</b> is the grouped totals as they are on screen; <b>Entries</b> is one row per matching entry in the same columns as the Export CSV. XLSX puts both in one workbook, with the summary.</p>',
+    '<button class="btn" data-close>Cancel</button><button class="btn" id="rCsvBreak">Breakdown</button><button class="btn acc" id="rCsvEnt">Entries</button>');
+  $("#rCsvBreak", w).addEventListener("click", () => {
+    closeModal(w);
+    download(reportFileBase() + "-breakdown.csv", csvFromRows(reportBreakdownRows()), "text/csv;charset=utf-8");
+    toast("Breakdown CSV downloaded.");
+  });
+  $("#rCsvEnt", w).addEventListener("click", () => {
+    closeModal(w);
+    download(reportFileBase() + "-entries.csv", csvFromRows(reportEntryRows()), "text/csv;charset=utf-8");
+    toast("Entries CSV downloaded.");
+  });
+}
+function downloadReportXLSX() {
+  if (!reportRows().length) { toast("Nothing matches these filters.", true); return; }
+  ensureXLSX().then(X => {
+    const wb = X.utils.book_new();
+    X.utils.book_append_sheet(wb, X.utils.aoa_to_sheet(reportSummaryRows()), "Summary");
+    X.utils.book_append_sheet(wb, X.utils.aoa_to_sheet(reportBreakdownRows()), "Breakdown");
+    X.utils.book_append_sheet(wb, X.utils.aoa_to_sheet(reportEntryRows()), "Entries");
+    X.writeFile(wb, reportFileBase() + ".xlsx");
+    toast("XLSX downloaded.");
+  }).catch(e => toast(e.message || e, true));
+}
+
+/* ---- paint ---- */
+function rChipsHTML(items, attr, selected, dotOf) {
+  return items.map(it => {
+    const on = !selected || selected.indexOf(it.k) >= 0;
+    return '<button type="button" class="chip rchip' + (on ? " on" : "") + '" ' + attr + '="' + esc(it.k) + '" aria-pressed="' + on + '">' +
+      (dotOf ? '<i class="dot" style="background:' + esc(dotOf(it)) + '"></i>' : "") + esc(it.n) + "</button>";
+  }).join("");
+}
+function rTile(k, n, title) {
+  return '<div class="tile" title="' + esc(title) + '"><div class="k">' + esc(k) + '</div><div class="n">' + esc(n) + "</div></div>";
+}
+function paintReports() {
+  if (!state.user) return;
+  const o = state.rOpts, r = reportRangeKeys();
+  if (store && store.extendWindow) store.extendWindow(windowFromFor(o.range, r));
+
+  /* saved reports */
+  const saved = savedReports(), match = matchingSavedReport();
+  $("#rSaved").innerHTML = saved.length ? saved.map(x =>
+    '<span class="chip rsaved' + (match && match.id === x.id ? " on" : "") + '">' +
+      '<button type="button" class="rsname" data-rload="' + esc(x.id) + '" title="Load this report\'s range, filters and grouping.">' + esc(x.name) + "</button>" +
+      '<button type="button" class="rsico" data-rren="' + esc(x.id) + '" title="Rename this saved report." aria-label="Rename ' + esc(x.name) + '">' + ICONS.edit + "</button>" +
+      '<button type="button" class="rsico danger" data-rdel="' + esc(x.id) + '" title="Delete this saved report (asks first). No entries are touched." aria-label="Delete ' + esc(x.name) + '">' + ICONS.del + "</button>" +
+    "</span>").join("")
+    : '<span class="hint">Set up a range, filters and grouping below, then press Save report to get back to the same question in one tap.</span>';
+
+  /* filters */
+  $$("#rRange button").forEach(b => b.classList.toggle("on", b.getAttribute("data-rr") === o.range));
+  $("#rCustom").hidden = o.range !== "custom";
+  const setVal = (id, v) => { const el = $("#" + id); if (el && document.activeElement !== el && el.value !== v) el.value = v; };
+  setVal("rFrom", o.from || r[0]); setVal("rTo", o.to || r[1]);
+  const clientItems = reportClientChoices(r).map(c => ({ k: c.id, n: c.name + (c.archived ? " (archived)" : ""), color: clientColor(c) }));
+  $("#rClients").innerHTML = clientItems.length ? rChipsHTML(clientItems, "data-rcl", o.clients, it => it.color)
+    : '<span class="hint">No clients yet.</span>';
+  const jobItems = reportJobChoices(r);
+  $("#rJobs").innerHTML = jobItems.length ? rChipsHTML(jobItems, "data-rjt", o.jobs)
+    : '<span class="hint">' + (o.clients && !o.clients.length ? "Pick a client to see its job types." : "No job types.") + "</span>";
+  const locItems = reportLocationChoices(r);
+  $("#rLocWrap").hidden = !locItems.length && !o.locations;
+  $("#rLocs").innerHTML = locItems.length ? rChipsHTML(locItems, "data-rloc", o.locations)
+    : '<span class="hint">No entry in this range has a location.</span>';
+  $$("#rBill button").forEach(b => b.classList.toggle("on", b.getAttribute("data-rbl") === o.billable));
+  setVal("rTicket", o.ticket); setVal("rProject", o.project); setVal("rNotes", o.notes);
+  const gItems = R_GROUPS.map(g => ({ v: g.k, t: g.label }));
+  fillSelect($("#rG1"), gItems, null, o.g1);
+  fillSelect($("#rG2"), gItems, "None", rActiveG2());
+  $$("#rG2 option").forEach(op => { op.disabled = op.value !== "" && op.value === o.g1; });
+  $("#rRunning").checked = !!o.running;
+  $("#rRaw").checked = !!o.raw;
+
+  /* numbers */
+  const rows = reportRows(), t = reportStats(rows), amt = reportAmountsOn();
+  $("#rTiles").innerHTML =
+    rTile("Total hours", fmtDur(t.secs), "Everything that matches the filters. " + (o.raw ? "Raw time." : "Rounded the way exports round.")) +
+    rTile("Billable", fmtDur(t.bill), "The matching time that is billable.") +
+    rTile("Non-billable", fmtDur(t.non), "The matching time that is not billable: admin, internal work, anything flagged non-billable.") +
+    rTile("Entries", String(t.count), "How many entries match.") +
+    rTile("Days worked", String(t.days), "Days in the range with at least one matching entry, not calendar days.") +
+    rTile("Avg per day", fmtDur(t.avg), "Total hours divided by days worked, so a week with a day off is not dragged down by the day off.") +
+    (amt ? rTile("Amount", t.amount == null ? "-" : money(t.amount),
+      t.amount == null ? "No client in this report has an hourly rate. Add one on the client card." : "Billable time at each client's rate, from the same durations shown here.") : "");
+  $("#rHead").textContent = reportHeadLine();
+  $("#rRoundHint").textContent = reportRoundingLine();
+  paintReportBreakdown(rows, t);
+  paintReportEntries(rows);
+}
+function paintReportBreakdown(rows, t) {
+  const o = state.rOpts, g2 = rActiveG2(), amt = reportAmountsOn(), s = o.sort || {};
+  const model = reportBreakdown(rows);
+  const cols = [
+    { k: "group", label: rGroupLabel(o.g1) }, { k: "secs", label: "Hours", num: 1 }, { k: "bill", label: "Billable", num: 1 },
+    { k: "non", label: "Non-billable", num: 1 }, { k: "share", label: "Share", num: 1 }, { k: "count", label: "Entries", num: 1 }
+  ].concat(amt ? [{ k: "amount", label: "Amount", num: 1 }] : []);
+  const expand = $("#rExpand");
+  expand.hidden = !g2 || !model.length;
+  const allOpen = model.length && model.every(p => o.open[p.key]);
+  expand.textContent = allOpen ? "Collapse all" : "Expand all";
+  const head = "<thead><tr>" + cols.map(c =>
+    '<th data-rsort="' + c.k + '"' + (c.num ? ' class="num"' : "") + ' title="Sort by ' + esc(c.label.toLowerCase()) + '. Again for descending, a third time for the default order.">' +
+    esc(c.label) + (s.key === c.k ? '<span class="ar">' + (s.dir === "desc" ? "&#9660;" : "&#9650;") + "</span>" : "") + "</th>").join("") + "</tr></thead>";
+  const cellsFor = (x, labelHTML, gLabel, sub) =>
+    '<td class="gcell" data-l="' + esc(gLabel) + '"><span class="gl">' + labelHTML + "</span></td>" +
+    '<td class="num" data-l="Hours">' + esc(fmtDur(x.secs)) + "</td>" +
+    '<td class="num" data-l="Billable">' + esc(fmtDur(x.bill)) + "</td>" +
+    '<td class="num" data-l="Non-billable">' + esc(fmtDur(x.non)) + "</td>" +
+    '<td class="num" data-l="Share"><span class="rshare"><span class="rsbar" aria-hidden="true"><i style="width:' +
+      (t.secs ? Math.min(100, (x.secs / t.secs) * 100).toFixed(1) : 0) + '%"></i></span><span>' + esc(pctText(x.secs, t.secs)) + "</span></span></td>" +
+    '<td class="num" data-l="Entries">' + x.count + "</td>" +
+    (amt ? '<td class="num" data-l="Amount">' + (x.amount == null ? "" : esc(money(x.amount))) + "</td>" : "");
+  const labelOf = x => (x.dot ? '<span class="cdot" style="background:' + esc(x.dot) + '"></span>' : "") + "<span>" + esc(x.label) + "</span>";
+  let body = "";
+  if (!model.length) {
+    body = '<tr><td colspan="' + cols.length + '" class="emptyrow">Nothing matches these filters.' +
+      (!o.running && state.entries.some(e => !e.end) ? " A running timer only counts with Include running entries on." : "") + "</td></tr>";
+  } else {
+    model.forEach(p => {
+      const open = !!(g2 && o.open[p.key]);
+      const tog = g2 ? '<button type="button" class="rtog" data-rtog="' + esc(p.key) + '" aria-expanded="' + open + '" title="' +
+        (open ? "Hide" : "Show") + " the " + esc(rGroupLabel(g2).toLowerCase()) + ' rows inside this one.">' + R_CHEVRON + "</button>" : "";
+      body += "<tr>" + cellsFor(p, tog + labelOf(p), rGroupLabel(o.g1), false) + "</tr>";
+      if (open) p.subs.forEach(sx => { body += '<tr class="sub">' + cellsFor(sx, labelOf(sx), rGroupLabel(g2), true) + "</tr>"; });
+    });
+    body += '<tr class="rtot">' + cellsFor(t, "<span>Total</span>", "", false) + "</tr>";
+  }
+  $("#rBreak").innerHTML = head + "<tbody>" + body + "</tbody>";
+}
+/* Newest first, in a compact version of the timesheet row: the cells come
+   from the same entryCellHTML the Clock and Timesheet tables use, the notes
+   sit in the same sub-row, and Edit opens the same entry form. */
+function paintReportEntries(rows) {
+  const list = rows.slice().sort((a, b) => toDate(b.start) - toDate(a.start));
+  const shown = list.slice(0, R_ENTRY_CAP);
+  const hasLoc = shown.some(e => e.location);
+  const cols = [{ k: "date", label: "Date" }, { k: "time", label: "Time" }, { k: "dur", label: "Duration" },
+    { k: "client", label: "Client" }, { k: "job", label: "Job type" }]
+    .concat(hasLoc ? [{ k: "location", label: "Location" }] : [], [{ k: "ticket", label: "Ticket" }, { k: "project", label: "Project" }]);
+  $("#rCount").textContent = !list.length ? "" : list.length > R_ENTRY_CAP
+    ? "Showing " + R_ENTRY_CAP + " of " + list.length + ". Copy or download for all of them."
+    : list.length + " entr" + (list.length === 1 ? "y" : "ies");
+  const cell = (e, k) => {
+    switch (k) {
+      case "date": return esc(dayDate(e.day).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }));
+      /* one wrapper, so the stacked layout's flex cell keeps it one line */
+      case "time": return '<span><span class="nw">' + esc(fmtTime(toDate(e.start))) + "</span> - " +
+        (e.end ? '<span class="nw">' + esc(fmtTime(toDate(e.end))) + "</span>" : '<span class="pill' + (isPaused(e) ? " paused" : "") + '"><span class="dot"></span>' + (isPaused(e) ? "paused" : "running") + "</span>") + "</span>";
+      case "dur": {
+        const raw = entrySeconds(e), shownSecs = reportSeconds(e);
+        return '<span' + (Math.abs(raw - shownSecs) >= 60 ? ' title="' + esc(fmtDur(raw) + " as logged, rounded to " + fmtDur(shownSecs) + " for this report.") + '"' : "") + ">" + esc(fmtDur(shownSecs)) + "</span>";
+      }
+    }
+    return entryCellHTML(e, k);
+  };
+  const head = "<thead><tr>" + cols.map(c => "<th>" + esc(c.label) + "</th>").join("") + "<th></th></tr></thead>";
+  const body = "<tbody>" + (shown.length ? shown.map(e => {
+    const hasNote = !!e.notes;
+    return '<tr class="' + (e.end ? "" : "running ") + (hasNote ? "hasnote" : "") + '">' +
+      cols.map(c => '<td class="' + (c.k === "date" || c.k === "time" || c.k === "dur" ? "t" : "") + '" data-l="' + esc(c.label) + '">' + cell(e, c.k) + "</td>").join("") +
+      '<td class="act" data-l="Actions"><button class="ibtn" data-edit="' + e.id + '" title="Edit this entry." aria-label="Edit">' + ICONS.edit + "</button></td></tr>" +
+      (hasNote ? '<tr class="noterow' + (e.end ? "" : " running") + '"><td colspan="' + (cols.length + 1) + '" data-l="Notes">' + entryCellHTML(e, "notes") + "</td></tr>" : "");
+  }).join("") : '<tr><td colspan="' + (cols.length + 1) + '" class="emptyrow">No entries match these filters.</td></tr>') + "</tbody>";
+  const tbl = $("#rEntries");
+  tbl.innerHTML = head + body;
+  clampNotes(tbl);
 }
 
 /* ==============================================================
@@ -6475,6 +7312,9 @@ function setView(v) {
   $$("#topNav button").forEach(b => b.classList.toggle("on", b.getAttribute("data-view") === v));
   $$("#tabbar button").forEach(b => b.classList.toggle("on", b.getAttribute("data-view") === v));
   window.scrollTo(0, 0);
+  /* Reports is only worked out while it is on screen: adding up a long
+     history on every snapshot for a view nobody is looking at is waste */
+  if (v === "reports") paintReports();
 }
 function paintAll() {
   if (!state.user) return;
@@ -6482,6 +7322,7 @@ function paintAll() {
   paintTimesheet();
   paintClients();
   paintExport();
+  if (state.view === "reports") paintReports();
   paintSettings();
   paintSync();
 }
@@ -6724,6 +7565,88 @@ $("#xMileXlsx").addEventListener("click", () => {
 $("#xJson").addEventListener("click", downloadBackup);
 $("#xRestore").addEventListener("click", () => $("#jsonFile").click());
 $("#jsonFile").addEventListener("change", e => { const f = e.target.files[0]; e.target.value = ""; if (f) restoreBackupFile(f); });
+/* ---- Reports ----
+   One delegated listener for the chips, segments, headers and saved-report
+   chips, because all of them are redrawn on every paint. The Edit buttons
+   in the entries table are handled by the document-wide listener further
+   down, exactly as they are in every other table. */
+function rToggleIn(list, key, all) {
+  const cur = list ? list.slice() : all.slice();
+  const i = cur.indexOf(key);
+  if (i >= 0) cur.splice(i, 1); else cur.push(key);
+  /* everything back on means "all", which also takes in anything added later */
+  return all.every(k => cur.indexOf(k) >= 0) ? null : cur;
+}
+$("#v-reports").addEventListener("click", e => {
+  const t = e.target, o = state.rOpts;
+  const hit = a => { const b = t.closest("[" + a + "]"); return b ? b.getAttribute(a) : null; };
+  const r = reportRangeKeys();
+  let x;
+  if ((x = hit("data-rr")) != null) {
+    /* Custom starts on whatever range was showing, so the two date boxes
+       are a nudge away from the question rather than two blank fields */
+    if (x === "custom" && o.range !== "custom" && !o.from) { o.from = r[0]; o.to = r[1]; }
+    o.range = x; paintReports(); return;
+  }
+  if ((x = hit("data-rcl")) != null) { o.clients = rToggleIn(o.clients, x, reportClientChoices(r).map(c => c.id)); paintReports(); return; }
+  if ((x = hit("data-rjt")) != null) { o.jobs = rToggleIn(o.jobs, x, reportJobChoices(r).map(j => j.k)); paintReports(); return; }
+  if ((x = hit("data-rloc")) != null) { o.locations = rToggleIn(o.locations, x, reportLocationChoices(r).map(l => l.k)); paintReports(); return; }
+  if ((x = hit("data-rall")) != null) { o[x] = null; paintReports(); return; }
+  if ((x = hit("data-rnone")) != null) { o[x] = []; paintReports(); return; }
+  if ((x = hit("data-rbl")) != null) { o.billable = x; paintReports(); return; }
+  if ((x = hit("data-rtog")) != null) { o.open[x] = !o.open[x]; paintReports(); return; }
+  if ((x = hit("data-rsort")) != null) {
+    const cur = o.sort || {};
+    o.sort = cur.key !== x ? { key: x, dir: "asc" } : cur.dir === "asc" ? { key: x, dir: "desc" } : null;
+    paintReports(); return;
+  }
+  if ((x = hit("data-rload")) != null) { loadSavedReport(x); return; }
+  if ((x = hit("data-rren")) != null) { openRenameReportModal(x); return; }
+  if ((x = hit("data-rdel")) != null) { deleteSavedReportModal(x); return; }
+});
+$("#rFrom").addEventListener("change", e => { state.rOpts.from = e.target.value; paintReports(); });
+$("#rTo").addEventListener("change", e => { state.rOpts.to = e.target.value; paintReports(); });
+/* The contains boxes filter as you type, a beat after the last key, so a
+   long history is not re-added up on every letter. */
+[["rTicket", "ticket"], ["rProject", "project"], ["rNotes", "notes"]].forEach(p => {
+  let tm = null;
+  $("#" + p[0]).addEventListener("input", e => {
+    state.rOpts[p[1]] = e.target.value;
+    clearTimeout(tm); tm = setTimeout(paintReports, 220);
+  });
+});
+$("#rG1").addEventListener("change", e => {
+  const o = state.rOpts, prev = o.g1;
+  o.g1 = e.target.value;
+  if (o.g2 === o.g1) o.g2 = prev;          // picking the second level as the first swaps them
+  o.open = {};
+  paintReports();
+});
+$("#rG2").addEventListener("change", e => { state.rOpts.g2 = e.target.value; state.rOpts.open = {}; paintReports(); });
+$("#rRunning").addEventListener("change", e => { state.rOpts.running = e.target.checked; paintReports(); });
+$("#rRaw").addEventListener("change", e => { state.rOpts.raw = e.target.checked; paintReports(); });
+$("#rReset").addEventListener("click", () => { state.rOpts = defaultReportOpts(); paintReports(); toast("Filters reset."); });
+$("#rExpand").addEventListener("click", () => {
+  const o = state.rOpts, model = reportBreakdown(reportRows());
+  const allOpen = model.length && model.every(p => o.open[p.key]);
+  o.open = {};
+  if (!allOpen) model.forEach(p => { o.open[p.key] = true; });
+  paintReports();
+});
+$("#rCopy").addEventListener("click", copyReportText);
+$("#rCopyHtml").addEventListener("click", copyReportRich);
+$("#rCsv").addEventListener("click", downloadReportCSV);
+$("#rXlsx").addEventListener("click", downloadReportXLSX);
+$("#rSave").addEventListener("click", openSaveReportModal);
+/* the folded notes are measured when they are drawn, so a width change
+   draws them again */
+(function () {
+  let tm = null;
+  window.addEventListener("resize", () => {
+    clearTimeout(tm);
+    tm = setTimeout(() => { if (state.view === "reports") paintReports(); }, 150);
+  });
+})();
 
 $("#sName").addEventListener("change", e => saveSetting({ yourName: e.target.value.trim() }));
 $("#sTheme").addEventListener("change", e => saveSetting({ theme: e.target.value }));

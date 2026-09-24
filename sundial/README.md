@@ -122,6 +122,64 @@ increment the rounding control shows. That control starts on the Settings
 default, and while it sits there a client with its own rounding override wins
 for that client's hours. Stored times are never rounded.
 
+## Reports
+
+Export makes the block you send somebody. **Reports** answers the questions you
+ask yourself - how much did I do for this client this quarter, how long has
+ticket 5421 taken across every sitting, where did the non-billable time go last
+month - without copying anything into a spreadsheet. It is its own tab, between
+Export and Settings (the phone tab bar carries it as **Reports** too).
+
+**Filters.** The range picker has everything Export has plus **Last month** and
+**This year**; **All time** loads your whole history, not just the last 400
+days the app normally keeps in memory. Clients and job types are rows of toggle
+chips, all on to start with, with **All** and **None** beside each row, so a
+report about one client is None and then that one. Job types are the ones the
+picked clients have, each name once - Remote support under three clients is one
+chip. Location chips appear when anything in the range has a location, with a
+**No location** chip for entries that never got one. Then Billable (All,
+Billable only, Non-billable only), three **contains** boxes for ticket, project
+and notes that filter as you type, **Include running entries** (off, so a report
+does not change while you read it; on counts a running timer up to now), and
+**Raw time**. **Reset filters** puts everything back.
+
+**Durations follow your export rounding** - the Settings default, with a
+client's own rounding winning - so a report agrees with what was sent. Tick
+**Raw time** to see the time exactly as logged. Stored times never change
+either way, and the unpaid-break rule stays an Export thing.
+
+**What you get.** Tiles for total, billable and non-billable hours, entries,
+days worked, average per day worked, and the amount when Show amounts is on in
+Settings (billable time at each client's rate, from the same durations). Under
+them the **Breakdown**: one row per group - client, job type, project, ticket,
+day, week, month, location or billable - with hours, billable, non-billable, its
+share of the total with a small bar, entries and amount, and a total row. Pick a
+**Then by** and each row opens with its arrow into a second level (a client's
+hours by job type, say); **Expand all** opens the lot. The headers sort
+ascending, descending, then back to the default order (date order for day,
+week and month; biggest first for everything else). An entry against several
+tickets groups under that set of tickets, so every entry is counted once and
+the shares add up to 100. Last comes **Matching entries**, newest first, in a
+compact version of the timesheet row with the notes underneath and Edit on each;
+it shows the first 300, and says so when there are more.
+
+**Taking it with you.** **Copy as text** writes a header line - `Report: This
+month (Sep 1 - Sep 30, 2026) - Example Co; Billable only` - then the totals, the
+breakdown as a lined-up table and every matching entry in the Export style.
+**Copy for email** puts the same thing on the clipboard as tables for Gmail and
+Outlook, with the plain text beside it. **CSV** asks whether you want the
+breakdown or the entries (a CSV holds one table); **XLSX** puts a Summary, the
+Breakdown and the Entries in one workbook, with the hours as numbers Excel can
+add up.
+
+**Saved reports.** **Save report** keeps the range, every filter and the
+grouping under a name, as a chip at the top of the tab; tap it to load it, and
+the chip lights up while what is on screen matches it. It saves the question,
+not the answer: a saved This month is always the current month. Saving under a
+name that already exists asks before replacing it; the pencil renames and the
+bin deletes (after asking). They live in your settings, so they follow you to
+every device and ride along in the JSON backup.
+
 ## The three timesheet views
 
 **Day** lists the selected day's entries with Resume and Edit on each.
@@ -566,6 +624,41 @@ real Google layer is chosen everywhere else, because the same hostname check
 that gates mock mode gates it.
 
 ## Changelog
+
+### v0.8.0 - 2026-09-24
+
+A Reports tab.
+
+Two requests kept coming back. One was lifetime exports - every hour ever
+logged, not just a week or a month. The other was a question: "how much did I
+do for client X on ticket Y this quarter?" Export could not answer it. It
+filters by one client and a billable switch, because it was built to produce
+the block you send somebody, so the answer meant exporting a CSV and filtering
+it in a spreadsheet. Reports answers it on the screen.
+
+Pick a range - anything from Today to **All time**, now with **Last month** and
+**This year** - then narrow it with client and job type chips, billable,
+location, and "contains" boxes for ticket, project and notes. The tiles say the
+total, the billable split, the entries, the days worked and the average per
+day; the breakdown groups the result by client, job type, project, ticket, day,
+week, month, location or billable, with a second level under each row if you
+want one, and a share bar so the big numbers stand out. The matching entries
+sit underneath with Edit on each, so a wrong entry spotted in a report is one
+tap from fixed.
+
+Durations are rounded the same way your exports round them, so a report
+matches what was billed; a **Raw time** switch shows the time as logged.
+Copy as text, Copy for email, CSV and XLSX take the report with you, and **Save
+report** keeps a set of filters under a name for the questions that come round
+every month. A saved report keeps the question, not the numbers, so "This
+month" is always this month.
+
+**All time now means all time**, in Export as well. The app keeps the last 400
+days in memory, so before this an All time export by somebody with a longer
+history quietly started 400 days ago. Choosing All time now loads the rest.
+
+Under the hood, Export and Reports share one piece of code that turns "This
+week" into dates, so the two tabs can never disagree about which week that is.
 
 ### v0.7.1 - 2026-09-24
 
