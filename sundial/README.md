@@ -89,7 +89,7 @@ and Switch client, and the start form becomes **Start another job**.
 ## How exports work
 
 The Export screen has an **Hours / Mileage** switch at the top, a range picker
-(Today, Yesterday, This week, Last week, This month, Custom) and a client filter
+(Today, Yesterday, This week, Last week, This month, All time, Custom) and a client filter
 that both halves share. Hours adds a billable filter, a rounding control, and
 switches for notes, project, ticket number, grouping and amounts. The preview is
 exactly the text that gets copied - nothing is generated a second time on the
@@ -419,17 +419,22 @@ window while a gesture is still fresh, and every calendar write in Sundial
 happens somewhere else: the mirror queue runs a moment after a Stop, and a
 backfill is several requests deep by the time it needs a token.
 
-So Sundial renews the token **on the click itself**. Start, Stop, Pause,
-Resume, Switch, a Start from a client card, saving or deleting an entry, a
-week-grid cell, a calendar drag, and each of the three Sync buttons all ask
-Google for the token first, before doing anything else, and then carry on
+So Sundial renews the token **on the click itself** - but only on a click
+that actually ends in a calendar write. Stop, Resume, a Start that stops
+something already running, a Log with an end time, saving or deleting an
+entry, a week-grid cell, a calendar drag, and each of the three Sync buttons
+ask Google for the token first, before doing anything else, and then carry on
 without waiting for the answer. The write that follows finds the token already
-in hand.
+in hand. A plain Start, Switch, Pause and the end of a break do not ask: a
+running entry has no end to put on a calendar, so nothing is written and there
+is no reason to open a window. (Before v0.7.1 every one of those clicks asked,
+which is why a Google window flashed on each new Start.)
 
-What you may see: a Google window flashing open and closed after the first
-click following a reload, or once an hour. That is the renewal, and there is
-nothing to do about it. If your browser blocks it anyway, a toast says so with
-a **Reconnect** button that asks again from inside your click on that button.
+What you may see: a Google window flashing open and closed on the first Stop
+after a reload, or once an hour. That is the renewal, and there is nothing to
+do about it - the token lives only in memory, on purpose, so a reload always
+starts without one. If your browser blocks it anyway, a toast says so with a
+**Reconnect** button that asks again from inside your click on that button.
 When entries are waiting and there is no token, the Settings status line says
 **Google needs a click to continue: press Sync now.**
 
@@ -561,6 +566,59 @@ real Google layer is chosen everywhere else, because the same hostname check
 that gates mock mode gates it.
 
 ## Changelog
+
+### v0.7.1 - 2026-09-24
+
+Six small things that were each in the way once a day.
+
+**The start date is today.** The Clock's Start date and End date only filled
+themselves in when they were empty, so a tab left open overnight, or a draft
+saved yesterday and offered back this morning, quietly carried yesterday's date
+into today's first entry. A date with no time typed beside it is only a
+default now, and a default follows the calendar: it is today on load, on
+sign-in, and after midnight. A date you typed a time next to is yours and
+stays.
+
+**No more Google window on Start.** Every click that could end in a calendar
+write used to ask Google for its hour-long token first, and a plain Start was
+on that list even though a running entry is never written to the calendar
+(it has no end). Every fresh page load therefore began with a Google window
+flashing open and shut on the first Start, which read as a stray login. Only
+clicks that will write ask now: Stop, Resume, a Start that stops something,
+a Log with an end time, edits, deletes and Sync. The window still appears
+once after a reload on the first of those, and once an hour after that; the
+Google Calendar section explains why that part cannot go away.
+
+**Billable as a column.** The `non-billable` tag lives under the job type
+name and wraps the cell onto a second line, which looks cluttered on a row
+that is otherwise one line tall. The Columns manager now has a **Billable**
+column, off by default: turn it on and every row reads Yes or No in its own
+place, the tag leaves the Job type cell, and the column sorts like any other.
+
+**Google Calendar catches up on its own.** An entry that could not be
+mirrored the moment it stopped - no token in hand, a blocked window, a phone
+that was offline - used to sit flagged as waiting until somebody pressed
+**Sync now**. Three things now happen without that button: a second write
+goes out three minutes after any Stop or edit, which also carries the notes
+that usually get typed right after the Stop; a sweep every ten minutes sends
+whatever is still waiting while the tab is open, which is the end-of-day
+catch-up; and, because Google only hands out its token during a click, any
+click in the app while entries are waiting asks for the token and sends them,
+at most once a minute. Google's script is also fetched at sign-in rather than
+the first time Settings is opened, so the renewal on a Stop has it ready. The
+event description has always carried the project, tickets and notes lines;
+what was missing was the update that put them there after an edit.
+
+**The hours on the day strip are readable.** The seven-day strip on the
+Timesheet showed each day's total in 11px under a 16px date, which is the
+number people scan the strip for. It is now the date's size.
+
+**All time in Export.** The Range strip has an **All time** button beside
+Custom, covering the first entry on record through today, for a lifetime
+total or a full backup of the hours without guessing at a From date.
+
+The footer is centered. It was left-justified under a centered page, which
+looked like an accident.
 
 ### v0.7.0 - 2026-09-22
 

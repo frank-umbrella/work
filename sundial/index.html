@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Sundial v0.7.0</title>
-<meta name="version" content="0.7.0" />
+<title>Sundial v0.7.1</title>
+<meta name="version" content="0.7.1" />
 <meta name="robots" content="noindex, nofollow" />
 <meta name="description" content="Internal hours tracker for Umbrella Automation. Restricted to @umbrellaautomation.com accounts." />
 <meta name="theme-color" content="#1e6fd9" />
@@ -118,7 +118,7 @@ html:not([data-eff="dark"]) .themebtn .sun{display:none}
 main{padding:16px;display:grid;gap:16px;max-width:1180px;margin:0 auto;width:100%;min-width:0}
 .view{display:none;gap:16px;min-width:0}
 .view.on{display:grid}
-.foot{padding:14px 18px 22px;font-size:12px;color:var(--muted);display:flex;gap:14px;flex-wrap:wrap;max-width:1180px;margin:0 auto;width:100%}
+.foot{padding:14px 18px 22px;font-size:12px;color:var(--muted);display:flex;gap:14px;flex-wrap:wrap;justify-content:center;text-align:center;max-width:1180px;margin:0 auto;width:100%}
 
 /* ---------- cards ---------- */
 .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;min-width:0}
@@ -251,6 +251,10 @@ textarea.fld{min-height:64px;resize:vertical}
 .pill.paused .dot{background:var(--glow);animation:none}
 .tagpaused{display:inline-block;font-size:11px;padding:1px 7px;border-radius:999px;background:rgba(224,163,0,.14);border:1px solid var(--glow);color:var(--glow);white-space:nowrap}
 .tagnb{display:inline-block;font-size:11px;padding:1px 7px;border-radius:999px;background:var(--card2);border:1px solid var(--line);color:var(--muted);margin-left:6px;white-space:nowrap}
+/* the optional Billable column: a plain word, the No in the muted color so
+   the exceptions still stand out at a glance */
+.billyes{font-weight:600}
+.billno{color:var(--muted)}
 /* A travel job type carries a car beside its name so the entry that will ask
    for miles is obvious before it is stopped, not after. */
 /* An entry that was carried past its hard limit keeps an amber flag, so a
@@ -412,7 +416,9 @@ textarea.fld{min-height:64px;resize:vertical}
 .daystrip .dw{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
 .daystrip button.on .dw{color:var(--chiptext)}
 .daystrip .dd{font:600 16px/1.1 var(--mono)}
-.daystrip .dt{font:11px var(--mono);color:var(--muted)}
+/* the hours are the number people scan the strip for, so they match the
+   date's size instead of sitting under it as small print */
+.daystrip .dt{font:600 15px/1.2 var(--mono);color:var(--muted);margin-top:2px}
 .daystrip button.on .dt{color:var(--chiptext)}
 .tsrow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:start;padding:10px 0;border-bottom:1px solid var(--line)}
 .tsrow.running{background:var(--card2);border-radius:var(--radius);padding:10px}
@@ -621,7 +627,7 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
 }
 @media (max-width:380px){
   .daystrip .dw{font-size:9px}
-  .daystrip .dt{font-size:10px}
+  .daystrip .dt{font-size:12px}
 }
 </style>
 </head>
@@ -845,6 +851,7 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
           <button data-r="week">This week</button>
           <button data-r="lastweek">Last week</button>
           <button data-r="month">This month</button>
+          <button data-r="all" title="Every entry you have ever recorded, from the first day to today.">All time</button>
           <button data-r="custom">Custom</button>
         </span>
         <div class="g2" id="xCustom" hidden>
@@ -1072,12 +1079,12 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
 
 <script type="module">
 /* ==============================================================
-   Sundial v0.7.0 - hours tracker
+   Sundial v0.7.1 - hours tracker
    Single file on purpose: no build step, same as Backup Audits.
    Firestore rules for /sundial_users live in ../watchtower/firestore.rules.
    ============================================================== */
 
-const APP_VERSION    = "0.7.0";
+const APP_VERSION    = "0.7.1";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const OWNER_EMAIL    = "frank@umbrellaautomation.com";
 const SDK            = "https://www.gstatic.com/firebasejs/12.13.0/";
@@ -1192,11 +1199,20 @@ const COLUMN_DEFS = [
   { k: "dur",      label: "Duration" },
   { k: "client",   label: "Client" },
   { k: "job",      label: "Job type" },
+  /* Billable is off by default: most entries are billable and the tag under
+     the job type only shows up on the exceptions. Turn the column on when
+     the tags start wrapping the Job type cell onto two lines - the tag then
+     moves out of that cell and every row reads Yes or No in its own place. */
+  { k: "billable", label: "Billable" },
   { k: "location", label: "Location" },
   { k: "ticket",   label: "Ticket" },
   { k: "project",  label: "Project" },
   { k: "notes",    label: "Notes" }
 ];
+function billableColumnOn() {
+  const cols = Array.isArray(state.settings.columns) && state.settings.columns.length ? state.settings.columns : DEFAULT_COLUMNS;
+  return cols.indexOf("billable") >= 0;
+}
 const PALETTE = ["#1e6fd9", "#d3403a", "#1c9d63", "#8a5bb8", "#d08a1e", "#3a9ea5", "#c2557a", "#5a6b7d"];
 /* ---- availability: the hours you are normally working ----
    A new account starts Monday to Friday, 9 to 5, with no break and with
@@ -1975,8 +1991,11 @@ function paintClock() {
     $("#fStartD").value = todayStr; $("#fStartT").value = "";
     $("#fEndD").value = todayStr;   $("#fEndT").value = "";
   } else {
-    if (!$("#fStartD").value) $("#fStartD").value = todayStr;
-    if (!$("#fEndD").value) $("#fEndD").value = todayStr;
+    /* a date with no time typed beside it is only the default, so it follows
+       the calendar: a tab left open overnight, or a draft from yesterday,
+       must not quietly log today's work on the wrong day */
+    if (!$("#fStartD").value || !$("#fStartT").value) $("#fStartD").value = todayStr;
+    if (!$("#fEndD").value || !$("#fEndT").value) $("#fEndD").value = todayStr;
   }
   /* Location is optional, so it never gets the attention glow: the amber ring
      means "this has to be answered", and this one does not. */
@@ -2439,6 +2458,7 @@ function sortEntries(rows) {
       case "dur":    return entrySeconds(e);
       case "client": return (c ? c.name : "").toLowerCase();
       case "job":    return (jobTypeName(c, e.jobTypeId) || "").toLowerCase();
+      case "billable": return e.billable === false ? 0 : 1;
       case "location": return (e.location || "").toLowerCase();
       case "ticket": return (e.ticket || "").toLowerCase();
       case "project":return (e.project || "").toLowerCase();
@@ -2496,12 +2516,15 @@ function entryCellHTML(e, key) {
       const travel = !!(jt && jt.travel);
       return esc(jobTypeName(c, e.jobTypeId) || "") +
         (travel ? carIconHTML() : "") +
-        (e.billable === false ? '<span class="tagnb">non-billable</span>' : "") +
+        (e.billable === false && !billableColumnOn() ? '<span class="tagnb">non-billable</span>' : "") +
         /* only a finished travel entry is nagged about miles: a running one
            has not been asked yet */
         (travel && e.end && e.miles == null ? '<span class="tagnb" title="Add miles from Edit">no miles</span>' : "") +
         (e.limitOverride ? '<span class="tagover" title="' + esc(overrideTitle(e)) + '">over limit</span>' : "");
     }
+    case "billable": return e.billable === false
+      ? '<span class="billno" title="Not billable: kept out of the billable subtotal and the amounts.">No</span>'
+      : '<span class="billyes" title="Billable.">Yes</span>';
     case "location": return esc(e.location || "");
     case "ticket": return ticketHTML(c, e.ticket);
     case "project":return esc(e.project || "");
@@ -2532,7 +2555,7 @@ const ICONS = {
    table's own font size, so the default sits a few pixels above that. A
    finished row needs about 108. A width somebody has dragged narrower than
    either is still theirs - the pill truncates rather than wrapping. */
-const COL_DEFAULT_W = { start: 84, end: 176, dur: 80, job: 122, location: 104, ticket: 74, project: 122, notes: 160 };
+const COL_DEFAULT_W = { start: 84, end: 176, dur: 80, job: 122, billable: 78, location: 104, ticket: 74, project: 122, notes: 160 };
 const FLEX_MIN_W = 200, COL_MIN_W = 48, ACTIONS_W = 96;
 function flexColumnKey(cols) {
   if (cols.some(c => c.k === "project")) return "project";   // notes live in a sub-row, so Project absorbs the slack
@@ -2866,6 +2889,14 @@ function paintTimer() {
   if (main && new Date().getSeconds() === 0) {
     paintUtil($("#clockUtil"), startOfWeek(new Date(), state.settings.weekStart));
     paintUtil($("#tsUtil"), startOfWeek(dayDate(state.tsDay), state.settings.weekStart));
+  }
+  /* midnight in an open tab: an idle date with no time beside it is only the
+     default, and the default is today */
+  if (!main && new Date().getSeconds() === 0) {
+    const todayStr = localInput(new Date());
+    const sd = $("#fStartD"), ed = $("#fEndD");
+    if (sd && !$("#fStartT").value && sd.value !== todayStr) sd.value = todayStr;
+    if (ed && !$("#fEndT").value && ed.value !== todayStr) ed.value = todayStr;
   }
 }
 setInterval(() => { if (state.user) paintTimer(); }, 1000);
@@ -3226,9 +3257,12 @@ function applyStartDraft(f) {
   paintClock();                       // the locations follow the client too
   set("#fLocation", f.location);
   set("#fTicket", f.ticket); set("#fProject", f.project); set("#fNotes", f.notes);
+  /* a draft's date only comes back beside a time that was typed with it; a
+     bare date was the default of the day the draft was saved, which is not
+     necessarily today */
   const today = localInput(new Date());
-  set("#fStartD", f.startD || today); set("#fStartT", f.startT);
-  set("#fEndD", f.endD || today);     set("#fEndT", f.endT);
+  set("#fStartD", f.startT ? (f.startD || today) : today); set("#fStartT", f.startT);
+  set("#fEndD",   f.endT   ? (f.endD   || today) : today); set("#fEndT",   f.endT);
   state.startPanelOpen = true;
   paintClock();
 }
@@ -4720,6 +4754,13 @@ function exportRangeKeys() {
   if (o.range === "week")      { const ws = startOfWeek(today, state.settings.weekStart); return [dayKey(ws), dayKey(addDays(ws, 6))]; }
   if (o.range === "lastweek")  { const ws = startOfWeek(addDays(today, -7), state.settings.weekStart); return [dayKey(ws), dayKey(addDays(ws, 6))]; }
   if (o.range === "month")     return [dayKey(new Date(today.getFullYear(), today.getMonth(), 1)), dayKey(new Date(today.getFullYear(), today.getMonth() + 1, 0))];
+  if (o.range === "all") {
+    /* from the earliest entry on record to today (or to the last entry, if
+       something was logged ahead of today) */
+    let first = dayKey(today), last = dayKey(today);
+    state.entries.forEach(e => { if (e.day < first) first = e.day; if (e.day > last) last = e.day; });
+    return [first, last];
+  }
   const from = o.from || dayKey(today), to = o.to || dayKey(today);
   return from <= to ? [from, to] : [to, from];
 }
@@ -5829,7 +5870,42 @@ function gcalOnEntryChanged(entry) {
     if (!fresh.end) return null;
     return gcalPushEntry(fresh, false).catch(err => gcalProblem(err, fresh));
   });
+  /* and a second look a few minutes on: the notes usually get typed right
+     after the Stop, and a write that died for want of a token is retried
+     without anyone pressing Sync */
+  gcalScheduleFlush(GCAL_SETTLE_MS);
 }
+/* ---- catching up without a Sync button ----
+   Three ways an entry that is still waiting gets to the calendar on its own:
+   a delayed flush a few minutes after any Stop or edit, a sweep every ten
+   minutes while the tab is open (the end-of-day catch-up), and - because
+   Google only hands out a token during a click - any click at all in the app
+   while something is waiting asks for the token and sends it. Only a stale
+   token costs a click; with one in hand the sweeps run silently. */
+const GCAL_SETTLE_MS = 3 * 60 * 1000;
+const GCAL_SWEEP_MS  = 10 * 60 * 1000;
+let gcalFlushTimer = null, gcalClickFlushAt = 0;
+function gcalWaiting() {
+  return gcalConnected() && (gcalPendingDeletes.length > 0 || state.entries.some(e => e.gcalDirty && e.end));
+}
+function gcalScheduleFlush(ms) {
+  if (!gcalConnected()) return;
+  clearTimeout(gcalFlushTimer);
+  gcalFlushTimer = setTimeout(() => {
+    gcalFlushTimer = null;
+    /* with no token the flush would only die and put up a toast; the next
+       click takes care of it instead */
+    if (gcalWaiting() && GCAL && GCAL.hasToken()) gcalFlush({ loud: false });
+  }, ms);
+}
+setInterval(() => { if (state.user && gcalWaiting() && GCAL && GCAL.hasToken()) gcalFlush({ loud: false }); }, GCAL_SWEEP_MS);
+document.addEventListener("click", () => {
+  if (FAKE || !state.user || !gcalWaiting() || !GCAL || GCAL.hasToken()) return;
+  if (Date.now() - gcalClickFlushAt < 60000) return;     // one ask a minute, not one per click
+  gcalClickFlushAt = Date.now();
+  gcalTouch();                                             // inside the click, nothing awaited first
+  setTimeout(() => gcalFlush({ loud: false }), 400);
+}, true);
 function gcalOnEntryDeleted(entry) {
   if (!entry || !entry.gcalEventId || !gcalConnected()) return;
   const calId = gcalCfg().calendarId, evId = entry.gcalEventId;
@@ -6380,10 +6456,10 @@ function startFromClientModal(c) {
   sel.addEventListener("change", paintEffect); paintEffect();
   fillLocationSelect($("#csLocation", w), c, "");
   $("[data-go]", w).addEventListener("click", () => {
-    gcalTouch();
     const jt = jobTypeById(c, sel.value);
     const now = new Date();
     const stopped = willStop(jt);
+    if (stopped.length) gcalTouch();   // only a job being stopped reaches the calendar
     stopped.forEach(r => endEntryForNewStart(r.id, now));
     closeModal(w);
     const id = doPunchIn({ clientId: c.id, jobTypeId: jt.id, ticket: $("#csTicket", w).value.trim(),
@@ -6420,7 +6496,13 @@ $$("#topNav button, #tabbar button").forEach(b => b.addEventListener("click", ()
 
 $("#fClient").addEventListener("change", () => { paintClock(); });
 $("#fJob").addEventListener("change", () => { glow($("#fJob")); paintPunchButton(); });
-$("#punchBtn").addEventListener("click", () => { gcalTouch(); startJob(startFields()); });
+/* A plain Start writes nothing to the calendar - a running entry has no end
+   to show - so it must not open the Google window. Only a Log with an end
+   time, or a Start that stops a job already running, ends in a write. */
+$("#punchBtn").addEventListener("click", () => {
+  if ($("#fEndT").value || runningEntries().length) gcalTouch();
+  startJob(startFields());
+});
 ["fStartD", "fStartT", "fEndD", "fEndT"].forEach(id => $("#" + id).addEventListener("input", paintPunchButton));
 /* Every field of the start form keeps a draft on this device while it is
    being typed into. */
@@ -6450,7 +6532,6 @@ $("#runEditBtn").addEventListener("click", () => {
   if (state.runEditOpen) setTimeout(() => { const f = $("#rNotes"); if (f) f.focus(); }, 240);
 });
 $("#switchBtn").addEventListener("click", () => {
-  gcalTouch();
   const r = runningEntries()[0];
   state.startPanelOpen = true;
   paintClock();
@@ -6459,7 +6540,7 @@ $("#switchBtn").addEventListener("click", () => {
 });
 $("#punchOutBtn").addEventListener("click", () => { gcalTouch(); const r = runningEntries()[0]; if (r) punchOut(r.id); });
 $("#pauseBtn").addEventListener("click", () => {
-  gcalTouch();
+  /* a break lives on a running entry, which is never on the calendar */
   const r = runningEntries()[0]; if (!r) return;
   if (isPaused(r)) resumeFromBreak(r.id); else pauseEntry(r.id);
 });
@@ -6970,8 +7051,8 @@ document.addEventListener("click", e => {
   /* Every one of these ends in a calendar write, so the token renewal goes
      out while the click is still fresh - see gcalTouch. */
   if ((id = hit("data-out")))    { gcalTouch(); punchOut(id); return; }
-  if ((id = hit("data-pause")))  { gcalTouch(); pauseEntry(id); return; }
-  if ((id = hit("data-unpause"))){ gcalTouch(); resumeFromBreak(id); return; }
+  if ((id = hit("data-pause")))  { pauseEntry(id); return; }
+  if ((id = hit("data-unpause"))){ resumeFromBreak(id); return; }
   if ((id = hit("data-top")))    { state.mainRunningId = id; paintClock(); toast("Brought to the top."); return; }
   if ((id = hit("data-tsstart"))){ gcalTouch(); resumeEntry(id); return; }
   if ((id = hit("data-resume"))) { gcalTouch(); resumeEntry(id); return; }
@@ -7018,6 +7099,10 @@ function handlers() {
         state.settings = Object.assign({}, DEFAULT_SETTINGS, s);
       }
       state.settingsLoaded = true;
+      /* Google's script is fetched now, not when Settings is first opened:
+         the token renewal has to run inside a click with nothing awaited
+         first, and it can only do that if the script is already here */
+      if (gcalConnected() && GCAL && typeof GCAL.preload === "function") GCAL.preload();
       state.xOpts.template = state.settings.exportTemplate || "grouped";
       state.xOpts.group = state.xOpts.template === "grouped";
       if (!handlers._tsViewDone) { handlers._tsViewDone = true; state.tsView = loadTsView(); }
