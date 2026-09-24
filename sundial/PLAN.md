@@ -589,8 +589,8 @@ these four lists for a human reader. It is linked from the app footer only.
 1. ~~**Project budgets**~~ - shipped in v0.6.1.
 2. **Billing rates per job type** - today rate is per client; on-site vs
    remote often differ. Rate override on the job type, amounts follow.
-3. **Client profitability lite** - billable hours and amount per client per
-   month, a table plus the utilization bar per client. Reports tab.
+3. ~~**Client profitability lite**~~ - the Reports page (v0.8.0) covers the
+   table; the per-client utilization bar is not built.
 4. ~~**Break policies**~~ - shipped in v0.6.0.
 5. ~~**Overtime**~~ - shipped in v0.6.1.
 6. **QuickBooks export** - IIF or CSV in the QuickBooks Time import shape,
@@ -601,6 +601,9 @@ these four lists for a human reader. It is linked from the app footer only.
    daily-hours default. Shows in the Week grid and the utilization bar.
 9. **Submit and lock a week** - mark a week done so it stops changing
    underneath you. Worth having alone; approval is the team-tier version.
+10. **Search** - notes, ticket numbers, project and more across every
+    entry, with a ticket lookup card and Send to Reports. Section 12b.
+    Planned 2026-09-24, target v0.9.0, next in line.
 
 ### Later (team tier, needs a manager role and per-user capacity)
 - **Who's Working dashboard** - current client, current task, clock-in time,
@@ -696,6 +699,70 @@ these four lists for a human reader. It is linked from the app footer only.
 4. Dark mode pass, PWA update toast.
 
 ### v0.4.0 and on - see section 10, Near list, in order.
+
+## 12b. Search (planned 2026-09-24, target v0.9.0)
+
+**Why.** Reports answers "how much" for a set of filters. Search answers
+"where is the entry where I wrote X" and "what did I do on ticket 5421",
+which today means scrolling the Timesheet day by day. Notes, ticket numbers
+and project names are the three things people remember about an entry.
+
+**Where it lives.** A magnifier button in the header (always visible, even on
+the phone where the nav is a tab bar) and the `/` key on a desktop. It opens
+a search screen (`#v-search`) with the box at the top and results below; on
+a phone it is the same view, reached from the header icon. No seventh tab.
+
+**What it searches.** Entries (notes, ticket numbers, project, location,
+client name, job type name, the limit-override reason), clients (name,
+Client ID, email) and saved reports (name). Everything the account has, not
+only the 400-day window: opening Search calls `extendWindow(ALL_TIME_FROM)`
+once, the same path Reports "All time" uses, with a "Loading older entries"
+line until the snapshot lands.
+
+**Query grammar.** Plain words, case- and accent-insensitive, every word must
+match somewhere in the entry (AND). `"exact phrase"` in quotes. Prefixes
+narrow a word to one field: `ticket:5421` (also `#5421`), `client:acme`,
+`job:desk`, `project:migration`, `note:printer`, `location:remote`,
+`billable:no`, `on:2026-09-24`, `from:2026-09-01`, `to:2026-09-30`,
+`week:this` / `week:last`, `month:this` / `month:last`. Unknown prefixes are
+treated as plain words. A query that is only a ticket number (`5421` or
+`#5421`) is a **ticket lookup** (below).
+
+**Results.** Grouped: Entries first (newest first, compact timesheet rows
+with the matching text highlighted, notes as the sub-row and the match
+scrolled into view), then Clients, then Saved reports. A line above the
+entries says `14 entries, 23h 10m, Sep 2 - Sep 24` so the search is already
+a total. Row actions: Edit (existing modal), Open day (jumps to the Timesheet
+on that day), and the ticket link when the client has a ticket URL pattern.
+Two buttons on the results: **Send to Reports** (turns the query into the
+matching Reports filters and range, so grouping and export are one tap
+away) and **Copy** (the same text block Export makes, for these rows).
+Capped at 300 rows with a "Showing 300 of N, narrow the search" line.
+
+**Ticket lookup.** A query that is a ticket number gets a card above the
+rows: the ticket, its client(s), total hours, billable hours, first and last
+date, entry count, the ticket URL link, and a per-day mini list. This is the
+"how long have I spent on this ticket" answer and the same numbers the
+time-limit warnings count.
+
+**Recent searches.** The last ten queries per device in localStorage, shown
+as chips under an empty box. Saved searches are not needed: a search worth
+keeping becomes a saved report through Send to Reports.
+
+**How it works.** No index to maintain. Each entry gets a lowercase,
+accent-stripped haystack string (`client | job | ticket | project |
+location | notes | reason`) built lazily and cached on the entry object,
+dropped when the entry changes. Filtering ten thousand entries this way is
+under a frame on a phone. The highlighter re-finds the words in the
+original text for display, so nothing is stored twice.
+
+**Rules that apply.** No horizontal scroll at any width; rows card-stack
+below 860px exactly as the timesheet does; tooltips on the prefixes (a `?`
+beside the box lists them); vocabulary is entry, ticket, note; the box is
+16px on a phone so iOS does not zoom.
+
+**Out of scope for v0.9.0.** Fuzzy matching, search inside attachments
+(there are none), and searching another user's entries (team tier).
 
 ## 13. Still open
 
