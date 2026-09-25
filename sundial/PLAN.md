@@ -700,7 +700,7 @@ these four lists for a human reader. It is linked from the app footer only.
 
 ### v0.4.0 and on - see section 10, Near list, in order.
 
-## 12b. Search (planned 2026-09-24, target v0.9.0)
+## 12b. Search (planned 2026-09-24, shipped in v0.9.0 on 2026-09-25)
 
 **Why.** Reports answers "how much" for a set of filters. Search answers
 "where is the entry where I wrote X" and "what did I do on ticket 5421",
@@ -763,6 +763,29 @@ beside the box lists them); vocabulary is entry, ticket, note; the box is
 
 **Out of scope for v0.9.0.** Fuzzy matching, search inside attachments
 (there are none), and searching another user's entries (team tier).
+
+**As built (v0.9.0).** Everything above, with these calls made where the
+spec left room:
+
+- `ticket:` and `#` match part of a ticket (like Reports' Ticket contains);
+  a ticket lookup is an exact match, and only happens when some entry
+  actually carries that ticket - otherwise the query is an ordinary search.
+- The haystack cache is a WeakMap keyed by the entry object, not a property
+  on it, because entries are copied as-is into the JSON backup. It is
+  rebuilt when the client object changes too, so a renamed client or job
+  type is found under its new name.
+- Clients and saved reports are only listed for word searches (and
+  `client:`); a date, `billable:` or a ticket says the question is about
+  entries.
+- Send to Reports sets Include running entries when a result is running,
+  leaves rounding at the Reports default, and places each plain word in the
+  first contains box (notes, project, ticket) that holds it on every match,
+  else narrows the chips to what matched. It then compares entry counts and
+  the toast says when Reports ended up with a different set.
+- `on:today` and `on:yesterday` are accepted; a date that cannot be read is
+  left out with a line under the box saying so.
+- A search is remembered in the recent list on Enter, on using a result, or
+  on leaving the screen with it in the box - not on every pause in typing.
 
 ## 13. Still open
 

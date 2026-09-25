@@ -203,6 +203,72 @@ name that already exists asks before replacing it; the pencil renames and the
 bin deletes (after asking). They live in your settings, so they follow you to
 every device and ride along in the JSON backup.
 
+## Search
+
+Reports answers "how much". **Search** answers "where is the entry where I
+wrote X" and "what did I do on ticket 5421". The magnifier in the header opens
+it - on a phone too, where the top nav is the tab bar - and on a keyboard the
+**/** key does the same whenever you are not already typing in a field. It is a
+screen of its own rather than a seventh tab, because six is what the phone tab
+bar holds.
+
+**What it looks through.** Every entry you have ever logged, not only the last
+400 days the app normally keeps in memory: the first time Search opens it loads
+the whole history, the same way Reports' All time does, and says **Loading older
+entries** until that arrives. In an entry it reads the notes, the ticket
+numbers, the project, the location, the client name and Client ID, the job type
+and the reason given for running past a time limit. It also finds **clients**
+(name, Client ID, email) and **saved reports** (name).
+
+**How to ask.**
+
+- Plain words, in any order, ignoring case and accents. Every word must match
+  somewhere in the entry, so more words means fewer results: `printer spooler`.
+- Quotes keep a phrase together: `"queue stuck"`.
+- A prefix narrows one word to one field: `ticket:5421` (or `#5421`),
+  `client:acme`, `job:desk`, `project:migration`, `note:printer`,
+  `location:remote`, `billable:yes` or `billable:no`.
+- Dates: `on:2026-09-24`, `from:2026-09-01`, `to:2026-09-30`, `week:this`,
+  `week:last`, `month:this`, `month:last`. They combine, so
+  `client:acme week:last billable:no` is last week's non-billable Acme time.
+- A prefix Search does not know is just a word, colon and all. A date it cannot
+  read is left out, and a line under the box says so.
+
+The **?** beside the box lists all of this.
+
+**Results.** Entries first, newest first, in the same compact rows as Reports'
+Matching entries, with every matching word highlighted and the note underneath;
+a note whose match is below its two-line fold opens by itself. Above them one
+line makes the search a total: `14 entries, 23h 10m, Sep 2 - Sep 24`, as
+logged. Each row has **Edit** (the usual entry form) and **Open day** (the
+Timesheet on that day, with any client filter there cleared so the entry is
+actually on screen); a ticket number is a link when the client has a ticket URL
+pattern. Up to 300 rows are drawn, with a line saying how many more there are.
+Clients and saved reports come after the entries when the search is only words.
+
+**Ticket lookup.** A search that is nothing but a ticket number - `5421`,
+`#5421`, or a client's own format like `YADA-0421` - and that some entry carries,
+gets a card above the rows: the ticket, its client, total and billable hours,
+entry count, first and last day, a link to the ticket, and the time per day.
+The total is counted exactly the way the time-limit warnings count it, so it is
+the answer to "how long have I spent on this ticket". A number no entry has
+ever carried is searched as an ordinary word.
+
+**Send to Reports** turns the search into Reports filters - dates become the
+range (a lone `week:` or `month:` stays a named range, other dates become
+Custom, no dates is All time), `client:`, `job:` and `location:` become the
+chips, and ticket, project and note words go into the contains boxes - so the
+grouping, totals and downloads are a tap away, and a search worth keeping is
+saved there as a report. Reports filters by field while Search matches words
+anywhere, so when the translation cannot be exact the toast says how many of the
+entries Reports ended up with. **Copy as text** copies every matching entry as
+the same block the Export screen makes, using your export options.
+
+**Recent searches.** The last ten searches on this device show as chips under an
+empty box; tap one to run it again, and **Clear** forgets them. A search counts
+once you press Enter, use one of its results, or leave the screen with it still
+in the box. They are kept in this browser only and never reach your account.
+
 ## The three timesheet views
 
 **Day** lists the selected day's entries with Resume and Edit on each.
@@ -647,6 +713,28 @@ real Google layer is chosen everywhere else, because the same hostname check
 that gates mock mode gates it.
 
 ## Changelog
+
+### v0.9.0 - 2026-09-25
+
+Search. Finding "the entry where I wrote about the printer" meant paging the
+Timesheet back a day at a time until it turned up, and "how long have I spent on
+ticket 5421" had no answer short of Reports with the right filters or a
+spreadsheet. Notes, ticket numbers and project names are what people actually
+remember about a piece of work, so they are now one box away.
+
+A magnifier in the header (and the / key on a keyboard) opens a search screen.
+Every word must match, quotes keep a phrase together, and prefixes like
+`ticket:5421`, `client:acme`, `note:printer` or `week:last` narrow a word to one
+field or the results to some dates. It looks through your whole history, not
+just the last 400 days. Matches are highlighted, each row has Edit and Open day,
+and a line on top says how many entries and how many hours were found.
+
+A search that is only a ticket number becomes a ticket card: total and billable
+hours, first and last day, the time per day and a link to the ticket - the same
+total the time-limit warnings count. **Send to Reports** turns any search into
+Reports filters so it can be grouped, downloaded or saved; **Copy as text** gives
+the Export block for exactly these entries. The last ten searches are kept as
+chips on the device.
 
 ### v0.8.5 - 2026-09-25
 

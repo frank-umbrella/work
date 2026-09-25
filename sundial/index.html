@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Sundial v0.8.5</title>
-<meta name="version" content="0.8.5" />
+<title>Sundial v0.9.0</title>
+<meta name="version" content="0.9.0" />
 <meta name="robots" content="noindex, nofollow" />
 <meta name="description" content="Internal hours tracker for Umbrella Automation. Restricted to @umbrellaautomation.com accounts." />
 <meta name="theme-color" content="#1e6fd9" />
@@ -637,6 +637,38 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
   .rshare{justify-content:flex-start}
 }
 
+/* ---------- search ----------
+   One box and the results under it. The entry table is the Reports entry
+   table (.mt.rent), so it card-stacks below 860px by the same rules; what is
+   here is the box, the highlight, the ticket card and the two short lists.
+   A <mark> is amber at a third strength, which reads on white and on the
+   dark card alike without changing the text colour under it. */
+.themebtn.on{color:var(--accent);border-color:var(--accent)}
+.qbox{position:relative;display:flex;align-items:center;gap:10px;min-width:0}
+.qbox .qico{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none;display:flex}
+.qbox .fld{flex:1 1 auto;padding-left:34px}
+#v-search .q{display:inline-block;width:16px;height:16px;border-radius:50%;border:1px solid var(--muted);font-size:11px;line-height:14px;text-align:center;opacity:.8;cursor:help;flex:none;color:var(--muted)}
+#v-search mark{background:rgba(224,163,0,.34);color:inherit;border-radius:2px;padding:0 1px}
+#v-search code{font-family:var(--mono);font-size:12.5px;background:var(--card2);border:1px solid var(--line);border-radius:4px;padding:0 5px;overflow-wrap:anywhere}
+#qResults{display:grid;gap:16px;min-width:0}
+.qsum{font-weight:600;overflow-wrap:anywhere;margin:0 0 4px}
+.qrecent{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:12px;min-width:0}
+.qrecent .chip{font:inherit;font-size:13px;overflow-wrap:anywhere;text-align:left}
+.qlist{display:grid;min-width:0}
+.qitem{display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;padding:9px 0;border-bottom:1px solid var(--line);min-width:0}
+.qitem:last-child{border-bottom:0}
+.qitem .nm{font-weight:600;overflow-wrap:anywhere;min-width:0}
+.qitem .meta{color:var(--muted);font-size:13px;overflow-wrap:anywhere;min-width:0}
+.qitem .acts{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.qtk .tiles{margin:4px 0 12px}
+.qtk .tile .n{font-size:20px}
+.qtklinks{display:flex;flex-wrap:wrap;gap:6px 16px;margin:0 0 10px;overflow-wrap:anywhere}
+.qtkdays{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,200px),1fr));gap:2px 20px;min-width:0}
+.qtkdays > div{display:flex;justify-content:space-between;gap:10px;padding:4px 0;border-bottom:1px dashed var(--line);font-size:13.5px;min-width:0}
+.qtkdays b{font-family:var(--mono)}
+.mt.qt .qc{min-width:0}
+.mt.qt .qwhy{display:block;margin-top:2px;overflow-wrap:anywhere}
+
 /* ---------- google calendar panel ----------
    The client ID is a long unbroken string and the status line can carry an
    email and a calendar name, so both are told to wrap anywhere rather than
@@ -777,6 +809,9 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
     <button data-view="settings">Settings</button>
   </nav>
   <span class="sync" id="syncPill" data-s="synced" title="Reads the browser online state plus Firestore pending writes. Start and Stop never wait on the network."><i></i><span id="syncText">Synced</span></span>
+  <button class="themebtn" id="searchBtn" type="button" title="Search every entry you have ever logged, plus your clients and saved reports. On a keyboard the / key opens it too." aria-label="Search">
+    <svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><circle cx="7" cy="7" r="4.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10.4 10.4 L14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+  </button>
   <button class="themebtn" id="themeToggle" type="button" title="Switch between light and dark. Settings has a third option that follows your device." aria-label="Toggle light or dark theme">
     <svg class="sun" viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><circle cx="8" cy="8" r="3.2" fill="none" stroke="currentColor" stroke-width="1.6"/><g stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M8 1.5V3.2"/><path d="M8 12.8V14.5"/><path d="M1.5 8H3.2"/><path d="M12.8 8H14.5"/><path d="M3.4 3.4L4.6 4.6"/><path d="M11.4 11.4L12.6 12.6"/><path d="M3.4 12.6L4.6 11.4"/><path d="M11.4 4.6L12.6 3.4"/></g></svg>
     <svg class="moon" viewBox="0 0 16 16" width="15" height="15" aria-hidden="true"><path d="M13.5 10.2A6 6 0 0 1 5.8 2.5a6 6 0 1 0 7.7 7.7z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
@@ -1092,6 +1127,27 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
     </div>
   </section>
 
+  <!-- ============ SEARCH ============
+       Reached from the magnifier in the header (and / on a keyboard), not
+       from a seventh tab: six is what the phone tab bar holds. -->
+  <section class="view" id="v-search">
+    <div class="card">
+      <div class="chead"><h4>Search</h4></div>
+      <div class="qbox">
+        <span class="qico" aria-hidden="true"><svg viewBox="0 0 16 16" width="15" height="15"><circle cx="7" cy="7" r="4.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10.4 10.4 L14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span>
+        <input type="search" class="fld" id="qInput" placeholder='Words, "a phrase", ticket:5421, client:acme' autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search" aria-label="Search entries, clients and saved reports">
+        <span class="q" title="Every word has to be somewhere in the entry, in any order, ignoring case and accents - so the more words, the narrower it gets.&#10;&#10;&quot;Quotes&quot; keep a phrase together.&#10;&#10;A prefix narrows one word to one field:&#10;ticket:5421 or #5421&#10;client:acme&#10;job:desk&#10;project:migration&#10;note:printer&#10;location:remote&#10;billable:yes or billable:no&#10;on:2026-09-24&#10;from:2026-09-01 and to:2026-09-30&#10;week:this or week:last&#10;month:this or month:last&#10;&#10;A search that is only a ticket number shows that ticket's total hours, the same total the time-limit warnings count.&#10;&#10;It looks through every entry you have ever logged, not only recent ones, plus your clients and saved reports.">?</span>
+      </div>
+      <div class="hint" id="qLoading" hidden>Loading older entries. Until they arrive, results cover the last 400 days.</div>
+      <div class="hint" id="qNote" hidden></div>
+      <div id="qEmpty">
+        <p class="hint" style="font-size:13px">Every word must match. For example <code>printer spooler</code>, <code>"queue stuck"</code>, <code>ticket:5421</code>, <code>client:acme week:last</code> or <code>billable:no month:this</code>.</p>
+        <div class="qrecent" id="qRecent"></div>
+      </div>
+    </div>
+    <div id="qResults"></div>
+  </section>
+
   <!-- ============ SETTINGS ============ -->
   <section class="view" id="v-settings">
     <div class="card">
@@ -1258,12 +1314,12 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
 
 <script type="module">
 /* ==============================================================
-   Sundial v0.8.5 - hours tracker
+   Sundial v0.9.0 - hours tracker
    Single file on purpose: no build step, same as Backup Audits.
    Firestore rules for /sundial_users live in ../watchtower/firestore.rules.
    ============================================================== */
 
-const APP_VERSION    = "0.8.5";
+const APP_VERSION    = "0.9.0";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const OWNER_EMAIL    = "frank@umbrellaautomation.com";
 const SDK            = "https://www.gstatic.com/firebasejs/12.13.0/";
@@ -1593,7 +1649,9 @@ function firestoreStore(user) {
     const q = fs.query(entriesCol, fs.where("day", ">=", windowStart));
     unsubEntries = fs.onSnapshot(q, { includeMetadataChanges: true }, snap => {
       pend.e = snap.docs.filter(d => d.metadata.hasPendingWrites).length;
-      h.entries(snap.docs.map(d => Object.assign({ id: d.id }, d.data())));
+      /* fromCache tells Search when the server copy of a wider window has
+         actually arrived, as opposed to what this device already held */
+      h.entries(snap.docs.map(d => Object.assign({ id: d.id }, d.data())), { fromCache: !!snap.metadata.fromCache });
       bump();
     }, err => h.error(err));
   }
@@ -1614,7 +1672,9 @@ function firestoreStore(user) {
       subEntries();
     },
     stop() { unsubs.forEach(u => u()); unsubs = []; if (unsubEntries) unsubEntries(); unsubEntries = null; },
-    extendWindow(day) { if (day < windowStart) { windowStart = day; subEntries(); } },
+    /* true when it actually had to go and fetch more, so Search knows to say
+       "loading older entries" until the snapshot lands */
+    extendWindow(day) { if (day < windowStart) { windowStart = day; subEntries(); return true; } return false; },
     saveSettings(patch) { fs.setDoc(root, stamp(patch), { merge: true }).catch(e => toast(e.message || e, true)); },
     upsertClient(id, data) {
       const ref = id ? fs.doc(clientsCol, id) : fs.doc(clientsCol);
@@ -2797,7 +2857,8 @@ const ICONS = {
   car:  '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M2.4 10.6 V8.3 L3.9 4.9 A1.1 1.1 0 0 1 4.9 4.3 H11.1 A1.1 1.1 0 0 1 12.1 4.9 L13.6 8.3 V10.6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M2.4 8.4 H13.6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><circle cx="5" cy="10.7" r="1.2" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="11" cy="10.7" r="1.2" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>',
   play:   '<svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true"><path d="M2 1 L9 5 L2 9 Z" fill="currentColor"/></svg>',
   pause:  '<svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true"><rect x="1.2" y="1" width="2.6" height="8" rx="0.8" fill="currentColor"/><rect x="6.2" y="1" width="2.6" height="8" rx="0.8" fill="currentColor"/></svg>',
-  square: '<svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true"><rect width="10" height="10" rx="1.5" fill="currentColor"/></svg>'
+  square: '<svg viewBox="0 0 10 10" width="10" height="10" aria-hidden="true"><rect width="10" height="10" rx="1.5" fill="currentColor"/></svg>',
+  day:  '<svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><rect x="2.5" y="3.5" width="11" height="10" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M2.5 6.5 H13.5 M5.5 2 V4.5 M10.5 2 V4.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>'
 };
 /* ---- column widths ----
    The table uses a fixed layout so widths are predictable: every visible
@@ -5197,8 +5258,11 @@ function entryDesc(e, withClient) {
   if (o.notes && e.notes) s += " - " + e.notes;
   return withClient ? (c ? c.name : "Unknown client") + "  " + s : s;
 }
-function buildExportText() {
-  const r = exportRangeKeys(), rows = exportRows(), o = state.xOpts;
+/* src, when given, is {rows, keys}: Search copies its own rows through the
+   same builder, so its block is the Export block and cannot drift from it. */
+function buildExportText(src) {
+  const own = !!(src && Array.isArray(src.rows));
+  const r = own ? src.keys : exportRangeKeys(), rows = own ? src.rows : exportRows(), o = state.xOpts;
   const multiDay = r[0] !== r[1];
   const head = multiDay
     ? "Hours for " + dayDate(r[0]).toLocaleDateString(undefined, { month: "long", day: "numeric" }) + " - " + fmtDayLong(r[1]).replace(/^[^,]+,\s*/, "")
@@ -6346,6 +6410,506 @@ function paintReportEntries(rows) {
 }
 
 /* ==============================================================
+   SEARCH
+   Reports answers "how much" for a set of filters. Search answers "where
+   is the entry where I wrote X" and "what did I do on ticket 5421", which
+   used to mean paging the Timesheet a day at a time. Notes, ticket numbers
+   and project names are what people remember about an entry, so those are
+   what it looks through - along with the client, the job type, the
+   location and the reason given for running past a limit.
+
+   There is no index to keep in step. Each entry gets one lowercase,
+   accent-stripped haystack, built the first time it is searched and kept in
+   a WeakMap against the entry object. A snapshot hands over new objects, so
+   an edited entry is rebuilt on its own; a renamed client or job type is
+   caught because the haystack remembers which client object it was built
+   from. A WeakMap rather than a property on the entry, because entries are
+   copied straight into the JSON backup and a cache has no business there.
+
+   The highlighter never stores anything: it folds the original text again,
+   finds the words in the folded copy and maps the positions back, so the
+   marks land on the text exactly as it was typed.
+   ============================================================== */
+const Q_CAP = 300;
+const Q_DEBOUNCE = 120;
+const Q_RECENT_KEY = "sundial.recentSearches";
+const Q_RECENT_MAX = 10;
+/* prefixes that narrow a word to one field; anything else before a colon is
+   an ordinary word, colon and all */
+const Q_FIELDS = { ticket: "ticket", client: "client", job: "job", project: "project",
+  note: "notes", notes: "notes", location: "location" };
+const Q_DATES = { on: 1, from: 1, to: 1, week: 1, month: 1 };
+const searchState = { q: null, rows: [], extended: false, loading: false, loadTimer: null, timer: null };
+
+/* ---- folding: lowercase, accents off ---- */
+const Q_MARKS = /[̀-ͯ]/g;
+function qNormMap(s) {
+  s = String(s == null ? "" : s);
+  if (/^[\x00-\x7f]*$/.test(s)) return { s: s.toLowerCase(), map: null };
+  let out = "", i = 0;
+  const map = [];
+  for (const ch of s) {
+    const n = ch.normalize("NFD").replace(Q_MARKS, "").toLowerCase();
+    for (let k = 0; k < n.length; k++) map.push(i);
+    out += n;
+    i += ch.length;
+  }
+  map.push(i);
+  return { s: out, map: map };
+}
+function qFold(s) { return qNormMap(s).s; }
+
+/* ---- the haystack ---- */
+const qHayCache = new WeakMap();
+function qHay(e) {
+  const c = clientById(e.clientId);
+  const hit = qHayCache.get(e);
+  if (hit && hit.c === c) return hit;
+  const tickets = ticketList(e.ticket).map(qFold);
+  const h = {
+    c: c,
+    client: qFold((c ? c.name : "") + " " + (c && c.code ? c.code : "")),
+    job: qFold(jobTypeName(c, e.jobTypeId)),
+    tickets: tickets, ticket: tickets.join(" "),
+    project: qFold(e.project), location: qFold(e.location), notes: qFold(e.notes),
+    reason: qFold(e.limitOverride && e.limitOverride.reason)
+  };
+  /* one string, fields kept apart by a character nobody types, so a quoted
+     phrase cannot match by running off the end of one field into the next */
+  h.all = [h.client, h.job, h.ticket, h.project, h.location, h.notes, h.reason].join("\u0001");
+  qHayCache.set(e, h);
+  return h;
+}
+
+/* ---- the query ---- */
+function qDay(v) {
+  if (v === "today") return dayKey(new Date());
+  if (v === "yesterday") return dayKey(addDays(new Date(), -1));
+  const m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(v);
+  if (!m) return "";
+  const d = new Date(+m[1], +m[2] - 1, +m[3]);
+  return d.getMonth() === +m[2] - 1 && d.getDate() === +m[3] ? dayKey(d) : "";
+}
+function qAddDate(q, p, v) {
+  let r = null, named = "";
+  if (p === "week" || p === "month") {
+    if (v === "this" || v === "last") { named = (v === "last" ? "last" : "") + p; r = rangeKeysFor(named); }
+  } else {
+    const d = qDay(v);
+    if (d) r = p === "on" ? [d, d] : p === "from" ? [d, ""] : ["", d];
+  }
+  if (!r) { q.warn.push(p + ":" + v + " is not a date Search understands, so it was left out. Dates are written 2026-09-24."); return; }
+  q.dates.push(p + ":" + v);
+  q.named = q.dates.length === 1 ? named : "";
+  if (r[0] && (!q.lo || r[0] > q.lo)) q.lo = r[0];
+  if (r[1] && (!q.hi || r[1] < q.hi)) q.hi = r[1];
+}
+function qParse(raw) {
+  const q = { raw: String(raw || ""), terms: [], lo: "", hi: "", named: "", dates: [], billable: "", lookup: "", warn: [] };
+  const re = /([A-Za-z]+):("([^"]*)"?|\S*)|"([^"]*)"?|(\S+)/g;
+  let m;
+  while ((m = re.exec(q.raw))) {
+    if (m[1] != null) {
+      const p = m[1].toLowerCase();
+      const quoted = m[3] != null, val = quoted ? m[3] : m[2];
+      if (Q_FIELDS[p]) {
+        let t = qFold(val).trim();
+        if (Q_FIELDS[p] === "ticket") t = t.replace(/^#/, "");
+        if (t) q.terms.push({ field: Q_FIELDS[p], text: t, phrase: quoted });
+        continue;
+      }
+      if (p === "billable") {
+        const v = val.trim().toLowerCase();
+        if (!v) continue;
+        if (["yes", "y", "true", "on"].indexOf(v) >= 0) q.billable = "yes";
+        else if (["no", "n", "false", "off"].indexOf(v) >= 0) q.billable = "no";
+        else q.warn.push("billable: takes yes or no, so billable:" + val + " was left out.");
+        continue;
+      }
+      if (Q_DATES[p]) { const v = val.trim().toLowerCase(); if (v) qAddDate(q, p, v); continue; }
+      /* not a prefix Search knows: the whole thing is an ordinary word */
+      const t = qFold(m[1] + ":" + val).trim();
+      if (t) q.terms.push({ field: null, text: t, phrase: quoted });
+      continue;
+    }
+    if (m[4] != null) { const t = qFold(m[4]).trim(); if (t) q.terms.push({ field: null, text: t, phrase: true }); continue; }
+    const w = m[5];
+    if (w.charAt(0) === "#") { const t = qFold(w.slice(1)); if (t) q.terms.push({ field: "ticket", text: t, hash: true }); continue; }
+    q.terms.push({ field: null, text: qFold(w) });
+  }
+  if (q.lo && q.hi && q.lo > q.hi) q.warn.push("The dates in this search do not overlap, so nothing can match.");
+  return q;
+}
+function qHasQuery(q) { return !!(q.terms.length || q.lo || q.hi || q.billable); }
+function qMatch(e, q) {
+  if (q.lo && e.day < q.lo) return false;
+  if (q.hi && e.day > q.hi) return false;
+  if (q.billable === "yes" && e.billable === false) return false;
+  if (q.billable === "no" && e.billable !== false) return false;
+  const h = qHay(e);
+  for (let i = 0; i < q.terms.length; i++) {
+    const t = q.terms[i];
+    if (!t.field) { if (h.all.indexOf(t.text) < 0) return false; }
+    else if (t.field === "ticket") { if (!h.tickets.some(x => x.indexOf(t.text) >= 0)) return false; }
+    else if (h[t.field].indexOf(t.text) < 0) return false;
+  }
+  return true;
+}
+/* A query that is nothing but one ticket - 5421, #5421, ticket:5421 or a
+   client's own format like YADA-0421 - and that some entry actually carries,
+   is a ticket lookup: exact match, and a card with the totals. Anything that
+   is not a ticket anybody has used stays an ordinary search. */
+function qLookupOf(q) {
+  if (q.terms.length !== 1 || q.lo || q.hi || q.billable) return "";
+  const t = q.terms[0];
+  if (t.phrase || (t.field && t.field !== "ticket") || /\s/.test(t.text)) return "";
+  return state.entries.some(e => qHay(e).tickets.indexOf(t.text) >= 0) ? t.text : "";
+}
+function qRun(text) {
+  const q = qParse(text);
+  const out = { q: q, rows: [], clients: [], reports: [] };
+  if (!qHasQuery(q)) return out;
+  q.lookup = qLookupOf(q);
+  out.rows = state.entries.filter(e => q.lookup ? qHay(e).tickets.indexOf(q.lookup) >= 0 : qMatch(e, q))
+    .sort((a, b) => toDate(b.start) - toDate(a.start));
+  /* clients and saved reports only come up for words (and client:), since
+     a date or a ticket says the question is about entries */
+  const wordsOnly = !q.lookup && !q.lo && !q.hi && !q.billable && q.terms.every(t => !t.field || t.field === "client");
+  if (wordsOnly) {
+    out.clients = state.clients.filter(c => {
+      const nameCode = qFold(c.name + " " + (c.code || "")), all = nameCode + "\u0001" + qFold(c.email);
+      return q.terms.every(t => (t.field ? nameCode : all).indexOf(t.text) >= 0);
+    }).sort((a, b) => (a.archived ? 1 : 0) - (b.archived ? 1 : 0) || a.name.localeCompare(b.name));
+    if (q.terms.every(t => !t.field))
+      out.reports = savedReports().filter(r => { const n = qFold(r.name); return q.terms.every(t => n.indexOf(t.text) >= 0); });
+  }
+  return out;
+}
+
+/* ---- highlighting ---- */
+function qTermsFor(q, field) {
+  if (!q) return [];
+  if (q.lookup) return field === "ticket" ? [q.lookup] : [];
+  return q.terms.filter(t => !t.field || t.field === field).map(t => t.text);
+}
+function qHL(text, terms) {
+  text = String(text == null ? "" : text);
+  if (!text || !terms || !terms.length) return esc(text);
+  const nm = qNormMap(text), at = i => (nm.map ? nm.map[i] : i);
+  const spans = [];
+  terms.forEach(t => {
+    if (!t) return;
+    let from = 0, i;
+    while ((i = nm.s.indexOf(t, from)) >= 0) {
+      const a = at(i), b = Math.max(at(i + t.length), a + 1);
+      spans.push([a, b]);
+      from = i + t.length;
+    }
+  });
+  if (!spans.length) return esc(text);
+  spans.sort((x, y) => x[0] - y[0] || y[1] - x[1]);
+  const merged = [];
+  spans.forEach(s => { const l = merged[merged.length - 1]; if (l && s[0] <= l[1]) l[1] = Math.max(l[1], s[1]); else merged.push(s.slice()); });
+  let html = "", pos = 0;
+  merged.forEach(s => { html += esc(text.slice(pos, s[0])) + "<mark>" + esc(text.slice(s[0], s[1])) + "</mark>"; pos = s[1]; });
+  return html + esc(text.slice(pos));
+}
+function qTicketHTML(c, ticket, terms) {
+  const pat = c && c.ticketUrl && c.ticketUrl.indexOf("{n}") >= 0 ? c.ticketUrl : "";
+  return ticketList(ticket).map(t => {
+    /* one ticket never breaks across lines; several still wrap between them */
+    const inner = '<span class="nw">#' + qHL(t, terms) + "</span>";
+    return pat ? '<a href="' + esc(pat.replace("{n}", encodeURIComponent(t))) + '" target="_blank" rel="noopener" title="Open ticket #' + esc(t) + ' in the help desk.">' + inner + "</a>" : inner;
+  }).join(" ");
+}
+
+/* ---- recent searches: per device, like the timesheet view ---- */
+function qRecentList() {
+  try {
+    const v = JSON.parse(localStorage.getItem(Q_RECENT_KEY) || "[]");
+    return Array.isArray(v) ? v.filter(x => typeof x === "string" && x.trim()).slice(0, Q_RECENT_MAX) : [];
+  } catch (_) { return []; }
+}
+function qRemember(text) {
+  text = String(text || "").trim();
+  if (!text || !qHasQuery(qParse(text))) return;
+  const list = qRecentList().filter(x => x.toLowerCase() !== text.toLowerCase());
+  list.unshift(text);
+  try { localStorage.setItem(Q_RECENT_KEY, JSON.stringify(list.slice(0, Q_RECENT_MAX))); } catch (_) {}
+}
+function qForget() { try { localStorage.removeItem(Q_RECENT_KEY); } catch (_) {} }
+
+/* ---- the numbers ---- */
+function qSpanLabel(rows) {
+  if (!rows.length) return "";
+  let lo = rows[0].day, hi = rows[0].day;
+  rows.forEach(e => { if (e.day < lo) lo = e.day; if (e.day > hi) hi = e.day; });
+  if (lo === hi) return fmtDayShort(lo) + (lo.slice(0, 4) === dayKey(new Date()).slice(0, 4) ? "" : ", " + lo.slice(0, 4));
+  if (lo.slice(0, 4) !== hi.slice(0, 4)) return rangeSpanLabel([lo, hi]);
+  return fmtDayShort(lo) + " - " + fmtDayShort(hi) + (hi.slice(0, 4) === dayKey(new Date()).slice(0, 4) ? "" : ", " + hi.slice(0, 4));
+}
+function qDayKeys(rows) {
+  let lo = "", hi = "";
+  rows.forEach(e => { if (!lo || e.day < lo) lo = e.day; if (!hi || e.day > hi) hi = e.day; });
+  return [lo, hi];
+}
+function qEntriesWord(n) { return n + " entr" + (n === 1 ? "y" : "ies"); }
+
+/* ---- paint ---- */
+function openSearch() {
+  if (!state.user) return;
+  /* Search looks through everything, so the first time it opens it asks for
+     the whole history - the same path Reports' All time takes */
+  if (!searchState.extended) {
+    searchState.extended = true;
+    const went = store && store.extendWindow ? store.extendWindow(ALL_TIME_FROM) : false;
+    if (went === true) {
+      searchState.loading = true;
+      clearTimeout(searchState.loadTimer);
+      /* offline the server copy never comes; stop promising it */
+      searchState.loadTimer = setTimeout(() => { if (searchState.loading) { searchState.loading = false; if (state.view === "search") paintSearch(); } }, 20000);
+    }
+  }
+  if (state.view !== "search") setView("search"); else paintSearch();
+  const inp = $("#qInput");
+  setTimeout(() => { inp.focus(); if (inp.value) inp.select(); }, 30);
+}
+function paintSearchRecent() {
+  const list = qRecentList();
+  $("#qRecent").innerHTML = list.length
+    ? '<span class="hint" style="margin:0">Recent on this device</span>' +
+      list.map(x => '<button type="button" class="chip" data-qrun="' + esc(x) + '" title="Run this search again.">' + esc(x) + "</button>").join("") +
+      '<button type="button" class="morebtn" data-qclear title="Forget the recent searches on this device. Nothing else changes.">Clear</button>'
+    : '<span class="hint" style="margin:0">Searches you run show up here, on this device only.</span>';
+}
+function paintSearch() {
+  if (!state.user) return;
+  const text = $("#qInput").value;
+  const res = qRun(text), q = res.q;
+  searchState.q = q; searchState.rows = res.rows;
+  const has = qHasQuery(q);
+  $("#qLoading").hidden = !searchState.loading;
+  $("#qEmpty").hidden = has;
+  if (!has) paintSearchRecent();
+  const note = $("#qNote");
+  note.hidden = !q.warn.length;
+  note.textContent = q.warn.join(" ");
+  if (!has) { $("#qResults").innerHTML = ""; return; }
+
+  let html = "";
+  if (q.lookup) html += qTicketCardHTML(q.lookup, res.rows);
+  html += qEntriesCardHTML(res.rows, q);
+  if (res.clients.length) html += qClientsCardHTML(res.clients, q);
+  if (res.reports.length) html += qReportsCardHTML(res.reports, q);
+  $("#qResults").innerHTML = html;
+
+  const tbl = $("#qTable");
+  if (tbl) {
+    clampNotes(tbl);
+    /* a folded note whose match is below the fold is opened, so the thing
+       you searched for is on screen rather than behind a "more" */
+    tbl.querySelectorAll("td .note").forEach(n => {
+      const mk = n.querySelector("mark");
+      if (!mk || n.classList.contains("fits") || n.classList.contains("open")) return;
+      if (mk.getBoundingClientRect().bottom > n.getBoundingClientRect().bottom + 1) n.click();
+    });
+  }
+}
+function qEntriesCardHTML(rows, q) {
+  const shown = rows.slice(0, Q_CAP);
+  const total = rows.reduce((s, e) => s + entrySeconds(e), 0);
+  const hasLoc = shown.some(e => e.location);
+  const cols = [{ k: "date", label: "Date" }, { k: "time", label: "Time" }, { k: "dur", label: "Duration" },
+    { k: "client", label: "Client" }, { k: "job", label: "Job type" }]
+    .concat(hasLoc ? [{ k: "location", label: "Location" }] : [], [{ k: "ticket", label: "Ticket" }, { k: "project", label: "Project" }]);
+  const tf = f => qTermsFor(q, f);
+  const thisYear = dayKey(new Date()).slice(0, 4);
+  const cell = (e, k) => {
+    const c = clientById(e.clientId);
+    switch (k) {
+      case "date": return esc(dayDate(e.day).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }) +
+        (e.day.slice(0, 4) === thisYear ? "" : ", " + e.day.slice(0, 4)));
+      case "time": return '<span><span class="nw">' + esc(fmtTime(toDate(e.start))) + "</span> - " +
+        (e.end ? '<span class="nw">' + esc(fmtTime(toDate(e.end))) + "</span>" : '<span class="pill' + (isPaused(e) ? " paused" : "") + '"><span class="dot"></span>' + (isPaused(e) ? "paused" : "running") + "</span>") + "</span>";
+      case "dur": return entryCellHTML(e, "dur");
+      case "client": return '<span class="cdot" style="background:' + esc(clientColor(c)) + '"></span>' + qHL(c ? c.name : "Unknown client", tf("client"));
+      case "job": {
+        const jt = jobTypeById(c, e.jobTypeId);
+        return qHL(jobTypeName(c, e.jobTypeId), tf("job")) +
+          (jt && jt.travel ? carIconHTML() : "") +
+          (e.billable === false ? '<span class="tagnb">non-billable</span>' : "") +
+          (e.limitOverride ? '<span class="tagover" title="' + esc(overrideTitle(e)) + '">over limit</span>' : "");
+      }
+      case "location": return qHL(e.location || "", tf("location"));
+      case "ticket": return qTicketHTML(c, e.ticket, tf("ticket"));
+      case "project": return qHL(e.project || "", tf("project"));
+    }
+    return "";
+  };
+  /* the limit-override reason is searched too, so when it is what matched it
+     is shown under the note rather than leaving a row with nothing lit up */
+  const reasonHit = e => e.limitOverride && !q.lookup && q.terms.some(t => !t.field && qHay(e).reason.indexOf(t.text) >= 0);
+  const head = "<thead><tr>" + cols.map(c => "<th>" + esc(c.label) + "</th>").join("") + "<th></th></tr></thead>";
+  const body = "<tbody>" + (shown.length ? shown.map(e => {
+    const why = reasonHit(e);
+    const hasNote = !!e.notes || why;
+    const noteHTML = '<span class="notebox">' +
+      (e.notes ? '<span class="note" title="Click to show the whole note.">' + qHL(e.notes, tf("notes")) + "</span>" : "") +
+      (why ? '<span class="qwhy">' + qHL(overrideLine(e), qTermsFor(q, "reason")) + "</span>" : "") + "</span>";
+    return '<tr class="' + (e.end ? "" : "running ") + (hasNote ? "hasnote" : "") + '">' +
+      /* one wrapper per cell: in the stacked layout the cell is a flex row,
+         and a bare <mark> would otherwise become an item of its own */
+      cols.map(c => '<td class="' + (c.k === "date" || c.k === "time" || c.k === "dur" ? "t" : "") + '" data-l="' + esc(c.label) + '"><span class="qc">' + cell(e, c.k) + "</span></td>").join("") +
+      '<td class="act" data-l="Actions">' +
+        '<button class="ibtn" data-edit="' + e.id + '" title="Edit this entry." aria-label="Edit">' + ICONS.edit + "</button>" +
+        '<button class="ibtn" data-qday="' + esc(e.day + "|" + e.clientId) + '" title="Open this day on the Timesheet, to see what else happened around it." aria-label="Open day">' + ICONS.day + "</button>" +
+      "</td></tr>" +
+      (hasNote ? '<tr class="noterow' + (e.end ? "" : " running") + '"><td colspan="' + (cols.length + 1) + '" data-l="Notes">' + noteHTML + "</td></tr>" : "");
+  }).join("") : '<tr><td colspan="' + (cols.length + 1) + '" class="emptyrow">No entries match. Fewer words, or a shorter piece of one, finds more.</td></tr>') + "</tbody>";
+  const summary = rows.length ? qEntriesWord(rows.length) + ", " + fmtDur(total) + ", " + qSpanLabel(rows) : "";
+  return '<div class="card">' +
+    '<div class="chead"><h4>Entries</h4>' + (rows.length ? '<span class="sp">' +
+      '<button type="button" class="btn sm acc" data-qsend title="Opens Reports with the filters and dates this search turns into, so grouping, totals and downloads are one tap away. Save it there if it is a question you will ask again.">Send to Reports</button>' +
+      '<button type="button" class="btn sm" data-qcopy title="Copies every matching entry, not only the ones on screen, as the same text block the Export screen makes, using your export options.">Copy as text</button>' +
+    "</span>" : "") + "</div>" +
+    (summary ? '<div class="qsum" title="Time as logged, running entries up to now. Reports and Copy round the way your exports do.">' + esc(summary) + "</div>" : "") +
+    (rows.length > Q_CAP ? '<div class="hint" style="margin:0 0 6px">Showing ' + Q_CAP + " of " + rows.length + ", narrow the search. Copy and Send to Reports take all of them.</div>" : "") +
+    '<div class="tablewrap"><table class="mt rent qt" id="qTable">' + head + body + "</table></div></div>";
+}
+function qTicketCardHTML(t, rows) {
+  let total = 0, bill = 0;
+  const byDay = new Map(), clientIds = [], urls = new Map();
+  let label = t;
+  rows.forEach(e => {
+    const s = entrySeconds(e);
+    total += s; if (e.billable !== false) bill += s;
+    if (!byDay.has(e.day)) byDay.set(e.day, { secs: 0, n: 0 });
+    const d = byDay.get(e.day); d.secs += s; d.n++;
+    if (clientIds.indexOf(e.clientId) < 0) clientIds.push(e.clientId);
+    const own = ticketList(e.ticket).find(x => qFold(x) === t);
+    if (own) label = own;
+    const c = clientById(e.clientId);
+    if (own && c && c.ticketUrl && c.ticketUrl.indexOf("{n}") >= 0) urls.set(c.ticketUrl.replace("{n}", encodeURIComponent(own)), c.name);
+  });
+  const keys = qDayKeys(rows);
+  const thisYear = dayKey(new Date()).slice(0, 4);
+  const dLabel = k => dayDate(k).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }) + (k.slice(0, 4) === thisYear ? "" : ", " + k.slice(0, 4));
+  const clientsHTML = clientIds.map(id => { const c = clientById(id); return '<span class="nw"><span class="cdot" style="background:' + esc(clientColor(c)) + '"></span>' + esc(c ? c.name : "Unknown client") + "</span>"; }).join(", ");
+  const days = Array.from(byDay.keys()).sort().reverse();
+  return '<div class="card qtk">' +
+    '<div class="chead"><h4>Ticket #' + esc(label) + '</h4><span class="sp hint" style="margin:0">' + clientsHTML + "</span></div>" +
+    (urls.size ? '<div class="qtklinks">' + Array.from(urls.entries()).map(u =>
+      '<a href="' + esc(u[0]) + '" target="_blank" rel="noopener" title="The ticket in ' + esc(u[1]) + '\'s help desk, from the ticket URL pattern on the client.">Open #' + esc(label) + (urls.size > 1 ? " (" + esc(u[1]) + ")" : "") + "</a>").join("") + "</div>" : "") +
+    '<div class="tiles">' +
+      rTile("Total", fmtDur(total), "Every entry carrying this ticket, as logged. It is the same total a time limit on this ticket counts against.") +
+      rTile("Billable", fmtDur(bill), "The part of the total that is billable.") +
+      rTile("Entries", String(rows.length), "How many entries carry this ticket, alone or alongside others.") +
+      rTile("First", keys[0] ? fmtDayShort(keys[0]) + (keys[0].slice(0, 4) === thisYear ? "" : ", " + keys[0].slice(0, 4)) : "-", "The first day anything was logged against it.") +
+      rTile("Last", keys[1] ? fmtDayShort(keys[1]) + (keys[1].slice(0, 4) === thisYear ? "" : ", " + keys[1].slice(0, 4)) : "-", "The most recent day.") +
+    "</div>" +
+    '<div class="qtkdays">' + days.map(k => { const d = byDay.get(k);
+      return '<div title="' + esc(qEntriesWord(d.n)) + '"><span>' + esc(dLabel(k)) + "</span><b>" + esc(fmtDur(d.secs)) + "</b></div>"; }).join("") + "</div>" +
+  "</div>";
+}
+function qClientsCardHTML(list, q) {
+  const tf = qTermsFor(q, "client");
+  const plain = q.terms.filter(t => !t.field).map(t => t.text);
+  return '<div class="card"><div class="chead"><h4>Clients</h4></div><div class="qlist">' + list.map(c => {
+    const safe = String(c.name || "").replace(/"/g, "");
+    return '<div class="qitem"><span class="nm"><span class="cdot" style="background:' + esc(clientColor(c)) + '"></span>' + qHL(c.name, tf) +
+      (c.archived ? ' <span class="tagnb">archived</span>' : "") + "</span>" +
+      '<span class="meta">' + [c.code ? qHL(c.code, tf) : "", c.email ? qHL(c.email, plain) : ""].filter(Boolean).join(" &middot; ") + "</span>" +
+      '<span class="acts">' +
+        '<button type="button" class="btn sm" data-qrun="client:&quot;' + esc(safe) + '&quot;" title="Search this client\'s entries.">Entries</button>' +
+        '<button type="button" class="btn sm" data-cedit="' + esc(c.id) + '" title="Open the client card to change its details.">Edit</button>' +
+      "</span></div>";
+  }).join("") + "</div></div>";
+}
+function qReportsCardHTML(list, q) {
+  const tf = qTermsFor(q, "report");
+  return '<div class="card"><div class="chead"><h4>Saved reports</h4></div><div class="qlist">' + list.map(r =>
+    '<div class="qitem"><span class="nm">' + qHL(r.name, tf) + "</span>" +
+    '<span class="acts"><button type="button" class="btn sm" data-qreport="' + esc(r.id) + '" title="Open Reports with this saved report loaded.">Open</button></span></div>').join("") +
+  "</div></div>";
+}
+
+/* ---- Send to Reports ----
+   Reports filters by fields, Search by words, so this is a translation and
+   says so when it is not exact. Dates become the range (a lone week: or
+   month: stays a named range, anything else is Custom, nothing at all is All
+   time); client:, job: and location: become the chips; ticket:, project:
+   and note: become the contains boxes. A plain word goes to whichever of
+   notes, project or ticket holds it on every matching entry; failing that,
+   the chips are narrowed to what the matches actually are. The entry count
+   is then checked, and the toast says if Reports ended up with a different
+   set than Search had. */
+function searchToReports() {
+  const q = searchState.q, rows = searchState.rows;
+  if (!q || !rows.length) return;
+  qRemember($("#qInput").value);
+  const o = defaultReportOpts();
+  if (q.lo || q.hi) {
+    if (q.named) o.range = q.named;
+    else { const all = rangeKeysFor("all"); o.range = "custom"; o.from = q.lo || all[0]; o.to = q.hi || all[1]; }
+  } else o.range = "all";
+  if (q.billable) o.billable = q.billable;
+  o.running = rows.some(e => !e.end);
+  const text = { ticket: [], project: [], notes: [] };
+  const inter = (cur, list) => cur ? cur.filter(x => list.indexOf(x) >= 0) : list;
+  const uniq = a => Array.from(new Set(a));
+  /* the ticket as it was typed on the entry, not the folded copy */
+  if (q.lookup) text.ticket.push(rows.map(e => ticketList(e.ticket).find(x => qFold(x) === q.lookup)).find(Boolean) || q.lookup);
+  q.terms.forEach(t => {
+    if (q.lookup) return;
+    if (t.field === "ticket" || t.field === "project" || t.field === "notes") { text[t.field].push(t.text); return; }
+    if (t.field === "client") {
+      o.clients = inter(o.clients, state.clients.filter(c => qFold(c.name + " " + (c.code || "")).indexOf(t.text) >= 0).map(c => c.id));
+      return;
+    }
+    if (t.field === "job") {
+      const keys = [];
+      state.clients.forEach(c => (c.jobTypes || []).forEach(j => { const n = String(j.name || "").trim(); if (qFold(n).indexOf(t.text) >= 0) keys.push(n.toLowerCase()); }));
+      o.jobs = inter(o.jobs, uniq(keys));
+      return;
+    }
+    if (t.field === "location") {
+      const keys = uniq(state.entries.map(e => String(e.location || "").trim()).filter(l => l && qFold(l).indexOf(t.text) >= 0).map(l => l.toLowerCase()));
+      o.locations = inter(o.locations, keys);
+      return;
+    }
+    /* a plain word: the first text box it fits on every match */
+    const slot = ["notes", "project", "ticket"].find(f => !text[f].length && rows.every(e => qHay(e)[f].indexOf(t.text) >= 0));
+    if (slot) { text[slot].push(t.text); return; }
+    if (rows.every(e => qHay(e).client.indexOf(t.text) >= 0)) { o.clients = inter(o.clients, uniq(rows.map(e => e.clientId))); return; }
+    if (rows.every(e => qHay(e).job.indexOf(t.text) >= 0)) { o.jobs = inter(o.jobs, uniq(rows.map(rJobKey))); return; }
+    if (rows.every(e => qHay(e).location.indexOf(t.text) >= 0)) { o.locations = inter(o.locations, uniq(rows.map(rLocKey))); return; }
+    o.clients = inter(o.clients, uniq(rows.map(e => e.clientId)));
+    o.jobs = inter(o.jobs, uniq(rows.map(rJobKey)));
+  });
+  o.ticket = text.ticket.join(" "); o.project = text.project.join(" "); o.notes = text.notes.join(" ");
+  state.rOpts = o;
+  setView("reports");
+  const got = reportRows().length;
+  toast(got === rows.length ? "Sent " + qEntriesWord(rows.length) + " to Reports."
+    : "Reports shows " + got + " of the " + rows.length + " entries: its filters cannot say everything this search does.");
+}
+
+/* ---- Copy ---- */
+async function copySearchText() {
+  const rows = searchState.rows.slice().sort((a, b) => toDate(a.start) - toDate(b.start));
+  if (!rows.length) return;
+  qRemember($("#qInput").value);
+  const text = buildExportText({ rows: rows, keys: qDayKeys(rows) });
+  const total = rows.reduce((s, e) => s + exportSeconds(e), 0);
+  try {
+    await navigator.clipboard.writeText(text);
+    toast("Copied " + qEntriesWord(rows.length) + ", " + fmtDur(total) + ".");
+  } catch (e) {
+    toast("Could not reach the clipboard. Send the search to Reports and copy from there.", true);
+  }
+}
+
+/* ==============================================================
    GOOGLE CALENDAR
    Finished entries are mirrored into one calendar called "Sundial" that
    this app creates in the signed-in Google account.
@@ -7451,6 +8015,9 @@ function startFromClientModal(c) {
   });
 }
 function setView(v) {
+  /* leaving Search with something in the box is the moment it counts as a
+     search you ran, rather than letters on the way to one */
+  if (state.view === "search" && v !== "search") qRemember($("#qInput").value);
   state.view = v;
   $$(".view").forEach(s => s.classList.toggle("on", s.id === "v-" + v));
   $$("#topNav button").forEach(b => b.classList.toggle("on", b.getAttribute("data-view") === v));
@@ -7459,6 +8026,8 @@ function setView(v) {
   /* Reports is only worked out while it is on screen: adding up a long
      history on every snapshot for a view nobody is looking at is waste */
   if (v === "reports") paintReports();
+  $("#searchBtn").classList.toggle("on", v === "search");
+  if (v === "search") paintSearch();
 }
 function paintAll() {
   if (!state.user) return;
@@ -7467,6 +8036,7 @@ function paintAll() {
   paintClients();
   paintExport();
   if (state.view === "reports") paintReports();
+  if (state.view === "search") paintSearch();
   paintSettings();
   paintSync();
 }
@@ -7789,6 +8359,65 @@ $("#rSave").addEventListener("click", openSaveReportModal);
   window.addEventListener("resize", () => {
     clearTimeout(tm);
     tm = setTimeout(() => { if (state.view === "reports") paintReports(); }, 150);
+  });
+})();
+
+/* ---- Search ----
+   The box repaints a beat after the last key; Enter runs it at once and
+   counts it as a search worth remembering. Row buttons that belong to the
+   whole app (Edit, a client's Edit) are handled by the document-wide
+   listener below; this one only remembers the search before they run. */
+$("#searchBtn").addEventListener("click", openSearch);
+document.addEventListener("keydown", e => {
+  if (e.key !== "/" || e.ctrlKey || e.metaKey || e.altKey || e.defaultPrevented) return;
+  if (!state.user || modalStack.length) return;
+  const a = document.activeElement;
+  if (a && (a.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName))) return;
+  e.preventDefault();
+  openSearch();
+});
+$("#qInput").addEventListener("input", () => {
+  clearTimeout(searchState.timer);
+  searchState.timer = setTimeout(paintSearch, Q_DEBOUNCE);
+});
+$("#qInput").addEventListener("keydown", e => {
+  if (e.key !== "Enter") return;
+  e.preventDefault();
+  clearTimeout(searchState.timer);
+  paintSearch();
+  qRemember(e.target.value);
+});
+$("#v-search").addEventListener("click", e => {
+  const t = e.target;
+  const hit = a => { const b = t.closest("[" + a + "]"); return b ? b.getAttribute(a) : null; };
+  const inp = $("#qInput");
+  let x;
+  if ((x = hit("data-qrun")) != null) {
+    inp.value = x; qRemember(x);
+    clearTimeout(searchState.timer); paintSearch(); inp.focus();
+    return;
+  }
+  if (hit("data-qclear") != null) { qForget(); paintSearch(); toast("Recent searches cleared."); return; }
+  if ((x = hit("data-qday")) != null) {
+    qRemember(inp.value);
+    const p = x.split("|");
+    state.tsDay = p[0];
+    /* a client filter on the Timesheet would hide the very entry you came for */
+    if (state.tsClient && state.tsClient !== p[1]) state.tsClient = "";
+    setView("timesheet"); setTsView("day");
+    return;
+  }
+  if (hit("data-qsend") != null) { searchToReports(); return; }
+  if (hit("data-qcopy") != null) { copySearchText(); return; }
+  if ((x = hit("data-qreport")) != null) { qRemember(inp.value); setView("reports"); loadSavedReport(x); return; }
+  if (hit("data-edit") != null || hit("data-cedit") != null || t.closest("a[href]")) qRemember(inp.value);
+});
+/* folded notes are measured when drawn, so a width change draws them again */
+(function () {
+  let tm = null;
+  window.addEventListener("resize", () => {
+    clearTimeout(tm);
+    tm = setTimeout(() => { if (state.view === "search") paintSearch(); }, 150);
   });
 })();
 
@@ -8182,7 +8811,11 @@ function handlers() {
       maybeRestoreStartDraft();
     },
     clients(list) { state.clients = list; state.clientsLoaded = true; paintAll(); reconcileDefaultJobTypes(); maybeRestoreStartDraft(); },
-    entries(list) { state.entries = list; paintAll(); },
+    entries(list, meta) {
+      state.entries = list;
+      if (searchState.loading && !(meta && meta.fromCache)) { searchState.loading = false; clearTimeout(searchState.loadTimer); }
+      paintAll();
+    },
     sync(s) { state.sync.pending = s.pending || 0; state.sync.online = navigator.onLine; paintSync(); },
     error(err) { console.error(err); toast("Sync problem: " + (err.message || err), true); }
   };
@@ -8211,6 +8844,7 @@ function stopApp() {
   state.clientsLoaded = false;
   reconcileDefaultJobTypes._done = false;
   maybeRestoreStartDraft._done = false;
+  searchState.extended = false; searchState.loading = false;
   state.settings = Object.assign({}, DEFAULT_SETTINGS);
   $("#app").hidden = true;
   $("#signin").style.display = "flex";
