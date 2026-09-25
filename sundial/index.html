@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Sundial v0.9.0</title>
-<meta name="version" content="0.9.0" />
+<title>Sundial v0.9.1</title>
+<meta name="version" content="0.9.1" />
 <meta name="robots" content="noindex, nofollow" />
 <meta name="description" content="Internal hours tracker for Umbrella Automation. Restricted to @umbrellaautomation.com accounts." />
 <meta name="theme-color" content="#1e6fd9" />
@@ -659,6 +659,13 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
 #v-search mark{background:rgba(224,163,0,.34);color:inherit;border-radius:2px;padding:0 1px}
 #v-search code{font-family:var(--mono);font-size:12.5px;background:var(--card2);border:1px solid var(--line);border-radius:4px;padding:0 5px;overflow-wrap:anywhere}
 #qResults{display:grid;gap:16px;min-width:0}
+/* the same panel lives on the Timesheet as a fold-away card; on the Search
+   screen it is always open and the Hide button is not offered */
+#v-search #qToggle{display:none}
+#searchPanel.collapsed .card > :not(.chead){display:none}
+#searchPanel.collapsed #qResults{display:none}
+#searchPanel.collapsed .chead{margin-bottom:0}
+#tsSearchHost #qResults{margin-bottom:14px}
 .qsum{font-weight:600;overflow-wrap:anywhere;margin:0 0 4px}
 .qrecent{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:12px;min-width:0}
 .qrecent .chip{font:inherit;font-size:13px;overflow-wrap:anywhere;text-align:left}
@@ -925,6 +932,8 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
 
   <!-- ============ TIMESHEET ============ -->
   <section class="view" id="v-timesheet">
+    <!-- the one search panel is moved in here while the Timesheet is on screen, see hostSearchPanel() -->
+    <div id="tsSearchHost"></div>
     <div class="card">
       <div class="chead">
         <span class="seg"><button id="tsPrev" title="Previous day">&#8592;</button><button id="tsToday">Today</button><button id="tsNext" title="Next day">&#8594;</button></span>
@@ -1145,8 +1154,9 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
        Reached from the magnifier in the header (and / on a keyboard), not
        from a seventh tab: six is what the phone tab bar holds. -->
   <section class="view" id="v-search">
+    <div id="searchPanel">
     <div class="card">
-      <div class="chead"><h4>Search</h4></div>
+      <div class="chead"><h4>Search</h4><span class="sp"><button type="button" class="btn sm" id="qToggle" title="Folds the search panel away so the Timesheet starts at the day strip. It opens again with this button, and the choice is remembered on this device.">Hide</button></span></div>
       <div class="qbox">
         <span class="qico" aria-hidden="true"><svg viewBox="0 0 16 16" width="15" height="15"><circle cx="7" cy="7" r="4.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M10.4 10.4 L14 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span>
         <input type="search" class="fld" id="qInput" placeholder='Words, "a phrase", ticket:5421, client:acme' autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="search" aria-label="Search entries, clients and saved reports">
@@ -1160,6 +1170,7 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
       </div>
     </div>
     <div id="qResults"></div>
+    </div>
   </section>
 
   <!-- ============ SETTINGS ============ -->
@@ -1328,12 +1339,12 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
 
 <script type="module">
 /* ==============================================================
-   Sundial v0.9.0 - hours tracker
+   Sundial v0.9.1 - hours tracker
    Single file on purpose: no build step, same as Backup Audits.
    Firestore rules for /sundial_users live in ../watchtower/firestore.rules.
    ============================================================== */
 
-const APP_VERSION    = "0.9.0";
+const APP_VERSION    = "0.9.1";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const OWNER_EMAIL    = "frank@umbrellaautomation.com";
 const SDK            = "https://www.gstatic.com/firebasejs/12.13.0/";
@@ -6453,7 +6464,22 @@ const Q_RECENT_MAX = 10;
 const Q_FIELDS = { ticket: "ticket", client: "client", job: "job", project: "project",
   note: "notes", notes: "notes", location: "location" };
 const Q_DATES = { on: 1, from: 1, to: 1, week: 1, month: 1 };
-const searchState = { q: null, rows: [], extended: false, loading: false, loadTimer: null, timer: null };
+const searchState = { q: null, rows: [], extended: false, loading: false, loadTimer: null, timer: null, tsOpen: false };
+try { searchState.tsOpen = localStorage.getItem("sundial-ts-search") === "open"; } catch (_) {}
+/* the panel is painted only while somebody can see it: the Search screen,
+   or the Timesheet with the panel unfolded */
+function searchVisible() { return state.view === "search" || (state.view === "timesheet" && searchState.tsOpen); }
+/* One search panel, two homes. It is moved into the Timesheet while that
+   view is on screen and back into the Search view otherwise, so every id,
+   handler and result stays the same wherever it is looked at. */
+function hostSearchPanel(v) {
+  const panel = $("#searchPanel"); if (!panel) return;
+  const host = v === "timesheet" ? $("#tsSearchHost") : $("#v-search");
+  if (panel.parentNode !== host) host.appendChild(panel);
+  const collapsed = v === "timesheet" && !searchState.tsOpen;
+  panel.classList.toggle("collapsed", collapsed);
+  const t = $("#qToggle"); if (t) t.textContent = collapsed ? "Show search" : "Hide";
+}
 
 /* ---- folding: lowercase, accents off ---- */
 const Q_MARKS = /[̀-ͯ]/g;
@@ -6672,8 +6698,15 @@ function qEntriesWord(n) { return n + " entr" + (n === 1 ? "y" : "ies"); }
 /* ---- paint ---- */
 function openSearch() {
   if (!state.user) return;
-  /* Search looks through everything, so the first time it opens it asks for
-     the whole history - the same path Reports' All time takes */
+  openSearch._extend();
+  if (state.view !== "search") setView("search"); else paintSearch();
+  const inp = $("#qInput");
+  setTimeout(() => { inp.focus(); if (inp.value) inp.select(); }, 30);
+}
+/* Search looks through everything, so the first time it is used it asks for
+   the whole history - the same path Reports' All time takes */
+openSearch._extend = function () {
+  if (!state.user) return;
   if (!searchState.extended) {
     searchState.extended = true;
     const went = store && store.extendWindow ? store.extendWindow(ALL_TIME_FROM) : false;
@@ -6681,13 +6714,10 @@ function openSearch() {
       searchState.loading = true;
       clearTimeout(searchState.loadTimer);
       /* offline the server copy never comes; stop promising it */
-      searchState.loadTimer = setTimeout(() => { if (searchState.loading) { searchState.loading = false; if (state.view === "search") paintSearch(); } }, 20000);
+      searchState.loadTimer = setTimeout(() => { if (searchState.loading) { searchState.loading = false; if (searchVisible()) paintSearch(); } }, 20000);
     }
   }
-  if (state.view !== "search") setView("search"); else paintSearch();
-  const inp = $("#qInput");
-  setTimeout(() => { inp.focus(); if (inp.value) inp.select(); }, 30);
-}
+};
 function paintSearchRecent() {
   const list = qRecentList();
   $("#qRecent").innerHTML = list.length
@@ -8031,8 +8061,9 @@ function startFromClientModal(c) {
 function setView(v) {
   /* leaving Search with something in the box is the moment it counts as a
      search you ran, rather than letters on the way to one */
-  if (state.view === "search" && v !== "search") qRemember($("#qInput").value);
+  if (searchVisible() && !(v === "search" || v === "timesheet")) qRemember($("#qInput").value);
   state.view = v;
+  hostSearchPanel(v);
   $$(".view").forEach(s => s.classList.toggle("on", s.id === "v-" + v));
   $$("#topNav button").forEach(b => b.classList.toggle("on", b.getAttribute("data-view") === v));
   $$("#tabbar button").forEach(b => b.classList.toggle("on", b.getAttribute("data-view") === v));
@@ -8041,7 +8072,7 @@ function setView(v) {
      history on every snapshot for a view nobody is looking at is waste */
   if (v === "reports") paintReports();
   $("#searchBtn").classList.toggle("on", v === "search");
-  if (v === "search") paintSearch();
+  if (searchVisible()) paintSearch();
 }
 function paintAll() {
   if (!state.user) return;
@@ -8050,7 +8081,7 @@ function paintAll() {
   paintClients();
   paintExport();
   if (state.view === "reports") paintReports();
-  if (state.view === "search") paintSearch();
+  if (searchVisible()) paintSearch();
   paintSettings();
   paintSync();
 }
@@ -8382,6 +8413,16 @@ $("#rSave").addEventListener("click", openSaveReportModal);
    whole app (Edit, a client's Edit) are handled by the document-wide
    listener below; this one only remembers the search before they run. */
 $("#searchBtn").addEventListener("click", openSearch);
+$("#qToggle").addEventListener("click", () => {
+  searchState.tsOpen = !searchState.tsOpen;
+  try { localStorage.setItem("sundial-ts-search", searchState.tsOpen ? "open" : "closed"); } catch (_) {}
+  hostSearchPanel(state.view);
+  if (searchState.tsOpen) {
+    if (!searchState.extended) openSearch._extend && openSearch._extend();
+    paintSearch();
+    setTimeout(() => $("#qInput").focus(), 30);
+  }
+});
 document.addEventListener("keydown", e => {
   if (e.key !== "/" || e.ctrlKey || e.metaKey || e.altKey || e.defaultPrevented) return;
   if (!state.user || modalStack.length) return;
@@ -8431,7 +8472,7 @@ $("#v-search").addEventListener("click", e => {
   let tm = null;
   window.addEventListener("resize", () => {
     clearTimeout(tm);
-    tm = setTimeout(() => { if (state.view === "search") paintSearch(); }, 150);
+    tm = setTimeout(() => { if (searchVisible()) paintSearch(); }, 150);
   });
 })();
 

@@ -206,7 +206,9 @@ every device and ride along in the JSON backup.
 ## Search
 
 Reports answers "how much". **Search** answers "where is the entry where I
-wrote X" and "what did I do on ticket 5421". The magnifier in the header opens
+wrote X" and "what did I do on ticket 5421". The same panel also sits at the
+top of the Timesheet, folded away until you press **Show search**, so a note
+can be chased without leaving the day. The magnifier in the header opens
 it - on a phone too, where the top nav is the tab bar - and on a keyboard the
 **/** key does the same whenever you are not already typing in a field. It is a
 screen of its own rather than a seventh tab, because six is what the phone tab
@@ -713,6 +715,18 @@ real Google layer is chosen everywhere else, because the same hostname check
 that gates mock mode gates it.
 
 ## Changelog
+
+### v0.9.1 - 2026-09-25
+
+Search is on the Timesheet as well. The Search screen is where a search
+starts when you already know you are looking for something; the Timesheet is
+where you are when a name in a note rings a bell and you want to find the rest
+of it without leaving the day. So the same panel - the box, the tooltip, the
+recent chips and the results - now sits at the top of the Timesheet as a
+fold-away card. It starts folded, opens with **Show search**, and remembers
+the choice on the device. It is one panel moved between two homes rather than
+two copies, so a search typed on the Timesheet is still in the box when the
+magnifier opens the Search screen.
 
 ### v0.9.0 - 2026-09-25
 
