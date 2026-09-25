@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Sundial v0.8.3</title>
-<meta name="version" content="0.8.3" />
+<title>Sundial v0.8.4</title>
+<meta name="version" content="0.8.4" />
 <meta name="robots" content="noindex, nofollow" />
 <meta name="description" content="Internal hours tracker for Umbrella Automation. Restricted to @umbrellaautomation.com accounts." />
 <meta name="theme-color" content="#1e6fd9" />
@@ -98,7 +98,8 @@ a{color:var(--accent)}
 
 /* ---------- app chrome ---------- */
 .top{display:flex;align-items:center;gap:12px;padding:10px 16px;background:var(--topbar);color:var(--toptext);border-bottom:1px solid var(--line);flex-wrap:wrap;position:sticky;top:0;z-index:20}
-.brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:19px;letter-spacing:.02em;min-width:0}
+.brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:19px;letter-spacing:.02em;min-width:0;cursor:pointer;background:none;border:0;padding:0;color:inherit;font-family:inherit}
+.brand:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:6px}
 .brand svg{width:26px;height:26px;flex:none;color:var(--accent)}
 .brand .v{font:12px var(--mono);color:var(--topmuted);margin-left:2px;font-weight:400}
 .nav{display:flex;gap:2px;flex-wrap:wrap}
@@ -755,7 +756,7 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
   <a href="./" id="demoLeave" title="Goes back to the ordinary app, which asks you to sign in. Nothing from the demo is kept.">Leave demo</a>
 </div>
 <header class="top">
-  <div class="brand">
+  <button class="brand" id="brandHome" type="button" title="Back to the Clock.">
     <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
       <circle cx="32" cy="32" r="24" fill="none" stroke="currentColor" stroke-width="5"/>
       <g stroke="currentColor" stroke-width="4" stroke-linecap="round">
@@ -766,7 +767,7 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
       <circle cx="32" cy="32" r="3" fill="currentColor"/>
     </svg>
     Sundial <span class="v" id="verChip"></span>
-  </div>
+  </button>
   <nav class="nav" id="topNav">
     <button data-view="clock" class="on">Clock</button>
     <button data-view="timesheet">Timesheet</button>
@@ -1257,12 +1258,12 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
 
 <script type="module">
 /* ==============================================================
-   Sundial v0.8.3 - hours tracker
+   Sundial v0.8.4 - hours tracker
    Single file on purpose: no build step, same as Backup Audits.
    Firestore rules for /sundial_users live in ../watchtower/firestore.rules.
    ============================================================== */
 
-const APP_VERSION    = "0.8.3";
+const APP_VERSION    = "0.8.4";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const OWNER_EMAIL    = "frank@umbrellaautomation.com";
 const SDK            = "https://www.gstatic.com/firebasejs/12.13.0/";
@@ -7794,6 +7795,8 @@ $("#rSave").addEventListener("click", openSaveReportModal);
 $("#sName").addEventListener("change", e => saveSetting({ yourName: e.target.value.trim() }));
 $("#sTheme").addEventListener("change", e => saveSetting({ theme: e.target.value }));
 /* header toggle: flips between an explicit light and dark; "system" stays a Settings choice */
+/* the wordmark is the way home, as on every site */
+$("#brandHome").addEventListener("click", () => { if (state.user) setView("clock"); });
 $("#themeToggle").addEventListener("click", () => {
   const next = document.documentElement.getAttribute("data-eff") === "dark" ? "light" : "dark";
   state.settings.theme = next;

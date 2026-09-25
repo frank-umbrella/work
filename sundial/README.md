@@ -648,6 +648,12 @@ that gates mock mode gates it.
 
 ## Changelog
 
+### v0.8.4 - 2026-09-25
+
+Clicking the Sundial logo or name in the header goes back to the Clock. It is
+what a logo does on every site, and with six things in the nav the Clock
+button had become one of a crowd.
+
 ### v0.8.3 - 2026-09-25
 
 The Billable column is on by default. It arrived in v0.7.1 as an option in
