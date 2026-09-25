@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Sundial roadmap v0.8.1</title>
-<meta name="version" content="0.8.1" />
+<title>Sundial roadmap v0.8.2</title>
+<meta name="version" content="0.8.2" />
 <meta name="robots" content="noindex, nofollow" />
 <meta name="description" content="What Sundial has shipped, what is next, what is later, and what it is deliberately not going to do." />
 <meta name="theme-color" content="#1e6fd9" />
@@ -141,6 +141,8 @@ main{padding:16px;display:grid;gap:16px;max-width:900px;margin:0 auto;width:100%
     <p class="lede">Newest first, one line per release. The full story of each one is in the
       README changelog, which explains why rather than only what.</p>
     <div class="items ship">
+      <div class="item"><span class="k">v0.8.2 &middot; Sep 25</span><span class="t">Every Stop reaches Google Calendar, and the catch-up finds the ones that never did</span>
+        <span class="d">The write that followed a Stop compared the entry against a copy that had not caught up yet, decided it was still running, and skipped it without a trace; the catch-up now also treats any finished entry from the last two weeks with no event as waiting, so the days that were missed go up on the next click.</span></div>
       <div class="item"><span class="k">v0.8.1 &middot; Sep 24</span><span class="t">A seven-day skyline on the Clock</span>
         <span class="d">The five equal tiles and the separate This week card become one card: today as the big number with the billable split and a Running line, the week as seven small bars (today in the accent color, the running part hatched, tap a day to open it on the Timesheet), and the clients, average per worked day and capacity bar beside them.</span></div>
       <div class="item"><span class="k">v0.8.0 &middot; Sep 24</span><span class="t">Reports</span>
@@ -254,7 +256,7 @@ main{padding:16px;display:grid;gap:16px;max-width:900px;margin:0 auto;width:100%
 </main>
 
 <footer class="foot">
-  <span>Sundial v0.8.1</span>
+  <span>Sundial v0.8.2</span>
   <span><a href="index.html">Back to Sundial</a></span>
 </footer>
 

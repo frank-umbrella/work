@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Sundial v0.8.1</title>
-<meta name="version" content="0.8.1" />
+<title>Sundial v0.8.2</title>
+<meta name="version" content="0.8.2" />
 <meta name="robots" content="noindex, nofollow" />
 <meta name="description" content="Internal hours tracker for Umbrella Automation. Restricted to @umbrellaautomation.com accounts." />
 <meta name="theme-color" content="#1e6fd9" />
@@ -1257,12 +1257,12 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
 
 <script type="module">
 /* ==============================================================
-   Sundial v0.8.1 - hours tracker
+   Sundial v0.8.2 - hours tracker
    Single file on purpose: no build step, same as Backup Audits.
    Firestore rules for /sundial_users live in ../watchtower/firestore.rules.
    ============================================================== */
 
-const APP_VERSION    = "0.8.1";
+const APP_VERSION    = "0.8.2";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const OWNER_EMAIL    = "frank@umbrellaautomation.com";
 const SDK            = "https://www.gstatic.com/firebasejs/12.13.0/";
@@ -6788,6 +6788,13 @@ async function gcalPushEntry(e, interactive) {
     }
   }
   const ev = await GCAL.insertEvent(g.calendarId, body, interactive);
+  /* if the entry was put back on the clock while its event was being made,
+     the event has nothing to show and goes straight back out */
+  const now = state.entries.find(x => x.id === e.id);
+  if (now && !now.end) {
+    gcalQueue(() => gcalDropEvent(g.calendarId, ev.id).catch(err => gcalProblem(err, null)));
+    return "skipped";
+  }
   rawStore().updateEntry(e.id, { gcalEventId: ev.id, gcalSyncedAt: new Date(), gcalDirty: false });
   return "created";
 }
@@ -6817,9 +6824,16 @@ function gcalOnEntryChanged(entry) {
      is already on the calendar is kept honest. */
   if (!g.auto && !entry.gcalEventId) return;
   gcalQueue(() => {
-    /* whatever the entry looks like by the time its turn comes up */
-    const fresh = state.entries.find(x => x.id === entry.id) || entry;
-    if (!fresh.end) return null;
+    /* Whatever the entry looks like by the time its turn comes up - with one
+       caveat that cost every Stop from v0.4 to v0.8.1 its event: the Firestore
+       write does not touch state.entries until its snapshot comes back, and
+       this runs before that, so the copy in state still has no end. That copy
+       was taken as "went back to running" and the write was skipped without
+       a flag, which is why the catch-up never saw those entries either. The
+       snapshot copy wins only when it has an end; otherwise the merged entry
+       this was called with (which does) is what gets written. */
+    const latest = state.entries.find(x => x.id === entry.id);
+    const fresh = latest && latest.end ? latest : entry;
     return gcalPushEntry(fresh, false).catch(err => gcalProblem(err, fresh));
   });
   /* and a second look a few minutes on: the notes usually get typed right
@@ -6837,8 +6851,21 @@ function gcalOnEntryChanged(entry) {
 const GCAL_SETTLE_MS = 3 * 60 * 1000;
 const GCAL_SWEEP_MS  = 10 * 60 * 1000;
 let gcalFlushTimer = null, gcalClickFlushAt = 0;
+/* An entry the calendar should have but does not: one whose write failed
+   (flagged dirty), or a finished one from the last two weeks that has no
+   event at all - a write that was skipped rather than failed leaves no flag
+   behind, and before v0.8.2 that was every Stop. Older gaps are left to the
+   Sync buttons on purpose, so connecting Google to an account with a year
+   of history does not quietly push the whole year up on the first click. */
+const GCAL_CATCHUP_DAYS = 14;
+function gcalNeedsMirror(e) {
+  if (!e || !e.end) return false;
+  if (e.gcalDirty) return true;
+  if (e.gcalEventId || gcalCfg().auto === false) return false;
+  return e.day >= dayKey(addDays(new Date(), -GCAL_CATCHUP_DAYS));
+}
 function gcalWaiting() {
-  return gcalConnected() && (gcalPendingDeletes.length > 0 || state.entries.some(e => e.gcalDirty && e.end));
+  return gcalConnected() && (gcalPendingDeletes.length > 0 || state.entries.some(gcalNeedsMirror));
 }
 function gcalScheduleFlush(ms) {
   if (!gcalConnected()) return;
@@ -6871,7 +6898,7 @@ function gcalOnEntryDeleted(entry) {
 async function gcalFlush(opts) {
   const quiet = !(opts && opts.loud);
   if (!gcalConnected()) { if (!quiet) toast("Connect Google Calendar first.", true); return; }
-  const dirty = state.entries.filter(e => e.gcalDirty && e.end);
+  const dirty = state.entries.filter(gcalNeedsMirror);
   const drops = gcalPendingDeletes.slice();
   if (!dirty.length && !drops.length) { if (!quiet) toast("Nothing is waiting for Google Calendar."); return; }
   let done = 0, failed = 0;
@@ -6994,7 +7021,7 @@ function gcalStatusHTML() {
   if (!g.clientId) return "Not connected. Paste the client ID above, then press Connect.";
   if (!g.calendarId) return "Not connected. Press Connect to give Sundial permission and create the " + esc(GCAL_NAME) + " calendar.";
   if (g.connected === false) return "Disconnected. The <b>" + esc(GCAL_NAME) + "</b> calendar it made is remembered, so Connect goes back to that one rather than starting a second.";
-  const waiting = state.entries.filter(e => e.gcalDirty && e.end).length + gcalPendingDeletes.length;
+  const waiting = state.entries.filter(gcalNeedsMirror).length + gcalPendingDeletes.length;
   const mirrored = state.entries.filter(e => e.gcalEventId).length;
   /* Google Calendar opens a specific calendar from a "cid" that is the
      base64 of its id, which is how a "view this calendar" link is built. */

@@ -648,6 +648,33 @@ that gates mock mode gates it.
 
 ## Changelog
 
+### v0.8.2 - 2026-09-25
+
+Every Stop reaches Google Calendar now. It did not before, and the reason is
+worth spelling out because it hid behind three earlier fixes.
+
+When a timer stops, Sundial writes the end time to the database and, a moment
+later, hands the entry to the calendar queue. The queue looked the entry up
+in the in-memory list before writing, so that it would send whatever the
+entry looked like by then (a note typed straight after the Stop, say). But
+the database write does not update that list until its own snapshot comes
+back, and the queue ran first. The copy it found still had no end time, which
+it read as "this entry went back to running" and skipped - with no error and
+no flag. Manual entries and edits of already-stopped entries were fine, which
+is why the Sync buttons always worked and why everything looked connected.
+The catch-up added in v0.7.1 only retried entries that had *failed*, and a
+skipped entry had not failed, so it never saw them either. That is why whole
+days were missing from the calendar while the status line said all was well.
+
+Two changes. The queue now trusts the entry it was handed when the in-memory
+copy has not caught up, and only prefers the fresher copy when that copy has
+an end. And "waiting for Google Calendar" now means any finished entry from
+the last two weeks with no event, not only the flagged ones - so the three
+minute flush, the ten minute sweep, the click that stands in for Sync, and
+the status line's count all pick up the days that were missed. Older gaps are
+left to the Sync buttons on purpose, so connecting Google to an account with a
+year of history does not push the whole year up on the first click.
+
 ### v0.8.1 - 2026-09-24
 
 The Clock's stats are one card instead of six boxes.
@@ -739,7 +766,9 @@ that usually get typed right after the Stop; a sweep every ten minutes sends
 whatever is still waiting while the tab is open, which is the end-of-day
 catch-up; and, because Google only hands out its token during a click, any
 click in the app while entries are waiting asks for the token and sends them,
-at most once a minute. Google's script is also fetched at sign-in rather than
+at most once a minute. Since v0.8.2 "waiting" also covers any finished entry
+from the last two weeks that has no event, whether or not a write was ever
+attempted. Google's script is also fetched at sign-in rather than
 the first time Settings is opened, so the renewal on a Stop has it ready. The
 event description has always carried the project, tickets and notes lines;
 what was missing was the update that put them there after an edit.
