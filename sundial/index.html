@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Sundial v0.8.2</title>
-<meta name="version" content="0.8.2" />
+<title>Sundial v0.8.3</title>
+<meta name="version" content="0.8.3" />
 <meta name="robots" content="noindex, nofollow" />
 <meta name="description" content="Internal hours tracker for Umbrella Automation. Restricted to @umbrellaautomation.com accounts." />
 <meta name="theme-color" content="#1e6fd9" />
@@ -1257,12 +1257,12 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
 
 <script type="module">
 /* ==============================================================
-   Sundial v0.8.2 - hours tracker
+   Sundial v0.8.3 - hours tracker
    Single file on purpose: no build step, same as Backup Audits.
    Firestore rules for /sundial_users live in ../watchtower/firestore.rules.
    ============================================================== */
 
-const APP_VERSION    = "0.8.2";
+const APP_VERSION    = "0.8.3";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const OWNER_EMAIL    = "frank@umbrellaautomation.com";
 const SDK            = "https://www.gstatic.com/firebasejs/12.13.0/";
@@ -1370,17 +1370,18 @@ const DEFAULT_JOB_TYPES = ["Remote support", "On-site", "Project", "Travel", "Ad
 const DEFAULT_LOCATIONS = ["On-site", "Remote"];
 /* Location is off by default: it is new, and a column nobody asked for is a
    column in the way. */
-const DEFAULT_COLUMNS   = ["start", "end", "dur", "client", "job", "ticket", "project", "notes"];
+/* Billable is on by default since v0.8.3: a tag under the job type wrapped
+   the cell, and the owner expected the column to simply be there. */
+const DEFAULT_COLUMNS   = ["start", "end", "dur", "client", "job", "billable", "ticket", "project", "notes"];
 const COLUMN_DEFS = [
   { k: "start",    label: "Start" },
   { k: "end",      label: "End" },
   { k: "dur",      label: "Duration" },
   { k: "client",   label: "Client" },
   { k: "job",      label: "Job type" },
-  /* Billable is off by default: most entries are billable and the tag under
-     the job type only shows up on the exceptions. Turn the column on when
-     the tags start wrapping the Job type cell onto two lines - the tag then
-     moves out of that cell and every row reads Yes or No in its own place. */
+  /* While Billable is on, every row reads Yes or No here and the non-billable
+     tag leaves the Job type cell; switch it off in the Columns manager and
+     the tag comes back on the exceptions. */
   { k: "billable", label: "Billable" },
   { k: "location", label: "Location" },
   { k: "ticket",   label: "Ticket" },

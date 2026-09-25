@@ -648,6 +648,15 @@ that gates mock mode gates it.
 
 ## Changelog
 
+### v0.8.3 - 2026-09-25
+
+The Billable column is on by default. It arrived in v0.7.1 as an option in
+the Columns manager, off unless you went looking, and the `non-billable`
+tag went on wrapping the Job type cell for anyone who did not. A column that
+exists to fix a layout problem should not be hidden behind the thing it
+fixes. New accounts start with it; it can still be switched off, and the
+tag comes back on the exceptions when it is.
+
 ### v0.8.2 - 2026-09-25
 
 Every Stop reaches Google Calendar now. It did not before, and the reason is
@@ -754,8 +763,9 @@ Google Calendar section explains why that part cannot go away.
 **Billable as a column.** The `non-billable` tag lives under the job type
 name and wraps the cell onto a second line, which looks cluttered on a row
 that is otherwise one line tall. The Columns manager now has a **Billable**
-column, off by default: turn it on and every row reads Yes or No in its own
-place, the tag leaves the Job type cell, and the column sorts like any other.
+column (off by default until v0.8.3, on since): every row reads Yes or No in
+its own place, the tag leaves the Job type cell, and the column sorts like any
+other.
 
 **Google Calendar catches up on its own.** An entry that could not be
 mirrored the moment it stopped - no token in hand, a blocked window, a phone
