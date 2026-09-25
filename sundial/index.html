@@ -119,6 +119,14 @@ html:not([data-eff="dark"]) .themebtn .sun{display:none}
 /* six nav items plus the email no longer fit one line on a tablet; the
    footer already says who is signed in, so the email is the thing to drop */
 @media (max-width:1080px){.who .em{display:none}}
+/* the magnifier made the bar wrap between 640 and about 900px: tighter nav
+   buttons and a sync pill that is only its dot (the title still says the
+   state) bring it back to one line */
+@media (max-width:900px){
+  .nav button{padding:6px 8px}
+  .sync{padding:3px 7px;gap:0}
+  .sync #syncText{display:none}
+}
 main{padding:16px;display:grid;gap:16px;max-width:1180px;margin:0 auto;width:100%;min-width:0}
 .view{display:none;gap:16px;min-width:0}
 .view.on{display:grid}
@@ -739,9 +747,15 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
   .mt tbody tr.noterow{margin-top:0;border-top:0;border-radius:0 0 var(--radius) var(--radius);padding-top:0}
   .mt tr.noterow td{padding:4px 0;border-bottom:0}
 }
-@media (max-width:640px){
-  .nav,.who .em{display:none}
+/* the top nav gives way to the bottom tab bar below 780px: with six views
+   and a magnifier, the bar could not hold one line between 640 and 780 */
+@media (max-width:780px){
+  .nav{display:none}
   .tabbar{display:flex}
+}
+@media (max-width:640px){
+  .who .em{display:none}
+  .brand .v{display:none}   /* the magnifier took the version chip's room on a phone */
   main{padding:12px}
   .timer{font-size:46px}
   .fld{font-size:16px}
