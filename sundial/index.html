@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Sundial v0.8.4</title>
-<meta name="version" content="0.8.4" />
+<title>Sundial v0.8.5</title>
+<meta name="version" content="0.8.5" />
 <meta name="robots" content="noindex, nofollow" />
 <meta name="description" content="Internal hours tracker for Umbrella Automation. Restricted to @umbrellaautomation.com accounts." />
 <meta name="theme-color" content="#1e6fd9" />
@@ -972,12 +972,12 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
         <label class="ck"><input type="checkbox" id="xNotes" checked> Include notes <span class="q" title="Turn off when you only want the shape of the day and not the detail.">?</span></label>
         <label class="ck"><input type="checkbox" id="xProject" checked> Include project</label>
         <label class="ck"><input type="checkbox" id="xTicket" checked> Include ticket #</label>
-        <label class="ck"><input type="checkbox" id="xGroup" checked> Group by client <span class="q" title="Off gives one line per entry with the client in front, which pastes into a spreadsheet more cleanly.">?</span></label>
+        <label class="ck"><input type="checkbox" id="xGroup"> Group by client <span class="q" title="Off lists the day in the order it happened, one line per entry with the client in front. On sorts the entries under each client with a subtotal, which is the layout for an invoice rather than a day report.">?</span></label>
         <label class="ck" id="xAmountsRow" hidden><input type="checkbox" id="xAmounts" checked> Show amounts <span class="q" title="Money from the client's hourly rate and the rounded billable hours. Non-billable time never carries an amount. Turn it off to send the same hours without the money.">?</span></label>
         <label class="lab">Template</label>
         <span class="seg" id="xTemplate">
-          <button data-t="grouped" class="on">Grouped</button>
-          <button data-t="flat">Flat</button>
+          <button data-t="flat" class="on" title="One line per entry in the order of the day. What most people want to send at the end of it.">By time</button>
+          <button data-t="grouped" title="Entries sorted under each client with a subtotal. The layout for an invoice.">By client</button>
         </span>
         <div class="hint">Time is always stored raw. Rounding happens here, on the way out.</div>
         </div>
@@ -1110,7 +1110,7 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
       <h4>Tracking</h4>
       <div class="g2">
         <div><label class="lab" for="sRounding">Default rounding <span class="q" title="The increment every export rounds each entry to before adding anything up. Stored time is never rounded, and a client can override this on its own card.">?</span></label><select class="fld" id="sRounding"><option value="none">None</option><option value="6">6 minutes</option><option value="15">15 minutes</option></select></div>
-        <div><label class="lab" for="sTemplateSel">Export template <span class="q" title="The layout the Export screen opens with.">?</span></label><select class="fld" id="sTemplateSel"><option value="grouped">Grouped by client</option><option value="flat">Flat, one line per entry</option></select></div>
+        <div><label class="lab" for="sTemplateSel">Export order <span class="q" title="The layout every copy uses: Copy today, Copy day, and the Export screen when it opens. By time reads like the day happened; By client reads like an invoice.">?</span></label><select class="fld" id="sTemplateSel"><option value="flat">By time - one line per entry, in the order of the day</option><option value="grouped">By client - grouped with a subtotal per client</option></select></div>
       </div>
       <div class="g2">
         <div><label class="lab" for="sCapacity">Weekly capacity hours <span class="q" title="The full week you are measuring against. The utilization bar on the Clock and the Timesheet shows the week against it, so you can see how full it is before Friday.">?</span></label><input class="fld" id="sCapacity" type="number" min="0" step="0.5"><div class="hint" id="sCapacityHint"></div></div>
@@ -1258,12 +1258,12 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
 
 <script type="module">
 /* ==============================================================
-   Sundial v0.8.4 - hours tracker
+   Sundial v0.8.5 - hours tracker
    Single file on purpose: no build step, same as Backup Audits.
    Firestore rules for /sundial_users live in ../watchtower/firestore.rules.
    ============================================================== */
 
-const APP_VERSION    = "0.8.4";
+const APP_VERSION    = "0.8.5";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const OWNER_EMAIL    = "frank@umbrellaautomation.com";
 const SDK            = "https://www.gstatic.com/firebasejs/12.13.0/";
@@ -1416,7 +1416,7 @@ function defaultAvailability() { return JSON.parse(JSON.stringify(DEFAULT_AVAILA
 const DEFAULT_SETTINGS = {
   yourName: "", timeFormat: "12h", weekStart: "sun", rounding: "none",
   defaultJobTypes: DEFAULT_JOB_TYPES.map(normDefaultJobType),
-  exportTemplate: "grouped", showAmounts: false,
+  exportTemplate: "flat", showAmounts: false,
   newClientBillable: true, newClientAllowConcurrent: false,
   weeklyCapacityHours: 40, mileageRate: 0.70, defaultView: "day", notify: false,
   availability: defaultAvailability(),
@@ -1471,7 +1471,7 @@ const state = {
      override win"; a value pins that increment on every client. */
   /* mode picks which half of the Export screen is showing: the hours block
      or the mileage claim. Range and client filter are shared. */
-  xOpts: { mode: "hours", range: "today", from: "", to: "", client: "", billable: "all", notes: true, project: true, ticket: true, group: true, amounts: true, rounding: null, template: "grouped" },
+  xOpts: { mode: "hours", range: "today", from: "", to: "", client: "", billable: "all", notes: true, project: true, ticket: true, group: false, amounts: true, rounding: null, template: "flat" },
   /* The Reports screen's filters and grouping. Not persisted on its own:
      a set worth keeping is kept as a saved report in settings. */
   rOpts: defaultReportOpts()
@@ -7346,7 +7346,7 @@ function paintSettings() {
   set("#sTimeFormat", s.timeFormat || "12h");
   set("#sWeekStart", s.weekStart || "sun");
   set("#sRounding", s.rounding || "none");
-  set("#sTemplateSel", s.exportTemplate || "grouped");
+  set("#sTemplateSel", s.exportTemplate || "flat");
   set("#sCapacity", s.weeklyCapacityHours != null ? s.weeklyCapacityHours : 40);
   set("#sMileage", s.mileageRate != null ? Number(s.mileageRate).toFixed(2) : "0.70");
   set("#sDefaultView", s.defaultView || "day");
@@ -8173,7 +8173,7 @@ function handlers() {
          the token renewal has to run inside a click with nothing awaited
          first, and it can only do that if the script is already here */
       if (gcalConnected() && GCAL && typeof GCAL.preload === "function") GCAL.preload();
-      state.xOpts.template = state.settings.exportTemplate || "grouped";
+      state.xOpts.template = state.settings.exportTemplate || "flat";
       state.xOpts.group = state.xOpts.template === "grouped";
       if (!handlers._tsViewDone) { handlers._tsViewDone = true; state.tsView = loadTsView(); }
       applyTheme();

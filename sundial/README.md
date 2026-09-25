@@ -648,6 +648,21 @@ that gates mock mode gates it.
 
 ## Changelog
 
+### v0.8.5 - 2026-09-25
+
+Copies list the day in the order it happened. Copy today, Copy day and the
+Export screen all defaulted to the grouped layout - entries sorted under each
+client with a subtotal - which is the shape of an invoice, not of a day. The
+thing you send at five o'clock is "here is what I did, in order", and having
+to flip the template every time to get that was the wrong way round.
+
+**By time** is the default now: one line per entry, in the order of the day,
+with the client in front of each line. **By client** is the other choice,
+picked per copy on the Export screen or once for everything in Settings under
+**Export order**. The Group by client checkbox on Export is the same switch.
+Nothing changes for an account that had already chosen a template in
+Settings; that choice is kept.
+
 ### v0.8.4 - 2026-09-25
 
 Clicking the Sundial logo or name in the header goes back to the Clock. It is
