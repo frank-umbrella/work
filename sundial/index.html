@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Sundial v0.9.1</title>
-<meta name="version" content="0.9.1" />
+<title>Sundial v0.9.2</title>
+<meta name="version" content="0.9.2" />
 <meta name="robots" content="noindex, nofollow" />
 <meta name="description" content="Internal hours tracker for Umbrella Automation. Restricted to @umbrellaautomation.com accounts." />
 <meta name="theme-color" content="#1e6fd9" />
@@ -1339,12 +1339,12 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
 
 <script type="module">
 /* ==============================================================
-   Sundial v0.9.1 - hours tracker
+   Sundial v0.9.2 - hours tracker
    Single file on purpose: no build step, same as Backup Audits.
    Firestore rules for /sundial_users live in ../watchtower/firestore.rules.
    ============================================================== */
 
-const APP_VERSION    = "0.9.1";
+const APP_VERSION    = "0.9.2";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const OWNER_EMAIL    = "frank@umbrellaautomation.com";
 const SDK            = "https://www.gstatic.com/firebasejs/12.13.0/";
@@ -2118,6 +2118,20 @@ function clientLocations(c) {
   return list.length ? list : DEFAULT_LOCATIONS.slice();
 }
 function activeClients() { return state.clients.filter(c => !c.archived).sort((a, b) => a.name.localeCompare(b.name)); }
+/* The job type this client was last used with, if it is still one of the
+   client's active job types. Picking a client is nearly always followed by
+   picking the same job type as last time, so every place a client is chosen
+   fills that in and leaves the exceptions to be changed by hand. */
+function lastJobTypeFor(c) {
+  if (!c) return "";
+  const ok = {}; activeJobTypes(c).forEach(j => { ok[j.id] = true; });
+  let best = null;
+  state.entries.forEach(e => {
+    if (e.clientId !== c.id || !ok[e.jobTypeId]) return;
+    if (!best || toDate(e.start) > toDate(best.start)) best = e;
+  });
+  return best ? best.jobTypeId : "";
+}
 function activeJobTypes(c) { return c && Array.isArray(c.jobTypes) ? c.jobTypes.filter(j => !j.archived) : []; }
 function entriesForDay(day) {
   return state.entries.filter(e => e.day === day).sort((a, b) => toDate(a.start) - toDate(b.start));
@@ -3869,7 +3883,7 @@ function openEntryModal(mode, src, opts) {
       : "";
   }
   eClient.addEventListener("change", () => {
-    refreshJobs("");
+    refreshJobs(lastJobTypeFor(clientById(eClient.value)));
     const c = clientById(eClient.value);
     $("#eBillable", w).checked = effBillable(c, jobTypeById(c, eJob.value));
     refreshTravel(); refreshDur();
@@ -8035,6 +8049,7 @@ function startFromClientModal(c) {
   const w = openModal("Start " + c.name, body,
     '<button class="btn" data-close>Cancel</button><button class="btn go" data-go>Start now</button>');
   const sel = $("#csJob", w), eff = $("#csEffect", w);
+  const last = lastJobTypeFor(c); if (last) sel.value = last;
   const paintEffect = () => {
     const jt = jobTypeById(c, sel.value);
     const stops = willStop(jt);
@@ -8094,7 +8109,11 @@ $("#footVer").textContent = "Sundial v" + APP_VERSION;
 
 $$("#topNav button, #tabbar button").forEach(b => b.addEventListener("click", () => setView(b.getAttribute("data-view"))));
 
-$("#fClient").addEventListener("change", () => { paintClock(); });
+$("#fClient").addEventListener("change", () => {
+  paintClock();
+  const fj = $("#fJob");
+  if (!fj.value) { fj.value = lastJobTypeFor(clientById($("#fClient").value)); paintClock(); }
+});
 $("#fJob").addEventListener("change", () => { glow($("#fJob")); paintPunchButton(); });
 /* A plain Start writes nothing to the calendar - a running entry has no end
    to show - so it must not open the Google window. Only a Log with an end
@@ -8135,7 +8154,7 @@ $("#switchBtn").addEventListener("click", () => {
   const r = runningEntries()[0];
   state.startPanelOpen = true;
   paintClock();
-  if (r) { $("#fClient").value = r.clientId; paintClock(); }
+  if (r) { $("#fClient").value = r.clientId; paintClock(); if (!$("#fJob").value) { $("#fJob").value = lastJobTypeFor(clientById(r.clientId)); paintClock(); } }
   $("#fClient").focus();
 });
 $("#punchOutBtn").addEventListener("click", () => { gcalTouch(); const r = runningEntries()[0]; if (r) punchOut(r.id); });

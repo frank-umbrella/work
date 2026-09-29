@@ -63,6 +63,8 @@ there - there is no link to press first - because the two things anybody does
 on this screen are "start it now" and "I forgot to start it", and the second
 one should not be hidden behind the first.
 
+- Picking a client fills in the job type it was last used with (v0.9.2), so
+  the usual case is one pick, not two. Change it when this time is different.
 - Leave both times blank and the button reads **Start**: the timer begins at
   the moment you press it.
 - Type a **start time** only and the button reads **Start at 9:02 AM**: the
@@ -715,6 +717,18 @@ real Google layer is chosen everywhere else, because the same hostname check
 that gates mock mode gates it.
 
 ## Changelog
+
+### v0.9.2 - 2026-09-29
+
+Picking a client picks its last job type. Most clients get the same kind of
+work most of the time, so the second dropdown was nearly always set to the
+same thing as last time, by hand, on every Start. Now choosing a client on the
+Clock, pressing Switch, pressing Start on a client card, or changing the
+client in the entry form fills in the job type that client was last used with,
+if it is still one of the client's active job types. It is a default, not a
+lock: pick another when this time is different. A client with no history, or
+whose last job type has since been archived, is left at "Pick a job type" as
+before.
 
 ### v0.9.1 - 2026-09-25
 
