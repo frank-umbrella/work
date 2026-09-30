@@ -65,6 +65,9 @@ one should not be hidden behind the first.
 
 - Picking a client fills in the job type it was last used with (v0.9.2), so
   the usual case is one pick, not two. Change it when this time is different.
+- **Now** beside Start time or End time writes this minute into that pair of
+  boxes; **Last stop** beside Start time starts the entry when the previous
+  one ended (v0.9.3).
 - Leave both times blank and the button reads **Start**: the timer begins at
   the moment you press it.
 - Type a **start time** only and the button reads **Start at 9:02 AM**: the
@@ -717,6 +720,25 @@ real Google layer is chosen everywhere else, because the same hostname check
 that gates mock mode gates it.
 
 ## Changelog
+
+### v0.9.3 - 2026-09-30
+
+Two shortcuts beside the time boxes on the idle Clock. **Now**, next to Start
+time and again next to End time, puts the current date and time in that pair
+of boxes: the work is finishing this minute and you are logging it after the
+fact, or it is starting this minute and you want the time written down rather
+than implied. **Last stop**, next to Start time, puts the end of the most
+recently finished entry in the start boxes, which is what "I went straight
+from that to this" means - no gap to type and no overlap to correct. Both
+behave exactly as if you had typed the time: the button relabels itself,
+the hint line updates, and the draft is kept.
+
+**Copy week.** The Timesheet's This week card has **Copy week as text** and
+**Copy week for email** beside the utilization bar, on screen in the Day, Week
+and Calendar views alike. They cover the seven days of the strip - the week
+that starts on your week-start day - with the same client filter as the day
+buttons and the same layout as every other copy, so a week goes into an email
+with one press instead of a trip to Export.
 
 ### v0.9.2 - 2026-09-29
 
