@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Sundial v0.9.3</title>
-<meta name="version" content="0.9.3" />
+<title>Sundial v0.9.4</title>
+<meta name="version" content="0.9.4" />
 <meta name="robots" content="noindex, nofollow" />
 <meta name="description" content="Internal hours tracker for Umbrella Automation. Restricted to @umbrellaautomation.com accounts." />
 <meta name="theme-color" content="#1e6fd9" />
@@ -149,6 +149,9 @@ select.fld{appearance:none;background-image:linear-gradient(45deg,transparent 50
 .fld[disabled]{opacity:.55;cursor:not-allowed}
 .fld[readonly]{background:var(--bg2);color:var(--muted);cursor:default}
 textarea.fld{min-height:64px;resize:vertical}
+/* a notes box grows with what is typed (autoGrow) instead of scrolling
+   inside itself; the drag handle stays for anyone who wants it taller */
+textarea.fld.grow{overflow-y:hidden}
 .money{position:relative;display:block}
 .money .fld{padding-left:24px}
 .money:before{content:"$";position:absolute;left:10px;top:9px;color:var(--muted);font-size:14px;pointer-events:none}
@@ -328,6 +331,12 @@ textarea.fld{min-height:64px;resize:vertical}
 .idletimes .lab{display:flex;align-items:baseline;gap:6px}
 .idletimes .tlinks{margin-left:auto;display:inline-flex;gap:10px;font-weight:400}
 .idletimes .tlinks .morebtn{margin-top:0;white-space:nowrap}
+/* the time box and its AM/PM switch share one row; the switch never wraps
+   and the box takes what is left */
+.tw{display:flex;align-items:center;gap:6px;min-width:0}
+.tw .fld{flex:1 1 auto;min-width:0}
+.seg.ampm{flex:none;gap:2px;padding:2px}
+.seg.ampm button{padding:5px 8px;font-size:12px;font-family:var(--mono)}
 #timesHint{margin-top:6px}
 .nowhead .pill{order:1}
 .nowhead .timer{order:2;font-size:40px;margin:0}
@@ -424,6 +433,7 @@ textarea.fld{min-height:64px;resize:vertical}
 .sky .right .week{grid-column:1/-1;display:grid;gap:5px}
 .sky .right .ubar{height:8px;border:0}
 .sky .right .ukey{gap:4px 12px}
+.sky .wkcopy{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 @media (max-width:820px){.sky{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.sky .mid{grid-column:1/-1;order:3}}
 @media (max-width:480px){.sky{grid-template-columns:minmax(0,1fr)}}
 
@@ -860,9 +870,9 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
                  block, and both were previously a click away behind a link. -->
             <div class="idletimes">
               <div><label class="lab" for="fStartD">Start date <span class="q" title="The day the work happened. It sits on today, so most of the time only the times below need typing.">?</span></label><input type="date" class="fld" id="fStartD"></div>
-              <div><label class="lab" for="fStartT">Start time <span class="q" title="Leave it blank to start the timer now. Earlier than now is fine: with no end time the entry keeps running from this start, so the timer shows the real elapsed time.">?</span><span class="tlinks"><button type="button" class="morebtn" id="fStartNow" title="Puts the current date and time in the start boxes. For an entry you are logging as it ends, or one that starts this minute.">Now</button><button type="button" class="morebtn" id="fStartLast" title="Starts this entry the minute the last one stopped, so back-to-back work has no gap and no overlap.">Last stop</button></span></label><input type="time" class="fld" id="fStartT"></div>
+              <div><label class="lab" for="fStartT">Start time <span class="q" title="Leave it blank to start the timer now. Earlier than now is fine: with no end time the entry keeps running from this start, so the timer shows the real elapsed time.">?</span><span class="tlinks"><button type="button" class="morebtn" id="fStartNow" title="Puts the current date and time in the start boxes. For an entry you are logging as it ends, or one that starts this minute.">Now</button><button type="button" class="morebtn" id="fStartLast" title="Starts this entry the minute the last one stopped, so back-to-back work has no gap and no overlap.">Last stop</button></span></label><div class="tw"><input type="time" class="fld" id="fStartT"><span class="seg ampm" data-for="fStartT" title="Flips the hour between morning and afternoon without retyping it. Type the hour and minutes first."><button type="button" data-ap="AM">AM</button><button type="button" data-ap="PM">PM</button></span></div></div>
               <div><label class="lab" for="fEndD">End date <span class="q" title="The day the work finished, for a block that ran past midnight. It sits on today like the start date.">?</span></label><input type="date" class="fld" id="fEndD"></div>
-              <div><label class="lab" for="fEndT">End time <span class="q" title="Set an end to log a finished entry straight from here without running the timer. Leave it blank to start it running.">?</span><span class="tlinks"><button type="button" class="morebtn" id="fEndNow" title="Puts the current date and time in the end boxes: the work is finishing right now and you are logging it after the fact.">Now</button></span></label><input type="time" class="fld" id="fEndT"></div>
+              <div><label class="lab" for="fEndT">End time <span class="q" title="Set an end to log a finished entry straight from here without running the timer. Leave it blank to start it running.">?</span><span class="tlinks"><button type="button" class="morebtn" id="fEndNow" title="Puts the current date and time in the end boxes: the work is finishing right now and you are logging it after the fact.">Now</button></span></label><div class="tw"><input type="time" class="fld" id="fEndT"><span class="seg ampm" data-for="fEndT" title="Flips the hour between morning and afternoon without retyping it. Type the hour and minutes first."><button type="button" data-ap="AM">AM</button><button type="button" data-ap="PM">PM</button></span></div></div>
             </div>
             <div class="hint" id="timesHint"></div>
             <div class="since availline" id="outAvail" hidden></div>
@@ -1120,9 +1130,9 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
         <button data-rbl="no">Non-billable only</button>
       </span>
       <div class="g3">
-        <div><label class="lab" for="rTicket">Ticket contains <span class="q" title="Part of a ticket number is enough, and a leading # is ignored. It matches anywhere in an entry's tickets, so 5421 finds an entry logged against 5421 and 5430 together.">?</span></label><input class="fld" id="rTicket" autocomplete="off" spellcheck="false"></div>
-        <div><label class="lab" for="rProject">Project contains <span class="q" title="Any part of the project label, ignoring case, so migration finds M365 migration.">?</span></label><input class="fld" id="rProject" autocomplete="off"></div>
-        <div><label class="lab" for="rNotes">Notes contains <span class="q" title="Any word or phrase in the notes, ignoring case - for the question that starts with how long did we spend on that printer.">?</span></label><input class="fld" id="rNotes" autocomplete="off"></div>
+        <div><label class="lab" for="rfTicket">Ticket contains <span class="q" title="Part of a ticket number is enough, and a leading # is ignored. It matches anywhere in an entry's tickets, so 5421 finds an entry logged against 5421 and 5430 together.">?</span></label><input class="fld" id="rfTicket" autocomplete="off" spellcheck="false"></div>
+        <div><label class="lab" for="rfProject">Project contains <span class="q" title="Any part of the project label, ignoring case, so migration finds M365 migration.">?</span></label><input class="fld" id="rfProject" autocomplete="off"></div>
+        <div><label class="lab" for="rfNotes">Notes contains <span class="q" title="Any word or phrase in the notes, ignoring case - for the question that starts with how long did we spend on that printer.">?</span></label><input class="fld" id="rfNotes" autocomplete="off"></div>
       </div>
       <div class="g2">
         <div><label class="lab" for="rG1">Group by <span class="q" title="One row per whatever you pick here in the Breakdown. Day, Week and Month read in date order; the rest start with the biggest.">?</span></label><select class="fld" id="rG1"></select></div>
@@ -1348,12 +1358,12 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
 
 <script type="module">
 /* ==============================================================
-   Sundial v0.9.3 - hours tracker
+   Sundial v0.9.4 - hours tracker
    Single file on purpose: no build step, same as Backup Audits.
    Firestore rules for /sundial_users live in ../watchtower/firestore.rules.
    ============================================================== */
 
-const APP_VERSION    = "0.9.3";
+const APP_VERSION    = "0.9.4";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const OWNER_EMAIL    = "frank@umbrellaautomation.com";
 const SDK            = "https://www.gstatic.com/firebasejs/12.13.0/";
@@ -2131,6 +2141,24 @@ function activeClients() { return state.clients.filter(c => !c.archived).sort((a
    client's active job types. Picking a client is nearly always followed by
    picking the same job type as last time, so every place a client is chosen
    fills that in and leaves the exceptions to be changed by hand. */
+/* The location a job type usually comes with: the one this client and job
+   type were last logged at, or - before there is any history - a location
+   whose name is in the job type's name ("Remote support" picks "Remote").
+   Returns "" when there is nothing to go on, so the box is left alone. */
+function defaultLocationFor(c, jobTypeId) {
+  if (!c || !jobTypeId) return "";
+  const list = clientLocations(c);
+  let best = null;
+  state.entries.forEach(e => {
+    if (e.clientId !== c.id || e.jobTypeId !== jobTypeId || !e.location) return;
+    if (list.indexOf(e.location) < 0) return;
+    if (!best || toDate(e.start) > toDate(best.start)) best = e;
+  });
+  if (best) return best.location;
+  const name = (jobTypeName(c, jobTypeId) || "").toLowerCase();
+  const hit = list.find(l => l && name.indexOf(l.toLowerCase()) >= 0);
+  return hit || "";
+}
 function lastJobTypeFor(c) {
   if (!c) return "";
   const ok = {}; activeJobTypes(c).forEach(j => { ok[j.id] = true; });
@@ -2251,6 +2279,7 @@ function paintClock() {
       $("#rTicket").value  = main.ticket  || "";
       $("#rProject").value = main.project || "";
       $("#rNotes").value   = main.notes   || "";
+      autoGrow($("#rNotes"));
       $("#rLocation").value = main.location || "";
     }
     const others = running.slice(1);
@@ -2276,6 +2305,10 @@ function paintClock() {
   const fl = $("#fLocation");
   fl.disabled = !c;
   fillLocationSelect(fl, c, fl.value);
+  /* an emptied notes box (after Start, Log or a discarded draft) goes back
+     to one line; one with text in it is left at whatever height it grew to */
+  const fn = $("#fNotes");
+  if (fn && !fn.value && fn.style.height) autoGrow(fn);
   /* The dates sit on today unless somebody typed another one, so the usual
      case is two time boxes and nothing else. While a timer is running the
      block that holds them is off screen, and a time left in an invisible box
@@ -2502,6 +2535,11 @@ function paintSky() {
         '<div class="ubar" role="img" aria-label="' + esc(fmtDur(t.bill) + " billable and " + fmtDur(t.non) + " non-billable" + (t.cap ? " of " + capLabel(t.cap) : "")) + '">' +
           '<i class="b" style="width:' + bw.toFixed(2) + '%"></i><i class="nb" style="width:' + nw.toFixed(2) + '%"></i></div>' +
         '<div class="ukey"><span><i class="b"></i>Billable ' + esc(fmtDur(t.bill)) + '</span><span><i class="nb"></i>Non-billable ' + esc(fmtDur(t.non)) + "</span></div>" +
+        /* the week copies sit under the capacity bar, where the week is */
+        '<div class="wkcopy">' +
+          '<button type="button" class="btn sm acc" data-wkcopy="text" title="Copies this week - all clients, the seven days from your week-start day - as the same email-ready text the Export screen produces, using your saved export options.">Copy week as text</button>' +
+          '<button type="button" class="btn sm" data-wkcopy="email" title="Copies the same week as a table, so Gmail and Outlook paste rows and columns instead of a block of text. The plain text goes on the clipboard too, for anywhere that cannot take a table.">Copy week for email</button>' +
+        "</div>" +
       "</div>" +
     "</div>";
 
@@ -3501,6 +3539,35 @@ function lastStoppedEntry() {
   state.entries.forEach(e => { if (e.end && (!best || toDate(e.end) > toDate(best.end))) best = e; });
   return best;
 }
+/* ---- notes boxes that grow as you type ----
+   Every textarea.fld follows its content up to 40% of the window, then
+   scrolls inside. Called from the document-level input listener and after
+   anything that sets a notes value by code. */
+function autoGrow(ta) {
+  if (!ta || ta.tagName !== "TEXTAREA") return;
+  ta.classList.add("grow");
+  ta.style.height = "auto";
+  const max = Math.max(120, Math.round(window.innerHeight * 0.4));
+  const want = ta.scrollHeight + 2;
+  ta.style.height = Math.min(want, max) + "px";
+  ta.style.overflowY = want > max ? "auto" : "hidden";
+}
+function autoGrowAll(root) { $$("textarea.fld", root || document).forEach(autoGrow); }
+document.addEventListener("input", e => { if (e.target && e.target.matches && e.target.matches("textarea.fld")) autoGrow(e.target); });
+/* ---- AM / PM beside a time box ----
+   The native time box has its own AM/PM segment, which is a small target
+   on a phone and easy to leave on the wrong half of the day. These two
+   buttons flip the hour of whatever is typed and light up to show which
+   half the box is on. */
+function paintAmPm() {
+  $$(".seg.ampm").forEach(seg => {
+    const inp = $("#" + seg.getAttribute("data-for"));
+    const h = inp && inp.value ? parseInt(inp.value.slice(0, 2), 10) : NaN;
+    $$("button", seg).forEach(b => {
+      b.classList.toggle("on", !isNaN(h) && (b.getAttribute("data-ap") === "PM") === (h >= 12));
+    });
+  });
+}
 function clearStartTimes() {
   const today = localInput(new Date());
   $("#fStartD").value = today; $("#fStartT").value = "";
@@ -3818,6 +3885,7 @@ function openEntryModal(mode, src, opts) {
   $("#eTicket", w).value  = base.ticket  || "";
   $("#eProject", w).value = base.project || "";
   $("#eNotes", w).value   = base.notes   || "";
+  autoGrow($("#eNotes", w));
   /* A duplicate is the same job again, so it keeps the location too. */
   $("#eLocation", w).value = base.location || "";
   const c0 = clientById(eClient.value);
@@ -3917,6 +3985,8 @@ function openEntryModal(mode, src, opts) {
     const c = clientById(eClient.value);
     $("#eBillable", w).checked = effBillable(c, jobTypeById(c, eJob.value));
     glow(eJob); refreshTravel(); refreshDur();
+    const el = $("#eLocation", w);
+    if (el && !el.value) { const d = defaultLocationFor(c, eJob.value); if (d) el.value = d; }
   });
   ["eStartD", "eStartT", "eEndD", "eEndT"].forEach(id => $("#" + id, w).addEventListener("input", () => {
     if (id === "eStartD" || id === "eStartT") startTouched = true; else endTouched = true;
@@ -6370,7 +6440,7 @@ function paintReports() {
   $("#rLocs").innerHTML = locItems.length ? rChipsHTML(locItems, "data-rloc", o.locations)
     : '<span class="hint">No entry in this range has a location.</span>';
   $$("#rBill button").forEach(b => b.classList.toggle("on", b.getAttribute("data-rbl") === o.billable));
-  setVal("rTicket", o.ticket); setVal("rProject", o.project); setVal("rNotes", o.notes);
+  setVal("rfTicket", o.ticket); setVal("rfProject", o.project); setVal("rfNotes", o.notes);
   const gItems = R_GROUPS.map(g => ({ v: g.k, t: g.label }));
   fillSelect($("#rG1"), gItems, null, o.g1);
   fillSelect($("#rG2"), gItems, "None", rActiveG2());
@@ -8082,8 +8152,9 @@ function startFromClientModal(c) {
       : stops.length ? "Will stop " + stops.map(entryLabel).join(", ") + " first."
       : "Runs alongside " + running.map(entryLabel).join(", ") + ".";
   };
-  sel.addEventListener("change", paintEffect); paintEffect();
   fillLocationSelect($("#csLocation", w), c, "");
+  const followLoc = () => { const el = $("#csLocation", w); if (el && !el.value) { const d = defaultLocationFor(c, sel.value); if (d) el.value = d; } };
+  sel.addEventListener("change", () => { paintEffect(); followLoc(); }); paintEffect(); followLoc();
   $("[data-go]", w).addEventListener("click", () => {
     const jt = jobTypeById(c, sel.value);
     const now = new Date();
@@ -8137,9 +8208,20 @@ $$("#topNav button, #tabbar button").forEach(b => b.addEventListener("click", ()
 $("#fClient").addEventListener("change", () => {
   paintClock();
   const fj = $("#fJob");
-  if (!fj.value) { fj.value = lastJobTypeFor(clientById($("#fClient").value)); paintClock(); }
+  if (!fj.value) {
+    fj.value = lastJobTypeFor(clientById($("#fClient").value)); paintClock();
+    const fl = $("#fLocation");
+    if (fj.value && fl && !fl.value) { const d = defaultLocationFor(clientById($("#fClient").value), fj.value); if (d) fl.value = d; }
+  }
 });
-$("#fJob").addEventListener("change", () => { glow($("#fJob")); paintPunchButton(); });
+$("#fJob").addEventListener("change", () => {
+  glow($("#fJob")); paintPunchButton();
+  const fl = $("#fLocation");
+  if (fl && !fl.value) {
+    const d = defaultLocationFor(clientById($("#fClient").value), $("#fJob").value);
+    if (d) { fl.value = d; fl.dispatchEvent(new Event("change", { bubbles: true })); }
+  }
+});
 /* A plain Start writes nothing to the calendar - a running entry has no end
    to show - so it must not open the Google window. Only a Log with an end
    time, or a Start that stops a job already running, ends in a write. */
@@ -8148,6 +8230,17 @@ $("#punchBtn").addEventListener("click", () => {
   startJob(startFields());
 });
 ["fStartD", "fStartT", "fEndD", "fEndT"].forEach(id => $("#" + id).addEventListener("input", paintPunchButton));
+["fStartT", "fEndT"].forEach(id => $("#" + id).addEventListener("input", paintAmPm));
+$$(".seg.ampm").forEach(seg => seg.addEventListener("click", e => {
+  const b = e.target.closest("[data-ap]"); if (!b) return;
+  const inp = $("#" + seg.getAttribute("data-for"));
+  if (!inp.value) { toast("Type the hour and minutes first, then pick AM or PM.", true); inp.focus(); return; }
+  let h = parseInt(inp.value.slice(0, 2), 10); const m = inp.value.slice(3, 5);
+  const pm = b.getAttribute("data-ap") === "PM";
+  if (pm && h < 12) h += 12; else if (!pm && h >= 12) h -= 12;
+  inp.value = p2(h) + ":" + m;
+  inp.dispatchEvent(new Event("input", { bubbles: true }));
+}));
 $("#fStartNow").addEventListener("click", () => setStartFormTime("Start", new Date()));
 $("#fEndNow").addEventListener("click", () => setStartFormTime("End", new Date()));
 $("#fStartLast").addEventListener("click", () => {
@@ -8332,6 +8425,15 @@ const TS_WEEK_OPTS = () => {
   return { range: "custom", from: dayKey(ws), to: dayKey(addDays(ws, 6)), client: state.tsClient || "", billable: "all" };
 };
 $("#copyWeekBtn").addEventListener("click", () => withOpts(TS_WEEK_OPTS(), copyExportText));
+/* the same two copies on the Clock's week card: the current week, every client */
+const CLOCK_WEEK_OPTS = () => {
+  const ws = startOfWeek(new Date(), state.settings.weekStart);
+  return { range: "custom", from: dayKey(ws), to: dayKey(addDays(ws, 6)), client: "", billable: "all" };
+};
+$("#skyCard").addEventListener("click", e => {
+  const b = e.target.closest("[data-wkcopy]"); if (!b) return;
+  withOpts(CLOCK_WEEK_OPTS(), b.getAttribute("data-wkcopy") === "email" ? copyExportRich : copyExportText);
+});
 $("#copyWeekHtmlBtn").addEventListener("click", () => withOpts(TS_WEEK_OPTS(), copyExportRich));
 $("#copyDayBtn").addEventListener("click", () => withOpts(TS_DAY_OPTS(), copyExportText));
 $("#copyDayHtmlBtn").addEventListener("click", () => withOpts(TS_DAY_OPTS(), copyExportRich));
@@ -8428,7 +8530,9 @@ $("#rFrom").addEventListener("change", e => { state.rOpts.from = e.target.value;
 $("#rTo").addEventListener("change", e => { state.rOpts.to = e.target.value; paintReports(); });
 /* The contains boxes filter as you type, a beat after the last key, so a
    long history is not re-added up on every letter. */
-[["rTicket", "ticket"], ["rProject", "project"], ["rNotes", "notes"]].forEach(p => {
+/* rf-, not r-: the Clock's running-edit fields are rTicket/rProject/rNotes,
+   and sharing the ids bound these listeners to those boxes instead (v0.9.4) */
+[["rfTicket", "ticket"], ["rfProject", "project"], ["rfNotes", "notes"]].forEach(p => {
   let tm = null;
   $("#" + p[0]).addEventListener("input", e => {
     state.rOpts[p[1]] = e.target.value;

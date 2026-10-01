@@ -68,6 +68,9 @@ one should not be hidden behind the first.
 - **Now** beside Start time or End time writes this minute into that pair of
   boxes; **Last stop** beside Start time starts the entry when the previous
   one ended (v0.9.3).
+- **AM** and **PM** beside each time box flip the hour of what is typed and
+  show which half of the day it is on (v0.9.4). The notes box grows as you
+  type.
 - Leave both times blank and the button reads **Start**: the timer begins at
   the moment you press it.
 - Type a **start time** only and the button reads **Start at 9:02 AM**: the
@@ -721,6 +724,44 @@ that gates mock mode gates it.
 
 ## Changelog
 
+### v0.9.4 - 2026-10-01
+
+**Notes grow as you type.** A notes box on the Clock, on the running entry
+and in the entry form started one line tall and stayed that way, so a
+four-sentence note was read through a letterbox. Every notes box now follows
+what is typed, up to about forty percent of the window, and only then scrolls
+inside itself. The drag handle is still there for anyone who wants it taller
+sooner.
+
+**AM and PM beside the time boxes.** The browser's own time box carries an
+AM/PM segment that is a small target on a phone and easy to leave on the
+wrong half of the day, which turns a 2:15 PM start into a 2:15 AM one that
+only shows up on the invoice. Two buttons sit beside each time box on the
+Clock: they flip the hour of whatever is typed and light up to show which half
+of the day the box is on.
+
+**The location follows the job type.** Picking a job type on the Clock, on
+a client card's Start, or in the entry form fills in the location it usually
+comes with, when the location box is still empty: the location that client
+and job type were last logged at, or, before there is any history, a location
+whose name appears in the job type's name - so Remote support picks Remote.
+It is a default, not a lock.
+
+What the location is for, since the question came up: it is a label for
+where the work happened, from a short list the client owns - On-site and
+Remote to begin with, plus whatever you add, such as the names of a client's
+branches when a practice or a dealership has more than one. It is optional,
+has no GPS behind it, shows in the tables, the exports and the calendar
+event, and the Location column is off by default.
+
+**The Reports contains boxes work again.** Ticket contains, Project contains
+and Notes contains on Reports shared their ids with the running entry's
+Ticket, Project and Notes fields on the Clock. The browser hands back the
+first match for an id, so the Reports boxes had no listener at all, and the
+Reports painter was writing its filter text into the Clock's fields. The
+Reports boxes have their own ids now. If a running entry's notes ever looked
+like they had been cleared while you were on Reports, this was why.
+
 ### v0.9.3 - 2026-09-30
 
 Two shortcuts beside the time boxes on the idle Clock. **Now**, next to Start
@@ -739,6 +780,8 @@ and Calendar views alike. They cover the seven days of the strip - the week
 that starts on your week-start day - with the same client filter as the day
 buttons and the same layout as every other copy, so a week goes into an email
 with one press instead of a trip to Export.
+Since v0.9.4 the same two buttons sit under the capacity bar on the Clock's
+week card, for the current week and every client.
 
 ### v0.9.2 - 2026-09-29
 
