@@ -2,13 +2,22 @@
 # Windows-only — pywin32 / wmi / pystray are all Windows-specific.
 #
 # Pinned to versions known to work with PyInstaller 6.x and Python 3.11+.
+#
+# All pins verified clean against the OSV + PyPI advisory DBs as of
+# v0.14.55 (2026-10-01) via `pip-audit --strict`. The two upgrades in
+# this bump were the ONLY ones showing CVE hits in the audit; both are
+# straight patch/minor bumps with no API changes affecting our use.
 
-requests==2.32.3        # HTTP client for check-ins to watchtower-worker
-pywin32==306            # Win32 service framework (watchtower_service.py)
+requests==2.34.2        # HTTP client for check-ins to watchtower-worker
+                        # (bumped from 2.32.3; fixes PYSEC-2026-1872 + PYSEC-2026-2275)
+pywin32==312            # Win32 service framework (watchtower_service.py)
+                        # (bumped from 306; no CVEs in 306 but 312 is latest stable)
 wmi==1.5.1              # Pythonic wrapper over WMI/CIM, used by most probes
 pystray==0.19.5         # System tray icon for watchtower_tray.py
-Pillow==10.4.0          # Image lib pystray needs to render the tray icon
-psutil==6.0.0           # Cross-platform process/system info (NICs, RAM stats)
+Pillow==12.3.0          # Image lib pystray needs to render the tray icon
+                        # (bumped from 10.4.0; fixes 20+ CVEs PYSEC-2026-165/2249/...)
+psutil==7.2.2           # Cross-platform process/system info (NICs, RAM stats)
+                        # (bumped from 6.0.0; same API surface we use)
 
 # Build-time only (don't bundle into the produced EXE):
 #   pyinstaller==6.10.0

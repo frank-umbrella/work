@@ -25,6 +25,7 @@ do that by collecting all detected products.
 
 import json
 import os
+import re
 import subprocess
 import winreg
 
@@ -802,6 +803,164 @@ def _parse_session_list(stdout):
     return {"_raw": data_rows[0]}
 
 
+# ──────────────────────────────────────────────────────────────────────
+# Veeam log-file identifier scanner.
+#
+# Each Veeam Agent / Endpoint job keeps a rolling log directory under
+#   C:\ProgramData\Veeam\Endpoint\<job folder name>\*.log
+# (Veeam B&R uses C:\ProgramData\Veeam\Backup\<job folder>\*.log; we
+# scan both locations so hosts running either flavour get IDs populated.)
+#
+# Inside those logs Veeam prints the repository path it's writing to,
+# which embeds a cluster of UUIDs that uniquely identify the job on the
+# B&R server side:
+#   Veeam/Backup/<Folder>/Clients/{<ClientId>}/Subclients/{<SubclientId>}/<BackupId>
+# And separately a line of the form:
+#   JobId: {<JobId>}
+# (whitespace / underscore / case variations tolerated by the regex.)
+#
+# These IDs let an operator paste a value into the B&R console search
+# and jump straight to the right job -- much faster than hunting by
+# human-readable name, especially when the same job name appears on
+# multiple hosts.
+#
+# Scanner constraints (read-only, bounded):
+#   * Scan at most 10 log subfolders.
+#   * Per subfolder, examine the single most recently modified .log file.
+#   * Timeout the whole scan at ~2 seconds via file-count cap; we do NOT
+#     read full logs, just scan until both patterns matched or EOF.
+#   * The probe NEVER writes or deletes anything. Pure read.
+# ──────────────────────────────────────────────────────────────────────
+
+_VEEAM_LOG_ROOTS = (
+    r"C:\ProgramData\Veeam\Endpoint",
+    r"C:\ProgramData\Veeam\Backup",
+)
+
+# Repository path pattern: Veeam/Backup/<Folder>/Clients/{<ClientId>}/Subclients/{<SubclientId>}/<BackupId>
+_RX_REPO_PATH = re.compile(
+    r"Veeam/Backup/(?P<folder>[^/]+)/Clients/\{(?P<clientId>[0-9a-f-]{36})\}"
+    r"/Subclients/\{(?P<subclientId>[0-9a-f-]{36})\}/(?P<backupId>[0-9a-f-]{36})",
+    re.IGNORECASE,
+)
+# JobId line: "Job Id: {uuid}", "JobId:{uuid}", "JOB_ID = uuid" (any
+# combination of space / underscore between words, optional braces).
+_RX_JOB_ID = re.compile(
+    r"Job[\s_]?I[dD][^0-9a-f{]*\{?(?P<jobId>[0-9a-f-]{36})",
+    re.IGNORECASE,
+)
+
+
+def _scan_single_log(log_path):
+    """Return {jobId, folder, clientId, subclientId, backupId} from the
+    given .log file. Any field not found is omitted. Reads up to the
+    first 500 KB -- the IDs are logged early in the session so a tiny
+    read window is sufficient and keeps the probe fast on hosts with
+    massive log files."""
+    found = {}
+    try:
+        with open(log_path, "r", encoding="utf-8", errors="replace") as f:
+            buf = f.read(500 * 1024)
+    except OSError:
+        return found
+
+    m = _RX_REPO_PATH.search(buf)
+    if m:
+        found["folder"] = m.group("folder")
+        found["clientId"] = m.group("clientId")
+        found["subclientId"] = m.group("subclientId")
+        found["backupId"] = m.group("backupId")
+    m = _RX_JOB_ID.search(buf)
+    if m:
+        found["jobId"] = m.group("jobId")
+
+    return found
+
+
+def _scan_veeam_log_identifiers():
+    """Walk the Veeam log roots and build a list of per-job identifier
+    dicts. Each entry looks like:
+      {jobName: '<folder name reformatted>', jobId: '...', folder: '...',
+       clientId: '...', subclientId: '...', backupId: '...'}
+
+    folder-name reformat: underscores in the directory name become
+    spaces -- Veeam stores logs under "My_Backup_Job" even when the job
+    is named "My Backup Job", so the display label is clearer with the
+    underscore→space swap. The raw folder name is still preserved as
+    jobFolder for exact lookup.
+    """
+    results = []
+    seen_folders = 0
+    for root in _VEEAM_LOG_ROOTS:
+        if not os.path.isdir(root):
+            continue
+        try:
+            subs = [
+                os.path.join(root, name) for name in os.listdir(root)
+                if os.path.isdir(os.path.join(root, name))
+            ]
+        except OSError as e:
+            _logger.log(f"  veeam._scan_veeam_log_identifiers: listdir {root!r} failed: {e}")
+            continue
+
+        for sub in subs:
+            if seen_folders >= 10:
+                break
+            seen_folders += 1
+            try:
+                logs = sorted(
+                    (os.path.join(sub, f) for f in os.listdir(sub) if f.lower().endswith(".log")),
+                    key=lambda p: os.path.getmtime(p),
+                    reverse=True,
+                )
+            except OSError:
+                continue
+            if not logs:
+                continue
+            ids = _scan_single_log(logs[0])
+            if not ids:
+                continue
+            folder_name = os.path.basename(sub)
+            entry = {
+                "jobName": folder_name.replace("_", " "),
+                "jobFolder": folder_name,
+            }
+            entry.update(ids)
+            results.append(entry)
+
+    _logger.log(
+        f"  veeam._scan_veeam_log_identifiers: scanned {seen_folders} folders, "
+        f"found {len(results)} identifier records"
+    )
+    return results
+
+
+def _merge_identifiers_into_jobs(jobs, identifiers):
+    """Attach each identifiers entry to the matching entry in jobs by
+    name match. Returns (merged_jobs, unmatched_identifiers).
+
+    Match strategy: case-insensitive compare of normalized names where
+    underscores and multiple spaces collapse to a single space. Veeam's
+    log folder names use underscores where the UI/CLI reports spaces,
+    so a strict equality check misses most matches.
+    """
+    def norm(s):
+        return re.sub(r"[\s_]+", " ", (s or "").strip().lower())
+
+    jobs_by_norm = {norm(j.get("name")): j for j in jobs}
+    unmatched = []
+    for ident in identifiers:
+        key = norm(ident.get("jobName"))
+        if key and key in jobs_by_norm:
+            target = jobs_by_norm[key]
+            for k in ("jobId", "folder", "clientId", "subclientId", "backupId", "jobFolder"):
+                if ident.get(k) and not target.get(k):
+                    target[k] = ident[k]
+        else:
+            unmatched.append(ident)
+    return jobs, unmatched
+
+
 def collect():
     try:
         products = []
@@ -814,6 +973,50 @@ def collect():
 
         if not products:
             return None
+
+        # Enrich detected jobs with the UUID identifiers Veeam logs
+        # under C:\ProgramData\Veeam\{Endpoint,Backup}\<folder>\*.log.
+        # These are what the B&R server-side console uses to identify
+        # the job, so having them in the dashboard lets the operator
+        # jump straight to the right record on the server rather than
+        # hunting by friendly name.
+        try:
+            identifiers = _scan_veeam_log_identifiers()
+            if identifiers:
+                # Try to attach to the matching product's job entry.
+                # Agent product takes priority (its jobs come from
+                # veeamconfig / event log which uses the same friendly
+                # names Veeam writes to the log folders).
+                for product in products:
+                    product_jobs = product.get("jobs") or []
+                    merged, remainder = _merge_identifiers_into_jobs(product_jobs, identifiers)
+                    product["jobs"] = merged
+                    identifiers = remainder  # don't double-attach to the next product
+                    if not identifiers:
+                        break
+                # Any identifiers that didn't match a known job go on
+                # the first product as orphan entries -- surfaces jobs
+                # that exist in the log tree but weren't enumerated by
+                # veeamconfig (CLI uninstalled, snapin missing, etc).
+                if identifiers:
+                    first = products[0]
+                    if "jobs" not in first or not isinstance(first["jobs"], list):
+                        first["jobs"] = []
+                    for ident in identifiers:
+                        first["jobs"].append({
+                            "name": ident.get("jobName") or "(unnamed log folder)",
+                            "jobFolder": ident.get("jobFolder"),
+                            "jobId": ident.get("jobId"),
+                            "folder": ident.get("folder"),
+                            "clientId": ident.get("clientId"),
+                            "subclientId": ident.get("subclientId"),
+                            "backupId": ident.get("backupId"),
+                            "source": "logScan",  # distinguishes from veeamconfig-enumerated jobs
+                        })
+        except Exception as e:
+            # Identifier scan is a nice-to-have; never fail the whole
+            # probe because of it. Record the error alongside the data.
+            products[0]["jobIdentifierScanError"] = f"{e.__class__.__name__}: {e}"
 
         return {
             "installed": True,
