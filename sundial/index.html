@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Sundial v0.9.5</title>
-<meta name="version" content="0.9.5" />
+<title>Sundial v0.9.6</title>
+<meta name="version" content="0.9.6" />
 <meta name="robots" content="noindex, nofollow" />
 <meta name="description" content="Internal hours tracker for Umbrella Automation. Restricted to @umbrellaautomation.com accounts." />
 <meta name="theme-color" content="#1e6fd9" />
@@ -905,7 +905,7 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
               <div><label class="lab" for="rLocation">Location <span class="q" title="Where this was done, as a label you pick: On-site, Remote, whatever this client's list says. It goes in the exports so a client reading their hours can tell a visit from a phone call. No GPS and no map - Sundial never knows where you are.">?</span></label><select class="fld" id="rLocation"></select></div>
               <div class="wide"><label class="lab" for="rNotes">Notes <span class="q" title="What you did. This is the line that goes in the email, so write it for the client.">?</span></label><textarea class="fld" id="rNotes" rows="1"></textarea></div>
             </div>
-            <div class="hint">Saves when you click away. Everything is editable later from the table.</div>
+            <div class="chead" style="margin:8px 0 0"><span class="hint" style="margin:0">Saves when you click away, or press Save. Everything is editable later from the table.</span><span class="sp"><button type="button" class="btn sm acc" id="runSaveBtn" title="Writes the ticket, project, location and notes above to the running entry now, without waiting for the click away.">Save</button></span></div>
           </div>
         </div>
 
@@ -1359,12 +1359,12 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
 
 <script type="module">
 /* ==============================================================
-   Sundial v0.9.5 - hours tracker
+   Sundial v0.9.6 - hours tracker
    Single file on purpose: no build step, same as Backup Audits.
    Firestore rules for /sundial_users live in ../watchtower/firestore.rules.
    ============================================================== */
 
-const APP_VERSION    = "0.9.5";
+const APP_VERSION    = "0.9.6";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const OWNER_EMAIL    = "frank@umbrellaautomation.com";
 const SDK            = "https://www.gstatic.com/firebasejs/12.13.0/";
@@ -8369,6 +8369,18 @@ $("#pauseBtn").addEventListener("click", () => {
     store.updateEntry(r.id, patch);
     toast("Saved.");
   });
+});
+/* Save writes all four fields at once - the blur saves are still there, this
+   is for the person who wants to see it happen */
+$("#runSaveBtn").addEventListener("click", () => {
+  const r = runningEntries()[0]; if (!r) { toast("Nothing is running.", true); return; }
+  const patch = { ticket: $("#rTicket").value.trim(), project: $("#rProject").value.trim(), location: $("#rLocation").value, notes: $("#rNotes").value.trim() };
+  const changed = Object.keys(patch).filter(k => (r[k] || "") !== patch[k]);
+  if (!changed.length) { toast("Already saved - nothing changed."); return; }
+  const p = {}; changed.forEach(k => { p[k] = patch[k]; });
+  gcalTouch();
+  store.updateEntry(r.id, p);
+  toast("Saved.");
 });
 /* A select has no useful blur: it is answered the moment it changes. */
 $("#rLocation").addEventListener("change", () => {

@@ -724,6 +724,15 @@ that gates mock mode gates it.
 
 ## Changelog
 
+### v0.9.6 - 2026-10-05
+
+A **Save** button on the running entry's Edit details panel. The panel has
+always saved each field the moment you clicked away from it, which is the
+right behaviour and stays, but a save you cannot see is a save you do not
+trust. The button writes the ticket, project, location and notes in one go
+and says Saved, or says nothing changed. The entry form's own Save is
+unchanged.
+
 ### v0.9.5 - 2026-10-05
 
 The AM and PM buttons from v0.9.4 did not work the way they looked. The
