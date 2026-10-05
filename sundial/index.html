@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Sundial v0.9.4</title>
-<meta name="version" content="0.9.4" />
+<title>Sundial v0.9.5</title>
+<meta name="version" content="0.9.5" />
 <meta name="robots" content="noindex, nofollow" />
 <meta name="description" content="Internal hours tracker for Umbrella Automation. Restricted to @umbrellaautomation.com accounts." />
 <meta name="theme-color" content="#1e6fd9" />
@@ -337,6 +337,7 @@ textarea.fld.grow{overflow-y:hidden}
 .tw .fld{flex:1 1 auto;min-width:0}
 .seg.ampm{flex:none;gap:2px;padding:2px}
 .seg.ampm button{padding:5px 8px;font-size:12px;font-family:var(--mono)}
+.tw .fld.tx{font-family:var(--mono);font-size:15px}
 #timesHint{margin-top:6px}
 .nowhead .pill{order:1}
 .nowhead .timer{order:2;font-size:40px;margin:0}
@@ -870,9 +871,9 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
                  block, and both were previously a click away behind a link. -->
             <div class="idletimes">
               <div><label class="lab" for="fStartD">Start date <span class="q" title="The day the work happened. It sits on today, so most of the time only the times below need typing.">?</span></label><input type="date" class="fld" id="fStartD"></div>
-              <div><label class="lab" for="fStartT">Start time <span class="q" title="Leave it blank to start the timer now. Earlier than now is fine: with no end time the entry keeps running from this start, so the timer shows the real elapsed time.">?</span><span class="tlinks"><button type="button" class="morebtn" id="fStartNow" title="Puts the current date and time in the start boxes. For an entry you are logging as it ends, or one that starts this minute.">Now</button><button type="button" class="morebtn" id="fStartLast" title="Starts this entry the minute the last one stopped, so back-to-back work has no gap and no overlap.">Last stop</button></span></label><div class="tw"><input type="time" class="fld" id="fStartT"><span class="seg ampm" data-for="fStartT" title="Flips the hour between morning and afternoon without retyping it. Type the hour and minutes first."><button type="button" data-ap="AM">AM</button><button type="button" data-ap="PM">PM</button></span></div></div>
+              <div><label class="lab" for="fStartTx">Start time <span class="q" title="Leave it blank to start the timer now. Type the hour and minutes - 844 or 8:44 both work - and press AM or PM. Earlier than now is fine: with no end time the entry keeps running from this start, so the timer shows the real elapsed time.">?</span><span class="tlinks"><button type="button" class="morebtn" id="fStartNow" title="Puts the current date and time in the start boxes. For an entry you are logging as it ends, or one that starts this minute.">Now</button><button type="button" class="morebtn" id="fStartLast" title="Starts this entry the minute the last one stopped, so back-to-back work has no gap and no overlap.">Last stop</button><button type="button" class="morebtn" id="fStartClear" title="Empties the start time. With no start time the button goes back to Start, meaning now.">Clear</button></span></label><div class="tw"><input type="text" class="fld tx" id="fStartTx" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="h:mm" maxlength="5" aria-label="Hour and minutes"><input type="time" id="fStartT" hidden tabindex="-1"><span class="seg ampm" data-for="fStartT" title="Morning or afternoon for the hour typed on the left. Type 8:44 and press PM for 8:44 in the evening; 1:30 with nothing pressed is 1:30 in the morning."><button type="button" data-ap="AM">AM</button><button type="button" data-ap="PM">PM</button></span></div></div>
               <div><label class="lab" for="fEndD">End date <span class="q" title="The day the work finished, for a block that ran past midnight. It sits on today like the start date.">?</span></label><input type="date" class="fld" id="fEndD"></div>
-              <div><label class="lab" for="fEndT">End time <span class="q" title="Set an end to log a finished entry straight from here without running the timer. Leave it blank to start it running.">?</span><span class="tlinks"><button type="button" class="morebtn" id="fEndNow" title="Puts the current date and time in the end boxes: the work is finishing right now and you are logging it after the fact.">Now</button></span></label><div class="tw"><input type="time" class="fld" id="fEndT"><span class="seg ampm" data-for="fEndT" title="Flips the hour between morning and afternoon without retyping it. Type the hour and minutes first."><button type="button" data-ap="AM">AM</button><button type="button" data-ap="PM">PM</button></span></div></div>
+              <div><label class="lab" for="fEndTx">End time <span class="q" title="Set an end to log a finished entry straight from here without running the timer - type 1015 or 10:15 and press AM or PM. Leave it blank to start it running.">?</span><span class="tlinks"><button type="button" class="morebtn" id="fEndNow" title="Puts the current date and time in the end boxes: the work is finishing right now and you are logging it after the fact.">Now</button><button type="button" class="morebtn" id="fEndClear" title="Empties the end time, so the entry starts running instead of being logged as finished.">Clear</button></span></label><div class="tw"><input type="text" class="fld tx" id="fEndTx" inputmode="numeric" autocomplete="off" spellcheck="false" placeholder="h:mm" maxlength="5" aria-label="Hour and minutes"><input type="time" id="fEndT" hidden tabindex="-1"><span class="seg ampm" data-for="fEndT" title="Morning or afternoon for the hour typed on the left. Type 8:44 and press PM for 8:44 in the evening; 1:30 with nothing pressed is 1:30 in the morning."><button type="button" data-ap="AM">AM</button><button type="button" data-ap="PM">PM</button></span></div></div>
             </div>
             <div class="hint" id="timesHint"></div>
             <div class="since availline" id="outAvail" hidden></div>
@@ -1358,12 +1359,12 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
 
 <script type="module">
 /* ==============================================================
-   Sundial v0.9.4 - hours tracker
+   Sundial v0.9.5 - hours tracker
    Single file on purpose: no build step, same as Backup Audits.
    Firestore rules for /sundial_users live in ../watchtower/firestore.rules.
    ============================================================== */
 
-const APP_VERSION    = "0.9.4";
+const APP_VERSION    = "0.9.5";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const OWNER_EMAIL    = "frank@umbrellaautomation.com";
 const SDK            = "https://www.gstatic.com/firebasejs/12.13.0/";
@@ -2352,6 +2353,7 @@ function canStartAlongside(client, jt) {
   return running.every(e => { const c = clientById(e.clientId); return effConcurrent(c, jobTypeById(c, e.jobTypeId)); });
 }
 function paintPunchButton() {
+  syncClockText();
   const c = clientById($("#fClient").value);
   const jt = jobTypeById(c, $("#fJob").value);
   const running = runningEntries();
@@ -3559,6 +3561,63 @@ document.addEventListener("input", e => { if (e.target && e.target.matches && e.
    on a phone and easy to leave on the wrong half of the day. These two
    buttons flip the hour of whatever is typed and light up to show which
    half the box is on. */
+/* ---- the hour:minutes box ----
+   The visible box is plain text, because the browser's own time box only
+   has a value once hour, minutes AND its tiny AM/PM segment are all filled,
+   which left the AM/PM buttons with nothing to work on. The hidden
+   type=time input with the old id keeps the canonical "HH:MM", so every
+   reader of #fStartT and #fEndT - the Start button, drafts, Now, Last stop,
+   the midnight reset - is unchanged. */
+function parseClockText(txt) {
+  const s = String(txt || "").trim();
+  if (!s) return null;
+  let h, m;
+  if (s.indexOf(":") >= 0 || s.indexOf(".") >= 0) {
+    const parts = s.split(/[:.]/);
+    if (parts.length !== 2 || !/^\d{1,2}$/.test(parts[0]) || !/^\d{2}$/.test(parts[1])) return null;
+    h = parseInt(parts[0], 10); m = parseInt(parts[1], 10);
+  } else {
+    if (!/^\d{1,4}$/.test(s)) return null;
+    if (s.length <= 2) { h = parseInt(s, 10); m = 0; }
+    else { h = parseInt(s.slice(0, s.length - 2), 10); m = parseInt(s.slice(-2), 10); }
+  }
+  if (isNaN(h) || isNaN(m) || h > 23 || m > 59) return null;
+  return { h: h, m: m };
+}
+/* "HH:MM" (24h) -> "h:mm" for the box */
+function clockText(v) {
+  if (!v) return "";
+  const h = parseInt(v.slice(0, 2), 10), m = v.slice(3, 5);
+  return ((h % 12) || 12) + ":" + m;
+}
+/* Typing in the box: a complete hour and minutes become the hidden value,
+   keeping whichever half of the day the box was already on; 13 to 23 is
+   taken as the afternoon it says. Anything incomplete empties the hidden
+   value until it is complete again. */
+function clockTextInput(id) {
+  const tx = $("#" + id + "x"), hid = $("#" + id);
+  const p = parseClockText(tx.value);
+  let v = "";
+  if (p) {
+    let h = p.h;
+    if (h <= 12) {
+      const wasPM = hid.value ? parseInt(hid.value.slice(0, 2), 10) >= 12 : false;
+      if (h === 12) h = wasPM ? 12 : 0; else if (wasPM) h += 12;
+    }
+    v = p2(h) + ":" + p2(p.m);
+  }
+  if (hid.value !== v) { hid.value = v; hid.dispatchEvent(new Event("input", { bubbles: true })); }
+}
+/* the box follows the hidden value whenever it is not being typed in -
+   after Now, Last stop, Clear, a Start, or a draft coming back */
+function syncClockText() {
+  ["fStartT", "fEndT"].forEach(id => {
+    const tx = $("#" + id + "x"), hid = $("#" + id);
+    if (!tx || !hid || document.activeElement === tx) return;
+    const want = clockText(hid.value);
+    if (tx.value !== want) tx.value = want;
+  });
+}
 function paintAmPm() {
   $$(".seg.ampm").forEach(seg => {
     const inp = $("#" + seg.getAttribute("data-for"));
@@ -8233,14 +8292,24 @@ $("#punchBtn").addEventListener("click", () => {
 ["fStartT", "fEndT"].forEach(id => $("#" + id).addEventListener("input", paintAmPm));
 $$(".seg.ampm").forEach(seg => seg.addEventListener("click", e => {
   const b = e.target.closest("[data-ap]"); if (!b) return;
-  const inp = $("#" + seg.getAttribute("data-for"));
-  if (!inp.value) { toast("Type the hour and minutes first, then pick AM or PM.", true); inp.focus(); return; }
-  let h = parseInt(inp.value.slice(0, 2), 10); const m = inp.value.slice(3, 5);
+  const id = seg.getAttribute("data-for"), inp = $("#" + id), tx = $("#" + id + "x");
+  let h, m;
+  if (inp.value) { h = parseInt(inp.value.slice(0, 2), 10); m = parseInt(inp.value.slice(3, 5), 10); }
+  else { const p = parseClockText(tx.value); if (!p) { toast("Type the hour and minutes first - 844 or 8:44 - then pick AM or PM.", true); tx.focus(); return; } h = p.h; m = p.m; }
   const pm = b.getAttribute("data-ap") === "PM";
   if (pm && h < 12) h += 12; else if (!pm && h >= 12) h -= 12;
-  inp.value = p2(h) + ":" + m;
+  inp.value = p2(h) + ":" + p2(m);
   inp.dispatchEvent(new Event("input", { bubbles: true }));
+  tx.value = clockText(inp.value);   // a press is the end of typing, whatever has focus
 }));
+["fStartT", "fEndT"].forEach(id => {
+  const tx = $("#" + id + "x");
+  tx.addEventListener("input", () => clockTextInput(id));
+  tx.addEventListener("blur", () => { clockTextInput(id); syncClockText(); });
+  tx.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); tx.blur(); } });
+});
+$("#fStartClear").addEventListener("click", () => { $("#fStartT").value = ""; $("#fStartT").dispatchEvent(new Event("input", { bubbles: true })); syncClockText(); });
+$("#fEndClear").addEventListener("click",   () => { $("#fEndT").value = "";   $("#fEndT").dispatchEvent(new Event("input", { bubbles: true }));   syncClockText(); });
 $("#fStartNow").addEventListener("click", () => setStartFormTime("Start", new Date()));
 $("#fEndNow").addEventListener("click", () => setStartFormTime("End", new Date()));
 $("#fStartLast").addEventListener("click", () => {

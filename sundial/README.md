@@ -68,9 +68,9 @@ one should not be hidden behind the first.
 - **Now** beside Start time or End time writes this minute into that pair of
   boxes; **Last stop** beside Start time starts the entry when the previous
   one ended (v0.9.3).
-- **AM** and **PM** beside each time box flip the hour of what is typed and
-  show which half of the day it is on (v0.9.4). The notes box grows as you
-  type.
+- The time boxes take hour and minutes - `844` or `8:44` - and **AM** / **PM**
+  beside each one set the half of the day (v0.9.5). **Clear** empties a time.
+  The notes box grows as you type.
 - Leave both times blank and the button reads **Start**: the timer begins at
   the moment you press it.
 - Type a **start time** only and the button reads **Start at 9:02 AM**: the
@@ -723,6 +723,28 @@ real Google layer is chosen everywhere else, because the same hostname check
 that gates mock mode gates it.
 
 ## Changelog
+
+### v0.9.5 - 2026-10-05
+
+The AM and PM buttons from v0.9.4 did not work the way they looked. The
+browser's own time box has three parts - hour, minutes and its own tiny AM/PM
+segment - and reports no value at all until every one of them is filled. Type
+8:44 and leave the segment on "--", press PM, and the button saw an empty box
+and asked you to type a time first. The segment the buttons were meant to
+replace was still the gatekeeper.
+
+So the Clock's two time boxes are now plain hour-and-minutes boxes and the
+buttons own AM and PM outright. Type `844` or `8:44` (a phone keypad has no
+colon, so the digits alone are enough), press **PM**, and the box reads
+`8:44` with PM lit. Typing an hour of 13 to 23 is taken as the afternoon it
+says. The box keeps whichever half of the day it was already on when you
+retype the hour. Underneath, the same `HH:MM` value the rest of Sundial has
+always read is still there, so drafts, Now, Last stop, the Start button's
+label and the midnight reset all behave as before.
+
+**Clear** sits beside each time's other links and empties that time, which
+was awkward to do by hand in the old box. The entry form keeps the
+browser's time box, where the full picker is still the better fit.
 
 ### v0.9.4 - 2026-10-01
 
