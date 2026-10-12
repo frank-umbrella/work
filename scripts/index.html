@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PC Scripts v0.20.0</title>
+<title>PC Scripts v0.21.0</title>
 <meta name="description" content="PowerShell scripts for re-fixing a fresh Windows PC: show all tray icons, stop Copilot and Malwarebytes at startup. Windows 10 and 11.">
 <meta name="robots" content="noindex">
-<meta name="version" content="0.20.0">
+<meta name="version" content="0.21.0">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -307,6 +307,7 @@
         <li><a href="#ram-check">RAM type (DDR / ECC)</a></li>
         <li><a href="#disk-check">Drive type (SSD / HDD)</a></li>
         <li><a href="#recent-files">Recent file activity</a></li>
+        <li><a href="#veeam-info">Veeam backup info</a></li>
       </ul>
     </div>
     <div class="toc-group">
@@ -997,6 +998,56 @@
     </div>
   </section>
 
+  <!-- ===================== Veeam info collector ===================== -->
+  <section class="panel" id="veeam-info">
+    <div class="panel-head">
+      <div>
+        <span class="tag">Diagnostics</span>
+        <h2>Veeam backup info collector (Cloud Connect IDs)</h2>
+        <code class="file">copy-paste check &mdash; no script file</code>
+      </div>
+      <div class="panel-side">
+        <span class="badge badge-warn">Run as admin</span>
+      </div>
+    </div>
+    <p class="purpose">Reads the local <strong>Veeam Agent</strong> logs (<code>C:\ProgramData\Veeam\Endpoint</code>) and pulls the identifying GUIDs for each backup job &mdash; the IDs that let you match an endpoint&rsquo;s job to the <strong>Cloud Connect repository</strong> side (tenant, subtenant, backup) for repo lookups, mapping, or a Veeam support case. Read-only; fine from the LogMeIn admin prompt.</p>
+
+    <div class="opt">
+      <h3>Run the check</h3>
+      <div class="explain">
+        <div class="explain-title">What the fields mean</div>
+        <ul>
+          <li><code>Host</code> / <code>JobName</code> &mdash; the PC and the job (from the log folder name).</li>
+          <li><code>JobId</code> &mdash; the job&rsquo;s GUID from its newest logs.</li>
+          <li><code>Folder</code> / <code>ClientId</code> / <code>SubclientId</code> &mdash; the Cloud Connect repository folder, tenant, and subtenant the job writes into.</li>
+          <li><code>BackupId</code> &mdash; the backup&rsquo;s GUID inside that subtenant.</li>
+          <li><strong>No output for a job?</strong> That job doesn&rsquo;t target Cloud Connect &mdash; local / NAS / share jobs never log these path IDs, so they&rsquo;re skipped by design.</li>
+        </ul>
+      </div>
+      <pre>$base = "C:\ProgramData\Veeam\Endpoint"
+$pathRx = 'Veeam/Backup/(?&lt;Folder&gt;[^/]+)/Clients/\{(?&lt;ClientId&gt;[0-9a-f-]{36})\}/Subclients/\{(?&lt;SubclientId&gt;[0-9a-f-]{36})\}/(?&lt;BackupId&gt;[0-9a-f-]{36})'
+$jobRx  = 'Job[ _]?I[dD][^0-9a-f{]*\{?(?&lt;JobId&gt;[0-9a-f-]{36})'
+
+Get-ChildItem $base -Directory | ForEach-Object {
+  $logs = Get-ChildItem $_.FullName -Filter *.log -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending
+  if (-not $logs) { return }
+  $job  = $logs | Select-String -Pattern $jobRx  | Select-Object -First 1
+  $path = $logs | Select-String -Pattern $pathRx | Select-Object -First 1
+  if (-not $path) { return }
+  [pscustomobject]@{
+    Host        = $env:COMPUTERNAME
+    JobName     = $_.Name -replace '_',' '
+    JobId       = if ($job) { $job.Matches[0].Groups['JobId'].Value } else { '' }
+    Folder      = $path.Matches[0].Groups['Folder'].Value
+    ClientId    = $path.Matches[0].Groups['ClientId'].Value
+    SubclientId = $path.Matches[0].Groups['SubclientId'].Value
+    BackupId    = $path.Matches[0].Groups['BackupId'].Value
+  }
+} | Format-List</pre>
+      <p class="tfield-note">Scans every job folder&rsquo;s newest logs; large log sets can take a moment. GUIDs aren&rsquo;t secrets, but treat the output as internal &mdash; it maps your tenant structure.</p>
+    </div>
+  </section>
+
   <!-- ===================== Devices and Printers ===================== -->
   <section class="panel" id="devices-printers">
     <div class="panel-head">
@@ -1348,7 +1399,7 @@ sc.exe query MBAMService</pre>
 </main>
 
 <footer class="page">
-  <p>PC Scripts <span class="version">v0.20.0</span> &middot; Windows 10 &amp; 11.</p>
+  <p>PC Scripts <span class="version">v0.21.0</span> &middot; Windows 10 &amp; 11.</p>
 </footer>
 
 <script>

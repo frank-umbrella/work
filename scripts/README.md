@@ -54,6 +54,7 @@ label.
 | Check RAM type   | Per-stick DDR3/4/5, size, speed, part number, DIMM/SO-DIMM    | No     |
 | Check drive type | Per-disk SSD/HDD, bus, size, health + which disk Windows is on | No    |
 | `RecentFileActivity.ps1` | Newest modified/accessed files under a folder tree + C:\ log | Rec.  |
+| Veeam backup info | Per-job Cloud Connect IDs (tenant/subtenant/backup GUIDs) from agent logs | Rec. |
 
 ### Deployment (on-page command generators, no script file)
 
@@ -779,6 +780,21 @@ msiexec.exe /i "C:\SentinelInstaller_windows_64bit_v26_1_2_177.msi" SITE_TOKEN="
   field-tested): `sc.exe query SentinelAgent; tasklist | findstr /i sentinel; dir "C:\Program Files\SentinelOne"`
   - service + processes + install folder in one paste (in classic cmd, use `&`
   between commands instead of `;`).
+
+---
+
+# 16d. Veeam backup info collector (Cloud Connect IDs)
+
+Copy-paste check on the page, no script file - run as admin (reads
+`C:\ProgramData\Veeam\Endpoint` agent logs). For each backup job it extracts
+the GUIDs that map the endpoint to the Cloud Connect repository side: JobId,
+repo Folder, ClientId (tenant), SubclientId (subtenant), BackupId. Use for repo
+lookups, tenant mapping, or Veeam support cases.
+
+Jobs with NO output don't target Cloud Connect - local/NAS/share jobs never log
+these path IDs and are skipped by design (verified: the JobId regex matches real
+agent logs; the path regex only appears for Cloud Connect targets). GUIDs
+aren't secrets, but the output maps your tenant structure - keep it internal.
 
 ---
 
