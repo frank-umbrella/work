@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <rect width="1200" height="630" fill="#0E1116"/>
+  <circle cx="980" cy="-140" r="500" fill="#123232"/>
+  <rect x="90" y="150" width="150" height="150" rx="30" fill="#1F9D8F"/>
+  <g transform="translate(123,183)"><path d="M22 10 H52 L64 22 V74 H22 Z" stroke="#FFFFFF" stroke-width="7" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M52 10 V22 H64" stroke="#FFFFFF" stroke-width="7" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M30 32 H54" stroke="#FFFFFF" stroke-width="7" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M30 44 H54" stroke="#FFFFFF" stroke-width="7" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M30 56 H46" stroke="#FFFFFF" stroke-width="7" fill="none" stroke-linecap="round" stroke-linejoin="round"/></g>
+  <text x="272" y="150" font-family="Arial, 'Segoe UI', 'Liberation Sans', sans-serif" font-size="22" font-weight="bold" fill="#28C2AF" text-anchor="start" letter-spacing="4">UMBRELLA AUTOMATION</text>
+  <text x="272" y="232" font-family="Arial, 'Segoe UI', 'Liberation Sans', sans-serif" font-size="92" font-weight="bold" fill="#E6EBF2" text-anchor="start">Standard Operating</text>
+  <text x="272" y="325" font-family="Arial, 'Segoe UI', 'Liberation Sans', sans-serif" font-size="92" font-weight="bold" fill="#E6EBF2" text-anchor="start">Procedures</text>
+  <text x="272" y="397" font-family="Arial, 'Segoe UI', 'Liberation Sans', sans-serif" font-size="28" font-weight="normal" fill="#9AA6B5" text-anchor="start">Numbered, versioned procedures, each a branded downloadable</text>
+  <text x="272" y="435" font-family="Arial, 'Segoe UI', 'Liberation Sans', sans-serif" font-size="28" font-weight="normal" fill="#9AA6B5" text-anchor="start">PDF.</text>
+  <text x="272" y="470" font-family="Arial, 'Segoe UI', 'Liberation Sans', sans-serif" font-size="26" font-weight="normal" fill="#5A6472" text-anchor="start">umbrellaautomation.com</text>
+</svg>

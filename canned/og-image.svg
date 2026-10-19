@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <rect width="1200" height="630" fill="#0E1116"/>
+  <circle cx="980" cy="-140" r="500" fill="#123232"/>
+  <rect x="90" y="150" width="150" height="150" rx="30" fill="#1F9D8F"/>
+  <g transform="translate(123,183)"><rect x="10" y="14" width="64" height="42" rx="11" stroke="#FFFFFF" stroke-width="7" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M26 56 L26 68 L38 56" stroke="#FFFFFF" stroke-width="7" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M38 28 L28 36 L38 44" stroke="#FFFFFF" stroke-width="7" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M28 36 H52 C58 36 58 42 58 48" stroke="#FFFFFF" stroke-width="7" fill="none" stroke-linecap="round" stroke-linejoin="round"/></g>
+  <text x="272" y="183" font-family="Arial, 'Segoe UI', 'Liberation Sans', sans-serif" font-size="22" font-weight="bold" fill="#28C2AF" text-anchor="start" letter-spacing="4">UMBRELLA AUTOMATION</text>
+  <text x="272" y="292" font-family="Arial, 'Segoe UI', 'Liberation Sans', sans-serif" font-size="100" font-weight="bold" fill="#E6EBF2" text-anchor="start">Canned Replies</text>
+  <text x="272" y="362" font-family="Arial, 'Segoe UI', 'Liberation Sans', sans-serif" font-size="28" font-weight="normal" fill="#9AA6B5" text-anchor="start">Copy-paste client replies for common support situations.</text>
+  <text x="272" y="470" font-family="Arial, 'Segoe UI', 'Liberation Sans', sans-serif" font-size="26" font-weight="normal" fill="#5A6472" text-anchor="start">umbrellaautomation.com</text>
+</svg>
