@@ -18,7 +18,7 @@
 <meta name="twitter:title" content="Umbrella LogMeIn Installer">
 <meta name="twitter:description" content="Install the Umbrella support helper in three short steps.">
 <meta name="twitter:image" content="og-image.png">
-<meta name="version" content="1.1.0">
+<meta name="version" content="1.2.0">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Saira:wght@900&display=swap" rel="stylesheet">
@@ -78,7 +78,7 @@
     margin: 0 auto;
     display: flex;
     align-items: center;
-    justify-content: flex-start;
+    justify-content: space-between;
     gap: 16px;
   }
   header.page .brand {
@@ -90,6 +90,32 @@
     height: 44px;
     width: auto;
   }
+  header.page .actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .toolbar-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    background: var(--surface);
+    border: 1px solid var(--line-strong);
+    color: var(--ink);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 7px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background .12s ease, border-color .12s ease, color .12s ease;
+  }
+  .toolbar-btn:hover {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .toolbar-btn svg { flex-shrink: 0; }
   @media (max-width: 540px) {
     header.page .brand svg { height: 36px; }
   }
@@ -410,6 +436,79 @@
     section.step { padding: 20px 20px 18px; }
     section.step h2 { font-size: 18px; }
   }
+
+  /* Print / Save-as-PDF — a clean client handout */
+  @media print {
+    @page { margin: 14mm 12mm; }
+
+    body { background: #fff; color: #000; }
+
+    /* Hide interactive-only / mobile chrome */
+    header.page .actions,
+    .mobile-notice,
+    .hero .actions,
+    .alt-find { display: none !important; }
+
+    /* Keep the header logo at the top of page 1 */
+    header.page { border: 0; padding: 0 0 8px; }
+    header.page .brand svg { height: 36px; }
+
+    main { padding: 10px 0 0; max-width: 100%; }
+
+    .hero {
+      background: none;
+      border: 0;
+      box-shadow: none;
+      padding: 0 0 10px;
+      margin: 0 0 14px;
+    }
+    .hero::before { display: none; }
+    .hero h1 { font-size: 22px; margin-bottom: 4px; }
+    .hero .lede { font-size: 13px; }
+    .hero .file-meta { display: block; margin-top: 6px; }
+
+    section.step {
+      background: none;
+      border: 1px solid #ddd;
+      box-shadow: none;
+      padding: 14px 16px;
+      margin: 0 0 12px;
+      page-break-inside: avoid;
+    }
+    section.step h2 { font-size: 16px; margin-bottom: 8px; }
+    .num { background: #000 !important; color: #fff !important; width: 24px; height: 24px; font-size: 12px; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+    /* Browser tabs: hide the row, show all 4 panels stacked with a label */
+    .tabs { display: none; }
+    .tab-panel {
+      display: block !important;
+      border-top: 1px dashed #ccc;
+      padding-top: 10px;
+      margin-top: 12px;
+      page-break-inside: avoid;
+    }
+    .tab-panel:first-of-type { border-top: 0; padding-top: 0; margin-top: 0; }
+    .tab-panel::before {
+      content: attr(data-browser);
+      display: block;
+      font-size: 14px;
+      font-weight: 700;
+      color: #000;
+      margin-bottom: 6px;
+    }
+    .browser-mock { break-inside: avoid; }
+    .browser-mock svg { max-height: 180px; }
+
+    /* Contact + footer: email card prints with URL beside it */
+    .contact-options { grid-template-columns: 1fr; gap: 8px; }
+    .contact-card { border: 1px solid #ccc; box-shadow: none; }
+    .contact-card:hover { transform: none; }
+
+    footer.page { padding: 10px 0 0; text-align: left; color: #666; }
+
+    /* Keep colors on gradient logo + icons */
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
 </style>
 </head>
 <body>
@@ -460,6 +559,16 @@
         <text x="280" y="130" font-family='"Saira","Eurostile","Eurostile LT W01","Microgramma D","Aldrich","Antonio",system-ui,sans-serif' font-weight="900" font-size="130" letter-spacing="3.5" fill="url(#ua-h-blue)">UMBRELLA</text>
         <text x="280" y="240" font-family='"Saira","Eurostile","Eurostile LT W01","Microgramma D","Aldrich","Antonio",system-ui,sans-serif' font-weight="900" font-size="130" letter-spacing="3.5" fill="url(#ua-h-gray)">AUTOMATION</text>
       </svg>
+    </div>
+    <div class="actions">
+      <button type="button" class="toolbar-btn" id="printBtn" title="Print or save this page as a PDF to send to a client" aria-label="Print to PDF">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <polyline points="14 2 14 8 20 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          <text x="12" y="18.5" font-size="5.5" font-weight="800" text-anchor="middle" fill="currentColor" stroke="none" font-family="-apple-system, Segoe UI, sans-serif">PDF</text>
+        </svg>
+        PDF
+      </button>
     </div>
   </div>
 </header>
@@ -526,7 +635,7 @@
     </div>
 
     <!-- Chrome -->
-    <div class="tab-panel" data-active="true" id="tab-chrome" role="tabpanel" aria-labelledby="tabbtn-chrome">
+    <div class="tab-panel" data-active="true" data-browser="Chrome" id="tab-chrome" role="tabpanel" aria-labelledby="tabbtn-chrome">
       <div class="browser-mock">
         <svg viewBox="0 0 800 220" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Chrome browser window with the downloads tray button highlighted in the top-right toolbar">
           <!-- window -->
@@ -594,7 +703,7 @@
     </div>
 
     <!-- Edge -->
-    <div class="tab-panel" id="tab-edge" role="tabpanel" aria-labelledby="tabbtn-edge">
+    <div class="tab-panel" data-browser="Microsoft Edge" id="tab-edge" role="tabpanel" aria-labelledby="tabbtn-edge">
       <div class="browser-mock">
         <svg viewBox="0 0 800 220" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Microsoft Edge window with the downloads button highlighted in the top-right toolbar">
           <rect width="800" height="220" fill="#fff"/>
@@ -647,7 +756,7 @@
     </div>
 
     <!-- Firefox -->
-    <div class="tab-panel" id="tab-firefox" role="tabpanel" aria-labelledby="tabbtn-firefox">
+    <div class="tab-panel" data-browser="Firefox" id="tab-firefox" role="tabpanel" aria-labelledby="tabbtn-firefox">
       <div class="browser-mock">
         <svg viewBox="0 0 800 220" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Firefox window with the downloads arrow highlighted in the top-right toolbar">
           <rect width="800" height="220" fill="#fff"/>
@@ -693,7 +802,7 @@
     </div>
 
     <!-- Safari -->
-    <div class="tab-panel" id="tab-safari" role="tabpanel" aria-labelledby="tabbtn-safari">
+    <div class="tab-panel" data-browser="Safari" id="tab-safari" role="tabpanel" aria-labelledby="tabbtn-safari">
       <div class="browser-mock">
         <svg viewBox="0 0 800 220" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Safari window with the downloads arrow highlighted in the top-right toolbar">
           <rect width="800" height="220" fill="#fff"/>
@@ -809,7 +918,7 @@
 </main>
 
 <footer class="page">
-  <p>v1.1.0</p>
+  <p>v1.2.0</p>
 </footer>
 
 <script>
@@ -824,6 +933,9 @@
         });
       });
     });
+
+    const printBtn = document.getElementById('printBtn');
+    if (printBtn) printBtn.addEventListener('click', () => window.print());
   })();
 </script>
 
