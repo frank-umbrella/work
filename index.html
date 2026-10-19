@@ -3,690 +3,95 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Work Hub v0.8.3</title>
-<meta name="description" content="Internal dashboard linking to work-related tools and resources.">
+<title>Umbrella Client Resources v0.9.0</title>
+<meta name="description" content="Guides and tools from your Umbrella Automation IT team.">
 <meta name="robots" content="noindex">
-<meta name="version" content="0.8.4">
+<meta name="version" content="0.9.0">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Umbrella Client Resources">
+<meta property="og:description" content="Guides and tools from your Umbrella Automation IT team.">
+<meta property="og:image" content="https://frank-umbrella.github.io/work/branding/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="stylesheet" href="hub.css">
 <style>
-  :root {
-    --bg: #f6f7f9;
-    --surface: #ffffff;
-    --ink: #1a1f2b;
-    --ink-soft: #475063;
-    --line: #e3e6ec;
-    --line-strong: #c9cfdb;
-    --accent: #1a56db;
-    --accent-soft: #eaf0fc;
-    --radius: 12px;
-    --shadow: 0 1px 2px rgba(20, 25, 40, 0.04), 0 4px 14px rgba(20, 25, 40, 0.05);
-    --shadow-lift: 0 4px 8px rgba(20, 25, 40, 0.06), 0 14px 28px rgba(20, 25, 40, 0.08);
-    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  }
-  * { box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; }
-  body {
-    background: var(--bg);
-    color: var(--ink);
-    font-family: var(--sans);
-    font-size: 16px;
-    line-height: 1.55;
-    -webkit-font-smoothing: antialiased;
-  }
-  a { color: var(--accent); text-decoration: none; }
-
-  header.page {
-    background: var(--surface);
-    border-bottom: 1px solid var(--line);
-    padding: 32px 24px 26px;
-  }
-  header.page .wrap {
-    max-width: 1340px;
-    margin: 0 auto;
-    display: flex;
-    align-items: flex-end;
-    justify-content: space-between;
-    gap: 16px;
-  }
-  header.page h1 {
-    font-size: 28px;
-    margin: 0 0 4px;
-    letter-spacing: -0.01em;
-  }
-  header.page p {
-    margin: 0;
-    color: var(--ink-soft);
-    font-size: 15px;
-  }
-  header.page .actions {
-    display: flex;
-    gap: 8px;
-    flex-shrink: 0;
-  }
-  .btn {
-    background: var(--surface);
-    border: 1px solid var(--line-strong);
-    color: var(--ink);
-    font: inherit;
-    font-size: 13px;
-    font-weight: 600;
-    padding: 7px 13px;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: background .12s ease, border-color .12s ease, color .12s ease;
-  }
-  .btn:hover { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
-  .btn.btn-active { background: var(--accent); border-color: var(--accent); color: #fff; }
-  .btn.btn-active:hover { background: #1647b8; border-color: #1647b8; color: #fff; }
-  .btn-link {
-    background: transparent;
-    border: 0;
-    padding: 7px 8px;
-    color: var(--ink-soft);
-    font-weight: 500;
-  }
-  .btn-link:hover { color: var(--accent); background: transparent; border-color: transparent; }
-  body.reordering { user-select: none; }
-  body.reordering .card { cursor: grab; }
-  body.reordering .card:active { cursor: grabbing; }
-  body.reordering .card { outline: 2px dashed transparent; outline-offset: 3px; transition: outline-color .12s ease, transform .12s ease, opacity .12s ease, box-shadow .12s ease, border-color .12s ease; }
-  body.reordering .card:not(.dragging) { outline-color: var(--line-strong); }
-  body.reordering .card.dragging { opacity: 0.35; }
-  body.reordering .card.drop-target { outline-color: var(--accent); }
-  body.reordering .card .preview iframe { pointer-events: none; }
-  body.reordering .card::before {
-    content: "\2630";
-    position: absolute;
-    top: 8px;
-    right: 10px;
-    font-size: 14px;
-    color: var(--ink-soft);
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: 6px;
-    width: 26px;
-    height: 22px;
+  /* Client page: brand lockup header, centered single-column content. */
+  header.page { padding-bottom: 28px; }
+  .brand {
     display: flex;
     align-items: center;
-    justify-content: center;
-    z-index: 2;
-    pointer-events: none;
+    gap: 12px;
   }
-  .card { position: relative; }
-
-  main {
-    max-width: 1340px;
-    margin: 0 auto;
-    padding: 28px 24px 60px;
-  }
-
-  .layout {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 260px;
-    gap: 40px;
-    align-items: start;
-  }
-  @media (max-width: 900px) {
-    .layout { grid-template-columns: 1fr; gap: 28px; }
-  }
-
-  .grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-    gap: 20px;
-  }
-
-  aside.tools {
-    position: sticky;
-    top: 24px;
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow);
-    padding: 16px 16px 14px;
-  }
-  aside.tools h2 {
+  .brand img { width: 40px; height: 40px; flex-shrink: 0; }
+  .brand .eyebrow {
     font-size: 11px;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.09em;
+    letter-spacing: 0.12em;
     color: var(--ink-soft);
-    margin: 0 0 10px;
+    margin: 0 0 2px;
   }
-  aside.tools ul {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-  }
-  aside.tools li + li {
-    margin-top: 2px;
-    border-top: 1px solid var(--line);
-    padding-top: 2px;
-  }
-  aside.tools a {
-    display: block;
-    padding: 9px 10px;
-    margin: 0 -10px;
-    border-radius: 8px;
-    color: var(--ink);
-    font-size: 14px;
-    font-weight: 500;
-    line-height: 1.35;
-    transition: background .12s ease, color .12s ease;
-  }
-  aside.tools a:hover {
-    background: var(--accent-soft);
-    color: var(--accent);
-  }
-  aside.tools .source {
-    display: block;
-    font-size: 11.5px;
-    font-weight: 400;
-    color: var(--ink-soft);
-    margin-top: 2px;
-  }
-  aside.tools a:hover .source { color: var(--accent); opacity: 0.75; }
-
-  .card {
-    display: flex;
-    flex-direction: column;
-    background: var(--surface);
-    border: 1px solid var(--line);
-    border-radius: var(--radius);
-    overflow: hidden;
-    box-shadow: var(--shadow);
-    color: inherit;
-    transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
-  }
-  .card:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-lift);
-    border-color: var(--line-strong);
-  }
-  .card:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
-  }
-
-  .preview {
-    position: relative;
-    width: 100%;
-    /* Match the 1200x630 OG-image aspect ratio so OG previews fill
-       the tile edge-to-edge without cropping the title, and iframe
-       previews stay the same shape for visual consistency. */
-    aspect-ratio: 1200 / 630;
-    overflow: hidden;
-    background: var(--bg);
-    border-bottom: 1px solid var(--line);
-  }
-  .preview iframe {
-    border: 0;
-    width: 1400px;
-    height: 900px;
-    transform: scale(0.27);
-    transform-origin: top left;
-    pointer-events: none;
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    /* Center the scaled iframe in the preview box so pages with
-       centered content (login modals, forms) are actually visible.
-       Margin = -(width|height * scale) / 2.  1400*0.27=378  900*0.27=243 */
-    margin-top: -121.5px;
-    margin-left: -189px;
-  }
-  /* Cards that opt into an OG image preview render an <img> in place
-     of the iframe. The preview box matches the 1200x630 aspect ratio
-     so cover and contain are equivalent here -- the image fills the
-     tile exactly with no crop. */
-  .preview img.og {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    object-position: center;
-    display: block;
-  }
-  .preview-overlay {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    background: linear-gradient(to bottom, rgba(255,255,255,0) 0%, rgba(255,255,255,0) 70%, rgba(255,255,255,0.55) 100%);
-  }
-
-  .meta {
-    padding: 16px 18px 18px;
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-  }
-  .meta-tag {
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--ink-soft);
-    margin-bottom: 4px;
-  }
-  .meta h2 {
-    font-size: 18px;
-    margin: 0 0 6px;
-    color: var(--ink);
-    letter-spacing: -0.005em;
-  }
-  .meta p {
-    color: var(--ink-soft);
-    font-size: 14px;
-    margin: 0 0 14px;
-  }
-  .meta .open {
-    margin-top: auto;
-    font-size: 13.5px;
-    font-weight: 600;
-    color: var(--accent);
-  }
-  .meta .open::after { content: ' \2192'; }
-
-  footer.page {
-    max-width: 1340px;
-    margin: 0 auto;
-    padding: 0 24px 32px;
-    color: var(--ink-soft);
-    font-size: 12.5px;
-  }
-  footer.page .version {
-    display: inline-block;
-    padding: 1px 7px;
-    border: 1px solid var(--line-strong);
-    border-radius: 999px;
-    font-size: 11.5px;
-    font-weight: 600;
-    color: var(--ink-soft);
-    background: var(--surface);
-    margin: 0 2px;
-  }
+  .brand h1 { margin: 0; }
+  main { max-width: 1040px; }
+  .grid { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
 </style>
 </head>
 <body>
 
 <header class="page">
   <div class="wrap">
-    <div>
-      <h1>Work Hub</h1>
-      <p>Internal tools and resources. Pick a tile to open the page.</p>
+    <div class="brand">
+      <img src="favicon.svg" alt="" aria-hidden="true">
+      <div>
+        <p class="eyebrow">Umbrella Automation</p>
+        <h1>Client Resources</h1>
+      </div>
     </div>
-    <div class="actions">
-      <button id="resetOrderBtn" type="button" class="btn btn-link" hidden aria-label="Reset tile order to default">Reset</button>
-      <button id="reorderToggleBtn" type="button" class="btn" aria-pressed="false">Reorder tiles</button>
-    </div>
+    <p>Guides and tools from your IT team.</p>
   </div>
 </header>
 
 <main>
-  <div class="layout">
   <div class="grid">
 
-    <a class="card" href="onboarding/index.html" aria-label="Open Onboarding">
-      <div class="preview">
-        <iframe src="onboarding/index.html" loading="lazy" tabindex="-1" aria-hidden="true" title="Onboarding preview"></iframe>
-        <div class="preview-overlay"></div>
-      </div>
+    <a class="card" href="logmein/index.html">
+      <div class="preview"><img class="og" src="logmein/og-image.png" loading="lazy" alt="" width="1200" height="630"></div>
       <div class="meta">
-        <div class="meta-tag">Client services &middot; HR action requests</div>
-        <h2>Onboarding</h2>
-        <p>Per-client form-based system for Client Managers to submit new hire / rehire, termination, and position change requests. Each client sees only their own forms and submissions; MSP admin handles fulfillment in a cross-client queue with status updates and a comment thread.</p>
-        <span class="open">Open Onboarding</span>
+        <div class="meta-tag">Remote support</div>
+        <h3>Support Helper</h3>
+        <p>Download the Umbrella support helper so we can connect to your computer. Step by step, with screenshots.</p>
+        <span class="open">Open</span>
       </div>
     </a>
 
-    <a class="card" href="incidents/index.html" aria-label="Open Incident Response">
-      <div class="preview">
-        <iframe src="incidents/index.html" loading="lazy" tabindex="-1" aria-hidden="true" title="Incident Response preview"></iframe>
-        <div class="preview-overlay"></div>
-      </div>
+    <a class="card" href="proofpoint/index.html">
+      <div class="preview"><img class="og" src="proofpoint/og-image.png" loading="lazy" alt="" width="1200" height="630"></div>
       <div class="meta">
-        <div class="meta-tag">Security &middot; Incident reporting &amp; tracking</div>
-        <h2>Incident Response</h2>
-        <p>Per-employee Google sign-in (umbrellaautomation.com only). Open an incident on a client, attach screenshots and log files, run it through New &rarr; Investigating &rarr; Contained &rarr; Resolved with a timestamped audit trail. Admins manage the client list and analyst roles.</p>
-        <span class="open">Open Incident Response</span>
+        <div class="meta-tag">Email quarantine</div>
+        <h3>Proofpoint Email Guide</h3>
+        <p>What the Quarantine Digest email is, how to release a message, and how to manage your safe senders.</p>
+        <span class="open">Open</span>
       </div>
     </a>
 
-    <a class="card" href="watchtower/index.html" aria-label="Open Watchtower">
-      <div class="preview">
-        <img class="og" src="watchtower/og-image.png" loading="lazy" alt="" width="1200" height="630">
-        <div class="preview-overlay"></div>
-      </div>
+    <a class="card" href="phish/index.html">
+      <div class="preview"><img class="og" src="phish/og-image.png" loading="lazy" alt="" width="1200" height="630"></div>
       <div class="meta">
-        <div class="meta-tag">Fleet monitoring &middot; Client PC agents</div>
-        <h2>Watchtower</h2>
-        <p>Lightweight Windows agent that phones home daily with external IP, Veeam backup status, LogMeIn / SentinelOne / Defender state, and Belarc-lite asset inventory. Email + webhook alert when an external IP changes. Per-host kill switches and one-click decommission for ex-clients.</p>
-        <span class="open">Open Watchtower</span>
+        <div class="meta-tag">Stay safe online</div>
+        <h3>Phishing Awareness</h3>
+        <p>Spot fake emails, fake login pages, and fake 2FA prompts before they catch you.</p>
+        <span class="open">Open</span>
       </div>
     </a>
-
-    <a class="card" href="backups/index.html" aria-label="Open Backup Audits">
-      <div class="preview">
-        <img class="og" src="backups/og-image.png" loading="lazy" alt="" width="1200" height="630">
-        <div class="preview-overlay"></div>
-      </div>
-      <div class="meta">
-        <div class="meta-tag">Operations &middot; Client backup audits</div>
-        <h2>Backup Audits</h2>
-        <p>Per-employee Google sign-in (umbrellaautomation.com only &mdash; shares Watchtower's login). Submit and track backup audits per client server: Veeam, Carbonite, Windows Server Backup, recovery media, drive health, iDRAC, and rotation disks. Dashboard with filters and column chooser; a restricted Activity log and an end-of-day email digest of every change.</p>
-        <span class="open">Open Backup Audits</span>
-      </div>
-    </a>
-
-    <a class="card" href="phish/index.html" aria-label="Open Phishing Awareness">
-      <div class="preview">
-        <iframe src="phish/index.html" loading="lazy" tabindex="-1" aria-hidden="true" title="Phishing Awareness preview"></iframe>
-        <div class="preview-overlay"></div>
-      </div>
-      <div class="meta">
-        <div class="meta-tag">Security &middot; End-user training</div>
-        <h2>Phishing Awareness</h2>
-        <p>Help staff spot phishing emails, fake login pages, and fake 2FA prompts. Covers Google Workspace and Microsoft 365, plus Proofpoint Essentials quarantine release and tools for safely sharing headers and passwords with IT.</p>
-        <span class="open">Open phishing page</span>
-      </div>
-    </a>
-
-    <a class="card" href="proofpoint/index.html" aria-label="Open the Proofpoint Email Guide">
-      <div class="preview">
-        <iframe src="proofpoint/index.html" loading="lazy" tabindex="-1" aria-hidden="true" title="Proofpoint Email Guide preview"></iframe>
-        <div class="preview-overlay"></div>
-      </div>
-      <div class="meta">
-        <div class="meta-tag">Client docs &middot; Email quarantine</div>
-        <h2>Proofpoint Email Guide</h2>
-        <p>End-user knowledge base for Proofpoint Essentials: what the Quarantine Digest email is and what Release vs. Release-and-Approve do, signing in to the portal, safe and blocked sender lists, the Emergency Inbox, and an FAQ for the questions clients actually ask.</p>
-        <span class="open">Open Proofpoint guide</span>
-      </div>
-    </a>
-
-    <a class="card" href="linklock/index.html" aria-label="Open LinkLock">
-      <div class="preview">
-        <img class="og" src="linklock/og-image.png" loading="lazy" alt="" width="1200" height="630">
-        <div class="preview-overlay"></div>
-      </div>
-      <div class="meta">
-        <div class="meta-tag">Security &middot; One-time secret sharing</div>
-        <h2>LinkLock</h2>
-        <p>Share a password or secret over a self-destructing link. The secret is encrypted in the browser before sending; the link burns itself the first time it's revealed, or when the expiry timer hits &mdash; whichever comes first.</p>
-        <span class="open">Open LinkLock</span>
-      </div>
-    </a>
-
-    <a class="card" href="logmein/index.html" aria-label="Open the LogMeIn Installer page">
-      <div class="preview">
-        <img class="og" src="logmein/og-image.png" loading="lazy" alt="" width="1200" height="630">
-        <div class="preview-overlay"></div>
-      </div>
-      <div class="meta">
-        <div class="meta-tag">Client docs &middot; Remote support installer</div>
-        <h2>LogMeIn Installer</h2>
-        <p>Public landing page for clients downloading the Umbrella support helper. Big download button, modern per-browser screenshots showing where the file lands (top-right tray, not the old bottom bar), and the &ldquo;Run as administrator&rdquo; + &ldquo;email Computer-Info.txt&rdquo; flow.</p>
-        <span class="open">Open LogMeIn page</span>
-      </div>
-    </a>
-
-    <a class="card" href="kipling/index.html" aria-label="Open the Kipling site editing walkthrough">
-      <div class="preview">
-        <iframe src="kipling/index.html" loading="lazy" tabindex="-1" aria-hidden="true" title="Kipling site editing preview"></iframe>
-        <div class="preview-overlay"></div>
-      </div>
-      <div class="meta">
-        <div class="meta-tag">Client docs &middot; WordPress + Elementor</div>
-        <h2>Kipling site editing</h2>
-        <p>A picture-led walkthrough for editing sub-pages on kiplingcommunity.com using WordPress and the Elementor page builder. Sign-in, finding a page, editing text and images, saving, and rolling back if something breaks.</p>
-        <span class="open">Open walkthrough</span>
-      </div>
-    </a>
-
-    <a class="card" href="spf/index.html" aria-label="Open the SPF Toolkit">
-      <div class="preview">
-        <iframe src="spf/index.html" loading="lazy" tabindex="-1" aria-hidden="true" title="SPF Toolkit preview"></iframe>
-        <div class="preview-overlay"></div>
-      </div>
-      <div class="meta">
-        <div class="meta-tag">Email auth &middot; SPF generator &amp; validator</div>
-        <h2>SPF Toolkit</h2>
-        <p>Look up an existing SPF record, generate a new one with checkboxes for Microsoft 365, Google Workspace, and the common ESPs, and validate any record against the RFC 7208 10-lookup limit with recursive include resolution.</p>
-        <span class="open">Open SPF Toolkit</span>
-      </div>
-    </a>
-
-    <a class="card" href="domainaudit/index.html" aria-label="Open Domain Audit">
-      <div class="preview">
-        <iframe src="domainaudit/index.html" loading="lazy" tabindex="-1" aria-hidden="true" title="Domain Audit preview"></iframe>
-        <div class="preview-overlay"></div>
-      </div>
-      <div class="meta">
-        <div class="meta-tag">Email auth &middot; Bulk SPF/DKIM/DMARC audit</div>
-        <h2>Domain Audit</h2>
-        <p>Paste a list of domains; get a sortable report of SPF, DKIM, and DMARC status, the inbound mail provider from MX, registrar via RDAP, and every authorized sender from SPF includes mapped to the service that owns it. CSV/JSON export.</p>
-        <span class="open">Open Domain Audit</span>
-      </div>
-    </a>
-
-    <a class="card" href="branding/index.html" aria-label="Open the Umbrella Automation brand guidelines">
-      <div class="preview">
-        <iframe src="branding/index.html" loading="lazy" tabindex="-1" aria-hidden="true" title="Umbrella Automation brand guidelines preview"></iframe>
-        <div class="preview-overlay"></div>
-      </div>
-      <div class="meta">
-        <div class="meta-tag">Brand &middot; Umbrella Automation</div>
-        <h2>Brand Guidelines</h2>
-        <p>Logos, colors, typography, and usage rules for the Umbrella Automation brand. Three logo variants (primary, wordmark, submark), clear-space and minimum-size rules, a do-not-do grid, click-to-copy hex codes, and Eurostile-Black typography specs.</p>
-        <span class="open">Open brand guidelines</span>
-      </div>
-    </a>
-
-    <a class="card" href="scripts/index.html" aria-label="Open PC Scripts">
-      <div class="preview">
-        <iframe src="scripts/index.html" loading="lazy" tabindex="-1" aria-hidden="true" title="PC Scripts preview"></iframe>
-        <div class="preview-overlay"></div>
-      </div>
-      <div class="meta">
-        <div class="meta-tag">IT ops &middot; Windows setup scripts</div>
-        <h2>PC Scripts</h2>
-        <p>PowerShell scripts for the things you re-fix on every fresh Windows 10/11 machine: show all system-tray icons on the taskbar, stop Microsoft 365 Copilot launching at startup, and stop Malwarebytes launching at startup. Each script lists its purpose, whether admin is needed, and the manual click-path for every option it automates.</p>
-        <span class="open">Open scripts</span>
-      </div>
-    </a>
-
-    <a class="card" href="sop/index.html" aria-label="Open Standard Operating Procedures">
-      <div class="preview">
-        <iframe src="sop/index.html" loading="lazy" tabindex="-1" aria-hidden="true" title="SOPs preview"></iframe>
-        <div class="preview-overlay"></div>
-      </div>
-      <div class="meta">
-        <div class="meta-tag">Operations &middot; Standard operating procedures</div>
-        <h2>SOPs</h2>
-        <p>Numbered, versioned standard operating procedures for recurring work, each downloadable as a letter-sized PDF with the Umbrella Automation logo in the header. SOP-001: the Google Workspace security baseline for new client onboarding. SOP-002: verifying and remediating SentinelOne threats with the three-scanner sweep. SOP-003: technician LogMeIn installs &mdash; rename and backdoor-account gates, then Chrome, updates, and power settings.</p>
-        <span class="open">Open SOPs</span>
-      </div>
-    </a>
-
-    <a class="card" href="canned/index.html" aria-label="Open Canned Replies">
-      <div class="preview">
-        <iframe src="canned/index.html" loading="lazy" tabindex="-1" aria-hidden="true" title="Canned Replies preview"></iframe>
-        <div class="preview-overlay"></div>
-      </div>
-      <div class="meta">
-        <div class="meta-tag">Support &middot; Client-facing replies</div>
-        <h2>Canned Replies</h2>
-        <p>Ready-to-send responses for the questions on nearly every ticket: pulling a Gmail email header, finding a PC name on Windows or Mac, creating a local admin account, opening a delegated Microsoft 365 mailbox, and enabling Google 2FA. Click Copy, paste into the ticket, tweak the greeting, send.</p>
-        <span class="open">Open canned replies</span>
-      </div>
-    </a>
-
-  </div>
-
-  <!-- Tools & Bookmarks sidebar.
-       To add a bookmark: copy a <li>...</li> block and edit the href, label, and source domain. -->
-  <aside class="tools" aria-label="Tools and bookmarks">
-    <h2>Tools &amp; Bookmarks</h2>
-    <ul>
-      <li>
-        <a href="https://easydmarc.com/tools/dmarc-record-generator" target="_blank" rel="noopener noreferrer">
-          DMARC Record Generator
-          <span class="source">easydmarc.com</span>
-        </a>
-      </li>
-      <li>
-        <a href="https://unifi.ui.com/" target="_blank" rel="noopener noreferrer">
-          UniFi Site Manager
-          <span class="source">unifi.ui.com</span>
-        </a>
-      </li>
-      <li>
-        <a href="https://www.majorgeeks.com/" target="_blank" rel="noopener noreferrer">
-          MajorGeeks
-          <span class="source">majorgeeks.com</span>
-        </a>
-      </li>
-      <li>
-        <a href="https://mxtoolbox.com/SuperTool.aspx" target="_blank" rel="noopener noreferrer">
-          MXToolbox SuperTool
-          <span class="source">mxtoolbox.com</span>
-        </a>
-      </li>
-      <li>
-        <a href="https://dnschecker.org/" target="_blank" rel="noopener noreferrer">
-          DNS Checker
-          <span class="source">dnschecker.org</span>
-        </a>
-      </li>
-      <li>
-        <a href="https://www.virustotal.com/" target="_blank" rel="noopener noreferrer">
-          VirusTotal
-          <span class="source">virustotal.com</span>
-        </a>
-      </li>
-      <li>
-        <a href="https://downdetector.com/" target="_blank" rel="noopener noreferrer">
-          Downdetector
-          <span class="source">downdetector.com</span>
-        </a>
-      </li>
-    </ul>
-  </aside>
 
   </div>
 </main>
 
 <footer class="page">
-  <p>Work hub <span class="version">v0.8.4</span> &middot; static site &middot; add tiles by dropping new folders alongside this page.</p>
+  <p>Umbrella Automation <span class="version">v0.9.0</span></p>
 </footer>
-
-<script>
-(() => {
-  const STORAGE_KEY = 'workhub.cardOrder.v1';
-  const grid = document.querySelector('.grid');
-  if (!grid) return;
-  // Normalize so cards keep the same id whether href is "foo/" or "foo/index.html".
-  const idOf = card => card.getAttribute('href').replace(/\/index\.html$/i, '').replace(/\/$/, '');
-
-  // Apply saved order on load. Unknown ids are dropped; new cards appear at the end.
-  const saved = (() => {
-    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || null; } catch { return null; }
-  })();
-  if (Array.isArray(saved) && saved.length) {
-    const present = new Map([...grid.querySelectorAll('.card')].map(c => [idOf(c), c]));
-    const ordered = [];
-    saved.forEach(id => { if (present.has(id)) { ordered.push(present.get(id)); present.delete(id); } });
-    present.forEach(c => ordered.push(c));
-    ordered.forEach(c => grid.appendChild(c));
-  }
-
-  const toggleBtn = document.getElementById('reorderToggleBtn');
-  const resetBtn = document.getElementById('resetOrderBtn');
-  let reordering = false;
-  let draggedCard = null;
-
-  const showResetIfDirty = () => {
-    if (!resetBtn) return;
-    resetBtn.hidden = !localStorage.getItem(STORAGE_KEY);
-  };
-  showResetIfDirty();
-
-  const saveOrder = () => {
-    const order = [...grid.querySelectorAll('.card')].map(idOf);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(order));
-    showResetIfDirty();
-  };
-
-  const setReordering = on => {
-    reordering = on;
-    document.body.classList.toggle('reordering', on);
-    toggleBtn.classList.toggle('btn-active', on);
-    toggleBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
-    toggleBtn.textContent = on ? 'Done' : 'Reorder tiles';
-    grid.querySelectorAll('.card').forEach(c => { c.draggable = on; });
-  };
-
-  toggleBtn.addEventListener('click', () => setReordering(!reordering));
-
-  if (resetBtn) {
-    resetBtn.addEventListener('click', () => {
-      localStorage.removeItem(STORAGE_KEY);
-      showResetIfDirty();
-      window.location.reload();
-    });
-  }
-
-  // Suppress card navigation while reordering.
-  grid.addEventListener('click', e => {
-    if (!reordering) return;
-    e.preventDefault();
-    e.stopPropagation();
-  }, true);
-
-  grid.addEventListener('dragstart', e => {
-    if (!reordering) { e.preventDefault(); return; }
-    const card = e.target.closest('.card');
-    if (!card) return;
-    draggedCard = card;
-    card.classList.add('dragging');
-    if (e.dataTransfer) {
-      e.dataTransfer.effectAllowed = 'move';
-      // Required by Firefox to start a drag.
-      try { e.dataTransfer.setData('text/plain', idOf(card)); } catch {}
-    }
-  });
-
-  grid.addEventListener('dragend', () => {
-    if (draggedCard) {
-      draggedCard.classList.remove('dragging');
-      draggedCard = null;
-      saveOrder();
-    }
-    grid.querySelectorAll('.card.drop-target').forEach(c => c.classList.remove('drop-target'));
-  });
-
-  grid.addEventListener('dragover', e => {
-    if (!reordering || !draggedCard) return;
-    e.preventDefault();
-    if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
-    const target = e.target.closest('.card');
-    grid.querySelectorAll('.card.drop-target').forEach(c => c !== target && c.classList.remove('drop-target'));
-    if (!target || target === draggedCard) return;
-    target.classList.add('drop-target');
-    const rect = target.getBoundingClientRect();
-    const after = (e.clientY - rect.top) / rect.height + (e.clientX - rect.left) / rect.width > 1;
-    if (after) {
-      target.parentNode.insertBefore(draggedCard, target.nextSibling);
-    } else {
-      target.parentNode.insertBefore(draggedCard, target);
-    }
-  });
-
-  grid.addEventListener('drop', e => {
-    if (!reordering) return;
-    e.preventDefault();
-  });
-})();
-</script>
 
 </body>
 </html>

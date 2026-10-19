@@ -1,0 +1,374 @@
+/* Work Hub shared styles — used by the staff page (bench.html) and the
+   client page (index.html). Keep page-specific rules in each page's own
+   inline <style> block; everything reusable lives here so the two pages
+   do not drift. */
+
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --ink: #1a1f2b;
+  --ink-soft: #475063;
+  --line: #e3e6ec;
+  --line-strong: #c9cfdb;
+  --accent: #1a56db;
+  --accent-soft: #eaf0fc;
+  --radius: 12px;
+  --shadow: 0 1px 2px rgba(20, 25, 40, 0.04), 0 4px 14px rgba(20, 25, 40, 0.05);
+  --shadow-lift: 0 4px 8px rgba(20, 25, 40, 0.06), 0 14px 28px rgba(20, 25, 40, 0.08);
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--accent); text-decoration: none; }
+
+/* Header */
+header.page {
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  padding: 32px 24px 26px;
+}
+header.page .wrap {
+  max-width: 1340px;
+  margin: 0 auto;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+header.page h1 {
+  font-size: 28px;
+  margin: 0 0 4px;
+  letter-spacing: -0.01em;
+}
+header.page p {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 15px;
+}
+header.page .actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+  align-items: center;
+}
+
+/* Buttons */
+.btn {
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 7px 13px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background .12s ease, border-color .12s ease, color .12s ease;
+}
+.btn:hover { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.btn.btn-active { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.btn-active:hover { background: #1647b8; border-color: #1647b8; color: #fff; }
+.btn-link {
+  background: transparent;
+  border: 0;
+  padding: 7px 8px;
+  color: var(--ink-soft);
+  font-weight: 500;
+}
+.btn-link:hover { color: var(--accent); background: transparent; border-color: transparent; }
+
+/* Main + layout */
+main {
+  max-width: 1340px;
+  margin: 0 auto;
+  padding: 28px 24px 60px;
+}
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 260px;
+  gap: 40px;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; gap: 28px; }
+  aside.tools { order: -1; }
+}
+
+/* Sections */
+.section { margin: 0 0 32px; }
+.section:last-of-type { margin-bottom: 0; }
+.section-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 14px;
+}
+.section-head h2 {
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--ink-soft);
+  margin: 0;
+  white-space: nowrap;
+}
+.section-head .count {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  opacity: 0.7;
+}
+.section-head::after {
+  content: "";
+  flex: 1;
+  border-top: 1px solid var(--line);
+}
+
+/* Card grid */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 20px;
+}
+
+/* Sidebar */
+aside.tools {
+  position: sticky;
+  top: 24px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 16px 16px 14px;
+}
+aside.tools h2 {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  color: var(--ink-soft);
+  margin: 0 0 10px;
+}
+aside.tools ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+aside.tools li + li {
+  margin-top: 2px;
+  border-top: 1px solid var(--line);
+  padding-top: 2px;
+}
+aside.tools a {
+  display: block;
+  padding: 9px 10px;
+  margin: 0 -10px;
+  border-radius: 8px;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.35;
+  transition: background .12s ease, color .12s ease;
+}
+aside.tools a:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+aside.tools a .label::after {
+  content: " \2197";
+  color: var(--ink-soft);
+  font-weight: 400;
+}
+aside.tools a:hover .label::after { color: var(--accent); }
+aside.tools .source {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 400;
+  color: var(--ink-soft);
+  margin-top: 2px;
+}
+aside.tools a:hover .source { color: var(--accent); opacity: 0.75; }
+
+/* Sidebar as wrapping pills on narrow screens */
+@media (max-width: 900px) {
+  aside.tools { position: static; }
+  aside.tools ul { display: flex; flex-wrap: wrap; gap: 8px; }
+  aside.tools li + li { margin: 0; border-top: 0; padding-top: 0; }
+  aside.tools a {
+    margin: 0;
+    padding: 7px 11px;
+    border: 1px solid var(--line-strong);
+    border-radius: 999px;
+    font-size: 13px;
+  }
+  aside.tools .source { display: none; }
+}
+
+/* Cards */
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  color: inherit;
+  transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+}
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lift);
+  border-color: var(--line-strong);
+}
+.card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Preview box — fixed to the 1200x630 OG aspect ratio */
+.preview {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1200 / 630;
+  overflow: hidden;
+  background: var(--bg);
+  border-bottom: 1px solid var(--line);
+}
+.preview img.og {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+}
+/* Fallback when a tile has no OG image yet: initials on a soft tint. */
+.preview.placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-soft);
+}
+.preview.placeholder span {
+  font-size: 40px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: var(--accent);
+  opacity: 0.8;
+}
+
+/* Card text */
+.meta {
+  padding: 15px 18px 17px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.meta-tag {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-soft);
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.meta-tag .gate {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-radius: 999px;
+  padding: 1px 8px;
+}
+.meta h3 {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0 0 6px;
+  color: var(--ink);
+  letter-spacing: -0.005em;
+}
+.meta p {
+  color: var(--ink-soft);
+  font-size: 14px;
+  margin: 0 0 14px;
+  overflow-wrap: anywhere;
+}
+.meta .open {
+  margin-top: auto;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--accent);
+}
+.meta .open::after { content: ' \2192'; }
+
+/* Footer */
+footer.page {
+  max-width: 1340px;
+  margin: 0 auto;
+  padding: 0 24px 32px;
+  color: var(--ink-soft);
+  font-size: 12.5px;
+}
+footer.page .version {
+  display: inline-block;
+  padding: 1px 7px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  background: var(--surface);
+  margin: 0 2px;
+}
+
+/* Reorder mode (staff page only) */
+body.reordering { user-select: none; }
+body.reordering .card { cursor: grab; outline: 2px dashed transparent; outline-offset: 3px; transition: outline-color .12s ease, transform .12s ease, opacity .12s ease, box-shadow .12s ease, border-color .12s ease; }
+body.reordering .card:active { cursor: grabbing; }
+body.reordering .card:not(.dragging) { outline-color: var(--line-strong); }
+body.reordering .card.dragging { opacity: 0.35; }
+body.reordering .card.drop-target { outline-color: var(--accent); }
+body.reordering .card::before {
+  content: "\2630";
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  font-size: 14px;
+  color: var(--ink-soft);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  width: 26px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* HTML5 drag-and-drop does not fire from touch, so hide the reorder
+   control on touch devices rather than leaving a dead button. */
+@media (pointer: coarse) {
+  #reorderToggleBtn, #resetOrderBtn { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card, .card:hover { transition: none; transform: none; }
+}

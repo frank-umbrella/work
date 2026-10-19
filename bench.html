@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Work Hub v0.9.0</title>
+<meta name="description" content="Internal tools, client guides, and bookmarks for the Umbrella Automation team.">
+<meta name="robots" content="noindex, nofollow">
+<meta name="version" content="0.9.0">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="hub.css">
+</head>
+<body>
+
+<header class="page">
+  <div class="wrap">
+    <div>
+      <h1>Work Hub</h1>
+      <p>Internal tools, client guides, and bookmarks.</p>
+    </div>
+    <div class="actions">
+      <a class="btn btn-link" href="./index.html" target="_blank" rel="noopener">Client view &#x2197;</a>
+      <button id="resetOrderBtn" type="button" class="btn btn-link" hidden aria-label="Reset tile order to default">Reset</button>
+      <button id="reorderToggleBtn" type="button" class="btn" aria-pressed="false">Reorder tiles</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="layout">
+  <div class="cols">
+
+    <!-- ========== Client-facing ========== -->
+    <section class="section">
+      <div class="section-head"><h2>Client-facing</h2><span class="count">6</span></div>
+      <div class="grid">
+
+        <a class="card" href="logmein/index.html">
+          <div class="preview"><img class="og" src="logmein/og-image.png" loading="lazy" alt="" width="1200" height="630"></div>
+          <div class="meta">
+            <div class="meta-tag">Support installer</div>
+            <h3>LogMeIn Installer</h3>
+            <p>Client download page for the Umbrella support helper, with per-browser screenshots and the run-as-admin flow.</p>
+            <span class="open">Open</span>
+          </div>
+        </a>
+
+        <a class="card" href="proofpoint/index.html">
+          <div class="preview"><img class="og" src="proofpoint/og-image.png" loading="lazy" alt="" width="1200" height="630"></div>
+          <div class="meta">
+            <div class="meta-tag">Email quarantine</div>
+            <h3>Proofpoint Email Guide</h3>
+            <p>What the Quarantine Digest is, how to release a message, and how to manage safe senders.</p>
+            <span class="open">Open</span>
+          </div>
+        </a>
+
+        <a class="card" href="phish/index.html">
+          <div class="preview"><img class="og" src="phish/og-image.png" loading="lazy" alt="" width="1200" height="630"></div>
+          <div class="meta">
+            <div class="meta-tag">End-user training</div>
+            <h3>Phishing Awareness</h3>
+            <p>Spot phishing emails, fake login pages, and fake 2FA prompts, for Google Workspace and Microsoft 365.</p>
+            <span class="open">Open</span>
+          </div>
+        </a>
+
+        <a class="card" href="linklock/index.html">
+          <div class="preview"><img class="og" src="linklock/og-image.png" loading="lazy" alt="" width="1200" height="630"></div>
+          <div class="meta">
+            <div class="meta-tag">Secret sharing</div>
+            <h3>LinkLock</h3>
+            <p>Send a password over a one-time link that encrypts in the browser and self-destructs after it is read.</p>
+            <span class="open">Open</span>
+          </div>
+        </a>
+
+        <a class="card" href="kipling/index.html">
+          <div class="preview"><img class="og" src="kipling/og-image.png" loading="lazy" alt="" width="1200" height="630"></div>
+          <div class="meta">
+            <div class="meta-tag">WordPress how-to</div>
+            <h3>Kipling Site Editing</h3>
+            <p>Edit pages on the Kipling community site with WordPress and Elementor, step by step.</p>
+            <span class="open">Open</span>
+          </div>
+        </a>
+
+        <a class="card" href="onboarding/index.html">
+          <div class="preview"><img class="og" src="onboarding/og-image.png" loading="lazy" alt="" width="1200" height="630"></div>
+          <div class="meta">
+            <div class="meta-tag">HR requests <span class="gate">Sign-in</span></div>
+            <h3>Onboarding</h3>
+            <p>Client Managers submit new-hire, termination, and position-change requests; admin fulfils them from a cross-client queue.</p>
+            <span class="open">Open</span>
+          </div>
+        </a>
+
+      </div>
+    </section>
+
+    <!-- ========== Apps ========== -->
+    <section class="section">
+      <div class="section-head"><h2>Apps</h2><span class="count">3</span></div>
+      <div class="grid">
+
+        <a class="card" href="incidents/index.html">
+          <div class="preview"><img class="og" src="incidents/og-image.png" loading="lazy" alt="" width="1200" height="630"></div>
+          <div class="meta">
+            <div class="meta-tag">Incident tracking <span class="gate">Sign-in</span></div>
+            <h3>Incident Response</h3>
+            <p>Open, investigate, and resolve client security incidents with a timestamped audit trail.</p>
+            <span class="open">Open</span>
+          </div>
+        </a>
+
+        <a class="card" href="watchtower/index.html">
+          <div class="preview"><img class="og" src="watchtower/og-image.png" loading="lazy" alt="" width="1200" height="630"></div>
+          <div class="meta">
+            <div class="meta-tag">Fleet monitoring <span class="gate">Sign-in</span></div>
+            <h3>Watchtower</h3>
+            <p>Daily phone-home from client PCs: external IP, Veeam, SentinelOne, Defender, and asset inventory, with IP-change alerts.</p>
+            <span class="open">Open</span>
+          </div>
+        </a>
+
+        <a class="card" href="backups/index.html">
+          <div class="preview"><img class="og" src="backups/og-image.png" loading="lazy" alt="" width="1200" height="630"></div>
+          <div class="meta">
+            <div class="meta-tag">Backup audits <span class="gate">Sign-in</span></div>
+            <h3>Backup Audits</h3>
+            <p>Submit and track per-server backup audits for every client: Veeam, Carbonite, WSB, drives, recovery media.</p>
+            <span class="open">Open</span>
+          </div>
+        </a>
+
+      </div>
+    </section>
+
+    <!-- ========== Diagnostics ========== -->
+    <section class="section">
+      <div class="section-head"><h2>Diagnostics</h2><span class="count">2</span></div>
+      <div class="grid">
+
+        <a class="card" href="spf/index.html">
+          <div class="preview"><img class="og" src="spf/og-image.png" loading="lazy" alt="" width="1200" height="630"></div>
+          <div class="meta">
+            <div class="meta-tag">SPF generator</div>
+            <h3>SPF Toolkit</h3>
+            <p>Look up, generate, and validate SPF records against the 10-lookup limit with recursive include resolution.</p>
+            <span class="open">Open</span>
+          </div>
+        </a>
+
+        <a class="card" href="domainaudit/index.html">
+          <div class="preview"><img class="og" src="domainaudit/og-image.png" loading="lazy" alt="" width="1200" height="630"></div>
+          <div class="meta">
+            <div class="meta-tag">Domain audit</div>
+            <h3>Domain Audit</h3>
+            <p>Bulk SPF, DKIM, and DMARC audit across a list of domains, with MX, registrar, and sender mapping. CSV/JSON export.</p>
+            <span class="open">Open</span>
+          </div>
+        </a>
+
+      </div>
+    </section>
+
+    <!-- ========== Reference ========== -->
+    <section class="section">
+      <div class="section-head"><h2>Reference</h2><span class="count">4</span></div>
+      <div class="grid">
+
+        <a class="card" href="sop/index.html">
+          <div class="preview"><img class="og" src="sop/og-image.png" loading="lazy" alt="" width="1200" height="630"></div>
+          <div class="meta">
+            <div class="meta-tag">Procedures</div>
+            <h3>SOPs</h3>
+            <p>Numbered, versioned procedures for recurring work, each a branded downloadable PDF. SOP-001 to SOP-003 so far.</p>
+            <span class="open">Open</span>
+          </div>
+        </a>
+
+        <a class="card" href="canned/index.html">
+          <div class="preview"><img class="og" src="canned/og-image.png" loading="lazy" alt="" width="1200" height="630"></div>
+          <div class="meta">
+            <div class="meta-tag">Support replies</div>
+            <h3>Canned Replies</h3>
+            <p>Copy-paste replies for common ticket questions: headers, PC name, local admin, delegated mailbox, Google 2FA.</p>
+            <span class="open">Open</span>
+          </div>
+        </a>
+
+        <a class="card" href="scripts/index.html">
+          <div class="preview"><img class="og" src="scripts/og-image.png" loading="lazy" alt="" width="1200" height="630"></div>
+          <div class="meta">
+            <div class="meta-tag">Windows setup</div>
+            <h3>PC Scripts</h3>
+            <p>PowerShell scripts for the fixes you repeat on every fresh Windows machine, each with its purpose and manual click-path.</p>
+            <span class="open">Open</span>
+          </div>
+        </a>
+
+        <a class="card" href="branding/index.html">
+          <div class="preview"><img class="og" src="branding/og-image.png" loading="lazy" alt="" width="1200" height="630"></div>
+          <div class="meta">
+            <div class="meta-tag">Brand guidelines</div>
+            <h3>Brand Guidelines</h3>
+            <p>Logos, colors, typography, and usage rules for the Umbrella Automation brand, with click-to-copy hex codes.</p>
+            <span class="open">Open</span>
+          </div>
+        </a>
+
+      </div>
+    </section>
+
+  </div>
+
+  <!-- Tools & Bookmarks sidebar.
+       To add a bookmark: copy a <li>...</li> block and edit the href, label text, and source domain. -->
+  <aside class="tools" aria-label="Tools and bookmarks">
+    <h2>Tools &amp; Bookmarks</h2>
+    <ul>
+      <li><a href="https://easydmarc.com/tools/dmarc-record-generator" target="_blank" rel="noopener noreferrer"><span class="label">DMARC Record Generator</span><span class="source">easydmarc.com</span></a></li>
+      <li><a href="https://unifi.ui.com/" target="_blank" rel="noopener noreferrer"><span class="label">UniFi Site Manager</span><span class="source">unifi.ui.com</span></a></li>
+      <li><a href="https://www.majorgeeks.com/" target="_blank" rel="noopener noreferrer"><span class="label">MajorGeeks</span><span class="source">majorgeeks.com</span></a></li>
+      <li><a href="https://mxtoolbox.com/SuperTool.aspx" target="_blank" rel="noopener noreferrer"><span class="label">MXToolbox SuperTool</span><span class="source">mxtoolbox.com</span></a></li>
+      <li><a href="https://dnschecker.org/" target="_blank" rel="noopener noreferrer"><span class="label">DNS Checker</span><span class="source">dnschecker.org</span></a></li>
+      <li><a href="https://www.virustotal.com/" target="_blank" rel="noopener noreferrer"><span class="label">VirusTotal</span><span class="source">virustotal.com</span></a></li>
+      <li><a href="https://downdetector.com/" target="_blank" rel="noopener noreferrer"><span class="label">Downdetector</span><span class="source">downdetector.com</span></a></li>
+    </ul>
+  </aside>
+
+  </div>
+</main>
+
+<footer class="page">
+  <p>Work hub <span class="version">v0.9.0</span> &middot; internal &middot; add tiles by dropping new folders alongside this page.</p>
+</footer>
+
+<script>
+(() => {
+  const STORAGE_KEY = 'workhub.cardOrder.v1';
+  const grids = [...document.querySelectorAll('.grid')];
+  if (!grids.length) return;
+  const allCards = () => grids.flatMap(g => [...g.querySelectorAll('.card')]);
+  // Normalize so a card keeps the same id whether href is "foo/" or "foo/index.html".
+  const idOf = card => card.getAttribute('href').replace(/\/index\.html$/i, '').replace(/\/$/, '');
+
+  // Apply the saved order on load. Order is one flat id list; within each
+  // section we sort that section's cards by their index in the list, and
+  // cards missing from the list keep their DOM position at the end.
+  const saved = (() => {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || null; } catch { return null; }
+  })();
+  if (Array.isArray(saved) && saved.length) {
+    const rank = new Map(saved.map((id, i) => [id, i]));
+    grids.forEach(grid => {
+      const cards = [...grid.querySelectorAll('.card')];
+      cards
+        .map((c, i) => ({ c, i, r: rank.has(idOf(c)) ? rank.get(idOf(c)) : Infinity }))
+        .sort((a, b) => (a.r - b.r) || (a.i - b.i))
+        .forEach(({ c }) => grid.appendChild(c));
+    });
+  }
+
+  const toggleBtn = document.getElementById('reorderToggleBtn');
+  const resetBtn = document.getElementById('resetOrderBtn');
+  let reordering = false;
+  let draggedCard = null;
+
+  const showResetIfDirty = () => {
+    if (resetBtn) resetBtn.hidden = !localStorage.getItem(STORAGE_KEY);
+  };
+  showResetIfDirty();
+
+  const saveOrder = () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(allCards().map(idOf)));
+    showResetIfDirty();
+  };
+
+  const setReordering = on => {
+    reordering = on;
+    document.body.classList.toggle('reordering', on);
+    toggleBtn.classList.toggle('btn-active', on);
+    toggleBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    toggleBtn.textContent = on ? 'Done' : 'Reorder tiles';
+    allCards().forEach(c => { c.draggable = on; });
+  };
+
+  toggleBtn.addEventListener('click', () => setReordering(!reordering));
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && reordering) setReordering(false); });
+
+  if (resetBtn) {
+    resetBtn.addEventListener('click', () => {
+      localStorage.removeItem(STORAGE_KEY);
+      showResetIfDirty();
+      window.location.reload();
+    });
+  }
+
+  grids.forEach(grid => {
+    // Suppress card navigation while reordering.
+    grid.addEventListener('click', e => {
+      if (!reordering) return;
+      e.preventDefault();
+      e.stopPropagation();
+    }, true);
+
+    grid.addEventListener('dragstart', e => {
+      if (!reordering) { e.preventDefault(); return; }
+      const card = e.target.closest('.card');
+      if (!card) return;
+      draggedCard = card;
+      card.classList.add('dragging');
+      if (e.dataTransfer) {
+        e.dataTransfer.effectAllowed = 'move';
+        try { e.dataTransfer.setData('text/plain', idOf(card)); } catch {}
+      }
+    });
+
+    grid.addEventListener('dragend', () => {
+      if (draggedCard) {
+        draggedCard.classList.remove('dragging');
+        draggedCard = null;
+        saveOrder();
+      }
+      allCards().forEach(c => c.classList.remove('drop-target'));
+    });
+
+    grid.addEventListener('dragover', e => {
+      if (!reordering || !draggedCard) return;
+      const target = e.target.closest('.card');
+      // Constrain dragging to within the same section.
+      if (!target || target.parentNode !== draggedCard.parentNode) return;
+      e.preventDefault();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+      allCards().forEach(c => c !== target && c.classList.remove('drop-target'));
+      if (target === draggedCard) return;
+      target.classList.add('drop-target');
+      const rect = target.getBoundingClientRect();
+      const after = (e.clientY - rect.top) / rect.height + (e.clientX - rect.left) / rect.width > 1;
+      if (after) target.parentNode.insertBefore(draggedCard, target.nextSibling);
+      else target.parentNode.insertBefore(draggedCard, target);
+    });
+
+    grid.addEventListener('drop', e => { if (reordering) e.preventDefault(); });
+  });
+})();
+</script>
+
+</body>
+</html>
