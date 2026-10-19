@@ -6,7 +6,7 @@
 <title>Standard Operating Procedures</title>
 <meta name="description" content="Umbrella Automation standard operating procedures: numbered, versioned, and downloadable as PDF.">
 <meta name="robots" content="noindex">
-<meta name="version" content="0.2.0">
+<meta name="version" content="0.3.0">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -27,6 +27,7 @@
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
   body {
     background: var(--bg);
     color: var(--ink);
@@ -43,13 +44,28 @@
     border-bottom: 1px solid var(--line);
     padding: 30px 24px 26px;
   }
-  header.page .wrap { max-width: 980px; margin: 0 auto; }
+  header.page .wrap { max-width: 1160px; margin: 0 auto; }
   .crumb { font-size: 13px; color: var(--ink-soft); margin: 0 0 10px; }
   .crumb a { font-weight: 600; }
   header.page h1 { font-size: 28px; margin: 0 0 6px; letter-spacing: -0.01em; }
   header.page p.lede { margin: 0; color: var(--ink-soft); font-size: 15px; max-width: 72ch; }
 
-  main { max-width: 980px; margin: 0 auto; padding: 26px 24px 64px; }
+  main { max-width: 1160px; margin: 0 auto; padding: 26px 24px 64px; }
+  .layout { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 34px; align-items: start; }
+  .content { min-width: 0; }
+  nav.toc { position: sticky; top: 20px; }
+  nav.toc h2 { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: var(--ink-soft); margin: 0 0 10px; }
+  nav.toc ul { list-style: none; margin: 0; padding: 0; }
+  nav.toc a { display: block; padding: 7px 11px; border-left: 2px solid var(--line); color: var(--ink-soft); font-size: 13.5px; font-weight: 500; line-height: 1.3; transition: color .12s ease, border-color .12s ease, background .12s ease; }
+  nav.toc a .id { display: block; font-size: 11px; font-weight: 700; letter-spacing: 0.05em; color: var(--accent); margin-bottom: 1px; }
+  nav.toc a:hover { color: var(--accent); background: var(--accent-soft); text-decoration: none; }
+  nav.toc a.active { color: var(--accent); border-left-color: var(--accent); font-weight: 600; }
+  .panel, .howto { scroll-margin-top: 16px; }
+  @media (max-width: 880px) {
+    .layout { grid-template-columns: 1fr; gap: 0; }
+    nav.toc { position: static; margin-bottom: 22px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); padding: 14px 16px; }
+    nav.toc a { border-left: 0; padding: 6px 0; }
+  }
 
   .howto {
     background: var(--surface); border: 1px solid var(--line);
@@ -107,7 +123,7 @@
   .btn-pdf::after { content: " \2193"; }
   .actions .hint { font-size: 12px; color: var(--ink-soft); }
 
-  footer.page { max-width: 980px; margin: 0 auto; padding: 0 24px 36px; color: var(--ink-soft); font-size: 12.5px; }
+  footer.page { max-width: 1160px; margin: 0 auto; padding: 0 24px 36px; color: var(--ink-soft); font-size: 12.5px; }
   footer.page .version {
     display: inline-block; padding: 1px 7px; border: 1px solid var(--line-strong);
     border-radius: 999px; font-size: 11.5px; font-weight: 600; color: var(--ink-soft);
@@ -126,6 +142,17 @@
 </header>
 
 <main>
+  <div class="layout">
+  <nav class="toc" aria-label="On this page">
+    <h2>On this page</h2>
+    <ul>
+      <li><a href="#conventions">How SOPs work here</a></li>
+      <li><a href="#sop-001"><span class="id">SOP-001</span>Google Workspace security baseline</a></li>
+      <li><a href="#sop-002"><span class="id">SOP-002</span>SentinelOne threat verification</a></li>
+      <li><a href="#sop-003"><span class="id">SOP-003</span>LogMeIn host installation</a></li>
+    </ul>
+  </nav>
+  <div class="content">
 
   <section class="howto" id="conventions">
     <h2>How SOPs work here</h2>
@@ -197,11 +224,68 @@
     </div>
   </section>
 
+  <section class="panel" id="sop-003">
+    <div class="panel-head">
+      <div>
+        <span class="tag">Remote access &middot; Device setup</span>
+        <h2><span class="sop-id">SOP-003</span>LogMeIn Host Installation on Client PCs and Servers</h2>
+      </div>
+      <div class="panel-side">
+        <span class="badge badge-ok">Active</span>
+      </div>
+    </div>
+    <p class="meta-line">Version <strong>1.0</strong> &middot; Effective <strong>2026-10-19</strong> &middot; Review <strong>annual</strong></p>
+    <p class="purpose">The order of operations when a technician installs LogMeIn on a client machine themselves. Two gates come first &mdash; rename and reboot, then the <code>umbrella</code> backdoor account, tested &mdash; so the host registers under the right name and we are never locked out. Then the LogMeIn host, Chrome, Windows Updates with the pause/resume refresh and optional driver updates, power settings so the machine stays reachable, endpoint protection, and verification.</p>
+    <ul class="covers">
+      <li>Rename + reboot gate</li>
+      <li>Backdoor account gate</li>
+      <li>LogMeIn Central deployment</li>
+      <li>Chrome</li>
+      <li>Windows Updates + drivers</li>
+      <li>Power &amp; sleep</li>
+      <li>Endpoint protection</li>
+      <li>Server cautions</li>
+      <li>Verify &amp; document</li>
+    </ul>
+    <div class="actions">
+      <a class="btn-open" href="logmein-host-install.html">Open SOP-003</a>
+      <a class="btn-pdf" href="logmein-host-install.html?print=1">Download PDF</a>
+      <span class="hint">Opens the print dialog &mdash; choose &ldquo;Save as PDF.&rdquo;</span>
+    </div>
+  </section>
+
+  </div>
+  </div>
 </main>
 
 <footer class="page">
-  <p>SOP library <span class="version">v0.2.0</span> &middot; 2 SOPs &middot; to add one, copy an existing SOP page, take the next number, and add a card here.</p>
+  <p>SOP library <span class="version">v0.3.0</span> &middot; 3 SOPs &middot; to add one, copy an existing SOP page, take the next number, and add a card here.</p>
 </footer>
+
+<script>
+(() => {
+  // Highlight the TOC entry for the section in view
+  const links = Array.from(document.querySelectorAll('nav.toc a'));
+  const byId = new Map(links.map(a => [a.getAttribute('href').slice(1), a]));
+  const targets = Array.from(byId.keys()).map(id => document.getElementById(id)).filter(Boolean);
+  let active = null;
+  const setActive = (a) => {
+    if (a === active) return;
+    if (active) active.classList.remove('active');
+    active = a;
+    if (active) active.classList.add('active');
+  };
+  const onScroll = () => {
+    let current = targets[0];
+    for (const t of targets) {
+      if (t.getBoundingClientRect().top <= 90) current = t; else break;
+    }
+    if (current) setActive(byId.get(current.id));
+  };
+  document.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+})();
+</script>
 
 </body>
 </html>
