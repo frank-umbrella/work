@@ -835,6 +835,7 @@ Official vendor direct downloads, also surfaced on the landing page
 | Malwarebytes for Windows (Free/Personal) | `https://downloads.malwarebytes.com/file/mb-windows` (-> MBSetup.exe)         |
 | ESET Online Scanner                   | `https://download.eset.com/com/eset/tools/online_scanner/latest/esetonlinescanner.exe` |
 | Malwarebytes AdwCleaner (portable, no install) | `https://downloads.malwarebytes.com/file/adwcleaner` (logs/quarantine in `C:\AdwCleaner` - delete when done) |
+| BGInfo (Sysinternals, portable) | `https://download.sysinternals.com/files/BGInfo.zip` or direct exe `https://live.sysinternals.com/Bginfo64.exe`; apply silently: `Bginfo64.exe umbrella.bgi /timer:0 /silent /nolicprompt`; default Umbrella `.bgi` to be hosted here |
 
 Both links point straight at the vendors' own download servers (verified live).
 Run on-demand scanners with administrator rights.

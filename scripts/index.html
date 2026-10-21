@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PC Scripts v0.21.0</title>
+<title>PC Scripts v0.22.0</title>
 <meta name="description" content="PowerShell scripts for re-fixing a fresh Windows PC: show all tray icons, stop Copilot and Malwarebytes at startup. Windows 10 and 11.">
 <meta name="robots" content="noindex">
-<meta name="version" content="0.21.0">
+<meta name="version" content="0.22.0">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -1391,6 +1391,18 @@ sc.exe query MBAMService</pre>
       <a class="dl-ext" href="https://downloads.malwarebytes.com/file/adwcleaner" target="_blank" rel="noopener noreferrer">Download adwcleaner.exe</a>
     </div>
 
+    <div class="tool">
+      <div class="info">
+        <h3>BGInfo (Sysinternals)</h3>
+        <p>Stamps machine info &mdash; hostname, IP, OS, uptime, logged-on user &mdash; onto the desktop wallpaper so a tech can read a machine&rsquo;s identity at a glance (servers and client PCs alike). Portable, no install. <a href="https://learn.microsoft.com/en-us/sysinternals/downloads/bginfo" target="_blank" rel="noopener noreferrer">Microsoft docs</a> &middot; direct 64-bit exe: <a href="https://live.sysinternals.com/Bginfo64.exe" target="_blank" rel="noopener noreferrer">live.sysinternals.com/Bginfo64.exe</a> &middot; <span class="host">download.sysinternals.com</span></p>
+      </div>
+      <a class="dl-ext" href="https://download.sysinternals.com/files/BGInfo.zip" target="_blank" rel="noopener noreferrer">Download BGInfo.zip</a>
+    </div>
+    <p class="tool-note">
+      <strong>Apply a config silently:</strong> <code>Bginfo64.exe umbrella.bgi /timer:0 /silent /nolicprompt</code> &mdash; <code>/timer:0</code> applies immediately with no countdown window, <code>/silent</code> suppresses errors, <code>/nolicprompt</code> skips the EULA popup (so it works over the LogMeIn background shell). Put the same line in a login script / scheduled task to re-stamp at every sign-in.
+      <span class="src"><em>Our default Umbrella <code>.bgi</code> config will be hosted here &mdash; coming soon.</em></span>
+    </p>
+
     <p class="tools-note">Links go straight to the vendors' own download servers (verified live). Always run on-demand scanners with admin rights.</p>
   </section>
 
@@ -1399,7 +1411,7 @@ sc.exe query MBAMService</pre>
 </main>
 
 <footer class="page">
-  <p>PC Scripts <span class="version">v0.21.0</span> &middot; Windows 10 &amp; 11.</p>
+  <p>PC Scripts <span class="version">v0.22.0</span> &middot; Windows 10 &amp; 11.</p>
 </footer>
 
 <script>
