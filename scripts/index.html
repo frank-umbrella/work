@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PC Scripts v0.22.0</title>
-<meta name="description" content="PowerShell scripts for re-fixing a fresh Windows PC: show all tray icons, stop Copilot and Malwarebytes at startup. Windows 10 and 11.">
+<title>PC Scripts v0.23.0</title>
+<meta name="description" content="Windows 10/11 script library: copy-paste PowerShell for startup fixes, Windows Update, disk checks and repair, hardware diagnostics, software removal, and silent deployment, plus manual steps for each.">
 <meta name="robots" content="noindex">
-<meta name="version" content="0.22.0">
+<meta name="version" content="0.23.0">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -16,11 +16,12 @@
     --ink-soft: #475063;
     --line: #e3e6ec;
     --line-strong: #c9cfdb;
+    --line-ui: #84909f;
     --accent: #1a56db;
     --accent-soft: #eaf0fc;
     --ok: #0f7b3f;
     --ok-soft: #e7f5ec;
-    --warn: #9a6700;
+    --warn: #8a5c00;
     --warn-soft: #fbf3df;
     --radius: 12px;
     --shadow: 0 1px 2px rgba(20, 25, 40, 0.04), 0 4px 14px rgba(20, 25, 40, 0.05);
@@ -46,8 +47,6 @@
     padding: 30px 24px 26px;
   }
   header.page .wrap { max-width: 1160px; margin: 0 auto; }
-  .crumb { font-size: 13px; color: var(--ink-soft); margin: 0 0 10px; }
-  .crumb a { font-weight: 600; }
   header.page h1 { font-size: 28px; margin: 0 0 6px; letter-spacing: -0.01em; }
   header.page p.lede { margin: 0; color: var(--ink-soft); font-size: 15px; max-width: 70ch; }
   .os-pill {
@@ -58,13 +57,15 @@
 
   main { max-width: 1160px; margin: 0 auto; padding: 26px 24px 64px; }
 
-  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: no-preference) {
+    html { scroll-behavior: smooth; }
+  }
   .layout { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 34px; align-items: start; }
   .content { min-width: 0; }
   nav.toc { position: sticky; top: 20px; max-height: calc(100vh - 40px); overflow-y: auto; padding-right: 4px; }
   nav.toc h2 { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: var(--ink-soft); margin: 0 0 10px; }
   nav.toc .toc-group { margin: 0 0 12px; }
-  nav.toc .toc-group h3 { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); margin: 0 0 3px; padding-left: 11px; opacity: 0.85; }
+  nav.toc .toc-group h3 { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); margin: 0 0 3px; padding-left: 11px; }
   nav.toc ul { list-style: none; margin: 0; padding: 0; }
   nav.toc a { display: block; padding: 5px 11px; border-left: 2px solid var(--line); color: var(--ink-soft); font-size: 13px; font-weight: 500; line-height: 1.3; transition: color .12s ease, border-color .12s ease, background .12s ease; }
   nav.toc a:hover { color: var(--accent); background: var(--accent-soft); text-decoration: none; }
@@ -73,7 +74,19 @@
   @media (max-width: 880px) {
     .layout { grid-template-columns: 1fr; gap: 0; }
     nav.toc { position: static; margin-bottom: 22px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow); padding: 14px 16px; }
-    nav.toc a { border-left: 0; padding: 6px 0; }
+    nav.toc a { border-left: 0; padding: 12px 0; min-height: 44px; }
+    /* Touch targets: 44px minimum hit areas and wider gaps */
+    .opt-chip { padding: 12px 15px; min-height: 44px; }
+    .builder-opts { gap: 10px; }
+    .switches { gap: 10px 12px; }
+    .sw::after, .tip::after, .copy-btn::after { content: ""; position: absolute; inset: -12px; }
+    .tip::before { position: relative; z-index: 1; }
+    .codeblock pre { padding-right: 84px; }
+    .copy-btn { padding: 8px 13px; }
+    .dl { display: inline-block; padding: 12px 16px; min-height: 44px; }
+    .dl-ext { padding: 12px 18px; min-height: 44px; }
+    details.manual > summary { padding: 13px 13px; min-height: 44px; }
+    .tfield input { padding: 12px 11px; }
   }
 
   .howto {
@@ -105,7 +118,7 @@
   .badge-ok { color: var(--ok); background: var(--ok-soft); }
   .badge-warn { color: var(--warn); background: var(--warn-soft); }
   .dl {
-    font-size: 12.5px; font-weight: 600; border: 1px solid var(--line-strong);
+    font-size: 12.5px; font-weight: 600; border: 1px solid var(--line-ui);
     border-radius: 8px; padding: 6px 12px; color: var(--ink); background: var(--surface);
   }
   .dl:hover { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); text-decoration: none; }
@@ -121,7 +134,6 @@
     padding: 11px 14px; overflow-x: auto; margin: 0 0 10px;
     font-family: var(--mono); font-size: 12.5px; line-height: 1.5;
   }
-  pre .c { color: #8b93a7; }
 
   /* Copy button wrapper (added around each <pre> by script) */
   .codeblock { position: relative; margin: 0 0 10px; }
@@ -142,9 +154,10 @@
   /* Switch chips with hover/focus tooltip */
   .switches { font-size: 13px; color: var(--ink-soft); margin: 2px 0 10px; display: flex; flex-wrap: wrap; gap: 7px 10px; align-items: center; }
   .switches .lbl { font-weight: 600; }
-  .sw { position: relative; display: inline-flex; cursor: help; outline: none; }
-  .sw > code { font-family: var(--mono); font-size: 12px; background: var(--bg); border: 1px solid var(--line-strong); border-bottom-width: 2px; border-radius: 5px; padding: 1px 7px; color: var(--ink); }
+  .sw { position: relative; display: inline-flex; cursor: help; }
+  .sw > code { font-family: var(--mono); font-size: 12px; background: var(--bg); border: 1px solid var(--line-ui); border-bottom-width: 2px; border-radius: 5px; padding: 1px 7px; color: var(--ink); }
   .sw:hover > code, .sw:focus-visible > code { border-color: var(--accent); color: var(--accent); }
+  .sw:focus-visible, .tip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .bubble {
     position: absolute; bottom: calc(100% + 9px); left: 50%; transform: translateX(-50%);
     width: max-content; max-width: 270px; z-index: 20;
@@ -163,7 +176,7 @@
     position: relative; display: inline-flex; align-items: center; justify-content: center;
     width: 15px; height: 15px; margin-left: 5px; vertical-align: text-bottom;
     border-radius: 50%; background: var(--accent-soft); color: var(--accent);
-    font-size: 10px; font-weight: 700; font-style: normal; cursor: help; outline: none; flex-shrink: 0;
+    font-size: 10px; font-weight: 700; font-style: normal; cursor: help; flex-shrink: 0;
   }
   .tip::before { content: "i"; font-family: Georgia, "Times New Roman", serif; line-height: 1; }
   .tip:hover, .tip:focus-visible { background: var(--accent); color: #fff; }
@@ -174,7 +187,7 @@
   .opt-chip {
     position: relative; font-family: var(--mono); font-size: 12px; font-weight: 600;
     color: var(--ink); background: var(--bg);
-    border: 1px solid var(--line-strong); border-bottom-width: 2px; border-radius: 6px;
+    border: 1px solid var(--line-ui); border-bottom-width: 2px; border-radius: 6px;
     padding: 4px 11px; cursor: pointer;
     transition: background .12s ease, color .12s ease, border-color .12s ease;
   }
@@ -198,7 +211,7 @@
   .tfield > span { display: block; font-size: 12.5px; font-weight: 600; color: var(--ink-soft); margin-bottom: 4px; }
   .tfield input {
     width: 100%; font-family: var(--mono); font-size: 12.5px; color: var(--ink);
-    background: var(--surface); border: 1px solid var(--line-strong); border-radius: 7px;
+    background: var(--surface); border: 1px solid var(--line-ui); border-radius: 7px;
     padding: 8px 11px; outline: none;
     transition: border-color .12s ease, box-shadow .12s ease;
   }
@@ -344,14 +357,14 @@
   <section class="howto" id="how-to-run">
     <h2>How to run any of these</h2>
     <ul>
-      <li><strong>One-time use &mdash; nothing is left on the PC.</strong> Each script changes a Windows setting and exits, exactly like flipping the toggle by hand. Run it once, then delete the <code>.ps1</code>; only the setting persists. Nothing keeps running in the background. <em>(The single exception is the tray script's optional <code>-Install</code> &mdash; skip it for one-and-done; see that note below.)</em></li>
+      <li><strong>One-time use: nothing is left on the PC.</strong> Each script changes a Windows setting and exits, exactly like flipping the toggle by hand. Run it once, then delete the <code>.ps1</code>; only the setting persists. Nothing keeps running in the background. <em>(The single exception is the tray script's optional <code>-Install</code>: skip it for one-and-done; see that note below.)</em></li>
       <li>Save the <code>.ps1</code> somewhere local, open <strong>PowerShell</strong>, then run:
         <code>powershell -ExecutionPolicy Bypass -File .\NAME.ps1</code></li>
       <li><code>-List</code> shows what would change without touching anything &middot; <code>-WhatIf</code> is a full dry run &middot; <code>-Enable</code> reverses a disable.</li>
       <li>Copied from a network share and blocked? Run <code>Unblock-File C:\NAME.ps1</code> once.</li>
       <li><strong>Always use the full path</strong> (e.g. <code>-File C:\NAME.ps1</code>) like the copy blocks below do. An <em>elevated</em> PowerShell starts in <code>C:\windows\system32</code>, so a relative <code>.\NAME.ps1</code> won&rsquo;t find a script saved to <code>C:\</code>.</li>
-      <li><strong>Running these over LogMeIn</strong> (the usual method &mdash; the built-in admin Command Prompt, so the user isn&rsquo;t interrupted): that shell is <em>already elevated</em>, so the self-elevating scripts detect it and run in place with no UAC popup appearing on the user&rsquo;s screen. Best fit: everything <em>machine-wide or silent</em> &mdash; SentinelOne deploy, the removals, Print Flush, chkdsk, DISM/SFC, WinSxS, Windows Update options, password expiry, Disk Cleanup <code>-Auto</code>, and the RAM / drive checks (read-only). <strong>Two exceptions:</strong> the <em>per-user</em> scripts (Show all tray icons, Stop Copilot &mdash; they change the logged-in user&rsquo;s settings, and the background shell runs as the admin account, so they&rsquo;d change the <em>wrong profile</em>) and the <em>window-openers</em> (Devices and Printers, interactive Disk Cleanup, the Windows Update screen &mdash; their windows open where no one can see them). Run those during a remote-control session as the signed-in user instead.</li>
-      <li><strong>Ad-blocker note:</strong> uBlock Origin may flag the Copy buttons as a &ldquo;ClickFix&rdquo; attempt. That&rsquo;s its guard against scam pages that push PowerShell commands onto your clipboard &mdash; copying admin commands is exactly what this page does legitimately, so the pattern matches. The buttons only copy the command shown on screen. If a copy is blocked, the button switches to <em>Press Ctrl+C</em> with the command pre-selected, or allow clipboard access for this site in uBlock.</li>
+      <li><strong>Running these over LogMeIn</strong> (the usual method: the built-in admin Command Prompt, so the user isn&rsquo;t interrupted): that shell is <em>already elevated</em>, so the self-elevating scripts detect it and run in place with no UAC popup appearing on the user&rsquo;s screen. Best fit: everything <em>machine-wide or silent</em>: SentinelOne deploy, the removals, Print Flush, chkdsk, DISM/SFC, WinSxS, Windows Update options, password expiry, Disk Cleanup <code>-Auto</code>, and the RAM / drive checks (read-only). <strong>Two exceptions:</strong> the <em>per-user</em> scripts (Show all tray icons, Stop Copilot; they change the logged-in user&rsquo;s settings, and the background shell runs as the admin account, so they&rsquo;d change the <em>wrong profile</em>) and the <em>window-openers</em> (Devices and Printers, interactive Disk Cleanup, the Windows Update screen; their windows open where no one can see them). Run those during a remote-control session as the signed-in user instead.</li>
+      <li><strong>Ad-blocker note:</strong> uBlock Origin may flag the Copy buttons as a &ldquo;ClickFix&rdquo; attempt. That&rsquo;s its guard against scam pages that push PowerShell commands onto your clipboard, and copying admin commands is exactly what this page does legitimately, so the pattern matches. The buttons only copy the command shown on screen. If a copy is blocked, the button switches to <em>Press Ctrl+C</em> with the command pre-selected, or allow clipboard access for this site in uBlock.</li>
     </ul>
 
     <h3 class="howto-sub">Step by step (example: Show-AllTrayIcons.ps1)</h3>
@@ -367,7 +380,7 @@
     <p class="howto-cap">If you saved it to your Desktop:</p>
     <pre>powershell -ExecutionPolicy Bypass -File "$HOME\Desktop\Show-AllTrayIcons.ps1"</pre>
 
-    <p class="howto-foot">Swap <code>Show-AllTrayIcons.ps1</code> for any other script name, and add switches on the end (e.g. <code>... .ps1 -List</code>). Because the full path is in the command, you don't need to change folders first. <strong>OneDrive tip:</strong> if the Desktop line errors, your Desktop is synced to OneDrive &mdash; use <code>"$HOME\OneDrive\Desktop\Show-AllTrayIcons.ps1"</code> instead.</p>
+    <p class="howto-foot">Swap <code>Show-AllTrayIcons.ps1</code> for any other script name, and add switches on the end (e.g. <code>... .ps1 -List</code>). Because the full path is in the command, you don't need to change folders first. <strong>OneDrive tip:</strong> if the Desktop line errors, your Desktop is synced to OneDrive: use <code>"$HOME\OneDrive\Desktop\Show-AllTrayIcons.ps1"</code> instead.</p>
   </section>
 
   <!-- ===================== Tray icons ===================== -->
@@ -390,7 +403,7 @@
       <p>Promotes every current tray icon and restarts Explorer so they appear immediately.</p>
       <div class="builder" data-base="powershell -ExecutionPolicy Bypass -File C:\Show-AllTrayIcons.ps1"
            data-base-desc="Shows every current system-tray icon on the taskbar (Win11: sets IsPromoted on all entries; Win10: the always-show-all switch) and restarts Explorer so it takes effect immediately. One-time change; nothing stays on the PC.">
-        <p class="build-lbl">Options &mdash; click to add to the command (hover for details):</p>
+        <p class="build-lbl">Options (click to add to the command; hover for details):</p>
         <div class="builder-opts">
           <button type="button" class="opt-chip" data-switch="-Install" data-group="task" data-desc="Also registers a logon task that re-applies ~1 minute after each sign-in, so apps installed later get promoted too. The ONLY option that leaves anything on the PC - skip it for a one-and-done pass.">-Install</button>
           <button type="button" class="opt-chip" data-switch="-Uninstall" data-group="task" data-desc="Removes the logon task and the local copy that -Install created. Nothing else changes.">-Uninstall</button>
@@ -408,7 +421,7 @@
             <li>Expand <strong>Other system tray icons</strong>.</li>
             <li>Turn <strong>On</strong> the toggle for each app you want always visible. The chevron disappears once nothing is hidden.</li>
           </ol>
-          <p class="note"><strong>Faster:</strong> click the chevron to open the flyout, then drag an icon out onto the taskbar &mdash; that promotes it instantly.</p>
+          <p class="note"><strong>Faster:</strong> click the chevron to open the flyout, then drag an icon out onto the taskbar. That promotes it instantly.</p>
           <strong>Windows 10</strong>
           <p class="note"><strong>Run box:</strong> <kbd>Win</kbd>+<kbd>R</kbd> &rarr; <code>control /name Microsoft.NotificationAreaIcons</code> opens the classic dialog with the &ldquo;Always show all icons&rdquo; checkbox.</p>
           <ol>
@@ -422,7 +435,7 @@
 
     <div class="opt">
       <h3>Optional: re-apply automatically on every logon</h3>
-      <p><strong>This is the only option that leaves anything on the PC</strong> &mdash; skip it if you just want a one-time change. It copies the script to <code>%LOCALAPPDATA%</code> and registers a logon task that re-runs ~1 minute after each sign-in, so apps installed <em>later</em> get promoted too. Only worth it on a machine you manage long-term; for a one-and-done pass on a client PC, use the one-shot above instead.</p>
+      <p><strong>This is the only option that leaves anything on the PC</strong>, so skip it if you just want a one-time change. It copies the script to <code>%LOCALAPPDATA%</code> and registers a logon task that re-runs ~1 minute after each sign-in, so apps installed <em>later</em> get promoted too. Only worth it on a machine you manage long-term; for a one-and-done pass on a client PC, use the one-shot above instead.</p>
       <pre>powershell -ExecutionPolicy Bypass -File C:\Show-AllTrayIcons.ps1 -Install</pre>
       <details class="manual">
         <summary>Do it manually instead</summary>
@@ -431,7 +444,7 @@
             <li>Open <strong>Task Scheduler</strong> &rarr; <strong>Create Task</strong>.</li>
             <li><strong>Triggers</strong> tab: New &rarr; <em>At log on</em>, delay 1 minute.</li>
             <li><strong>Actions</strong> tab: New &rarr; Program <code>powershell.exe</code>, arguments <code>-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "C:\path\Show-AllTrayIcons.ps1"</code>.</li>
-            <li>Save. (There is no built-in Settings toggle that survives new app installs &mdash; this is the manual equivalent of <code>-Install</code>.)</li>
+            <li>Save. (There is no built-in Settings toggle that survives new app installs; this is the manual equivalent of <code>-Install</code>.)</li>
           </ol>
         </div>
       </details>
@@ -473,7 +486,7 @@
       <p>Takes effect at the next sign-in. Run <code>-List</code> first if you want to preview matches.</p>
       <div class="builder" data-base="powershell -ExecutionPolicy Bypass -File C:\Disable-Copilot-Startup.ps1"
            data-base-desc="Stops Microsoft 365 Copilot and the standalone Copilot from launching at startup (sets their startup tasks to Disabled, the same reversible way Task Manager does). Takes effect at the next sign-in. No admin needed.">
-        <p class="build-lbl">Options &mdash; click to add to the command (hover for details):</p>
+        <p class="build-lbl">Options (click to add to the command; hover for details):</p>
         <div class="builder-opts">
           <button type="button" class="opt-chip" data-switch="-List" data-group="action" data-desc="Preview only - lists what would change, changes nothing.">-List</button>
           <button type="button" class="opt-chip" data-switch="-Enable" data-group="action" data-desc="Undo - turns Copilot startup back on.">-Enable</button>
@@ -509,14 +522,14 @@
         <a class="dl" href="Disable-Malwarebytes-Startup.ps1" download>Download .ps1</a>
       </div>
     </div>
-    <p class="purpose">Malwarebytes changed how it starts. Older versions add a Run key, task, or Startup shortcut &mdash; those are found and disabled automatically. Current v4/v5 launches its tray (<code>mbamtray.exe</code>) from the <strong>MBAMService</strong> service via the in-app toggle, with no clean registry switch &mdash; so the script gives explicit levers for that case. The <em>tray-off-but-keep-protection</em> option is the in-app toggle (manual, below).</p>
+    <p class="purpose">Malwarebytes changed how it starts. Older versions add a Run key, task, or Startup shortcut; those are found and disabled automatically. Current v4/v5 launches its tray (<code>mbamtray.exe</code>) from the <strong>MBAMService</strong> service via the in-app toggle, with no clean registry switch, so the script gives explicit levers for that case. The <em>tray-off-but-keep-protection</em> option is the in-app toggle (manual, below).</p>
 
     <div class="opt">
       <h3>Disable any Windows startup entries it finds</h3>
       <p>Clears old Run keys, scheduled tasks, and Startup-folder shortcuts for Malwarebytes. Safe default; run <code>-List</code> first to see what exists.</p>
       <div class="builder" data-base="powershell -ExecutionPolicy Bypass -File C:\Disable-Malwarebytes-Startup.ps1"
            data-base-desc="Finds and disables any Malwarebytes Run keys, scheduled tasks and Startup-folder shortcuts (the reversible Task Manager way). The modern v4/v5 tray is service-driven - use the in-app toggle or the service option below for that.">
-        <p class="build-lbl">Options &mdash; click to add to the command (hover for details):</p>
+        <p class="build-lbl">Options (click to add to the command; hover for details):</p>
         <div class="builder-opts">
           <button type="button" class="opt-chip" data-switch="-List" data-group="action" data-desc="Preview only - lists what exists, changes nothing.">-List</button>
           <button type="button" class="opt-chip" data-switch="-StopTrayNow" data-group="action" data-desc="Also closes the Malwarebytes tray (mbamtray.exe) for the current session right now.">-StopTrayNow</button>
@@ -526,24 +539,24 @@
         <pre>powershell -ExecutionPolicy Bypass -File C:\Disable-Malwarebytes-Startup.ps1</pre>
       </div>
       <details class="manual">
-        <summary>Do it manually instead (tray off, protection ON &mdash; matches the toggle)</summary>
+        <summary>Do it manually instead (tray off, protection ON: matches the toggle)</summary>
         <div class="manual-body">
           <ol>
             <li>Open <strong>Malwarebytes</strong>.</li>
             <li><strong>Settings</strong> (gear) &rarr; <strong>General</strong> (or <strong>Security</strong>, depending on version).</li>
             <li>Under <strong>Windows startup</strong>, turn <strong>Off</strong> &ldquo;<em>Launch Malwarebytes in the background when Windows starts</em>.&rdquo;</li>
           </ol>
-          <p class="note">This is the toggle that is <strong>On</strong> by default after every install &mdash; the surgical option that stops the background launch while keeping real-time protection.</p>
+          <p class="note">This is the toggle that is <strong>On</strong> by default after every install: the surgical option that stops the background launch while keeping real-time protection.</p>
         </div>
       </details>
     </div>
 
     <div class="opt">
       <h3>Stop Malwarebytes entirely at boot</h3>
-      <p><span class="danger">Sets MBAMService to Manual &mdash; this also stops real-time protection.</span> Requires admin. Use only if you want Malwarebytes fully dormant; reverse with <code>-Enable</code>.</p>
+      <p><span class="danger">Sets MBAMService to Manual, which also stops real-time protection.</span> Requires admin. Use only if you want Malwarebytes fully dormant; reverse with <code>-Enable</code>.</p>
       <div class="builder" data-base="powershell -ExecutionPolicy Bypass -File C:\Disable-Malwarebytes-Startup.ps1 -DisableService"
            data-base-desc="Sets the Malwarebytes services (MBAMService and related) to Manual start so NOTHING launches at boot - including real-time protection. Admin required; Malwarebytes self-protection may need turning off first if the change doesn't stick.">
-        <p class="build-lbl">Options &mdash; click to add to the command (hover for details):</p>
+        <p class="build-lbl">Options (click to add to the command; hover for details):</p>
         <div class="builder-opts">
           <button type="button" class="opt-chip" data-switch="-Enable" data-desc="Restore: sets the services back to Automatic so protection returns at boot.">-Enable</button>
         </div>
@@ -558,7 +571,7 @@
             <li>Find <strong>Malwarebytes Service</strong> (<code>MBAMService</code>), double-click.</li>
             <li>Set <strong>Startup type</strong> to <strong>Manual</strong> (or Disabled), then <strong>Stop</strong> the service. Apply.</li>
           </ol>
-          <p class="note"><strong>Self-protection:</strong> if it is enabled, Malwarebytes may revert external changes &mdash; turn self-protection off in the app first (Settings &rarr; Security), then apply.</p>
+          <p class="note"><strong>Self-protection:</strong> if it is enabled, Malwarebytes may revert external changes. Turn self-protection off in the app first (Settings &rarr; Security), then apply.</p>
         </div>
       </details>
     </div>
@@ -577,13 +590,13 @@
         <a class="dl" href="Open-WindowsUpdate.ps1" download>Download .ps1</a>
       </div>
     </div>
-    <p class="purpose">Opens Settings &gt; Windows Update, pauses updates for a set number of days, waits, then triggers a check for updates &mdash; the routine in one shot. Pausing writes the machine-wide pause window in the registry, so the script self-elevates for that step (the Update screen still opens in your normal session). On machines managed by Group Policy / Intune / WSUS, policy may override the pause.</p>
+    <p class="purpose">Opens Settings &gt; Windows Update, pauses updates for a set number of days, waits, then triggers a check for updates: the routine in one shot. Pausing writes the machine-wide pause window in the registry, so the script self-elevates for that step (the Update screen still opens in your normal session). On machines managed by Group Policy / Intune / WSUS, policy may override the pause.</p>
 
     <div class="opt">
       <h3>Build the command</h3>
       <div class="builder" data-base="powershell -ExecutionPolicy Bypass -File C:\Open-WindowsUpdate.ps1"
            data-base-desc="Opens Settings > Windows Update, pauses updates for 7 days (writes the machine-wide pause window - this is the step that needs the admin prompt), waits 10 seconds, then triggers Check for updates.">
-        <p class="build-lbl">Options &mdash; click to add to the command (hover for details):</p>
+        <p class="build-lbl">Options (click to add to the command; hover for details):</p>
         <div class="builder-opts">
           <button type="button" class="opt-chip" data-switch="-PauseDays 14" data-group="pause" data-desc="Pause for 14 days instead of the default 7. Edit the number after copying for any length - Windows caps pausing at about 35 days.">-PauseDays 14</button>
           <button type="button" class="opt-chip" data-switch="-Resume" data-group="pause" data-desc="Un-pause: clears any existing pause so updates resume, then opens the screen and checks.">-Resume</button>
@@ -620,13 +633,13 @@
         <a class="dl" href="Set-WindowsUpdateOptions.ps1" download>Download .ps1</a>
       </div>
     </div>
-    <p class="purpose">Turns on the two Advanced-options toggles &mdash; <strong>Receive updates for other Microsoft products</strong> (registers the Microsoft Update service) and <strong>Notify me when a restart is required to finish updating</strong> &mdash; and sets <strong>Active hours</strong> (default 7&nbsp;AM&ndash;11&nbsp;PM). Machine-wide settings, so it self-elevates. GPO / Intune / WSUS policy may override these.</p>
+    <p class="purpose">Turns on the two Advanced-options toggles: <strong>Receive updates for other Microsoft products</strong> (registers the Microsoft Update service) and <strong>Notify me when a restart is required to finish updating</strong>, and sets <strong>Active hours</strong> (default 7&nbsp;AM&ndash;11&nbsp;PM). Machine-wide settings, so it self-elevates. GPO / Intune / WSUS policy may override these.</p>
 
     <div class="opt">
       <h3>Build the command</h3>
       <div class="builder" data-base="powershell -ExecutionPolicy Bypass -File C:\Set-WindowsUpdateOptions.ps1"
            data-base-desc="Turns ON Receive updates for other Microsoft products and Notify me when a restart is required, and sets Active hours to the default 7 AM - 11 PM. Machine-wide settings, so it self-elevates. GPO / Intune / WSUS policy can override.">
-        <p class="build-lbl">Options &mdash; click to add to the command (hover for details):</p>
+        <p class="build-lbl">Options (click to add to the command; hover for details):</p>
         <div class="builder-opts">
           <button type="button" class="opt-chip" data-switch="-ActiveHoursStart 8" data-excludes="-AutoActiveHours" data-desc="Start active hours at 8 AM instead of 7 AM. Hours are 0-23 (24-hour clock) - edit the number after copying.">-ActiveHoursStart 8</button>
           <button type="button" class="opt-chip" data-switch="-ActiveHoursEnd 22" data-excludes="-AutoActiveHours" data-desc="End active hours at 10 PM instead of 11 PM. Hours are 0-23 - edit after copying. Windows allows a window of at most 18 hours.">-ActiveHoursEnd 22</button>
@@ -643,7 +656,7 @@
           <p class="note"><strong>Run box:</strong> <kbd>Win</kbd>+<kbd>R</kbd> &rarr; <code>ms-settings:windowsupdate-options</code> opens Advanced options directly.</p>
           <ol>
             <li><strong>Settings</strong> &rarr; <strong>Windows Update</strong> &rarr; <strong>Advanced options</strong>.</li>
-            <li>Turn <strong>On</strong> <em>Receive updates for other Microsoft products</em><span class="tip" tabindex="0" role="note" aria-label="Switches Windows Update into Microsoft Update, so it also patches other Microsoft software (Office, Visual Studio, SQL Server), not just Windows. Example: an Office security fix is delivered through Windows Update."><span class="bubble">Switches Windows Update into &ldquo;<strong>Microsoft Update</strong>,&rdquo; so it also patches other Microsoft software (Office, Visual Studio, SQL Server) &mdash; not just Windows. <strong>Example:</strong> an Office security fix arrives through Windows Update.</span></span>.</li>
+            <li>Turn <strong>On</strong> <em>Receive updates for other Microsoft products</em><span class="tip" tabindex="0" role="note" aria-label="Switches Windows Update into Microsoft Update, so it also patches other Microsoft software (Office, Visual Studio, SQL Server), not just Windows. Example: an Office security fix is delivered through Windows Update."><span class="bubble">Switches Windows Update into &ldquo;<strong>Microsoft Update</strong>,&rdquo; so it also patches other Microsoft software (Office, Visual Studio, SQL Server), not just Windows. <strong>Example:</strong> an Office security fix arrives through Windows Update.</span></span>.</li>
             <li>Turn <strong>On</strong> <em>Notify me when a restart is required to finish updating</em><span class="tip" tabindex="0" role="note" aria-label="Windows shows a notification when an installed update needs a reboot to finish, so it is not a surprise. Example: a Restart to finish installing updates toast appears instead of a silently scheduled restart."><span class="bubble">Windows pops a notification when an installed update needs a reboot to finish, so it isn&rsquo;t a surprise. <strong>Example:</strong> a &ldquo;Restart to finish installing updates&rdquo; toast appears instead of a silent scheduled restart.</span></span>.</li>
             <li>Under <strong>Active hours</strong><span class="tip" tabindex="0" role="note" aria-label="The window when Windows treats the PC as in use and will not auto-restart for updates. Manually means you pick the window; Automatically means Windows learns it. Example: 7 AM to 11 PM means update restarts only happen overnight, between 11 PM and 7 AM."><span class="bubble">The window when Windows treats the PC as &ldquo;in use&rdquo; and won&rsquo;t auto-restart for updates. <em>Manually</em> = you pick it; <em>Automatically</em> = Windows learns it. <strong>Example:</strong> 7&nbsp;AM&ndash;11&nbsp;PM means restarts only happen overnight (11&nbsp;PM&ndash;7&nbsp;AM).</span></span>, choose <em>Manually</em> and set the start/end times (or <em>Automatically</em> to let Windows decide).</li>
           </ol>
@@ -665,14 +678,14 @@
         <a class="dl" href="Disable-AdminPasswordExpiry.ps1" download>Download .ps1</a>
       </div>
     </div>
-    <p class="purpose">Sets <strong>Password never expires</strong> on the local <code>admin</code> account so the standard admin login doesn&rsquo;t get locked out when its password ages. Uses the built-in <code>Set-LocalUser</code><span class="tip" tabindex="0" role="note" aria-label="The built-in local-accounts cmdlet on Windows 10 and 11. Applies to local accounts only; domain and Microsoft Entra (Azure AD) accounts get their password policy from the directory, not here."><span class="bubble">Built-in local-accounts cmdlet (Win 10/11). <strong>Local accounts only</strong> &mdash; domain / Microsoft Entra (Azure AD) accounts get password policy from the directory, not here.</span></span> cmdlet, so it still works on Windows 11 24H2+ where <code>wmic</code> has been removed. Default targets a local account named <code>admin</code>.</p>
+    <p class="purpose">Sets <strong>Password never expires</strong> on the local <code>admin</code> account so the standard admin login doesn&rsquo;t get locked out when its password ages. Uses the built-in <code>Set-LocalUser</code><span class="tip" tabindex="0" role="note" aria-label="The built-in local-accounts cmdlet on Windows 10 and 11. Applies to local accounts only; domain and Microsoft Entra (Azure AD) accounts get their password policy from the directory, not here."><span class="bubble">Built-in local-accounts cmdlet (Win 10/11). <strong>Local accounts only</strong>: domain / Microsoft Entra (Azure AD) accounts get password policy from the directory, not here.</span></span> cmdlet, so it still works on Windows 11 24H2+ where <code>wmic</code> has been removed. Default targets a local account named <code>admin</code>.</p>
 
     <div class="opt">
       <h3>Set the admin password to never expire</h3>
       <p>Run it and it flips <em>Password never expires</em> on for the <code>admin</code> account.</p>
       <div class="builder" data-base="powershell -ExecutionPolicy Bypass -File C:\Disable-AdminPasswordExpiry.ps1"
            data-base-desc="Sets Password never expires on the local admin account so the standard admin login stops locking out when its password ages. Local accounts only (not domain / Entra); self-elevates.">
-        <p class="build-lbl">Options &mdash; click to add to the command (hover for details):</p>
+        <p class="build-lbl">Options (click to add to the command; hover for details):</p>
         <div class="builder-opts">
           <button type="button" class="opt-chip" data-switch="-User localadmin" data-desc="Target a different local account name (default is admin - edit the name after copying).">-User localadmin</button>
           <button type="button" class="opt-chip" data-switch="-Revert" data-desc="Turn password expiry back ON for the account.">-Revert</button>
@@ -686,7 +699,7 @@
           <p class="note"><strong>Run box (Pro / Enterprise):</strong> <kbd>Win</kbd>+<kbd>R</kbd> &rarr; <code>lusrmgr.msc</code> &rarr; <strong>Users</strong> &rarr; double-click <strong>admin</strong> &rarr; tick <strong>Password never expires</strong> &rarr; OK.</p>
           <p class="howto-cap">Modern command (elevated PowerShell):</p>
           <pre>Set-LocalUser -Name 'admin' -PasswordNeverExpires $true</pre>
-          <p class="howto-cap">Classic command (<code>wmic</code> &mdash; works on builds before Windows&nbsp;11 24H2):</p>
+          <p class="howto-cap">Classic command (<code>wmic</code>; works on builds before Windows&nbsp;11 24H2):</p>
           <pre>wmic UserAccount where Name='admin' set PasswordExpires=False</pre>
         </div>
       </details>
@@ -713,7 +726,7 @@
       <p>Opens the normal Disk Cleanup window for C: (use <code>-Drive D</code> for another drive).</p>
       <div class="builder" data-base="powershell -ExecutionPolicy Bypass -File C:\Open-DiskCleanup.ps1"
            data-base-desc="Opens the normal interactive Disk Cleanup window (cleanmgr.exe) for drive C: so you can pick what to remove. No admin needed for the basic view.">
-        <p class="build-lbl">Options &mdash; click to add to the command (hover for details):</p>
+        <p class="build-lbl">Options (click to add to the command; hover for details):</p>
         <div class="builder-opts">
           <button type="button" class="opt-chip" data-switch="-Drive D" data-excludes="-Auto" data-desc="Clean drive D: instead of C: (edit the letter after copying). Not used by -Auto, which always runs its preset.">-Drive D</button>
           <button type="button" class="opt-chip" data-switch="-SystemFiles" data-group="action" data-desc="Open the elevated system-files view instead - more categories (Windows Update cleanup, old installations). Shows an admin prompt.">-SystemFiles</button>
@@ -755,7 +768,7 @@
       <h3>Build the command</h3>
       <div class="builder" data-base="powershell -ExecutionPolicy Bypass -File C:\Invoke-CheckDisk.ps1"
            data-base-desc="Runs chkdsk C: /f /r - fixes filesystem errors (/f) and scans the whole disk surface for bad sectors, recovering readable data (/r). On the Windows drive it schedules the check for the next restart and confirms it's queued.">
-        <p class="build-lbl">Options &mdash; click to add to the command (hover for details):</p>
+        <p class="build-lbl">Options (click to add to the command; hover for details):</p>
         <div class="builder-opts">
           <button type="button" class="opt-chip" data-switch="-Drive D" data-desc="Check drive D: instead of C:. Edit the letter after copying for any other drive. Non-Windows drives are checked immediately, no reboot.">-Drive D</button>
           <button type="button" class="opt-chip" data-switch="-SkipSurface" data-group="mode" data-desc="Skip the /r bad-sector surface scan - much faster (minutes instead of hours); still fixes filesystem errors with /f.">-SkipSurface</button>
@@ -771,7 +784,7 @@
         <div class="manual-body">
           <p class="note"><strong>Run box:</strong> <kbd>Win</kbd>+<kbd>R</kbd> &rarr; <code>cmd</code>, then <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Enter</kbd> for an elevated Command Prompt. Then run:</p>
           <pre>chkdsk C: /f /r</pre>
-          <p class="note">On C: it asks to schedule at the next restart &mdash; answer <kbd>Y</kbd>, then reboot when convenient. To see whether a check is already queued: <code>chkntfs C:</code></p>
+          <p class="note">On C: it asks to schedule at the next restart; answer <kbd>Y</kbd>, then reboot when convenient. To see whether a check is already queued: <code>chkntfs C:</code></p>
         </div>
       </details>
     </div>
@@ -790,13 +803,13 @@
         <a class="dl" href="Repair-SystemFiles.ps1" download>Download .ps1</a>
       </div>
     </div>
-    <p class="purpose">The standard &ldquo;Windows is corrupted&rdquo; repair pass, in the correct order: <strong>DISM /RestoreHealth</strong> first (repairs the component store &mdash; the source SFC repairs from &mdash; pulling known-good files from Windows Update), then <strong>sfc /scannow</strong> (replaces corrupted system files from that repaired store). Running DISM first matters: if the store itself is corrupt, SFC repairs from a bad source and fails. Both steps take minutes and may sit at certain percentages &mdash; that&rsquo;s normal; don&rsquo;t close the window.</p>
+    <p class="purpose">The standard &ldquo;Windows is corrupted&rdquo; repair pass, in the correct order: <strong>DISM /RestoreHealth</strong> first (repairs the component store, the source SFC repairs from, pulling known-good files from Windows Update), then <strong>sfc /scannow</strong> (replaces corrupted system files from that repaired store). Running DISM first matters: if the store itself is corrupt, SFC repairs from a bad source and fails. Both steps take minutes and may sit at certain percentages. That&rsquo;s normal; don&rsquo;t close the window.</p>
 
     <div class="opt">
       <h3>Build the command</h3>
       <div class="builder" data-base="powershell -ExecutionPolicy Bypass -File C:\Repair-SystemFiles.ps1"
            data-base-desc="Runs DISM /Online /Cleanup-Image /RestoreHealth (repairs the Windows component store, downloading replacement files from Windows Update if needed), then sfc /scannow (replaces corrupted system files from the repaired store). Several minutes each; stalls at some percentages are normal.">
-        <p class="build-lbl">Options &mdash; click to add to the command (hover for details):</p>
+        <p class="build-lbl">Options (click to add to the command; hover for details):</p>
         <div class="builder-opts">
           <button type="button" class="opt-chip" data-switch="-ExportLog" data-desc="After SFC finishes, save its results (the [SR] lines from CBS.log) to SFCDETAILS.TXT on the Desktop for review. Note: CBS.log accumulates, so earlier SFC runs appear in the file too.">-ExportLog</button>
           <button type="button" class="opt-chip" data-switch="-SfcOnly" data-group="phase" data-desc="Skip DISM and run only sfc /scannow. Faster, but if the component store is corrupt SFC may fail - run the full pass in that case.">-SfcOnly</button>
@@ -831,13 +844,13 @@
         <a class="dl" href="Clear-ComponentStore.ps1" download>Download .ps1</a>
       </div>
     </div>
-    <p class="purpose">Trims the <strong>WinSxS</strong> component store with <code>DISM /StartComponentCleanup</code> &mdash; removes superseded component versions to reclaim disk space (often several GB). Safe and supported; can take a while. Start with <code>-Analyze</code> to see whether cleanup is even worth it on that machine.</p>
+    <p class="purpose">Trims the <strong>WinSxS</strong> component store with <code>DISM /StartComponentCleanup</code>: removes superseded component versions to reclaim disk space (often several GB). Safe and supported; can take a while. Start with <code>-Analyze</code> to see whether cleanup is even worth it on that machine.</p>
 
     <div class="opt">
       <h3>Build the command</h3>
       <div class="builder" data-base="powershell -ExecutionPolicy Bypass -File C:\Clear-ComponentStore.ps1"
            data-base-desc="Runs Dism.exe /Online /Cleanup-Image /StartComponentCleanup - removes superseded component versions from the WinSxS folder to reclaim disk space. Safe and supported; can take a while.">
-        <p class="build-lbl">Options &mdash; click to add to the command (hover for details):</p>
+        <p class="build-lbl">Options (click to add to the command; hover for details):</p>
         <div class="builder-opts">
           <button type="button" class="opt-chip" data-switch="-Analyze" data-group="action" data-desc="Report-only: shows the component store's size and whether cleanup is recommended. Changes nothing - run this first.">-Analyze</button>
           <button type="button" class="opt-chip" data-switch="-ResetBase" data-group="action" data-desc="Also deletes the fallback copies of ALL superseded updates. Frees the most space but is NON-REVERSIBLE: installed updates can no longer be uninstalled afterward. Only on a stable machine.">-ResetBase</button>
@@ -864,24 +877,24 @@
       <div>
         <span class="tag">Diagnostics</span>
         <h2>Check RAM type (DDR3 / DDR4 / DDR5)</h2>
-        <code class="file">copy-paste check &mdash; no script file</code>
+        <code class="file">copy-paste check (no script file)</code>
       </div>
       <div class="panel-side">
         <span class="badge badge-ok">No admin needed</span>
       </div>
     </div>
-    <p class="purpose">One paste into PowerShell (the LogMeIn admin prompt works great &mdash; read-only, invisible to the user) and you get every stick&rsquo;s slot, maker, part number, size, speed, DDR generation and form factor. Reads the SMBIOS memory-device type, which is reliable where the old <code>MemoryType</code> property famously reports 0/unknown.</p>
+    <p class="purpose">One paste into PowerShell (the LogMeIn admin prompt works great: read-only, invisible to the user) and you get every stick&rsquo;s slot, maker, part number, size, speed, DDR generation and form factor. Reads the SMBIOS memory-device type, which is reliable where the old <code>MemoryType</code> property famously reports 0/unknown.</p>
 
     <div class="opt">
       <h3>Run the check</h3>
       <div class="explain">
         <div class="explain-title">What the columns mean</div>
         <ul>
-          <li><code>Slot</code> / <code>Mfr</code> / <code>Part</code> &mdash; physical slot, maker, and the exact module part number (your fallback key &mdash; see below).</li>
-          <li><code>GB</code> &mdash; size per stick. <code>MTs</code> &mdash; rated speed; <code>Run</code> &mdash; what it&rsquo;s actually running at.</li>
-          <li><code>Type</code> &mdash; DDR3/DDR4/DDR5 (and LPDDR3/4/5 on laptops with soldered memory).</li>
-          <li><code>ECC</code> &mdash; error-correcting (server/workstation) vs Non-ECC (standard) memory, detected by the extra check bits (total width &gt; data width). <code>?</code> = the board didn&rsquo;t report widths. Don&rsquo;t mix the two, and note DDR5&rsquo;s built-in on-die ECC is <em>not</em> the same thing &mdash; this detects true side-band ECC.</li>
-          <li><code>Form</code> &mdash; DIMM (desktop) or SO-DIMM (laptop) &mdash; what shape of stick to buy.</li>
+          <li><code>Slot</code> / <code>Mfr</code> / <code>Part</code>: physical slot, maker, and the exact module part number (your fallback key; see below).</li>
+          <li><code>GB</code>: size per stick. <code>MTs</code>: rated speed; <code>Run</code>: what it&rsquo;s actually running at.</li>
+          <li><code>Type</code>: DDR3/DDR4/DDR5 (and LPDDR3/4/5 on laptops with soldered memory).</li>
+          <li><code>ECC</code>: error-correcting (server/workstation) vs Non-ECC (standard) memory, detected by the extra check bits (total width &gt; data width). <code>?</code> = the board didn&rsquo;t report widths. Don&rsquo;t mix the two, and note DDR5&rsquo;s built-in on-die ECC is <em>not</em> the same thing. This check detects true side-band ECC.</li>
+          <li><code>Form</code>: DIMM (desktop) or SO-DIMM (laptop), the shape of stick to buy.</li>
         </ul>
       </div>
       <pre>Get-CimInstance Win32_PhysicalMemory | ForEach-Object {
@@ -905,12 +918,12 @@
     }
 } | Format-Table -AutoSize -Wrap</pre>
       <details class="manual">
-        <summary>If Type shows Unknown &mdash; fallback ladder</summary>
+        <summary>If Type shows Unknown: the fallback ladder</summary>
         <div class="manual-body">
           <ol>
-            <li><strong>Google the Part number</strong> the check already returned &mdash; module part numbers encode the type (e.g. <code>KF560C40-16</code> is Kingston FURY DDR5). Zero installs.</li>
-            <li><strong>CPU-Z portable, ghost mode</strong> &mdash; background-shell friendly: <code>cpuz_x64.exe -txt=report</code> writes a full text report (including SPD memory data) with no UI at all. Get it from <a href="https://www.cpuid.com/softwares/cpu-z.html" target="_blank" rel="noopener noreferrer">cpuid.com</a> (portable ZIP).</li>
-            <li><strong>Crucial System Scanner</strong> &mdash; <a href="https://www.crucial.com/store/systemscanner" target="_blank" rel="noopener noreferrer">crucial.com/store/systemscanner</a>: also tells you <em>compatible upgrades and max capacity</em>, but it opens its results in a browser and has no silent mode &mdash; use it during a remote-control session, not from the background shell.</li>
+            <li><strong>Google the Part number</strong> the check already returned; module part numbers encode the type (e.g. <code>KF560C40-16</code> is Kingston FURY DDR5). Zero installs.</li>
+            <li><strong>CPU-Z portable, ghost mode</strong> (background-shell friendly): <code>cpuz_x64.exe -txt=report</code> writes a full text report (including SPD memory data) with no UI at all. Get it from <a href="https://www.cpuid.com/softwares/cpu-z.html" target="_blank" rel="noopener noreferrer">cpuid.com</a> (portable ZIP).</li>
+            <li><strong>Crucial System Scanner</strong>: <a href="https://www.crucial.com/store/systemscanner" target="_blank" rel="noopener noreferrer">crucial.com/store/systemscanner</a>: also tells you <em>compatible upgrades and max capacity</em>, but it opens its results in a browser and has no silent mode; use it during a remote-control session, not from the background shell.</li>
           </ol>
         </div>
       </details>
@@ -923,23 +936,23 @@
       <div>
         <span class="tag">Diagnostics</span>
         <h2>Check drive type (SSD or HDD)</h2>
-        <code class="file">copy-paste check &mdash; no script file</code>
+        <code class="file">copy-paste check (no script file)</code>
       </div>
       <div class="panel-side">
         <span class="badge badge-ok">No admin needed</span>
       </div>
     </div>
-    <p class="purpose">One paste lists every physical disk with its type (SSD / HDD), connection, size, and health &mdash; the &ldquo;is this machine still on spinning rust?&rdquo; check before recommending an upgrade. Read-only; fine from the LogMeIn admin prompt.</p>
+    <p class="purpose">One paste lists every physical disk with its type (SSD / HDD), connection, size, and health: the &ldquo;is this machine still on spinning rust?&rdquo; check before recommending an upgrade. Read-only; fine from the LogMeIn admin prompt.</p>
 
     <div class="opt">
       <h3>Run the check</h3>
       <div class="explain">
         <div class="explain-title">What the columns mean</div>
         <ul>
-          <li><code>Type</code> &mdash; <strong>SSD</strong> or <strong>HDD</strong>. <em>Unspecified</em> usually means a USB enclosure that doesn&rsquo;t pass the type through (see fallback below).</li>
-          <li><code>Bus</code> &mdash; <strong>NVMe</strong> (always an SSD), <strong>SATA</strong> (either), <strong>USB</strong> (external drive), RAID (behind a controller).</li>
-          <li><code>Disk</code> &mdash; the disk number; the second command tells you which number Windows lives on.</li>
-          <li><code>Health</code> &mdash; Windows&rsquo; own verdict; anything but <em>Healthy</em> deserves a look.</li>
+          <li><code>Type</code>: <strong>SSD</strong> or <strong>HDD</strong>. <em>Unspecified</em> usually means a USB enclosure that doesn&rsquo;t pass the type through (see fallback below).</li>
+          <li><code>Bus</code>: <strong>NVMe</strong> (always an SSD), <strong>SATA</strong> (either), <strong>USB</strong> (external drive), RAID (behind a controller).</li>
+          <li><code>Disk</code>: the disk number; the second command tells you which number Windows lives on.</li>
+          <li><code>Health</code>: Windows&rsquo; own verdict; anything but <em>Healthy</em> deserves a look.</li>
         </ul>
       </div>
       <pre>Get-PhysicalDisk | ForEach-Object {
@@ -955,12 +968,12 @@
       <p class="howto-cap">Which disk is Windows actually on:</p>
       <pre>"Windows (C:) is on Disk $((Get-Partition -DriveLetter C).DiskNumber)"</pre>
       <details class="manual">
-        <summary>If Type shows Unspecified &mdash; how to tell anyway</summary>
+        <summary>If Type shows Unspecified: how to tell anyway</summary>
         <div class="manual-body">
           <ol>
             <li><code>Bus</code> says <strong>NVMe</strong> &rarr; it&rsquo;s an SSD, full stop.</li>
-            <li><strong>USB</strong> drives are externals &mdash; enclosures often hide the type; Google the <code>Name</code> (model) if it matters.</li>
-            <li>On SATA with no type, Google the model in <code>Name</code> &mdash; it identifies the drive in one hit (e.g. <code>ST2000DM008</code> is a Seagate BarraCuda spinner).</li>
+            <li><strong>USB</strong> drives are externals; enclosures often hide the type; Google the <code>Name</code> (model) if it matters.</li>
+            <li>On SATA with no type, Google the model in <code>Name</code>; it identifies the drive in one hit (e.g. <code>ST2000DM008</code> is a Seagate BarraCuda spinner).</li>
           </ol>
         </div>
       </details>
@@ -980,21 +993,21 @@
         <a class="dl" href="RecentFileActivity.ps1" download>Download .ps1</a>
       </div>
     </div>
-    <p class="purpose">Finds the most recently <strong>modified</strong> or <strong>accessed</strong> files in a folder and all its subfolders &mdash; the &ldquo;what just changed on this share?&rdquo; tool for file servers (who saved what, ransomware-style mass changes, or checking if a share is even still used). Fully <strong>interactive</strong>: it asks for the folder (default <code>D:\Shares</code>), modified vs accessed, and how many results &mdash; then shows the report on screen <em>and</em> saves a timestamped log to <code>C:\RecentFileActivity_&lt;date&gt;.log</code>. Works fine in the LogMeIn admin prompt (the prompts are just text).</p>
+    <p class="purpose">Finds the most recently <strong>modified</strong> or <strong>accessed</strong> files in a folder and all its subfolders: the &ldquo;what just changed on this share?&rdquo; tool for file servers (who saved what, ransomware-style mass changes, or checking if a share is even still used). Fully <strong>interactive</strong>: it asks for the folder (default <code>D:\Shares</code>), modified vs accessed, and how many results, then shows the report on screen <em>and</em> saves a timestamped log to <code>C:\RecentFileActivity_&lt;date&gt;.log</code>. Works fine in the LogMeIn admin prompt (the prompts are just text).</p>
 
     <div class="opt">
       <h3>Run it</h3>
       <div class="explain">
         <div class="explain-title">What it asks, and what you get</div>
         <ul>
-          <li><strong>Folder to scan</strong> &mdash; e.g. <code>D:\Shares</code>, <code>D:\Shares\Accounting</code>, <code>C:\Users</code>. Enter = the default.</li>
-          <li><strong>Modified vs Accessed</strong> &mdash; Modified (LastWriteTime) is the reliable one. <strong>Accessed can lie:</strong> Windows often disables or delays LastAccessTime updates for performance, so don&rsquo;t treat it as proof a file was or wasn&rsquo;t opened.</li>
-          <li><strong>How many results</strong> &mdash; default 20, newest first.</li>
-          <li><strong>Output</strong> &mdash; numbered report on screen + a timestamped log at <code>C:\RecentFileActivity_&lt;date&gt;.log</code> you can attach to a ticket. Skipped-permission items are counted and flagged.</li>
+          <li><strong>Folder to scan</strong>: e.g. <code>D:\Shares</code>, <code>D:\Shares\Accounting</code>, <code>C:\Users</code>. Enter = the default.</li>
+          <li><strong>Modified vs Accessed</strong>: Modified (LastWriteTime) is the reliable one. <strong>Accessed can lie:</strong> Windows often disables or delays LastAccessTime updates for performance, so don&rsquo;t treat it as proof a file was or wasn&rsquo;t opened.</li>
+          <li><strong>How many results</strong>: default 20, newest first.</li>
+          <li><strong>Output</strong>: numbered report on screen + a timestamped log at <code>C:\RecentFileActivity_&lt;date&gt;.log</code> you can attach to a ticket. Skipped-permission items are counted and flagged.</li>
         </ul>
       </div>
       <pre>powershell -ExecutionPolicy Bypass -File C:\RecentFileActivity.ps1</pre>
-      <p class="tfield-note">Large shares can take several minutes and PowerShell may look idle while it scans &mdash; that&rsquo;s normal. Run as admin so permission-restricted folders don&rsquo;t get skipped (skips are reported either way).</p>
+      <p class="tfield-note">Large shares can take several minutes and PowerShell may look idle while it scans; that&rsquo;s normal. Run as admin so permission-restricted folders don&rsquo;t get skipped (skips are reported either way).</p>
     </div>
   </section>
 
@@ -1004,24 +1017,24 @@
       <div>
         <span class="tag">Diagnostics</span>
         <h2>Veeam backup info collector (Cloud Connect IDs)</h2>
-        <code class="file">copy-paste check &mdash; no script file</code>
+        <code class="file">copy-paste check (no script file)</code>
       </div>
       <div class="panel-side">
         <span class="badge badge-warn">Run as admin</span>
       </div>
     </div>
-    <p class="purpose">Reads the local <strong>Veeam Agent</strong> logs (<code>C:\ProgramData\Veeam\Endpoint</code>) and pulls the identifying GUIDs for each backup job &mdash; the IDs that let you match an endpoint&rsquo;s job to the <strong>Cloud Connect repository</strong> side (tenant, subtenant, backup) for repo lookups, mapping, or a Veeam support case. Read-only; fine from the LogMeIn admin prompt.</p>
+    <p class="purpose">Reads the local <strong>Veeam Agent</strong> logs (<code>C:\ProgramData\Veeam\Endpoint</code>) and pulls the identifying GUIDs for each backup job: the IDs that let you match an endpoint&rsquo;s job to the <strong>Cloud Connect repository</strong> side (tenant, subtenant, backup) for repo lookups, mapping, or a Veeam support case. Read-only; fine from the LogMeIn admin prompt.</p>
 
     <div class="opt">
       <h3>Run the check</h3>
       <div class="explain">
         <div class="explain-title">What the fields mean</div>
         <ul>
-          <li><code>Host</code> / <code>JobName</code> &mdash; the PC and the job (from the log folder name).</li>
-          <li><code>JobId</code> &mdash; the job&rsquo;s GUID from its newest logs.</li>
-          <li><code>Folder</code> / <code>ClientId</code> / <code>SubclientId</code> &mdash; the Cloud Connect repository folder, tenant, and subtenant the job writes into.</li>
-          <li><code>BackupId</code> &mdash; the backup&rsquo;s GUID inside that subtenant.</li>
-          <li><strong>No output for a job?</strong> That job doesn&rsquo;t target Cloud Connect &mdash; local / NAS / share jobs never log these path IDs, so they&rsquo;re skipped by design.</li>
+          <li><code>Host</code> / <code>JobName</code>: the PC and the job (from the log folder name).</li>
+          <li><code>JobId</code>: the job&rsquo;s GUID from its newest logs.</li>
+          <li><code>Folder</code> / <code>ClientId</code> / <code>SubclientId</code>: the Cloud Connect repository folder, tenant, and subtenant the job writes into.</li>
+          <li><code>BackupId</code>: the backup&rsquo;s GUID inside that subtenant.</li>
+          <li><strong>No output for a job?</strong> That job doesn&rsquo;t target Cloud Connect; local / NAS / share jobs never log these path IDs, so they&rsquo;re skipped by design.</li>
         </ul>
       </div>
       <pre>$base = "C:\ProgramData\Veeam\Endpoint"
@@ -1044,7 +1057,7 @@ Get-ChildItem $base -Directory | ForEach-Object {
     BackupId    = $path.Matches[0].Groups['BackupId'].Value
   }
 } | Format-List</pre>
-      <p class="tfield-note">Scans every job folder&rsquo;s newest logs; large log sets can take a moment. GUIDs aren&rsquo;t secrets, but treat the output as internal &mdash; it maps your tenant structure.</p>
+      <p class="tfield-note">Scans every job folder&rsquo;s newest logs; large log sets can take a moment. GUIDs aren&rsquo;t secrets, but treat the output as internal: it maps your tenant structure.</p>
     </div>
   </section>
 
@@ -1061,14 +1074,14 @@ Get-ChildItem $base -Directory | ForEach-Object {
         <a class="dl" href="Open-DevicesAndPrinters.ps1" download>Download .ps1</a>
       </div>
     </div>
-    <p class="purpose">Newer Windows buries the classic <strong>Devices and Printers</strong> window inside Settings. This opens the old Control Panel window directly (via its shell folder), and with <code>-AddPrinter</code> launches the legacy <strong>Add Printer wizard</strong> &mdash; handy for adding a printer by IP / local port the old way.</p>
+    <p class="purpose">Newer Windows buries the classic <strong>Devices and Printers</strong> window inside Settings. This opens the old Control Panel window directly (via its shell folder), and with <code>-AddPrinter</code> launches the legacy <strong>Add Printer wizard</strong>, handy for adding a printer by IP / local port the old way.</p>
 
     <div class="opt">
       <h3>Open Classic Devices and Printers</h3>
       <p>Opens the Windows 7-style window. Use <code>-AddPrinter</code> to jump straight to the old Add Printer wizard.</p>
       <div class="builder" data-base="powershell -ExecutionPolicy Bypass -File C:\Open-DevicesAndPrinters.ps1"
            data-base-desc="Opens the classic Windows 7-style Devices and Printers window (via its shell folder). No admin needed.">
-        <p class="build-lbl">Options &mdash; click to add to the command (hover for details):</p>
+        <p class="build-lbl">Options (click to add to the command; hover for details):</p>
         <div class="builder-opts">
           <button type="button" class="opt-chip" data-switch="-AddPrinter" data-desc="Open the legacy Add Printer wizard directly instead - add a printer by IP / local port the old way.">-AddPrinter</button>
         </div>
@@ -1078,7 +1091,7 @@ Get-ChildItem $base -Directory | ForEach-Object {
       <details class="manual">
         <summary>Do it manually instead (Run box)</summary>
         <div class="manual-body">
-          <p class="note">No script needed &mdash; paste either command into <kbd>Win</kbd>+<kbd>R</kbd> (or a Command Prompt).</p>
+          <p class="note">No script needed: paste either command into <kbd>Win</kbd>+<kbd>R</kbd> (or a Command Prompt).</p>
           <p class="howto-cap">Classic Devices and Printers:</p>
           <pre>explorer.exe shell:::{A8A91A66-3A7D-4424-8D24-04E180695C7A}</pre>
           <p class="howto-cap">Old Add Printer wizard:</p>
@@ -1093,7 +1106,7 @@ Get-ChildItem $base -Directory | ForEach-Object {
     <div class="panel-head">
       <div>
         <span class="tag">Printing</span>
-        <h2>Print Flush &mdash; clear stuck print jobs</h2>
+        <h2>Print Flush: clear stuck print jobs</h2>
         <code class="file">Print-Flush.bat</code>
       </div>
       <div class="panel-side">
@@ -1101,11 +1114,11 @@ Get-ChildItem $base -Directory | ForEach-Object {
         <a class="dl" href="Print-Flush.bat" download>Download .bat</a>
       </div>
     </div>
-    <p class="purpose">Stops the Print Spooler, deletes stuck / corrupt print jobs from the spool folder, and restarts it &mdash; the fix for a frozen print queue or a printer that just won&rsquo;t print. It also re-points the spooler&rsquo;s service dependency to <code>RPCSS</code><span class="tip" tabindex="0" role="note" aria-label="Permanently sets the Print Spooler service dependency to RPCSS only, removing extra dependencies a driver added. This lets the spooler start again on machines, often Lexmark, where a bad dependency blocks it."><span class="bubble">Permanently sets the spooler&rsquo;s service dependency to <code>RPCSS</code> only (removing extras a driver added). Lets the spooler start again on machines &mdash; often Lexmark &mdash; where a bad dependency blocks it.</span></span>, which unbreaks the spooler on machines where a bad dependency stops it starting.</p>
+    <p class="purpose">Stops the Print Spooler, deletes stuck / corrupt print jobs from the spool folder, and restarts it: the fix for a frozen print queue or a printer that just won&rsquo;t print. It also re-points the spooler&rsquo;s service dependency to <code>RPCSS</code><span class="tip" tabindex="0" role="note" aria-label="Permanently sets the Print Spooler service dependency to RPCSS only, removing extra dependencies a driver added. This lets the spooler start again on machines, often Lexmark, where a bad dependency blocks it."><span class="bubble">Permanently sets the spooler&rsquo;s service dependency to <code>RPCSS</code> only (removing extras a driver added). Lets the spooler start again on machines (often Lexmark) where a bad dependency blocks it.</span></span>, which unbreaks the spooler on machines where a bad dependency stops it starting.</p>
 
     <div class="opt">
       <h3>Run it (as administrator)</h3>
-      <p>It needs admin to stop/start the spooler and clear the spool folder. Right-click <strong>Print-Flush.bat</strong> and choose <em>Run as administrator</em> &mdash; or launch it elevated from PowerShell:</p>
+      <p>It needs admin to stop/start the spooler and clear the spool folder. Right-click <strong>Print-Flush.bat</strong> and choose <em>Run as administrator</em>, or launch it elevated from PowerShell:</p>
       <pre>Start-Process C:\Print-Flush.bat -Verb RunAs</pre>
       <details class="manual">
         <summary>Do it manually instead</summary>
@@ -1133,14 +1146,14 @@ net start spooler</pre>
         <a class="dl" href="Remove-HPWolfSecurity.ps1" download>Download .ps1</a>
       </div>
     </div>
-    <p class="purpose">HP Wolf Security / HP Wolf Pro Security is HP&rsquo;s preinstalled endpoint protection. Uninstalling it from Control Panel often isn&rsquo;t enough &mdash; the <strong>HP Security Update Service</strong> re-downloads and reinstalls the agent, so it &ldquo;comes back.&rdquo; This removes the whole stack in HP&rsquo;s documented order with the update service <em>last</em>, and clears the services, scheduled tasks, and Store packages that trigger reinstalls. Self-elevates. Managed / password-protected installs need the HP admin console or uninstall password.</p>
+    <p class="purpose">HP Wolf Security / HP Wolf Pro Security is HP&rsquo;s preinstalled endpoint protection. Uninstalling it from Control Panel often isn&rsquo;t enough: the <strong>HP Security Update Service</strong> re-downloads and reinstalls the agent, so it &ldquo;comes back.&rdquo; This removes the whole stack in HP&rsquo;s documented order with the update service <em>last</em>, and clears the services, scheduled tasks, and Store packages that trigger reinstalls. Self-elevates. Managed / password-protected installs need the HP admin console or uninstall password.</p>
 
     <div class="opt">
       <h3>Remove it all</h3>
-      <p>Run <code>-List</code> first to see what&rsquo;s present. Removal stops the services, clears tasks, then uninstalls each component in order &mdash; update service last, so it can&rsquo;t reinstall.</p>
+      <p>Run <code>-List</code> first to see what&rsquo;s present. Removal stops the services, clears tasks, then uninstalls each component in order, update service last, so it can&rsquo;t reinstall.</p>
       <div class="builder" data-base="powershell -ExecutionPolicy Bypass -File C:\Remove-HPWolfSecurity.ps1"
            data-base-desc="Removes the full HP Wolf stack in HP's documented order - HP Wolf Security, then the Console, then the HP Security Update Service LAST (the piece that reinstalls it) - plus its services, scheduled tasks and Store packages. Self-elevates.">
-        <p class="build-lbl">Options &mdash; click to add to the command (hover for details):</p>
+        <p class="build-lbl">Options (click to add to the command; hover for details):</p>
         <div class="builder-opts">
           <button type="button" class="opt-chip" data-switch="-List" data-group="run" data-desc="Preview only - lists every HP Wolf component, service, task and AppX found. Changes nothing.">-List</button>
           <button type="button" class="opt-chip" data-switch="-Reboot" data-group="run" data-desc="Restart the PC automatically when removal finishes (HP recommends a reboot). Warn the user first.">-Reboot</button>
@@ -1154,10 +1167,10 @@ net start spooler</pre>
           <p class="note"><strong>Run box:</strong> <kbd>Win</kbd>+<kbd>R</kbd> &rarr; <code>appwiz.cpl</code> opens Programs and Features.</p>
           <ol>
             <li>Open <strong>Programs and Features</strong> (or <strong>Settings &rarr; Apps &rarr; Installed apps</strong>).</li>
-            <li>Uninstall in <strong>this order</strong>: <em>HP Wolf Security</em><span class="tip" tabindex="0" role="note" aria-label="HP's preinstalled endpoint protection: isolation via HP Sure Click plus AI threat detection via HP Sure Sense. Example: it sandboxes email attachments and downloads in micro-VMs."><span class="bubble">HP&rsquo;s preinstalled endpoint protection &mdash; isolation (HP Sure Click) + AI threat detection (HP Sure Sense). <strong>Example:</strong> it opens email attachments inside throwaway micro-VMs.</span></span> &rarr; <em>HP Wolf Security - Console</em> &rarr; <em>HP Security Update Service</em><span class="tip" tabindex="0" role="note" aria-label="The component that re-downloads and reinstalls the agent. Remove it LAST and HP Wolf stops coming back. Example: skipping it is why a Control Panel uninstall reappears after a reboot."><span class="bubble">The piece that re-downloads and reinstalls the agent. Remove it <strong>last</strong> and Wolf stops coming back. <strong>Example:</strong> skipping it is why a Control&nbsp;Panel uninstall reappears after a reboot.</span></span>.</li>
+            <li>Uninstall in <strong>this order</strong>: <em>HP Wolf Security</em><span class="tip" tabindex="0" role="note" aria-label="HP's preinstalled endpoint protection: isolation via HP Sure Click plus AI threat detection via HP Sure Sense. Example: it sandboxes email attachments and downloads in micro-VMs."><span class="bubble">HP&rsquo;s preinstalled endpoint protection: isolation (HP Sure Click) + AI threat detection (HP Sure Sense). <strong>Example:</strong> it opens email attachments inside throwaway micro-VMs.</span></span> &rarr; <em>HP Wolf Security - Console</em> &rarr; <em>HP Security Update Service</em><span class="tip" tabindex="0" role="note" aria-label="The component that re-downloads and reinstalls the agent. Remove it LAST and HP Wolf stops coming back. Example: skipping it is why a Control Panel uninstall reappears after a reboot."><span class="bubble">The piece that re-downloads and reinstalls the agent. Remove it <strong>last</strong> and Wolf stops coming back. <strong>Example:</strong> skipping it is why a Control&nbsp;Panel uninstall reappears after a reboot.</span></span>.</li>
             <li><strong>Reboot</strong> the PC.</li>
           </ol>
-          <p class="note"><strong>Managed install?</strong> If HP Wolf Pro Security was deployed by an admin console or set with an uninstall password, Programs and Features will fail &mdash; you need the HP admin console or the uninstall password.</p>
+          <p class="note"><strong>Managed install?</strong> If HP Wolf Pro Security was deployed by an admin console or set with an uninstall password, Programs and Features will fail: you need the HP admin console or the uninstall password.</p>
         </div>
       </details>
     </div>
@@ -1176,14 +1189,14 @@ net start spooler</pre>
         <a class="dl" href="Remove-ESETOnlineScanner.ps1" download>Download .ps1</a>
       </div>
     </div>
-    <p class="purpose">ESET Online Scanner is one-time by default, but if <em>Periodic scanning</em> was accepted it leaves scheduled tasks (<code>EOSv3 Scheduler onLogOn</code> / <code>onTime</code>) that re-run at startup &mdash; and these survive even after you &ldquo;delete&rdquo; the scanner. This removes those tasks, the data folder (<code>%LOCALAPPDATA%\ESET\ESETOnlineScanner</code>, every user profile), the Desktop shortcut, and any running scanner. It does <strong>not</strong> touch an installed ESET antivirus product &mdash; only the on-demand scanner&rsquo;s leftovers.</p>
+    <p class="purpose">ESET Online Scanner is one-time by default, but if <em>Periodic scanning</em> was accepted it leaves scheduled tasks (<code>EOSv3 Scheduler onLogOn</code> / <code>onTime</code>) that re-run at startup, and these survive even after you &ldquo;delete&rdquo; the scanner. This removes those tasks, the data folder (<code>%LOCALAPPDATA%\ESET\ESETOnlineScanner</code>, every user profile), the Desktop shortcut, and any running scanner. It does <strong>not</strong> touch an installed ESET antivirus product, only the on-demand scanner&rsquo;s leftovers.</p>
 
     <div class="opt">
       <h3>Remove the leftovers</h3>
       <p>Run <code>-List</code> first to see what&rsquo;s present.</p>
       <div class="builder" data-base="powershell -ExecutionPolicy Bypass -File C:\Remove-ESETOnlineScanner.ps1"
            data-base-desc="Removes ESET Online Scanner leftovers: the EOSv3 startup scheduled tasks, the data folder in every user profile (including any quarantine - copy it out first if needed), the Desktop shortcut, and any running scanner. Self-elevates. Does NOT touch an installed ESET antivirus.">
-        <p class="build-lbl">Options &mdash; click to add to the command (hover for details):</p>
+        <p class="build-lbl">Options (click to add to the command; hover for details):</p>
         <div class="builder-opts">
           <button type="button" class="opt-chip" data-switch="-List" data-desc="Preview only - lists the tasks, data folders, shortcuts and running scanner found. Changes nothing.">-List</button>
         </div>
@@ -1218,14 +1231,14 @@ net start spooler</pre>
         <a class="dl" href="Remove-ScreenConnect.ps1" download>Download .ps1</a>
       </div>
     </div>
-    <p class="purpose">The ScreenConnect access agent installs as <code>ScreenConnect Client (&lt;id&gt;)</code><span class="tip" tabindex="0" role="note" aria-label="Each ScreenConnect agent is a program, a Windows service, and a Program Files folder, all named with a unique instance id. A PC can carry more than one, left behind by different providers."><span class="bubble">Each agent = a program + a Windows service + a Program Files folder, all named with a unique instance id. A PC can carry <strong>more than one</strong>, left by different providers.</span></span> &mdash; a program, a service, and a folder. This finds <strong>every</strong> instance and removes all three: uninstalls each, stops and deletes its service, and clears leftover folders. Self-elevates.</p>
+    <p class="purpose">The ScreenConnect access agent installs as <code>ScreenConnect Client (&lt;id&gt;)</code><span class="tip" tabindex="0" role="note" aria-label="Each ScreenConnect agent is a program, a Windows service, and a Program Files folder, all named with a unique instance id. A PC can carry more than one, left behind by different providers."><span class="bubble">Each agent = a program + a Windows service + a Program Files folder, all named with a unique instance id. A PC can carry <strong>more than one</strong>, left by different providers.</span></span>: a program, a service, and a folder. This finds <strong>every</strong> instance and removes all three: uninstalls each, stops and deletes its service, and clears leftover folders. Self-elevates.</p>
 
     <div class="opt">
       <h3>Remove it all</h3>
       <p>Run <code>-List</code> first to see what&rsquo;s installed (there may be more than one).</p>
       <div class="builder" data-base="powershell -ExecutionPolicy Bypass -File C:\Remove-ScreenConnect.ps1"
            data-base-desc="Finds every ScreenConnect / ConnectWise Control instance and removes all three parts of each: uninstalls the product, stops and deletes its service, and clears leftover Program Files folders. Self-elevates.">
-        <p class="build-lbl">Options &mdash; click to add to the command (hover for details):</p>
+        <p class="build-lbl">Options (click to add to the command; hover for details):</p>
         <div class="builder-opts">
           <button type="button" class="opt-chip" data-switch="-List" data-desc="Preview only - lists every ScreenConnect product, service and folder found (there may be more than one instance). Changes nothing.">-List</button>
         </div>
@@ -1258,7 +1271,7 @@ net start spooler</pre>
         <span class="badge badge-warn">Admin needed</span>
       </div>
     </div>
-    <p class="purpose">Silent install of the SentinelOne Windows agent with the site token baked in &mdash; no wizard, no prompts. Paste your <strong>site token</strong> below and the command updates to the exact line to run in an <strong>elevated</strong> Command Prompt or PowerShell. The command assumes the MSI sits at the root of C: (<code>C:\</code>) &mdash; edit the installer field if it lives elsewhere or your console serves a newer version.</p>
+    <p class="purpose">Silent install of the SentinelOne Windows agent with the site token baked in: no wizard, no prompts. Paste your <strong>site token</strong> below and the command updates to the exact line to run in an <strong>elevated</strong> Command Prompt or PowerShell. The command assumes the MSI sits at the root of C: (<code>C:\</code>); edit the installer field if it lives elsewhere or your console serves a newer version.</p>
 
     <div class="opt">
       <h3>Build the command</h3>
@@ -1267,18 +1280,18 @@ net start spooler</pre>
           <label class="tfield"><span>Installer path (assumes the MSI at the root of C:)</span>
             <input type="text" data-var="MSI" data-placeholder="C:\SentinelInstaller_windows_64bit_v26_1_2_177.msi" value="C:\SentinelInstaller_windows_64bit_v26_1_2_177.msi" spellcheck="false" autocomplete="off">
           </label>
-          <label class="tfield"><span>Site token &mdash; paste it here (from the SentinelOne console)</span>
+          <label class="tfield"><span>Site token: paste it here (from the SentinelOne console)</span>
             <input type="text" data-var="TOKEN" data-placeholder="YOUR_SITE_TOKEN" data-required="true" placeholder="YOUR_SITE_TOKEN" spellcheck="false" autocomplete="off">
           </label>
         </div>
-        <p class="tfield-note">The token stays in your browser &mdash; it&rsquo;s only used to build the command below. Nothing is saved or sent anywhere, and it&rsquo;s gone when you leave the page.</p>
+        <p class="tfield-note">The token stays in your browser: it&rsquo;s only used to build the command below. Nothing is saved or sent anywhere, and it&rsquo;s gone when you leave the page.</p>
         <div class="explain">
           <div class="explain-title">What this command will do</div>
           <ul>
-            <li><code>msiexec.exe /i "&hellip;.msi"</code> &mdash; installs the SentinelOne agent from the MSI.</li>
-            <li><code>SITE_TOKEN="&hellip;"</code> &mdash; enrolls this endpoint into <em>your</em> SentinelOne site, so it appears in your console.</li>
-            <li><code>/qn</code> &mdash; fully silent: no windows, no prompts, nothing for the user to click.</li>
-            <li><code>/norestart</code> &mdash; suppresses any automatic reboot (the agent finishes activating on the next natural restart if one is needed).</li>
+            <li><code>msiexec.exe /i "&hellip;.msi"</code>: installs the SentinelOne agent from the MSI.</li>
+            <li><code>SITE_TOKEN="&hellip;"</code>: enrolls this endpoint into <em>your</em> SentinelOne site, so it appears in your console.</li>
+            <li><code>/qn</code>: fully silent: no windows, no prompts, nothing for the user to click.</li>
+            <li><code>/norestart</code>: suppresses any automatic reboot (the agent finishes activating on the next natural restart if one is needed).</li>
           </ul>
         </div>
         <pre></pre>
@@ -1288,20 +1301,20 @@ net start spooler</pre>
         <div class="manual-body">
           <ol>
             <li>In the <strong>SentinelOne management console</strong>, download the Windows agent MSI (64-bit) and copy the <strong>site token</strong> (Sentinels &rarr; Site Info, or Settings &rarr; Sites &rarr; your site).</li>
-            <li>Put the MSI at the root of the C: drive (<code>C:\</code>) so it matches the command &mdash; or edit the installer field above to wherever it lives.</li>
-            <li>Open an <strong>elevated</strong> prompt: <kbd>Win</kbd>+<kbd>R</kbd> &rarr; <code>cmd</code> &rarr; <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Enter</kbd>. No <code>cd</code> needed &mdash; the full path is in the command.</li>
-            <li>Paste the built command, press <kbd>Enter</kbd>. Silent installs show no output &mdash; that&rsquo;s normal.</li>
+            <li>Put the MSI at the root of the C: drive (<code>C:\</code>) so it matches the command, or edit the installer field above to wherever it lives.</li>
+            <li>Open an <strong>elevated</strong> prompt: <kbd>Win</kbd>+<kbd>R</kbd> &rarr; <code>cmd</code> &rarr; <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Enter</kbd>. No <code>cd</code> needed: the full path is in the command.</li>
+            <li>Paste the built command, press <kbd>Enter</kbd>. Silent installs show no output; that&rsquo;s normal.</li>
           </ol>
           <p class="howto-cap">Verify the install took:</p>
           <pre>sc.exe query SentinelAgent</pre>
           <p class="note"><strong>Why <code>sc.exe</code> and not <code>sc</code>:</strong> in PowerShell, <code>sc</code> is an alias for <code>Set-Content</code> (it would create a file instead of querying). <code>sc.exe</code> works the same in both Command Prompt and PowerShell.</p>
           <p class="howto-cap">Or sweep for every Sentinel service, running or not:</p>
           <pre>sc.exe query type= service state= all | findstr /i sentinel</pre>
-          <p class="note">Lists <em>all</em> services (any state) and filters for anything Sentinel-named &mdash; catches the agent plus its helper services even if a service name differs between versions. No output at all = nothing SentinelOne is installed.</p>
-          <p class="howto-cap">One-line full check &mdash; service + running processes + install folder (PowerShell):</p>
+          <p class="note">Lists <em>all</em> services (any state) and filters for anything Sentinel-named; it catches the agent plus its helper services even if a service name differs between versions. No output at all = nothing SentinelOne is installed.</p>
+          <p class="howto-cap">One-line full check: service + running processes + install folder (PowerShell):</p>
           <pre>sc.exe query SentinelAgent; tasklist | findstr /i sentinel; dir "C:\Program Files\SentinelOne"</pre>
-          <p class="note">Three confirmations in one paste: the agent <em>service</em> state, any Sentinel <em>processes</em> actually running, and the <em>install folder</em> contents. All three showing results = solid install. The <code>;</code> separator is PowerShell &mdash; in a classic Command Prompt use <code>&amp;</code> between the commands instead.</p>
-          <p class="note"><code>STATE : 4  RUNNING</code> means the agent service is installed and running. (Also: <code>C:\Program Files\SentinelOne</code> exists, and the endpoint appears in the console within a few minutes.) If it returns <em>the specified service does not exist</em>, the install didn&rsquo;t take &mdash; re-check the token and path.</p>
+          <p class="note">Three confirmations in one paste: the agent <em>service</em> state, any Sentinel <em>processes</em> actually running, and the <em>install folder</em> contents. All three showing results = solid install. The <code>;</code> separator is PowerShell; in a classic Command Prompt use <code>&amp;</code> between the commands instead.</p>
+          <p class="note"><code>STATE : 4  RUNNING</code> means the agent service is installed and running. (Also: <code>C:\Program Files\SentinelOne</code> exists, and the endpoint appears in the console within a few minutes.) If it returns <em>the specified service does not exist</em>, the install didn&rsquo;t take: re-check the token and path.</p>
         </div>
       </details>
     </div>
@@ -1313,34 +1326,34 @@ net start spooler</pre>
       <div>
         <span class="tag">Deployment</span>
         <h2>Deploy Malwarebytes (silent install)</h2>
-        <code class="file">copy-paste deploy &mdash; no script file</code>
+        <code class="file">copy-paste deploy (no script file)</code>
       </div>
       <div class="panel-side">
         <span class="badge badge-warn">Admin needed</span>
       </div>
     </div>
-    <p class="purpose">Download the official installer, install it fully silently, and verify &mdash; one paste into an <strong>elevated</strong> PowerShell (the LogMeIn admin prompt is perfect; nothing appears on the user&rsquo;s screen). The <code>/VERYSILENT</code>-family switches are long-standing deployment canon (stable v3&rarr;v5), not an official consumer doc &mdash; battle-tested, not vendor-guaranteed.</p>
+    <p class="purpose">Download the official installer, install it fully silently, and verify: one paste into an <strong>elevated</strong> PowerShell (the LogMeIn admin prompt is perfect; nothing appears on the user&rsquo;s screen). The <code>/VERYSILENT</code>-family switches are long-standing deployment canon (stable v3&rarr;v5), not an official consumer doc: battle-tested, not vendor-guaranteed.</p>
 
     <div class="opt">
-      <h3>Download, install, verify &mdash; one paste</h3>
+      <h3>Download, install, verify: one paste</h3>
       <div class="explain">
         <div class="explain-title">What this will do</div>
         <ul>
-          <li>Line 1 &mdash; downloads <code>MBSetup.exe</code> to <code>C:\</code> straight from Malwarebytes&rsquo; own server (same link as the Tools section).</li>
-          <li>Line 2 &mdash; installs with <code>/VERYSILENT /NORESTART /SUPPRESSMSGBOXES /NOCANCEL</code>: no wizard, no reboot, no popups, and waits until it finishes.</li>
-          <li>Line 3 &mdash; verifies: <code>MBAMService</code> showing <code>STATE : 4  RUNNING</code> = installed (same check pattern as SentinelOne).</li>
+          <li>Line 1: downloads <code>MBSetup.exe</code> to <code>C:\</code> straight from Malwarebytes&rsquo; own server (same link as the Tools section).</li>
+          <li>Line 2: installs with <code>/VERYSILENT /NORESTART /SUPPRESSMSGBOXES /NOCANCEL</code>: no wizard, no reboot, no popups, and waits until it finishes.</li>
+          <li>Line 3 verifies: <code>MBAMService</code> showing <code>STATE : 4  RUNNING</code> = installed (same check pattern as SentinelOne).</li>
         </ul>
       </div>
       <pre>Invoke-WebRequest "https://downloads.malwarebytes.com/file/mb-windows" -OutFile C:\MBSetup.exe
 Start-Process C:\MBSetup.exe -ArgumentList "/VERYSILENT /NORESTART /SUPPRESSMSGBOXES /NOCANCEL" -Wait
 sc.exe query MBAMService</pre>
-      <p class="tfield-note"><strong>Heads-up:</strong> a silent install lands as <strong>Free with the 14-day Premium trial auto-started</strong> &mdash; real-time protection, the tray, and &ldquo;launch at startup&rdquo; all come on. If you want on-demand-only, follow up with the in-app toggle or the <a href="#malwarebytes">Stop Malwarebytes at startup</a> section. There&rsquo;s also <strong>no license-key switch</strong> on the consumer installer &mdash; Premium keys go in through the app.</p>
+      <p class="tfield-note"><strong>Heads-up:</strong> a silent install lands as <strong>Free with the 14-day Premium trial auto-started</strong>: real-time protection, the tray, and &ldquo;launch at startup&rdquo; all come on. If you want on-demand-only, follow up with the in-app toggle or the <a href="#malwarebytes">Stop Malwarebytes at startup</a> section. There&rsquo;s also <strong>no license-key switch</strong> on the consumer installer; Premium keys go in through the app.</p>
 
       <details class="manual">
         <summary>Silent scanning afterwards (full MB has no scan CLI)</summary>
         <div class="manual-body">
-          <p class="note">Malwarebytes v4/v5 can&rsquo;t start a scan from the command line &mdash; scans are GUI / in-app scheduler only. For a silent background scan over LogMeIn, use these instead:</p>
-          <p class="howto-cap">AdwCleaner (Malwarebytes&rsquo; own tool &mdash; adware/PUP layer, official CLI):</p>
+          <p class="note">Malwarebytes v4/v5 can&rsquo;t start a scan from the command line; scans are GUI / in-app scheduler only. For a silent background scan over LogMeIn, use these instead:</p>
+          <p class="howto-cap">AdwCleaner (Malwarebytes&rsquo; own tool: adware/PUP layer, official CLI):</p>
           <pre>C:\adwcleaner.exe /eula /scan</pre>
           <pre>C:\adwcleaner.exe /eula /clean /noreboot</pre>
           <p class="note"><code>/eula</code> accepts the license non-interactively; <code>/scan</code> = report only, <code>/clean</code> = quarantine (add <code>/noreboot</code> to stop it restarting). Logs land in <code>C:\AdwCleaner\Logs</code>. Download is in the <a href="#tools">Tools section</a>.</p>
@@ -1360,7 +1373,7 @@ sc.exe query MBAMService</pre>
         <h2>On-demand scan &amp; removal downloads</h2>
       </div>
     </div>
-    <p class="purpose">Official vendor direct downloads for a quick second-opinion or cleanup pass on a machine. These are installers/scanners &mdash; they download immediately when clicked.</p>
+    <p class="purpose">Official vendor direct downloads for a quick second-opinion or cleanup pass on a machine. These are installers/scanners; they download immediately when clicked.</p>
 
     <div class="tool">
       <div class="info">
@@ -1373,12 +1386,12 @@ sc.exe query MBAMService</pre>
     <div class="tool">
       <div class="info">
         <h3>ESET Online Scanner</h3>
-        <p>Free one-time, second-opinion scanner with no lasting install footprint &mdash; good for confirming a machine is clean. <a href="https://www.eset.com/afr/online-scanner/" target="_blank" rel="noopener noreferrer">Vendor page</a> &middot; <span class="host">download.eset.com</span></p>
+        <p>Free one-time, second-opinion scanner with no lasting install footprint, good for confirming a machine is clean. <a href="https://www.eset.com/afr/online-scanner/" target="_blank" rel="noopener noreferrer">Vendor page</a> &middot; <span class="host">download.eset.com</span></p>
       </div>
       <a class="dl-ext" href="https://download.eset.com/com/eset/tools/online_scanner/latest/esetonlinescanner.exe" target="_blank" rel="noopener noreferrer">Download esetonlinescanner.exe</a>
     </div>
     <p class="tool-note">
-      <strong>Keep it one-and-done on a client PC:</strong> ESET Online Scanner is one-time by default, but it offers <em>Periodic scanning</em> &mdash; choose <strong>No</strong>, or it adds <code>EOSv3 Scheduler onLogOn</code> / <code>onTime</code> scheduled tasks that re-run it at startup. Before closing, tick <strong>&ldquo;Delete application data on closing&rdquo;</strong> (uninstalls the downloaded engine and data; a quarantine folder stays if anything was quarantined), then delete the Desktop shortcut.
+      <strong>Keep it one-and-done on a client PC:</strong> ESET Online Scanner is one-time by default, but it offers <em>Periodic scanning</em>: choose <strong>No</strong>, or it adds <code>EOSv3 Scheduler onLogOn</code> / <code>onTime</code> scheduled tasks that re-run it at startup. Before closing, tick <strong>&ldquo;Delete application data on closing&rdquo;</strong> (uninstalls the downloaded engine and data; a quarantine folder stays if anything was quarantined), then delete the Desktop shortcut.
       Already left running periodically? <a href="#eset-cleanup">Run the cleanup script &darr;</a>
       <span class="src">Sources: <a href="https://help.eset.com/eos/en-US/periodic_scan.html" target="_blank" rel="noopener noreferrer">ESET &ndash; Periodic scan</a> &middot; <a href="https://help.eset.com/eos/en-US/getting_started.html" target="_blank" rel="noopener noreferrer">Getting started</a> &middot; <a href="https://support.eset.com/en/kb405-online-scanner-faq" target="_blank" rel="noopener noreferrer">KB405 FAQ</a></span>
     </p>
@@ -1386,7 +1399,7 @@ sc.exe query MBAMService</pre>
     <div class="tool">
       <div class="info">
         <h3>Malwarebytes AdwCleaner</h3>
-        <p>Free portable remover for adware, PUPs, unwanted toolbars, and browser hijackers &mdash; the go-to for &ldquo;my browser is full of junk.&rdquo; Single portable exe, no install: run it, <strong>Scan</strong>, then <strong>Quarantine</strong>. It keeps logs and quarantine in <code>C:\AdwCleaner</code> &mdash; delete that folder when done for a clean pass. Also CLI-scriptable (<code>/eula /scan</code>) &mdash; see <a href="#malwarebytes-deploy">Deploy Malwarebytes</a>. <span class="host">downloads.malwarebytes.com</span></p>
+        <p>Free portable remover for adware, PUPs, unwanted toolbars, and browser hijackers: the go-to for &ldquo;my browser is full of junk.&rdquo; Single portable exe, no install: run it, <strong>Scan</strong>, then <strong>Quarantine</strong>. It keeps logs and quarantine in <code>C:\AdwCleaner</code>; delete that folder when done for a clean pass. Also CLI-scriptable (<code>/eula /scan</code>): see <a href="#malwarebytes-deploy">Deploy Malwarebytes</a>. <span class="host">downloads.malwarebytes.com</span></p>
       </div>
       <a class="dl-ext" href="https://downloads.malwarebytes.com/file/adwcleaner" target="_blank" rel="noopener noreferrer">Download adwcleaner.exe</a>
     </div>
@@ -1394,13 +1407,13 @@ sc.exe query MBAMService</pre>
     <div class="tool">
       <div class="info">
         <h3>BGInfo (Sysinternals)</h3>
-        <p>Stamps machine info &mdash; hostname, IP, OS, uptime, logged-on user &mdash; onto the desktop wallpaper so a tech can read a machine&rsquo;s identity at a glance (servers and client PCs alike). Portable, no install. <a href="https://learn.microsoft.com/en-us/sysinternals/downloads/bginfo" target="_blank" rel="noopener noreferrer">Microsoft docs</a> &middot; direct 64-bit exe: <a href="https://live.sysinternals.com/Bginfo64.exe" target="_blank" rel="noopener noreferrer">live.sysinternals.com/Bginfo64.exe</a> &middot; <span class="host">download.sysinternals.com</span></p>
+        <p>Stamps machine info (hostname, IP, OS, uptime, logged-on user) onto the desktop wallpaper so a tech can read a machine&rsquo;s identity at a glance (servers and client PCs alike). Portable, no install. <a href="https://learn.microsoft.com/en-us/sysinternals/downloads/bginfo" target="_blank" rel="noopener noreferrer">Microsoft docs</a> &middot; direct 64-bit exe: <a href="https://live.sysinternals.com/Bginfo64.exe" target="_blank" rel="noopener noreferrer">live.sysinternals.com/Bginfo64.exe</a> &middot; <span class="host">download.sysinternals.com</span></p>
       </div>
       <a class="dl-ext" href="https://download.sysinternals.com/files/BGInfo.zip" target="_blank" rel="noopener noreferrer">Download BGInfo.zip</a>
     </div>
     <p class="tool-note">
-      <strong>Apply a config silently:</strong> <code>Bginfo64.exe umbrella.bgi /timer:0 /silent /nolicprompt</code> &mdash; <code>/timer:0</code> applies immediately with no countdown window, <code>/silent</code> suppresses errors, <code>/nolicprompt</code> skips the EULA popup (so it works over the LogMeIn background shell). Put the same line in a login script / scheduled task to re-stamp at every sign-in.
-      <span class="src"><em>Our default Umbrella <code>.bgi</code> config will be hosted here &mdash; coming soon.</em></span>
+      <strong>Apply a config silently:</strong> <code>Bginfo64.exe umbrella.bgi /timer:0 /silent /nolicprompt</code>: <code>/timer:0</code> applies immediately with no countdown window, <code>/silent</code> suppresses errors, <code>/nolicprompt</code> skips the EULA popup (so it works over the LogMeIn background shell). Put the same line in a login script / scheduled task to re-stamp at every sign-in.
+      <span class="src"><em>Our default Umbrella <code>.bgi</code> config will be hosted here (coming soon).</em></span>
     </p>
 
     <p class="tools-note">Links go straight to the vendors' own download servers (verified live). Always run on-demand scanners with admin rights.</p>
@@ -1411,7 +1424,7 @@ sc.exe query MBAMService</pre>
 </main>
 
 <footer class="page">
-  <p>PC Scripts <span class="version">v0.22.0</span> &middot; Windows 10 &amp; 11.</p>
+  <p>PC Scripts <span class="version">v0.23.0</span> &middot; Windows 10 &amp; 11.</p>
 </footer>
 
 <script>
