@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Spool - Inventory Design Preview v0.1</title>
+<style>
+  /* ---------- page chrome (dark, around the mock) ---------- */
+  :root{--pg:#16161c;--pg2:#1e1e26;--pgcard:#24242e;--pgline:#33333f;--pgtext:#e8e8ee;--pgmuted:#9a9aab;--pgacc:#f5a623;}
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--pg);color:var(--pgtext);font:15px/1.55 "Segoe UI",system-ui,-apple-system,Helvetica,Arial,sans-serif;overflow-x:hidden}
+  a{color:var(--pgacc)}
+  .wrap{max-width:1180px;margin:0 auto;padding:22px 18px 60px}
+  h1{font-size:26px;margin:0 0 4px}
+  h2{font-size:19px;margin:34px 0 10px;padding-top:18px;border-top:1px solid var(--pgline)}
+  h3{font-size:15px;margin:18px 0 6px;color:#fff}
+  p{margin:6px 0 10px;max-width:78ch}
+  .sub{color:var(--pgmuted);margin:0 0 14px}
+  .ver{display:inline-block;font-size:11px;padding:2px 8px;border:1px solid var(--pgline);border-radius:999px;color:var(--pgmuted);margin-left:8px;vertical-align:middle}
+  ul{margin:4px 0 12px;padding-left:20px;max-width:80ch}
+  li{margin:3px 0}
+  code{background:#0f0f14;border:1px solid var(--pgline);padding:1px 5px;border-radius:4px;font-size:13px;overflow-wrap:anywhere}
+  .grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:14px}
+  .card{background:var(--pgcard);border:1px solid var(--pgline);border-radius:10px;padding:14px 16px;min-width:0}
+  .card h3{margin-top:0}
+  .card.rec{border-color:var(--pgacc)}
+  .tag{display:inline-block;font-size:11px;padding:1px 7px;border-radius:999px;border:1px solid var(--pgline);color:var(--pgmuted);margin-right:4px}
+  .tag.rec{border-color:var(--pgacc);color:var(--pgacc)}
+
+  /* ---------- switcher bar ---------- */
+  .switcher{position:sticky;top:0;z-index:5;background:rgba(22,22,28,.94);backdrop-filter:blur(6px);border:1px solid var(--pgline);border-radius:10px;padding:10px 12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:12px 0 10px}
+  .switcher .lbl{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--pgmuted);margin-right:4px}
+  .switcher button{background:#1c1c25;color:#cfcfda;border:1px solid var(--pgline);border-radius:8px;padding:7px 13px;font:inherit;font-size:14px;cursor:pointer}
+  .switcher button:hover{border-color:#5a5a6c}
+  .switcher button.active{background:#2d2d3a;color:#fff;border-color:var(--pgacc)}
+  .switcher .next{margin-left:auto;background:var(--pgacc);color:#0b0b10;border-color:var(--pgacc);font-weight:600}
+  .switcher .hint{flex-basis:100%;font-size:12px;color:var(--pgmuted)}
+  .caption{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:baseline;margin:0 0 12px;font-size:14px}
+  .caption b{font-size:16px;color:#fff}
+  .caption span.d{color:var(--pgmuted);flex-basis:100%}
+  .viewtabs{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
+  .viewtabs button{background:#1c1c25;color:#cfcfda;border:1px solid var(--pgline);border-radius:8px;padding:6px 12px;font:inherit;font-size:13px;cursor:pointer}
+  .viewtabs button.active{color:#fff;border-color:var(--pgacc);background:#2d2d3a}
+
+  /* ---------- mockup frame + themes ---------- */
+  .frame{position:relative;container-type:inline-size;border:1px solid var(--pgline);border-radius:14px;overflow:hidden;background:#000}
+  .mock{position:relative;background:var(--m-bg);color:var(--m-text);font-family:var(--m-font);font-size:14px;line-height:1.45;min-height:640px;transition:background .25s,color .25s}
+
+  .mock[data-theme="rack"]{
+    --m-bg:#121417;--m-bg2:#0d0f12;--m-card:#1a1e23;--m-card2:#20252b;--m-line:#2a3038;
+    --m-text:#e6eaee;--m-muted:#8e98a3;--m-accent:#f5a623;--m-accent2:#ffbe4d;--m-onaccent:#1a1205;
+    --m-ok:#3ddc97;--m-warn:#f5a623;--m-danger:#ff5c5c;--m-info:#5aa9ff;
+    --m-ok-text:#3ddc97;--m-warn-text:#f1b95c;--m-bad-text:#ff8a80;--m-info-text:#8cc4ff;
+    --m-topbar:#0d0f12;--m-toptext:#e6eaee;--m-topmuted:#8e98a3;--m-brandmark:#f5a623;--m-navon:rgba(245,166,35,.14);
+    --m-font:"Segoe UI",system-ui,-apple-system,Helvetica,Arial,sans-serif;
+    --m-display:"Segoe UI",system-ui,-apple-system,Helvetica,Arial,sans-serif;
+    --m-mono:Consolas,"Cascadia Mono",Menlo,monospace;--m-num:Consolas,"Cascadia Mono",Menlo,monospace;
+    --m-radius:6px;--m-tap:44px;--m-tapsm:40px}
+  .mock[data-theme="ledger"]{
+    --m-bg:#f4f6f9;--m-bg2:#e9edf3;--m-card:#ffffff;--m-card2:#f1f4f8;--m-line:#dde3ea;
+    --m-text:#1a2233;--m-muted:#5b6675;--m-accent:#1e6fd9;--m-accent2:#155cb8;--m-onaccent:#ffffff;
+    --m-ok:#1f9d5a;--m-warn:#d98b1e;--m-danger:#d3403a;--m-info:#1e6fd9;
+    --m-ok-text:#166b3e;--m-warn-text:#8a5a14;--m-bad-text:#a82e29;--m-info-text:#1a5cb5;
+    --m-topbar:#ffffff;--m-toptext:#1a2233;--m-topmuted:#5b6675;--m-brandmark:#1e6fd9;--m-navon:#e8f0fc;
+    --m-font:"Segoe UI",system-ui,-apple-system,Helvetica,Arial,sans-serif;
+    --m-display:"Segoe UI",system-ui,-apple-system,Helvetica,Arial,sans-serif;
+    --m-mono:Consolas,"Cascadia Mono",Menlo,monospace;--m-num:"Segoe UI",system-ui,-apple-system,Helvetica,Arial,sans-serif;
+    --m-radius:8px;--m-tap:38px;--m-tapsm:30px}
+  .mock[data-theme="manifest"]{
+    --m-bg:#efe9dc;--m-bg2:#e6dfcf;--m-card:#fbf8f1;--m-card2:#f3eee2;--m-line:#d9d0bd;
+    --m-text:#2a2619;--m-muted:#655d4b;--m-accent:#2f6b4f;--m-accent2:#245640;--m-onaccent:#fbf8f1;
+    --m-ok:#2f6b4f;--m-warn:#b8742c;--m-danger:#b23a2f;--m-info:#3d5f8a;
+    --m-ok-text:#2e5d44;--m-warn-text:#8a5620;--m-bad-text:#9a3026;--m-info-text:#34527a;
+    --m-topbar:#2a2619;--m-toptext:#f3eee2;--m-topmuted:#b9b09a;--m-brandmark:#d8c9a3;--m-navon:rgba(243,238,226,.12);
+    --m-font:"Segoe UI",system-ui,-apple-system,Helvetica,Arial,sans-serif;
+    --m-display:Georgia,"Times New Roman",serif;
+    --m-mono:Consolas,"Courier New",monospace;--m-num:Consolas,"Courier New",monospace;
+    --m-radius:3px;--m-tap:40px;--m-tapsm:32px}
+
+  /* app chrome */
+  .top{display:flex;align-items:center;gap:10px 14px;padding:10px 18px;background:var(--m-topbar);color:var(--m-toptext);border-bottom:1px solid var(--m-line);flex-wrap:wrap;min-height:58px}
+  .brand{display:flex;align-items:center;gap:9px;font-family:var(--m-display);font-weight:700;font-size:19px;letter-spacing:.01em}
+  .brand svg{width:26px;height:26px;flex:none;color:var(--m-brandmark)}
+  .brand .v{font:500 11px var(--m-mono);color:var(--m-topmuted);border:1px solid var(--m-line);border-radius:4px;padding:1px 5px;letter-spacing:0}
+  .mock[data-theme="manifest"] .brand .v{border-color:#5a5340}
+  .nav{display:flex;gap:2px;flex-wrap:wrap}
+  .nav a{color:var(--m-topmuted);text-decoration:none;padding:7px 12px;border-radius:var(--m-radius);font-size:14px;cursor:pointer}
+  .nav a:hover{color:var(--m-toptext)}
+  .nav a.on{color:var(--m-toptext);background:var(--m-navon);font-weight:600}
+  .mock[data-theme="rack"] .nav a.on{color:var(--m-toptext);box-shadow:inset 0 -2px 0 var(--m-accent)}
+  .mock[data-theme="ledger"] .nav a.on{color:var(--m-accent)}
+  .sync{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--m-topmuted);border:1px solid var(--m-line);border-radius:999px;padding:3px 10px;margin-left:auto;white-space:nowrap}
+  .mock[data-theme="manifest"] .sync,.mock[data-theme="manifest"] .who{border-color:#5a5340}
+  .sync i{width:7px;height:7px;border-radius:50%;background:var(--m-ok)}
+  .who{font-size:12px;color:var(--m-topmuted);border:1px solid var(--m-line);border-radius:999px;padding:3px 10px;overflow-wrap:anywhere}
+  .body{padding:18px;display:grid;grid-template-columns:minmax(0,1fr);gap:16px}
+  .foot{padding:10px 18px 16px;font-size:12px;color:var(--m-muted);display:flex;gap:14px;flex-wrap:wrap}
+  .foot .sample{margin-left:auto;border:1px dashed var(--m-muted);border-radius:4px;padding:1px 7px}
+
+  /* building blocks */
+  .mcard{background:var(--m-card);border:1px solid var(--m-line);border-radius:var(--m-radius);padding:16px 18px;min-width:0}
+  /* uppercase labels with light tracking (.04em): they read as field labels beside dense numbers, not as hero eyebrows */
+  .mcard h4,.h4{margin:0 0 10px;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--m-muted);font-weight:600}
+  .mock[data-theme="manifest"] .mcard h4{font-family:var(--m-display);text-transform:none;letter-spacing:0;font-size:17px;color:var(--m-text);font-weight:700}
+  .thead{display:flex;align-items:center;gap:8px 10px;flex-wrap:wrap;margin-bottom:10px}
+  .thead h4{margin:0}
+  .thead .sp{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .n{font-family:var(--m-num);font-variant-numeric:tabular-nums}
+  .z{color:var(--m-muted)}
+  .hint{font-size:12px;color:var(--m-muted);margin:6px 0 0}
+  .lab{display:block;font-size:12px;color:var(--m-muted);margin:10px 0 4px;font-weight:600}
+  .q{display:inline-block;width:15px;height:15px;border-radius:50%;border:1px solid var(--m-muted);font-size:10px;line-height:13px;text-align:center;margin-left:4px;opacity:.75;cursor:help;font-weight:600}
+  .fld{width:100%;min-height:var(--m-tapsm);background:var(--m-card2);color:var(--m-text);border:1px solid var(--m-line);border-radius:var(--m-radius);padding:6px 11px;font:inherit;font-size:14px}
+  .fld::placeholder{color:var(--m-muted)}
+  .fld.sel{appearance:none;padding-right:30px;background-image:linear-gradient(45deg,transparent 50%,var(--m-muted) 50%),linear-gradient(135deg,var(--m-muted) 50%,transparent 50%);background-position:calc(100% - 16px) 50%,calc(100% - 11px) 50%;background-size:5px 5px;background-repeat:no-repeat}
+  /* attention glow (Playbook rule for unset decision dropdowns): stays on, pulses three times on load, then rests */
+  .fld.glow{border-color:var(--m-warn);box-shadow:0 0 0 3px color-mix(in srgb,var(--m-warn) 30%,transparent);animation:glow 2.2s ease-in-out 3}
+  @keyframes glow{50%{box-shadow:0 0 0 5px color-mix(in srgb,var(--m-warn) 14%,transparent)}}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:var(--m-tap);border:1px solid var(--m-line);background:var(--m-card2);color:var(--m-text);border-radius:var(--m-radius);padding:0 14px;font:inherit;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap}
+  .btn:hover{border-color:var(--m-muted)}
+  .btn.acc{background:var(--m-accent);border-color:var(--m-accent);color:var(--m-onaccent)}
+  .btn.acc:hover{background:var(--m-accent2)}
+  .btn.sm{min-height:var(--m-tapsm);padding:0 10px;font-size:12.5px}
+  .btn.danger{color:var(--m-danger);border-color:color-mix(in srgb,var(--m-danger) 50%,var(--m-line))}
+  .btn[disabled]{opacity:.5;cursor:default}
+  .btn svg{width:16px;height:16px}
+
+  /* status pills; manifest turns them into rubber stamps */
+  .st{display:inline-flex;align-items:center;gap:6px;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap;color:var(--m-muted);background:color-mix(in srgb,var(--m-muted) 14%,transparent)}
+  /* status text colors are set per theme (--m-*-text) and checked at 4.5:1 on their tint */
+  .st.ok{color:var(--m-ok-text);background:color-mix(in srgb,var(--m-ok) 14%,transparent)}
+  .st.warn{color:var(--m-warn-text);background:color-mix(in srgb,var(--m-warn) 16%,transparent)}
+  .st.bad{color:var(--m-bad-text);background:color-mix(in srgb,var(--m-danger) 13%,transparent)}
+  .st.info{color:var(--m-info-text);background:color-mix(in srgb,var(--m-info) 14%,transparent)}
+  .st.big{font-size:14px;padding:4px 13px}
+  .mock[data-theme="manifest"] .st{background:transparent;border:1.5px solid currentColor;border-radius:3px;text-transform:uppercase;letter-spacing:.09em;font-size:11px;font-weight:700;padding:1px 7px}
+  .mock[data-theme="manifest"] .st.big{font-size:13px;padding:3px 10px;transform:rotate(-2deg);border-width:2px}
+
+  /* chips on ticket lines */
+  .chips{display:flex;flex-wrap:wrap;gap:5px}
+  .chip{display:inline-flex;align-items:center;gap:6px;padding:2px 8px;border-radius:999px;border:1px solid var(--m-line);background:var(--m-card2);font-size:12px;color:var(--m-text);max-width:100%;overflow-wrap:anywhere}
+  .chip i{width:7px;height:7px;border-radius:50%;flex:none;background:var(--m-muted)}
+  .chip.ok i{background:var(--m-ok)}
+  .chip.warn{border-color:color-mix(in srgb,var(--m-warn) 55%,var(--m-line));color:var(--m-warn-text)}
+  .chip.warn i{background:var(--m-warn)}
+  .chip.info i{background:var(--m-info)}
+  .chip.new{border-style:dashed}
+  .chip.new i{background:var(--m-accent)}
+  .mock[data-theme="manifest"] .chip{border-radius:3px}
+
+  /* tables (card-stack under 860px container width) */
+  .tbl{width:100%;border-collapse:collapse;font-size:13.5px}
+  .tbl th{font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--m-muted);font-weight:600;border-bottom:1px solid var(--m-line);padding:8px 8px;text-align:left;white-space:nowrap;cursor:pointer}
+  .tbl th.s:after{content:" \25B2";font-size:9px;color:var(--m-accent)}
+  .tbl th.r,.tbl td.r{text-align:right}
+  .tbl td{padding:9px 8px;border-bottom:1px solid var(--m-line);vertical-align:top;min-width:0}
+  .tbl td.act{white-space:nowrap;text-align:right}
+  .tbl td.act .btn+.btn{margin-left:6px}
+  .tbl tr.grp td{background:var(--m-card2);font-weight:700;font-size:13px;padding:7px 8px}
+  .tbl tr.grp td span{font-weight:400;color:var(--m-muted);margin-left:8px;font-size:12px}
+  .tbl tr.grp td a{float:right;font-weight:600;font-size:12px;color:var(--m-accent);cursor:pointer}
+  .mock[data-theme="manifest"] .tbl tr.grp td{font-family:var(--m-display);font-size:14px;background:transparent;border-bottom:1.5px solid var(--m-text)}
+  /* Ledger motif: area headers are a ruled line, and anything printed on a box or a shipping label is set in the mono face */
+  .mock[data-theme="ledger"] .tbl tr.grp td{background:transparent;border-bottom:1.5px solid var(--m-text);padding-left:0}
+  .mock[data-theme="ledger"] .crow .cl,.mock[data-theme="ledger"] .res .rt,.mock[data-theme="ledger"] .read{font-family:var(--m-mono);font-size:13px}
+  .mock[data-theme="ledger"] .res .rt{font-size:18px}
+  .tbl tr.need td{background:color-mix(in srgb,var(--m-warn) 9%,transparent)}
+  .tbl tr.need td:first-child{box-shadow:inset 3px 0 0 var(--m-warn)}
+  .pn b{font-weight:700}
+  .pn{font-weight:500}
+  .pd{font-size:12px;color:var(--m-muted);margin-top:1px}
+  .unit{font-size:11px;color:var(--m-muted);margin-left:2px}
+  .mock[data-theme="rack"] .tbl td.n,.mock[data-theme="rack"] .tbl td .n{font-size:15px}
+  .mock[data-theme="manifest"] .tbl td{border-bottom-color:#cdbfa3}
+
+  @container (max-width:860px){
+    .tbl thead{display:none}
+    .tbl,.tbl tbody,.tbl tr,.tbl td{display:block;width:100%}
+    .tbl tr{border:1px solid var(--m-line);border-radius:var(--m-radius);margin-bottom:10px;padding:6px 10px;background:var(--m-card)}
+    .tbl tr.grp{border:0;padding:0;margin:14px 0 6px;background:transparent}
+    .tbl tr.grp td{border-radius:var(--m-radius)}
+    .tbl td{border:0;padding:4px 0 4px 104px;position:relative;text-align:left!important;min-height:26px}
+    .tbl td:before{content:attr(data-l);position:absolute;left:0;top:6px;width:96px;font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--m-muted);font-family:var(--m-font);font-weight:600}
+    .tbl tr.grp td,.tbl td.full{padding-left:8px}
+    .tbl tr.grp td:before,.tbl td.full:before{display:none}
+    .tbl td.act{white-space:normal;padding-top:8px}
+    .tbl td select.fld.sel{min-width:0;width:100%;max-width:100%}
+    .tbl td .st{white-space:normal}
+    .tbl td.act .btn{margin:0 6px 6px 0}
+    .tbl td.act .btn+.btn{margin-left:0}
+    .tbl tr.need{box-shadow:inset 3px 0 0 var(--m-warn)}
+    .tbl tr.need td:first-child{box-shadow:none}
+  }
+
+  /* ---------- ticket view ---------- */
+  .tkrow{display:flex;align-items:center;gap:10px 14px;flex-wrap:wrap}
+  .crumb{font-size:12px;color:var(--m-muted);margin-bottom:4px}
+  .crumb a{color:var(--m-accent);text-decoration:none;cursor:pointer}
+  .tktitle{margin:0;font-family:var(--m-display);font-size:24px;font-weight:700;line-height:1.2}
+  .tkbtns{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+  .meta{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:10px 16px;margin:14px 0 0}
+  .meta div{min-width:0}
+  .meta dt{font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--m-muted);font-weight:600}
+  .meta dd{margin:2px 0 0;font-weight:600;overflow-wrap:anywhere}
+  .meta dd a{color:var(--m-accent)}
+  .meta dd small{display:block;font-weight:400;color:var(--m-muted);font-size:12px}
+  .mock[data-theme="manifest"] .paper{background-image:repeating-linear-gradient(to bottom,transparent 0 27px,rgba(42,38,25,.07) 27px 28px);box-shadow:inset 4px 0 0 #c9a98a}
+  .strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,120px),1fr));gap:10px}
+  .sv{background:var(--m-card2);border:1px solid var(--m-line);border-radius:var(--m-radius);padding:10px 12px;min-width:0}
+  .sv .k{display:block;font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--m-muted);font-weight:600}
+  .sv .v{display:block;font-size:28px;font-weight:700;line-height:1.15;margin-top:2px}
+  .sv .u{font-size:12px;color:var(--m-muted)}
+  .sv.warn{border-color:color-mix(in srgb,var(--m-warn) 55%,var(--m-line))}
+  .sv.warn .v{color:var(--m-warn-text)}
+  /* Rack: counts stay in the text color; amber is reserved for the tile that needs a decision */
+  .mock[data-theme="rack"] .sv .v{font-size:32px}
+  .mock[data-theme="rack"] .sv.warn{background:rgba(245,166,35,.08)}
+  .mock[data-theme="manifest"] .sv{background:transparent;border-style:dashed}
+  .prog{display:flex;height:10px;border-radius:999px;background:var(--m-card2);border:1px solid var(--m-line);overflow:hidden;margin:14px 0 6px}
+  .prog i{display:block;height:100%}
+  .prog .p1{background:var(--m-ok)}
+  .prog .p2{background:var(--m-warn);opacity:.55}
+  .pkey{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:12px;color:var(--m-muted)}
+  .pkey span{display:inline-flex;align-items:center;gap:6px}
+  .pkey i{width:10px;height:10px;border-radius:3px;display:inline-block}
+  .two{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:16px}
+  @container (max-width:820px){.two{grid-template-columns:minmax(0,1fr)}}
+  .tl{list-style:none;margin:0;padding:0}
+  .tl li{display:grid;grid-template-columns:112px 52px 68px minmax(0,1fr);gap:4px 10px;padding:9px 0;border-bottom:1px solid var(--m-line);font-size:13px;align-items:baseline}
+  .tl li:last-child{border-bottom:0}
+  .tl .when{color:var(--m-muted);font-size:12px}
+  .tl .by{font-weight:600}
+  .tl .what{min-width:0;overflow-wrap:anywhere}
+  .mv{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--m-muted)}
+  .mv.pick{color:var(--m-info-text)}.mv.recv{color:var(--m-ok-text)}.mv.read{color:var(--m-warn-text)}
+  @container (max-width:640px){
+    .tl li{grid-template-columns:auto auto minmax(0,1fr)}
+    .tl .what{grid-column:1/-1}
+  }
+  pre.note{margin:0;background:var(--m-card2);border:1px solid var(--m-line);border-radius:var(--m-radius);padding:12px 14px;font:12.5px/1.55 var(--m-mono);white-space:pre-wrap;overflow-wrap:anywhere;color:var(--m-text)}
+
+  /* ---------- stock view ---------- */
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+  .seg{display:flex;flex-wrap:wrap;gap:4px;background:var(--m-card2);border:1px solid var(--m-line);border-radius:var(--m-radius);padding:3px}
+  .seg span{padding:5px 11px;border-radius:calc(var(--m-radius) - 2px);font-size:13px;cursor:pointer;white-space:nowrap}
+  .seg span b{font-family:var(--m-num);font-weight:600;color:var(--m-muted);margin-left:4px;font-size:12px}
+  .seg span.on{background:var(--m-accent);color:var(--m-onaccent);font-weight:600}
+  .seg span.on b{color:inherit}
+  .seg span.warnt b{color:var(--m-warn-text)}
+  .search{flex:1 1 220px;width:auto;min-width:0}
+  .locs{font-size:12.5px;color:var(--m-muted)}
+  .locs b{color:var(--m-text);font-weight:600;font-family:var(--m-num)}
+  .cons{border:1px solid var(--m-line);border-radius:var(--m-radius);padding:12px 14px;margin-top:12px;background:var(--m-card)}
+  .cons.low{border-color:var(--m-warn);box-shadow:0 0 0 3px color-mix(in srgb,var(--m-warn) 18%,transparent)}
+  .chead{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
+  .chead .pn{font-size:15px}
+  .chead .tot{margin-left:auto;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .chead .tot .n{font-size:18px;font-weight:700}
+  .ctr{margin-top:10px;border-top:1px dashed var(--m-line)}
+  .crow{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) minmax(0,2fr) 76px minmax(0,.9fr);gap:6px 12px;align-items:center;padding:7px 0;border-bottom:1px dashed var(--m-line);font-size:13px}
+  .crow:last-child{border-bottom:0}
+  .crow .cl{font-weight:600;min-width:0;overflow-wrap:anywhere}
+  .crow .loc,.crow .rd{color:var(--m-muted);min-width:0}
+  .crow .ft{text-align:right;font-weight:700}
+  .bar{display:block;height:10px;border-radius:999px;background:var(--m-card2);border:1px solid var(--m-line);overflow:hidden}
+  .bar i{display:block;height:100%;background:var(--m-ok)}
+  .bar.lo i{background:var(--m-warn)}
+  .mock[data-theme="rack"] .bar{height:12px}
+  .mock[data-theme="manifest"] .bar{border-radius:2px}
+  @container (max-width:640px){
+    .crow{grid-template-columns:minmax(0,1fr) auto}
+    .crow .bar{grid-column:1/-1}
+    .crow .loc,.crow .rd{font-size:12px}
+    .crow .rd{text-align:right}
+  }
+
+  /* ---------- orders view ---------- */
+  .tbl td .fld.sel{min-width:150px;max-width:220px}
+  .podet{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center}
+  .podbtns{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+  .podet h3{margin:0;font-family:var(--m-display);font-size:21px;color:var(--m-text)}
+  .ships{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:12px;margin-top:6px}
+  .ship{border:1px solid var(--m-line);border-radius:var(--m-radius);padding:12px 14px;background:var(--m-card2);min-width:0}
+  .ship .sh{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .carrier{display:inline-flex;align-items:center;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:800;letter-spacing:.06em;color:#fff}
+  .carrier.ups{background:#5b3a1e}
+  .carrier.fedex{background:#4d148c}
+  .trk{font-family:var(--m-mono);font-size:13px;color:var(--m-accent2);text-decoration:underline;text-underline-offset:2px;overflow-wrap:anywhere}
+  .ship dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,110px),1fr));gap:6px 12px;margin:10px 0}
+  .ship dt{font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--m-muted);font-weight:600}
+  .ship dd{margin:1px 0 0;font-weight:600;font-size:13px}
+  .ship ul{margin:0 0 10px;padding-left:18px;font-size:13px}
+  .ship .sf{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .ship .sf .hint{margin:0}
+
+  /* ---------- scan view (phone) ---------- */
+  .scanwrap{padding:22px 16px 28px;background:var(--m-bg2);display:grid;grid-template-columns:minmax(0,1fr);justify-items:center;gap:12px}
+  .phone{width:390px;max-width:100%;height:780px;background:#0b0c0e;border-radius:46px;padding:11px;box-shadow:0 0 0 2px #2a2d33,0 24px 60px rgba(0,0,0,.35)}
+  .screen{height:100%;border-radius:36px;overflow:hidden;background:var(--m-bg);display:flex;flex-direction:column;container-type:inline-size;position:relative}
+  .sbar{display:flex;align-items:center;justify-content:space-between;padding:8px 24px 2px;font:600 12px var(--m-font);background:var(--m-topbar);color:var(--m-toptext)}
+  .notch{width:96px;height:22px;border-radius:999px;background:#0b0c0e}
+  .ph-top{display:flex;align-items:center;gap:8px;padding:8px 14px 10px;background:var(--m-topbar);color:var(--m-toptext);border-bottom:1px solid var(--m-line)}
+  .ph-top .brand{font-size:17px}
+  .ph-top .brand svg{width:22px;height:22px}
+  .locchip{font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid var(--m-line);color:var(--m-topmuted);white-space:nowrap}
+  .mock[data-theme="manifest"] .locchip{border-color:#5a5340}
+  .ph-top .sync{margin-left:0}
+  .ph-top .grow{margin-left:auto}
+  .ph-scroll{flex:1;overflow-y:auto;overflow-x:hidden;padding:12px}
+  .cam{position:relative;height:210px;border-radius:calc(var(--m-radius) + 4px);overflow:hidden;background:radial-gradient(ellipse at 50% 42%,#39424c 0,#1b2026 48%,#090a0c 100%)}
+  .cam .box{position:absolute;left:14%;right:14%;top:22%;bottom:26%;border:2px solid rgba(255,255,255,.92);border-radius:10px;box-shadow:0 0 0 999px rgba(0,0,0,.28)}
+  .cam .laser{position:absolute;left:18%;right:18%;top:47%;height:2px;background:var(--m-accent);opacity:.9}
+  .cam .read{position:absolute;left:50%;bottom:30%;transform:translate(-50%,50%);font:600 11px var(--m-mono);background:rgba(0,0,0,.6);color:#fff;padding:2px 8px;border-radius:999px;white-space:nowrap}
+  .cam .camhint{position:absolute;left:0;right:0;bottom:8px;text-align:center;font-size:12px;color:rgba(255,255,255,.75)}
+  .cam .torch{position:absolute;right:10px;top:10px;width:36px;height:36px;border-radius:50%;border:1px solid rgba(255,255,255,.35);background:rgba(0,0,0,.4);display:grid;place-items:center;color:#fff}
+  .cam .torch svg{width:18px;height:18px}
+  .screen .fld{font-size:16px;min-height:44px}
+  .manual{margin:10px 0 12px}
+  .res{padding:14px}
+  .res .rk{display:flex;align-items:center;justify-content:space-between;font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--m-muted);font-weight:600}
+  .res .rt{font-family:var(--m-display);font-size:20px;font-weight:700;margin-top:4px}
+  .res .rm{font-size:13px;color:var(--m-muted)}
+  .res .rm b{color:var(--m-text)}
+  .bignum{display:flex;align-items:center;gap:10px}
+  .bignum .fld{font:700 42px/1 var(--m-num);font-variant-numeric:tabular-nums;height:68px;padding:0 14px;text-align:right;flex:1;min-width:0;border-width:2px;border-color:var(--m-accent)}
+  .bignum span{font-size:18px;color:var(--m-muted);font-weight:600}
+  .quick{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:12px 0}
+  .quick .btn{min-height:46px;padding:0 4px;font-family:var(--m-num);font-size:16px}
+  .opt{display:flex;align-items:center;gap:10px;min-height:44px;padding:0 12px;border:1px dashed var(--m-line);border-radius:var(--m-radius);font-size:14px;cursor:pointer}
+  .opt i{width:20px;height:20px;border:1.5px solid var(--m-muted);border-radius:5px;flex:none}
+  .opt small{margin-left:auto;color:var(--m-muted);font-size:12px}
+  .save{width:100%;min-height:52px;margin-top:12px;font-size:17px}
+  .ptabs{display:flex;background:var(--m-card);border-top:1px solid var(--m-line);padding:6px 4px 14px}
+  .ptabs a,.tabbar a{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px;color:var(--m-muted);text-decoration:none;padding:4px 0;cursor:pointer}
+  .ptabs a svg,.tabbar a svg{width:22px;height:22px}
+  .ptabs a.on,.tabbar a.on{color:var(--m-accent);font-weight:600}
+  .ptabs a.scan svg{width:40px;height:40px;padding:8px;border-radius:50%;margin-top:-14px;background:var(--m-card2);border:1px solid var(--m-line)}
+  .ptabs a.scan.on svg{background:var(--m-accent);color:var(--m-onaccent);border-color:var(--m-accent);box-shadow:0 4px 14px color-mix(in srgb,var(--m-accent) 40%,transparent)}
+  .scannote{font-size:12px;color:var(--m-muted);max-width:60ch;text-align:center;margin:0}
+
+  /* desktop tab bar for views 1-3 under 640px */
+  .tabbar{display:none;position:sticky;bottom:0;background:var(--m-card);border-top:1px solid var(--m-line);padding:6px 4px 8px;z-index:3}
+  @container (max-width:640px){
+    .nav,.top .who{display:none}
+    .tabbar{display:flex}
+    .body{padding:12px}
+    .mcard{padding:14px}
+    .fld{font-size:16px}
+    .tkbtns{margin-left:0}
+    .tktitle{font-size:21px}
+    /* thumbs, not cursors: every control grows to the 44px floor on the phone */
+    .btn,.btn.sm,.fld,.fld.sel{min-height:44px}
+    .seg span{min-height:44px;display:inline-flex;align-items:center}
+    .tbl tr.grp td a{padding:12px 0 12px 12px}
+  }
+  .mock.phonemode .top,.mock.phonemode .tabbar,.mock.phonemode .foot{display:none}
+
+  .view{display:none}.view.on{display:block}
+  .view.body.on{display:grid}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Spool <span class="ver">design preview v0.1</span></h1>
+  <p class="sub">Spool turns an approved Portal proposal into a pick ticket, tracks every product line from vendor order to staging bay to job site, and keeps the shelf count honest, including feet left on each box of wire. Three visual directions below, four screens each. The markup is identical across directions; only the theme changes. Read <code>PLAN.md</code> next to this file for the build plan; the direction pick is decision D9 there.</p>
+  <p class="sub">Reading this as: a staff warehouse app for two to five people on phones and one desktop, in the Backup Audits family, dial ENERGY 1 / RHYTHM 1 / MOTION 1. Every client, person, address, order number, and count in the mock is invented sample data. Only the direction buttons, the view tabs, and the mock's own nav links do anything; every other button is a picture.</p>
+
+  <div class="switcher">
+    <span class="lbl">Direction</span>
+    <button data-opt="rack">A. Rack</button>
+    <button data-opt="ledger" title="Recommended">B. Ledger &#9733;</button>
+    <button data-opt="manifest">C. Manifest</button>
+    <button class="next" id="nextBtn">Next &rarr;</button>
+    <span class="hint">Left / right arrow keys switch directions. Tabs below switch screens. Narrow the window under 640px to see the card-stacked tables and the bottom tab bar.</span>
+  </div>
+  <div class="caption" id="caption"></div>
+
+  <div class="viewtabs">
+    <button data-view="ticket" class="active">Ticket</button>
+    <button data-view="stock">Stock</button>
+    <button data-view="orders">Orders</button>
+    <button data-view="scan">Scan (phone)</button>
+  </div>
+
+  <div class="frame" id="frame">
+  <div class="mock" id="mock" data-theme="ledger">
+    <div class="top">
+      <div class="brand">
+        <svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="28" cy="34" r="22" fill="none" stroke="currentColor" stroke-width="5"/><circle cx="28" cy="34" r="13" fill="none" stroke="currentColor" stroke-width="2.5" opacity=".6"/><circle cx="28" cy="34" r="5" fill="currentColor"/><path d="M28 12 H58" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/></svg>
+        Spool <span class="v">v0.1.0</span>
+      </div>
+      <nav class="nav">
+        <a data-go="ticket" class="on">Tickets</a>
+        <a data-go="scan">Scan</a>
+        <a data-go="stock">Stock</a>
+        <a data-go="orders">Orders</a>
+        <a>More</a>
+      </nav>
+      <span class="sync" title="Green when every change has reached the server. Shows Offline and a pending count when the warehouse has no signal; work keeps saving on the device."><i></i>Synced</span>
+      <span class="who">you@umbrellaautomation.com</span>
+    </div>
+
+    <!-- ================= TICKET ================= -->
+    <div class="view body on" id="v-ticket">
+      <div class="mcard paper">
+        <div class="crumb"><a data-go="ticket">Tickets</a> / Picking</div>
+        <div class="tkrow">
+          <h2 class="tktitle">Pick ticket <span class="n">#1042</span></h2>
+          <span class="st info big" title="Moves on its own: any line staged = Picking, all staged = Staged, all delivered = Delivered. Close is manual.">Picking</span>
+          <div class="tkbtns">
+            <button class="btn" title="Copies the status block below so you can paste it into the proposal's internal notes in Portal.">Copy for Portal</button>
+            <button class="btn">Print</button>
+            <button class="btn acc" title="Adds every line that still has a to-order quantity and no PO to a draft purchase order.">Order missing</button>
+          </div>
+        </div>
+        <dl class="meta">
+          <div><dt>Client</dt><dd>Acme Dental</dd></div>
+          <div><dt>Job</dt><dd>Main office buildout<small>1180 Larkin Ave, Suite 200</small></dd></div>
+          <div><dt>Proposal</dt><dd><a href="#" title="Opens proposal #1042 in Portal">#1042 in Portal</a><small>Accepted 10/20</small></dd></div>
+          <div><dt>Staging</dt><dd>Bay 2<small>Reserved for this job</small></dd></div>
+          <div><dt>Created</dt><dd>by you, 10/21<small>Imported from CSV</small></dd></div>
+        </dl>
+      </div>
+
+      <div class="mcard">
+        <div class="strip">
+          <div class="sv"><span class="k">Needed</span><span class="v n">24</span><span class="u">lines</span></div>
+          <div class="sv"><span class="k">From stock</span><span class="v n">14</span><span class="u">lines</span></div>
+          <div class="sv warn" title="Lines with any quantity still to buy. One has no PO yet."><span class="k">To order</span><span class="v n">10</span><span class="u">lines, 1 without a PO</span></div>
+          <div class="sv"><span class="k">Staged</span><span class="v n">18</span><span class="u">lines in Bay 2</span></div>
+          <div class="sv"><span class="k">Delivered</span><span class="v n">0</span><span class="u">lines on site</span></div>
+        </div>
+        <div class="prog" title="18 of 24 lines staged, 5 more on the way, 1 not ordered"><i class="p1" style="width:75%"></i><i class="p2" style="width:20.8%"></i></div>
+        <div class="pkey"><span><i style="background:var(--m-ok)"></i>Staged 18</span><span><i style="background:var(--m-warn);opacity:.55"></i>On order 5</span><span><i style="background:var(--m-card2);border:1px solid var(--m-line)"></i>Not ordered 1</span></div>
+      </div>
+
+      <div class="mcard">
+        <div class="thead"><h4>Lines by area</h4><span class="sp"><button class="btn sm" title="Fills From stock using on-hand at each product's default location, then lists what still needs ordering.">Pull everything in stock</button><button class="btn sm">Columns</button></span></div>
+        <table class="tbl tk">
+          <thead><tr><th class="s">Product</th><th class="r">Needed</th><th class="r">From stock</th><th class="r">To order</th><th class="r">Staged</th><th class="r">Delivered</th><th>Status</th><th></th></tr></thead>
+          <tbody>
+            <tr class="grp"><td colspan="8">Reception <span>2 lines</span></td></tr>
+            <tr>
+              <td data-l="Product"><div class="pn"><b>Sonos</b> Amp</div><div class="pd">Streaming amplifier, 2 x 125 W, lobby ceiling speakers</div></td>
+              <td class="r n" data-l="Needed">1</td><td class="r n" data-l="From stock">1</td><td class="r n" data-l="To order"><span class="z">0</span></td><td class="r n" data-l="Staged">1</td><td class="r n" data-l="Delivered"><span class="z">0</span></td>
+              <td data-l="Status"><div class="chips"><span class="chip ok"><i></i>Matched</span><span class="chip">Rack D1 &rarr; Bay 2</span></div></td>
+              <td class="act" data-l=""><button class="btn sm">Deliver</button><button class="btn sm" title="More actions">...</button></td>
+            </tr>
+            <tr class="need">
+              <td data-l="Product"><div class="pn"><b>Chief</b> RPMAU</div><div class="pd">Universal projector mount, white</div></td>
+              <td class="r n" data-l="Needed">1</td><td class="r n" data-l="From stock"><span class="z">0</span></td><td class="r n" data-l="To order">1</td><td class="r n" data-l="Staged"><span class="z">0</span></td><td class="r n" data-l="Delivered"><span class="z">0</span></td>
+              <td data-l="Status"><div class="chips"><span class="chip warn"><i></i>To order, no PO yet</span><span class="chip new" title="Not in the catalog yet. A product record is created from the proposal's brand and model on first receive."><i></i>New product</span></div></td>
+              <td class="act" data-l=""><button class="btn sm acc">Order</button><button class="btn sm" title="More actions">...</button></td>
+            </tr>
+
+            <tr class="grp"><td colspan="8">Operatory 1-4 <span>2 lines</span></td></tr>
+            <tr>
+              <td data-l="Product"><div class="pn"><b>Ubiquiti</b> U6-Pro</div><div class="pd">WiFi 6 access point, ceiling, one per room</div></td>
+              <td class="r n" data-l="Needed">4</td><td class="r n" data-l="From stock">2</td><td class="r n" data-l="To order">2</td><td class="r n" data-l="Staged">2</td><td class="r n" data-l="Delivered"><span class="z">0</span></td>
+              <td data-l="Status"><div class="chips"><span class="chip ok"><i></i>Matched</span><span class="chip warn"><i></i>PO 7731 - Backordered x2 - ETA 11/04</span></div></td>
+              <td class="act" data-l=""><button class="btn sm">Stage</button><button class="btn sm" title="More actions">...</button></td>
+            </tr>
+            <tr>
+              <td data-l="Product"><div class="pn"><b>Axis</b> M3065-V</div><div class="pd">Mini dome camera, 1080p, indoor</div></td>
+              <td class="r n" data-l="Needed">4</td><td class="r n" data-l="From stock">4</td><td class="r n" data-l="To order"><span class="z">0</span></td><td class="r n" data-l="Staged">4</td><td class="r n" data-l="Delivered"><span class="z">0</span></td>
+              <td data-l="Status"><div class="chips"><span class="chip ok"><i></i>Matched</span><span class="chip">Rack C2 &rarr; Bay 2</span></div></td>
+              <td class="act" data-l=""><button class="btn sm">Deliver</button><button class="btn sm" title="More actions">...</button></td>
+            </tr>
+
+            <tr class="grp"><td colspan="8">Server closet <span>3 lines</span></td></tr>
+            <tr>
+              <td data-l="Product"><div class="pn"><b>UniFi</b> UDM-SE</div><div class="pd">Dream Machine SE gateway, 8-port PoE</div></td>
+              <td class="r n" data-l="Needed">1</td><td class="r n" data-l="From stock"><span class="z">0</span></td><td class="r n" data-l="To order">1</td><td class="r n" data-l="Staged">1</td><td class="r n" data-l="Delivered"><span class="z">0</span></td>
+              <td data-l="Status"><div class="chips"><span class="chip ok"><i></i>PO 7731 - FedEx - received 10/22</span></div></td>
+              <td class="act" data-l=""><button class="btn sm">Deliver</button><button class="btn sm" title="More actions">...</button></td>
+            </tr>
+            <tr>
+              <td data-l="Product"><div class="pn"><b>UniFi</b> USW-24-POE</div><div class="pd">24-port Gigabit PoE switch, 95 W budget</div></td>
+              <td class="r n" data-l="Needed">1</td><td class="r n" data-l="From stock"><span class="z">0</span></td><td class="r n" data-l="To order">1</td><td class="r n" data-l="Staged"><span class="z">0</span></td><td class="r n" data-l="Delivered"><span class="z">0</span></td>
+              <td data-l="Status"><div class="chips"><span class="chip info"><i></i>PO 7731 - UPS 1Z999AA1 - shipped 10/23</span></div></td>
+              <td class="act" data-l=""><button class="btn sm">Track</button><button class="btn sm" title="More actions">...</button></td>
+            </tr>
+            <tr>
+              <td data-l="Product"><div class="pn"><b>Middle Atlantic</b> U2V</div><div class="pd">2RU vented rack shelf, 14.5 in deep</div></td>
+              <td class="r n" data-l="Needed">2</td><td class="r n" data-l="From stock">2</td><td class="r n" data-l="To order"><span class="z">0</span></td><td class="r n" data-l="Staged">2</td><td class="r n" data-l="Delivered"><span class="z">0</span></td>
+              <td data-l="Status"><div class="chips"><span class="chip ok"><i></i>Matched</span><span class="chip">Rack A1 &rarr; Bay 2</span></div></td>
+              <td class="act" data-l=""><button class="btn sm">Deliver</button><button class="btn sm" title="More actions">...</button></td>
+            </tr>
+
+            <tr class="grp"><td colspan="8">Wire <span>2 lines</span></td></tr>
+            <tr>
+              <td data-l="Product"><div class="pn"><b>Belden</b> 2412 Cat6 CMR, blue</div><div class="pd">1000 ft pull box, sold by the foot</div></td>
+              <td class="r n" data-l="Needed">1,500<span class="unit">ft</span></td><td class="r n" data-l="From stock">1,640<span class="unit">ft</span></td><td class="r n" data-l="To order"><span class="z">0</span></td><td class="r n" data-l="Staged">1,640<span class="unit">ft</span></td><td class="r n" data-l="Delivered"><span class="z">0</span></td>
+              <td data-l="Status"><div class="chips"><span class="chip ok"><i></i>Cat6 blue box 3 - 640 ft left</span><span class="chip ok"><i></i>Cat6 blue box 4 - 1000 ft</span></div></td>
+              <td class="act" data-l=""><button class="btn sm">Deliver</button><button class="btn sm" title="More actions">...</button></td>
+            </tr>
+            <tr>
+              <td data-l="Product"><div class="pn"><b>Leviton</b> 61110-BE6</div><div class="pd">Cat6 QuickPort keystone jack, blue</div></td>
+              <td class="r n" data-l="Needed">48</td><td class="r n" data-l="From stock">24</td><td class="r n" data-l="To order">24</td><td class="r n" data-l="Staged">24</td><td class="r n" data-l="Delivered"><span class="z">0</span></td>
+              <td data-l="Status"><div class="chips"><span class="chip ok"><i></i>Matched</span><span class="chip info"><i></i>PO 7731 - UPS 1Z999AA1 - shipped 10/23</span></div></td>
+              <td class="act" data-l=""><button class="btn sm">Stage</button><button class="btn sm" title="More actions">...</button></td>
+            </tr>
+
+            <tr class="grp"><td colspan="8">Hardware and patch <span>15 lines: 8 from stock, 5 on PO 7731, 13 staged</span><a>Expand</a></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="two">
+        <div class="mcard paper">
+          <h4>Timeline</h4>
+          <ol class="tl">
+            <li><span class="when n">10/23 8:47 AM</span><span class="by">Warehouse</span><span class="mv pick">Pick</span><span class="what">Cat6 blue box 3 (640 ft) from Rack A3 to Bay 2</span></li>
+            <li><span class="when n">10/23 8:45 AM</span><span class="by">Warehouse</span><span class="mv read">Reading</span><span class="what">Cat6 blue box 3: 1000 &rarr; 640 ft left (-360 ft)</span></li>
+            <li><span class="when n">10/22 4:10 PM</span><span class="by">Tech</span><span class="mv recv">Receive</span><span class="what">UniFi UDM-SE x1 from FedEx 7489 1234 5678 into Bay 2, PO 7731</span></li>
+            <li><span class="when n">10/21 2:05 PM</span><span class="by">You</span><span class="mv pick">Pick</span><span class="what">14 lines pulled from stock to Bay 2</span></li>
+          </ol>
+          <div class="hint">Every count change is a movement. Older entries: Show all 31.</div>
+        </div>
+        <div class="mcard">
+          <div class="thead"><h4>Portal note</h4><span class="sp"><button class="btn sm acc">Copy</button></span></div>
+<pre class="note">[Spool 2026-10-23 14:05] Pick ticket #1042 - Acme Dental, Main office
+Staged 18/24 lines in Bay 2. To order: 10 lines (PO 7731 to ADI, ordered 10/21,
+UPS 1Z999AA10123456784 shipped 10/23). Backordered: Ubiquiti U6-Pro x2.
+Not ordered yet: Chief RPMAU x1.</pre>
+          <div class="hint">Paste into the proposal's internal notes. Spool writes it there itself once the Portal API is on.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= STOCK ================= -->
+    <div class="view body" id="v-stock">
+      <div class="mcard">
+        <div class="thead"><h4>Catalog</h4><span class="sp"><button class="btn sm">Columns</button><button class="btn sm">Print labels</button><button class="btn sm acc">New product</button></span></div>
+        <div class="toolbar">
+          <div class="seg"><span class="on">All<b>46</b></span><span>Consumables<b>9</b></span><span class="warnt">Low stock<b>3</b></span><span>Locations<b>14</b></span></div>
+          <input class="fld search" placeholder="Search brand, model, UPC, or label" title="Matches brand, model, the learned UPC, and container labels like Cat6 blue box 3.">
+        </div>
+        <table class="tbl stock">
+          <thead><tr><th class="s">Product</th><th>Category</th><th>Unit</th><th class="r">On hand</th><th>Locations</th><th class="r" title="Reorder point in the product's unit">Par</th><th>Last movement</th></tr></thead>
+          <tbody>
+            <tr class="need">
+              <td data-l="Product"><div class="pn"><b>Belden</b> 1700A Cat5e CMR, gray</div><div class="pd">1000 ft pull box</div></td>
+              <td data-l="Category">Wire</td><td data-l="Unit">ft</td>
+              <td class="r n" data-l="On hand">590 <span class="st warn">Low</span></td>
+              <td data-l="Locations"><span class="locs">Rack A3 <b>410</b>, Van 2 <b>180</b></span></td>
+              <td class="r n" data-l="Par">1,000</td>
+              <td data-l="Last movement">Reading, Van 2 box 8, 10/22</td>
+            </tr>
+            <tr class="need">
+              <td data-l="Product"><div class="pn"><b>Ubiquiti</b> U6-Pro</div><div class="pd">WiFi 6 access point</div></td>
+              <td data-l="Category">Network</td><td data-l="Unit">each</td>
+              <td class="r n" data-l="On hand">3 <span class="st warn">Low</span></td>
+              <td data-l="Locations"><span class="locs">Rack B1 <b>1</b>, Bay 2 <b>2</b></span></td>
+              <td class="r n" data-l="Par">4</td>
+              <td data-l="Last movement">Pick 2 for #1042, 10/21</td>
+            </tr>
+            <tr>
+              <td data-l="Product"><div class="pn"><b>Belden</b> 2412 Cat6 CMR, blue</div><div class="pd">1000 ft pull box</div></td>
+              <td data-l="Category">Wire</td><td data-l="Unit">ft</td>
+              <td class="r n" data-l="On hand">3,460</td>
+              <td data-l="Locations"><span class="locs">Rack A3 <b>1,820</b>, Bay 2 <b>1,640</b></span></td>
+              <td class="r n" data-l="Par">2,000</td>
+              <td data-l="Last movement">Pick box 3 for #1042, 10/23</td>
+            </tr>
+            <tr>
+              <td data-l="Product"><div class="pn"><b>Axis</b> M3065-V</div><div class="pd">Mini dome camera</div></td>
+              <td data-l="Category">Camera</td><td data-l="Unit">each</td>
+              <td class="r n" data-l="On hand">6</td>
+              <td data-l="Locations"><span class="locs">Rack C2 <b>2</b>, Bay 2 <b>4</b></span></td>
+              <td class="r n" data-l="Par">2</td>
+              <td data-l="Last movement">Pick 4 for #1042, 10/21</td>
+            </tr>
+            <tr>
+              <td data-l="Product"><div class="pn"><b>UniFi</b> UDM-SE</div><div class="pd">Dream Machine SE gateway</div></td>
+              <td data-l="Category">Network</td><td data-l="Unit">each</td>
+              <td class="r n" data-l="On hand">1</td>
+              <td data-l="Locations"><span class="locs">Bay 2 <b>1</b></span></td>
+              <td class="r n" data-l="Par"><span class="z">-</span></td>
+              <td data-l="Last movement">Receive 1, PO 7731, 10/22</td>
+            </tr>
+            <tr>
+              <td data-l="Product"><div class="pn"><b>Leviton</b> 61110-BE6</div><div class="pd">Cat6 keystone jack, blue</div></td>
+              <td data-l="Category">Connectors</td><td data-l="Unit">each</td>
+              <td class="r n" data-l="On hand">112</td>
+              <td data-l="Locations"><span class="locs">Rack A2 <b>64</b>, Bay 2 <b>24</b>, Van 1 <b>24</b></span></td>
+              <td class="r n" data-l="Par">100</td>
+              <td data-l="Last movement">Adjust +12, recount, 10/20</td>
+            </tr>
+            <tr>
+              <td data-l="Product"><div class="pn"><b>Middle Atlantic</b> U2V</div><div class="pd">2RU vented rack shelf</div></td>
+              <td data-l="Category">Rack</td><td data-l="Unit">each</td>
+              <td class="r n" data-l="On hand">5</td>
+              <td data-l="Locations"><span class="locs">Rack A1 <b>3</b>, Bay 2 <b>2</b></span></td>
+              <td class="r n" data-l="Par">2</td>
+              <td data-l="Last movement">Pick 2 for #1042, 10/21</td>
+            </tr>
+            <tr>
+              <td data-l="Product"><div class="pn"><b>Sonos</b> Amp</div><div class="pd">Streaming amplifier</div></td>
+              <td data-l="Category">Audio</td><td data-l="Unit">each</td>
+              <td class="r n" data-l="On hand">2</td>
+              <td data-l="Locations"><span class="locs">Rack D1 <b>1</b>, Bay 2 <b>1</b></span></td>
+              <td class="r n" data-l="Par"><span class="z">-</span></td>
+              <td data-l="Last movement">Pick 1 for #1042, 10/21</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="hint">8 of 46 products. Low stock rises to the top. Bay 2 counts are reserved for #1042 until delivered.</div>
+      </div>
+
+      <div class="mcard">
+        <div class="thead"><h4>Consumables by the foot</h4><span class="sp hint" style="margin:0">A reading replaces the estimate the picks built up.</span></div>
+
+        <div class="cons low">
+          <div class="chead">
+            <div><div class="pn"><b>Belden</b> 1700A Cat5e CMR, gray</div><div class="pd">590 ft left, par 1,000 ft, order 2 boxes</div></div>
+            <div class="tot"><span class="n">590 ft</span><span class="st warn">Low stock</span><button class="btn sm acc" title="Adds 2 x 1000 ft boxes to a draft PO for stock. Vendor is chosen on the PO.">Reorder 2 boxes</button></div>
+          </div>
+          <div class="ctr">
+            <div class="crow"><span class="cl">Cat5e gray box 7</span><span class="loc">Rack A3</span><span class="bar lo"><i style="width:41%"></i></span><span class="ft n">410 ft</span><span class="rd">read 10/20</span></div>
+            <div class="crow"><span class="cl">Cat5e gray box 8</span><span class="loc">Van 2</span><span class="bar lo"><i style="width:18%"></i></span><span class="ft n">180 ft</span><span class="rd">read 10/22</span></div>
+          </div>
+        </div>
+
+        <div class="cons">
+          <div class="chead">
+            <div><div class="pn"><b>Belden</b> 2412 Cat6 CMR, blue</div><div class="pd">4 open boxes, par 2,000 ft</div></div>
+            <div class="tot"><span class="n">3,460 ft</span><span class="st ok">OK</span><button class="btn sm">New container</button></div>
+          </div>
+          <div class="ctr">
+            <div class="crow"><span class="cl">Cat6 blue box 3</span><span class="loc">Bay 2, for #1042</span><span class="bar"><i style="width:64%"></i></span><span class="ft n">640 ft</span><span class="rd">read 10/23</span></div>
+            <div class="crow"><span class="cl">Cat6 blue box 4</span><span class="loc">Bay 2, for #1042</span><span class="bar"><i style="width:100%"></i></span><span class="ft n">1,000 ft</span><span class="rd">new 10/14</span></div>
+            <div class="crow"><span class="cl">Cat6 blue box 5</span><span class="loc">Rack A3</span><span class="bar"><i style="width:100%"></i></span><span class="ft n">1,000 ft</span><span class="rd">new 10/14</span></div>
+            <div class="crow"><span class="cl">Cat6 blue box 6</span><span class="loc">Rack A3</span><span class="bar"><i style="width:82%"></i></span><span class="ft n">820 ft</span><span class="rd">read 10/18</span></div>
+          </div>
+        </div>
+
+        <div class="cons">
+          <div class="chead">
+            <div><div class="pn"><b>Southwire</b> Cat6 CMP plenum, white</div><div class="pd">2 open boxes, par 1,000 ft</div></div>
+            <div class="tot"><span class="n">1,310 ft</span><span class="st ok">OK</span><button class="btn sm">New container</button></div>
+          </div>
+          <div class="ctr">
+            <div class="crow"><span class="cl">Cat6 plenum box 1</span><span class="loc">Rack A4</span><span class="bar"><i style="width:100%"></i></span><span class="ft n">1,000 ft</span><span class="rd">new 09/30</span></div>
+            <div class="crow"><span class="cl">Cat6 plenum box 2</span><span class="loc">Van 1</span><span class="bar lo"><i style="width:31%"></i></span><span class="ft n">310 ft</span><span class="rd">read 10/16</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= ORDERS ================= -->
+    <div class="view body" id="v-orders">
+      <div class="mcard">
+        <div class="thead"><h4>Purchase orders</h4><div class="sp"><div class="seg"><span class="on">Open<b>4</b></span><span>Received</span><span>All</span></div><button class="btn sm acc">New PO</button></div></div>
+        <table class="tbl orders">
+          <thead><tr><th class="s">PO</th><th>Vendor</th><th>For</th><th>Status</th><th class="r">Lines</th><th class="r" title="Units received out of units ordered">Rec / Ord</th><th>Oldest open shipment</th></tr></thead>
+          <tbody>
+            <tr class="need">
+              <td class="n" data-l="PO">Draft</td>
+              <td data-l="Vendor"><select class="fld sel glow" title="Pick the vendor before marking this ordered. It decides where the PO goes and which tracking links apply."><option value="">Choose vendor</option><option>ADI</option><option>Snap One</option><option>Graybar</option><option>Amazon Business</option></select></td>
+              <td data-l="For">Stock: Cat5e reorder<div class="pd">From the low-stock list</div></td>
+              <td data-l="Status"><span class="st">Draft</span></td>
+              <td class="r n" data-l="Lines">1</td>
+              <td class="r n" data-l="Rec / Ord">0 / 2</td>
+              <td data-l="Oldest open shipment"><span class="z">Not ordered</span></td>
+            </tr>
+            <tr>
+              <td class="n" data-l="PO"><b>7731</b></td>
+              <td data-l="Vendor">ADI</td>
+              <td data-l="For">Acme Dental<div class="pd">Main office buildout, #1042</div></td>
+              <td data-l="Status"><span class="st info">Partial</span></td>
+              <td class="r n" data-l="Lines">5</td>
+              <td class="r n" data-l="Rec / Ord">1 / 29</td>
+              <td data-l="Oldest open shipment">UPS, shipped 10/23</td>
+            </tr>
+            <tr>
+              <td class="n" data-l="PO"><b>7729</b></td>
+              <td data-l="Vendor">Snap One</td>
+              <td data-l="For">Harbor Vet<div class="pd">Exam room AV, #1038</div></td>
+              <td data-l="Status"><span class="st">Ordered</span></td>
+              <td class="r n" data-l="Lines">3</td>
+              <td class="r n" data-l="Rec / Ord">0 / 7</td>
+              <td data-l="Oldest open shipment"><span class="z">No shipment yet</span></td>
+            </tr>
+            <tr>
+              <td class="n" data-l="PO"><b>7724</b></td>
+              <td data-l="Vendor">ADI</td>
+              <td data-l="For">Northside Legal<div class="pd">Conference room refresh, #1035</div></td>
+              <td data-l="Status"><span class="st warn">Delivered, not received</span></td>
+              <td class="r n" data-l="Lines">4</td>
+              <td class="r n" data-l="Rec / Ord">9 / 12</td>
+              <td data-l="Oldest open shipment">FedEx, delivered 10/20, 3 days</td>
+            </tr>
+            <tr>
+              <td class="n" data-l="PO"><b>7720</b></td>
+              <td data-l="Vendor">Graybar</td>
+              <td data-l="For">Stock<div class="pd">Cat6 blue, 4 boxes</div></td>
+              <td data-l="Status"><span class="st ok">Received</span></td>
+              <td class="r n" data-l="Lines">1</td>
+              <td class="r n" data-l="Rec / Ord">4 / 4</td>
+              <td data-l="Oldest open shipment"><span class="z">-</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="mcard">
+        <div class="podet">
+          <h3>PO <span class="n">7731</span> to ADI</h3>
+          <span class="st info big">Partial</span>
+          <div class="podbtns"><button class="btn sm">Add shipment</button><button class="btn sm">Edit</button></div>
+        </div>
+        <dl class="meta">
+          <div><dt>Vendor order</dt><dd class="n">SO 4418873</dd></div>
+          <div><dt>Ordered</dt><dd>10/21 by you</dd></div>
+          <div><dt>For</dt><dd>Acme Dental<small>Pick ticket #1042</small></dd></div>
+          <div><dt>Received</dt><dd class="n">1 of 29 units</dd></div>
+        </dl>
+
+        <h4 style="margin-top:18px">Lines</h4>
+        <table class="tbl polines">
+          <thead><tr><th>Product</th><th class="r">Ordered</th><th class="r">Received</th><th>Status</th><th>Serves</th></tr></thead>
+          <tbody>
+            <tr>
+              <td data-l="Product"><div class="pn"><b>UniFi</b> UDM-SE</div></td>
+              <td class="r n" data-l="Ordered">1</td><td class="r n" data-l="Received">1</td>
+              <td data-l="Status"><span class="st ok">Received</span></td>
+              <td data-l="Serves">#1042 Server closet</td>
+            </tr>
+            <tr>
+              <td data-l="Product"><div class="pn"><b>UniFi</b> USW-24-POE</div></td>
+              <td class="r n" data-l="Ordered">1</td><td class="r n" data-l="Received"><span class="z">0</span></td>
+              <td data-l="Status"><span class="st info">Shipped</span></td>
+              <td data-l="Serves">#1042 Server closet</td>
+            </tr>
+            <tr>
+              <td data-l="Product"><div class="pn"><b>Leviton</b> 61110-BE6</div></td>
+              <td class="r n" data-l="Ordered">24</td><td class="r n" data-l="Received"><span class="z">0</span></td>
+              <td data-l="Status"><span class="st info">Shipped</span></td>
+              <td data-l="Serves">#1042 Wire</td>
+            </tr>
+            <tr>
+              <td data-l="Product"><div class="pn"><b>Middle Atlantic</b> PD-915R</div><div class="pd">9-outlet rack power strip</div></td>
+              <td class="r n" data-l="Ordered">1</td><td class="r n" data-l="Received"><span class="z">0</span></td>
+              <td data-l="Status"><span class="st info">Shipped</span></td>
+              <td data-l="Serves">#1042 Hardware and patch</td>
+            </tr>
+            <tr class="need">
+              <td data-l="Product"><div class="pn"><b>Ubiquiti</b> U6-Pro</div></td>
+              <td class="r n" data-l="Ordered">2</td><td class="r n" data-l="Received"><span class="z">0</span></td>
+              <td data-l="Status"><span class="st warn">Backordered</span><div class="pd">ADI says 11/04</div></td>
+              <td data-l="Serves">#1042 Operatory 1-4</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h4 style="margin-top:18px">Shipments</h4>
+        <div class="ships">
+          <div class="ship">
+            <div class="sh"><span class="carrier ups">UPS</span><a class="trk" href="#" title="Opens the UPS tracking page">1Z999AA10123456784</a><span class="st info" style="margin-left:auto">In transit</span></div>
+            <dl><div><dt>Shipped</dt><dd class="n">10/23</dd></div><div><dt>Expected</dt><dd class="n">10/24</dd></div><div><dt>Lines</dt><dd class="n">3</dd></div></dl>
+            <ul><li>UniFi USW-24-POE x1</li><li>Leviton 61110-BE6 x24</li><li>Middle Atlantic PD-915R x1</li></ul>
+            <div class="sf"><button class="btn acc" title="Walks each line: scan or tap, then into Bay 2 for #1042.">Receive</button><span class="hint">Goes to Bay 2 for #1042</span></div>
+          </div>
+          <div class="ship">
+            <div class="sh"><span class="carrier fedex">FedEx</span><a class="trk" href="#" title="Opens the FedEx tracking page">7489 1234 5678</a><span class="st ok" style="margin-left:auto">Received</span></div>
+            <dl><div><dt>Shipped</dt><dd class="n">10/21</dd></div><div><dt>Delivered</dt><dd class="n">10/22</dd></div><div><dt>Lines</dt><dd class="n">1</dd></div></dl>
+            <ul><li>UniFi UDM-SE x1</li></ul>
+            <div class="sf"><button class="btn" disabled>Receive</button><span class="hint">Delivered 10/22, received into Bay 2 by Tech</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= SCAN (phone) ================= -->
+    <div class="view" id="v-scan">
+      <div class="scanwrap">
+        <div class="phone">
+          <div class="screen">
+            <div class="sbar"><span>9:41</span><span class="notch"></span><span>5G 82%</span></div>
+            <div class="ph-top">
+              <div class="brand">
+                <svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="28" cy="34" r="22" fill="none" stroke="currentColor" stroke-width="5"/><circle cx="28" cy="34" r="13" fill="none" stroke="currentColor" stroke-width="2.5" opacity=".6"/><circle cx="28" cy="34" r="5" fill="currentColor"/><path d="M28 12 H58" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/></svg>
+                Spool
+              </div>
+              <span class="locchip grow" title="Active location, set by scanning a shelf or bay label">Rack A3</span>
+              <span class="sync"><i></i>Synced</span>
+            </div>
+            <div class="ph-scroll">
+              <div class="cam">
+                <div class="box"></div>
+                <div class="laser"></div>
+                <span class="read">spool:ctr:cat6-blue-3</span>
+                <span class="torch" title="Torch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2h8l-2 7h-4z"/><path d="M10 9v11a2 2 0 0 0 4 0V9"/></svg></span>
+                <span class="camhint">Point at a UPC or a Spool label</span>
+              </div>
+              <div class="manual"><input class="fld" placeholder="UPC, model, or label" title="For a torn label or no camera. Type a UPC, a model like U6-Pro, or a label like Cat6 blue box 3."></div>
+
+              <div class="mcard res">
+                <div class="rk"><span>Container</span><span class="st ok">Open</span></div>
+                <div class="rt">Cat6 blue box 3</div>
+                <div class="rm">Rack A3 - <b class="n">640 ft</b> left - Belden 2412 Cat6 CMR, blue</div>
+                <label class="lab">Feet left <span class="q" title="Read the footage mark at the box exit and subtract from the start mark. A reading replaces whatever the picks estimated.">?</span></label>
+                <div class="bignum"><input class="fld" value="640" inputmode="numeric" aria-label="Feet left"><span>ft</span></div>
+                <div class="hint">Last reading 1000 ft on 10/14. Saving records -360 ft.</div>
+                <div class="quick"><button class="btn">-50</button><button class="btn">-100</button><button class="btn">-250</button><button class="btn danger">Empty</button></div>
+                <div class="opt" title="Optional. Tags this box to the ticket so it travels to the site with Bay 2."><i></i>Pick for ticket #1042<small>optional</small></div>
+                <button class="btn acc save">Save reading</button>
+              </div>
+            </div>
+            <div class="ptabs">
+              <a><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="14" height="16" rx="2"/><path d="M9 3h6v4H9zM8.5 12h7M8.5 16h5"/></svg>Tickets</a>
+              <a class="scan on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4M4 12h16"/></svg>Scan</a>
+              <a><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5z"/><path d="M3 7.5 12 12l9-4.5M12 12v9"/></svg>Stock</a>
+              <a><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 6h11v10H2zM13 9h4l3 3.5V16h-7"/><circle cx="6" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg>Orders</a>
+              <a><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>More</a>
+            </div>
+          </div>
+        </div>
+        <p class="scannote">Phone layout under 640px. A container QR opens the feet-left sheet straight away; a plain UPC opens the product with Receive, Pick for ticket, and Count.</p>
+      </div>
+    </div>
+
+    <div class="foot"><span>Spool v0.1.0</span><span>Signed in as you@umbrellaautomation.com</span><span>Synced</span><span class="sample">Sample data</span></div>
+    <div class="tabbar">
+      <a data-go="ticket" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="14" height="16" rx="2"/><path d="M9 3h6v4H9zM8.5 12h7M8.5 16h5"/></svg>Tickets</a>
+      <a data-go="scan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4M4 12h16"/></svg>Scan</a>
+      <a data-go="stock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5z"/><path d="M3 7.5 12 12l9-4.5M12 12v9"/></svg>Stock</a>
+      <a data-go="orders"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 6h11v10H2zM13 9h4l3 3.5V16h-7"/><circle cx="6" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg>Orders</a>
+      <a><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>More</a>
+    </div>
+  </div>
+  </div>
+
+  <h2>Three directions</h2>
+  <div class="grid3">
+    <div class="card"><h3>A. Rack</h3><p><span class="tag">dark, scanner-first</span></p><p>Near-black with amber kept for the one tile or control that needs a decision, and for the scan button. All quantities in a monospace face so columns line up at a glance. Buttons are 44px tall so gloved thumbs hit them. Best in a dim rack room; heavy on a bright office monitor.</p></div>
+    <div class="card rec"><h3>B. Ledger &#9733;</h3><p><span class="tag">light, matches Backup Audits</span><span class="tag rec">recommended</span></p><p>White cards, blue accent, the same family as Backup Audits and Sundial's chosen theme, so it sits next to the other staff tools and reads as business software. Its own mark: area headers are a ruled line, and anything printed on a box or a shipping label (container names, tracking numbers) is set in the mono face.</p></div>
+    <div class="card"><h3>C. Manifest</h3><p><span class="tag">warm, paper pick ticket</span></p><p>Cream paper, ruled lines, serif headings, and statuses stamped like a rubber stamp. Feels like the clipboard that hung on the bay. Friendly in print and in daylight; the stamps take more room in narrow tables.</p></div>
+  </div>
+
+  <h2>What you are looking at</h2>
+  <ul>
+    <li><b>Ticket</b> is pick ticket #1042 for Acme Dental, mid-pick: lines grouped by Portal area, with order and tracking chips on each line and one amber line that still has no PO. The Portal note on the right is exactly what Copy for Portal puts on the clipboard.</li>
+    <li><b>Stock</b> is the catalog with low stock on top, then consumables sold by the foot with each box's last reading. Cat5e is under par and offers a two-box reorder.</li>
+    <li><b>Orders</b> lists open POs; the draft at the top has no vendor yet, so its select glows amber. PO 7731 shows per-line status, the ticket line each serves, and two shipments, one received into Bay 2.</li>
+    <li><b>Scan</b> is the phone: camera with a scan box, typed fallback, and the feet-left sheet for Cat6 blue box 3 with quick subtract buttons.</li>
+    <li>Same in every direction: tables stack into cards under 640px, every control grows to 44px there, the sync pill is the only place offline shows, toasts sit top-center under the top bar, and tooltips explain the non-obvious fields.</li>
+    <li>Not drawn, specified in <code>PLAN.md</code> section 4: the empty, loading, offline, and error state of each screen, with its exact wording.</li>
+  </ul>
+</div>
+
+<script>
+(function(){
+  var opts={
+    rack:{name:"A. Rack",tag:"dark, scanner-first",d:"Built for a phone in a dim rack room: big mono numbers, 44px buttons, and amber only on the tile or control that needs a decision."},
+    ledger:{name:"B. Ledger",tag:"light, matches Backup Audits",rec:true,d:"Reads as business software and sits next to the other staff tools. Same counts and scan button, lighter room."},
+    manifest:{name:"C. Manifest",tag:"warm, paper pick ticket",d:"Looks like the clipboard that used to hang on the bay. Stamped statuses, ruled lines, green for go."}
+  };
+  var views=["ticket","stock","orders","scan"];
+  var order=Object.keys(opts), mock=document.getElementById("mock"), cap=document.getElementById("caption");
+
+  function store(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
+  function load(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+
+  function apply(k){
+    mock.setAttribute("data-theme",k);
+    document.querySelectorAll(".switcher button[data-opt]").forEach(function(b){ b.classList.toggle("active", b.getAttribute("data-opt")===k); });
+    var o=opts[k];
+    cap.innerHTML="<b>"+o.name+"</b><span class=\"tag\">"+o.tag+"</span>"+(o.rec?"<span class=\"tag rec\">recommended</span>":"")+"<span class=\"d\">"+o.d+"</span>";
+    store("spool.preview.theme",k);
+  }
+  function step(n){ var i=order.indexOf(mock.getAttribute("data-theme")); apply(order[(i+n+order.length)%order.length]); }
+  document.querySelectorAll(".switcher button[data-opt]").forEach(function(b){ b.addEventListener("click", function(){ apply(b.getAttribute("data-opt")); }); });
+  document.getElementById("nextBtn").addEventListener("click", function(){ step(1); });
+  document.addEventListener("keydown", function(e){
+    var t=e.target && e.target.tagName;
+    if(t==="INPUT"||t==="SELECT"||t==="TEXTAREA") return;
+    if(e.key==="ArrowRight") step(1);
+    if(e.key==="ArrowLeft") step(-1);
+  });
+
+  function showView(v){
+    if(views.indexOf(v)<0) v="ticket";
+    document.querySelectorAll(".view").forEach(function(el){ el.classList.toggle("on", el.id==="v-"+v); });
+    document.querySelectorAll(".viewtabs button").forEach(function(b){ b.classList.toggle("active", b.getAttribute("data-view")===v); });
+    document.querySelectorAll(".nav a[data-go], .tabbar a[data-go]").forEach(function(a){ a.classList.toggle("on", a.getAttribute("data-go")===v); });
+    mock.classList.toggle("phonemode", v==="scan");
+    store("spool.preview.view",v);
+  }
+  document.querySelectorAll(".viewtabs button").forEach(function(b){ b.addEventListener("click", function(){ showView(b.getAttribute("data-view")); }); });
+  document.querySelectorAll("[data-go]").forEach(function(a){ a.addEventListener("click", function(){ showView(a.getAttribute("data-go")); }); });
+
+  var savedTheme=load("spool.preview.theme"), savedView=load("spool.preview.view");
+  apply(opts[savedTheme]?savedTheme:"ledger");
+  showView(savedView||"ticket");
+})();
+</script>
+</body>
+</html>
