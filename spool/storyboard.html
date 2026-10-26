@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spool - Storyboard and SOP v0.1</title>
+<meta name="description" content="Storyboard and functional SOP for Spool, the internal inventory, pick ticket, and order tracking tool. Draft for owner review.">
+<meta name="robots" content="noindex, nofollow">
+<meta name="version" content="0.1.0">
+<script>
+  if (new URLSearchParams(location.search).get('print') === '1') {
+    document.documentElement.classList.add('print-view');
+  }
+</script>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --surface: #ffffff;
+    --ink: #1a1f2b;
+    --muted: #5b6675;
+    --line: #e3e6ec;
+    --line-strong: #c9cfdb;
+    --accent: #1a56db;
+    --accent-soft: #eaf0fc;
+    --ok: #0f7b3f;
+    --ok-soft: #e7f5ec;
+    --warn: #8a5a00;
+    --warn-soft: #fbf3df;
+    --radius: 12px;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "Cascadia Mono", Consolas, "Liberation Mono", monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    overflow-wrap: break-word;
+  }
+  a { color: var(--accent); }
+  [id] { scroll-margin-top: 16px; }
+
+  /* ============ Chrome ============ */
+  header.site {
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+    padding: 12px 0;
+  }
+  .wrap { max-width: 1160px; margin: 0 auto; padding: 0 24px; }
+  .crumb { font-size: 13px; color: var(--muted); margin: 0; }
+  .crumb strong { color: var(--ink); }
+
+  main { padding: 24px 0 24px; }
+
+  /* ============ The document ============ */
+  .doc {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 40px 46px 44px;
+  }
+  .doc-brand {
+    display: flex; justify-content: space-between; align-items: flex-start; gap: 18px; flex-wrap: wrap;
+    padding-bottom: 18px; border-bottom: 2px solid var(--ink); margin-bottom: 22px;
+  }
+  .doc-brand svg.logo { height: 44px; width: auto; max-width: 100%; display: block; }
+  .doc-kind { text-align: right; }
+  .doc-kind .kind { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); }
+  .doc-kind .num { font-size: 20px; font-weight: 800; color: var(--ink); }
+
+  h1.title { display: flex; align-items: center; gap: 12px; font-size: 34px; line-height: 1.15; margin: 0 0 8px; letter-spacing: -0.01em; }
+  h1.title svg { width: 36px; height: 36px; flex: none; color: var(--ink); }
+  .subtitle { font-size: 18px; margin: 0 0 6px; max-width: 70ch; }
+  .draft { font-size: 14px; color: var(--muted); margin: 0 0 26px; }
+
+  .doc h2 {
+    font-size: 22px; letter-spacing: -0.005em; line-height: 1.25;
+    margin: 40px 0 8px; padding-top: 24px; border-top: 1px solid var(--line);
+  }
+  .doc h2 .no { color: var(--accent); margin-right: 8px; }
+  .doc p { margin: 0 0 12px; max-width: 76ch; }
+  .lede { color: var(--muted); font-size: 15px; }
+
+  .readfirst {
+    border: 1px solid var(--line-strong); border-left: 4px solid var(--ink);
+    background: var(--bg); border-radius: 0 8px 8px 0;
+    padding: 14px 18px; margin: 0 0 24px; max-width: 80ch;
+  }
+  .readfirst h2 { font-size: 16px; margin: 0 0 6px; padding: 0; border: 0; }
+  .readfirst p { font-size: 15px; margin: 0 0 8px; }
+  .readfirst p:last-child { margin-bottom: 0; }
+
+  nav.toc {
+    border: 1px solid var(--line); border-radius: 8px; padding: 14px 18px; margin: 0 0 8px;
+  }
+  nav.toc h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); margin: 0 0 8px; padding: 0; border: 0; }
+  nav.toc ul { list-style: none; margin: 0; padding: 0; }
+  nav.toc .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); gap: 0 24px; }
+  nav.toc li { margin: 0; }
+  nav.toc a { display: inline-block; padding: 3px 0; font-size: 14.5px; }
+  nav.toc ul ul { padding-left: 14px; }
+  nav.toc ul ul a, nav.toc ul.cont a { font-size: 14px; }
+  nav.toc ul.cont { padding-left: 14px; }
+
+  /* ============ Part 1: panels ============ */
+  .panels {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+    gap: 18px; margin-top: 18px;
+  }
+  .panels > * { min-width: 0; }
+  .panel {
+    border: 1px solid var(--line-strong); border-radius: 10px;
+    padding: 14px 14px 12px; background: var(--surface);
+  }
+  .panel h3 { display: flex; align-items: baseline; gap: 10px; font-size: 16px; line-height: 1.3; margin: 0 0 10px; }
+  .panel h3 .pn {
+    flex: none; display: inline-block; min-width: 26px; text-align: center;
+    font-size: 13px; font-weight: 800; border: 1.5px solid var(--ink); border-radius: 6px; padding: 0 5px;
+  }
+  .panel p.cap { font-size: 14px; margin: 8px 0 0; }
+  .panel p.cap strong { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+
+  /* Wireframes: greys, one ink, one accent for the element the person acts on */
+  .wf { width: 100%; height: auto; display: block; margin: 0 auto; }
+  .wf text { font-family: var(--sans); font-size: 9px; fill: #1a1f2b; }
+  .wf .s { font-size: 8px; }
+  .wf .h { font-size: 11px; font-weight: 700; }
+  .wf .b { font-weight: 700; }
+  .wf .m { fill: #5b6675; }
+  .wf .mo { font-family: var(--mono); }
+  .wf .cur { fill: #1a1f2b; font-weight: 700; }
+  .wf .at { fill: #1a56db; font-weight: 700; }
+  .wf .okt { fill: #0f7b3f; font-weight: 700; }
+  .wf .wat { fill: #8a5a00; font-weight: 700; }
+  .wf .fr { fill: #fff; stroke: #8a93a3; stroke-width: 1.2; }
+  .wf .bar { fill: #f1f3f6; }
+  .wf .bx { fill: #fff; stroke: #c9cfdb; }
+  .wf .gb { fill: #f1f3f6; stroke: #c9cfdb; }
+  .wf .act { fill: #eaf0fc; stroke: #1a56db; stroke-width: 2; }
+  .wf .okb { fill: #e7f5ec; }
+  .wf .wab { fill: #fbf3df; }
+  .wf .ln { stroke: #e3e6ec; stroke-width: 1; fill: none; }
+  .wf .qr { fill: #fff; stroke: #1a1f2b; stroke-width: 1.5; }
+  .wf .ink { fill: #1a1f2b; }
+  .wf .pick { fill: #fff; stroke: #1a1f2b; stroke-width: 2; }
+  .wf .scan { fill: none; stroke: #1a1f2b; stroke-width: 1.5; stroke-dasharray: 4 3; }
+  .wf .box { fill: #f1f3f6; stroke: #5b6675; stroke-width: 1.2; }
+  .wf .cable { fill: none; stroke: #1a1f2b; stroke-width: 3; stroke-linecap: round; }
+  .wf .rack { stroke: #5b6675; stroke-width: 2; }
+  .wf .under { stroke: #1a1f2b; stroke-width: 2; }
+
+  /* ============ Part 2: SOPs ============ */
+  .sop {
+    border-top: 1px solid var(--line); padding: 22px 0 6px; margin: 0;
+  }
+  .sop:first-of-type { border-top: 0; }
+  .sop h3 { font-size: 18px; line-height: 1.3; margin: 0 0 6px; }
+  .sop-id {
+    display: inline-block; margin-right: 8px; vertical-align: 2px;
+    font-size: 12px; font-weight: 700; letter-spacing: 0.05em; color: var(--accent);
+    background: var(--accent-soft); border-radius: 6px; padding: 2px 8px;
+  }
+  .sop .purpose { font-size: 15.5px; }
+  .whowhen {
+    display: flex; flex-wrap: wrap; gap: 6px 28px; margin: 0 0 12px; padding: 8px 12px;
+    background: var(--bg); border: 1px solid var(--line); border-radius: 8px; font-size: 14.5px;
+    max-width: 76ch;
+  }
+  .whowhen span { min-width: 0; }
+  .whowhen b { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-right: 6px; }
+  .sop ol { margin: 0 0 12px; padding-left: 26px; max-width: 76ch; }
+  .sop li { margin-bottom: 5px; }
+  .sop li::marker { font-weight: 700; }
+  .sop .sub { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); margin: 12px 0 6px; }
+  .recorded {
+    border-left: 3px solid var(--ink); padding: 4px 0 4px 12px; font-size: 14.5px;
+  }
+  .recorded b { margin-right: 4px; }
+  .open {
+    border: 1px dashed var(--warn); background: var(--warn-soft); color: var(--ink);
+    border-radius: 8px; padding: 8px 12px; font-size: 14.5px;
+  }
+  .open b { color: var(--warn); }
+  .roles {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr));
+    gap: 10px; margin: 0 0 14px; max-width: 900px;
+  }
+  .roles > div { min-width: 0; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; font-size: 14px; }
+  .roles h4 { margin: 0 0 4px; font-size: 14.5px; }
+  .roles p { margin: 0; }
+  pre.block {
+    font-family: var(--mono); font-size: 13px; line-height: 1.5;
+    white-space: pre-wrap; overflow-wrap: anywhere;
+    background: var(--bg); border: 1px solid var(--line); border-radius: 8px;
+    padding: 10px 12px; margin: 0 0 12px; max-width: 76ch;
+  }
+
+  /* ============ Part 3 ============ */
+  ul.not { margin: 6px 0 0; padding-left: 22px; max-width: 76ch; }
+  ul.not li { margin-bottom: 8px; }
+
+  /* ============ Footer ============ */
+  footer.pagefoot {
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 6px 0 40px; font-size: 13.5px; color: var(--muted);
+  }
+  footer.pagefoot p { margin: 0; }
+  .btn-print {
+    font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+    background: var(--accent); color: #fff; border: 1px solid var(--accent);
+    border-radius: 8px; padding: 9px 16px;
+  }
+  .btn-print:hover { background: #1647b8; border-color: #1647b8; }
+
+  /* ============ Phone widths ============ */
+  @media (max-width: 640px) {
+    .wrap { padding: 0 16px; }
+    body { background: var(--surface); }
+    main { padding-top: 16px; }
+    .doc { border: 0; border-radius: 0; padding: 0; }
+    .doc-kind { text-align: left; }
+    h1.title { font-size: 28px; }
+    .subtitle { font-size: 16.5px; }
+    .panel { padding: 12px 10px 10px; }
+  }
+
+  /* ============ ?print=1 view: same document, no chrome ============ */
+  html.print-view body { background: #fff; }
+  html.print-view header.site,
+  html.print-view .btn-print { display: none; }
+  html.print-view .doc { border: 0; }
+
+  /* ============ Print / PDF ============ */
+  @media print {
+    @page { size: letter; margin: 0.6in; }
+    :root { --ink: #000; --muted: #333; --bg: #f3f3f3; }
+    body { background: #fff; color: #000; font-size: 10.5pt; }
+    header.site, .btn-print { display: none !important; }
+    main { padding: 0; }
+    .wrap { max-width: none; padding: 0; }
+    .doc { border: 0; border-radius: 0; padding: 0; }
+    a { color: #000; }
+    .doc h2 { break-after: avoid; page-break-after: avoid; }
+    .panels { grid-template-columns: 1fr 1fr !important; gap: 12px; }
+    .panel, .sop, .readfirst, .roles > div, nav.toc {
+      break-inside: avoid; page-break-inside: avoid;
+    }
+    .panel p.cap { font-size: 9.5pt; }
+    .readfirst, .whowhen, pre.block, .open { background: #f3f3f3; }
+    .open { border-color: #333; }
+    .open b { color: #000; }
+    .sop-id { background: #f3f3f3; color: #000; }
+    footer.pagefoot { padding-bottom: 0; }
+  }
+</style>
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap">
+    <p class="crumb">Umbrella Automation, internal / <strong>Spool</strong> / Storyboard and functional SOP</p>
+  </div>
+</header>
+
+<main>
+<div class="wrap">
+<article class="doc">
+
+  <div class="doc-brand">
+    <svg class="logo" viewBox="0 0 1300 280" role="img" aria-label="Umbrella Automation">
+      <svg x="0" y="36" width="277" height="208" viewBox="70 92 116 102">
+        <path d="M 126.48 98.88 C 127.20 98.96 127.92 99.04 128.64 99.12 C 145.99 114.08 163.36 129.04 180.72 144.00 C 180.72 146.32 180.72 148.64 180.72 150.96 C 162.88 135.68 145.04 120.40 127.20 105.12 C 127.04 105.12 126.88 105.12 126.72 105.12 C 109.84 119.28 92.96 133.44 76.08 147.60 C 76.08 145.20 76.08 142.80 76.08 140.40 C 93.77 127.76 108.93 111.87 126.48 98.88 Z" fill="#1A1F2B"/>
+        <path d="M 91.68 183.60 C 115.28 183.60 138.88 183.60 162.48 183.60 C 162.48 170.48 162.48 157.36 162.48 144.24 C 164.32 146.08 166.16 147.92 168.00 149.76 C 168.00 159.52 168.00 169.28 168.00 179.04 C 168.00 181.41 168.81 187.66 167.28 188.64 C 165.78 189.94 150.75 189.12 147.36 189.12 C 133.36 189.12 119.36 189.12 105.36 189.12 C 99.28 189.12 91.39 189.95 86.16 188.64 C 86.08 179.04 86.00 169.44 85.92 159.84 C 87.84 157.92 89.76 156.00 91.68 154.08 C 91.68 163.92 91.68 173.76 91.68 183.60 Z" fill="#1A1F2B"/>
+        <g stroke="#1A1F2B" stroke-width="4" stroke-linecap="round">
+          <path d="M 130 142 L 137 149 L 161 149" fill="none"/>
+          <line x1="93" y1="163" x2="120" y2="163"/>
+          <line x1="132" y1="174" x2="161" y2="174"/>
+        </g>
+        <circle cx="128" cy="140" r="4.4" fill="#1A1F2B"/>
+        <circle cx="118" cy="163" r="4.4" fill="#1A1F2B"/>
+        <circle cx="134" cy="174" r="4.4" fill="#1A1F2B"/>
+      </svg>
+      <text x="320" y="130" font-weight="900" font-size="130" letter-spacing="3.5" fill="#1A1F2B" style="font-family: Saira, Eurostile, system-ui, sans-serif;">UMBRELLA</text>
+      <text x="320" y="240" font-weight="900" font-size="130" letter-spacing="3.5" fill="#1A1F2B" style="font-family: Saira, Eurostile, system-ui, sans-serif;">AUTOMATION</text>
+    </svg>
+    <div class="doc-kind">
+      <div class="kind">Storyboard and functional SOP</div>
+      <div class="num">Draft v0.1</div>
+    </div>
+  </div>
+
+  <h1 class="title">
+    <svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="28" cy="34" r="22" fill="none" stroke="currentColor" stroke-width="5"/><circle cx="28" cy="34" r="13" fill="none" stroke="currentColor" stroke-width="2.5" opacity=".6"/><circle cx="28" cy="34" r="5" fill="currentColor"/><path d="M28 12 H58" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/></svg>
+    Spool
+  </h1>
+  <p class="subtitle">How product moves through the shop, from approved proposal to installed, and what gets recorded at each step</p>
+  <p class="draft">Draft for review, 2026-10-26. Nothing is built yet; this page is the thing to mark up.</p>
+
+  <section class="readfirst" id="read" aria-labelledby="read-h">
+    <h2 id="read-h">Read this first</h2>
+    <p>Spool is a web app for the office and the warehouse, built to be used on a phone in the rack room and on a desktop at the front. It turns an approved Portal proposal into a pick ticket and follows every part on it from ordered to installed. It keeps a running count of what is on the shelves, including how many feet are left in each wire box. Every change is written to a log with the name of the person who made it, so any count can be explained later.</p>
+    <p>Every client, name, number, price, and address on this page is invented sample data. The buttons drawn inside the pictures are pictures; the only things you can click on this page are the contents links below and the print button at the bottom.</p>
+  </section>
+
+  <nav class="toc" aria-label="Contents">
+    <h2>Contents</h2>
+    <div class="cols">
+      <ul>
+        <li><a href="#read">Read this first</a></li>
+        <li><a href="#part1">Part 1. A day in the warehouse</a></li>
+        <li><a href="#part3">Part 3. What Spool is not</a></li>
+      </ul>
+      <ul>
+        <li><a href="#part2">Part 2. Functional SOP</a>
+          <ul>
+            <li><a href="#sop-1">SOP-1 Receiving product</a></li>
+            <li><a href="#sop-2">SOP-2 Labeling</a></li>
+            <li><a href="#sop-3">SOP-3 Building a pick ticket</a></li>
+            <li><a href="#sop-4">SOP-4 Picking and staging</a></li>
+            <li><a href="#sop-5">SOP-5 Ordering and tracking</a></li>
+            <li><a href="#sop-6">SOP-6 Wire boxes</a></li>
+          </ul>
+        </li>
+      </ul>
+      <ul class="cont">
+            <li><a href="#sop-7">SOP-7 Check-out and check-in</a></li>
+            <li><a href="#sop-8">SOP-8 Delivering and closing a ticket</a></li>
+            <li><a href="#sop-9">SOP-9 Counts and adjustments</a></li>
+            <li><a href="#sop-10">SOP-10 Roles and the Console</a></li>
+            <li><a href="#sop-11">SOP-11 Portal notes</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <!-- ================= PART 1 ================= -->
+  <h2 id="part1"><span class="no">Part 1.</span>A day in the warehouse</h2>
+  <p class="lede">One job, start to finish: Acme Dental's main office, pick ticket #1042. Phone screens are what a person holds in the warehouse or the van; desktop screens are the office.</p>
+
+  <div class="panels">
+
+    <!-- 1 -->
+    <article class="panel" id="panel-1">
+      <h3><span class="pn">1</span>Approved proposal arrives</h3>
+      <svg class="wf" viewBox="0 0 300 208" role="img" aria-label="Desktop sketch: the Import CSV sheet with client Acme Dental, proposal 2291, a preview of parts by area, and a Create ticket button.">
+        <rect class="fr" x="1" y="1" width="298" height="206" rx="6"/>
+        <rect class="bar" x="2" y="2" width="296" height="20" rx="5"/>
+        <text class="b" x="10" y="15">Spool</text>
+        <text class="m s" y="15"><tspan class="cur" x="44">Tickets</tspan><tspan x="78">Stock</tspan><tspan x="102">Orders</tspan><tspan x="130">Tracking</tspan><tspan x="166">Items</tspan><tspan x="190">Console</tspan><tspan x="224">More</tspan></text>
+        <rect class="okb" x="250" y="7" width="42" height="11" rx="5.5"/><text class="okt s" x="256" y="15.5">Synced</text>
+        <text class="h" x="12" y="40">New ticket: Import CSV</text>
+        <rect class="bx" x="12" y="48" width="132" height="18" rx="3"/>
+        <text class="mo s" x="18" y="60">acme-dental-2291.csv</text>
+        <text class="m s" x="160" y="44">Client</text><text x="160" y="56">Acme Dental</text>
+        <text class="m s" x="232" y="44">Proposal</text><text x="232" y="56">2291</text>
+        <text class="m s" x="160" y="70">Job</text><text x="160" y="82">Main office</text>
+        <text class="m s" x="232" y="70">Staging bay</text><text x="232" y="82">Bay 2</text>
+        <rect class="bar" x="12" y="92" width="276" height="14"/>
+        <text class="m s b" y="102"><tspan x="18">Area</tspan><tspan x="96">Brand</tspan><tspan x="148">Model</tspan><tspan x="240">Qty</tspan></text>
+        <text y="119"><tspan x="18">Server closet</tspan><tspan x="96">Ubiquiti</tspan><tspan x="148">UDM-SE</tspan><tspan x="240">1</tspan></text>
+        <line class="ln" x1="12" y1="125" x2="288" y2="125"/>
+        <text y="137"><tspan x="18">Operatory 1-4</tspan><tspan x="96">Ubiquiti</tspan><tspan x="148">U6-Pro</tspan><tspan x="240">4</tspan></text>
+        <line class="ln" x1="12" y1="143" x2="288" y2="143"/>
+        <text y="155"><tspan x="18">Operatory 1-4</tspan><tspan x="96">Belden</tspan><tspan x="148">2412 Cat6 blue</tspan><tspan x="240">600 ft</tspan></text>
+        <text class="m s" x="12" y="186">+ 9 more lines. Skipped: 3 Labor, 1 Fee</text>
+        <rect class="act" x="206" y="174" width="82" height="20" rx="4"/><text class="at" x="219" y="187.5">Create ticket</text>
+      </svg>
+      <p class="cap"><strong>What you do</strong>Download the accepted proposal's CSV from Portal, then in Spool choose New ticket and Import CSV. Check the client, job, and proposal number, and press Create ticket.</p>
+      <p class="cap"><strong>What Spool records</strong>No movement yet: pick ticket #1042 with client, job, proposal 2291, who created it and when, and every part grouped by area.</p>
+    </article>
+
+    <!-- 2 -->
+    <article class="panel" id="panel-2">
+      <h3><span class="pn">2</span>Pull from stock</h3>
+      <svg class="wf" viewBox="0 0 300 208" role="img" aria-label="Phone sketch: location chip Rack A3, product Ubiquiti U6-Pro with 6 on hand, pick 2 for ticket 1042, Confirm pick button. Beside it the Rack A3 shelf label and the ticket line showing 2 of 4 staged.">
+        <rect class="fr" x="6" y="2" width="144" height="204" rx="14"/>
+        <text class="b" x="18" y="21">Spool</text>
+        <rect class="okb" x="102" y="12" width="38" height="12" rx="6"/><text class="okt s" x="107" y="21">Synced</text>
+        <line class="ln" x1="7" y1="29" x2="149" y2="29"/>
+        <line class="ln" x1="7" y1="184" x2="149" y2="184"/>
+        <text class="m s" y="198" text-anchor="middle"><tspan x="26">Tickets</tspan><tspan class="cur" x="54">Scan</tspan><tspan x="78">Stock</tspan><tspan x="104">Orders</tspan><tspan x="131">More</tspan></text>
+        <rect class="gb" x="16" y="36" width="58" height="15" rx="7.5"/><text class="s b" x="24" y="46.5">Rack A3</text>
+        <text class="h" x="16" y="68">Ubiquiti U6-Pro</text>
+        <text class="m s" x="16" y="80">6 on hand in Rack A3</text>
+        <text class="m s" x="16" y="96">Pick for ticket</text>
+        <rect class="bx" x="16" y="100" width="124" height="17" rx="3"/><text class="s" x="22" y="111.5">#1042 Acme Dental</text>
+        <text class="m s" x="16" y="131">Count</text>
+        <rect class="bx" x="16" y="135" width="40" height="18" rx="3"/><text class="b" x="33" y="148">2</text>
+        <text class="m s" x="62" y="148">of 4 needed</text>
+        <rect class="act" x="16" y="160" width="124" height="19" rx="4"/><text class="at" x="51" y="173">Confirm pick</text>
+        <rect class="bx" x="166" y="34" width="122" height="46" rx="3"/>
+        <rect class="qr" x="174" y="41" width="32" height="32"/><rect class="ink" x="177" y="44" width="9" height="9"/><rect class="ink" x="194" y="44" width="9" height="9"/><rect class="ink" x="177" y="61" width="9" height="9"/><rect class="ink" x="192" y="59" width="5" height="5"/>
+        <text class="b" x="214" y="56">Rack A3</text><text class="m s" x="214" y="68">Shelf label</text>
+        <text class="m s" x="166" y="100">The ticket line after the pick</text>
+        <rect class="bx" x="166" y="108" width="122" height="44" rx="3"/>
+        <text class="s b" x="174" y="122">#1042 U6-Pro</text>
+        <rect class="okb" x="174" y="130" width="70" height="14" rx="7"/><text class="okt s" x="180" y="140">2 of 4 staged</text>
+        <text class="m s" x="252" y="140">Bay 2</text>
+      </svg>
+      <p class="cap"><strong>What you do</strong>Scan the Rack A3 shelf label, scan the U6-Pro, confirm 2 for ticket #1042, and set them in Bay 2. The line turns green and shows 2 of 4 staged.</p>
+      <p class="cap"><strong>What Spool records</strong>A pick movement: who, U6-Pro x2, from Rack A3, into Bay 2, for ticket #1042.</p>
+    </article>
+
+    <!-- 3 -->
+    <article class="panel" id="panel-3">
+      <h3><span class="pn">3</span>Order the rest</h3>
+      <svg class="wf" viewBox="0 0 300 208" role="img" aria-label="Desktop sketch: pick ticket 1042 with need, stock, and to-order columns, an Order missing button, and a draft PO 7731 to ADI below.">
+        <rect class="fr" x="1" y="1" width="298" height="206" rx="6"/>
+        <rect class="bar" x="2" y="2" width="296" height="20" rx="5"/>
+        <text class="b" x="10" y="15">Spool</text>
+        <text class="m s" y="15"><tspan class="cur" x="44">Tickets</tspan><tspan x="78">Stock</tspan><tspan x="102">Orders</tspan><tspan x="130">Tracking</tspan><tspan x="166">Items</tspan><tspan x="190">Console</tspan><tspan x="224">More</tspan></text>
+        <rect class="okb" x="250" y="7" width="42" height="11" rx="5.5"/><text class="okt s" x="256" y="15.5">Synced</text>
+        <text class="h" x="12" y="40">Pick ticket #1042</text>
+        <rect class="gb" x="124" y="31" width="44" height="13" rx="6.5"/><text class="s b" x="131" y="40.5">Picking</text>
+        <text class="m s" x="12" y="54">Acme Dental, Main office - Proposal 2291 - Bay 2</text>
+        <rect class="act" x="206" y="30" width="82" height="20" rx="4"/><text class="at" x="216" y="43.5">Order missing</text>
+        <rect class="bar" x="12" y="62" width="276" height="14"/>
+        <text class="m s b" y="72"><tspan x="18">Line</tspan><tspan x="150">Need</tspan><tspan x="186">Stock</tspan><tspan x="222">To order</tspan></text>
+        <text y="90"><tspan x="18">Ubiquiti U6-Pro</tspan><tspan x="150">4</tspan><tspan x="186">2</tspan><tspan class="b" x="222">2</tspan></text>
+        <line class="ln" x1="12" y1="96" x2="288" y2="96"/>
+        <text y="108"><tspan x="18">Ubiquiti UDM-SE</tspan><tspan x="150">1</tspan><tspan x="186">0</tspan><tspan class="b" x="222">1</tspan></text>
+        <line class="ln" x1="12" y1="114" x2="288" y2="114"/>
+        <text y="126"><tspan x="18">Ubiquiti USW-Pro-24-PoE</tspan><tspan x="150">1</tspan><tspan x="186">0</tspan><tspan class="b" x="222">1</tspan></text>
+        <line class="ln" x1="12" y1="132" x2="288" y2="132"/>
+        <text y="144"><tspan x="18">Belden 2412 Cat6 blue</tspan><tspan x="150">600 ft</tspan><tspan x="186">600 ft</tspan><tspan x="222">0</tspan></text>
+        <rect class="bx" x="12" y="156" width="276" height="42" rx="4"/>
+        <text class="b" x="20" y="173">Draft PO 7731</text>
+        <text class="m s" x="20" y="188">ADI - 3 lines from #1042</text>
+        <rect class="gb" x="208" y="168" width="72" height="18" rx="4"/><text class="s b" x="218" y="180">Mark ordered</text>
+      </svg>
+      <p class="cap"><strong>What you do</strong>On the ticket, press Order missing. The three lines that stock cannot fill go onto a draft PO; when the order is placed with ADI, type the order number and press Mark ordered.</p>
+      <p class="cap"><strong>What Spool records</strong>No stock moves: PO 7731 to ADI, each line tied to its ticket line, and who marked it ordered and when.</p>
+    </article>
+
+    <!-- 4 -->
+    <article class="panel" id="panel-4">
+      <h3><span class="pn">4</span>Track it</h3>
+      <svg class="wf" viewBox="0 0 300 208" role="img" aria-label="Desktop sketch: Tracking dashboard. A switch delivered by FedEx but not received sits on top in amber with a Receive button, then a late UDM-SE shipment, then a backordered U6-Pro line.">
+        <rect class="fr" x="1" y="1" width="298" height="206" rx="6"/>
+        <rect class="bar" x="2" y="2" width="296" height="20" rx="5"/>
+        <text class="b" x="10" y="15">Spool</text>
+        <text class="m s" y="15"><tspan x="44">Tickets</tspan><tspan x="78">Stock</tspan><tspan x="102">Orders</tspan><tspan class="cur" x="130">Tracking</tspan><tspan x="166">Items</tspan><tspan x="190">Console</tspan><tspan x="224">More</tspan></text>
+        <rect class="okb" x="250" y="7" width="42" height="11" rx="5.5"/><text class="okt s" x="256" y="15.5">Synced</text>
+        <text class="h" x="12" y="40">On order, not received</text>
+        <text class="s b" x="12" y="56">Acme Dental, Main office - #1042</text>
+        <rect class="bar" x="12" y="62" width="276" height="13"/>
+        <text class="m s b" y="71.5"><tspan x="18">Product</tspan><tspan x="112">PO</tspan><tspan x="160">Status</tspan></text>
+        <rect class="wab" x="12" y="78" width="276" height="28"/>
+        <text x="18" y="90">USW-Pro-24-PoE x1</text>
+        <text class="mo s m" x="18" y="101">FedEx 7489 1234 5678</text>
+        <text x="130" y="90">7731</text>
+        <text class="wat s" x="160" y="90">Delivered 10/25</text><text class="wat s" x="160" y="101">Not received</text>
+        <rect class="act" x="242" y="84" width="42" height="16" rx="3"/><text class="at s" x="248.5" y="95">Receive</text>
+        <text x="18" y="120">UDM-SE x1</text>
+        <text class="mo s m" x="18" y="131">UPS 1Z999AA10123456784</text>
+        <text x="130" y="120">7731</text>
+        <text class="s" x="160" y="120">Shipped, expected 10/24</text><text class="wat s" x="160" y="131">2 days late</text>
+        <line class="ln" x1="12" y1="137" x2="288" y2="137"/>
+        <text x="18" y="150">U6-Pro x2</text><text class="m s" x="18" y="161">ADI</text>
+        <text x="130" y="150">7731</text>
+        <text class="s" x="160" y="150">Backordered</text><text class="m s" x="160" y="161">ETA 11/04</text>
+        <line class="ln" x1="12" y1="167" x2="288" y2="167"/>
+        <text class="s b" x="12" y="182">Stock</text>
+        <text x="18" y="197">2412 Cat6 x2</text><text x="130" y="197">7735</text><text class="s" x="160" y="197">Ordered 10/24</text>
+      </svg>
+      <p class="cap"><strong>What you do</strong>Open Tracking each morning. Receive the switch FedEx says was delivered yesterday, and call ADI about the UDM-SE that is two days late.</p>
+      <p class="cap"><strong>What Spool records</strong>Nothing until you act: the page reads PO lines and shipments (carrier, tracking number, expected date) and puts delivered-but-not-received on top.</p>
+    </article>
+
+    <!-- 5 -->
+    <article class="panel" id="panel-5">
+      <h3><span class="pn">5</span>Receive</h3>
+      <svg class="wf" viewBox="0 0 300 208" role="img" aria-label="Phone sketch: Receive PO 7731 with a scan box, line counts, and a prompt that the UDM-SE costs 412 dollars, at or above the 250 dollar QR threshold, with a Print item sticker button. Beside it the printed item sticker.">
+        <rect class="fr" x="6" y="2" width="144" height="204" rx="14"/>
+        <text class="b" x="18" y="21">Spool</text>
+        <rect class="okb" x="102" y="12" width="38" height="12" rx="6"/><text class="okt s" x="107" y="21">Synced</text>
+        <line class="ln" x1="7" y1="29" x2="149" y2="29"/>
+        <line class="ln" x1="7" y1="184" x2="149" y2="184"/>
+        <text class="m s" y="198" text-anchor="middle"><tspan x="26">Tickets</tspan><tspan class="cur" x="54">Scan</tspan><tspan x="78">Stock</tspan><tspan x="104">Orders</tspan><tspan x="131">More</tspan></text>
+        <text class="h" x="16" y="46">Receive PO 7731</text>
+        <text class="m s" x="16" y="58">ADI - scan each box</text>
+        <rect class="bar" x="16" y="64" width="124" height="34" rx="3"/>
+        <rect class="scan" x="52" y="69" width="52" height="24"/>
+        <text x="16" y="114">UDM-SE</text><text class="okt s" x="108" y="114">1 of 1</text>
+        <text x="16" y="128">USW-Pro-24-PoE</text><text class="m s" x="108" y="128">0 of 1</text>
+        <rect class="bx" x="16" y="134" width="124" height="47" rx="3"/>
+        <text class="s b" x="22" y="146">UDM-SE, cost $412.00</text>
+        <text class="m s" x="22" y="157">QR threshold is $250.00</text>
+        <rect class="act" x="22" y="162" width="112" height="16" rx="3"/><text class="at s" x="45" y="173">Print item sticker</text>
+        <rect class="bx" x="166" y="52" width="122" height="48" rx="3"/>
+        <rect class="qr" x="174" y="60" width="32" height="32"/><rect class="ink" x="177" y="63" width="9" height="9"/><rect class="ink" x="194" y="63" width="9" height="9"/><rect class="ink" x="177" y="80" width="9" height="9"/><rect class="ink" x="192" y="78" width="5" height="5"/>
+        <text class="s b" x="213" y="72">Ubiquiti UDM-SE</text>
+        <text class="mo s" x="213" y="86">7C41E2</text>
+        <text class="m s" x="166" y="118">Item sticker, printed while</text>
+        <text class="m s" x="166" y="130">the box is still on the bench</text>
+      </svg>
+      <p class="cap"><strong>What you do</strong>Open PO 7731 in Receive mode and scan each box's UPC; the count on each line ticks along. The UDM-SE costs at least $250, so Spool asks for an item sticker, and you print it and stick it on before the box leaves the bench.</p>
+      <p class="cap"><strong>What Spool records</strong>A receive movement per box: who, product, quantity, PO 7731 and its shipment, into Bay 2 for #1042, plus a new item record for the UDM-SE.</p>
+    </article>
+
+    <!-- 6 -->
+    <article class="panel" id="panel-6">
+      <h3><span class="pn">6</span>Label</h3>
+      <svg class="wf" viewBox="0 0 300 208" role="img" aria-label="Desktop sketch: the Labels page with three QR labels ready to print: Bay 2, Cat6 blue box 3, and U6-Pro item 4F2A9C, and a Print sheet button.">
+        <rect class="fr" x="1" y="1" width="298" height="206" rx="6"/>
+        <rect class="bar" x="2" y="2" width="296" height="20" rx="5"/>
+        <text class="b" x="10" y="15">Spool</text>
+        <text class="m s" y="15"><tspan x="44">Tickets</tspan><tspan x="78">Stock</tspan><tspan x="102">Orders</tspan><tspan x="130">Tracking</tspan><tspan x="166">Items</tspan><tspan x="190">Console</tspan><tspan class="cur" x="224">More</tspan></text>
+        <rect class="okb" x="250" y="7" width="42" height="11" rx="5.5"/><text class="okt s" x="256" y="15.5">Synced</text>
+        <text class="h" x="12" y="40">Labels</text>
+        <text class="m s" x="58" y="40">3 picked - 2x4 sheet, 10 per sheet</text>
+        <rect class="bx" x="12" y="52" width="84" height="76" rx="3"/>
+        <rect class="qr" x="20" y="60" width="30" height="30"/><rect class="ink" x="23" y="63" width="8" height="8"/><rect class="ink" x="39" y="63" width="8" height="8"/><rect class="ink" x="23" y="79" width="8" height="8"/>
+        <text class="s b" x="20" y="106">Bay 2</text><text class="m s" x="20" y="118">Staging bay</text>
+        <rect class="bx" x="108" y="52" width="84" height="76" rx="3"/>
+        <rect class="qr" x="116" y="60" width="30" height="30"/><rect class="ink" x="119" y="63" width="8" height="8"/><rect class="ink" x="135" y="63" width="8" height="8"/><rect class="ink" x="119" y="79" width="8" height="8"/>
+        <text class="s b" x="116" y="106">Cat6 blue box 3</text><text class="m s" x="116" y="118">Wire box</text>
+        <rect class="bx" x="204" y="52" width="84" height="76" rx="3"/>
+        <rect class="qr" x="212" y="60" width="30" height="30"/><rect class="ink" x="215" y="63" width="8" height="8"/><rect class="ink" x="231" y="63" width="8" height="8"/><rect class="ink" x="215" y="79" width="8" height="8"/>
+        <text class="s b" x="212" y="106">U6-Pro 4F2A9C</text><text class="m s" x="212" y="118">Serialized item</text>
+        <text class="m s" x="12" y="148">Small sheet (30 per sheet) for shelves and handhelds.</text>
+        <rect class="act" x="206" y="170" width="82" height="20" rx="4"/><text class="at" x="221" y="183.5">Print sheet</text>
+      </svg>
+      <p class="cap"><strong>What you do</strong>In More, Labels, pick the bay, the wire box, and the AP, and print one sheet. Stick each one where it will be scanned: on the bay upright, on the box beside the cable exit, on the AP itself.</p>
+      <p class="cap"><strong>What Spool records</strong>No movement: each sticker carries the record's id and a readable line, so a torn one can still be typed in.</p>
+    </article>
+
+    <!-- 7 -->
+    <article class="panel" id="panel-7">
+      <h3><span class="pn">7</span>Wire box</h3>
+      <svg class="wf" viewBox="0 0 300 208" role="img" aria-label="Phone sketch: the box sheet for Cat6 blue box 3 with Mark now 640, cut this time 360 feet, for ticket 1042, and a Save button. Beside it a cable box with a QR sticker and the footage mark printed on the cable.">
+        <rect class="fr" x="6" y="2" width="144" height="204" rx="14"/>
+        <text class="b" x="18" y="21">Spool</text>
+        <rect class="okb" x="102" y="12" width="38" height="12" rx="6"/><text class="okt s" x="107" y="21">Synced</text>
+        <line class="ln" x1="7" y1="29" x2="149" y2="29"/>
+        <line class="ln" x1="7" y1="184" x2="149" y2="184"/>
+        <text class="m s" y="198" text-anchor="middle"><tspan x="26">Tickets</tspan><tspan class="cur" x="54">Scan</tspan><tspan x="78">Stock</tspan><tspan x="104">Orders</tspan><tspan x="131">More</tspan></text>
+        <text class="m s" x="16" y="44">Wire box</text>
+        <text class="h" x="16" y="58">Cat6 blue box 3</text>
+        <text class="m s" x="16" y="70">Rack A3 - last mark 1000</text>
+        <text class="m s" x="16" y="88">Mark now</text>
+        <rect class="bx" x="16" y="92" width="72" height="22" rx="3"/><text class="h" x="24" y="107">640</text><text class="m s" x="94" y="107">ft</text>
+        <text class="m s" x="16" y="128">Cut this time</text>
+        <text class="b" x="16" y="141">360 ft</text><text class="m s" x="56" y="141">1000 to 640</text>
+        <rect class="gb" x="16" y="147" width="66" height="14" rx="7"/><text class="s" x="24" y="157">For #1042</text>
+        <rect class="act" x="16" y="165" width="124" height="16" rx="3"/><text class="at s" x="68" y="176">Save</text>
+        <rect class="box" x="176" y="34" width="96" height="86" rx="2"/>
+        <rect class="bx" x="184" y="42" width="40" height="40"/>
+        <rect class="qr" x="188" y="46" width="22" height="22"/><rect class="ink" x="190" y="48" width="6" height="6"/><rect class="ink" x="202" y="48" width="6" height="6"/><rect class="ink" x="190" y="60" width="6" height="6"/>
+        <text class="m s" x="188" y="78">box 3</text>
+        <text class="s" x="184" y="112">Belden 2412 Cat6</text>
+        <circle class="ink" cx="258" cy="96" r="5"/>
+        <path class="cable" d="M258 96 C 268 120, 252 136, 284 158"/>
+        <text class="mo s b" x="200" y="148">0640 FT</text>
+        <text class="m s" x="166" y="176">Read the mark where the</text>
+        <text class="m s" x="166" y="188">cable leaves the box</text>
+      </svg>
+      <p class="cap"><strong>What you do</strong>After pulling cable, scan the box's QR, type the footage mark where the cable leaves the box (640), and press Save. Spool works out the cut: 360 ft.</p>
+      <p class="cap"><strong>What Spool records</strong>A cut movement: who, Cat6 blue box 3, from mark 1000 to 640, 360 ft, for ticket #1042.</p>
+    </article>
+
+    <!-- 8 -->
+    <article class="panel" id="panel-8">
+      <h3><span class="pn">8</span>Load the van</h3>
+      <svg class="wf" viewBox="0 0 300 208" role="img" aria-label="Phone sketch: pick ticket 1042, status Staged, its lines with item counts, and a Deliver to site button. Beside it the list of six items now out with you for ticket 1042.">
+        <rect class="fr" x="6" y="2" width="144" height="204" rx="14"/>
+        <text class="b" x="18" y="21">Spool</text>
+        <rect class="okb" x="102" y="12" width="38" height="12" rx="6"/><text class="okt s" x="107" y="21">Synced</text>
+        <line class="ln" x1="7" y1="29" x2="149" y2="29"/>
+        <line class="ln" x1="7" y1="184" x2="149" y2="184"/>
+        <text class="m s" y="198" text-anchor="middle"><tspan class="cur" x="26">Tickets</tspan><tspan x="54">Scan</tspan><tspan x="78">Stock</tspan><tspan x="104">Orders</tspan><tspan x="131">More</tspan></text>
+        <text class="h" x="16" y="46">Pick ticket #1042</text>
+        <text class="m s" x="16" y="58">Acme Dental - Bay 2</text>
+        <rect class="okb" x="16" y="64" width="40" height="13" rx="6.5"/><text class="okt s" x="22" y="73.5">Staged</text>
+        <text x="16" y="94">U6-Pro x4</text><text class="m s" x="100" y="94">4 items</text>
+        <line class="ln" x1="16" y1="100" x2="140" y2="100"/>
+        <text x="16" y="112">UDM-SE x1</text><text class="m s" x="100" y="112">1 item</text>
+        <line class="ln" x1="16" y1="118" x2="140" y2="118"/>
+        <text x="16" y="130">USW-Pro-24-PoE</text><text class="m s" x="100" y="130">1 item</text>
+        <line class="ln" x1="16" y1="136" x2="140" y2="136"/>
+        <text x="16" y="148">2412 Cat6 blue</text><text class="m s" x="100" y="148">600 ft</text>
+        <rect class="act" x="16" y="158" width="124" height="20" rx="3"/><text class="at" x="44" y="171.5">Deliver to site</text>
+        <rect class="bx" x="166" y="44" width="122" height="96" rx="3"/>
+        <text class="s b" x="174" y="60">Out with you, for #1042</text>
+        <text class="mo s" y="78"><tspan x="174">U6-Pro</tspan><tspan x="226">4F2A9C</tspan></text>
+        <text class="mo s" y="92"><tspan x="174">U6-Pro</tspan><tspan x="226">4F2A9D</tspan></text>
+        <text class="mo s" y="106"><tspan x="174">UDM-SE</tspan><tspan x="226">7C41E2</tspan></text>
+        <text class="m s" x="174" y="126">and 3 more items</text>
+        <text class="m s" x="166" y="160">6 items checked out</text>
+        <text class="m s" x="166" y="172">in one tap</text>
+      </svg>
+      <p class="cap"><strong>What you do</strong>With Bay 2 loaded into the van, open #1042 and press Deliver to site. The six serialized units on the ticket check out to you in that one tap.</p>
+      <p class="cap"><strong>What Spool records</strong>A deliver movement per line and a checkout movement per item: who, item, holder (you), job, ticket #1042, time.</p>
+    </article>
+
+    <!-- 9 -->
+    <article class="panel" id="panel-9">
+      <h3><span class="pn">9</span>On site, years later</h3>
+      <svg class="wf" viewBox="0 0 300 208" role="img" aria-label="Desktop sketch: item 7C41E2, a Ubiquiti UDM-SE, status Installed at Acme Dental under proposal 2291, with its history of receive, stage, checkout, and install.">
+        <rect class="fr" x="1" y="1" width="298" height="206" rx="6"/>
+        <rect class="bar" x="2" y="2" width="296" height="20" rx="5"/>
+        <text class="b" x="10" y="15">Spool</text>
+        <text class="m s" y="15"><tspan x="44">Tickets</tspan><tspan x="78">Stock</tspan><tspan x="102">Orders</tspan><tspan x="130">Tracking</tspan><tspan class="cur" x="166">Items</tspan><tspan x="190">Console</tspan><tspan x="224">More</tspan></text>
+        <rect class="okb" x="250" y="7" width="42" height="11" rx="5.5"/><text class="okt s" x="256" y="15.5">Synced</text>
+        <rect class="act" x="12" y="30" width="140" height="18" rx="3"/>
+        <text class="s" x="18" y="42"><tspan class="m">Find item</tspan><tspan class="b" dx="6">7C41E2</tspan></text>
+        <text class="m s" x="174" y="40">Job</text>
+        <text class="s" x="174" y="52">Acme Dental, Main office</text>
+        <text class="s" x="174" y="64">Proposal 2291 - #1042</text>
+        <text class="h" x="12" y="68">Ubiquiti UDM-SE</text>
+        <rect class="gb" x="112" y="58" width="52" height="13" rx="6.5"/><text class="s b" x="119" y="67.5">Installed</text>
+        <text class="m s" x="12" y="82">Item 7C41E2 - in the rack since 10/31/2026</text>
+        <text class="s b" x="12" y="102">History</text>
+        <line class="ln" x1="12" y1="108" x2="288" y2="108"/>
+        <text y="122"><tspan x="18">10/31/2026</tspan><tspan x="82">Installed, ticket closed</tspan><tspan x="232">Warehouse</tspan></text>
+        <text y="138"><tspan x="18">10/28/2026</tspan><tspan x="82">Checked out for #1042</tspan><tspan x="232">Tech</tspan></text>
+        <text y="154"><tspan x="18">10/26/2026</tspan><tspan x="82">Staged in Bay 2</tspan><tspan x="232">Warehouse</tspan></text>
+        <text y="170"><tspan x="18">10/26/2026</tspan><tspan x="82">Received on PO 7731</tspan><tspan x="232">Warehouse</tspan></text>
+        <line class="ln" x1="12" y1="178" x2="288" y2="178"/>
+        <text class="m s" x="12" y="194">Opened on a service call, 03/14/2028</text>
+      </svg>
+      <p class="cap"><strong>What you do</strong>On a service call, scan the sticker on the rack with your phone, or type the code under it into Items at the office. The page shows the unit went in on 10/31/2026 under proposal 2291.</p>
+      <p class="cap"><strong>What Spool records</strong>Nothing new: the item's history already holds the receive, stage, checkout, and install movements, each with a name and a date.</p>
+    </article>
+
+    <!-- 10 -->
+    <article class="panel" id="panel-10">
+      <h3><span class="pn">10</span>Something comes back</h3>
+      <svg class="wf" viewBox="0 0 300 208" role="img" aria-label="Phone sketch: item U6-Pro 4F2A9D out with you for ticket 1042, Goes to Rack A3, condition Good picked, and a Check in button. Beside it a note about returns from a client's home.">
+        <rect class="fr" x="6" y="2" width="144" height="204" rx="14"/>
+        <text class="b" x="18" y="21">Spool</text>
+        <rect class="okb" x="102" y="12" width="38" height="12" rx="6"/><text class="okt s" x="107" y="21">Synced</text>
+        <line class="ln" x1="7" y1="29" x2="149" y2="29"/>
+        <line class="ln" x1="7" y1="184" x2="149" y2="184"/>
+        <text class="m s" y="198" text-anchor="middle"><tspan x="26">Tickets</tspan><tspan class="cur" x="54">Scan</tspan><tspan x="78">Stock</tspan><tspan x="104">Orders</tspan><tspan x="131">More</tspan></text>
+        <text class="m s" x="16" y="44">Item</text>
+        <text class="h" x="16" y="58">U6-Pro 4F2A9D</text>
+        <text class="m s" x="16" y="70">Out with you for #1042</text>
+        <text class="m s" x="16" y="88">Goes to</text>
+        <rect class="bx" x="16" y="92" width="124" height="17" rx="3"/><text class="s" x="22" y="103.5">Rack A3 (its shelf)</text>
+        <text class="m s" x="16" y="124">Condition</text>
+        <rect class="pick" x="16" y="128" width="36" height="15" rx="7.5"/><text class="s b" x="23" y="138.5">Good</text>
+        <rect class="gb" x="58" y="128" width="48" height="15" rx="7.5"/><text class="s" x="65" y="138.5">Damaged</text>
+        <rect class="gb" x="16" y="146" width="64" height="15" rx="7.5"/><text class="s" x="23" y="156.5">Missing parts</text>
+        <rect class="act" x="16" y="165" width="124" height="16" rx="3"/><text class="at s" x="61" y="176">Check in</text>
+        <rect class="bx" x="166" y="44" width="122" height="84" rx="3"/>
+        <text class="s b" x="174" y="60">From a client's home?</text>
+        <text class="m s" x="174" y="76">It goes in as Returned,</text>
+        <text class="m s" x="174" y="88">not stock, until the</text>
+        <text class="m s" x="174" y="100">warehouse looks it over.</text>
+        <rect class="gb" x="174" y="106" width="50" height="14" rx="7"/><text class="s b" x="181" y="116">Returned</text>
+      </svg>
+      <p class="cap"><strong>What you do</strong>Back at the shop with an AP that was not needed, scan its sticker, press Check in, confirm it goes to Rack A3, and pick its condition.</p>
+      <p class="cap"><strong>What Spool records</strong>A checkin movement: who, item 4F2A9D, back from ticket #1042, into Rack A3, condition Good.</p>
+    </article>
+
+    <!-- 11 -->
+    <article class="panel" id="panel-11">
+      <h3><span class="pn">11</span>End of day</h3>
+      <svg class="wf" viewBox="0 0 300 208" role="img" aria-label="Phone sketch: today's movements showing two wire box cuts, a green bar reading Synced, 0 pending, and a Scan next box button. Beside it a rack with labeled wire boxes.">
+        <rect class="fr" x="6" y="2" width="144" height="204" rx="14"/>
+        <text class="b" x="18" y="21">Spool</text>
+        <rect class="okb" x="102" y="12" width="38" height="12" rx="6"/><text class="okt s" x="107" y="21">Synced</text>
+        <line class="ln" x1="7" y1="29" x2="149" y2="29"/>
+        <line class="ln" x1="7" y1="184" x2="149" y2="184"/>
+        <text class="m s" y="198" text-anchor="middle"><tspan x="26">Tickets</tspan><tspan x="54">Scan</tspan><tspan x="78">Stock</tspan><tspan x="104">Orders</tspan><tspan class="cur" x="131">More</tspan></text>
+        <text class="h" x="16" y="46">Movements, today</text>
+        <text class="s b" x="16" y="64">Cat6 blue box 3</text>
+        <text class="m s" x="16" y="75">Cut 120 ft, #1042 - 4:52 PM</text>
+        <line class="ln" x1="16" y1="82" x2="140" y2="82"/>
+        <text class="s b" x="16" y="96">Cat5e grey box 1</text>
+        <text class="m s" x="16" y="107">Cut 90 ft, #1038 - 4:55 PM</text>
+        <line class="ln" x1="16" y1="114" x2="140" y2="114"/>
+        <rect class="okb" x="16" y="122" width="124" height="18" rx="3"/><text class="okt s" x="24" y="134">Synced, 0 pending</text>
+        <rect class="act" x="16" y="152" width="124" height="20" rx="3"/><text class="at" x="45" y="165.5">Scan next box</text>
+        <line class="rack" x1="174" y1="36" x2="174" y2="152"/>
+        <line class="rack" x1="286" y1="36" x2="286" y2="152"/>
+        <line class="rack" x1="174" y1="92" x2="286" y2="92"/>
+        <line class="rack" x1="174" y1="152" x2="286" y2="152"/>
+        <rect class="box" x="182" y="58" width="46" height="34"/><rect class="ink" x="187" y="63" width="9" height="9"/><text class="m s" x="187" y="86">box 3</text>
+        <rect class="box" x="234" y="58" width="46" height="34"/><rect class="ink" x="239" y="63" width="9" height="9"/><text class="m s" x="239" y="86">box 4</text>
+        <rect class="box" x="182" y="118" width="46" height="34"/><rect class="ink" x="187" y="123" width="9" height="9"/><text class="m s" x="187" y="146">box 1</text>
+        <text class="m s" x="166" y="174">Mark entered before the</text>
+        <text class="m s" x="166" y="186">box goes back on the rack</text>
+      </svg>
+      <p class="cap"><strong>What you do</strong>Before a wire box goes back on the rack or into the van, scan it and enter the mark. Then check that the pill at the top says Synced, with nothing pending.</p>
+      <p class="cap"><strong>What Spool records</strong>A cut movement per box (who, box, marks, feet, ticket); Synced means every change from the day reached the server.</p>
+    </article>
+
+    <!-- 12 -->
+    <article class="panel" id="panel-12">
+      <h3><span class="pn">12</span>Accounting</h3>
+      <svg class="wf" viewBox="0 0 300 208" role="img" aria-label="Desktop sketch: Console reports, Delivered per job tab, rows for Acme Dental with product, quantity and cost, a total of 1,507.40 dollars, a Read only chip, and an Export XLSX button.">
+        <rect class="fr" x="1" y="1" width="298" height="206" rx="6"/>
+        <rect class="bar" x="2" y="2" width="296" height="20" rx="5"/>
+        <text class="b" x="10" y="15">Spool</text>
+        <text class="m s" y="15"><tspan x="44">Tickets</tspan><tspan x="78">Stock</tspan><tspan x="102">Orders</tspan><tspan x="130">Tracking</tspan><tspan x="166">Items</tspan><tspan class="cur" x="190">Console</tspan><tspan x="224">More</tspan></text>
+        <rect class="okb" x="250" y="7" width="42" height="11" rx="5.5"/><text class="okt s" x="256" y="15.5">Synced</text>
+        <text class="h" x="12" y="40">Reports</text>
+        <rect class="gb" x="234" y="30" width="54" height="14" rx="7"/><text class="s b" x="242" y="40">Read only</text>
+        <text class="m s" y="58"><tspan class="cur" x="12">Delivered per job</tspan><tspan x="96">Spend by vendor</tspan><tspan x="172">Items out</tspan><tspan x="218">Wire usage</tspan></text>
+        <line class="under" x1="12" y1="63" x2="88" y2="63"/>
+        <text class="m s" x="12" y="78">10/01/2026 to 10/31/2026, costs shown</text>
+        <rect class="bar" x="12" y="84" width="276" height="13"/>
+        <text class="m s b" y="93.5"><tspan x="18">Job</tspan><tspan x="126">Product</tspan><tspan x="206">Qty</tspan><tspan x="244">Cost</tspan></text>
+        <text class="s" y="110"><tspan x="18">Acme Dental, Main office</tspan><tspan x="126">UDM-SE</tspan><tspan x="206">1</tspan><tspan x="244">$412.00</tspan></text>
+        <text class="s" y="124"><tspan x="126">U6-Pro</tspan><tspan x="206">3</tspan><tspan x="244">$480.00</tspan></text>
+        <text class="s" y="138"><tspan x="126">USW-Pro-24-PoE</tspan><tspan x="206">1</tspan><tspan x="244">$529.00</tspan></text>
+        <text class="s" y="152"><tspan x="126">2412 Cat6 blue</tspan><tspan x="206">480 ft</tspan><tspan x="244">$86.40</tspan></text>
+        <line class="ln" x1="12" y1="158" x2="288" y2="158"/>
+        <text class="s b" y="170"><tspan x="206">Total</tspan><tspan x="244">$1,507.40</tspan></text>
+        <rect class="gb" x="118" y="178" width="80" height="18" rx="4"/><text class="s b" x="135" y="190">Export CSV</text>
+        <rect class="act" x="206" y="178" width="82" height="18" rx="4"/><text class="at s" x="223" y="190">Export XLSX</text>
+      </svg>
+      <p class="cap"><strong>What you do</strong>Open Console, Reports, pick Delivered per job and a date range, and press Export XLSX. The same page has spend by vendor, items out, and wire used per job and per person.</p>
+      <p class="cap"><strong>What Spool records</strong>Nothing: reports only read the movement log, and the accounting role has no edit buttons anywhere, so a count cannot change from here.</p>
+    </article>
+
+  </div>
+
+  <!-- ================= PART 2 ================= -->
+  <h2 id="part2"><span class="no">Part 2.</span>Functional SOP</h2>
+  <p class="lede">Eleven procedures, in the order product moves. Button names match the screens above. "Recorded" is what lands in the movement log, which is the audit trail behind every count.</p>
+
+  <section class="sop" id="sop-1">
+    <h3><span class="sop-id">SOP-1</span>Receiving product</h3>
+    <p class="purpose">Get every box that arrives into Spool the day it lands, against its PO when there is one.</p>
+    <p class="whowhen"><span><b>Who</b>Warehouse</span><span><b>When</b>The day a delivery arrives, before the box is opened or shelved</span></p>
+    <p class="sub">With a PO</p>
+    <ol>
+      <li>Open Tracking and press Receive on the row, or open Orders and find the PO number on the packing slip.</li>
+      <li>Press Receive on the shipment. The phone camera opens in Receive mode.</li>
+      <li>Scan the UPC on each box. Each scan counts one unit against the matching PO line.</li>
+      <li>If Spool asks which line a UPC belongs to, pick the line. Spool saves that UPC to the product, so it is known next time.</li>
+      <li>When a unit costs at or above the QR threshold in Settings (default $250.00), Spool makes an item record and shows Print item sticker. Print it and stick it on the unit before it leaves the bench.</li>
+      <li>Set the box where Spool says: the ticket's staging bay if the line serves a ticket, otherwise its shelf. Scan the bay or shelf label to confirm.</li>
+      <li>If the shipment is short, leave the line open. It stays on Tracking until the rest arrives.</li>
+    </ol>
+    <p class="sub">Without a PO</p>
+    <ol start="8">
+      <li>On the Scan tab, scan the box's UPC and press Receive.</li>
+      <li>Type the quantity and scan the shelf label it is going on.</li>
+      <li>To follow a cheaper product unit by unit anyway (for example every AP), open the product and press Serialize; from then on every unit gets an item sticker at receive.</li>
+    </ol>
+    <p class="open"><b>Still open (D11):</b> $250 is the plan's default; the actual threshold, or "everything with a serial number", is yours to set.</p>
+    <p class="recorded"><b>Recorded:</b> a receive movement with who, product, quantity, PO and shipment, the bay or shelf it went to, and the ticket when the line serves one; plus one item record per unit at or above the threshold.</p>
+  </section>
+
+  <section class="sop" id="sop-2">
+    <h3><span class="sop-id">SOP-2</span>Labeling</h3>
+    <p class="purpose">Put a QR sticker on every place and every followed thing, so one scan answers where it is and who has it.</p>
+    <p class="whowhen"><span><b>Who</b>Warehouse</span><span><b>When</b>A new shelf, bay, or van is set up; a wire box or serialized item is received; a sticker is torn or will not scan</span></p>
+    <ol>
+      <li>Open More, then Labels.</li>
+      <li>Pick what to print: locations (shelves, bays, vans), wire boxes, or items.</li>
+      <li>Pick the sheet: the 2x4 sheet (10 per sheet) for bays and anything that lives in a rack, the small sheet (30 per sheet) for shelves and handhelds.</li>
+      <li>Press Print sheet and print on the label stock.</li>
+      <li>Stick bay labels on the bay upright at eye height, shelf labels on the shelf edge, wire box labels on the side next to the cable exit, and item labels on the unit itself, not only the carton, so the sticker goes into the rack with it.</li>
+      <li>Scan each new sticker once to check it reads.</li>
+      <li>To re-label, type the readable line under the old sticker into the field below the camera, open the record, press Print label, and stick the new one over the old one.</li>
+    </ol>
+    <p class="recorded"><b>Recorded:</b> no movement. The sticker carries the record's id and a readable line, so a torn sticker can always be typed in.</p>
+  </section>
+
+  <section class="sop" id="sop-3">
+    <h3><span class="sop-id">SOP-3</span>Building a pick ticket from an approved proposal</h3>
+    <p class="purpose">Turn an accepted Portal proposal into the one working document for that job.</p>
+    <p class="whowhen"><span><b>Who</b>Warehouse or admin</span><span><b>When</b>The day a proposal or change order is accepted in Portal</span></p>
+    <ol>
+      <li>In Portal, open the accepted proposal and download its CSV.</li>
+      <li>In Spool, go to Tickets, press New ticket, then Import CSV. Drop the file in or paste its text.</li>
+      <li>Check the preview. If Spool says "Could not find column headers", pick them in the mapping table; Spool remembers the mapping for next time.</li>
+      <li>Read the Skipped rows list. Labor, fees, and custom items are skipped on purpose; a row with a blank quantity is listed with the reason.</li>
+      <li>Leave Create product ticked for parts that are not in the catalog yet.</li>
+      <li>Pick or create the client and the job, and check the proposal number.</li>
+      <li>Pick the staging bay now if you know it.</li>
+      <li>Press Create ticket. Nothing is created before this button.</li>
+      <li>For a change order, import its CSV onto the existing ticket. Lines are added or adjusted, not duplicated.</li>
+    </ol>
+    <p class="recorded"><b>Recorded:</b> the ticket with client, job, proposal number, who created it and when, and one line per part grouped by area. No stock moves yet.</p>
+  </section>
+
+  <section class="sop" id="sop-4">
+    <h3><span class="sop-id">SOP-4</span>Picking and staging</h3>
+    <p class="purpose">Lay out everything a job needs in its own bay, taking from the shelves first.</p>
+    <p class="whowhen"><span><b>Who</b>Warehouse</span><span><b>When</b>As soon as the ticket exists, before anything is ordered</span></p>
+    <ol>
+      <li>Open the ticket and press Pull everything we have in stock. Spool fills what it can from the shelves and lists what still has to be ordered.</li>
+      <li>At the shelf, open the Scan tab and scan the shelf label. The location chip changes to that shelf.</li>
+      <li>Scan the product's UPC, or its item sticker if it has one.</li>
+      <li>Press Pick for ticket, pick the ticket, and confirm the count.</li>
+      <li>Carry it to the ticket's bay and scan the bay label. The line's staged count goes up.</li>
+      <li>Keep one ticket per bay. Nothing goes into a bay or comes out of it without a scan.</li>
+      <li>If the shelf is short, pick what is there. The rest stays as To order on the line; do not borrow from another ticket's bay.</li>
+      <li>Watch the ticket status: it shows Picking once any line is staged and Staged when every line is laid out.</li>
+    </ol>
+    <p class="recorded"><b>Recorded:</b> a pick movement for each pull with who, product, quantity, the shelf it came from, the bay it went to, and the ticket.</p>
+  </section>
+
+  <section class="sop" id="sop-5">
+    <h3><span class="sop-id">SOP-5</span>Ordering and tracking</h3>
+    <p class="purpose">Order what stock cannot cover and know where every ordered part is without opening the PO.</p>
+    <p class="whowhen"><span><b>Who</b>Warehouse or admin, whoever places orders</span><span><b>When</b>The same day as the pick; Tracking every morning after that</span></p>
+    <ol>
+      <li>On the ticket, press Order missing, or Order on a single line. Reorder on the low-stock list does the same for shelf stock.</li>
+      <li>Open Orders and the draft PO. Pick the vendor; Mark ordered stays off until a vendor is picked.</li>
+      <li>Place the order with the vendor the way you do today.</li>
+      <li>Type the vendor's order number and press Mark ordered.</li>
+      <li>When the vendor says a line is backordered, set it to Backordered and type the ETA.</li>
+      <li>When a ship notice arrives, press Add shipment, tick the lines in that box, and paste the tracking number. Spool guesses the carrier from the number; pick it yourself if it cannot tell.</li>
+      <li>Open Tracking each morning. Late rows read like "Expected 10/24, 2 days late"; call the vendor about those.</li>
+      <li>Rows that are delivered but not received sit at the top in amber. That is a box somewhere in the building that nobody scanned: find it and receive it (SOP-1).</li>
+      <li>In this first version, carrier status is typed by hand or set from the shipment dates; Spool does not check UPS or FedEx on its own.</li>
+    </ol>
+    <p class="recorded"><b>Recorded:</b> the PO with vendor, order number, who marked it ordered and when, and the ticket line each PO line serves; each shipment with carrier, tracking number, and dates. Stock changes only when the shipment is received.</p>
+  </section>
+
+  <section class="sop" id="sop-6">
+    <h3><span class="sop-id">SOP-6</span>Wire boxes</h3>
+    <p class="purpose">Know how many feet are left in every box and which job used each cut, with the name of who cut it.</p>
+    <p class="whowhen"><span><b>Who</b>Anyone who pulls cable: Warehouse or Tech</span><span><b>When</b>When the box is received, every time cable is cut, and at the end of every day</span></p>
+    <ol>
+      <li>Receive the box by scanning the UPC printed on it. Spool makes a box record starting at 1000 ft (change it if the box says otherwise) and names it, for example Cat6 blue box 3.</li>
+      <li>Print its sticker and put it on the side next to the cable exit (SOP-2).</li>
+      <li>After pulling cable, read the footage printed on the jacket where it leaves the box.</li>
+      <li>Scan the box's QR. The box sheet opens.</li>
+      <li>Type that number into Mark now. Spool fills in Cut this time (last mark minus mark now); change it only if you know the real figure.</li>
+      <li>Check the For ticket chip. Spool fills it from the bay the box sits in; change it if the cable went to another job.</li>
+      <li>Press Save.</li>
+      <li>End of day: before the box goes back on the rack or into the van, scan it and enter the mark. It takes thirty seconds and puts the right footage and the right name on the job.</li>
+      <li>To recount without a cut, use the same sheet with Cut set to 0 and the note "recount".</li>
+      <li>When the box runs out, press Empty. Spool records a final cut to zero and closes the box.</li>
+    </ol>
+    <p class="open"><b>Still open (D12):</b> the plan assumes your boxes print footage counting down from 1000, so the mark is the feet left; if yours count up from 0, the math on the box sheet flips.</p>
+    <p class="recorded"><b>Recorded:</b> a cut movement with who, the box, the mark before and after, feet cut, and the ticket; a recount writes a reading movement instead. The box's feet left and the product's on-hand update.</p>
+  </section>
+
+  <section class="sop" id="sop-7">
+    <h3><span class="sop-id">SOP-7</span>Check-out and check-in of serialized items</h3>
+    <p class="purpose">Know who has every stickered unit, for which job, and what shape it came back in.</p>
+    <p class="whowhen"><span><b>Who</b>Tech checks out and in; Warehouse also moves items, changes the holder, and clears returns</span><span><b>When</b>Every time a stickered unit leaves the shop or comes back</span></p>
+    <p class="sub">Check out</p>
+    <ol>
+      <li>Scan the item sticker. The item card shows where it is and who has it.</li>
+      <li>Press Check out and pick the job, or Van stock if it is riding in your van with no job yet.</li>
+      <li>Add a note if it helps, and save. You are the holder.</li>
+    </ol>
+    <p class="sub">Check in</p>
+    <ol start="4">
+      <li>Back at the shop, scan the item sticker and press Check in.</li>
+      <li>Confirm where it goes. Spool suggests its usual shelf, or the bay of the ticket it was out for.</li>
+      <li>Pick the condition: Good, Damaged, or Missing parts. Say what is wrong in the note.</li>
+      <li>A unit that comes back from a client's home goes in as Returned, not stock. Warehouse looks it over and moves it to In stock.</li>
+      <li>If someone else has a unit that shows under your name, ask Warehouse to change the holder; do not check it in for them.</li>
+      <li>On Fridays, a manager opens Items, Out, to see who has what and since when. Nudge copies a one-line reminder to paste into a message.</li>
+    </ol>
+    <p class="recorded"><b>Recorded:</b> a checkout or checkin movement with who, the item, the holder, the job, the time, where it went back to, and its condition.</p>
+  </section>
+
+  <section class="sop" id="sop-8">
+    <h3><span class="sop-id">SOP-8</span>Delivering a ticket and closing it</h3>
+    <p class="purpose">Mark what left for the site, then settle what was installed and what came back.</p>
+    <p class="whowhen"><span><b>Who</b>Tech delivers; Warehouse or admin closes</span><span><b>When</b>Delivery on install day; close once the install is done</span></p>
+    <ol>
+      <li>Load the ticket's bay into the van.</li>
+      <li>Open the ticket and press Deliver to site (on every line, or on the lines you are taking today).</li>
+      <li>The stickered units on those lines check out to you for this job in the same tap.</li>
+      <li>Press Copy for Portal and paste the status into the proposal (SOP-11).</li>
+      <li>After the install, check in anything that came back unused (SOP-7) before closing.</li>
+      <li>Open the ticket and press Close.</li>
+      <li>For each leftover, Spool asks: Return to stock (scan it onto a shelf) or Write off (type the reason).</li>
+      <li>Stickered units still out for this job become Installed with the job and proposal. They stop counting as stock and keep their history.</li>
+    </ol>
+    <p class="open"><b>Settled:</b> units become Installed at close, not at delivery, so a unit that comes back unused never shows as installed.</p>
+    <p class="recorded"><b>Recorded:</b> a deliver movement per line (who, product, quantity, ticket, job), a checkout per stickered unit, and on close a return or write-off movement for each leftover with its reason.</p>
+  </section>
+
+  <section class="sop" id="sop-9">
+    <h3><span class="sop-id">SOP-9</span>Counts and adjustments</h3>
+    <p class="purpose">Fix a count that is wrong, and leave a reason anyone can read later.</p>
+    <p class="whowhen"><span><b>Who</b>Warehouse and admin only; techs and accounting cannot adjust</span><span><b>When</b>Whenever a shelf count does not match Spool</span></p>
+    <ol>
+      <li>Before changing anything, open the product and read its recent movements. A gap is often an unscanned pick or receive; record that movement instead of adjusting.</li>
+      <li>Count what is on the shelf.</li>
+      <li>On the Scan tab, scan the shelf label, then the product, and press Count. From a desk, open the product and press Adjust.</li>
+      <li>Type the number you counted.</li>
+      <li>If it differs from Spool, type the reason. It is required: damaged, found, lost, miscounted, or used without a ticket.</li>
+      <li>Save. On-hand changes and the reason shows in the log.</li>
+      <li>For wire, do not adjust. Take a reading on the box sheet (SOP-6).</li>
+    </ol>
+    <p class="recorded"><b>Recorded:</b> an adjust movement with who, product, location, the count before and after, and the reason.</p>
+  </section>
+
+  <section class="sop" id="sop-10">
+    <h3><span class="sop-id">SOP-10</span>Roles and the Console</h3>
+    <p class="purpose">Give each person the access their job needs, and let accounting pull numbers without touching stock.</p>
+    <p class="whowhen"><span><b>Who</b>Admin for people and settings; Accounting for reports</span><span><b>When</b>A new hire, a role change, someone leaving, or month end</span></p>
+    <div class="roles">
+      <div><h4>Admin</h4><p>Everything, plus People and Settings: QR threshold, show costs, carriers, label size, default wire box length.</p></div>
+      <div><h4>Warehouse</h4><p>Receive, pick, stage, order, adjust counts, print labels, move and retire items, change a holder.</p></div>
+      <div><h4>Tech</h4><p>Scan, pick, check out and check in, and enter wire marks. No product edits, no adjustments.</p></div>
+      <div><h4>Accounting</h4><p>Reads everything and the Console reports. Sees no edit buttons at all.</p></div>
+    </div>
+    <ol>
+      <li>Admin: the new person signs in once with their company Google account. Only company accounts get in.</li>
+      <li>Open Console, then People. Find the newcomer, pick a role, and press Confirm.</li>
+      <li>To change a role, pick the new one. When someone leaves, press Deactivate; their name stays on everything they did.</li>
+      <li>Accounting: open Console, then Reports.</li>
+      <li>Pick the report: stock on hand and value, spend by vendor, delivered per job, items out, wire usage, movements, or aging.</li>
+      <li>Set the date range and press Export CSV or Export XLSX.</li>
+      <li>If a number looks wrong, tell Warehouse; accounting cannot change a count.</li>
+    </ol>
+    <p class="open"><b>Still open (D2):</b> who is in each role, and whether techs may receive product or only Warehouse.</p>
+    <p class="recorded"><b>Recorded:</b> People keeps each person's role and whether they are confirmed. Reports only read the movement log; exporting changes nothing.</p>
+  </section>
+
+  <section class="sop" id="sop-11">
+    <h3><span class="sop-id">SOP-11</span>Portal notes</h3>
+    <p class="purpose">Keep the proposal in Portal up to date on where its product stands.</p>
+    <p class="whowhen"><span><b>Who</b>Whoever moves the ticket: Warehouse or admin</span><span><b>When</b>When a ticket is staged, ordered, delivered, or closed</span></p>
+    <ol>
+      <li>Open the ticket in Spool.</li>
+      <li>Press Copy for Portal. Spool copies a status block like the one below.</li>
+      <li>In Portal, open the proposal and its internal notes.</li>
+      <li>Paste the block at the end. Do not replace the notes already there.</li>
+      <li>Save in Portal.</li>
+    </ol>
+<pre class="block">[Spool 2026-10-23 14:05] Pick ticket #1042 - Acme Dental, Main office
+Staged 9/12 lines in Bay 2. To order: 3 lines (PO 7731 to ADI, ordered 10/21,
+UPS 1Z999AA10123456784 shipped 10/23). Backordered: Ubiquiti U6-Pro x2.</pre>
+    <p class="open"><b>Still open (D1):</b> on Portal's top plan Spool could add this note by itself; until we know which plan Umbrella is on, copy and paste is the way.</p>
+    <p class="recorded"><b>Recorded:</b> nothing changes in Spool. Portal keeps the pasted note on the proposal.</p>
+  </section>
+
+  <!-- ================= PART 3 ================= -->
+  <h2 id="part3"><span class="no">Part 3.</span>What Spool is not</h2>
+  <p class="lede">So expectations match what gets built.</p>
+  <ul class="not">
+    <li><strong>Not a replacement for Portal.</strong> Proposals, pricing, and client approvals stay in Portal. Spool reads the proposal's CSV and hands a status note back.</li>
+    <li><strong>Not accounting software.</strong> No invoices and no bills; QuickBooks stays where it is. Spool's reports are a check against it.</li>
+    <li><strong>No automatic package tracking in the first version.</strong> Carrier status is typed in or comes from the shipment dates. Checking UPS and FedEx on a schedule is a later add-on.</li>
+    <li><strong>No barcode until it is scanned once.</strong> Portal does not carry UPCs, so the catalog learns each one the first time a box is scanned.</li>
+    <li><strong>No unit-by-unit tracking below the threshold.</strong> Cheap stock is counted, not followed, unless someone marks that product Serialize.</li>
+    <li><strong>It records mistakes; it does not block them.</strong> Anyone with the right role can change stock. Every change carries a name, so a wrong count can be traced and fixed.</li>
+  </ul>
+
+</article>
+
+<footer class="pagefoot">
+  <p>Spool storyboard v0.1, 2026-10-26. Internal, Umbrella Automation.</p>
+  <button type="button" class="btn-print" onclick="window.print()">Print or save as PDF</button>
+</footer>
+</div>
+</main>
+
+</body>
+</html>
