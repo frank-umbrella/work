@@ -220,6 +220,9 @@
   @media (max-width: 640px) {
     .wrap { padding: 0 16px; }
     body { background: var(--surface); }
+    /* thumbs, not cursors: the only two kinds of control grow to the 44px floor */
+    nav.toc a { min-height: 44px; display: inline-flex; align-items: center; padding: 0; }
+    .btn-print { min-height: 44px; }
     main { padding-top: 16px; }
     .doc { border: 0; border-radius: 0; padding: 0; }
     .doc-kind { text-align: left; }
