@@ -14,7 +14,7 @@ pywin32==312            # Win32 service framework (watchtower_service.py)
                         # (bumped from 306; no CVEs in 306 but 312 is latest stable)
 wmi==1.5.1              # Pythonic wrapper over WMI/CIM, used by most probes
 pystray==0.19.5         # System tray icon for watchtower_tray.py
-Pillow==12.3.0          # Image lib pystray needs to render the tray icon
+Pillow==13.0.0          # Image lib pystray needs to render the tray icon
                         # (bumped from 10.4.0; fixes 20+ CVEs PYSEC-2026-165/2249/...)
 psutil==7.2.2           # Cross-platform process/system info (NICs, RAM stats)
                         # (bumped from 6.0.0; same API surface we use)
