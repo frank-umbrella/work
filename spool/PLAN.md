@@ -85,7 +85,9 @@ Six things it tracks, in a fixed hierarchy:
   time. Each entry is logged with the employee and the ticket it was cut for.
 
 Every change writes a **movement** (receive, pick, stage, deliver, adjust,
-reading, return, transfer) so a count can always be explained.
+reading, cut, checkout, checkin, return, transfer) so a count can always be
+explained. Every record carries the readable names of what it points at, so
+the database reads without the app (section 16).
 
 ## 2. Decisions (proposed; settle in section 13)
 
@@ -735,9 +737,9 @@ Build T0 first. T1 and T2 are worker work and need the plan tier known.
 | 0.1.0 | Shell, sign-in, roles and rules, Stock view, product CRUD, locations, movements, Scan with UPC lookup and receive/count, wire boxes with the box sheet and cut log, serialized items with check-out / check-in, QR labels and label sheets. The warehouse can be counted, labeled, and signed out. |
 | 0.2.0 | Clients, jobs, proposals, CSV import with header mapping, pick tickets with lines, pull-from-stock, stage, deliver (checks items out to the tech), close (marks them installed), print, Copy for Portal (T0), the warehouse wall board with Show on board. |
 | 0.3.0 | Orders, lines, shipments, carrier detection, receive-by-shipment into bays with barcode counting, chips on ticket lines, low-stock reorder into draft POs, the Tracking dashboard. |
-| 0.4.0 | Console: reports with CSV / XLSX export, People, Settings; accounting role end to end. |
+| 0.4.0 | Console: reports with CSV / XLSX export, People, Settings, About (data dictionary), Export everything (one CSV per collection, zipped); accounting role end to end. |
 | 0.5.0 | Offline (sw.js + persistent cache + sync pill), PWA manifest, photos on products. |
-| 0.6.0 | spool-worker: T1 Zapier intake (if Premium) or T2 API intake and note push (if Unlimited and approved); carrier tracking poll if wanted. Settings shows the tier and last sync. |
+| 0.6.0 | spool-worker: T1 Zapier intake (if Premium) or T2 API intake and note push (if Unlimited and approved); nightly CSV export to the company Drive; carrier tracking poll if wanted. Settings shows the tier and last sync. |
 
 Each version is a release: bump the version everywhere, README changelog entry
 with the why, small commits.
@@ -781,6 +783,10 @@ with the why, small commits.
 - **D13 Storyboard sign-off.** The owner reads `storyboard.html` (section
   15) and either approves it or marks up what the flow gets wrong. The build
   starts after that, not before.
+- **D15 Database.** Firestore (recommended; section 16) or Postgres via
+  Supabase. The owner raised readability; section 16 is the answer either
+  way. Postgres moves offline support from "built in" to "we build it" in
+  phase 0.5.0 and adds a second sign-in system.
 - **D14 Wall board hardware and mode.** What drives the TV: a mini PC in
   kiosk mode (recommended), a Chromecast or Android stick browser, or a
   laptop? And one pinned ticket at a time, or rotate through every open
@@ -874,5 +880,59 @@ rollout, what we need from you, what it is not). The **Storyboard** tab is
 Part 1 and the **SOP** tab is Parts 2 and 3. Contents links cross tabs.
 Two print buttons: **Print this tab** (the Overview alone is a two-page PDF)
 and **Print everything** (one PDF, each tab starting a new page).
-`?tab=overview|story|sop` opens a tab, `?all=1` shows all three, and both
-combine with `?print=1`.
+`?tab=overview|story|sop|tech` opens a tab, `?all=1` shows all four, and
+both combine with `?print=1`. The **Tech spec** tab (added 2026-10-27 after
+the owner asked what the site runs on and whether a Firestore database stays
+readable) is section 16 in the owner's words.
+
+## 16. Tech spec and data readability
+
+The stack is the work site's usual: static HTML on GitHub Pages, Firebase
+Authentication with Google restricted to the domain, Cloud Firestore in
+`watchtower-6fbe1`, Firebase Storage for photos, browser camera scanning,
+browser-printed labels, SheetJS exports, and later a Cloudflare Worker for
+Portal. Nothing new to run. D15 keeps Postgres (Supabase) open as the
+alternative; the screens are the same either way, offline support is the
+cost (section 9 becomes hand-built sync).
+
+**Readability rules.** The owner does not want a database only the app can
+read. These are build requirements, checked before each release:
+
+1. Flat collections with plain names (section 3). One collection per kind of
+   thing; at most one level of nesting (ticket lines). No encoded blobs, no
+   maps-of-maps, no arrays of objects except short chip lists.
+2. Field names are English words: `brand`, `model`, `qtyNeeded`, `ftLeft`,
+   `holderName`. No abbreviations beyond `qty`, `ft`, and `id`.
+3. **Names travel with the record.** Every document that references another
+   carries the readable name beside the id, written at the moment of the
+   change: `clientName` and `jobName` on tickets, items, and orders;
+   `productName` (brand + model) and `locationName` on stock rows,
+   containers, items, and every movement; `holderName` and `byName` on
+   movements; `ticketNumber` beside `ticketId`. A row reads on its own in
+   the console or a CSV. Names are snapshots; renaming a client does not
+   rewrite history.
+4. Readable document ids where the world has one: `spool_proposals/{Portal
+   number}`, `spool_products/{brand-model slug}` (`ubiquiti-u6-pro`),
+   `spool_locations/{rack-a3}`, `spool_tickets/{proposal number}` (or
+   `{number}-co2` for a change order). Random ids only for movements,
+   shipments, items, and containers, and those carry names (rule 3).
+5. A data dictionary: section 3 of this plan is the source; the Console's
+   **About** tab renders the same list (collection, field, meaning) from a
+   constant in the code, so it cannot drift from the build.
+6. **Export everything** in the Console: one CSV per collection, zipped,
+   opening in Excel with the headers from rule 2. Phase 0.4.0.
+7. Nightly export: spool-worker writes the same CSVs to a company Google
+   Drive folder ("Spool backups", dated subfolders, 90-day retention) through
+   a service account. Phase 0.6.0, with the worker. Until then, Export
+   everything by hand on Fridays is SOP-10's last step.
+8. Reports read the live collections, never a hidden copy.
+9. One-for-one SQL mapping: every collection is a table, every field a
+   column, every subcollection a table with a parent id. A move to Postgres
+   is a copy script, not a rewrite.
+
+**Firestore vs Postgres, for the record.** Firestore: shared sign-in, offline
+persistence built in, listeners for the wall board, free tier covers a
+five-person shop, console shows one document at a time. Supabase Postgres:
+grid view per table, SQL joins for reports, its own auth, no built-in
+offline, free tier pauses after a week idle so Pro is the realistic tier.
+Recommendation stays Firestore with rules 1-9; D15 is the owner's call.

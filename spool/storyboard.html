@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Spool - Overview, Storyboard and SOP v0.3</title>
+<title>Spool - Overview, Storyboard, SOP and Tech spec v0.4</title>
 <meta name="description" content="Storyboard and functional SOP for Spool, the internal inventory, pick ticket, and order tracking tool. Draft for owner review.">
 <meta name="robots" content="noindex, nofollow">
-<meta name="version" content="0.3.0">
+<meta name="version" content="0.4.0">
 <script>
   // ?print=1 strips the chrome for a PDF. ?tab=overview|story|sop picks the tab;
   // ?all=1 shows every tab at once (for a single PDF of the whole document).
@@ -260,6 +260,9 @@
   .ov table.roles th, .ov table.roles td { text-align: left; vertical-align: top; padding: 8px 10px 8px 0; border-bottom: 1px solid var(--line); min-width: 0; }
   .ov table.roles th { font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); font-weight: 600; }
   .ov table.roles td:first-child { font-weight: 700; white-space: nowrap; }
+  .ov table.spec td:first-child { white-space: normal; width: 18%; }
+  .ov table.spec th:nth-child(2), .ov table.spec th:nth-child(3) { width: 41%; }
+  .ov code { font-family: var(--mono); font-size: 0.92em; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
   .ov .ask { border: 1px solid var(--line-strong); border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 0 8px 8px 0; padding: 12px 16px; max-width: 80ch; }
   .ov .ask ol { margin: 6px 0 0; padding-left: 22px; }
   .ov .ask li { margin: 0 0 5px; }
@@ -355,8 +358,8 @@
       <text x="320" y="240" font-weight="900" font-size="130" letter-spacing="3.5" fill="#1A1F2B" style="font-family: Saira, Eurostile, system-ui, sans-serif;">AUTOMATION</text>
     </svg>
     <div class="doc-kind">
-      <div class="kind">Overview, storyboard, and functional SOP</div>
-      <div class="num">Draft v0.3</div>
+      <div class="kind">Overview, storyboard, functional SOP, and tech spec</div>
+      <div class="num">Draft v0.4</div>
     </div>
   </div>
 
@@ -365,18 +368,19 @@
     Spool
   </h1>
   <p class="subtitle">How product moves through the shop, from approved proposal to installed, and what gets recorded at each step</p>
-  <p class="draft">Draft for review, 2026-10-27 (v0.3 adds the Overview tab; v0.2 added the wall board, panel 13). Nothing is built yet; this page is the thing to mark up.</p>
+  <p class="draft">Draft for review, 2026-10-27 (v0.4 adds the Tech spec tab; v0.3 the Overview; v0.2 the wall board, panel 13). Nothing is built yet; this page is the thing to mark up.</p>
 
   <div class="tabs" role="tablist" aria-label="Sections of this document">
     <button type="button" role="tab" id="tabbtn-overview" aria-controls="tab-overview" aria-selected="true" data-tab="overview">Overview<span class="hint">the five-minute read</span></button>
     <button type="button" role="tab" id="tabbtn-story" aria-controls="tab-story" aria-selected="false" data-tab="story">Storyboard<span class="hint">a day in the warehouse, 13 screens</span></button>
     <button type="button" role="tab" id="tabbtn-sop" aria-controls="tab-sop" aria-selected="false" data-tab="sop">SOP<span class="hint">step by step, and what it is not</span></button>
+    <button type="button" role="tab" id="tabbtn-tech" aria-controls="tab-tech" aria-selected="false" data-tab="tech">Tech spec<span class="hint">what it runs on, and will the data stay readable</span></button>
   </div>
 
   <section class="readfirst" id="read" aria-labelledby="read-h">
     <h2 id="read-h">Read this first</h2>
     <p>Spool is a web app for the office and the warehouse, built to be used on a phone in the rack room and on a desktop at the front. It turns an approved Portal proposal into a pick ticket and follows every part on it from ordered to installed. It keeps a running count of what is on the shelves, including how many feet are left in each wire box. Every change is written to a log with the name of the person who made it, so any count can be explained later.</p>
-    <p>Every client, name, number, price, and address on this page is invented sample data. The buttons drawn inside the pictures are pictures; the only things you can click on this page are the three tabs above, the contents links below, and the print buttons at the bottom.</p>
+    <p>Every client, name, number, price, and address on this page is invented sample data. The buttons drawn inside the pictures are pictures; the only things you can click on this page are the four tabs above, the contents links below, and the print buttons at the bottom.</p>
   </section>
 
   <nav class="toc" aria-label="Contents">
@@ -488,6 +492,7 @@
       <li>What will drive the TV by the bays: a small PC, a streaming stick, or a laptop.</li>
       <li>How product is staged today: a labeled bay or pallet per job, or a shelf per client.</li>
       <li>A look: three are drawn in the design preview that comes with this document.</li>
+      <li>The database: Firestore as recommended, or Postgres. The Tech spec tab lays out the difference.</li>
       <li>Your mark-ups on this document, then a go-ahead.</li>
     </ol>
   </div>
@@ -1147,10 +1152,100 @@ UPS 1Z999AA10123456784 shipped 10/23). Backordered: Ubiquiti U6-Pro x2.</pre>
 
   </div>
 
+  <!-- ================= TECH SPEC TAB ================= -->
+  <div class="tab ov" id="tab-tech" role="tabpanel" aria-labelledby="tabbtn-tech">
+  <h2 id="tech">Tech spec</h2>
+  <p class="lede">What Spool would run on, what each piece costs, and a straight answer to the question "will the data still be readable without the app".</p>
+
+  <h3>In one paragraph</h3>
+  <p>Spool is a web page, not an app from an app store. It lives on the company's existing work site, opens in any browser, and installs to a phone's home screen like an app. People sign in with their company Google account and nothing else. The records live in a hosted database that the company already pays for and uses for its other internal tools. There is no server of our own to patch or reboot; the only moving part beyond the page and the database is a small script that would talk to Portal later, if the Portal plan allows it.</p>
+
+  <h3>The pieces</h3>
+  <table class="roles spec">
+    <thead><tr><th>Piece</th><th>What we would use</th><th>Why this one</th></tr></thead>
+    <tbody>
+      <tr><td data-l="Piece">The page</td><td data-l="What">Plain HTML, CSS, and JavaScript, one file per screen, no framework or build step.</td><td data-l="Why">Same way every other tool on the work site is built. Anyone can open the file and read it; nothing to compile.</td></tr>
+      <tr><td data-l="Piece">Hosting</td><td data-l="What">GitHub Pages, under the existing work site.</td><td data-l="Why">Already in use, no cost, deploys when a change is saved. The tool is unlisted: no link from the hub, not indexed by search engines, and the sign-in wall stops anyone who finds the address.</td></tr>
+      <tr><td data-l="Piece">Sign-in</td><td data-l="What">Firebase Authentication with Google, restricted to company accounts.</td><td data-l="Why">The same sign-in the fleet monitor and backup audit tools use. Adding or removing a person is a Google Workspace action; a role is set once in Spool.</td></tr>
+      <tr><td data-l="Piece">Database</td><td data-l="What">Cloud Firestore, Google's hosted database, in the project the other internal tools share. The alternative is Postgres through Supabase; the comparison is below and the choice is yours.</td><td data-l="Why">Already in use, works with no signal on the phone, and pushes changes to every open screen within a second, which is what the wall board needs.</td></tr>
+      <tr><td data-l="Piece">Live updates</td><td data-l="What">Database listeners.</td><td data-l="Why">When a phone scans a line into the bay, the TV and every open desktop update on their own. No refresh button.</td></tr>
+      <tr><td data-l="Piece">No signal</td><td data-l="What">A local copy of the data on each phone, plus the page cached on the device.</td><td data-l="Why">A scan in the back corner of the warehouse saves to the phone and syncs when it sees the network again. The sync pill shows what is waiting.</td></tr>
+      <tr><td data-l="Piece">Scanning</td><td data-l="What">The phone camera, through the browser. A USB or Bluetooth scanner that types also works.</td><td data-l="Why">No scanner hardware to buy for day one. Barcodes and QR stickers both read with the same camera.</td></tr>
+      <tr><td data-l="Piece">Labels</td><td data-l="What">Printed from the browser onto Avery label sheets; the QR codes are drawn by the page.</td><td data-l="Why">Any office printer. A dedicated label printer can be added later without changing anything.</td></tr>
+      <tr><td data-l="Piece">Photos</td><td data-l="What">Firebase Storage, in the same project.</td><td data-l="Why">A picture on a product record, nothing more. Small files, pennies.</td></tr>
+      <tr><td data-l="Piece">Exports</td><td data-l="What">CSV and Excel files built in the browser from any report or table.</td><td data-l="Why">Accounting gets a spreadsheet, not a screen. Nothing to install.</td></tr>
+      <tr><td data-l="Piece">Portal</td><td data-l="What">Its CSV export on day one. Later, a small Cloudflare Worker to receive Zapier or API pushes and write status notes back.</td><td data-l="Why">Works on any Portal plan today; the automatic parts depend on the plan (Overview tab).</td></tr>
+      <tr><td data-l="Piece">Backups</td><td data-l="What">A nightly export of every collection to CSV files in a company Google Drive folder, plus an "Export everything" button in the Console.</td><td data-l="Why">A copy of the whole database that opens in Excel, every day, outside the database.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Will the data stay readable?</h3>
+  <p>The worry is a fair one. A Firestore database can turn into a pile of documents with random names, fields nested five deep, numbers encoded as codes, and the real meaning spread across a dozen places, so that only the app can make sense of it. That is a design choice, not something Firestore forces, and Spool is designed the other way. The rules below are part of the plan and part of what gets checked before each release.</p>
+  <ul class="plain">
+    <li><b>Flat tables with plain names.</b> One collection per kind of thing: products, locations, tickets, orders, shipments, items, wire boxes, movements, people. Each one is the same shape as a spreadsheet tab, and each maps one for one to a table if the data ever moves to SQL.</li>
+    <li><b>Readable fields, in English.</b> <code>brand</code>, <code>model</code>, <code>qtyNeeded</code>, <code>ftLeft</code>, <code>holderName</code>. No abbreviations, no codes to decode, no field called <code>x1</code>.</li>
+    <li><b>Names travel with the record.</b> A movement row says "Ubiquiti U6-Pro, from Rack A3 to Bay 2, by Warehouse, for ticket 1042" in words. The ID numbers are there too, but a person can read the row on its own.</li>
+    <li><b>Readable IDs where the world already has one.</b> A proposal's record is filed under its Portal number. A product's record is filed under its brand and model. Random IDs are used only where nothing better exists, and the readable fields sit right next to them.</li>
+    <li><b>No deep nesting and no blobs.</b> At most one level: a ticket has its lines under it, and that is the only case. Nothing is stored as an encoded lump.</li>
+    <li><b>A written data dictionary.</b> Every collection and every field is listed, with its meaning, in the plan and on an About screen in the Console. Someone reading the raw database has the key.</li>
+    <li><b>A copy outside the database.</b> The nightly export and the Export everything button produce one CSV per collection that opens in Excel. If Spool vanished tomorrow, the spreadsheets would still say what is on the shelves and who has what.</li>
+    <li><b>Dashboards read the same records.</b> The Console's reports are built on the same rows, not on a separate hidden copy, so what accounting sees is what is stored.</li>
+  </ul>
+  <p>This is what one record would look like in the database console, an item that is out on a job. Every line of it reads without the app:</p>
+<pre class="block">spool_items / 4F2A9C
+  brand:        "Ubiquiti"
+  model:        "U6-Pro"
+  serial:       "F4E2C6A1B2C3"
+  status:       "checked_out"
+  holderName:   "Tech"
+  jobName:      "Acme Dental, Main office"
+  ticketId:     "1042"
+  checkedOutAt: 2026-10-23 08:47
+  locationName: ""            (empty while it is out)
+  cost:         160.00
+  createdAt:    2026-10-22 16:10</pre>
+
+  <h3>Firestore or Postgres?</h3>
+  <p>Both would work. The honest differences for a shop this size:</p>
+  <table class="roles spec">
+    <thead><tr><th>Question</th><th>Firestore (recommended)</th><th>Postgres via Supabase</th></tr></thead>
+    <tbody>
+      <tr><td data-l="Question">What is it</td><td data-l="Firestore">Google's hosted document database, already used by the company's other internal tools.</td><td data-l="Postgres">A classic SQL database with real tables, hosted by Supabase with sign-in and live updates built around it.</td></tr>
+      <tr><td data-l="Question">Readable in its console</td><td data-l="Firestore">One record at a time, like a card. Readable, with the rules above; not a grid.</td><td data-l="Postgres">A grid, like a spreadsheet, per table. Easier to browse by eye.</td></tr>
+      <tr><td data-l="Question">Works with no signal on the phone</td><td data-l="Firestore">Built in. Scans save locally and sync later.</td><td data-l="Postgres">Not built in; we would write and maintain that part ourselves.</td></tr>
+      <tr><td data-l="Question">Live wall board</td><td data-l="Firestore">Built in.</td><td data-l="Postgres">Built in.</td></tr>
+      <tr><td data-l="Question">Reports that join tables</td><td data-l="Firestore">Done in the page; fine at this size, and the names-travel-with-the-record rule means most reports need no join.</td><td data-l="Postgres">SQL does it natively, which accountants and future developers know.</td></tr>
+      <tr><td data-l="Question">Sign-in</td><td data-l="Firestore">The one the other tools already use.</td><td data-l="Postgres">Its own; a second place to manage people.</td></tr>
+      <tr><td data-l="Question">Cost</td><td data-l="Firestore">The free tier covers a five-person shop; past it, pay as you go, likely a few dollars a month.</td><td data-l="Postgres">Free tier pauses a project after a week without use, so a paid plan is the realistic choice.</td></tr>
+      <tr><td data-l="Question">Moving later</td><td data-l="Firestore">Each collection maps one for one to a table, so a move to SQL is a copy, not a rewrite.</td><td data-l="Postgres">Already SQL.</td></tr>
+    </tbody>
+  </table>
+  <p>Recommendation: Firestore, because offline scanning and the shared sign-in come for free and the readability rules close the gap you are worried about. If you would rather have real SQL tables from day one, say so and the plan switches to Postgres; the screens do not change, and the offline part becomes extra work in step 5. This is decision 9 in the list on the Overview tab.</p>
+
+  <h3>Security and access</h3>
+  <ul class="plain">
+    <li>Company Google accounts only. No passwords to manage, no shared logins.</li>
+    <li>Roles are enforced by the database's own rules, not only by hiding buttons: accounting and the wall board physically cannot write.</li>
+    <li>The movement log cannot be edited or deleted by anyone, including admins. Mistakes are corrected by a new entry with a reason.</li>
+    <li>Everything is served over HTTPS. There is no analytics or tracking script on the page.</li>
+    <li>The page carries a public Firebase key by design; it is locked to the company's site addresses so it works nowhere else.</li>
+    <li>A nightly export to Google Drive is the backup. Google keeps the database itself replicated.</li>
+  </ul>
+
+  <h3>Costs</h3>
+  <ul class="plain">
+    <li>Hosting and sign-in: no cost, already in place.</li>
+    <li>Database and photos: within the free tier at this size; a few dollars a month if it grows past it.</li>
+    <li>Portal automation: only if wanted, and only what Portal charges for its Zapier add-on or Unlimited plan.</li>
+    <li>Hardware: label sheets for an office printer, and a small PC or stick for the TV by the bays.</li>
+    <li>The build itself is the main cost, in six steps that each stand on their own.</li>
+  </ul>
+  </div>
+
 </article>
 
 <footer class="pagefoot">
-  <p>Spool storyboard v0.3, 2026-10-27. Internal, Umbrella Automation.</p>
+  <p>Spool storyboard v0.4, 2026-10-27. Internal, Umbrella Automation.</p>
   <button type="button" class="btn-print" id="printTab">Print this tab as PDF</button>
   <button type="button" class="btn-print" id="printAll">Print everything as PDF</button>
 </footer>
@@ -1159,7 +1254,7 @@ UPS 1Z999AA10123456784 shipped 10/23). Backordered: Ubiquiti U6-Pro x2.</pre>
 
 <script>
 (function () {
-  var names = ['overview', 'story', 'sop'];
+  var names = ['overview', 'story', 'sop', 'tech'];
   var tabs = document.querySelectorAll('.tabs button[data-tab]');
   var panels = {};
   names.forEach(function (n) { panels[n] = document.getElementById('tab-' + n); });
