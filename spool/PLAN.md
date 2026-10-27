@@ -866,3 +866,13 @@ is scanned once, no per-item tracking below the threshold unless chosen.
 The page is a self-contained HTML file in the house style of the SOP library
 (`work/sop`): print-ready, `?print=1` strips the chrome, noindex. Panels are
 inline SVG wireframes, theme-neutral, so the storyboard does not pre-empt D9.
+
+**Tabs (added 2026-10-27).** The page opens on an **Overview** tab: a
+five-minute outline in the owner's language (the problem, how a job moves
+through in eight steps, what is tracked, who uses it, the screens, Portal,
+rollout, what we need from you, what it is not). The **Storyboard** tab is
+Part 1 and the **SOP** tab is Parts 2 and 3. Contents links cross tabs.
+Two print buttons: **Print this tab** (the Overview alone is a two-page PDF)
+and **Print everything** (one PDF, each tab starting a new page).
+`?tab=overview|story|sop` opens a tab, `?all=1` shows all three, and both
+combine with `?print=1`.

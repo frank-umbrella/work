@@ -3,14 +3,18 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Spool - Storyboard and SOP v0.2</title>
+<title>Spool - Overview, Storyboard and SOP v0.3</title>
 <meta name="description" content="Storyboard and functional SOP for Spool, the internal inventory, pick ticket, and order tracking tool. Draft for owner review.">
 <meta name="robots" content="noindex, nofollow">
-<meta name="version" content="0.1.0">
+<meta name="version" content="0.3.0">
 <script>
-  if (new URLSearchParams(location.search).get('print') === '1') {
-    document.documentElement.classList.add('print-view');
-  }
+  // ?print=1 strips the chrome for a PDF. ?tab=overview|story|sop picks the tab;
+  // ?all=1 shows every tab at once (for a single PDF of the whole document).
+  (function () {
+    var q = new URLSearchParams(location.search);
+    if (q.get('print') === '1') document.documentElement.classList.add('print-view');
+    if (q.get('all') === '1') document.documentElement.classList.add('print-all');
+  })();
 </script>
 <style>
   :root {
@@ -216,6 +220,58 @@
   }
   .btn-print:hover { background: #1647b8; border-color: #1647b8; }
 
+  /* ============ Tabs: Overview / Storyboard / SOP ============ */
+  .tabs {
+    display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 22px;
+    border-bottom: 1px solid var(--line-strong); padding-bottom: 0;
+  }
+  .tabs button {
+    font: inherit; font-size: 15px; font-weight: 600; cursor: pointer;
+    background: transparent; color: var(--muted); border: 0;
+    border-bottom: 3px solid transparent; padding: 10px 14px; min-height: 44px;
+    margin-bottom: -1px;
+  }
+  .tabs button:hover { color: var(--ink); }
+  .tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+  .tabs button .hint { display: block; font-size: 12px; font-weight: 400; color: var(--muted); }
+  .tab { display: none; }
+  .tab.on { display: block; }
+  html.print-all .tab { display: block; }
+  .tab > h2:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+
+  /* ============ Overview tab ============ */
+  .ov h3 { font-size: 17px; margin: 26px 0 8px; }
+  .ov p, .ov li { max-width: 76ch; }
+  .ov ol.flow { counter-reset: step; list-style: none; margin: 0 0 8px; padding: 0; max-width: 80ch; }
+  .ov ol.flow li {
+    counter-increment: step; position: relative; padding: 8px 0 8px 46px;
+    border-bottom: 1px solid var(--line); min-width: 0;
+  }
+  .ov ol.flow li:last-child { border-bottom: 0; }
+  .ov ol.flow li::before {
+    content: counter(step); position: absolute; left: 0; top: 9px;
+    width: 32px; height: 32px; border-radius: 50%; background: var(--ink); color: #fff;
+    font-weight: 700; font-size: 15px; display: flex; align-items: center; justify-content: center;
+  }
+  .ov ol.flow li b { display: block; }
+  .ov ul.plain { padding-left: 20px; margin: 0 0 8px; }
+  .ov ul.plain li { margin: 0 0 6px; }
+  .ov table.roles { width: 100%; border-collapse: collapse; font-size: 15px; margin: 0 0 8px; max-width: 80ch; }
+  .ov table.roles th, .ov table.roles td { text-align: left; vertical-align: top; padding: 8px 10px 8px 0; border-bottom: 1px solid var(--line); min-width: 0; }
+  .ov table.roles th { font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); font-weight: 600; }
+  .ov table.roles td:first-child { font-weight: 700; white-space: nowrap; }
+  .ov .ask { border: 1px solid var(--line-strong); border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 0 8px 8px 0; padding: 12px 16px; max-width: 80ch; }
+  .ov .ask ol { margin: 6px 0 0; padding-left: 22px; }
+  .ov .ask li { margin: 0 0 5px; }
+  @media (max-width: 640px) {
+    .ov table.roles thead { display: none; }
+    .ov table.roles, .ov table.roles tbody, .ov table.roles tr, .ov table.roles td { display: block; width: 100%; }
+    .ov table.roles tr { border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; margin: 0 0 8px; }
+    .ov table.roles td { border: 0; padding: 3px 0; white-space: normal; }
+    .ov table.roles td::before { content: attr(data-l); display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+    .ov table.roles td:first-child::before { display: none; }
+  }
+
   /* ============ Phone widths ============ */
   @media (max-width: 640px) {
     .wrap { padding: 0 16px; }
@@ -236,6 +292,7 @@
   html.print-view header.site,
   html.print-view .btn-print { display: none; }
   html.print-view .doc { border: 0; }
+  html.print-view .tabs { display: none; }
 
   /* ============ Print / PDF ============ */
   @media print {
@@ -258,6 +315,13 @@
     .open b { color: #000; }
     .sop-id { background: #f3f3f3; color: #000; }
     footer.pagefoot { padding-bottom: 0; }
+    .tabs { display: none !important; }
+    .tab { display: none; }
+    .tab.on, html.print-all .tab { display: block; }
+    html.print-all .tab + .tab { break-before: page; page-break-before: always; }
+    .ov ol.flow li::before { background: #000; color: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .ov .ask { background: #f3f3f3; border-color: #333; }
+    .ov ol.flow li, .ov table.roles tr { break-inside: avoid; page-break-inside: avoid; }
   }
 </style>
 </head>
@@ -291,8 +355,8 @@
       <text x="320" y="240" font-weight="900" font-size="130" letter-spacing="3.5" fill="#1A1F2B" style="font-family: Saira, Eurostile, system-ui, sans-serif;">AUTOMATION</text>
     </svg>
     <div class="doc-kind">
-      <div class="kind">Storyboard and functional SOP</div>
-      <div class="num">Draft v0.1</div>
+      <div class="kind">Overview, storyboard, and functional SOP</div>
+      <div class="num">Draft v0.3</div>
     </div>
   </div>
 
@@ -301,12 +365,18 @@
     Spool
   </h1>
   <p class="subtitle">How product moves through the shop, from approved proposal to installed, and what gets recorded at each step</p>
-  <p class="draft">Draft for review, 2026-10-27 (v0.2 adds the wall board, panel 13). Nothing is built yet; this page is the thing to mark up.</p>
+  <p class="draft">Draft for review, 2026-10-27 (v0.3 adds the Overview tab; v0.2 added the wall board, panel 13). Nothing is built yet; this page is the thing to mark up.</p>
+
+  <div class="tabs" role="tablist" aria-label="Sections of this document">
+    <button type="button" role="tab" id="tabbtn-overview" aria-controls="tab-overview" aria-selected="true" data-tab="overview">Overview<span class="hint">the five-minute read</span></button>
+    <button type="button" role="tab" id="tabbtn-story" aria-controls="tab-story" aria-selected="false" data-tab="story">Storyboard<span class="hint">a day in the warehouse, 13 screens</span></button>
+    <button type="button" role="tab" id="tabbtn-sop" aria-controls="tab-sop" aria-selected="false" data-tab="sop">SOP<span class="hint">step by step, and what it is not</span></button>
+  </div>
 
   <section class="readfirst" id="read" aria-labelledby="read-h">
     <h2 id="read-h">Read this first</h2>
     <p>Spool is a web app for the office and the warehouse, built to be used on a phone in the rack room and on a desktop at the front. It turns an approved Portal proposal into a pick ticket and follows every part on it from ordered to installed. It keeps a running count of what is on the shelves, including how many feet are left in each wire box. Every change is written to a log with the name of the person who made it, so any count can be explained later.</p>
-    <p>Every client, name, number, price, and address on this page is invented sample data. The buttons drawn inside the pictures are pictures; the only things you can click on this page are the contents links below and the print button at the bottom.</p>
+    <p>Every client, name, number, price, and address on this page is invented sample data. The buttons drawn inside the pictures are pictures; the only things you can click on this page are the three tabs above, the contents links below, and the print buttons at the bottom.</p>
   </section>
 
   <nav class="toc" aria-label="Contents">
@@ -339,6 +409,95 @@
     </div>
   </nav>
 
+  <!-- ================= OVERVIEW TAB ================= -->
+  <div class="tab ov on" id="tab-overview" role="tabpanel" aria-labelledby="tabbtn-overview">
+  <h2 id="overview">Overview</h2>
+  <p class="lede">The short version of how Spool would work, written to be read in five minutes. The Storyboard tab shows the screens; the SOP tab has the step-by-step procedures. Print this tab on its own with the button at the bottom.</p>
+
+  <h3>The problem it solves</h3>
+  <p>Today a proposal is approved in Portal, product gets bought, and boxes land at the shop. From there it is memory and sticky notes: which boxes belong to which job, what is on the shelf, how many feet are left in a wire box, and who has the spare access point in their van. Spool puts one record behind each of those questions, and a scan with a phone is how you answer them.</p>
+
+  <h3>How a job moves through it</h3>
+  <ol class="flow">
+    <li><b>The proposal is accepted in Portal.</b> Download its CSV and import it. Spool builds a pick ticket for the job with every part grouped by room.</li>
+    <li><b>Pull what we already have.</b> At the shelf, scan the shelf label and the product, then scan the job's bay. The line turns green. The TV by the bays shows what is still left to pull and which shelf it sits on.</li>
+    <li><b>Order the rest.</b> One button turns the missing lines into a draft purchase order. Type the vendor and the order number when it is placed, and paste the tracking number when the ship notice arrives.</li>
+    <li><b>Watch it come in.</b> The Tracking page lists everything on order for every job with its carrier and expected date. Late boxes and boxes marked delivered but never scanned rise to the top.</li>
+    <li><b>Receive it.</b> Scan each box's barcode against the open order. Anything over the price threshold gets its own QR sticker on the spot. Boxes go to the job's bay or to their shelf.</li>
+    <li><b>Wire.</b> Each box of cable gets a QR sticker. After pulling cable, scan it and type the footage mark where it stopped. Spool logs the cut with your name and the job, and the box's feet left update.</li>
+    <li><b>Deliver.</b> On install day the ticket is marked delivered and the stickered units check out to the tech. Anything that comes back is scanned in with its condition.</li>
+    <li><b>Close.</b> Leftovers go back to the shelf or get written off with a reason. Units still out become installed on that job. A status note is copied and pasted into the Portal proposal.</li>
+  </ol>
+
+  <h3>What it keeps track of</h3>
+  <ul class="plain">
+    <li><b>Products and where they sit.</b> Every product has a shelf, a count, and a barcode learned the first time it is scanned.</li>
+    <li><b>Wire boxes.</b> Feet left in every box, and every cut: how much, by whom, for which job.</li>
+    <li><b>Serialized items.</b> Anything over the price threshold gets its own QR sticker. One scan shows where it is, who has it, and its history; a service call years later can scan the sticker on the rack and see when it went in.</li>
+    <li><b>Pick tickets.</b> One per approved proposal: needed, pulled from stock, on order, staged in the bay, delivered.</li>
+    <li><b>Orders and shipments.</b> Vendor, order number, carrier, tracking number, expected date, received or not.</li>
+    <li><b>A log of every change.</b> Every receive, pick, cut, check-out, check-in, and adjustment carries a name and a time. Nothing changes anonymously.</li>
+  </ul>
+
+  <h3>Who uses it</h3>
+  <table class="roles">
+    <thead><tr><th>Role</th><th>Can</th><th>Cannot</th></tr></thead>
+    <tbody>
+      <tr><td data-l="Role">Admin</td><td data-l="Can">Everything, plus add people and change settings.</td><td data-l="Cannot">Nothing is off limits.</td></tr>
+      <tr><td data-l="Role">Warehouse</td><td data-l="Can">Receive, pick, stage, order, adjust counts, print labels, move items.</td><td data-l="Cannot">Add people or change settings.</td></tr>
+      <tr><td data-l="Role">Tech</td><td data-l="Can">Scan, pick, check items out and in, enter wire marks.</td><td data-l="Cannot">Edit products or adjust counts.</td></tr>
+      <tr><td data-l="Role">Accounting</td><td data-l="Can">Read everything and export reports to a spreadsheet.</td><td data-l="Cannot">Change any count; there are no edit buttons at all.</td></tr>
+      <tr><td data-l="Role">Wall board</td><td data-l="Can">Show the pinned pick tickets on the TV.</td><td data-l="Cannot">Anything; it is a screen with no buttons.</td></tr>
+    </tbody>
+  </table>
+
+  <h3>The screens</h3>
+  <ul class="plain">
+    <li><b>Scan</b> (phone): the camera, and whatever the scan found: a product, a wire box, an item, a shelf.</li>
+    <li><b>Tickets</b>: the pick tickets and their progress; open one to see every line by room.</li>
+    <li><b>Stock</b>: the catalog, what is low, and the wire boxes with feet left.</li>
+    <li><b>Orders</b> and <b>Tracking</b>: purchase orders with their shipments, and one page of everything still on its way.</li>
+    <li><b>Items</b>: every stickered unit, who has it, and since when.</li>
+    <li><b>Console</b> (admin and accounting): reports with export, people and roles, settings.</li>
+    <li><b>Wall board</b>: the TV by the bays, read-only, live.</li>
+  </ul>
+
+  <h3>Portal</h3>
+  <p>Spool works with Portal from day one through the proposal CSV that Portal already exports, on any Portal plan. On the Premium plan, Zapier can push an accepted proposal into Spool on its own. Portal's full API, which would let Spool write its status note onto the proposal by itself, is only available on the Unlimited plan after an application to Portal. Until then the note is copied with one button and pasted by hand.</p>
+
+  <h3>How it would roll out</h3>
+  <ul class="plain">
+    <li><b>Step 1.</b> Sign-in, roles, the catalog, shelves, scanning, wire boxes, item stickers, check-out and check-in. The warehouse can be counted, labeled, and signed out.</li>
+    <li><b>Step 2.</b> Pick tickets from Portal CSVs, picking into bays, delivery and close, the Portal note, and the wall board.</li>
+    <li><b>Step 3.</b> Purchase orders, shipments with tracking, receiving by barcode, and the Tracking page.</li>
+    <li><b>Step 4.</b> The Console: reports with spreadsheet export, people, settings; accounting goes live.</li>
+    <li><b>Step 5.</b> Works with no signal in the back of the warehouse; installs on the phone's home screen; product photos.</li>
+    <li><b>Step 6.</b> Automatic Portal import and status notes, if the plan allows it.</li>
+  </ul>
+  <p>Each step is usable on its own before the next starts.</p>
+
+  <h3>What we need from you</h3>
+  <div class="ask">
+    <p>Answers to these decide the first build:</p>
+    <ol>
+      <li>Which Portal plan the company is on, so we know which of the Portal options above apply.</li>
+      <li>Who is in each role: admin, warehouse, tech, accounting.</li>
+      <li>One real proposal CSV from Portal, so the import is right the first time.</li>
+      <li>The price at which a unit gets its own QR sticker. The plan assumes $250.</li>
+      <li>Whether the footage printed on your wire boxes counts down from 1,000 or up from 0.</li>
+      <li>What will drive the TV by the bays: a small PC, a streaming stick, or a laptop.</li>
+      <li>How product is staged today: a labeled bay or pallet per job, or a shelf per client.</li>
+      <li>A look: three are drawn in the design preview that comes with this document.</li>
+      <li>Your mark-ups on this document, then a go-ahead.</li>
+    </ol>
+  </div>
+
+  <h3>What it is not</h3>
+  <p>Not a replacement for Portal or for QuickBooks, no automatic carrier tracking in the first version, and no unit-by-unit tracking of cheap stock unless you ask for it. The full list is at the end of the <a href="#part3">SOP tab</a>.</p>
+  </div>
+
+  <!-- ================= STORYBOARD TAB ================= -->
+  <div class="tab" id="tab-story" role="tabpanel" aria-labelledby="tabbtn-story">
   <!-- ================= PART 1 ================= -->
   <h2 id="part1"><span class="no">Part 1.</span>A day in the warehouse</h2>
   <p class="lede">One job, start to finish: Acme Dental's main office, pick ticket #1042. Phone screens are what a person holds in the warehouse or the van; desktop screens are the office.</p>
@@ -755,6 +914,10 @@
 
   </div>
 
+  </div>
+
+  <!-- ================= SOP TAB ================= -->
+  <div class="tab" id="tab-sop" role="tabpanel" aria-labelledby="tabbtn-sop">
   <!-- ================= PART 2 ================= -->
   <h2 id="part2"><span class="no">Part 2.</span>Functional SOP</h2>
   <p class="lede">Eleven procedures, in the order product moves. Button names match the screens above. "Recorded" is what lands in the movement log, which is the audit trail behind every count.</p>
@@ -982,14 +1145,83 @@ UPS 1Z999AA10123456784 shipped 10/23). Backordered: Ubiquiti U6-Pro x2.</pre>
     <li><strong>It records mistakes; it does not block them.</strong> Anyone with the right role can change stock. Every change carries a name, so a wrong count can be traced and fixed.</li>
   </ul>
 
+  </div>
+
 </article>
 
 <footer class="pagefoot">
-  <p>Spool storyboard v0.2, 2026-10-27. Internal, Umbrella Automation.</p>
-  <button type="button" class="btn-print" onclick="window.print()">Print or save as PDF</button>
+  <p>Spool storyboard v0.3, 2026-10-27. Internal, Umbrella Automation.</p>
+  <button type="button" class="btn-print" id="printTab">Print this tab as PDF</button>
+  <button type="button" class="btn-print" id="printAll">Print everything as PDF</button>
 </footer>
 </div>
 </main>
+
+<script>
+(function () {
+  var names = ['overview', 'story', 'sop'];
+  var tabs = document.querySelectorAll('.tabs button[data-tab]');
+  var panels = {};
+  names.forEach(function (n) { panels[n] = document.getElementById('tab-' + n); });
+
+  function store(v) { try { localStorage.setItem('spool.storyboard.tab', v); } catch (e) {} }
+  function load() { try { return localStorage.getItem('spool.storyboard.tab'); } catch (e) { return null; } }
+
+  function show(name, opts) {
+    if (names.indexOf(name) < 0) name = 'overview';
+    names.forEach(function (n) { panels[n].classList.toggle('on', n === name); });
+    tabs.forEach(function (b) { b.setAttribute('aria-selected', b.getAttribute('data-tab') === name ? 'true' : 'false'); });
+    if (!(opts && opts.quiet)) store(name);
+    return name;
+  }
+
+  // Which tab holds a given element id (for TOC links that cross tabs)?
+  function tabOf(id) {
+    var el = id && document.getElementById(id);
+    while (el && el !== document.body) {
+      if (el.classList && el.classList.contains('tab')) return el.id.replace('tab-', '');
+      el = el.parentNode;
+    }
+    return null;
+  }
+
+  function fromHash() {
+    var id = location.hash.replace('#', '');
+    if (!id) return false;
+    if (names.indexOf(id) >= 0) { show(id); return true; }
+    var t = tabOf(id);
+    if (t) { show(t); var el = document.getElementById(id); if (el) el.scrollIntoView(); return true; }
+    return false;
+  }
+
+  tabs.forEach(function (b) {
+    b.addEventListener('click', function () { show(b.getAttribute('data-tab')); history.replaceState(null, '', '#' + b.getAttribute('data-tab')); window.scrollTo(0, 0); });
+    b.addEventListener('keydown', function (e) {
+      var i = names.indexOf(b.getAttribute('data-tab')), j = -1;
+      if (e.key === 'ArrowRight') j = (i + 1) % names.length;
+      if (e.key === 'ArrowLeft') j = (i + names.length - 1) % names.length;
+      if (j >= 0) { e.preventDefault(); tabs[j].focus(); tabs[j].click(); }
+    });
+  });
+  window.addEventListener('hashchange', fromHash);
+
+  // Print: this tab only, or every tab (one PDF, each tab on a new page).
+  var pt = document.getElementById('printTab'), pa = document.getElementById('printAll');
+  if (pt) pt.addEventListener('click', function () { document.documentElement.classList.remove('print-all'); window.print(); });
+  if (pa) pa.addEventListener('click', function () {
+    document.documentElement.classList.add('print-all');
+    window.print();
+  });
+  window.addEventListener('afterprint', function () {
+    if (new URLSearchParams(location.search).get('all') !== '1') document.documentElement.classList.remove('print-all');
+  });
+
+  // Initial tab: ?tab=, then the hash, then the saved choice, then Overview.
+  var q = new URLSearchParams(location.search).get('tab');
+  if (q && names.indexOf(q) >= 0) show(q, { quiet: true });
+  else if (!fromHash()) show(load() || 'overview', { quiet: true });
+})();
+</script>
 
 </body>
 </html>
