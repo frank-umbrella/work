@@ -1,6 +1,7 @@
 # Spool - office inventory, pick tickets, and product tracking
 
-Plan v0.2 - 2026-10-26 by Fable 5.1 (design/plan pass; v0.1 was 2026-10-23).
+Plan v0.3 - 2026-10-27 by Fable 5.1 (design/plan pass; v0.1 was 2026-10-23,
+v0.2 was 2026-10-26; v0.3 adds the warehouse wall board, section 4).
 Nothing here is built yet. Implementation is a later Opus job once the
 decisions in section 13 are answered and the owner has read the storyboard.
 Open the design switcher at
@@ -104,6 +105,7 @@ reading, return, transfer) so a count can always be explained.
 | Serialized items | Automatic at or above the QR threshold (Settings, default $250); manual for anything else | Cheap stock is counted; expensive stock is followed. One scan answers where an AP, a camera, or a processor is and who signed it out. |
 | Wire cuts | Every box entry records the mark now and the length cut, by whom, for which ticket | "Feet left" alone does not say who used 360 ft on Tuesday. The cut log does, and the job gets charged the right footage. |
 | Tracking dashboard | Its own view: every line on order, grouped by job, with carrier status and ETA | The office asks "where is the UDM for Acme" more than anything else. One page answers it without opening the PO. |
+| Wall board | A read-only full-screen view for the warehouse TV: the active pick tickets, lines grouped by the shelf to pull from, picked lines greyed, live from Firestore | A 50-inch screen by the bays answers "what is left and where is it" without anyone picking up a phone. Nothing on it can be tapped, so a stray hand cannot change a count. |
 | Analytics | None | Client names and job addresses live in it. |
 
 ## 3. Data model (Firestore, project `watchtower-6fbe1`)
@@ -139,7 +141,9 @@ reading, return, transfer) so a count can always be explained.
   createdAt, updatedAt
 
 /spool_users/{uid}
-  email, name, role ("admin"|"warehouse"|"tech"|"accounting"), active
+  email, name, role ("admin"|"warehouse"|"tech"|"accounting"|"board"), active
+                  "board" is the TV's own account: reads everything, writes
+                  nothing, and is sent straight to the Board view on sign-in
   addedBy, addedAt, lastSeen
   First admin seeded in the Firebase console; admins manage the rest from
   the console's People tab. A signed-in domain account with no doc gets
@@ -223,6 +227,10 @@ reading, return, transfer) so a count can always be explained.
                                             unit becomes a serialized item
   "portal"    {tier: "t0"|"t1"|"t2", lastPollAt}   no secrets here
   "importMap" {header -> field} saved CSV column mapping
+  "board"     {mode: "pinned"|"all_open", ticketIds: [], rotateSec: 20,
+               groupBy: "location"|"area", showStaged: true,
+               theme: "dark"|"light"}   set from the ticket's "Show on board"
+                                        button and the Console's Board tab
 ```
 
 Rules to add to `watchtower/firestore.rules` (shared file, deployed with
@@ -234,6 +242,7 @@ function spoolRole() {
     ? get(/databases/$(database)/documents/spool_users/$(request.auth.uid)).data.role
     : 'tech';
 }
+// 'accounting' and 'board' are read-only: they appear in no writer list below
 function spoolAdmin()  { return isMSPAdmin() && spoolRole() == 'admin'; }
 function spoolWriter() { return isMSPAdmin() && spoolRole() in ['admin', 'warehouse']; }
 function spoolTech()   { return isMSPAdmin() && spoolRole() in ['admin', 'warehouse', 'tech']; }
@@ -317,6 +326,46 @@ every screen: Synced / Offline, 3 pending.
   and the row gets a small "pending" chip until it reaches the server. Save
   failure after reconnect: toast "Could not save Stage on Ubiquiti U6-Pro.
   Try again." and the row keeps its previous values.
+- **Show on board** button in the header pins this ticket to the warehouse
+  TV (next screen); it toggles to **Remove from board** while pinned.
+
+### Board (warehouse TV)
+- A full-screen, read-only view at `?board=1` (also the landing view for the
+  `board` role), meant for a 50-inch TV by the bays, read from three to five
+  meters away. No nav, no buttons, no cursor, nothing tappable. Type sizes:
+  product line 30px, counts 44px, headers 24px; minimum 4.5:1 on the dark
+  theme (default; a light theme exists for a bright shop).
+- **What it shows.** The pinned tickets (or every open ticket when the mode
+  is "all open"), one ticket per screen, rotating every 20 seconds (set in
+  Settings) with a thin progress bar along the top so people know when it
+  will flip. Each screen: client, job, ticket number, bay, and a big
+  "18 of 24 lines staged" with a bar. Below it the lines, **grouped by the
+  shelf to pull from** (the product's location, or its default location when
+  stock sits in several), in walking order of the rack labels (A1, A2, A3,
+  B1...), so the board is the pick path. Each line: product, quantity still
+  to pull, bay, and a state: **Pull** (white, with the shelf), **Picked**
+  (greyed, with a check and who picked it), **On order** (amber, with the
+  PO and ETA), **Short** (red: shelf count below what the line needs).
+  Picked lines sink to the bottom of their shelf group; a shelf group with
+  nothing left to pull collapses to one line. With more lines than fit, the
+  list scrolls slowly and wraps rather than cutting off.
+- **Live.** Firestore listeners update the screen within a second of a
+  scan, so a tech watching the board sees the line grey out as the phone
+  saves. Offline or disconnected: a red "Not live since 2:14 PM" strip at
+  the top; the last data stays on screen.
+- **Idle.** No open tickets: the Spool mark, "Nothing to pick", the three
+  lowest consumables with feet left, and the clock. The board never goes to
+  a sign-in screen on its own: the TV's account is signed in once and the
+  token refreshes in the background.
+- **Setup.** Any browser on the TV opens the URL full-screen. The plan's
+  recommendation is a small Windows or Linux mini PC in kiosk mode, because
+  TV-stick browsers throttle background tabs and lose sign-ins. An admin
+  signs it in as the board account and picks the tickets from the Console's
+  Board tab or any ticket's Show on board button. Nothing is configured on
+  the TV itself.
+- **States.** No pinned tickets in pinned mode: "Nothing pinned. Open a
+  ticket and press Show on board." Ticket closed while pinned: it drops off
+  the rotation on its own.
 
 ### Scan (phone)
 - Full-screen camera with a scan box. Decoded UPC looks up the product.
@@ -684,7 +733,7 @@ Build T0 first. T1 and T2 are worker work and need the plan tier known.
 | Version | Scope |
 |---|---|
 | 0.1.0 | Shell, sign-in, roles and rules, Stock view, product CRUD, locations, movements, Scan with UPC lookup and receive/count, wire boxes with the box sheet and cut log, serialized items with check-out / check-in, QR labels and label sheets. The warehouse can be counted, labeled, and signed out. |
-| 0.2.0 | Clients, jobs, proposals, CSV import with header mapping, pick tickets with lines, pull-from-stock, stage, deliver (checks items out to the tech), close (marks them installed), print, Copy for Portal (T0). |
+| 0.2.0 | Clients, jobs, proposals, CSV import with header mapping, pick tickets with lines, pull-from-stock, stage, deliver (checks items out to the tech), close (marks them installed), print, Copy for Portal (T0), the warehouse wall board with Show on board. |
 | 0.3.0 | Orders, lines, shipments, carrier detection, receive-by-shipment into bays with barcode counting, chips on ticket lines, low-stock reorder into draft POs, the Tracking dashboard. |
 | 0.4.0 | Console: reports with CSV / XLSX export, People, Settings; accounting role end to end. |
 | 0.5.0 | Offline (sw.js + persistent cache + sync pill), PWA manifest, photos on products. |
@@ -732,6 +781,10 @@ with the why, small commits.
 - **D13 Storyboard sign-off.** The owner reads `storyboard.html` (section
   15) and either approves it or marks up what the flow gets wrong. The build
   starts after that, not before.
+- **D14 Wall board hardware and mode.** What drives the TV: a mini PC in
+  kiosk mode (recommended), a Chromecast or Android stick browser, or a
+  laptop? And one pinned ticket at a time, or rotate through every open
+  ticket? The plan defaults to pinned, rotating every 20 seconds.
 
 ## 14. Files
 
@@ -745,7 +798,7 @@ with the why, small commits.
 - Later: `index.html`, `sw.js`, `manifest.json`, `og-image.png`, icons,
   `README.md`; rules block in `watchtower/firestore.rules`;
   `spool-worker/` for T1/T2. The design switcher gains Tracking, Items,
-  and Console views once D9 picks a direction.
+  Console, and Board views once D9 picks a direction.
 
 ## 15. Storyboard and functional SOP (for the owner, before the build)
 
@@ -753,7 +806,7 @@ The owner asked for a storyboard and a functional SOP before anything is
 built. `storyboard.html` is that document: one page, printable, written for
 someone who will never open this plan. It has three parts.
 
-**Part 1, the day in the warehouse (storyboard).** Twelve panels, each a
+**Part 1, the day in the warehouse (storyboard).** Thirteen panels, each a
 sketch of the phone or desktop screen with a caption of what the person does
 and what the system records:
 
@@ -781,6 +834,9 @@ and what the system records:
 12. Accounting: the Console shows delivered product per job with cost, spend
     by vendor, items out, and exports to a spreadsheet; nobody in accounting
     can change a count.
+13. The wall board: the TV by the bays shows the pinned ticket, lines
+    grouped by the shelf to pull from, picked lines greyed as the scans
+    land, on-order lines in amber with their ETA.
 
 **Part 2, the functional SOP.** Numbered procedures, each with who does it,
 when, the steps, and what gets recorded:
@@ -788,7 +844,8 @@ when, the steps, and what gets recorded:
 - SOP-1 Receiving product (with and without a PO; the QR threshold).
 - SOP-2 Labeling (bays, shelves, wire boxes, items; when to re-label).
 - SOP-3 Building a pick ticket from an approved proposal.
-- SOP-4 Picking and staging (pull from stock, bay discipline, partial picks).
+- SOP-4 Picking and staging (pull from stock, the wall board as the pick
+  path, bay discipline, partial picks).
 - SOP-5 Ordering and tracking (draft PO, order number, shipments, the
   dashboard, delivered-but-not-received).
 - SOP-6 Wire boxes (receive by UPC, the box sheet, end-of-day marks, empties).

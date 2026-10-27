@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Spool - Storyboard and SOP v0.1</title>
+<title>Spool - Storyboard and SOP v0.2</title>
 <meta name="description" content="Storyboard and functional SOP for Spool, the internal inventory, pick ticket, and order tracking tool. Draft for owner review.">
 <meta name="robots" content="noindex, nofollow">
 <meta name="version" content="0.1.0">
@@ -301,7 +301,7 @@
     Spool
   </h1>
   <p class="subtitle">How product moves through the shop, from approved proposal to installed, and what gets recorded at each step</p>
-  <p class="draft">Draft for review, 2026-10-26. Nothing is built yet; this page is the thing to mark up.</p>
+  <p class="draft">Draft for review, 2026-10-27 (v0.2 adds the wall board, panel 13). Nothing is built yet; this page is the thing to mark up.</p>
 
   <section class="readfirst" id="read" aria-labelledby="read-h">
     <h2 id="read-h">Read this first</h2>
@@ -722,6 +722,37 @@
       <p class="cap"><strong>What Spool records</strong>Nothing: reports only read the movement log, and the accounting role has no edit buttons anywhere, so a count cannot change from here.</p>
     </article>
 
+    <!-- 13 -->
+    <article class="panel" id="panel-13">
+      <h3><span class="pn">13</span>The wall board</h3>
+      <svg class="wf" viewBox="0 0 300 208" role="img" aria-label="TV sketch: the wall board for pick ticket 1042. A header with the client, bay, and 18 of 24 staged, then lines grouped by the shelf to pull from: Rack A1 with one line picked, Rack A3 with a Cat6 box still to pull, Rack C2 with two cameras picked, and an on-order line in amber.">
+        <rect class="fr" x="1" y="1" width="298" height="206" rx="6"/>
+        <rect class="bar" x="2" y="2" width="296" height="4"/>
+        <rect class="act" x="2" y="2" width="178" height="4"/>
+        <text class="h" x="12" y="24">Acme Dental, Main office</text>
+        <text class="s m" x="12" y="37">Pick ticket #1042 to Bay 2</text>
+        <text class="h" x="212" y="24">18 of 24</text>
+        <text class="s m" x="212" y="37">lines staged</text>
+        <rect class="bar" x="12" y="44" width="276" height="7" rx="3.5"/>
+        <rect class="act" x="12" y="44" width="207" height="7" rx="3.5"/>
+        <text class="s b" x="12" y="68">RACK A1</text>
+        <line class="ln" x1="12" y1="72" x2="288" y2="72"/>
+        <text class="m" x="18" y="86">Middle Atlantic U2V x2</text><text class="m s" x="200" y="86">Picked, Warehouse</text>
+        <text class="s b" x="12" y="106">RACK A3</text>
+        <line class="ln" x1="12" y1="110" x2="288" y2="110"/>
+        <rect class="wab" x="12" y="114" width="276" height="22"/>
+        <text class="b" x="18" y="128">Cat6 blue, 1,500 ft</text><text class="s b" x="200" y="128">PULL, box 3 and 4</text>
+        <text class="s b" x="12" y="154">RACK C2</text>
+        <line class="ln" x1="12" y1="158" x2="288" y2="158"/>
+        <text class="m" x="18" y="172">Axis M3065-V x4</text><text class="m s" x="200" y="172">Picked, Tech</text>
+        <text class="s b" x="12" y="190">ON ORDER</text>
+        <text class="wat s" x="90" y="190">Ubiquiti U6-Pro x2, PO 7731, ETA 11/04</text>
+        <text class="m s" x="12" y="202">Live. Next ticket in 12 s</text>
+      </svg>
+      <p class="cap"><strong>What you do</strong>Nothing on the TV. On the ticket, press Show on board; the screen by the bays lists what is still to pull, grouped by the shelf it sits on, and greys each line as the phone scans it into the bay.</p>
+      <p class="cap"><strong>What Spool records</strong>Nothing: the board only reads. Its account can see everything and change nothing, so a stray hand on the screen cannot move a count.</p>
+    </article>
+
   </div>
 
   <!-- ================= PART 2 ================= -->
@@ -792,6 +823,7 @@
     <p class="whowhen"><span><b>Who</b>Warehouse</span><span><b>When</b>As soon as the ticket exists, before anything is ordered</span></p>
     <ol>
       <li>Open the ticket and press Pull everything we have in stock. Spool fills what it can from the shelves and lists what still has to be ordered.</li>
+      <li>Press Show on board. The TV by the bays now lists this ticket's lines grouped by the shelf to pull from, in rack order, and greys each line as it is scanned into the bay. Walk the racks in that order.</li>
       <li>At the shelf, open the Scan tab and scan the shelf label. The location chip changes to that shelf.</li>
       <li>Scan the product's UPC, or its item sticker if it has one.</li>
       <li>Press Pick for ticket, pick the ticket, and confirm the count.</li>
@@ -953,7 +985,7 @@ UPS 1Z999AA10123456784 shipped 10/23). Backordered: Ubiquiti U6-Pro x2.</pre>
 </article>
 
 <footer class="pagefoot">
-  <p>Spool storyboard v0.1, 2026-10-26. Internal, Umbrella Automation.</p>
+  <p>Spool storyboard v0.2, 2026-10-27. Internal, Umbrella Automation.</p>
   <button type="button" class="btn-print" onclick="window.print()">Print or save as PDF</button>
 </footer>
 </div>
