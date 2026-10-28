@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Spool - Overview, Storyboard, SOP and Tech spec v0.4</title>
+<title>Spool - Overview, Storyboard, SOP and Tech spec v0.4.1</title>
 <meta name="description" content="Storyboard and functional SOP for Spool, the internal inventory, pick ticket, and order tracking tool. Draft for owner review.">
 <meta name="robots" content="noindex, nofollow">
-<meta name="version" content="0.4.0">
+<meta name="version" content="0.4.1">
 <script>
   // ?print=1 strips the chrome for a PDF. ?tab=overview|story|sop picks the tab;
   // ?all=1 shows every tab at once (for a single PDF of the whole document).
@@ -256,23 +256,27 @@
   .ov ol.flow li b { display: block; }
   .ov ul.plain { padding-left: 20px; margin: 0 0 8px; }
   .ov ul.plain li { margin: 0 0 6px; }
-  .ov table.roles { width: 100%; border-collapse: collapse; font-size: 15px; margin: 0 0 8px; max-width: 80ch; }
-  .ov table.roles th, .ov table.roles td { text-align: left; vertical-align: top; padding: 8px 10px 8px 0; border-bottom: 1px solid var(--line); min-width: 0; }
-  .ov table.roles th { font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); font-weight: 600; }
-  .ov table.roles td:first-child { font-weight: 700; white-space: nowrap; }
-  .ov table.spec td:first-child { white-space: normal; width: 18%; }
-  .ov table.spec th:nth-child(2), .ov table.spec th:nth-child(3) { width: 41%; }
+  .ov table.cmp { width: 100%; max-width: none; border-collapse: collapse; table-layout: fixed; font-size: 15px; line-height: 1.45; margin: 0 0 12px; }
+  .ov table.cmp th, .ov table.cmp td { text-align: left; vertical-align: top; padding: 10px 14px 10px 0; border-bottom: 1px solid var(--line); white-space: normal; overflow-wrap: break-word; }
+  .ov table.cmp th { font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); font-weight: 600; border-bottom: 2px solid var(--ink); }
+  .ov table.cmp td:first-child { font-weight: 700; }
+  .ov table.cmp th:first-child { width: 20%; }
+  .ov table.cmp th:nth-child(2), .ov table.cmp th:nth-child(3) { width: 40%; }
+  .ov table.cmp.spec th:first-child { width: 18%; }
+  .ov table.cmp.spec th:nth-child(2), .ov table.cmp.spec th:nth-child(3) { width: 41%; }
+  .ov table.cmp.spec tbody tr:nth-child(even) td { background: var(--bg); }
   .ov code { font-family: var(--mono); font-size: 0.92em; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
   .ov .ask { border: 1px solid var(--line-strong); border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 0 8px 8px 0; padding: 12px 16px; max-width: 80ch; }
   .ov .ask ol { margin: 6px 0 0; padding-left: 22px; }
   .ov .ask li { margin: 0 0 5px; }
   @media (max-width: 640px) {
-    .ov table.roles thead { display: none; }
-    .ov table.roles, .ov table.roles tbody, .ov table.roles tr, .ov table.roles td { display: block; width: 100%; }
-    .ov table.roles tr { border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; margin: 0 0 8px; }
-    .ov table.roles td { border: 0; padding: 3px 0; white-space: normal; }
-    .ov table.roles td::before { content: attr(data-l); display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
-    .ov table.roles td:first-child::before { display: none; }
+    .ov table.cmp thead { display: none; }
+    .ov table.cmp, .ov table.cmp tbody, .ov table.cmp tr, .ov table.cmp td { display: block; width: 100%; }
+    .ov table.cmp tr { border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; margin: 0 0 8px; }
+    .ov table.cmp td { border: 0; padding: 3px 0; white-space: normal; }
+    .ov table.cmp.spec tbody tr:nth-child(even) td { background: none; }
+    .ov table.cmp td::before { content: attr(data-l); display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+    .ov table.cmp td:first-child::before { display: none; }
   }
 
   /* ============ Phone widths ============ */
@@ -324,7 +328,8 @@
     html.print-all .tab + .tab { break-before: page; page-break-before: always; }
     .ov ol.flow li::before { background: #000; color: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .ov .ask { background: #f3f3f3; border-color: #333; }
-    .ov ol.flow li, .ov table.roles tr { break-inside: avoid; page-break-inside: avoid; }
+    .ov ol.flow li, .ov table.cmp tr { break-inside: avoid; page-break-inside: avoid; }
+    .ov table.cmp.spec tbody tr:nth-child(even) td { background: #f3f3f3; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   }
 </style>
 </head>
@@ -444,7 +449,7 @@
   </ul>
 
   <h3>Who uses it</h3>
-  <table class="roles">
+  <table class="cmp">
     <thead><tr><th>Role</th><th>Can</th><th>Cannot</th></tr></thead>
     <tbody>
       <tr><td data-l="Role">Admin</td><td data-l="Can">Everything, plus add people and change settings.</td><td data-l="Cannot">Nothing is off limits.</td></tr>
@@ -1161,7 +1166,7 @@ UPS 1Z999AA10123456784 shipped 10/23). Backordered: Ubiquiti U6-Pro x2.</pre>
   <p>Spool is a web page, not an app from an app store. It lives on the company's existing work site, opens in any browser, and installs to a phone's home screen like an app. People sign in with their company Google account and nothing else. The records live in a hosted database that the company already pays for and uses for its other internal tools. There is no server of our own to patch or reboot; the only moving part beyond the page and the database is a small script that would talk to Portal later, if the Portal plan allows it.</p>
 
   <h3>The pieces</h3>
-  <table class="roles spec">
+  <table class="cmp spec">
     <thead><tr><th>Piece</th><th>What we would use</th><th>Why this one</th></tr></thead>
     <tbody>
       <tr><td data-l="Piece">The page</td><td data-l="What">Plain HTML, CSS, and JavaScript, one file per screen, no framework or build step.</td><td data-l="Why">Same way every other tool on the work site is built. Anyone can open the file and read it; nothing to compile.</td></tr>
@@ -1207,7 +1212,7 @@ UPS 1Z999AA10123456784 shipped 10/23). Backordered: Ubiquiti U6-Pro x2.</pre>
 
   <h3>Firestore or Postgres?</h3>
   <p>Both would work. The honest differences for a shop this size:</p>
-  <table class="roles spec">
+  <table class="cmp spec">
     <thead><tr><th>Question</th><th>Firestore (recommended)</th><th>Postgres via Supabase</th></tr></thead>
     <tbody>
       <tr><td data-l="Question">What is it</td><td data-l="Firestore">Google's hosted document database, already used by the company's other internal tools.</td><td data-l="Postgres">A classic SQL database with real tables, hosted by Supabase with sign-in and live updates built around it.</td></tr>
@@ -1245,7 +1250,7 @@ UPS 1Z999AA10123456784 shipped 10/23). Backordered: Ubiquiti U6-Pro x2.</pre>
 </article>
 
 <footer class="pagefoot">
-  <p>Spool storyboard v0.4, 2026-10-27. Internal, Umbrella Automation.</p>
+  <p>Spool storyboard v0.4.1, 2026-10-27. Internal, Umbrella Automation.</p>
   <button type="button" class="btn-print" id="printTab">Print this tab as PDF</button>
   <button type="button" class="btn-print" id="printAll">Print everything as PDF</button>
 </footer>
