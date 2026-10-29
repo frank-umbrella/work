@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Spool - Overview, Storyboard, SOP and Tech spec v0.4.2</title>
-<meta name="description" content="Storyboard and functional SOP for Spool, the internal inventory, pick ticket, and order tracking tool. Draft for owner review.">
+<title>Loadout - Overview, Storyboard, SOP and Tech spec v0.5.0</title>
+<meta name="description" content="Storyboard and functional SOP for Loadout, the internal inventory, pick ticket, and order tracking tool. Draft for owner review.">
 <meta name="robots" content="noindex, nofollow">
-<meta name="version" content="0.4.2">
+<meta name="version" content="0.5.0">
 <script>
   // ?print=1 strips the chrome for a PDF. ?tab=overview|story|sop picks the tab;
   // ?all=1 shows every tab at once (for a single PDF of the whole document).
@@ -337,7 +337,7 @@
 
 <header class="site">
   <div class="wrap">
-    <p class="crumb">Umbrella Automation, internal / <strong>Spool</strong> / Storyboard and functional SOP</p>
+    <p class="crumb">Umbrella Automation, internal / <strong>Loadout</strong> / Storyboard and functional SOP</p>
   </div>
 </header>
 
@@ -364,16 +364,16 @@
     </svg>
     <div class="doc-kind">
       <div class="kind">Overview, storyboard, functional SOP, and tech spec</div>
-      <div class="num">Draft v0.4</div>
+      <div class="num">Draft v0.5</div>
     </div>
   </div>
 
   <h1 class="title">
-    <svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="28" cy="34" r="22" fill="none" stroke="currentColor" stroke-width="5"/><circle cx="28" cy="34" r="13" fill="none" stroke="currentColor" stroke-width="2.5" opacity=".6"/><circle cx="28" cy="34" r="5" fill="currentColor"/><path d="M28 12 H58" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/></svg>
-    Spool
+    <svg viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="20" width="48" height="34" rx="6" fill="none" stroke="currentColor" stroke-width="5"/><path d="M24 20v-6a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v6" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/><path d="M8 35h48" stroke="currentColor" stroke-width="4"/><rect x="27" y="31" width="10" height="8" rx="2" fill="currentColor"/></svg>
+    Loadout
   </h1>
   <p class="subtitle">How product moves through the shop, from approved proposal to installed, and what gets recorded at each step</p>
-  <p class="draft">Draft for review, 2026-10-27 (v0.4 adds the Tech spec tab; v0.3 the Overview; v0.2 the wall board, panel 13). Nothing is built yet; this page is the thing to mark up.</p>
+  <p class="draft">Draft for review, 2026-10-29 (v0.5.0 renames the tool Loadout; v0.4 adds the Tech spec tab; v0.3 the Overview; v0.2 the wall board, panel 13). Nothing is built yet; this page is the thing to mark up.</p>
 
   <div class="tabs" role="tablist" aria-label="Sections of this document">
     <button type="button" role="tab" id="tabbtn-overview" aria-controls="tab-overview" aria-selected="true" data-tab="overview">Overview<span class="hint">the five-minute read</span></button>
@@ -384,7 +384,7 @@
 
   <section class="readfirst" id="read" aria-labelledby="read-h">
     <h2 id="read-h">Read this first</h2>
-    <p>Spool is a web app for the office and the warehouse, built to be used on a phone in the rack room and on a desktop at the front. It turns an approved Portal proposal into a pick ticket and follows every part on it from ordered to installed. It keeps a running count of what is on the shelves, including how many feet are left in each wire box. Every change is written to a log with the name of the person who made it, so any count can be explained later.</p>
+    <p>Loadout is a web app for the office and the warehouse, built to be used on a phone in the rack room and on a desktop at the front. It turns an approved Portal proposal into a pick ticket and follows every part on it from ordered to installed. It keeps a running count of what is on the shelves, including how many feet are left in each wire box. Every change is written to a log with the name of the person who made it, so any count can be explained later.</p>
     <p>Every client, name, number, price, and address on this page is invented sample data. The buttons drawn inside the pictures are pictures; the only things you can click on this page are the four tabs above, the contents links below, and the print buttons at the bottom.</p>
   </section>
 
@@ -394,7 +394,7 @@
       <ul>
         <li><a href="#read">Read this first</a></li>
         <li><a href="#part1">Part 1. A day in the warehouse</a></li>
-        <li><a href="#part3">Part 3. What Spool is not</a></li>
+        <li><a href="#part3">Part 3. What Loadout is not</a></li>
       </ul>
       <ul>
         <li><a href="#part2">Part 2. Functional SOP</a>
@@ -421,19 +421,19 @@
   <!-- ================= OVERVIEW TAB ================= -->
   <div class="tab ov on" id="tab-overview" role="tabpanel" aria-labelledby="tabbtn-overview">
   <h2 id="overview">Overview</h2>
-  <p class="lede">The short version of how Spool would work, written to be read in five minutes. The Storyboard tab shows the screens; the SOP tab has the step-by-step procedures. Print this tab on its own with the button at the bottom.</p>
+  <p class="lede">The short version of how Loadout would work, written to be read in five minutes. The Storyboard tab shows the screens; the SOP tab has the step-by-step procedures. Print this tab on its own with the button at the bottom.</p>
 
   <h3>The problem it solves</h3>
-  <p>Today a proposal is approved in Portal, product gets bought, and boxes land at the shop. From there it is memory and sticky notes: which boxes belong to which job, what is on the shelf, how many feet are left in a wire box, and who has the spare access point in their van. Spool puts one record behind each of those questions, and a scan with a phone is how you answer them.</p>
+  <p>Today a proposal is approved in Portal, product gets bought, and boxes land at the shop. From there it is memory and sticky notes: which boxes belong to which job, what is on the shelf, how many feet are left in a wire box, and who has the spare access point in their van. Loadout puts one record behind each of those questions, and a scan with a phone is how you answer them.</p>
 
   <h3>How a job moves through it</h3>
   <ol class="flow">
-    <li><b>The proposal is accepted in Portal.</b> Download its CSV and import it. Spool builds a pick ticket for the job with every part grouped by room.</li>
+    <li><b>The proposal is accepted in Portal.</b> Download its CSV and import it. Loadout builds a pick ticket for the job with every part grouped by room.</li>
     <li><b>Pull what we already have.</b> At the shelf, scan the shelf label and the product, then scan the job's bay. The line turns green. The TV by the bays shows what is still left to pull and which shelf it sits on.</li>
     <li><b>Order the rest.</b> One button turns the missing lines into a draft purchase order. Type the vendor and the order number when it is placed, and paste the tracking number when the ship notice arrives.</li>
     <li><b>Watch it come in.</b> The Tracking page lists everything on order for every job with its carrier and expected date. Late boxes and boxes marked delivered but never scanned rise to the top.</li>
     <li><b>Receive it.</b> Scan each box's barcode against the open order. Anything over the price threshold gets its own QR sticker on the spot. Boxes go to the job's bay or to their shelf.</li>
-    <li><b>Wire.</b> Each box of cable gets a QR sticker. After pulling cable, scan it and type the footage mark where it stopped. Spool logs the cut with your name and the job, and the box's feet left update.</li>
+    <li><b>Wire.</b> Each box of cable gets a QR sticker. After pulling cable, scan it and type the footage mark where it stopped. Loadout logs the cut with your name and the job, and the box's feet left update.</li>
     <li><b>Deliver.</b> On install day the ticket is marked delivered and the stickered units check out to the tech. Anything that comes back is scanned in with its condition.</li>
     <li><b>Close.</b> Leftovers go back to the shelf or get written off with a reason. Units still out become installed on that job. A status note is copied and pasted into the Portal proposal.</li>
   </ol>
@@ -472,7 +472,7 @@
   </ul>
 
   <h3>Portal</h3>
-  <p>Spool works with Portal from day one through the proposal CSV that Portal already exports, on any Portal plan. On the Premium plan, Zapier can push an accepted proposal into Spool on its own. Portal's full API, which would let Spool write its status note onto the proposal by itself, is only available on the Unlimited plan after an application to Portal. Until then the note is copied with one button and pasted by hand.</p>
+  <p>Loadout works with Portal from day one through the proposal CSV that Portal already exports, on any Portal plan. On the Premium plan, Zapier can push an accepted proposal into Loadout on its own. Portal's full API, which would let Loadout write its status note onto the proposal by itself, is only available on the Unlimited plan after an application to Portal. Until then the note is copied with one button and pasted by hand.</p>
 
   <h3>How it would roll out</h3>
   <ul class="plain">
@@ -520,7 +520,7 @@
       <svg class="wf" viewBox="0 0 300 208" role="img" aria-label="Desktop sketch: the Import CSV sheet with client Acme Dental, proposal 2291, a preview of parts by area, and a Create ticket button.">
         <rect class="fr" x="1" y="1" width="298" height="206" rx="6"/>
         <rect class="bar" x="2" y="2" width="296" height="20" rx="5"/>
-        <text class="b" x="10" y="15">Spool</text>
+        <text class="b" x="10" y="15">Loadout</text>
         <text class="m s" y="15"><tspan class="cur" x="44">Tickets</tspan><tspan x="78">Stock</tspan><tspan x="102">Orders</tspan><tspan x="130">Tracking</tspan><tspan x="166">Items</tspan><tspan x="190">Console</tspan><tspan x="224">More</tspan></text>
         <rect class="okb" x="250" y="7" width="42" height="11" rx="5.5"/><text class="okt s" x="256" y="15.5">Synced</text>
         <text class="h" x="12" y="40">New ticket: Import CSV</text>
@@ -540,8 +540,8 @@
         <text class="m s" x="12" y="186">+ 9 more lines. Skipped: 3 Labor, 1 Fee</text>
         <rect class="act" x="206" y="174" width="82" height="20" rx="4"/><text class="at" x="219" y="187.5">Create ticket</text>
       </svg>
-      <p class="cap"><strong>What you do</strong>Download the accepted proposal's CSV from Portal, then in Spool choose New ticket and Import CSV. Check the client, job, and proposal number, and press Create ticket.</p>
-      <p class="cap"><strong>What Spool records</strong>No movement yet: pick ticket #1042 with client, job, proposal 2291, who created it and when, and every part grouped by area.</p>
+      <p class="cap"><strong>What you do</strong>Download the accepted proposal's CSV from Portal, then in Loadout choose New ticket and Import CSV. Check the client, job, and proposal number, and press Create ticket.</p>
+      <p class="cap"><strong>What Loadout records</strong>No movement yet: pick ticket #1042 with client, job, proposal 2291, who created it and when, and every part grouped by area.</p>
     </article>
 
     <!-- 2 -->
@@ -549,7 +549,7 @@
       <h3><span class="pn">2</span>Pull from stock</h3>
       <svg class="wf" viewBox="0 0 300 208" role="img" aria-label="Phone sketch: location chip Rack A3, product Ubiquiti U6-Pro with 6 on hand, pick 2 for ticket 1042, Confirm pick button. Beside it the Rack A3 shelf label and the ticket line showing 2 of 4 staged.">
         <rect class="fr" x="6" y="2" width="144" height="204" rx="14"/>
-        <text class="b" x="18" y="21">Spool</text>
+        <text class="b" x="18" y="21">Loadout</text>
         <rect class="okb" x="102" y="12" width="38" height="12" rx="6"/><text class="okt s" x="107" y="21">Synced</text>
         <line class="ln" x1="7" y1="29" x2="149" y2="29"/>
         <line class="ln" x1="7" y1="184" x2="149" y2="184"/>
@@ -573,7 +573,7 @@
         <text class="m s" x="252" y="140">Bay 2</text>
       </svg>
       <p class="cap"><strong>What you do</strong>Scan the Rack A3 shelf label, scan the U6-Pro, confirm 2 for ticket #1042, and set them in Bay 2. The line turns green and shows 2 of 4 staged.</p>
-      <p class="cap"><strong>What Spool records</strong>A pick movement: who, U6-Pro x2, from Rack A3, into Bay 2, for ticket #1042.</p>
+      <p class="cap"><strong>What Loadout records</strong>A pick movement: who, U6-Pro x2, from Rack A3, into Bay 2, for ticket #1042.</p>
     </article>
 
     <!-- 3 -->
@@ -582,7 +582,7 @@
       <svg class="wf" viewBox="0 0 300 208" role="img" aria-label="Desktop sketch: pick ticket 1042 with need, stock, and to-order columns, an Order missing button, and a draft PO 7731 to ADI below.">
         <rect class="fr" x="1" y="1" width="298" height="206" rx="6"/>
         <rect class="bar" x="2" y="2" width="296" height="20" rx="5"/>
-        <text class="b" x="10" y="15">Spool</text>
+        <text class="b" x="10" y="15">Loadout</text>
         <text class="m s" y="15"><tspan class="cur" x="44">Tickets</tspan><tspan x="78">Stock</tspan><tspan x="102">Orders</tspan><tspan x="130">Tracking</tspan><tspan x="166">Items</tspan><tspan x="190">Console</tspan><tspan x="224">More</tspan></text>
         <rect class="okb" x="250" y="7" width="42" height="11" rx="5.5"/><text class="okt s" x="256" y="15.5">Synced</text>
         <text class="h" x="12" y="40">Pick ticket #1042</text>
@@ -604,7 +604,7 @@
         <rect class="gb" x="208" y="168" width="72" height="18" rx="4"/><text class="s b" x="218" y="180">Mark ordered</text>
       </svg>
       <p class="cap"><strong>What you do</strong>On the ticket, press Order missing. The three lines that stock cannot fill go onto a draft PO; when the order is placed with ADI, type the order number and press Mark ordered.</p>
-      <p class="cap"><strong>What Spool records</strong>No stock moves: PO 7731 to ADI, each line tied to its ticket line, and who marked it ordered and when.</p>
+      <p class="cap"><strong>What Loadout records</strong>No stock moves: PO 7731 to ADI, each line tied to its ticket line, and who marked it ordered and when.</p>
     </article>
 
     <!-- 4 -->
@@ -613,7 +613,7 @@
       <svg class="wf" viewBox="0 0 300 208" role="img" aria-label="Desktop sketch: Tracking dashboard. A switch delivered by FedEx but not received sits on top in amber with a Receive button, then a late UDM-SE shipment, then a backordered U6-Pro line.">
         <rect class="fr" x="1" y="1" width="298" height="206" rx="6"/>
         <rect class="bar" x="2" y="2" width="296" height="20" rx="5"/>
-        <text class="b" x="10" y="15">Spool</text>
+        <text class="b" x="10" y="15">Loadout</text>
         <text class="m s" y="15"><tspan x="44">Tickets</tspan><tspan x="78">Stock</tspan><tspan x="102">Orders</tspan><tspan class="cur" x="130">Tracking</tspan><tspan x="166">Items</tspan><tspan x="190">Console</tspan><tspan x="224">More</tspan></text>
         <rect class="okb" x="250" y="7" width="42" height="11" rx="5.5"/><text class="okt s" x="256" y="15.5">Synced</text>
         <text class="h" x="12" y="40">On order, not received</text>
@@ -639,7 +639,7 @@
         <text x="18" y="197">2412 Cat6 x2</text><text x="130" y="197">7735</text><text class="s" x="160" y="197">Ordered 10/24</text>
       </svg>
       <p class="cap"><strong>What you do</strong>Open Tracking each morning. Receive the switch FedEx says was delivered yesterday, and call ADI about the UDM-SE that is two days late.</p>
-      <p class="cap"><strong>What Spool records</strong>Nothing until you act: the page reads PO lines and shipments (carrier, tracking number, expected date) and puts delivered-but-not-received on top.</p>
+      <p class="cap"><strong>What Loadout records</strong>Nothing until you act: the page reads PO lines and shipments (carrier, tracking number, expected date) and puts delivered-but-not-received on top.</p>
     </article>
 
     <!-- 5 -->
@@ -647,7 +647,7 @@
       <h3><span class="pn">5</span>Receive</h3>
       <svg class="wf" viewBox="0 0 300 208" role="img" aria-label="Phone sketch: Receive PO 7731 with a scan box, line counts, and a prompt that the UDM-SE costs 412 dollars, at or above the 250 dollar QR threshold, with a Print item sticker button. Beside it the printed item sticker.">
         <rect class="fr" x="6" y="2" width="144" height="204" rx="14"/>
-        <text class="b" x="18" y="21">Spool</text>
+        <text class="b" x="18" y="21">Loadout</text>
         <rect class="okb" x="102" y="12" width="38" height="12" rx="6"/><text class="okt s" x="107" y="21">Synced</text>
         <line class="ln" x1="7" y1="29" x2="149" y2="29"/>
         <line class="ln" x1="7" y1="184" x2="149" y2="184"/>
@@ -669,8 +669,8 @@
         <text class="m s" x="166" y="118">Item sticker, printed while</text>
         <text class="m s" x="166" y="130">the box is still on the bench</text>
       </svg>
-      <p class="cap"><strong>What you do</strong>Open PO 7731 in Receive mode and scan each box's UPC; the count on each line ticks along. The UDM-SE costs at least $250, so Spool asks for an item sticker, and you print it and stick it on before the box leaves the bench.</p>
-      <p class="cap"><strong>What Spool records</strong>A receive movement per box: who, product, quantity, PO 7731 and its shipment, into Bay 2 for #1042, plus a new item record for the UDM-SE.</p>
+      <p class="cap"><strong>What you do</strong>Open PO 7731 in Receive mode and scan each box's UPC; the count on each line ticks along. The UDM-SE costs at least $250, so Loadout asks for an item sticker, and you print it and stick it on before the box leaves the bench.</p>
+      <p class="cap"><strong>What Loadout records</strong>A receive movement per box: who, product, quantity, PO 7731 and its shipment, into Bay 2 for #1042, plus a new item record for the UDM-SE.</p>
     </article>
 
     <!-- 6 -->
@@ -679,7 +679,7 @@
       <svg class="wf" viewBox="0 0 300 208" role="img" aria-label="Desktop sketch: the Labels page with three QR labels ready to print: Bay 2, Cat6 blue box 3, and U6-Pro item 4F2A9C, and a Print sheet button.">
         <rect class="fr" x="1" y="1" width="298" height="206" rx="6"/>
         <rect class="bar" x="2" y="2" width="296" height="20" rx="5"/>
-        <text class="b" x="10" y="15">Spool</text>
+        <text class="b" x="10" y="15">Loadout</text>
         <text class="m s" y="15"><tspan x="44">Tickets</tspan><tspan x="78">Stock</tspan><tspan x="102">Orders</tspan><tspan x="130">Tracking</tspan><tspan x="166">Items</tspan><tspan x="190">Console</tspan><tspan class="cur" x="224">More</tspan></text>
         <rect class="okb" x="250" y="7" width="42" height="11" rx="5.5"/><text class="okt s" x="256" y="15.5">Synced</text>
         <text class="h" x="12" y="40">Labels</text>
@@ -697,7 +697,7 @@
         <rect class="act" x="206" y="170" width="82" height="20" rx="4"/><text class="at" x="221" y="183.5">Print sheet</text>
       </svg>
       <p class="cap"><strong>What you do</strong>In More, Labels, pick the bay, the wire box, and the AP, and print one sheet. Stick each one where it will be scanned: on the bay upright, on the box beside the cable exit, on the AP itself.</p>
-      <p class="cap"><strong>What Spool records</strong>No movement: each sticker carries the record's id and a readable line, so a torn one can still be typed in.</p>
+      <p class="cap"><strong>What Loadout records</strong>No movement: each sticker carries the record's id and a readable line, so a torn one can still be typed in.</p>
     </article>
 
     <!-- 7 -->
@@ -705,7 +705,7 @@
       <h3><span class="pn">7</span>Wire box</h3>
       <svg class="wf" viewBox="0 0 300 208" role="img" aria-label="Phone sketch: the box sheet for Cat6 blue box 3 with Mark now 640, cut this time 360 feet, for ticket 1042, and a Save button. Beside it a cable box with a QR sticker and the footage mark printed on the cable.">
         <rect class="fr" x="6" y="2" width="144" height="204" rx="14"/>
-        <text class="b" x="18" y="21">Spool</text>
+        <text class="b" x="18" y="21">Loadout</text>
         <rect class="okb" x="102" y="12" width="38" height="12" rx="6"/><text class="okt s" x="107" y="21">Synced</text>
         <line class="ln" x1="7" y1="29" x2="149" y2="29"/>
         <line class="ln" x1="7" y1="184" x2="149" y2="184"/>
@@ -730,8 +730,8 @@
         <text class="m s" x="166" y="176">Read the mark where the</text>
         <text class="m s" x="166" y="188">cable leaves the box</text>
       </svg>
-      <p class="cap"><strong>What you do</strong>After pulling cable, scan the box's QR, type the footage mark where the cable leaves the box (640), and press Save. Spool works out the cut: 360 ft.</p>
-      <p class="cap"><strong>What Spool records</strong>A cut movement: who, Cat6 blue box 3, from mark 1000 to 640, 360 ft, for ticket #1042.</p>
+      <p class="cap"><strong>What you do</strong>After pulling cable, scan the box's QR, type the footage mark where the cable leaves the box (640), and press Save. Loadout works out the cut: 360 ft.</p>
+      <p class="cap"><strong>What Loadout records</strong>A cut movement: who, Cat6 blue box 3, from mark 1000 to 640, 360 ft, for ticket #1042.</p>
     </article>
 
     <!-- 8 -->
@@ -739,7 +739,7 @@
       <h3><span class="pn">8</span>Load the van</h3>
       <svg class="wf" viewBox="0 0 300 208" role="img" aria-label="Phone sketch: pick ticket 1042, status Staged, its lines with item counts, and a Deliver to site button. Beside it the list of six items now out with you for ticket 1042.">
         <rect class="fr" x="6" y="2" width="144" height="204" rx="14"/>
-        <text class="b" x="18" y="21">Spool</text>
+        <text class="b" x="18" y="21">Loadout</text>
         <rect class="okb" x="102" y="12" width="38" height="12" rx="6"/><text class="okt s" x="107" y="21">Synced</text>
         <line class="ln" x1="7" y1="29" x2="149" y2="29"/>
         <line class="ln" x1="7" y1="184" x2="149" y2="184"/>
@@ -765,7 +765,7 @@
         <text class="m s" x="166" y="172">in one tap</text>
       </svg>
       <p class="cap"><strong>What you do</strong>With Bay 2 loaded into the van, open #1042 and press Deliver to site. The six serialized units on the ticket check out to you in that one tap.</p>
-      <p class="cap"><strong>What Spool records</strong>A deliver movement per line and a checkout movement per item: who, item, holder (you), job, ticket #1042, time.</p>
+      <p class="cap"><strong>What Loadout records</strong>A deliver movement per line and a checkout movement per item: who, item, holder (you), job, ticket #1042, time.</p>
     </article>
 
     <!-- 9 -->
@@ -774,7 +774,7 @@
       <svg class="wf" viewBox="0 0 300 208" role="img" aria-label="Desktop sketch: item 7C41E2, a Ubiquiti UDM-SE, status Installed at Acme Dental under proposal 2291, with its history of receive, stage, checkout, and install.">
         <rect class="fr" x="1" y="1" width="298" height="206" rx="6"/>
         <rect class="bar" x="2" y="2" width="296" height="20" rx="5"/>
-        <text class="b" x="10" y="15">Spool</text>
+        <text class="b" x="10" y="15">Loadout</text>
         <text class="m s" y="15"><tspan x="44">Tickets</tspan><tspan x="78">Stock</tspan><tspan x="102">Orders</tspan><tspan x="130">Tracking</tspan><tspan class="cur" x="166">Items</tspan><tspan x="190">Console</tspan><tspan x="224">More</tspan></text>
         <rect class="okb" x="250" y="7" width="42" height="11" rx="5.5"/><text class="okt s" x="256" y="15.5">Synced</text>
         <rect class="act" x="12" y="30" width="140" height="18" rx="3"/>
@@ -795,7 +795,7 @@
         <text class="m s" x="12" y="194">Opened on a service call, 03/14/2028</text>
       </svg>
       <p class="cap"><strong>What you do</strong>On a service call, scan the sticker on the rack with your phone, or type the code under it into Items at the office. The page shows the unit went in on 10/31/2026 under proposal 2291.</p>
-      <p class="cap"><strong>What Spool records</strong>Nothing new: the item's history already holds the receive, stage, checkout, and install movements, each with a name and a date.</p>
+      <p class="cap"><strong>What Loadout records</strong>Nothing new: the item's history already holds the receive, stage, checkout, and install movements, each with a name and a date.</p>
     </article>
 
     <!-- 10 -->
@@ -803,7 +803,7 @@
       <h3><span class="pn">10</span>Something comes back</h3>
       <svg class="wf" viewBox="0 0 300 208" role="img" aria-label="Phone sketch: item U6-Pro 4F2A9D out with you for ticket 1042, Goes to Rack A3, condition Good picked, and a Check in button. Beside it a note about returns from a client's home.">
         <rect class="fr" x="6" y="2" width="144" height="204" rx="14"/>
-        <text class="b" x="18" y="21">Spool</text>
+        <text class="b" x="18" y="21">Loadout</text>
         <rect class="okb" x="102" y="12" width="38" height="12" rx="6"/><text class="okt s" x="107" y="21">Synced</text>
         <line class="ln" x1="7" y1="29" x2="149" y2="29"/>
         <line class="ln" x1="7" y1="184" x2="149" y2="184"/>
@@ -826,7 +826,7 @@
         <rect class="gb" x="174" y="106" width="50" height="14" rx="7"/><text class="s b" x="181" y="116">Returned</text>
       </svg>
       <p class="cap"><strong>What you do</strong>Back at the shop with an AP that was not needed, scan its sticker, press Check in, confirm it goes to Rack A3, and pick its condition.</p>
-      <p class="cap"><strong>What Spool records</strong>A checkin movement: who, item 4F2A9D, back from ticket #1042, into Rack A3, condition Good.</p>
+      <p class="cap"><strong>What Loadout records</strong>A checkin movement: who, item 4F2A9D, back from ticket #1042, into Rack A3, condition Good.</p>
     </article>
 
     <!-- 11 -->
@@ -834,7 +834,7 @@
       <h3><span class="pn">11</span>End of day</h3>
       <svg class="wf" viewBox="0 0 300 208" role="img" aria-label="Phone sketch: today's movements showing two wire box cuts, a green bar reading Synced, 0 pending, and a Scan next box button. Beside it a rack with labeled wire boxes.">
         <rect class="fr" x="6" y="2" width="144" height="204" rx="14"/>
-        <text class="b" x="18" y="21">Spool</text>
+        <text class="b" x="18" y="21">Loadout</text>
         <rect class="okb" x="102" y="12" width="38" height="12" rx="6"/><text class="okt s" x="107" y="21">Synced</text>
         <line class="ln" x1="7" y1="29" x2="149" y2="29"/>
         <line class="ln" x1="7" y1="184" x2="149" y2="184"/>
@@ -859,7 +859,7 @@
         <text class="m s" x="166" y="186">box goes back on the rack</text>
       </svg>
       <p class="cap"><strong>What you do</strong>Before a wire box goes back on the rack or into the van, scan it and enter the mark. Then check that the pill at the top says Synced, with nothing pending.</p>
-      <p class="cap"><strong>What Spool records</strong>A cut movement per box (who, box, marks, feet, ticket); Synced means every change from the day reached the server.</p>
+      <p class="cap"><strong>What Loadout records</strong>A cut movement per box (who, box, marks, feet, ticket); Synced means every change from the day reached the server.</p>
     </article>
 
     <!-- 12 -->
@@ -868,7 +868,7 @@
       <svg class="wf" viewBox="0 0 300 208" role="img" aria-label="Desktop sketch: Console reports, Delivered per job tab, rows for Acme Dental with product, quantity and cost, a total of 1,507.40 dollars, a Read only chip, and an Export XLSX button.">
         <rect class="fr" x="1" y="1" width="298" height="206" rx="6"/>
         <rect class="bar" x="2" y="2" width="296" height="20" rx="5"/>
-        <text class="b" x="10" y="15">Spool</text>
+        <text class="b" x="10" y="15">Loadout</text>
         <text class="m s" y="15"><tspan x="44">Tickets</tspan><tspan x="78">Stock</tspan><tspan x="102">Orders</tspan><tspan x="130">Tracking</tspan><tspan x="166">Items</tspan><tspan class="cur" x="190">Console</tspan><tspan x="224">More</tspan></text>
         <rect class="okb" x="250" y="7" width="42" height="11" rx="5.5"/><text class="okt s" x="256" y="15.5">Synced</text>
         <text class="h" x="12" y="40">Reports</text>
@@ -888,7 +888,7 @@
         <rect class="act" x="206" y="178" width="82" height="18" rx="4"/><text class="at s" x="223" y="190">Export XLSX</text>
       </svg>
       <p class="cap"><strong>What you do</strong>Open Console, Reports, pick Delivered per job and a date range, and press Export XLSX. The same page has spend by vendor, items out, and wire used per job and per person.</p>
-      <p class="cap"><strong>What Spool records</strong>Nothing: reports only read the movement log, and the accounting role has no edit buttons anywhere, so a count cannot change from here.</p>
+      <p class="cap"><strong>What Loadout records</strong>Nothing: reports only read the movement log, and the accounting role has no edit buttons anywhere, so a count cannot change from here.</p>
     </article>
 
     <!-- 13 -->
@@ -919,7 +919,7 @@
         <text class="m s" x="12" y="202">Live. Next ticket in 12 s</text>
       </svg>
       <p class="cap"><strong>What you do</strong>Nothing on the TV. On the ticket, press Show on board; the screen by the bays lists what is still to pull, grouped by the shelf it sits on, and greys each line as the phone scans it into the bay.</p>
-      <p class="cap"><strong>What Spool records</strong>Nothing: the board only reads. Its account can see everything and change nothing, so a stray hand on the screen cannot move a count.</p>
+      <p class="cap"><strong>What Loadout records</strong>Nothing: the board only reads. Its account can see everything and change nothing, so a stray hand on the screen cannot move a count.</p>
     </article>
 
   </div>
@@ -934,16 +934,16 @@
 
   <section class="sop" id="sop-1">
     <h3><span class="sop-id">SOP-1</span>Receiving product</h3>
-    <p class="purpose">Get every box that arrives into Spool the day it lands, against its PO when there is one.</p>
+    <p class="purpose">Get every box that arrives into Loadout the day it lands, against its PO when there is one.</p>
     <p class="whowhen"><span><b>Who</b>Warehouse</span><span><b>When</b>The day a delivery arrives, before the box is opened or shelved</span></p>
     <p class="sub">With a PO</p>
     <ol>
       <li>Open Tracking and press Receive on the row, or open Orders and find the PO number on the packing slip.</li>
       <li>Press Receive on the shipment. The phone camera opens in Receive mode.</li>
       <li>Scan the UPC on each box. Each scan counts one unit against the matching PO line.</li>
-      <li>If Spool asks which line a UPC belongs to, pick the line. Spool saves that UPC to the product, so it is known next time.</li>
-      <li>When a unit costs at or above the QR threshold in Settings (default $250.00), Spool makes an item record and shows Print item sticker. Print it and stick it on the unit before it leaves the bench.</li>
-      <li>Set the box where Spool says: the ticket's staging bay if the line serves a ticket, otherwise its shelf. Scan the bay or shelf label to confirm.</li>
+      <li>If Loadout asks which line a UPC belongs to, pick the line. Loadout saves that UPC to the product, so it is known next time.</li>
+      <li>When a unit costs at or above the QR threshold in Settings (default $250.00), Loadout makes an item record and shows Print item sticker. Print it and stick it on the unit before it leaves the bench.</li>
+      <li>Set the box where Loadout says: the ticket's staging bay if the line serves a ticket, otherwise its shelf. Scan the bay or shelf label to confirm.</li>
       <li>If the shipment is short, leave the line open. It stays on Tracking until the rest arrives.</li>
     </ol>
     <p class="sub">Without a PO</p>
@@ -978,8 +978,8 @@
     <p class="whowhen"><span><b>Who</b>Warehouse or admin</span><span><b>When</b>The day a proposal or change order is accepted in Portal</span></p>
     <ol>
       <li>In Portal, open the accepted proposal and download its CSV.</li>
-      <li>In Spool, go to Tickets, press New ticket, then Import CSV. Drop the file in or paste its text.</li>
-      <li>Check the preview. If Spool says "Could not find column headers", pick them in the mapping table; Spool remembers the mapping for next time.</li>
+      <li>In Loadout, go to Tickets, press New ticket, then Import CSV. Drop the file in or paste its text.</li>
+      <li>Check the preview. If Loadout says "Could not find column headers", pick them in the mapping table; Loadout remembers the mapping for next time.</li>
       <li>Read the Skipped rows list. Labor, fees, and custom items are skipped on purpose; a row with a blank quantity is listed with the reason.</li>
       <li>Leave Create product ticked for parts that are not in the catalog yet.</li>
       <li>Pick or create the client and the job, and check the proposal number.</li>
@@ -995,7 +995,7 @@
     <p class="purpose">Lay out everything a job needs in its own bay, taking from the shelves first.</p>
     <p class="whowhen"><span><b>Who</b>Warehouse</span><span><b>When</b>As soon as the ticket exists, before anything is ordered</span></p>
     <ol>
-      <li>Open the ticket and press Pull everything we have in stock. Spool fills what it can from the shelves and lists what still has to be ordered.</li>
+      <li>Open the ticket and press Pull everything we have in stock. Loadout fills what it can from the shelves and lists what still has to be ordered.</li>
       <li>Press Show on board. The TV by the bays now lists this ticket's lines grouped by the shelf to pull from, in rack order, and greys each line as it is scanned into the bay. Walk the racks in that order.</li>
       <li>At the shelf, open the Scan tab and scan the shelf label. The location chip changes to that shelf.</li>
       <li>Scan the product's UPC, or its item sticker if it has one.</li>
@@ -1018,10 +1018,10 @@
       <li>Place the order with the vendor the way you do today.</li>
       <li>Type the vendor's order number and press Mark ordered.</li>
       <li>When the vendor says a line is backordered, set it to Backordered and type the ETA.</li>
-      <li>When a ship notice arrives, press Add shipment, tick the lines in that box, and paste the tracking number. Spool guesses the carrier from the number; pick it yourself if it cannot tell.</li>
+      <li>When a ship notice arrives, press Add shipment, tick the lines in that box, and paste the tracking number. Loadout guesses the carrier from the number; pick it yourself if it cannot tell.</li>
       <li>Open Tracking each morning. Late rows read like "Expected 10/24, 2 days late"; call the vendor about those.</li>
       <li>Rows that are delivered but not received sit at the top in amber. That is a box somewhere in the building that nobody scanned: find it and receive it (SOP-1).</li>
-      <li>In this first version, carrier status is typed by hand or set from the shipment dates; Spool does not check UPS or FedEx on its own.</li>
+      <li>In this first version, carrier status is typed by hand or set from the shipment dates; Loadout does not check UPS or FedEx on its own.</li>
     </ol>
     <p class="recorded"><b>Recorded:</b> the PO with vendor, order number, who marked it ordered and when, and the ticket line each PO line serves; each shipment with carrier, tracking number, and dates. Stock changes only when the shipment is received.</p>
   </section>
@@ -1031,16 +1031,16 @@
     <p class="purpose">Know how many feet are left in every box and which job used each cut, with the name of who cut it.</p>
     <p class="whowhen"><span><b>Who</b>Anyone who pulls cable: Warehouse or Tech</span><span><b>When</b>When the box is received, every time cable is cut, and at the end of every day</span></p>
     <ol>
-      <li>Receive the box by scanning the UPC printed on it. Spool makes a box record starting at 1000 ft (change it if the box says otherwise) and names it, for example Cat6 blue box 3.</li>
+      <li>Receive the box by scanning the UPC printed on it. Loadout makes a box record starting at 1000 ft (change it if the box says otherwise) and names it, for example Cat6 blue box 3.</li>
       <li>Print its sticker and put it on the side next to the cable exit (SOP-2).</li>
       <li>After pulling cable, read the footage printed on the jacket where it leaves the box.</li>
       <li>Scan the box's QR. The box sheet opens.</li>
-      <li>Type that number into Mark now. Spool fills in Cut this time (last mark minus mark now); change it only if you know the real figure.</li>
-      <li>Check the For ticket chip. Spool fills it from the bay the box sits in; change it if the cable went to another job.</li>
+      <li>Type that number into Mark now. Loadout fills in Cut this time (last mark minus mark now); change it only if you know the real figure.</li>
+      <li>Check the For ticket chip. Loadout fills it from the bay the box sits in; change it if the cable went to another job.</li>
       <li>Press Save.</li>
       <li>End of day: before the box goes back on the rack or into the van, scan it and enter the mark. It takes thirty seconds and puts the right footage and the right name on the job.</li>
       <li>To recount without a cut, use the same sheet with Cut set to 0 and the note "recount".</li>
-      <li>When the box runs out, press Empty. Spool records a final cut to zero and closes the box.</li>
+      <li>When the box runs out, press Empty. Loadout records a final cut to zero and closes the box.</li>
     </ol>
     <p class="open"><b>Still open (D12):</b> the plan assumes your boxes print footage counting down from 1000, so the mark is the feet left; if yours count up from 0, the math on the box sheet flips.</p>
     <p class="recorded"><b>Recorded:</b> a cut movement with who, the box, the mark before and after, feet cut, and the ticket; a recount writes a reading movement instead. The box's feet left and the product's on-hand update.</p>
@@ -1059,7 +1059,7 @@
     <p class="sub">Check in</p>
     <ol start="4">
       <li>Back at the shop, scan the item sticker and press Check in.</li>
-      <li>Confirm where it goes. Spool suggests its usual shelf, or the bay of the ticket it was out for.</li>
+      <li>Confirm where it goes. Loadout suggests its usual shelf, or the bay of the ticket it was out for.</li>
       <li>Pick the condition: Good, Damaged, or Missing parts. Say what is wrong in the note.</li>
       <li>A unit that comes back from a client's home goes in as Returned, not stock. Warehouse looks it over and moves it to In stock.</li>
       <li>If someone else has a unit that shows under your name, ask Warehouse to change the holder; do not check it in for them.</li>
@@ -1079,7 +1079,7 @@
       <li>Press Copy for Portal and paste the status into the proposal (SOP-11).</li>
       <li>After the install, check in anything that came back unused (SOP-7) before closing.</li>
       <li>Open the ticket and press Close.</li>
-      <li>For each leftover, Spool asks: Return to stock (scan it onto a shelf) or Write off (type the reason).</li>
+      <li>For each leftover, Loadout asks: Return to stock (scan it onto a shelf) or Write off (type the reason).</li>
       <li>Stickered units still out for this job become Installed with the job and proposal. They stop counting as stock and keep their history.</li>
     </ol>
     <p class="open"><b>Settled:</b> units become Installed at close, not at delivery, so a unit that comes back unused never shows as installed.</p>
@@ -1089,13 +1089,13 @@
   <section class="sop" id="sop-9">
     <h3><span class="sop-id">SOP-9</span>Counts and adjustments</h3>
     <p class="purpose">Fix a count that is wrong, and leave a reason anyone can read later.</p>
-    <p class="whowhen"><span><b>Who</b>Warehouse and admin only; techs and accounting cannot adjust</span><span><b>When</b>Whenever a shelf count does not match Spool</span></p>
+    <p class="whowhen"><span><b>Who</b>Warehouse and admin only; techs and accounting cannot adjust</span><span><b>When</b>Whenever a shelf count does not match Loadout</span></p>
     <ol>
       <li>Before changing anything, open the product and read its recent movements. A gap is often an unscanned pick or receive; record that movement instead of adjusting.</li>
       <li>Count what is on the shelf.</li>
       <li>On the Scan tab, scan the shelf label, then the product, and press Count. From a desk, open the product and press Adjust.</li>
       <li>Type the number you counted.</li>
-      <li>If it differs from Spool, type the reason. It is required: damaged, found, lost, miscounted, or used without a ticket.</li>
+      <li>If it differs from Loadout, type the reason. It is required: damaged, found, lost, miscounted, or used without a ticket.</li>
       <li>Save. On-hand changes and the reason shows in the log.</li>
       <li>For wire, do not adjust. Take a reading on the box sheet (SOP-6).</li>
     </ol>
@@ -1130,25 +1130,25 @@
     <p class="purpose">Keep the proposal in Portal up to date on where its product stands.</p>
     <p class="whowhen"><span><b>Who</b>Whoever moves the ticket: Warehouse or admin</span><span><b>When</b>When a ticket is staged, ordered, delivered, or closed</span></p>
     <ol>
-      <li>Open the ticket in Spool.</li>
-      <li>Press Copy for Portal. Spool copies a status block like the one below.</li>
+      <li>Open the ticket in Loadout.</li>
+      <li>Press Copy for Portal. Loadout copies a status block like the one below.</li>
       <li>In Portal, open the proposal and its internal notes.</li>
       <li>Paste the block at the end. Do not replace the notes already there.</li>
       <li>Save in Portal.</li>
     </ol>
-<pre class="block">[Spool 2026-10-23 14:05] Pick ticket #1042 - Acme Dental, Main office
+<pre class="block">[Loadout 2026-10-23 14:05] Pick ticket #1042 - Acme Dental, Main office
 Staged 9/12 lines in Bay 2. To order: 3 lines (PO 7731 to ADI, ordered 10/21,
 UPS 1Z999AA10123456784 shipped 10/23). Backordered: Ubiquiti U6-Pro x2.</pre>
-    <p class="open"><b>Still open (D1):</b> on Portal's top plan Spool could add this note by itself; until we know which plan Umbrella is on, copy and paste is the way.</p>
-    <p class="recorded"><b>Recorded:</b> nothing changes in Spool. Portal keeps the pasted note on the proposal.</p>
+    <p class="open"><b>Still open (D1):</b> on Portal's top plan Loadout could add this note by itself; until we know which plan Umbrella is on, copy and paste is the way.</p>
+    <p class="recorded"><b>Recorded:</b> nothing changes in Loadout. Portal keeps the pasted note on the proposal.</p>
   </section>
 
   <!-- ================= PART 3 ================= -->
-  <h2 id="part3"><span class="no">Part 3.</span>What Spool is not</h2>
+  <h2 id="part3"><span class="no">Part 3.</span>What Loadout is not</h2>
   <p class="lede">So expectations match what gets built.</p>
   <ul class="not">
-    <li><strong>Not a replacement for Portal.</strong> Proposals, pricing, and client approvals stay in Portal. Spool reads the proposal's CSV and hands a status note back.</li>
-    <li><strong>Not accounting software.</strong> No invoices and no bills; QuickBooks stays where it is. Spool's reports are a check against it.</li>
+    <li><strong>Not a replacement for Portal.</strong> Proposals, pricing, and client approvals stay in Portal. Loadout reads the proposal's CSV and hands a status note back.</li>
+    <li><strong>Not accounting software.</strong> No invoices and no bills; QuickBooks stays where it is. Loadout's reports are a check against it.</li>
     <li><strong>No automatic package tracking in the first version.</strong> Carrier status is typed in or comes from the shipment dates. Checking UPS and FedEx on a schedule is a later add-on.</li>
     <li><strong>No barcode until it is scanned once.</strong> Portal does not carry UPCs, so the catalog learns each one the first time a box is scanned.</li>
     <li><strong>No unit-by-unit tracking below the threshold.</strong> Cheap stock is counted, not followed, unless someone marks that product Serialize.</li>
@@ -1160,10 +1160,10 @@ UPS 1Z999AA10123456784 shipped 10/23). Backordered: Ubiquiti U6-Pro x2.</pre>
   <!-- ================= TECH SPEC TAB ================= -->
   <div class="tab ov" id="tab-tech" role="tabpanel" aria-labelledby="tabbtn-tech">
   <h2 id="tech">Tech spec</h2>
-  <p class="lede">What Spool would run on, what each piece costs, and a straight answer to the question "will the data still be readable without the app".</p>
+  <p class="lede">What Loadout would run on, what each piece costs, and a straight answer to the question "will the data still be readable without the app".</p>
 
   <h3>In one paragraph</h3>
-  <p>Spool is a web page, not an app from an app store. It lives on the company's existing work site, opens in any browser, and installs to a phone's home screen like an app. People sign in with their company Google account and nothing else. The records live in a hosted database that the company already pays for and uses for its other internal tools. There is no server of our own to patch or reboot; the only moving part beyond the page and the database is a small script that would talk to Portal later, if the Portal plan allows it.</p>
+  <p>Loadout is a web page, not an app from an app store. It lives on the company's existing work site, opens in any browser, and installs to a phone's home screen like an app. People sign in with their company Google account and nothing else. The records live in a hosted database that the company already pays for and uses for its other internal tools. There is no server of our own to patch or reboot; the only moving part beyond the page and the database is a small script that would talk to Portal later, if the Portal plan allows it.</p>
 
   <h3>The pieces</h3>
   <table class="cmp spec">
@@ -1171,7 +1171,7 @@ UPS 1Z999AA10123456784 shipped 10/23). Backordered: Ubiquiti U6-Pro x2.</pre>
     <tbody>
       <tr><td data-l="Piece">The page</td><td data-l="What">Plain HTML, CSS, and JavaScript, one file per screen, no framework or build step.</td><td data-l="Why">Same way every other tool on the work site is built. Anyone can open the file and read it; nothing to compile.</td></tr>
       <tr><td data-l="Piece">Hosting</td><td data-l="What">GitHub Pages, under the existing work site.</td><td data-l="Why">Already in use, no cost, deploys when a change is saved. The tool is unlisted: no link from the hub, not indexed by search engines, and the sign-in wall stops anyone who finds the address.</td></tr>
-      <tr><td data-l="Piece">Sign-in</td><td data-l="What">Firebase Authentication with Google, restricted to company accounts.</td><td data-l="Why">The same sign-in the fleet monitor and backup audit tools use. Adding or removing a person is a Google Workspace action; a role is set once in Spool.</td></tr>
+      <tr><td data-l="Piece">Sign-in</td><td data-l="What">Firebase Authentication with Google, restricted to company accounts.</td><td data-l="Why">The same sign-in the fleet monitor and backup audit tools use. Adding or removing a person is a Google Workspace action; a role is set once in Loadout.</td></tr>
       <tr><td data-l="Piece">Database</td><td data-l="What">Cloud Firestore, Google's hosted database, in the project the other internal tools share. Settled: the comparison with Postgres is below for the record.</td><td data-l="Why">Already in use, works with no signal on the phone, and pushes changes to every open screen within a second, which is what the wall board needs.</td></tr>
       <tr><td data-l="Piece">Live updates</td><td data-l="What">Database listeners.</td><td data-l="Why">When a phone scans a line into the bay, the TV and every open desktop update on their own. No refresh button.</td></tr>
       <tr><td data-l="Piece">No signal</td><td data-l="What">A local copy of the data on each phone, plus the page cached on the device.</td><td data-l="Why">A scan in the back corner of the warehouse saves to the phone and syncs when it sees the network again. The sync pill shows what is waiting.</td></tr>
@@ -1185,7 +1185,7 @@ UPS 1Z999AA10123456784 shipped 10/23). Backordered: Ubiquiti U6-Pro x2.</pre>
   </table>
 
   <h3>Will the data stay readable?</h3>
-  <p>The worry is a fair one. A Firestore database can turn into a pile of documents with random names, fields nested five deep, numbers encoded as codes, and the real meaning spread across a dozen places, so that only the app can make sense of it. That is a design choice, not something Firestore forces, and Spool is designed the other way. The rules below are part of the plan and part of what gets checked before each release.</p>
+  <p>The worry is a fair one. A Firestore database can turn into a pile of documents with random names, fields nested five deep, numbers encoded as codes, and the real meaning spread across a dozen places, so that only the app can make sense of it. That is a design choice, not something Firestore forces, and Loadout is designed the other way. The rules below are part of the plan and part of what gets checked before each release.</p>
   <ul class="plain">
     <li><b>Flat tables with plain names.</b> One collection per kind of thing: products, locations, tickets, orders, shipments, items, wire boxes, movements, people. Each one is the same shape as a spreadsheet tab, and each maps one for one to a table if the data ever moves to SQL.</li>
     <li><b>Readable fields, in English.</b> <code>brand</code>, <code>model</code>, <code>qtyNeeded</code>, <code>ftLeft</code>, <code>holderName</code>. No abbreviations, no codes to decode, no field called <code>x1</code>.</li>
@@ -1193,11 +1193,11 @@ UPS 1Z999AA10123456784 shipped 10/23). Backordered: Ubiquiti U6-Pro x2.</pre>
     <li><b>Readable IDs where the world already has one.</b> A proposal's record is filed under its Portal number. A product's record is filed under its brand and model. Random IDs are used only where nothing better exists, and the readable fields sit right next to them.</li>
     <li><b>No deep nesting and no blobs.</b> At most one level: a ticket has its lines under it, and that is the only case. Nothing is stored as an encoded lump.</li>
     <li><b>A written data dictionary.</b> Every collection and every field is listed, with its meaning, in the plan and on an About screen in the Console. Someone reading the raw database has the key.</li>
-    <li><b>A copy outside the database.</b> The nightly export and the Export everything button produce one CSV per collection that opens in Excel. If Spool vanished tomorrow, the spreadsheets would still say what is on the shelves and who has what.</li>
+    <li><b>A copy outside the database.</b> The nightly export and the Export everything button produce one CSV per collection that opens in Excel. If Loadout vanished tomorrow, the spreadsheets would still say what is on the shelves and who has what.</li>
     <li><b>Dashboards read the same records.</b> The Console's reports are built on the same rows, not on a separate hidden copy, so what accounting sees is what is stored.</li>
   </ul>
   <p>This is what one record would look like in the database console, an item that is out on a job. Every line of it reads without the app:</p>
-<pre class="block">spool_items / 4F2A9C
+<pre class="block">loadout_items / 4F2A9C
   brand:        "Ubiquiti"
   model:        "U6-Pro"
   serial:       "F4E2C6A1B2C3"
@@ -1250,7 +1250,7 @@ UPS 1Z999AA10123456784 shipped 10/23). Backordered: Ubiquiti U6-Pro x2.</pre>
 </article>
 
 <footer class="pagefoot">
-  <p>Spool storyboard v0.4.2, 2026-10-29. Internal, Umbrella Automation.</p>
+  <p>Loadout storyboard v0.5.0, 2026-10-29. Internal, Umbrella Automation.</p>
   <button type="button" class="btn-print" id="printTab">Print this tab as PDF</button>
   <button type="button" class="btn-print" id="printAll">Print everything as PDF</button>
 </footer>
@@ -1264,8 +1264,8 @@ UPS 1Z999AA10123456784 shipped 10/23). Backordered: Ubiquiti U6-Pro x2.</pre>
   var panels = {};
   names.forEach(function (n) { panels[n] = document.getElementById('tab-' + n); });
 
-  function store(v) { try { localStorage.setItem('spool.storyboard.tab', v); } catch (e) {} }
-  function load() { try { return localStorage.getItem('spool.storyboard.tab'); } catch (e) { return null; } }
+  function store(v) { try { localStorage.setItem('loadout.storyboard.tab', v); } catch (e) {} }
+  function load() { try { return localStorage.getItem('loadout.storyboard.tab'); } catch (e) { return null; } }
 
   function show(name, opts) {
     if (names.indexOf(name) < 0) name = 'overview';

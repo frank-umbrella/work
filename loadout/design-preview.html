@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<title>Spool - Inventory Design Preview v0.1</title>
+<title>Loadout - Inventory Design Preview v0.2</title>
 <style>
   /* ---------- page chrome (dark, around the mock) ---------- */
   :root{--pg:#16161c;--pg2:#1e1e26;--pgcard:#24242e;--pgline:#33333f;--pgtext:#e8e8ee;--pgmuted:#9a9aab;--pgacc:#f5a623;}
@@ -362,8 +362,8 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>Spool <span class="ver">design preview v0.1</span></h1>
-  <p class="sub">Spool turns an approved Portal proposal into a pick ticket, tracks every product line from vendor order to staging bay to job site, and keeps the shelf count honest, including feet left on each box of wire. Three visual directions below, four screens each. The markup is identical across directions; only the theme changes. Read <code>PLAN.md</code> next to this file for the build plan; the direction pick is decision D9 there.</p>
+  <h1>Loadout <span class="ver">design preview v0.2</span></h1>
+  <p class="sub">Loadout turns an approved Portal proposal into a pick ticket, tracks every product line from vendor order to staging bay to job site, and keeps the shelf count honest, including feet left on each box of wire. Three visual directions below, four screens each. The markup is identical across directions; only the theme changes. Read <code>PLAN.md</code> next to this file for the build plan; the direction pick is decision D9 there.</p>
   <p class="sub">Reading this as: a staff warehouse app for two to five people on phones and one desktop, in the Backup Audits family, dial ENERGY 1 / RHYTHM 1 / MOTION 1. Every client, person, address, order number, and count in the mock is invented sample data. Only the direction buttons, the view tabs, and the mock's own nav links do anything; every other button is a picture.</p>
 
   <div class="switcher">
@@ -387,8 +387,8 @@
   <div class="mock" id="mock" data-theme="ledger">
     <div class="top">
       <div class="brand">
-        <svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="28" cy="34" r="22" fill="none" stroke="currentColor" stroke-width="5"/><circle cx="28" cy="34" r="13" fill="none" stroke="currentColor" stroke-width="2.5" opacity=".6"/><circle cx="28" cy="34" r="5" fill="currentColor"/><path d="M28 12 H58" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/></svg>
-        Spool <span class="v">v0.1.0</span>
+        <svg viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="20" width="48" height="34" rx="6" fill="none" stroke="currentColor" stroke-width="5"/><path d="M24 20v-6a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v6" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/><path d="M8 35h48" stroke="currentColor" stroke-width="4"/><rect x="27" y="31" width="10" height="8" rx="2" fill="currentColor"/></svg>
+        Loadout <span class="v">v0.1.0</span>
       </div>
       <nav class="nav">
         <a data-go="ticket" class="on">Tickets</a>
@@ -520,11 +520,11 @@
         </div>
         <div class="mcard">
           <div class="thead"><h4>Portal note</h4><span class="sp"><button class="btn sm acc">Copy</button></span></div>
-<pre class="note">[Spool 2026-10-23 14:05] Pick ticket #1042 - Acme Dental, Main office
+<pre class="note">[Loadout 2026-10-23 14:05] Pick ticket #1042 - Acme Dental, Main office
 Staged 18/24 lines in Bay 2. To order: 10 lines (PO 7731 to ADI, ordered 10/21,
 UPS 1Z999AA10123456784 shipped 10/23). Backordered: Ubiquiti U6-Pro x2.
 Not ordered yet: Chief RPMAU x1.</pre>
-          <div class="hint">Paste into the proposal's internal notes. Spool writes it there itself once the Portal API is on.</div>
+          <div class="hint">Paste into the proposal's internal notes. Loadout writes it there itself once the Portal API is on.</div>
         </div>
       </div>
     </div>
@@ -781,8 +781,8 @@ Not ordered yet: Chief RPMAU x1.</pre>
             <div class="sbar"><span>9:41</span><span class="notch"></span><span>5G 82%</span></div>
             <div class="ph-top">
               <div class="brand">
-                <svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="28" cy="34" r="22" fill="none" stroke="currentColor" stroke-width="5"/><circle cx="28" cy="34" r="13" fill="none" stroke="currentColor" stroke-width="2.5" opacity=".6"/><circle cx="28" cy="34" r="5" fill="currentColor"/><path d="M28 12 H58" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/></svg>
-                Spool
+                <svg viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="20" width="48" height="34" rx="6" fill="none" stroke="currentColor" stroke-width="5"/><path d="M24 20v-6a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v6" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/><path d="M8 35h48" stroke="currentColor" stroke-width="4"/><rect x="27" y="31" width="10" height="8" rx="2" fill="currentColor"/></svg>
+                Loadout
               </div>
               <span class="locchip grow" title="Active location, set by scanning a shelf or bay label">Rack A3</span>
               <span class="sync"><i></i>Synced</span>
@@ -791,9 +791,9 @@ Not ordered yet: Chief RPMAU x1.</pre>
               <div class="cam">
                 <div class="box"></div>
                 <div class="laser"></div>
-                <span class="read">spool:ctr:cat6-blue-3</span>
+                <span class="read">loadout:ctr:cat6-blue-3</span>
                 <span class="torch" title="Torch"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2h8l-2 7h-4z"/><path d="M10 9v11a2 2 0 0 0 4 0V9"/></svg></span>
-                <span class="camhint">Point at a UPC or a Spool label</span>
+                <span class="camhint">Point at a UPC or a Loadout label</span>
               </div>
               <div class="manual"><input class="fld" placeholder="UPC, model, or label" title="For a torn label or no camera. Type a UPC, a model like U6-Pro, or a label like Cat6 blue box 3."></div>
 
@@ -822,7 +822,7 @@ Not ordered yet: Chief RPMAU x1.</pre>
       </div>
     </div>
 
-    <div class="foot"><span>Spool v0.1.0</span><span>Signed in as you@umbrellaautomation.com</span><span>Synced</span><span class="sample">Sample data</span></div>
+    <div class="foot"><span>Loadout v0.1.0</span><span>Signed in as you@umbrellaautomation.com</span><span>Synced</span><span class="sample">Sample data</span></div>
     <div class="tabbar">
       <a data-go="ticket" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="14" height="16" rx="2"/><path d="M9 3h6v4H9zM8.5 12h7M8.5 16h5"/></svg>Tickets</a>
       <a data-go="scan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4M4 12h16"/></svg>Scan</a>
@@ -869,7 +869,7 @@ Not ordered yet: Chief RPMAU x1.</pre>
     document.querySelectorAll(".switcher button[data-opt]").forEach(function(b){ b.classList.toggle("active", b.getAttribute("data-opt")===k); });
     var o=opts[k];
     cap.innerHTML="<b>"+o.name+"</b><span class=\"tag\">"+o.tag+"</span>"+(o.rec?"<span class=\"tag rec\">recommended</span>":"")+"<span class=\"d\">"+o.d+"</span>";
-    store("spool.preview.theme",k);
+    store("loadout.preview.theme",k);
   }
   function step(n){ var i=order.indexOf(mock.getAttribute("data-theme")); apply(order[(i+n+order.length)%order.length]); }
   document.querySelectorAll(".switcher button[data-opt]").forEach(function(b){ b.addEventListener("click", function(){ apply(b.getAttribute("data-opt")); }); });
@@ -887,12 +887,12 @@ Not ordered yet: Chief RPMAU x1.</pre>
     document.querySelectorAll(".viewtabs button").forEach(function(b){ b.classList.toggle("active", b.getAttribute("data-view")===v); });
     document.querySelectorAll(".nav a[data-go], .tabbar a[data-go]").forEach(function(a){ a.classList.toggle("on", a.getAttribute("data-go")===v); });
     mock.classList.toggle("phonemode", v==="scan");
-    store("spool.preview.view",v);
+    store("loadout.preview.view",v);
   }
   document.querySelectorAll(".viewtabs button").forEach(function(b){ b.addEventListener("click", function(){ showView(b.getAttribute("data-view")); }); });
   document.querySelectorAll("[data-go]").forEach(function(a){ a.addEventListener("click", function(){ showView(a.getAttribute("data-go")); }); });
 
-  var savedTheme=load("spool.preview.theme"), savedView=load("spool.preview.view");
+  var savedTheme=load("loadout.preview.theme"), savedView=load("loadout.preview.view");
   apply(opts[savedTheme]?savedTheme:"ledger");
   showView(savedView||"ticket");
 })();

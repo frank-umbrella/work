@@ -1,25 +1,26 @@
-# Spool - office inventory, pick tickets, and product tracking
+# Loadout - office inventory, pick tickets, and product tracking
 
-Plan v0.3 - 2026-10-27 by Fable 5.1 (design/plan pass; v0.1 was 2026-10-23,
-v0.2 was 2026-10-26; v0.3 adds the warehouse wall board, section 4).
+Plan v0.4 - 2026-10-29 by Fable 5.1 (design/plan pass; v0.1 was 2026-10-23,
+v0.2 was 2026-10-26; v0.3 (2026-10-27) adds the warehouse wall board,
+section 4; v0.4 renames the tool Loadout and adds section 17).
 Nothing here is built yet. Implementation is a later Opus job once the
 decisions in section 13 are answered and the owner has read the storyboard.
 Open the design switcher at
-`file:///T:/ClaudeCodeRepo/work/spool/design-preview.html` and the storyboard
+`file:///T:/ClaudeCodeRepo/work/loadout/design-preview.html` and the storyboard
 and functional SOP for the owner at
-`file:///T:/ClaudeCodeRepo/work/spool/storyboard.html` (section 15).
+`file:///T:/ClaudeCodeRepo/work/loadout/storyboard.html` (section 15).
 
 v0.2 adds, from the 2026-10-26 notes: serialized items with their own QR and
 a check-out / check-in log (section 8b), a cut log on wire boxes (section 7),
 roles with an accounting console (sections 3, 4), a tracking dashboard for
 product on order (section 4), and the storyboard (section 15).
 
-**Spool** is the working name and folder (`work/spool/`). It is deliberately
-not "inventory" or "warehouse": internal tools on the work site get a neutral
-name, no hub tile, no links from other pages, `noindex, nofollow`, and the
-shared Watchtower sign-in wall (`@umbrellaautomation.com` Google accounts only).
-The name fits the job: wire comes on spools, and orders get spooled up for a
-client. Alternatives if you want a different one: Depot, Manifest, Crate.
+**Loadout** is the name (settled 2026-10-29), folder `work/loadout/`. A
+loadout is the gear you take on a job, which is what this tool assembles and
+tracks. It is still deliberately not "inventory" or "warehouse" in the URL:
+internal tools on the work site get a neutral name, no hub tile, no links from
+other pages, `noindex, nofollow`, and the shared Watchtower sign-in wall
+(`@umbrellaautomation.com` Google accounts only).
 
 Reference products looked at: Portal's own warehouse pick list export, Sortly
 and inFlow (bin and photo-first stock apps), ProjX360 (imports won Portal
@@ -65,7 +66,7 @@ Six things it tracks, in a fixed hierarchy:
 - **Product and stock.** A catalog of products keyed by brand + model (what
   Portal gives us), with UPC/barcode captured the first time one is scanned.
   Stock is on-hand quantity per product per location. Products sold by length
-  are tracked as **containers** (one record per box or spool) with a
+  are tracked as **containers** (one record per box or reel) with a
   feet-left reading, and the product's on-hand is the sum.
 - **Order and shipment.** A purchase order to a vendor with its lines, each
   line pointing at the pick ticket line it serves (or at stock, for
@@ -79,7 +80,7 @@ Six things it tracks, in a fixed hierarchy:
   QR sticker on receive. Scanning it shows where it is, who has it, and its
   history; Check out and Check in record who took it, for which job, and when
   it came back from a client's home.
-- **Wire box.** A box or spool of a by-the-foot product. Received by the UPC
+- **Wire box.** A box or reel of a by-the-foot product. Received by the UPC
   printed on the box, then given a QR sticker. Scanning the QR opens the box
   sheet: the footage mark the box is stopped at now, and the length cut this
   time. Each entry is logged with the employee and the ticket it was cut for.
@@ -93,16 +94,16 @@ the database reads without the app (section 16).
 
 | Decision | Choice | Why |
 |---|---|---|
-| Home | `frank-umbrella/work`, folder `spool/` | Same repo and Pages site as Watchtower, Backup Audits, Sundial. Deploys on push. |
+| Home | `frank-umbrella/work`, folder `loadout/` | Same repo and Pages site as Watchtower, Backup Audits, Sundial. Deploys on push. |
 | Sign-in | Google, `@umbrellaautomation.com` only, Firebase project `watchtower-6fbe1` | Zero new setup. Copy `firebaseConfig`, `ALLOWED_DOMAIN`, the `hd` parameter, and the post-sign-in domain check from `backups/index.html`. |
-| Storage | Firestore, collections prefixed `spool_`, shared by everyone on the domain | Same trade-off as Watchtower's rules: every employee has full read/write. Movements are the audit trail, so mistakes are visible, not prevented. |
+| Storage | Firestore, collections prefixed `loadout_`, shared by everyone on the domain | Same trade-off as Watchtower's rules: every employee has full read/write. Movements are the audit trail, so mistakes are visible, not prevented. |
 | Portal integration | **Tiered** (section 6): T0 manual import works on any plan today; T1 Zapier push needs Premium; T2 full API needs Unlimited plus an approved application | We do not know the current Portal plan. The pick ticket must not depend on an API we may not have. |
 | Notes back to Portal | Append to the proposal's internal notes via API when allowed; otherwise a **Copy for Portal** button | Portal has no comment thread object. Internal notes is a single text field that the update call replaces, and accepted proposals may return 409. Copy-paste is the guaranteed path. |
 | Units | `each` or `ft` per product; `ft` products are tracked per container with a feet-left reading | "Feet left" is a reading you take, not a calculation. Picking 150 ft from a 1000 ft box is a movement against that box. |
 | Barcodes | UPC scanned with the phone camera; falls back to typing | Portal's item model has no SKU or UPC, so the catalog learns barcodes on first receive. Chrome on Android has `BarcodeDetector`; a lazy-loaded zxing fallback covers iOS Safari. |
 | Mobile | Phone first | Scan, pick, and count happen in the warehouse. Bottom tab bar under 640px, thumb-sized buttons, 16px inputs, PWA manifest, offline shell cache plus Firestore persistent cache. |
 | Costs and prices | Off by default; a Settings toggle shows Portal cost per line | The warehouse does not need prices. Salespeople might. Playbook money fields when shown. |
-| Labels | Printable QR labels for bins, staging bays, wire boxes, and serialized items | A spool with a QR sticker takes a feet-left reading in two taps; an item with one answers "who has it" in one scan. Inline QR generator, no CDN. |
+| Labels | Printable QR labels for bins, staging bays, wire boxes, and serialized items | A wire box with a QR sticker takes a feet-left reading in two taps; an item with one answers "who has it" in one scan. Inline QR generator, no CDN. |
 | Roles | `admin`, `warehouse`, `tech`, `accounting`, stored per user; the first admin is seeded by hand | Accounting needs to read everything and write nothing. Techs need scan, check out, check in, and readings, not product edits. The rules enforce it, so the UI is not the only guard. |
 | Serialized items | Automatic at or above the QR threshold (Settings, default $250); manual for anything else | Cheap stock is counted; expensive stock is followed. One scan answers where an AP, a camera, or a processor is and who signed it out. |
 | Wire cuts | Every box entry records the mark now and the length cut, by whom, for which ticket | "Feet left" alone does not say who used 360 ft on Tuesday. The cut log does, and the job gets charged the right footage. |
@@ -113,23 +114,23 @@ the database reads without the app (section 16).
 ## 3. Data model (Firestore, project `watchtower-6fbe1`)
 
 ```
-/spool_clients/{clientId}
+/loadout_clients/{clientId}
   name, portalContactId (string|null), notes, archived
   createdAt, updatedAt
 
-/spool_jobs/{jobId}
+/loadout_jobs/{jobId}
   clientId, name ("Main office buildout"), address, status ("open"|"closed")
   stagingLocationId (string|null)      the bay/pallet reserved for this job
   createdAt, updatedAt
 
-/spool_proposals/{proposalId}          doc id = Portal proposal number as string
+/loadout_proposals/{proposalId}          doc id = Portal proposal number as string
   jobId, clientId
   portalId (string|null)               Portal's internal id, when known
   number, name, status                 Accepted | Completed | ...
   acceptedAt, importedAt, importSource ("csv"|"zapier"|"api"|"manual")
   lastNoteSyncAt, lastNoteStatus       for the Portal note push (section 6)
 
-/spool_products/{productId}
+/loadout_products/{productId}
   kind            "device" | "patch-cable" | "splitter" | "connector" |
                   "wire" | "other"            from the sheet tab it came from
   type            "CAT6 UTP patch cable", "2 way coaxial splitter", "XLR",
@@ -161,7 +162,7 @@ the database reads without the app (section 16).
   ("patch-cable-cat6-utp-rj45m-rj45m-blue-3ft"). Same product, same id,
   so a re-import updates instead of duplicating.
 
-/spool_users/{uid}
+/loadout_users/{uid}
   email, name, role ("admin"|"warehouse"|"tech"|"accounting"|"board"), active
                   "board" is the TV's own account: reads everything, writes
                   nothing, and is sent straight to the Board view on sign-in
@@ -170,9 +171,9 @@ the database reads without the app (section 16).
   the console's People tab. A signed-in domain account with no doc gets
   role "tech" and is listed for an admin to confirm.
 
-/spool_items/{itemId}                  one physical unit, serialized
+/loadout_items/{itemId}                  one physical unit, serialized
   productId, serial (string|null), cost (number|null)
-  qr              "spool:item:{itemId}"
+  qr              "loadout:item:{itemId}"
   status          "on_order" | "in_stock" | "staged" | "checked_out" |
                   "installed" | "returned" | "retired"
   locationId      where it sits when in stock or staged
@@ -182,7 +183,7 @@ the database reads without the app (section 16).
   orderId, shipmentId                  where it came from
   createdAt, updatedAt
 
-/spool_locations/{locationId}
+/loadout_locations/{locationId}
   area ("Storage room", "Computer Room Shelving Rack", "Warehouse")
   shelf ("RCA A/V Video", "Power cables", "C", "")   blank for a bare area
   name            "Storage room, RCA A/V Video"   composed; what labels print
@@ -191,10 +192,10 @@ the database reads without the app (section 16).
   qr              string               payload printed on the label
   Document id: area-shelf slug ("storage-room--rca-av-video").
 
-/spool_stock/{productId_locationId}    one doc per product per location
+/loadout_stock/{productId_locationId}    one doc per product per location
   productId, locationId, qty           qty in the product's unit
 
-/spool_containers/{containerId}        only for unit == "ft" products
+/loadout_containers/{containerId}        only for unit == "ft" products
   productId, locationId
   upc             the barcode printed on the box, scanned at receive
   label           the shop's existing box code ("A826", "BB"), kept as the
@@ -206,14 +207,14 @@ the database reads without the app (section 16).
   status ("open"|"empty"|"assigned"), pickTicketId (string|null)
   qr, createdAt, lastReadingAt, lastReadingBy
 
-/spool_tickets/{ticketId}              pick ticket
+/loadout_tickets/{ticketId}              pick ticket
   proposalId, jobId, clientId
   status      "open" | "picking" | "staged" | "delivered" | "closed"
   stagingLocationId
   createdAt, createdBy, updatedAt
   summary     {lines, needed, fromStock, toOrder, staged, delivered}  denormalized
 
-/spool_tickets/{ticketId}/lines/{lineId}
+/loadout_tickets/{ticketId}/lines/{lineId}
   area ("Living Room"), option, sort
   productId (string|null)              null until matched to the catalog
   brand, model, description            copied from the proposal so the line reads
@@ -222,24 +223,24 @@ the database reads without the app (section 16).
   portalItemId, orderLineRefs [{orderId, orderLineId}]
   notes
 
-/spool_orders/{orderId}                purchase order
+/loadout_orders/{orderId}                purchase order
   vendor, orderNumber, orderedAt, orderedBy
   status      "draft" | "ordered" | "partial" | "received" | "cancelled"
   jobId, clientId, proposalId          null for stock replenishment
   notes
 
-/spool_orders/{orderId}/lines/{lineId}
+/loadout_orders/{orderId}/lines/{lineId}
   productId, brand, model, qtyOrdered, qtyReceived
   ticketId, ticketLineId               what this line serves; null = stock
   status      "ordered" | "backordered" | "shipped" | "delivered" | "received"
 
-/spool_shipments/{shipmentId}
+/loadout_shipments/{shipmentId}
   orderId, carrier ("UPS"|"FedEx"|"USPS"|"Other"), tracking, trackingUrl
   status ("shipped"|"out_for_delivery"|"delivered"|"received")
   shippedAt, deliveredAt, receivedAt
   lines [{orderLineId, qty}]           partial shipments carry only their lines
 
-/spool_movements/{movementId}          append-only audit trail
+/loadout_movements/{movementId}          append-only audit trail
   type        "receive"|"pick"|"stage"|"deliver"|"adjust"|"reading"|"cut"|
               "checkout"|"checkin"|"return"|"transfer"
   productId, containerId (null), itemId (null), qty
@@ -249,7 +250,7 @@ the database reads without the app (section 16).
   holderUid, holderName, condition             checkout / checkin only
   by (email), byName, at (Timestamp), note
 
-/spool_settings/{key}
+/loadout_settings/{key}
   "general"   {showCosts, carriers: {UPS: urlPattern, ...}, labelSize,
                qrThreshold: 250}            cost at or above which a received
                                             unit becomes a serialized item
@@ -265,42 +266,42 @@ Rules to add to `watchtower/firestore.rules` (shared file, deployed with
 Watchtower's `firebase.json`, work account `frank@umbrellaautomation.com`):
 
 ```
-function spoolRole() {
-  return exists(/databases/$(database)/documents/spool_users/$(request.auth.uid))
-    ? get(/databases/$(database)/documents/spool_users/$(request.auth.uid)).data.role
+function loadoutRole() {
+  return exists(/databases/$(database)/documents/loadout_users/$(request.auth.uid))
+    ? get(/databases/$(database)/documents/loadout_users/$(request.auth.uid)).data.role
     : 'tech';
 }
 // 'accounting' and 'board' are read-only: they appear in no writer list below
-function spoolAdmin()  { return isMSPAdmin() && spoolRole() == 'admin'; }
-function spoolWriter() { return isMSPAdmin() && spoolRole() in ['admin', 'warehouse']; }
-function spoolTech()   { return isMSPAdmin() && spoolRole() in ['admin', 'warehouse', 'tech']; }
+function loadoutAdmin()  { return isMSPAdmin() && loadoutRole() == 'admin'; }
+function loadoutWriter() { return isMSPAdmin() && loadoutRole() in ['admin', 'warehouse']; }
+function loadoutTech()   { return isMSPAdmin() && loadoutRole() in ['admin', 'warehouse', 'tech']; }
 
-match /spool_users/{uid}   { allow read: if isMSPAdmin(); allow write: if spoolAdmin(); }
-match /spool_settings/{k}  { allow read: if isMSPAdmin(); allow write: if spoolAdmin(); }
-match /spool_movements/{id} {
+match /loadout_users/{uid}   { allow read: if isMSPAdmin(); allow write: if loadoutAdmin(); }
+match /loadout_settings/{k}  { allow read: if isMSPAdmin(); allow write: if loadoutAdmin(); }
+match /loadout_movements/{id} {
   allow read: if isMSPAdmin();
-  allow create: if spoolTech();
+  allow create: if loadoutTech();
   allow update, delete: if false;          // audit trail is append-only
 }
 // techs may change the fields their scans touch, nothing else
-match /spool_items/{id}      { allow read: if isMSPAdmin(); allow create, delete: if spoolWriter();
-  allow update: if spoolWriter() || (spoolTech() && request.resource.data.diff(resource.data).affectedKeys()
+match /loadout_items/{id}      { allow read: if isMSPAdmin(); allow create, delete: if loadoutWriter();
+  allow update: if loadoutWriter() || (loadoutTech() && request.resource.data.diff(resource.data).affectedKeys()
     .hasOnly(['status','holderUid','holderName','jobId','ticketId','ticketLineId','locationId',
               'checkedOutAt','checkedInAt','condition','updatedAt'])); }
-match /spool_containers/{id} { allow read: if isMSPAdmin(); allow create, delete: if spoolWriter();
-  allow update: if spoolWriter() || (spoolTech() && request.resource.data.diff(resource.data).affectedKeys()
+match /loadout_containers/{id} { allow read: if isMSPAdmin(); allow create, delete: if loadoutWriter();
+  allow update: if loadoutWriter() || (loadoutTech() && request.resource.data.diff(resource.data).affectedKeys()
     .hasOnly(['ftLeft','lastMark','status','pickTicketId','lastReadingAt','lastReadingBy','locationId'])); }
 match /{coll}/{docId} {
-  allow read: if isMSPAdmin() && coll.matches('spool_.*');      // accounting reads everything
-  allow write: if spoolWriter() && coll.matches('spool_.*');
-  match /{sub=**} { allow read: if isMSPAdmin() && coll.matches('spool_.*');
-                    allow write: if spoolWriter() && coll.matches('spool_.*'); }
+  allow read: if isMSPAdmin() && coll.matches('loadout_.*');      // accounting reads everything
+  allow write: if loadoutWriter() && coll.matches('loadout_.*');
+  match /{sub=**} { allow read: if isMSPAdmin() && coll.matches('loadout_.*');
+                    allow write: if loadoutWriter() && coll.matches('loadout_.*'); }
 }
 ```
 
 (Firestore evaluates the specific matches first; the wildcard match must not
-grant anything to non-spool collections, hence the prefix check. Each
-`get()` in `spoolRole()` counts against the per-request limit of ten, so
+grant anything to non-loadout collections, hence the prefix check. Each
+`get()` in `loadoutRole()` counts against the per-request limit of ten, so
 keep it to one lookup per rule. Verify in the rules playground before
 deploying.)
 
@@ -381,7 +382,7 @@ every screen: Synced / Offline, 3 pending.
   scan, so a tech watching the board sees the line grey out as the phone
   saves. Offline or disconnected: a red "Not live since 2:14 PM" strip at
   the top; the last data stays on screen.
-- **Idle.** No open tickets: the Spool mark, "Nothing to pick", the three
+- **Idle.** No open tickets: the Loadout mark, "Nothing to pick", the three
   lowest consumables with feet left, and the clock. The board never goes to
   a sign-in screen on its own: the TV's account is signed in once and the
   token refreshes in the background.
@@ -504,7 +505,7 @@ every screen: Synced / Offline, 3 pending.
   - Wire usage: cuts per job and per employee, feet and cost.
   - Movements export: the raw audit trail, filtered.
   - Aging: open tickets by age, open POs by age, delivered-not-received.
-- **People** (admin only): the roster from `spool_users`, role per person,
+- **People** (admin only): the roster from `loadout_users`, role per person,
   confirm newcomers, deactivate.
 - **Settings** (admin only): show costs, QR threshold, carriers, label
   size, Portal tier and status, default start length for wire boxes.
@@ -531,7 +532,7 @@ Portal exports a proposal as CSV, PDF, installer PDF, and a warehouse pick list
 (with unit of measure since June 2026). The CSV is the import source.
 
 1. In Portal, open the accepted proposal, download the CSV.
-2. In Spool, **New ticket > Import CSV**: drop the file or paste its text.
+2. In Loadout, **New ticket > Import CSV**: drop the file or paste its text.
 3. The parser reads area, item type, brand, model, description, quantity, and
    unit where present. Labor, Fee, and CustomItem rows are skipped and listed
    so nothing is silently dropped. Nested accessories keep their parent's
@@ -545,7 +546,7 @@ Portal exports a proposal as CSV, PDF, installer PDF, and a warehouse pick list
 
 Because Portal's export columns are not published, the parser maps columns by
 header name with a preview table so you can fix a mapping once; the mapping is
-saved in `spool_settings/importMap`. The first real CSV decides the final
+saved in `loadout_settings/importMap`. The first real CSV decides the final
 mapping, so the build needs one sample file from you (section 13, D3).
 
 The same sheet accepts a hand-built ticket (type lines) and a re-import of a
@@ -579,34 +580,34 @@ a status block and copies it; you paste it into the proposal's internal notes.
 Format:
 
 ```
-[Spool 2026-10-23 14:05] Pick ticket #1042 - Acme Dental, Main office
+[Loadout 2026-10-23 14:05] Pick ticket #1042 - Acme Dental, Main office
 Staged 18/24 lines in Bay 2. To order: 4 lines (PO 7731 to ADI, ordered 10/22,
 UPS 1Z999AA10123456784 shipped 10/23). Backordered: Ubiquiti U6-Pro x2.
 ```
 
 **T1 - Zapier push (Premium).** A Zap on "Update Proposal Status" filtered to
-Accepted posts the payload to `spool-worker` (Cloudflare Worker on the
+Accepted posts the payload to `loadout-worker` (Cloudflare Worker on the
 umbrella account, `cf umbrella`). The worker verifies a shared secret, parses
-areas/items, writes `spool_proposals/{number}` and a draft pick ticket through
+areas/items, writes `loadout_proposals/{number}` and a draft pick ticket through
 the Firestore service account, same pattern as watchtower-worker. The ticket
-appears in Spool with "Imported from Portal, review" before anyone touches it.
+appears in Loadout with "Imported from Portal, review" before anyone touches it.
 Order-status triggers can also update order lines to Received when Portal's
 own PO is marked received. Still no write-back.
 
 **T2 - API (Unlimited + approved application).** The worker holds the Portal
 app id and user key as secrets (`wrangler secret put`, never in chat). It
 subscribes to `proposal.status_changed`, pulls the proposal on Accepted, and
-on every Spool status change appends to the proposal's internal notes by
+on every Loadout status change appends to the proposal's internal notes by
 reading the current text, appending the status block, and writing it back.
 If accepted proposals return 409 for notes, T2 falls back to T0's copy button
-and the plan notes it. Also lets Spool show Portal's `linkedOrders` beside our
+and the plan notes it. Also lets Loadout show Portal's `linkedOrders` beside our
 own PO lines.
 
 Build T0 first. T1 and T2 are worker work and need the plan tier known.
 
 ## 7. Wire boxes: feet left and the cut log
 
-- A `ft` product has containers (boxes or spools). **Receive** scans the UPC
+- A `ft` product has containers (boxes or reels). **Receive** scans the UPC
   printed on the box, which identifies the product; the box gets a container
   record with `startLength` (1000 by default for Cat5e/Cat6 boxes, editable),
   a label like "Cat6 blue box 3", and a QR sticker from the label sheet.
@@ -634,7 +635,7 @@ Build T0 first. T1 and T2 are worker work and need the plan tier known.
   to the site with the staging bay.
 - `Empty` sets `ftLeft = 0`, status `empty`, and drops it from on-hand.
 - On-hand for the product = sum of open containers' `ftLeft` plus any
-  `spool_stock` rows (for a `ft` product those should stay at zero; the UI
+  `loadout_stock` rows (for a `ft` product those should stay at zero; the UI
   hides them).
 - Par level on a `ft` product is in feet; low stock shows "640 ft left, par
   1000 ft, order 2 boxes".
@@ -662,7 +663,7 @@ Build T0 first. T1 and T2 are worker work and need the plan tier known.
   Settings (default $250). Also anything a warehouse user chooses to
   **Serialize** on a product, in any quantity. Item records are created at
   receive, so the QR label prints while the box is still on the bench.
-- **The label.** QR payload `spool:item:{itemId}` plus a human line: product
+- **The label.** QR payload `loadout:item:{itemId}` plus a human line: product
   and the last 6 of the item id (or the serial when typed or scanned from the
   box). Printed on the 2x4 sheet for anything that will live in a rack, or
   the small sheet for handhelds.
@@ -702,8 +703,8 @@ Build T0 first. T1 and T2 are worker work and need the plan tier known.
 
 ## 10. Labels and QR
 
-- Payloads: `spool:loc:{locationId}`, `spool:ctr:{containerId}`,
-  `spool:prod:{productId}`, `spool:item:{itemId}`. The Scan view routes on
+- Payloads: `loadout:loc:{locationId}`, `loadout:ctr:{containerId}`,
+  `loadout:prod:{productId}`, `loadout:item:{itemId}`. The Scan view routes on
   the prefix; a plain UPC routes to the product lookup (and, in Receive mode,
   counts a unit against the open PO).
 - Every label carries the payload as a QR and a human-readable line, so a
@@ -765,7 +766,7 @@ Build T0 first. T1 and T2 are worker work and need the plan tier known.
 | 0.3.0 | Orders, lines, shipments, carrier detection, receive-by-shipment into bays with barcode counting, chips on ticket lines, low-stock reorder into draft POs, the Tracking dashboard. |
 | 0.4.0 | Console: reports with CSV / XLSX export, People, Settings, About (data dictionary), Export everything (one CSV per collection, zipped); accounting role end to end. |
 | 0.5.0 | Offline (sw.js + persistent cache + sync pill), PWA manifest, photos on products. |
-| 0.6.0 | spool-worker: T1 Zapier intake (if Premium) or T2 API intake and note push (if Unlimited and approved); nightly CSV export to the company Drive; carrier tracking poll if wanted. Settings shows the tier and last sync. |
+| 0.6.0 | loadout-worker: T1 Zapier intake (if Premium) or T2 API intake and note push (if Unlimited and approved); nightly CSV export to the company Drive; carrier tracking poll if wanted. Settings shows the tier and last sync. |
 
 Each version is a release: bump the version everywhere, README changelog entry
 with the why, small commits.
@@ -790,13 +791,9 @@ with the why, small commits.
   scanning optional? Plan assumes optional.
 - **D7 Costs.** Show Portal cost per line to everyone, nobody, or behind the
   Settings toggle (default)?
-- **D8 Name.** Not Spool (2026-10-29). Options, all neutral enough for the
-  work site and short enough for a phone tab: **Depot** (where stock lives;
-  the plain pick), **Quartermaster** (the person who issues gear and knows
-  who has what; "QM" on the tab), **Keep** (the storeroom of a castle, and
-  keeping track), **Hold** (where cargo sits on a ship), **Manifest** (the
-  list of what is on board), **Stow**, **Dock**, **Crate**. Recommendation:
-  Depot for the URL and tab, Quartermaster if you want character.
+- **D8 Name.** Settled 2026-10-29: **Loadout**. (Spool, Depot, Quartermaster,
+  Keep, Hold, Manifest, Stow, Dock, Crate, Kit, Packout, Pull and others were
+  considered; Pull stays as the fallback.)
 - **D9 Design.** Pick A, B, or C from the switcher. Design Read: a staff
   warehouse app for two to five people on phones and one desktop, in the
   Backup Audits family, dial ENERGY 1 / RHYTHM 1 / MOTION 1. B is recommended
@@ -805,7 +802,7 @@ with the why, small commits.
   area headers, mono for anything printed on a box or label). A is the pick
   if the phone in the rack room matters more than the desktop next to the
   other tools; C if you want the paper feel and will print tickets often.
-- **D10 Firebase.** OK to keep this in `watchtower-6fbe1` with `spool_`
+- **D10 Firebase.** OK to keep this in `watchtower-6fbe1` with `loadout_`
   collections, or do you want a dedicated project for inventory data?
 - **D11 QR threshold.** Serialize every unit received at or above what cost?
   The plan says $250. Say a number, or "everything with a serial number".
@@ -826,7 +823,7 @@ with the why, small commits.
   speaker 500?). Which?
 - **D17 Assigned inventory.** The sheet is "Unassigned Inventory", so there
   is presumably a per-job or assigned list somewhere. Is there, and should
-  it be imported as staged stock against jobs, or does Spool start with the
+  it be imported as staged stock against jobs, or does Loadout start with the
   unassigned stock only and build the rest from new pick tickets?
 - **D14 Wall board hardware and mode.** What drives the TV: a mini PC in
   kiosk mode (recommended), a Chromecast or Android stick browser, or a
@@ -835,19 +832,19 @@ with the why, small commits.
 
 ## 14. Files
 
-- `work/spool/PLAN.md` - this file.
-- `work/spool/design-preview.html` - switcher with three directions, four
+- `work/loadout/PLAN.md` - this file.
+- `work/loadout/design-preview.html` - switcher with three directions, four
   views each (Ticket detail, Stock/Consumables, Orders, Scan on phone).
-- `work/spool/anti-slop/audit-001-2026-10-23.md` - antislop audit of the
+- `work/loadout/anti-slop/audit-001-2026-10-23.md` - antislop audit of the
   switcher and this plan, with the follow-up record of what was fixed.
-- `work/spool/storyboard.html` - the storyboard and functional SOP for the
+- `work/loadout/storyboard.html` - the storyboard and functional SOP for the
   owner (section 15). Self-contained, prints to PDF from the browser.
-- `work/spool/samples/` - real test data (the owner's Excel sheet, a Portal
+- `work/loadout/samples/` - real test data (the owner's Excel sheet, a Portal
   CSV). Ignored by git because the repo is public; never commit anything in
   it. Sessions read it from disk to shape the import mapping and seed data.
 - Later: `index.html`, `sw.js`, `manifest.json`, `og-image.png`, icons,
   `README.md`; rules block in `watchtower/firestore.rules`;
-  `spool-worker/` for T1/T2. The design switcher gains Tracking, Items,
+  `loadout-worker/` for T1/T2. The design switcher gains Tracking, Items,
   Console, and Board views once D9 picks a direction.
 
 ## 15. Storyboard and functional SOP (for the owner, before the build)
@@ -955,9 +952,9 @@ read. These are build requirements, checked before each release:
    movements; `ticketNumber` beside `ticketId`. A row reads on its own in
    the console or a CSV. Names are snapshots; renaming a client does not
    rewrite history.
-4. Readable document ids where the world has one: `spool_proposals/{Portal
-   number}`, `spool_products/{brand-model slug}` (`ubiquiti-u6-pro`),
-   `spool_locations/{rack-a3}`, `spool_tickets/{proposal number}` (or
+4. Readable document ids where the world has one: `loadout_proposals/{Portal
+   number}`, `loadout_products/{brand-model slug}` (`ubiquiti-u6-pro`),
+   `loadout_locations/{rack-a3}`, `loadout_tickets/{proposal number}` (or
    `{number}-co2` for a change order). Random ids only for movements,
    shipments, items, and containers, and those carry names (rule 3).
 5. A data dictionary: section 3 of this plan is the source; the Console's
@@ -965,8 +962,8 @@ read. These are build requirements, checked before each release:
    constant in the code, so it cannot drift from the build.
 6. **Export everything** in the Console: one CSV per collection, zipped,
    opening in Excel with the headers from rule 2. Phase 0.4.0.
-7. Nightly export: spool-worker writes the same CSVs to a company Google
-   Drive folder ("Spool backups", dated subfolders, 90-day retention) through
+7. Nightly export: loadout-worker writes the same CSVs to a company Google
+   Drive folder ("Loadout backups", dated subfolders, 90-day retention) through
    a service account. Phase 0.6.0, with the worker. Until then, Export
    everything by hand on Fridays is SOP-10's last step.
 8. Reports read the live collections, never a hidden copy.
