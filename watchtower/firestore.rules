@@ -383,10 +383,20 @@ service cloud.firestore {
     match /loadout_settings/importMap {
       allow write: if loadoutWriter();
     }
+    // A vendor typed on a purchase order (0.3.0) joins the vendor list in
+    // settings/general. Warehouse may add to that list and nothing else
+    // there; the rest of general stays admin-only above.
+    match /loadout_settings/general {
+      allow create: if loadoutWriter()
+        && request.resource.data.keys().hasOnly(['vendors', 'updatedAt', 'updatedBy', 'updatedByName']);
+      allow update: if loadoutWriter()
+        && loadoutOnly(['vendors', 'updatedAt', 'updatedBy', 'updatedByName']);
+    }
     // Everything else under loadout_* (stock, locations, clients, jobs,
-    // proposals, tickets, and later orders and shipments): everyone on the
-    // domain reads, warehouse and
-    // admin write. The prefix check keeps this from touching any other
+    // proposals, tickets, orders with their lines, and shipments): everyone
+    // on the domain reads, warehouse and admin write. Techs write none of
+    // the order collections; receiving is warehouse and admin. The prefix
+    // check keeps this from touching any other
     // tool's collections.
     match /{coll}/{docId} {
       allow read: if isMSPAdmin() && coll.matches('loadout_.*');

@@ -796,6 +796,10 @@ with the why, small commits.
 
 ## 12b. Fix list from the first live run (2026-10-29)
 
+Status: all five items are done in 0.3.0 (README changelog). Item 4 also
+closes the space in a connector's hyphen ("Edison- M" reads "Edison-M"),
+since a comma there would split one connector in two.
+
 The user deployed the rules, signed in, and imported the workbook on the live
 site. Confirmed working: 262 products, 216 consumables, 17 locations, 13
 serialized units, 300 import movements naming the workbook tab and row, wire

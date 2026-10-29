@@ -8,7 +8,7 @@ pages, `noindex, nofollow`, and the shared Watchtower sign-in
 (`@umbrellaautomation.com` Google accounts only). The plan is `PLAN.md`; the
 chosen look is direction B, Ledger, in `design-preview.html`.
 
-Current version: **0.2.0**.
+Current version: **0.3.0**.
 
 ## Files
 
@@ -25,7 +25,8 @@ Current version: **0.2.0**.
 ## Using it
 
 - **Tickets** (home on the desktop): pick tickets grouped by status, with
-  filters for status, client, and items to order. **New ticket** imports a
+  filters for status, client, install date, items to order, and backorders,
+  and an Install column that sorts. **New ticket** imports a
   Portal proposal CSV (columns matched by header name, a preview, Labor, Fee,
   and CustomItem rows and blank quantities listed as skipped, unmatched brands
   and models offered as new products) or takes lines typed by hand. Importing
@@ -33,29 +34,66 @@ Current version: **0.2.0**.
 - **Ticket**: lines grouped by area with Pull from stock (pick the shelf, scan
   if you like; the quantity moves to the staging bay), Stage, Deliver to site
   (serialized units on the line check out to whoever delivers), and Note;
-  Pull everything in stock; Copy for Portal; Print (a pick list); Show on
-  board; and Close, which returns or writes off what is left in the bay and
-  marks units out on the ticket installed at the job.
+  Pull everything in stock; Copy for Portal (it now lists what is on order,
+  with PO, carrier, and dates); Print (a pick list); Show on board; and Close,
+  which returns or writes off what is left in the bay and marks units out on
+  the ticket installed at the job. The header carries the install date.
+  **Order missing** and a line's **Order** put what stock cannot cover on a
+  draft purchase order, and each line shows a chip per PO, for example
+  "PO 7731 - UPS 1Z999AA1 - shipped 10/23".
+- **Orders**: purchase orders with filters for status and vendor. A draft's
+  empty Vendor select glows until one is picked; a vendor typed there joins the
+  list in Settings. An order shows its lines (ordered, backordered with the
+  vendor's ETA, shipped, delivered, received, and the ticket line each serves)
+  and its shipments. **Mark ordered** needs the vendor and the vendor's order
+  number. **Add shipment** guesses the carrier from the tracking number (1Z is
+  UPS, 12 or 15 digits FedEx, 20 to 22 digits starting with 9 USPS; it can be
+  changed) and carries some or all of the lines. **Receive** walks a shipment
+  line by line: tap to take the quantity, or scan each unit's UPC to count it;
+  lines for a ticket go into its staging bay and count as staged, the rest go
+  on a shelf; units at or above the QR threshold become serialized units
+  ("Product name #n") with a prompt to print their labels.
+- **Tracking**: every order line not yet received, grouped by job and then
+  stock, with carrier, tracking link, expected date, and days open. Delivered
+  but not received rises to the top in amber and late lines say how late.
+  Filters for job, vendor, carrier, status, and late; Receive and Note per row.
+- **Week**: the staging schedule as a timesheet, one block per day with a card
+  per ticket by its install date and each line's status on the right. Previous
+  week, This week, Next week; a Work week toggle (remembered per person) hides
+  the weekend and shows a chip when a hidden day has work. Past days are faded,
+  today has a soft blue border, and tickets with no install date sit in an
+  Unscheduled list with a date field. On the phone the days stack, today first.
 - **Board** (`?board=1`, and the landing view for the board role): the
   warehouse TV. One pinned ticket per screen, rotating, lines grouped by the
-  shelf to pull from in rack order; picked lines greyed, to-order amber, short
-  red; a red "Not live since" strip when the connection drops.
+  shelf to pull from in rack order; picked lines greyed, to-order amber (with
+  the PO and ETA once ordered), short red; a red "Not live since" strip when
+  the connection drops. The Today mode shows the tickets whose install date is
+  today, from the Week view.
 - **Stock**: the catalog with search, sorting, a Columns manager, and tabs for
-  All, Consumables (wire boxes with feet left), Low stock, and Locations.
-  Open a product to edit it, set its UPC by scanning, receive, adjust with a
-  reason, serialize units, add a box, or print its label.
+  All, Consumables (wire boxes with feet left), Low stock (with Reorder), and
+  Locations. A product or location row opens in place under itself: fields in
+  two columns, on hand by location, boxes, and one row of buttons (Save,
+  Receive, Adjust, Serialize, New box, Reorder, Print label, History). One is
+  open at a time; Escape or the chevron closes it, and the address carries it
+  (`#stock/p/<id>`, `#stock/l/<id>`), so a link lands on it open. Modals stay
+  for the decisions that need a confirm.
 - **Scan**: point the phone at a UPC or a Loadout label, or type the code.
   Shelf labels set the active location; box labels open the box sheet (mark
   now, cut this time, quick -50 / -100 / -250, Empty, recount); unit labels
   show who has it with Check out and Check in. A product card has Pick for
   ticket, a unit card Stage for ticket, the box sheet a For ticket chip, and a
   bay's label shows the ticket staged there.
-- **Items**: every serialized unit, with Out as the Friday list.
-- **More**: movements log with filters and CSV, Clients and Jobs (add, edit,
+- **Items**: every serialized unit, with Out as the Friday list. A unit opens
+  in place the same way (`#items/i/<id>`), with its label, serial, condition,
+  Check out, Check in, Move, Retire, and History.
+- **More**: movements log with filters, Previous / This / Next week buttons,
+  and CSV, Clients and Jobs (add, edit,
   archive; a job can reserve a staging bay), label sheets (Avery 5160 or
   2 x 4), and for admins the Board settings, the inventory sheet importer,
   Settings, and People.
-  Export everything downloads one workbook with a tab per collection.
+  Export everything downloads one workbook with a tab per collection. On the
+  phone the tab bar is Tickets, Scan, Week, Stock, More, and Orders, Tracking,
+  and Items sit at the top of More.
 
 Roles: the account named in the rules as the project owner becomes admin on
 its first sign-in; everyone else lands as Tech until an admin changes the role
@@ -69,24 +107,41 @@ deliver ticket lines; accounting and board only read.
 refused with a "Demo mode: not saved" toast (the refused batch stays on
 `window.Loadout.state.lastOps` for checking by script). `&role=tech`,
 `&role=warehouse`, `&role=accounting`, or `&role=board` shows that role's
-view; `&board=1` opens the wall board; `&empty=1` loads no tickets, for the
+view; `&board=1` opens the wall board (`&mode=today`, `&mode=pinned`, or
+`&mode=all_open` overrides the saved board mode on that screen); `&empty=1`
+loads no tickets or orders, for the
 empty states and the board's idle screen; `&print=1` opens a label sheet
 preview. The New ticket sheet has a Load sample button with a made-up Portal
-CSV in demo mode only. No Firebase code loads in demo mode.
+CSV in demo mode only. The fixture has four purchase orders (a draft with no
+vendor, a partial one with two shipments, one ordered with a late shipment,
+one received), install dates across this week, and imported rows that show the
+0.3.0 name fixes. No Firebase code loads in demo mode.
 
 ## Data
 
 Firestore project `watchtower-6fbe1`, collections `loadout_users`,
 `loadout_settings`, `loadout_products`, `loadout_locations`, `loadout_stock`,
 `loadout_containers`, `loadout_items`, `loadout_movements`, `loadout_clients`,
-`loadout_jobs`, `loadout_proposals`, and `loadout_tickets` with a `lines`
-subcollection per ticket (field lists in PLAN section 3). Ticket ids are the
+`loadout_jobs`, `loadout_proposals`, `loadout_tickets` with a `lines`
+subcollection per ticket, `loadout_orders` with a `lines` subcollection per
+purchase order, and `loadout_shipments` (field lists in PLAN section 3). Ticket ids are the
 proposal number; line ids are the area plus brand and model, so a change
 order re-import finds the line it changes. Settings hold `board` (the wall
 board) and `importMap` (the saved CSV column mapping). Line quantities, all in
 the product's unit: `qtyNeeded` from the proposal, `qtyFromStock` pulled off
 our shelves, `qtyToOrder` what stock cannot cover, `qtyStaged` laid out in the
-bay, `qtyDelivered` taken to site. Every record carries readable names next to its ids, so the
+bay, `qtyDelivered` taken to site. A ticket's `installAt` is the day it
+installs (the Week view), and a ticket line's `orderLineRefs` names the order
+lines that serve it. Order ids are the PO number (from 7701 up); order line
+quantities are `qtyOrdered`, `qtyShipped`, and `qtyReceived`, and each order
+line carries the ticket number and line it serves. A shipment carries its
+carrier, tracking number and link, dates, and the lines with the quantity on
+it and received. Received units carry `label` ("Sonos Amp #2"), `orderId`, and
+`shipmentId`; receive movements carry `orderId`, `orderNumber`, and
+`shipmentId`. Movements written by the inventory importer are dated from the
+sheet's count date and keep `importedAt`, `importTab`, `importRow`, and
+`importKey`, so a re-import skips what is already written. Every record
+carries readable names next to its ids, so the
 database and the export read without the app. Each person's table layout is
 saved on their own `/users/{uid}` doc under `loadoutLayout`.
 
@@ -94,7 +149,10 @@ saved on their own `/users/{uid}` doc under `loadoutLayout`.
 
 The block below is appended to `../watchtower/firestore.rules` (one ruleset per
 project). It was tested in the local Firestore emulator (0.2.0 added the
-ticket, stock, and board-settings rules near the end); it is **not deployed**.
+ticket, stock, and board-settings rules near the end; 0.3.0 added the
+vendor-list rule on `settings/general`, 36 of 36 checks passing, including
+orders, order lines, and shipments as warehouse-only writes); it is **not
+deployed**.
 The owner of the Firebase project deploys it from `work/watchtower` with:
 
 `firebase deploy --only firestore:rules --account frank@umbrellaautomation.com --project watchtower-6fbe1`
@@ -219,10 +277,20 @@ match /loadout_settings/board {
 match /loadout_settings/importMap {
   allow write: if loadoutWriter();
 }
+// A vendor typed on a purchase order (0.3.0) joins the vendor list in
+// settings/general. Warehouse may add to that list and nothing else
+// there; the rest of general stays admin-only above.
+match /loadout_settings/general {
+  allow create: if loadoutWriter()
+    && request.resource.data.keys().hasOnly(['vendors', 'updatedAt', 'updatedBy', 'updatedByName']);
+  allow update: if loadoutWriter()
+    && loadoutOnly(['vendors', 'updatedAt', 'updatedBy', 'updatedByName']);
+}
 // Everything else under loadout_* (stock, locations, clients, jobs,
-// proposals, tickets, and later orders and shipments): everyone on the
-// domain reads, warehouse and
-// admin write. The prefix check keeps this from touching any other
+// proposals, tickets, orders with their lines, and shipments): everyone
+// on the domain reads, warehouse and admin write. Techs write none of
+// the order collections; receiving is warehouse and admin. The prefix
+// check keeps this from touching any other
 // tool's collections.
 match /{coll}/{docId} {
   allow read: if isMSPAdmin() && coll.matches('loadout_.*');
@@ -241,6 +309,44 @@ match /{coll}/{docId} {
 ```
 
 ## Changelog
+
+### 0.3.0 (2026-10-29)
+
+Purchase orders, tracking, and the week, so "what is missing for Thursday"
+and "where is that box" have answers without opening three screens, plus the
+fixes from the first live run.
+
+- Lines stock cannot cover go onto a draft purchase order from the ticket
+  (Order missing, or Order on one line) or from the low-stock list (Reorder).
+  The ticket then shows a chip per PO instead of "no PO yet", and Copy for
+  Portal says what is on order and when it is due, because that is the
+  question the office answers on the phone.
+- Mark ordered asks for the vendor's order number, since that is what you
+  quote when you call them. Shipments guess the carrier from the tracking
+  number and link straight to its tracking page.
+- Receive walks a shipment line by line, by tap or by scanning each UPC.
+  What serves a ticket lands in its staging bay and counts as staged; the rest
+  goes on a shelf. Units worth following get their own QR on the spot, so
+  nothing expensive reaches a van without a label.
+- Tracking lists everything on order and not received in one place. A box
+  marked delivered but not scanned in floats to the top in amber, because
+  that is the one sitting in a corner of the shop.
+- The Week view lays the staging schedule out like a timesheet by install
+  date, so the warehouse sees the week at a glance and what is short today.
+  The wall board can follow it (Today mode), and Movements gained week
+  buttons for "what moved this week".
+- Products, units, and locations open in place under their row instead of in
+  a modal, so you keep your place in a long list; the decisions (Receive,
+  Adjust, Serialize, Check out) still confirm in a modal.
+- Inventory sheet fixes from the first live run: "A/v" reads "A/V"; the
+  sheet's stray hyphen spacing ("Cable- Black Band") reads as a comma in names
+  while the type stays as typed, and a connector keeps its hyphen ("Edison-M");
+  imported units are labeled "Product name #n" instead of the tail of an id;
+  import movements are dated from the sheet's count date, with the import time
+  kept beside it. Running the import again renames products and units in place
+  and skips movements it already wrote.
+- Warehouse may add a vendor to the list in Settings and nothing else there;
+  the rules change was checked in the local emulator.
 
 ### 0.2.0 (2026-10-29)
 
