@@ -801,6 +801,9 @@ with the why, small commits.
   switcher and this plan, with the follow-up record of what was fixed.
 - `work/spool/storyboard.html` - the storyboard and functional SOP for the
   owner (section 15). Self-contained, prints to PDF from the browser.
+- `work/spool/samples/` - real test data (the owner's Excel sheet, a Portal
+  CSV). Ignored by git because the repo is public; never commit anything in
+  it. Sessions read it from disk to shape the import mapping and seed data.
 - Later: `index.html`, `sw.js`, `manifest.json`, `og-image.png`, icons,
   `README.md`; rules block in `watchtower/firestore.rules`;
   `spool-worker/` for T1/T2. The design switcher gains Tracking, Items,
