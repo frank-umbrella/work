@@ -410,7 +410,8 @@ every screen: Synced / Offline, 3 pending.
 - **Consumables** tab: only `consumable == true`, with containers expanded
   under each `ft` product: label, location, feet left, last reading. Low
   stock rises to the top with the amber attention treatment.
-- Product detail: edit fields, UPC (scan to set), photo, movements history,
+- Product detail opens **in place under the row** (section 12b item 5), not
+  in a modal: edit fields, UPC (scan to set), photo, movements history,
   containers list, **New container** (prints a label), **Adjust** (with
   required reason).
 - Locations tab: bins, bays, vans; what is in each; print labels.
@@ -467,6 +468,52 @@ every screen: Synced / Offline, 3 pending.
 - Item detail: full history, print label, retire (with reason).
 - **States.** No items: "No serialized items yet. Receive something at or
   above the QR threshold (Settings), or open a product and choose Serialize."
+
+### Week (added 2026-10-29, laid out by the user)
+- The staging schedule shown like a timesheet. Seven day blocks across the
+  top, Sunday to Saturday (week start from Settings), with **Previous week /
+  This week / Next week** arrows and the date range above them. Each day is
+  its own bordered block with the weekday and date as its header. Days that
+  have passed are faded (the whole block at reduced opacity; any text that
+  still needs reading stays at 4.5:1, since the cards are a record, not a
+  to-do); today's block carries a soft highlighted border (the accent at
+  low opacity, 2px, with a faint matching glow) and a "Today" tag; future
+  days are full strength.
+- Inside a day block, one card per pick ticket due that day: the **client
+  name** and the **pick ticket number** as the card header (job name under
+  it in small text), then the ticket's **items listed below**, one line
+  each, product name on the left and its **status on the right** as a pill:
+  Pull, Picked, Staged, On order (with ETA), Short, Delivered. A ticket with
+  more than eight lines shows the first eight and "and 14 more" that opens
+  the ticket. A small progress figure on the card ("18 of 24 staged").
+- A day with nothing: the block stays, with "Nothing due." in muted text.
+  Tickets with no install date sit in an **Unscheduled** strip under the
+  grid so they are not lost; dragging is not in v1, set the date from the
+  ticket or the strip's date field.
+- Clicking a card opens the ticket. Clicking a line opens that line's row
+  on the ticket.
+- Tickets gain an **install date** (`installAt`), set on the ticket header
+  and on the import sheet; the Tickets list sorts and filters by it. The
+  wall board's pinned mode can also follow "today's tickets" from this
+  view (Board setting `mode: "today"`).
+- **Layout settled 2026-10-29: B, the timesheet grid** (`week-preview.html`
+  compared it with a stacked-lists layout; the user picked B as more visual
+  and straight to the point).
+- Desktop: the view takes the full window width (no side rail), seven
+  columns with `repeat(auto-fit, minmax(180px, 1fr))` so a day block is
+  never narrower than 180px; when seven do not fit, the grid wraps to
+  four then three per row rather than squeezing. A **Work week** toggle
+  in the week strip (remembered per user) hides Saturday and Sunday, so
+  five days share the width; a weekend with a ticket on it shows a small
+  "1 ticket on Sat" chip that turns the toggle off. Card type is 15px,
+  product names wrap to two lines then truncate with a tooltip. Under
+  640px: day blocks stack vertically, today first, and the week arrows
+  stay fixed at the top.
+- Movements under More gains the same Previous / This / Next week arrows
+  beside its date fields, so "what moved this week" is one tap.
+- **States.** A week with no tickets at all: "Nothing scheduled the week of
+  Nov 2. Set an install date on a ticket to see it here." Loading: the seven
+  blocks with grey bars. Error: the Tickets wording.
 
 ### Console (admin and accounting)
 - A separate top-level view, visible to `admin` and `accounting` roles. It
@@ -739,13 +786,56 @@ Build T0 first. T1 and T2 are worker work and need the plan tier known.
 |---|---|
 | 0.1.0 | Shell, sign-in, roles and rules, Stock view, product CRUD, locations, movements, Scan with UPC lookup and receive/count, wire boxes with the box sheet and cut log, serialized items with check-out / check-in, QR labels and label sheets, and the **inventory sheet importer** (section 17) so day one starts from the current spreadsheet, not from zero. The warehouse can be counted, labeled, and signed out. |
 | 0.2.0 | Clients, jobs, proposals, CSV import with header mapping, pick tickets with lines, pull-from-stock, stage, deliver (checks items out to the tech), close (marks them installed), print, Copy for Portal (T0), the warehouse wall board with Show on board. |
-| 0.3.0 | Orders, lines, shipments, carrier detection, receive-by-shipment into bays with barcode counting, chips on ticket lines, low-stock reorder into draft POs, the Tracking dashboard. |
+| 0.3.0 | Orders, lines, shipments, carrier detection, receive-by-shipment into bays with barcode counting, chips on ticket lines, low-stock reorder into draft POs, the Tracking dashboard, the Week view with ticket install dates and week arrows on Movements. |
 | 0.4.0 | Console: reports with CSV / XLSX export, People, Settings, About (data dictionary), Export everything (one CSV per collection, zipped); accounting role end to end. |
 | 0.5.0 | Offline (sw.js + persistent cache + sync pill), PWA manifest, photos on products. |
 | 0.6.0 | loadout-worker: T1 Zapier intake (if Premium) or T2 API intake and note push (if Unlimited and approved); nightly CSV export to the company Drive; carrier tracking poll if wanted. Settings shows the tier and last sync. |
 
 Each version is a release: bump the version everywhere, README changelog entry
 with the why, small commits.
+
+## 12b. Fix list from the first live run (2026-10-29)
+
+The user deployed the rules, signed in, and imported the workbook on the live
+site. Confirmed working: 262 products, 216 consumables, 17 locations, 13
+serialized units, 300 import movements naming the workbook tab and row, wire
+boxes with feet left and "Confirm location" flags. To fix in the next phase:
+
+1. **Title-casing mangles slash words.** "A/V" became "A/v" in composed names
+   ("1 Pin A/v Cable- Black Band"). Keep letters after a slash upper-case
+   when the source had them so, and do not title-case a token that is all
+   caps and 3 letters or fewer on either side of a slash. Re-import must
+   rename the affected products (same ids, new `name`).
+2. **Serialized unit labels are ugly.** Units imported as "Unit C-IW-1" and
+   "Unit -WHT-1" (the tail of the model slug). The label should be the
+   product name plus a number: "Unifi UAP-AC-IW #1". The QR payload and id
+   stay as they are.
+3. **Import movements carry the import time, not the count date.** Every
+   import row shows 10/29/2026 4:42 PM. Section 17 asked for the sheet's
+   Last Date / Count Date / As of Date as the movement time (keep the
+   import time in a `importedAt` field) so the history reads as the real
+   count dates. Movements already written stay; a re-import may not
+   duplicate them.
+4. **Type spacing from the sheet.** "Audio- Outdoor" and "Cable- Black Band"
+   carry the sheet's stray hyphen spacing; normalize " - " / "- " / " -" to
+   ", " in composed names only, leaving `type` as typed.
+
+5. **Stock rows expand in place instead of opening a modal.** (User, after
+   the first live run.) Clicking a product row opens a panel directly under
+   that row, pushing the rows below down: the editable fields in a tidy
+   two-column grid (name, brand, model, category, unit, par, default
+   location, UPC with Set by scan, consumable toggle, cost when costs are
+   on), then the on-hand-by-location list, the containers list for `ft`
+   products, and one row of buttons (Save, Receive, Adjust, Serialize, New
+   box, Print label, History). One row open at a time; clicking another
+   row closes the first; Escape or the chevron closes it; the URL hash
+   carries the open product (`#stock/p/<id>`) so a link lands on it open.
+   On the phone the card itself expands the same way. Modals stay for the
+   decisions (Receive, Adjust, Serialize, New box) because they need a
+   confirm; the detail view itself is no longer a modal. Apply the same
+   pattern to Items rows and Locations rows so the three tables behave
+   alike. Keep the row's height stable while it is closed so sorting and
+   scanning the list does not jump.
 
 ## 13. Still open (answer before the build)
 

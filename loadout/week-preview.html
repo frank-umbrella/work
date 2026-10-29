@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Loadout - Week View Preview v0.1</title>
+<style>
+  /* ---------- page chrome (dark, around the mock) ---------- */
+  :root{--pg:#16161c;--pg2:#1e1e26;--pgcard:#24242e;--pgline:#33333f;--pgtext:#e8e8ee;--pgmuted:#9a9aab;--pgacc:#f5a623;}
+  *{box-sizing:border-box}
+  /* clip, not hidden: hidden turns body into a scroll container and stops the sticky bars from sticking */
+  html,body{margin:0;background:var(--pg);color:var(--pgtext);font:15px/1.55 "Segoe UI",system-ui,-apple-system,Helvetica,Arial,sans-serif;overflow-x:clip}
+  a{color:var(--pgacc)}
+  .wrap{max-width:1180px;margin:0 auto;padding:22px 18px 60px}
+  h1{font-size:26px;margin:0 0 4px}
+  h2{font-size:19px;margin:34px 0 10px;padding-top:18px;border-top:1px solid var(--pgline)}
+  h3{font-size:15px;margin:18px 0 6px;color:#fff}
+  p{margin:6px 0 10px;max-width:78ch}
+  .sub{color:var(--pgmuted);margin:0 0 14px}
+  .ver{display:inline-block;font-size:11px;padding:2px 8px;border:1px solid var(--pgline);border-radius:999px;color:var(--pgmuted);margin-left:8px;vertical-align:middle}
+  ul{margin:4px 0 12px;padding-left:20px;max-width:80ch}
+  li{margin:3px 0}
+  .grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:14px}
+  .card{background:var(--pgcard);border:1px solid var(--pgline);border-radius:10px;padding:14px 16px;min-width:0}
+  .card h3{margin-top:0}
+  .tag{display:inline-block;font-size:11px;padding:1px 7px;border-radius:999px;border:1px solid var(--pgline);color:var(--pgmuted);margin-right:4px}
+
+  /* ---------- switcher bar ---------- */
+  .switcher{position:sticky;top:0;z-index:5;background:rgba(22,22,28,.94);backdrop-filter:blur(6px);border:1px solid var(--pgline);border-radius:10px;padding:10px 12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:12px 0 10px}
+  .switcher .lbl{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--pgmuted);margin-right:4px}
+  .switcher button{background:#1c1c25;color:#cfcfda;border:1px solid var(--pgline);border-radius:8px;padding:7px 13px;font:inherit;font-size:14px;cursor:pointer}
+  .switcher button:hover{border-color:#5a5a6c}
+  .switcher button.active{background:#2d2d3a;color:#fff;border-color:var(--pgacc)}
+  .switcher .next{margin-left:auto;background:var(--pgacc);color:#0b0b10;border-color:var(--pgacc);font-weight:600}
+  .switcher .hint{flex-basis:100%;font-size:12px;color:var(--pgmuted)}
+  .caption{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:baseline;margin:0 0 12px;font-size:14px}
+  .caption b{font-size:16px;color:#fff}
+  .caption span.d{color:var(--pgmuted);flex-basis:100%}
+  .viewtabs{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
+  .viewtabs button{background:#1c1c25;color:#cfcfda;border:1px solid var(--pgline);border-radius:8px;padding:6px 12px;font:inherit;font-size:13px;cursor:pointer}
+  .viewtabs button.active{color:#fff;border-color:var(--pgacc);background:#2d2d3a}
+
+  /* ---------- frame + Ledger theme ---------- */
+  .frame{
+    --m-bg:#f4f6f9;--m-bg2:#e9edf3;--m-card:#ffffff;--m-card2:#f1f4f8;--m-line:#dde3ea;
+    --m-text:#1a2233;--m-muted:#5b6675;--m-accent:#1e6fd9;--m-accent2:#155cb8;--m-onaccent:#ffffff;
+    --m-ok:#1f9d5a;--m-warn:#d98b1e;--m-danger:#d3403a;--m-info:#1e6fd9;
+    --m-ok-text:#166b3e;--m-warn-text:#8a5a14;--m-bad-text:#a82e29;--m-info-text:#1a5cb5;
+    --m-topbar:#ffffff;--m-toptext:#1a2233;--m-topmuted:#5b6675;--m-brandmark:#1e6fd9;--m-navon:#e8f0fc;
+    --m-font:"Segoe UI",system-ui,-apple-system,Helvetica,Arial,sans-serif;
+    --m-display:"Segoe UI",system-ui,-apple-system,Helvetica,Arial,sans-serif;
+    --m-mono:Consolas,"Cascadia Mono",Menlo,monospace;--m-num:"Segoe UI",system-ui,-apple-system,Helvetica,Arial,sans-serif;
+    --m-radius:8px;--m-tap:38px;--m-tapsm:30px;
+    /* past days: block surfaces and borders at 55%, text stays at full strength so it keeps 4.5:1 */
+    --m-pastcard:color-mix(in srgb,var(--m-card) 55%,var(--m-bg));
+    --m-pastline:color-mix(in srgb,var(--m-line) 55%,var(--m-bg));
+    position:relative;border:1px solid var(--pgline);border-radius:14px;overflow:clip;background:var(--m-bg)}
+  .screen{container-type:inline-size}
+  .mock{position:relative;background:var(--m-bg);color:var(--m-text);font-family:var(--m-font);font-size:14px;line-height:1.45;min-height:640px}
+  .sbar,.phonenote{display:none}
+
+  /* phone view: the same mock inside a 390px phone */
+  .frame.ph .stage{padding:22px 16px 28px;background:var(--m-bg2);display:grid;grid-template-columns:minmax(0,1fr);justify-items:center;gap:12px}
+  .frame.ph .phone{width:390px;max-width:100%;height:780px;background:#0b0c0e;border-radius:46px;padding:11px;border:2px solid #2a2d33}
+  .frame.ph .screen{height:100%;border-radius:36px;overflow:hidden;background:var(--m-bg);display:flex;flex-direction:column}
+  .frame.ph .sbar{display:flex;align-items:center;justify-content:space-between;padding:8px 24px 2px;font:600 12px var(--m-font);background:var(--m-topbar);color:var(--m-toptext)}
+  .notch{width:96px;height:22px;border-radius:999px;background:#0b0c0e}
+  .frame.ph .pscroll{flex:1;overflow-y:auto;overflow-x:hidden}
+  .frame.ph .mock{min-height:100%}
+  .frame.ph .phonenote{display:block;font-size:12px;color:var(--m-muted);max-width:60ch;text-align:center;margin:0}
+
+  /* app chrome */
+  .top{display:flex;align-items:center;gap:10px 14px;padding:10px 18px;background:var(--m-topbar);color:var(--m-toptext);border-bottom:1px solid var(--m-line);flex-wrap:wrap;min-height:58px}
+  .brand{display:flex;align-items:center;gap:9px;font-family:var(--m-display);font-weight:700;font-size:19px;letter-spacing:.01em}
+  .brand svg{width:26px;height:26px;flex:none;color:var(--m-brandmark)}
+  .nav{display:flex;gap:2px;flex-wrap:wrap}
+  .nav a{color:var(--m-topmuted);text-decoration:none;padding:7px 12px;border-radius:var(--m-radius);font-size:14px;cursor:default}
+  /* accent2, not accent: #1e6fd9 on the nav tint is 4.2:1, #155cb8 is 5.6:1 */
+  .nav a.on{color:var(--m-accent2);background:var(--m-navon);font-weight:600}
+  .sync{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--m-topmuted);border:1px solid var(--m-line);border-radius:999px;padding:3px 10px;margin-left:auto;white-space:nowrap}
+  .sync i{width:7px;height:7px;border-radius:50%;background:var(--m-ok)}
+  .body{padding:18px;display:grid;grid-template-columns:minmax(0,1fr);gap:16px}
+  .lay{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;min-width:0}
+  .mock[data-layout="sections"] .lay-b,.mock[data-layout="grid"] .lay-a{display:none}
+
+  /* building blocks */
+  .mcard{background:var(--m-card);border:1px solid var(--m-line);border-radius:var(--m-radius);padding:16px 18px;min-width:0}
+  /* uppercase labels with light tracking (.04em): they read as field labels beside dense numbers, not as hero eyebrows */
+  .mcard h4,.h4{margin:0 0 10px;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--m-muted);font-weight:600}
+  .thead{display:flex;align-items:center;gap:8px 10px;flex-wrap:wrap;margin-bottom:10px}
+  .thead h4{margin:0}
+  .thead .sp{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .n{font-family:var(--m-num);font-variant-numeric:tabular-nums}
+  .z{color:var(--m-muted)}
+  .hint{font-size:12px;color:var(--m-muted);margin:6px 0 0}
+  .lab{display:block;font-size:12px;color:var(--m-muted);margin:0 0 4px;font-weight:600}
+  .fld{display:flex;align-items:center;width:100%;min-height:var(--m-tapsm);background:var(--m-card2);color:var(--m-text);border:1px solid var(--m-line);border-radius:var(--m-radius);padding:6px 11px;font:inherit;font-size:14px}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:var(--m-tap);border:1px solid var(--m-line);background:var(--m-card2);color:var(--m-text);border-radius:var(--m-radius);padding:0 14px;font:inherit;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap}
+  .btn:hover{border-color:var(--m-muted)}
+  .btn.acc{background:var(--m-accent);border-color:var(--m-accent);color:var(--m-onaccent)}
+  .btn.sm{min-height:var(--m-tapsm);padding:0 10px;font-size:12.5px}
+
+  /* status pills */
+  .st{display:inline-flex;align-items:center;gap:6px;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap;color:var(--m-muted);background:color-mix(in srgb,var(--m-muted) 14%,transparent)}
+  /* status text colors are checked at 4.5:1 on their tint, on white and on the faded past-day surface */
+  .st.ok{color:var(--m-ok-text);background:color-mix(in srgb,var(--m-ok) 14%,transparent)}
+  .st.warn{color:var(--m-warn-text);background:color-mix(in srgb,var(--m-warn) 16%,transparent)}
+  .st.bad{color:var(--m-bad-text);background:color-mix(in srgb,var(--m-danger) 13%,transparent)}
+  .st.info{color:var(--m-info-text);background:color-mix(in srgb,var(--m-info) 14%,transparent)}
+  /* Delivered: same green as Staged, outlined, so done and ready are told apart without a new color */
+  .st.done{color:var(--m-ok-text);background:transparent;box-shadow:inset 0 0 0 1px var(--m-ok-text)}
+  .st.today{font-size:11px;padding:1px 8px}
+
+  /* tables (card-stack under 640px container width) */
+  .tbl{width:100%;border-collapse:collapse;font-size:13.5px}
+  .tbl th{font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--m-muted);font-weight:600;border-bottom:1px solid var(--m-line);padding:8px 8px;text-align:left;white-space:nowrap}
+  .tbl th.s:after{content:" \25B2";font-size:9px;color:var(--m-accent)}
+  .tbl td{padding:9px 8px;border-bottom:1px solid var(--m-line);vertical-align:top;min-width:0}
+  .pn{font-weight:500;overflow-wrap:anywhere}
+  .pn b{font-weight:700}
+  .pd{font-size:12px;color:var(--m-muted);margin-top:1px}
+  /* Ledger motif: anything printed on a box or a label is set in the mono face */
+  .lbl6{font-family:var(--m-mono);font-size:12px}
+  .dayc{white-space:nowrap}
+  .dayc .st{margin-left:6px}
+  /* past rows: text drops to the muted color (5.4:1), pills keep their colors */
+  .tbl tr.past td{color:var(--m-muted)}
+  .tbl tr.past td .pn b{color:var(--m-muted)}
+  .tbl tr.today td{background:color-mix(in srgb,var(--m-accent) 5%,var(--m-card))}
+  .tbl tr.today td:first-child{box-shadow:inset 3px 0 0 rgba(30,111,217,.45)}
+  .mini{display:inline-block;width:64px;height:8px;border-radius:999px;background:var(--m-card2);border:1px solid var(--m-line);overflow:hidden;vertical-align:middle;margin-left:8px}
+  .mini i{display:block;height:100%;background:var(--m-ok)}
+  .tbl tr.past .mini{border-color:var(--m-pastline)}
+
+  @container (max-width:640px){
+    .tbl thead{display:none}
+    .tbl,.tbl tbody,.tbl tr,.tbl td{display:block;width:100%}
+    .tbl tr{border:1px solid var(--m-line);border-radius:var(--m-radius);margin-bottom:10px;padding:6px 10px;background:var(--m-card)}
+    .tbl td{border:0;padding:4px 0 4px 96px;position:relative;min-height:26px}
+    .tbl td:before{content:attr(data-l);position:absolute;left:0;top:6px;width:88px;font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--m-muted);font-family:var(--m-font);font-weight:600}
+    .tbl td .st{white-space:normal}
+    .dayc{white-space:normal}
+    .tbl tr.past{background:var(--m-pastcard);border-color:var(--m-pastline)}
+    .tbl tr.past td{background:transparent}
+    .tbl tr.today{border:2px solid rgba(30,111,217,.45);box-shadow:0 0 0 3px rgba(30,111,217,.12)}
+    .tbl tr.today td{background:transparent}
+    .tbl tr.today td:first-child{box-shadow:none}
+  }
+
+  /* ---------- week strip (both layouts) ---------- */
+  .wkbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px;padding:12px 16px}
+  .wkt{display:flex;flex-direction:column;min-width:0}
+  .wkt .h4{margin:0}
+  .wkt b{font-size:17px;font-weight:700}
+  .wnav{margin-left:auto;display:flex;flex-wrap:wrap;gap:6px}
+  .wkbar .hint{flex-basis:100%;margin:0}
+
+  /* ---------- A. Sections ---------- */
+  .usub{margin-top:14px;padding-top:12px;border-top:1px solid var(--m-line)}
+  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,130px),1fr));gap:10px}
+  .tile{display:block;background:var(--m-card2);border:1px solid var(--m-line);border-radius:var(--m-radius);padding:10px 12px;min-width:0;color:var(--m-text);text-decoration:none;cursor:pointer}
+  .tile:hover{border-color:var(--m-muted)}
+  .tile .k{display:block;font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--m-muted);font-weight:600}
+  .tile .v{display:block;font-size:28px;font-weight:700;line-height:1.15;margin-top:2px}
+
+  /* ---------- B. Timesheet grid ---------- */
+  .wk{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;align-items:start}
+  .day{background:var(--m-card);border:1px solid var(--m-line);border-radius:var(--m-radius);min-width:0;display:flex;flex-direction:column}
+  .dh{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 6px;padding:8px 10px;border-bottom:1px solid var(--m-line)}
+  .dh b{font-size:13.5px}
+  .dh .dd{font-size:12px;color:var(--m-muted)}
+  .dh .st{align-self:center}
+  .db{padding:8px;display:grid;grid-template-columns:minmax(0,1fr);gap:8px}
+  .empty{font-size:12.5px;color:var(--m-muted);margin:2px 2px 4px}
+  /* past days read as a record: surfaces and borders fade, text keeps a color that passes 4.5:1 */
+  .day.past{background:var(--m-pastcard);border-color:var(--m-pastline)}
+  .day.past .dh{border-bottom-color:var(--m-pastline)}
+  .day.past .dh b,.day.past .tch b,.day.past .lines li{color:var(--m-muted)}
+  .day.past .tc{background:var(--m-pastcard);border-color:var(--m-pastline)}
+  .day.past .lines li{border-top-color:var(--m-pastline)}
+  /* today: soft accent border, faint matching ring, and a Today tag */
+  .day.today{border:2px solid rgba(30,111,217,.45);box-shadow:0 0 0 3px rgba(30,111,217,.12)}
+  .tc{background:var(--m-card);border:1px solid var(--m-line);border-radius:var(--m-radius);padding:8px 9px;min-width:0;cursor:pointer}
+  .tc:hover{border-color:var(--m-muted)}
+  .tch{display:flex;flex-wrap:wrap;align-items:baseline;gap:0 6px}
+  .tch b{font-size:13.5px;overflow-wrap:anywhere}
+  .tch .tn{font-size:12.5px;color:var(--m-muted);font-weight:600}
+  .tc .pd{overflow-wrap:anywhere}
+  .tcp{font-size:12px;color:var(--m-muted);margin:4px 0 6px}
+  .tcp .n{color:var(--m-text);font-weight:700}
+  .day.past .tcp .n{color:var(--m-muted)}
+  .lines{list-style:none;margin:0;padding:0}
+  .lines li{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:2px 6px;margin:0;padding:4px 0;border-top:1px dashed var(--m-line);font-size:12.5px;line-height:1.35;cursor:pointer}
+  .lines .ln{min-width:0;overflow-wrap:anywhere}
+  .lines .x{color:var(--m-muted)}
+  .lines .st{margin-left:auto;white-space:normal;max-width:100%;font-size:11px;padding:1px 7px;border-radius:9px}
+  .more{display:inline-flex;align-items:center;font-size:12.5px;font-weight:600;color:var(--m-accent2);margin-top:4px;cursor:pointer}
+  .earlier{display:none;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--m-muted);font-weight:600;margin:6px 2px 0}
+  .urow{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px 16px}
+  .urow .uinfo{flex:1 1 220px;min-width:0}
+  .urow .ud{flex:0 0 auto}
+  .datef{min-width:170px;justify-content:space-between;gap:10px;color:var(--m-muted)}
+  .datef svg{width:16px;height:16px;flex:none}
+
+  @container (max-width:900px){
+    .wk{grid-template-columns:repeat(4,minmax(0,1fr))}
+  }
+
+  /* bottom tab bar replaces the nav under 640px */
+  .tabbar{display:none;position:sticky;bottom:0;background:var(--m-card);border-top:1px solid var(--m-line);padding:6px 4px 8px;z-index:3}
+  .tabbar a{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:48px;font-size:11px;color:var(--m-muted);text-decoration:none;padding:4px 0;cursor:default}
+  .tabbar a svg{width:22px;height:22px}
+  .tabbar a.on{color:var(--m-accent2);font-weight:600}
+
+  @container (max-width:640px){
+    .nav{display:none}
+    .tabbar{display:flex}
+    .body{padding:12px}
+    .mcard{padding:14px}
+    /* thumbs, not cursors: every control grows to the 44px floor on the phone */
+    .btn,.btn.sm,.fld{min-height:44px}
+    .fld{font-size:16px}
+    .more{min-height:44px}
+    .lines li{min-height:44px}
+    /* the week strip stays put while the days scroll under it */
+    .wkbar{position:sticky;top:var(--stick,0px);z-index:2;padding:10px 12px}
+    .wkbar .hint{display:none}
+    .wnav{margin-left:0;width:100%;display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
+    .wnav .btn{white-space:normal;line-height:1.2;text-align:center;padding:0 6px;font-size:13px}
+    .wk{grid-template-columns:minmax(0,1fr)}
+    .day.today{order:1}
+    .day.future{order:2}
+    .earlier{display:block;order:3}
+    .day.past{order:4}
+    .urow .ud{flex:1 1 100%}
+    .datef{width:100%}
+  }
+  .frame.ph .wkbar{top:0}
+
+  /* ---------- page lists below the mock ---------- */
+  .same li b{color:#fff}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Loadout <span class="ver">week view preview v0.1</span></h1>
+  <p class="sub">Two layouts for the Week view, the staging schedule. A is the first draft; B is the layout you described. Same week, same tickets, only the arrangement differs. Pick one, or say what to take from each. Every name and number here is invented sample data. Only the layout buttons, the view tabs, and the arrow keys do anything; the buttons and links inside the mock are pictures.</p>
+
+  <div class="switcher" id="switcher">
+    <span class="lbl">Layout</span>
+    <button data-opt="sections">A. Sections</button>
+    <button data-opt="grid">B. Timesheet grid</button>
+    <button class="next" id="nextBtn">Next &rarr;</button>
+    <span class="hint">Left / right arrow keys switch layouts. The tabs below switch between the desktop frame and a phone. Narrow the window under 640px to see the desktop frame stack too.</span>
+  </div>
+  <div class="caption" id="caption"></div>
+
+  <div class="viewtabs">
+    <button data-view="desktop" class="active">Desktop</button>
+    <button data-view="phone">Phone</button>
+  </div>
+
+  <div class="frame" id="frame">
+  <div class="stage">
+  <div class="phone">
+  <div class="screen">
+    <div class="sbar"><span>9:41</span><span class="notch"></span><span>5G 82%</span></div>
+    <div class="pscroll">
+    <div class="mock" id="mock" data-layout="sections">
+      <div class="top">
+        <div class="brand">
+          <svg viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="20" width="48" height="34" rx="6" fill="none" stroke="currentColor" stroke-width="5"/><path d="M24 20v-6a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v6" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/><path d="M8 35h48" stroke="currentColor" stroke-width="4"/><rect x="27" y="31" width="10" height="8" rx="2" fill="currentColor"/></svg>
+          Loadout
+        </div>
+        <nav class="nav">
+          <a>Tickets</a>
+          <a>Scan</a>
+          <a>Stock</a>
+          <a>Orders</a>
+          <a class="on">Week</a>
+          <a>Items</a>
+          <a>More</a>
+        </nav>
+        <span class="sync" title="Green when every change has reached the server. Shows Offline and a pending count when the warehouse has no signal; work keeps saving on the device."><i></i>Synced</span>
+      </div>
+
+      <div class="body">
+        <!-- week strip, shared by both layouts -->
+        <div class="mcard wkbar">
+          <div class="wkt"><span class="h4">Week</span><b>Sun Nov 1 - Sat Nov 7, 2026</b></div>
+          <div class="wnav">
+            <button class="btn sm">Previous week</button>
+            <button class="btn sm acc" aria-pressed="true" title="Jumps back to the week with today in it">This week</button>
+            <button class="btn sm">Next week</button>
+          </div>
+          <p class="hint">4 tickets due this week, 1 with no install date yet. Today is Wednesday, Nov 4.</p>
+        </div>
+
+        <!-- ================= A. SECTIONS ================= -->
+        <div class="lay lay-a">
+          <div class="mcard">
+            <div class="thead"><h4>Tickets due</h4><span class="sp hint" style="margin:0">4 this week, by install date</span></div>
+            <table class="tbl">
+              <thead><tr><th class="s">Day</th><th>Client</th><th>Ticket</th><th>Job</th><th>Status</th><th>Staged</th><th>Bay</th></tr></thead>
+              <tbody>
+                <tr class="past">
+                  <td class="dayc" data-l="Day">Mon Nov 2</td>
+                  <td data-l="Client"><div class="pn"><b>Harbor Vet</b></div></td>
+                  <td class="n" data-l="Ticket">#1038</td>
+                  <td data-l="Job">Exam room AV</td>
+                  <td data-l="Status"><span class="st ok">Staged</span></td>
+                  <td data-l="Staged"><span class="n">7 of 7</span><span class="mini"><i style="width:100%"></i></span></td>
+                  <td data-l="Bay">Bay 1</td>
+                </tr>
+                <tr class="today">
+                  <td class="dayc" data-l="Day">Wed Nov 4<span class="st info today">Today</span></td>
+                  <td data-l="Client"><div class="pn"><b>Acme Dental</b></div></td>
+                  <td class="n" data-l="Ticket">#1042</td>
+                  <td data-l="Job">Main office buildout</td>
+                  <td data-l="Status"><span class="st info">Picking</span></td>
+                  <td data-l="Staged"><span class="n">18 of 24</span><span class="mini"><i style="width:75%"></i></span></td>
+                  <td data-l="Bay">Bay 2</td>
+                </tr>
+                <tr>
+                  <td class="dayc" data-l="Day">Thu Nov 5</td>
+                  <td data-l="Client"><div class="pn"><b>Northside Legal</b></div></td>
+                  <td class="n" data-l="Ticket">#1035</td>
+                  <td data-l="Job">Conference room refresh</td>
+                  <td data-l="Status"><span class="st info">Picking</span></td>
+                  <td data-l="Staged"><span class="n">9 of 12</span><span class="mini"><i style="width:75%"></i></span></td>
+                  <td data-l="Bay">Bay 3</td>
+                </tr>
+                <tr>
+                  <td class="dayc" data-l="Day">Fri Nov 6</td>
+                  <td data-l="Client"><div class="pn"><b>Ridge Family Practice</b></div></td>
+                  <td class="n" data-l="Ticket">#1044</td>
+                  <td data-l="Job">Waiting room TVs</td>
+                  <td data-l="Status"><span class="st">Open</span></td>
+                  <td data-l="Staged"><span class="n">0 of 6</span><span class="mini"><i style="width:0"></i></span></td>
+                  <td data-l="Bay"><span class="z">Not set</span></td>
+                </tr>
+              </tbody>
+            </table>
+            <div class="usub">
+              <h4 class="h4">Unscheduled</h4>
+              <div class="urow">
+                <div class="uinfo"><div class="tch"><b>Westbrook Fitness</b><span class="tn n">#1045</span></div><div class="pd">Lobby audio, 0 of 9 staged</div></div>
+                <div class="ud"><span class="lab">Install date</span><span class="fld datef" title="Setting a date puts the ticket on that day's block and in the Tickets list sort. Change it later from the ticket header.">mm/dd/yyyy<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></span></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mcard">
+            <div class="thead"><h4>Moved this week</h4><span class="sp hint" style="margin:0">57 movements</span></div>
+            <div class="tiles">
+              <a class="tile" title="Opens Movements: Received, this week"><span class="k">Received</span><span class="v n">14</span></a>
+              <a class="tile" title="Opens Movements: Picked, this week"><span class="k">Picked</span><span class="v n">31</span></a>
+              <a class="tile" title="Opens Movements: Cut, this week"><span class="k">Cut</span><span class="v n">3</span></a>
+              <a class="tile" title="Opens Movements: Checked out, this week"><span class="k">Checked out</span><span class="v n">6</span></a>
+              <a class="tile" title="Opens Movements: Checked in, this week"><span class="k">Checked in</span><span class="v n">2</span></a>
+              <a class="tile" title="Opens Movements: Adjusted, this week"><span class="k">Adjusted</span><span class="v n">1</span></a>
+            </div>
+            <p class="hint">Each count opens Movements filtered to this week and that type.</p>
+          </div>
+
+          <div class="mcard">
+            <div class="thead"><h4>Out this week</h4><span class="sp hint" style="margin:0">6 checked out, 2 back</span></div>
+            <table class="tbl">
+              <thead><tr><th>Item</th><th>Who</th><th>Job</th><th class="s">Day out</th><th>Back?</th></tr></thead>
+              <tbody>
+                <tr>
+                  <td data-l="Item"><div class="pn"><b>Hilti</b> TE 6-A22 hammer drill</div><div class="pd lbl6">0b93fa</div></td>
+                  <td data-l="Who">Tech 2</td>
+                  <td data-l="Job">Harbor Vet<div class="pd">#1038</div></td>
+                  <td data-l="Day out">Mon Nov 2</td>
+                  <td data-l="Back?"><span class="st ok">Back Tue Nov 3</span></td>
+                </tr>
+                <tr>
+                  <td data-l="Item"><div class="pn"><b>Werner</b> 8 ft fiberglass ladder</div><div class="pd lbl6">5e20d7</div></td>
+                  <td data-l="Who">Tech 2</td>
+                  <td data-l="Job">Harbor Vet<div class="pd">#1038</div></td>
+                  <td data-l="Day out">Mon Nov 2</td>
+                  <td data-l="Back?"><span class="st ok">Back Tue Nov 3</span></td>
+                </tr>
+                <tr>
+                  <td data-l="Item"><div class="pn"><b>Fluke</b> LinkIQ cable tester</div><div class="pd lbl6">7c41e2</div></td>
+                  <td data-l="Who">Tech 1</td>
+                  <td data-l="Job">Acme Dental<div class="pd">#1042</div></td>
+                  <td data-l="Day out">Mon Nov 2</td>
+                  <td data-l="Back?"><span class="st">Still out</span></td>
+                </tr>
+                <tr>
+                  <td data-l="Item"><div class="pn"><b>Dell</b> Latitude 5440 setup laptop</div><div class="pd lbl6">4fa0c3</div></td>
+                  <td data-l="Who">Lead tech</td>
+                  <td data-l="Job">Van 2 stock</td>
+                  <td data-l="Day out">Tue Nov 3</td>
+                  <td data-l="Back?"><span class="st">Still out</span></td>
+                </tr>
+                <tr>
+                  <td data-l="Item"><div class="pn"><b>Klein</b> Scout Pro 3 tester</div><div class="pd lbl6">d18a6c</div></td>
+                  <td data-l="Who">Lead tech</td>
+                  <td data-l="Job">Northside Legal<div class="pd">#1035</div></td>
+                  <td data-l="Day out">Wed Nov 4</td>
+                  <td data-l="Back?"><span class="st">Still out</span></td>
+                </tr>
+                <tr>
+                  <td data-l="Item"><div class="pn"><b>Milwaukee</b> M18 Fuel drill kit</div><div class="pd lbl6">92b7e0</div></td>
+                  <td data-l="Who">Tech 1</td>
+                  <td data-l="Job">Acme Dental<div class="pd">#1042</div></td>
+                  <td data-l="Day out">Wed Nov 4</td>
+                  <td data-l="Back?"><span class="st">Still out</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ================= B. TIMESHEET GRID ================= -->
+        <div class="lay lay-b">
+          <div class="wk">
+            <section class="day past">
+              <div class="dh"><b>Sunday</b><span class="dd">Nov 1</span></div>
+              <div class="db"><p class="empty">Nothing due.</p></div>
+            </section>
+
+            <section class="day past">
+              <div class="dh"><b>Monday</b><span class="dd">Nov 2</span></div>
+              <div class="db">
+                <div class="tc" title="Opens pick ticket #1038">
+                  <div class="tch"><b>Harbor Vet</b><span class="tn n">#1038</span></div>
+                  <div class="pd">Exam room AV</div>
+                  <div class="tcp"><span class="n">7 of 7</span> staged</div>
+                  <ul class="lines">
+                    <li><span class="ln">Sonos Amp <span class="x">x1</span></span><span class="st done">Delivered</span></li>
+                    <li><span class="ln">Sonance VP66R <span class="x">x4</span></span><span class="st done">Delivered</span></li>
+                    <li><span class="ln">Samsung QM43C <span class="x">x2</span></span><span class="st done">Delivered</span></li>
+                    <li><span class="ln">Chief FTR1U <span class="x">x2</span></span><span class="st done">Delivered</span></li>
+                    <li><span class="ln">Roku Express 4K <span class="x">x2</span></span><span class="st ok">Staged</span></li>
+                    <li><span class="ln">Belden 5000UE 16/2 <span class="x">250 ft</span></span><span class="st ok">Staged</span></li>
+                    <li><span class="ln">Leviton 41080 wall plate <span class="x">x4</span></span><span class="st ok">Staged</span></li>
+                  </ul>
+                </div>
+              </div>
+            </section>
+
+            <section class="day past">
+              <div class="dh"><b>Tuesday</b><span class="dd">Nov 3</span></div>
+              <div class="db"><p class="empty">Nothing due.</p></div>
+            </section>
+
+            <section class="day today">
+              <div class="dh"><b>Wednesday</b><span class="dd">Nov 4</span><span class="st info today">Today</span></div>
+              <div class="db">
+                <div class="tc" title="Opens pick ticket #1042">
+                  <div class="tch"><b>Acme Dental</b><span class="tn n">#1042</span></div>
+                  <div class="pd">Main office buildout</div>
+                  <div class="tcp"><span class="n">18 of 24</span> staged</div>
+                  <ul class="lines">
+                    <li><span class="ln">Ubiquiti U6-Pro <span class="x">x4</span></span><span class="st warn" title="On order, the vendor's ETA is 11/04">On order, ETA 11/04</span></li>
+                    <li><span class="ln">Axis M3065-V <span class="x">x4</span></span><span class="st ok">Staged</span></li>
+                    <li><span class="ln">UniFi UDM-SE <span class="x">x1</span></span><span class="st ok">Staged</span></li>
+                    <li><span class="ln">UniFi USW-24-POE <span class="x">x1</span></span><span class="st">Pull</span></li>
+                    <li><span class="ln">Sonos Amp <span class="x">x1</span></span><span class="st ok">Staged</span></li>
+                    <li><span class="ln">Chief RPMAU <span class="x">x1</span></span><span class="st bad">Short</span></li>
+                    <li><span class="ln">Leviton 61110-BE6 <span class="x">x48</span></span><span class="st info">Picked</span></li>
+                    <li><span class="ln">Belden 2412 Cat6 <span class="x">1,500 ft</span></span><span class="st ok">Staged</span></li>
+                  </ul>
+                  <a class="more">and 16 more</a>
+                </div>
+              </div>
+            </section>
+
+            <section class="day future">
+              <div class="dh"><b>Thursday</b><span class="dd">Nov 5</span></div>
+              <div class="db">
+                <div class="tc" title="Opens pick ticket #1035">
+                  <div class="tch"><b>Northside Legal</b><span class="tn n">#1035</span></div>
+                  <div class="pd">Conference room refresh</div>
+                  <div class="tcp"><span class="n">9 of 12</span> staged</div>
+                  <ul class="lines">
+                    <li><span class="ln">Crestron UC-MM30-Z <span class="x">x1</span></span><span class="st ok">Staged</span></li>
+                    <li><span class="ln">Samsung QM75C <span class="x">x1</span></span><span class="st warn">On order, ETA 11/05</span></li>
+                    <li><span class="ln">Chief XTM1U <span class="x">x1</span></span><span class="st ok">Staged</span></li>
+                    <li><span class="ln">Shure MXA710 <span class="x">x1</span></span><span class="st info">Picked</span></li>
+                    <li><span class="ln">Crestron HD-PS402 <span class="x">x1</span></span><span class="st ok">Staged</span></li>
+                    <li><span class="ln">Liberty HDMI 25 ft <span class="x">x2</span></span><span class="st bad">Short</span></li>
+                    <li><span class="ln">Middle Atlantic U2V <span class="x">x1</span></span><span class="st ok">Staged</span></li>
+                    <li><span class="ln">Belden 2412 Cat6 <span class="x">300 ft</span></span><span class="st ok">Staged</span></li>
+                  </ul>
+                  <a class="more">and 4 more</a>
+                </div>
+              </div>
+            </section>
+
+            <section class="day future">
+              <div class="dh"><b>Friday</b><span class="dd">Nov 6</span></div>
+              <div class="db">
+                <div class="tc" title="Opens pick ticket #1044">
+                  <div class="tch"><b>Ridge Family Practice</b><span class="tn n">#1044</span></div>
+                  <div class="pd">Waiting room TVs</div>
+                  <div class="tcp"><span class="n">0 of 6</span> staged</div>
+                  <ul class="lines">
+                    <li><span class="ln">Samsung QM55C <span class="x">x2</span></span><span class="st">Pull</span></li>
+                    <li><span class="ln">Chief LTM1U <span class="x">x2</span></span><span class="st">Pull</span></li>
+                    <li><span class="ln">Roku Express 4K <span class="x">x2</span></span><span class="st">Pull</span></li>
+                    <li><span class="ln">Monoprice HDMI 6 ft <span class="x">x2</span></span><span class="st">Pull</span></li>
+                    <li><span class="ln">Wiremold CMK70 <span class="x">x2</span></span><span class="st">Pull</span></li>
+                    <li><span class="ln">Tripp Lite TLP606 <span class="x">x2</span></span><span class="st">Pull</span></li>
+                  </ul>
+                </div>
+              </div>
+            </section>
+
+            <section class="day future">
+              <div class="dh"><b>Saturday</b><span class="dd">Nov 7</span></div>
+              <div class="db"><p class="empty">Nothing due.</p></div>
+            </section>
+
+            <p class="earlier">Earlier this week</p>
+          </div>
+
+          <div class="mcard">
+            <div class="thead"><h4>Unscheduled</h4><span class="sp hint" style="margin:0">No install date yet, so it is not on a day</span></div>
+            <div class="urow">
+              <div class="uinfo"><div class="tch"><b>Westbrook Fitness</b><span class="tn n">#1045</span></div><div class="pd">Lobby audio, 0 of 9 staged</div></div>
+              <div class="ud"><span class="lab">Install date</span><span class="fld datef" title="Setting a date puts the ticket on that day's block and in the Tickets list sort. Change it later from the ticket header.">mm/dd/yyyy<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tabbar">
+        <a><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="5" width="14" height="16" rx="2"/><path d="M9 3h6v4H9zM8.5 12h7M8.5 16h5"/></svg>Tickets</a>
+        <a><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4M4 12h16"/></svg>Scan</a>
+        <a class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Week</a>
+        <a><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5z"/><path d="M3 7.5 12 12l9-4.5M12 12v9"/></svg>Stock</a>
+        <a><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>More</a>
+      </div>
+    </div>
+    </div>
+  </div>
+  </div>
+  <p class="phonenote">Phone frame, 390px wide. Under 640px the nav moves to the bottom tab bar and the week strip stays pinned at the top while the days scroll. Orders and Items sit under More.</p>
+  </div>
+  </div>
+
+  <h2>Which is which</h2>
+  <div class="grid3">
+    <div class="card"><h3>A. Sections</h3><p><span class="tag">lists and totals</span></p><p>A week strip over three stacked lists: what is due, what moved, what went out. Reads like a report.</p></div>
+    <div class="card"><h3>B. Timesheet grid</h3><p><span class="tag">seven day blocks</span></p><p>The week as a timesheet: each day is a block, each ticket a card inside it, each item a line with its status on the right.</p></div>
+  </div>
+
+  <h3>Same in both</h3>
+  <ul class="same">
+    <li><b>Install date on tickets.</b> Each ticket sits on the day it installs; the Tickets list sorts by the same date.</li>
+    <li><b>Previous week / This week / Next week</b> above everything, with the date range.</li>
+    <li><b>Status pills</b> in the same colors as the ticket screen. Past days are faded so they read as a record; today has a blue border and a Today tag.</li>
+    <li><b>Unscheduled strip</b> for tickets with no install date, with a date field beside each one.</li>
+    <li><b>Phone stacking.</b> Under 640px tables turn into cards, day blocks stack with today first, the week strip stays pinned, and every control is at least 44px tall.</li>
+  </ul>
+</div>
+
+<script>
+(function(){
+  var opts={
+    sections:{name:"A. Sections",tag:"lists and totals",d:"A week strip over three stacked lists: what is due, what moved, what went out. Reads like a report."},
+    grid:{name:"B. Timesheet grid",tag:"seven day blocks",d:"The week as a timesheet: each day is a block, each ticket a card inside it, each item a line with its status on the right."}
+  };
+  var views=["desktop","phone"];
+  var order=Object.keys(opts), mock=document.getElementById("mock"), frame=document.getElementById("frame"), cap=document.getElementById("caption"), sw=document.getElementById("switcher");
+
+  function store(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
+  function load(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
+
+  function apply(k){
+    mock.setAttribute("data-layout",k);
+    document.querySelectorAll(".switcher button[data-opt]").forEach(function(b){ b.classList.toggle("active", b.getAttribute("data-opt")===k); });
+    var o=opts[k];
+    cap.innerHTML="<b>"+o.name+"</b><span class=\"tag\">"+o.tag+"</span><span class=\"d\">"+o.d+"</span>";
+    store("loadout.weekpreview.layout",k);
+  }
+  function step(n){ var i=order.indexOf(mock.getAttribute("data-layout")); apply(order[(i+n+order.length)%order.length]); }
+  document.querySelectorAll(".switcher button[data-opt]").forEach(function(b){ b.addEventListener("click", function(){ apply(b.getAttribute("data-opt")); }); });
+  document.getElementById("nextBtn").addEventListener("click", function(){ step(1); });
+  document.addEventListener("keydown", function(e){
+    var t=e.target && e.target.tagName;
+    if(t==="INPUT"||t==="SELECT"||t==="TEXTAREA") return;
+    if(e.key==="ArrowRight") step(1);
+    if(e.key==="ArrowLeft") step(-1);
+  });
+
+  /* in the desktop frame the pinned week strip sits just under the sticky switcher */
+  function setStick(){ frame.style.setProperty("--stick", (sw.offsetHeight+8)+"px"); }
+  window.addEventListener("resize", setStick);
+
+  function showView(v){
+    if(views.indexOf(v)<0) v="desktop";
+    frame.classList.toggle("ph", v==="phone");
+    document.querySelectorAll(".viewtabs button").forEach(function(b){ b.classList.toggle("active", b.getAttribute("data-view")===v); });
+    store("loadout.weekpreview.view",v);
+    setStick();
+  }
+  document.querySelectorAll(".viewtabs button").forEach(function(b){ b.addEventListener("click", function(){ showView(b.getAttribute("data-view")); }); });
+
+  var savedLayout=load("loadout.weekpreview.layout"), savedView=load("loadout.weekpreview.view");
+  apply(opts[savedLayout]?savedLayout:"sections");
+  showView(savedView||"desktop");
+})();
+</script>
+</body>
+</html>
