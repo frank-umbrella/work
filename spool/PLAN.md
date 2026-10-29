@@ -130,7 +130,20 @@ the database reads without the app (section 16).
   lastNoteSyncAt, lastNoteStatus       for the Portal note push (section 6)
 
 /spool_products/{productId}
-  brand, model, description
+  kind            "device" | "patch-cable" | "splitter" | "connector" |
+                  "wire" | "other"            from the sheet tab it came from
+  type            "CAT6 UTP patch cable", "2 way coaxial splitter", "XLR",
+                  "Network"...                the sheet's Type column, kept
+  brand, model, description                   blank on most cables and
+                                              connectors (section 17)
+  name            display name: brand + model when present, otherwise
+                  composed from type and attributes ("Cat6 UTP patch
+                  cable, RJ45/M to RJ45/M, blue, 3 ft")
+  connector1, connector2, color, length, lengthUnit ("ft"|"m"|"in"),
+  gauge, gaugeUnit ("awg"|"mm"), inputs, outputs, sex, band, pins,
+  wireType ("23/4", "RG6"), grade ("GP"|"Riser"|"Plenum"|"Shielded")
+                                              flat optional attributes;
+                                              only the ones the kind uses
   unit            "each" | "ft"
   upc             string|null          learned on first scan
   category        string               "Wire", "Network", "Camera", "Mount"...
@@ -140,7 +153,13 @@ the database reads without the app (section 16).
   imageUrl        string|null          Storage path, optional
   onHand          number               denormalized sum; recomputed on each movement
   portalItemId    string|null          Portal referencedItemId, when imported
+  lastCountAt     Timestamp|null       from the sheet's Last Date / Count Date
   createdAt, updatedAt
+
+  Document id: brand-model slug when both exist ("ubiquiti-u6-pro");
+  otherwise kind + type + attributes slug
+  ("patch-cable-cat6-utp-rj45m-rj45m-blue-3ft"). Same product, same id,
+  so a re-import updates instead of duplicating.
 
 /spool_users/{uid}
   email, name, role ("admin"|"warehouse"|"tech"|"accounting"|"board"), active
@@ -164,9 +183,13 @@ the database reads without the app (section 16).
   createdAt, updatedAt
 
 /spool_locations/{locationId}
-  name ("Rack A3", "Bay 2", "Van 1"), kind ("shelf"|"bay"|"van"|"other")
+  area ("Storage room", "Computer Room Shelving Rack", "Warehouse")
+  shelf ("RCA A/V Video", "Power cables", "C", "")   blank for a bare area
+  name            "Storage room, RCA A/V Video"   composed; what labels print
+  kind ("shelf"|"bay"|"van"|"other")
   jobId (string|null)                  set while a bay is reserved for a job
   qr              string               payload printed on the label
+  Document id: area-shelf slug ("storage-room--rca-av-video").
 
 /spool_stock/{productId_locationId}    one doc per product per location
   productId, locationId, qty           qty in the product's unit
@@ -174,7 +197,10 @@ the database reads without the app (section 16).
 /spool_containers/{containerId}        only for unit == "ft" products
   productId, locationId
   upc             the barcode printed on the box, scanned at receive
-  label ("Cat6 blue box 3"), startLength (1000), ftLeft (640)
+  label           the shop's existing box code ("A826", "BB"), kept as the
+                  id and printed on the QR sticker; new boxes continue the
+                  scheme (section 17)
+  startLength (1000), ftLeft (640), purchasedAt
   lastMark        the footage mark the box is stopped at (boxes count down
                   from startLength; ftLeft = lastMark on a count-down box)
   status ("open"|"empty"|"assigned"), pickTicketId (string|null)
@@ -734,7 +760,7 @@ Build T0 first. T1 and T2 are worker work and need the plan tier known.
 
 | Version | Scope |
 |---|---|
-| 0.1.0 | Shell, sign-in, roles and rules, Stock view, product CRUD, locations, movements, Scan with UPC lookup and receive/count, wire boxes with the box sheet and cut log, serialized items with check-out / check-in, QR labels and label sheets. The warehouse can be counted, labeled, and signed out. |
+| 0.1.0 | Shell, sign-in, roles and rules, Stock view, product CRUD, locations, movements, Scan with UPC lookup and receive/count, wire boxes with the box sheet and cut log, serialized items with check-out / check-in, QR labels and label sheets, and the **inventory sheet importer** (section 17) so day one starts from the current spreadsheet, not from zero. The warehouse can be counted, labeled, and signed out. |
 | 0.2.0 | Clients, jobs, proposals, CSV import with header mapping, pick tickets with lines, pull-from-stock, stage, deliver (checks items out to the tech), close (marks them installed), print, Copy for Portal (T0), the warehouse wall board with Show on board. |
 | 0.3.0 | Orders, lines, shipments, carrier detection, receive-by-shipment into bays with barcode counting, chips on ticket lines, low-stock reorder into draft POs, the Tracking dashboard. |
 | 0.4.0 | Console: reports with CSV / XLSX export, People, Settings, About (data dictionary), Export everything (one CSV per collection, zipped); accounting role end to end. |
@@ -764,7 +790,13 @@ with the why, small commits.
   scanning optional? Plan assumes optional.
 - **D7 Costs.** Show Portal cost per line to everyone, nobody, or behind the
   Settings toggle (default)?
-- **D8 Name.** Spool, or one of Depot / Manifest / Crate, or something else.
+- **D8 Name.** Not Spool (2026-10-29). Options, all neutral enough for the
+  work site and short enough for a phone tab: **Depot** (where stock lives;
+  the plain pick), **Quartermaster** (the person who issues gear and knows
+  who has what; "QM" on the tab), **Keep** (the storeroom of a castle, and
+  keeping track), **Hold** (where cargo sits on a ship), **Manifest** (the
+  list of what is on board), **Stow**, **Dock**, **Crate**. Recommendation:
+  Depot for the URL and tab, Quartermaster if you want character.
 - **D9 Design.** Pick A, B, or C from the switcher. Design Read: a staff
   warehouse app for two to five people on phones and one desktop, in the
   Backup Audits family, dial ENERGY 1 / RHYTHM 1 / MOTION 1. B is recommended
@@ -783,10 +815,19 @@ with the why, small commits.
 - **D13 Storyboard sign-off.** The owner reads `storyboard.html` (section
   15) and either approves it or marks up what the flow gets wrong. The build
   starts after that, not before.
-- **D15 Database.** Firestore (recommended; section 16) or Postgres via
-  Supabase. The owner raised readability; section 16 is the answer either
-  way. Postgres moves offline support from "built in" to "we build it" in
-  phase 0.5.0 and adds a second sign-in system.
+- **D15 Database.** Settled 2026-10-29: **Firestore**, as recommended in
+  section 16. Postgres is off the table for v1; the one-for-one SQL mapping
+  rule stays so the door is not locked.
+- **D16 Box start lengths.** The current sheet has feet left per box but
+  not what each box started at, and the maximums show they are not all
+  1,000 (one box type reads 1,954, coax 1,000, several under 800 and
+  already partly used). At import, each open box needs its start length
+  typed once, or a default per cable type (Cat6 1,000; RG6 1,000; audio and
+  speaker 500?). Which?
+- **D17 Assigned inventory.** The sheet is "Unassigned Inventory", so there
+  is presumably a per-job or assigned list somewhere. Is there, and should
+  it be imported as staged stock against jobs, or does Spool start with the
+  unassigned stock only and build the rest from new pick tickets?
 - **D14 Wall board hardware and mode.** What drives the TV: a mini PC in
   kiosk mode (recommended), a Chromecast or Android stick browser, or a
   laptop? And one pinned ticket at a time, or rotate through every open
@@ -933,9 +974,88 @@ read. These are build requirements, checked before each release:
    column, every subcollection a table with a parent id. A move to Postgres
    is a copy script, not a rewrite.
 
+**Fixture.** `samples/Unassigned Inventory.xlsx` (ignored, section 17) is
+the readability test: the import of it must produce documents a person can
+read in the console and a CSV export that round-trips to the same sheet.
+
 **Firestore vs Postgres, for the record.** Firestore: shared sign-in, offline
 persistence built in, listeners for the wall board, free tier covers a
 five-person shop, console shows one document at a time. Supabase Postgres:
 grid view per table, SQL joins for reports, its own auth, no built-in
 offline, free tier pauses after a week idle so Pro is the realistic tier.
-Recommendation stays Firestore with rules 1-9; D15 is the owner's call.
+Settled 2026-10-29 (D15): Firestore with rules 1-9.
+
+## 17. Importing the current inventory sheet
+
+The shop already keeps inventory in a workbook, `Unassigned Inventory.xlsx`
+(in `samples/`, never committed). It is the day-one seed and the first real
+test of the import mapping. Read on 2026-10-29; what it holds:
+
+| Tab | Rows | What it is | Columns |
+|---|---|---|---|
+| Patch Cables | 171 | Made-up cables by type and attributes; 31 types (power, stereo audio, Cat6 patch, HDMI, fiber, USB, A/V...) | Type, Make, Part Number, Connector 1, Connector 2, Color, Diameter + Unit of Measure (gauge), Amps, Length + Unit of Measure 2, QTY, Area, Shelf, Last Date |
+| Splitters | 15 | Coax, RCA, and 3.5 mm splitters | Type, Make, Part Number, Connector 1, Number of Inputs, Connector 2, Number of outputs, QTY, Area, Shelf, Last Date |
+| Devices | 47 | Network, surveillance, speakers, control, racks | Type, Make, Part Number, Description, Color, Condition, QTY, Area, Shelf, Count Date |
+| Connectors | 9 | XLR and banana | Type, Make, Part Number, Sex, Band, Pin, QTY, Area, Shelf, Last Date |
+| Boxed Cable | 53 | Wire boxes by box code | Box, Type, Wire Type, Color, Purchase Date, QTY (feet left), As of Date, Location |
+| Carrier OnhandPricing | 33 | Cable type x color grid with three vendor price columns, almost empty | Type, Grade, Color, Length, and one column per vendor |
+| Cable Guide | 5 | Cable type and grade list | Type, Grade |
+
+What the sheet taught the plan (changes already made above):
+
+1. **Most cables and connectors have no make or part number** (143 of 171
+   patch cables, 6 of 15 splitters, 6 of 9 connectors). A catalog keyed on
+   brand + model cannot hold them. Products now have a `kind`, the sheet's
+   `type`, and flat attribute fields; the id and display name compose from
+   those when brand and model are blank (section 3).
+2. **Locations are two-level**: an Area (Storage room, Computer Room
+   Shelving Rack, Computer Room Cabinet, Warehouse, Garage) and a Shelf
+   (RCA A/V Video, Power cables, HDMI, USB cables, Patch cables, A, B, C).
+   Locations now carry `area` and `shelf` with a composed name.
+3. **Wire boxes already have codes** (A826, B626, AA, BB: a letter plus, on
+   newer boxes, month and year of purchase). The code becomes the
+   container's id and label and goes on the QR sticker; new boxes continue
+   the scheme. Feet left is the sheet's QTY; the last reading date is As of
+   Date; Purchase Date is kept. Fifteen boxes read zero and two say
+   "completed": those import as empty. Thirteen boxes have feet left but no
+   location: they import with a "confirm location" flag that the Stock view
+   shows until someone scans them onto a shelf.
+4. **Every row has a count date** (Last Date, Count Date, As of Date). The
+   import writes one `adjust` movement per row, dated from that column, by
+   "Import", note "Unassigned Inventory.xlsx, tab X row N", and sets
+   `lastCountAt`. The audit trail starts from the sheet, not from nothing.
+5. **Condition exists on devices** (new, new in box, used) and maps to the
+   item condition field; devices with a condition or a cost above the
+   threshold become serialized items at import, one per unit of QTY.
+6. **The vendor columns** on the pricing tab seed the vendor list in
+   Settings. The prices themselves are empty and are not imported.
+7. **Zero-quantity rows stay** as products with on-hand 0, so the catalog
+   remembers what the shop stocks.
+
+Normalization the importer applies, shown in the preview before anything is
+written:
+
+- Trim, collapse spaces, and fold case on Area, Shelf, Type, Color, units
+  ("Storage room" and "storage Room" are one shelf; "grey" and "gray" are
+  one color; "foot", "Foot", "feet" are `ft`).
+- Make aliases from a small table the user confirms in the preview
+  ("Ubiquity" and "Unifi" to "Ubiquiti"); unknown makes pass through as
+  typed.
+- Part numbers that Excel stored as numbers (13 devices, 5 cables) become
+  text without the trailing ".0".
+- "N/A" and blanks become empty fields, never the string "N/A".
+- Length + unit become `length` and `lengthUnit`; Diameter + Unit of Measure
+  become `gauge` and `gaugeUnit`.
+- Boxed Cable: Type + Wire Type + Color + grade (from the Cable Guide tab
+  when the type names one) compose the wire product; one container per row.
+
+The importer lives at More > Import inventory sheet (admin only), built in
+0.1.0: drop the .xlsx (SheetJS reads it in the browser), pick the tab-to-kind
+mapping (prefilled for these seven tabs), review a dry-run report (products
+to create, shelves to create, boxes, items, rows skipped and why, the alias
+table), then Import. Re-running it on a newer copy of the sheet updates
+counts and adds new rows; it never duplicates, because the ids are
+deterministic (section 3). The same screen takes a plain CSV with the same
+columns for later bulk edits.
+
+Open: D16 (start length per box) and D17 (assigned inventory).
