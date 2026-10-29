@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Loadout v0.1.0</title>
+<title>Loadout v0.2.0</title>
 <meta name="robots" content="noindex, nofollow">
-<meta name="loadout-version" content="0.1.0">
+<meta name="loadout-version" content="0.2.0">
 <meta name="description" content="Umbrella Automation shop inventory. Restricted to @umbrellaautomation.com accounts.">
 <meta name="theme-color" content="#1e6fd9">
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
@@ -198,6 +198,9 @@ select.fld{appearance:none;padding-right:30px;background-image:linear-gradient(4
   .tbl tr.need{box-shadow:inset 3px 0 0 var(--m-warn)}
   .tbl tr.need td:first-child{box-shadow:none}
   .tbl tr.skel td{padding-left:0}
+  .tbl tr.grp{border:0;border-radius:0;padding:0;margin:14px 0 6px;background:transparent}
+  .tbl tr.grp td{padding:8px 0 6px;min-height:0}
+  .tbl tr.grp td:before{display:none}
 }
 .empty{padding:22px 8px;text-align:center;color:var(--m-muted)}
 .empty p{margin:0 0 10px;color:var(--m-text)}
@@ -341,9 +344,127 @@ body.preview #printSheet .sheet{margin:0 auto 16px;box-shadow:0 2px 10px rgba(0,
 @media print{
   @page{size:letter;margin:0}
   body{background:#fff}
-  #app,#signin,.demobar,.toast,#modalRoot,.pvbar{display:none!important}
+  #app,#signin,.demobar,.toast,#modalRoot,.pvbar,#board{display:none!important}
   #printSheet,body.preview #printSheet{display:block!important;padding:0!important;background:#fff!important}
   body.preview #printSheet .sheet{margin:0!important;box-shadow:none!important;zoom:1!important}
+}
+
+/* ---------- pick tickets (0.2.0) ---------- */
+.mv.stage,.mv.deliver{color:var(--m-info-text)}
+.mv.return{color:var(--m-ok-text)}
+/* Ledger motif: area headers are a ruled line, not a filled band */
+.tbl tr.grp td{background:transparent;border-bottom:1.5px solid var(--m-text);padding:16px 0 6px;font-weight:700;font-size:13.5px;overflow-wrap:anywhere}
+.tbl tbody tr.grp:first-child td{padding-top:6px}
+.tbl tr.grp td span{font-weight:400;color:var(--m-muted);margin-left:8px;font-size:12px}
+.crumb{font-size:12px;color:var(--m-muted);margin-bottom:4px}
+.tkrow{display:flex;align-items:center;gap:10px 14px;flex-wrap:wrap}
+.tktitle{margin:0;font-size:24px;font-weight:700;line-height:1.2}
+.tkbtns{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.prog{display:flex;height:10px;border-radius:999px;background:var(--m-card2);border:1px solid var(--m-line);overflow:hidden;margin:14px 0 6px}
+.prog i{display:block;height:100%}
+.prog .p1{background:var(--m-ok)}
+.prog .p2{background:var(--m-warn);opacity:.55}
+.pkey{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:12px;color:var(--m-muted)}
+.pkey span{display:inline-flex;align-items:center;gap:6px}
+.pkey i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.mini{display:flex;align-items:center;gap:8px;white-space:nowrap}
+.mini .bar{width:64px;flex:none;height:8px}
+.two{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:900px){.two{grid-template-columns:minmax(0,1fr)}}
+pre.note{margin:0;background:var(--m-card2);border:1px solid var(--m-line);border-radius:var(--m-radius);padding:12px 14px;font:12.5px/1.55 var(--m-mono);white-space:pre-wrap;overflow-wrap:anywhere;color:var(--m-text)}
+.chip.new{border-style:dashed}
+.chip.new i{background:var(--m-accent)}
+.chip.bad{border-color:color-mix(in srgb,var(--m-danger) 50%,var(--m-line));color:var(--m-bad-text)}
+.chip.bad i{background:var(--m-danger)}
+.lnote{font-size:12.5px;margin-top:4px;padding-left:8px;border-left:2px solid var(--m-line2);overflow-wrap:anywhere}
+.filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:0 14px;align-items:end;margin-bottom:12px}
+.filters .chk{margin-top:10px}
+.drop{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;border:2px dashed var(--m-line2);border-radius:var(--m-radius);padding:18px 12px;text-align:center;background:var(--m-card2)}
+.drop.over{border-color:var(--m-accent);background:color-mix(in srgb,var(--m-accent) 8%,var(--m-card))}
+.drop p{margin:0;color:var(--m-muted);font-size:13px}
+.step{display:flex;align-items:center;gap:8px;margin:20px 0 8px;font-size:14px;font-weight:700}
+.step:first-child{margin-top:4px}
+.step b{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--m-accent);color:var(--m-onaccent);font-size:12px;flex:none}
+.hline{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.6fr) 84px auto;gap:6px 8px;align-items:end;padding:8px 0;border-bottom:1px dashed var(--m-line)}
+.hline .lab{margin-top:0}
+.hline .x{min-width:38px;padding:0 8px}
+.hline .mch{grid-column:1/-1}
+@media (max-width:640px){.hline{grid-template-columns:minmax(0,1fr) 84px}.hline .hp{grid-column:1/-1}}
+.pickunits{max-height:220px;overflow-y:auto;border:1px solid var(--m-line);border-radius:var(--m-radius);padding:2px 10px;margin-top:6px}
+.radio{display:flex;align-items:flex-start;gap:10px;min-height:38px;cursor:pointer;padding:6px 0}
+.radio input{width:18px;height:18px;margin-top:2px;flex:none;accent-color:var(--m-accent)}
+.forticket{display:flex;align-items:center;gap:8px;flex-wrap:wrap;border:1px solid var(--m-line);border-radius:999px;padding:3px 4px 3px 12px;background:var(--m-card2);margin-top:10px;max-width:100%}
+.forticket label{font-size:12px;font-weight:600;color:var(--m-muted)}
+.forticket select.fld{flex:1 1 180px;min-width:0;width:auto;border-radius:999px;min-height:32px}
+
+/* ---------- ticket print (pick list) ---------- */
+.picksheet{background:#fff;color:#000;max-width:8.5in;margin:0 auto;padding:.5in;font:11pt/1.35 Arial,Helvetica,sans-serif;page:pick}
+.picksheet h1{font-size:18pt;margin:0 0 4px}
+.picksheet .pmeta{display:flex;flex-wrap:wrap;gap:4px 24px;font-size:10pt;margin-bottom:12px}
+.picksheet table{width:100%;border-collapse:collapse;font-size:10pt}
+.picksheet th{text-align:left;border-bottom:1.5px solid #000;padding:4px;font-size:9pt;text-transform:uppercase;letter-spacing:.04em}
+.picksheet td{border-bottom:1px solid #999;padding:5px 4px;vertical-align:top;overflow-wrap:anywhere}
+.picksheet td.r,.picksheet th.r{text-align:right}
+.picksheet tr.ga td{font-weight:700;border-bottom:1.5px solid #000;padding-top:10px}
+.picksheet .box{display:inline-block;width:12px;height:12px;border:1.5px solid #000}
+.picksheet .sign{margin-top:24px;display:flex;flex-wrap:wrap;gap:12px 40px;font-size:10pt}
+@page pick{size:letter;margin:.4in}
+@media print{.picksheet{padding:0;max-width:none}}
+body.preview #printSheet .picksheet{box-shadow:0 2px 10px rgba(0,0,0,.15)}
+@media (max-width:640px){body.preview #printSheet .picksheet{padding:16px;font-size:10pt}}
+
+/* ---------- wall board (?board=1, role board) ----------
+   Read from three to five meters: 30px lines, 44px counts, 24px headers.
+   Dark by default because the TV sits in a dim corner by the bays; every
+   text color below was checked at 4.5:1 or better on --b-bg and --b-card. */
+#board{position:fixed;inset:0;z-index:50;display:flex;flex-direction:column;overflow:hidden;cursor:none;background:var(--b-bg);color:var(--b-text);font-family:var(--m-font)}
+#board[data-theme="dark"]{--b-bg:#0e1116;--b-card:#161b22;--b-line:#2b333d;--b-text:#f2f5f8;--b-muted:#aab4c0;--b-dim:#97a2ae;--b-amber:#f2b34a;--b-red:#ff8a80;--b-ok:#5fd39a;color-scheme:dark}
+#board[data-theme="light"]{--b-bg:#f4f6f9;--b-card:#ffffff;--b-line:#c7d0da;--b-text:#1a2233;--b-muted:#4f5a68;--b-dim:#5b6675;--b-amber:#8a5a14;--b-red:#a82e29;--b-ok:#166b3e;color-scheme:light}
+.bd-rot{flex:none;height:6px;background:var(--b-line)}
+.bd-rot i{display:block;height:100%;width:0;background:var(--b-muted)}
+.bd-live{flex:none;background:#a82e29;color:#fff;font-size:24px;font-weight:700;padding:10px 40px}
+.bd-main{flex:1;min-height:0;display:flex;flex-direction:column;padding:22px 40px 0}
+.bd-head{flex:none;display:flex;flex-wrap:wrap;align-items:flex-end;gap:6px 28px}
+.bd-client{font-size:40px;font-weight:700;line-height:1.1;overflow-wrap:anywhere}
+.bd-sub{font-size:24px;color:var(--b-muted);overflow-wrap:anywhere}
+.bd-sub .mono{font-family:var(--m-mono)}
+.bd-bay{margin-left:auto;text-align:right;font-size:24px;color:var(--b-muted)}
+.bd-bay b{display:block;font-size:44px;color:var(--b-text);line-height:1.1}
+.bd-count{flex:none;display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 14px;margin:14px 0 8px;font-size:24px;color:var(--b-muted)}
+.bd-count b{font-size:44px;color:var(--b-text);font-variant-numeric:tabular-nums}
+.bd-bar{flex:none;height:16px;border-radius:999px;background:var(--b-line);overflow:hidden}
+.bd-bar i{display:block;height:100%;background:var(--b-ok)}
+.bd-list{flex:1;min-height:0;overflow:hidden;margin-top:12px;padding-bottom:24px}
+.bd-grp{font:700 24px var(--m-mono);color:var(--b-muted);border-bottom:2px solid var(--b-line);padding:16px 0 6px;overflow-wrap:anywhere}
+.bd-line{display:grid;grid-template-columns:150px minmax(0,1fr) auto;gap:4px 24px;align-items:center;padding:12px 0;border-bottom:1px solid var(--b-line)}
+.bd-st{font-size:24px;font-weight:700;display:flex;align-items:center;gap:8px}
+.bd-st svg{width:28px;height:28px;flex:none}
+.bd-name{font-size:30px;font-weight:600;line-height:1.2;overflow-wrap:anywhere}
+.bd-meta{font-size:24px;color:var(--b-muted);overflow-wrap:anywhere}
+.bd-qty{font-size:44px;font-weight:700;font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+.bd-qty small{font-size:24px;font-weight:600}
+.bd-line.picked .bd-st,.bd-line.picked .bd-name,.bd-line.picked .bd-qty,.bd-line.picked .bd-meta{color:var(--b-dim)}
+.bd-line.amber .bd-st,.bd-line.amber .bd-qty{color:var(--b-amber)}
+.bd-line.red .bd-st,.bd-line.red .bd-qty{color:var(--b-red)}
+.bd-line .bd-also{color:var(--b-amber)}
+.bd-line .bd-also.red{color:var(--b-red)}
+.bd-idle{flex:1;min-height:0;overflow:hidden auto;display:flex;flex-direction:column;align-items:center;justify-content:safe center;gap:16px;text-align:center;padding:24px}
+.bd-idle svg.mark{width:96px;height:96px;color:var(--b-muted)}
+.bd-idle h1{margin:0;font-size:56px}
+.bd-idle p{margin:0;font-size:30px;color:var(--b-muted);max-width:28ch}
+.bd-clock{font-size:96px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1}
+.bd-low{list-style:none;margin:8px 0 0;padding:0;font-size:30px;width:min(100%,900px)}
+.bd-low li{display:flex;justify-content:space-between;gap:24px;padding:10px 0;border-bottom:1px solid var(--b-line);text-align:left}
+.bd-low li b{color:var(--b-amber);white-space:nowrap}
+@media (max-width:760px){
+  .bd-main{padding:14px 16px 0}
+  .bd-live{padding:8px 16px;font-size:18px}
+  .bd-client{font-size:28px}.bd-sub,.bd-bay,.bd-count,.bd-meta,.bd-st,.bd-grp{font-size:18px}
+  .bd-bay{margin-left:0;text-align:left}.bd-bay b,.bd-count b,.bd-qty{font-size:30px}
+  .bd-name{font-size:22px}
+  .bd-line{grid-template-columns:minmax(0,1fr) auto;gap:2px 12px}
+  .bd-line .bd-st{grid-column:1/-1}
+  .bd-idle h1{font-size:36px}.bd-idle p,.bd-low{font-size:20px}.bd-clock{font-size:64px}
 }
 
 /* ---------- phone ---------- */
@@ -355,7 +476,7 @@ body.preview #printSheet .sheet{margin:0 auto 16px;box-shadow:0 2px 10px rgba(0,
   .mcard{padding:14px}
   .fld{font-size:16px}
   /* thumbs, not cursors: every control grows to the 44px floor on the phone */
-  .btn,.btn.sm,.fld,select.fld,.seg button,.chk,.textbtn,.linkbtn,.gbtn,.locchip button,.mh .x,details.more summary,.demobar a{min-height:44px}
+  .btn,.btn.sm,.fld,select.fld,.seg button,.chk,.textbtn,.linkbtn,.gbtn,.locchip button,.mh .x,details.more summary,.demobar a,.radio,.forticket select.fld{min-height:44px}
   .linkbtn{display:flex;align-items:center;width:100%}
   .locchip button,.mh .x{min-width:44px}
   .tbl th .thb{min-height:44px}
@@ -398,9 +519,10 @@ body.preview #printSheet .sheet{margin:0 auto 16px;box-shadow:0 2px 10px rgba(0,
   <header class="top">
     <div class="brand">
       <svg viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="20" width="48" height="34" rx="6" fill="none" stroke="currentColor" stroke-width="5"/><path d="M24 20v-6a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v6" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/><path d="M8 35h48" stroke="currentColor" stroke-width="4"/><rect x="27" y="31" width="10" height="8" rx="2" fill="currentColor"/></svg>
-      Loadout <span class="v" id="verBadge">v0.1.0</span>
+      Loadout <span class="v" id="verBadge">v0.2.0</span>
     </div>
     <nav class="nav" aria-label="Views">
+      <button type="button" data-go="tickets">Tickets</button>
       <button type="button" data-go="stock">Stock</button>
       <button type="button" data-go="scan">Scan</button>
       <button type="button" data-go="items">Items</button>
@@ -411,6 +533,8 @@ body.preview #printSheet .sheet{margin:0 auto 16px;box-shadow:0 2px 10px rgba(0,
   </header>
 
   <main class="body" id="main">
+    <section id="v-tickets" class="view" hidden></section>
+    <section id="v-ticket" class="view" hidden></section>
     <section id="v-stock" class="view" hidden></section>
     <section id="v-scan" class="view" hidden></section>
     <section id="v-items" class="view" hidden></section>
@@ -418,19 +542,22 @@ body.preview #printSheet .sheet{margin:0 auto 16px;box-shadow:0 2px 10px rgba(0,
   </main>
 
   <footer class="foot">
-    <span id="footVer">Loadout v0.1.0</span>
+    <span id="footVer">Loadout v0.2.0</span>
     <span id="footWho"></span>
     <span id="footRole"></span>
     <span id="footSync"></span>
   </footer>
 
   <nav class="tabbar" aria-label="Views">
+    <button type="button" data-go="tickets"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 10h6M9 14h6M9 18h3"/></svg>Tickets</button>
     <button type="button" data-go="stock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5z"/><path d="M3 7.5 12 12l9-4.5M12 12v9"/></svg>Stock</button>
     <button type="button" data-go="scan" class="scan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4M4 12h16"/></svg>Scan</button>
     <button type="button" data-go="items"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="6" width="16" height="12" rx="2"/><path d="M8 10h4M8 14h8"/></svg>Items</button>
     <button type="button" data-go="more"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>More</button>
   </nav>
 </div>
+
+<div id="board" hidden aria-live="polite"><div class="bd-rot" id="bdRot" hidden><i></i></div><div class="bd-live" id="bdLive" hidden></div><div class="bd-main" id="bdMain"></div></div>
 
 <div id="printSheet" aria-hidden="true"></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
@@ -443,7 +570,7 @@ body.preview #printSheet .sheet{margin:0 auto 16px;box-shadow:0 2px 10px rgba(0,
    and its Google sign-in, like Backup Audits and Sundial. Data lives
    in loadout_* collections; rules are in watchtower/firestore.rules.
    ============================================================== */
-const VERSION = "0.1.0";
+const VERSION = "0.2.0";
 const SDK = "https://www.gstatic.com/firebasejs/12.13.0/";
 const XLSX_URL = "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";
 /* @zxing/library is not on cdnjs, so the fallback decoder comes from jsDelivr,
@@ -467,6 +594,9 @@ const ADMIN_EMAIL = "frank@umbrellaautomation.com";
 const QUERY = new URLSearchParams(location.search);
 const DEMO = QUERY.get("demo") === "1";
 const PRINT = QUERY.get("print") === "1";
+/* ?board=1 is the warehouse TV; the board role lands there too */
+let BOARD = QUERY.get("board") === "1";
+const DEMO_EMPTY = DEMO && QUERY.get("empty") === "1";
 
 const ROLES = ["admin", "warehouse", "tech", "accounting", "board"];
 const ROLE_LABEL = { admin: "Admin", warehouse: "Warehouse", tech: "Tech", accounting: "Accounting", board: "Board", none: "Paused" };
@@ -475,6 +605,26 @@ const KIND_LABEL = { device: "Device", "patch-cable": "Patch cable", splitter: "
 const LOC_KINDS = ["shelf", "bay", "van", "other"];
 const ITEM_STATUS = { on_order: "On order", in_stock: "In stock", staged: "Staged", checked_out: "Checked out", installed: "Installed", returned: "Returned", retired: "Retired" };
 const MV_LABEL = { receive: "Receive", pick: "Pick", stage: "Stage", deliver: "Deliver", adjust: "Adjust", reading: "Reading", cut: "Cut", checkout: "Check out", checkin: "Check in", return: "Return", transfer: "Move", edit: "Edit" };
+/* pick tickets (PLAN section 3 and 4) */
+const TK_STATUS = ["open", "picking", "staged", "delivered", "closed"];
+const TK_LABEL = { open: "Open", picking: "Picking", staged: "Staged", delivered: "Delivered", closed: "Closed" };
+const TK_PILL = { open: "", picking: "info", staged: "ok", delivered: "ok", closed: "" };
+const SKIP_TYPES = /^(labor|labour|fee|fees|custom ?item)$/i;
+const DEFAULT_BOARD = { mode: "pinned", ticketIds: [], rotateSec: 20, groupBy: "location", showStaged: true, theme: "dark" };
+/* CSV columns the proposal importer understands, with the header names it
+   recognizes before anyone maps a column by hand (PLAN D3: no sample yet) */
+const IMP_FIELDS = [
+  { k: "area", label: "Area", names: ["area", "room", "location", "area name"], tip: "The room or zone on the proposal. Lines are grouped by it on the ticket and the print." },
+  { k: "itemType", label: "Item type", names: ["item type", "type", "itemtype", "line type"], tip: "Rows typed Labor, Fee, or CustomItem are skipped and listed, so nothing is dropped without a trace." },
+  { k: "brand", label: "Brand", names: ["brand", "make", "manufacturer"], tip: "Brand plus model is how a line finds its product in the catalog." },
+  { k: "model", label: "Model", names: ["model", "model number", "part number", "part #", "sku"], tip: "Brand plus model is how a line finds its product in the catalog." },
+  { k: "description", label: "Description", names: ["description", "short description", "item description", "name"] },
+  { k: "qty", label: "Quantity", names: ["quantity", "qty", "count"], tip: "Rows with a blank quantity are skipped and listed." },
+  { k: "unit", label: "Unit", names: ["unit", "unit of measure", "uom", "units"], tip: "ft or feet makes a new product a by-the-foot product with boxes." },
+  { k: "portalItemId", label: "Portal item id", names: ["item id", "portal item id", "referenced item id", "referenceditemid", "id"], tip: "Kept on the line so a later Portal sync can find it." },
+  { k: "proposal", label: "Proposal number", names: ["proposal number", "proposal #", "proposal", "proposal no", "proposal id"], tip: "Prefills the ticket's proposal number. Importing the same number again updates that ticket." },
+  { k: "option", label: "Option", names: ["option", "option name"] }
+];
 const ADJUST_REASONS = ["Recount", "Damaged", "Lost", "Found", "Used on a job", "Returned by a client", "Other"];
 const CONDITIONS = { good: "Good", damaged: "Damaged", missing: "Missing parts" };
 const DEFAULT_GENERAL = {
@@ -519,9 +669,15 @@ const S = {
   search: "", activeLoc: null, pendingUpcFor: null,
   prefs: {}, pending: 0, online: navigator.onLine,
   mvFilter: { type: "", person: "", q: "", from: "", to: "" },
-  scan: null
+  scan: null,
+  /* 0.2.0 */
+  clients: new Map(), jobs: new Map(), proposals: new Map(), tickets: new Map(),
+  lines: new Map(), linesLoaded: new Set(), ticketId: null, tkHist: {},
+  board: Object.assign({}, DEFAULT_BOARD), importMap: null,
+  tkFilter: { status: "active", client: "", toOrder: false, backorders: false },
+  showArchived: false, liveLostAt: null
 };
-const COLLS = ["products", "locations", "stock", "containers", "items", "users", "movements", "settings"];
+const COLLS = ["products", "locations", "stock", "containers", "items", "users", "movements", "settings", "clients", "jobs", "proposals", "tickets"];
 
 /* ---------------- tiny helpers ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -628,6 +784,7 @@ function mvWhat(m) {
   if (m.toLocationName) parts.push("to " + m.toLocationName);
   if (m.holderName && m.type === "checkout") parts.push("held by " + m.holderName);
   if (m.jobName) parts.push("for " + m.jobName);
+  if (m.ticketNumber) parts.push("ticket #" + m.ticketNumber);
   if (m.note) parts.push(m.note);
   return parts.filter(Boolean).join(", ");
 }
@@ -754,14 +911,19 @@ function demoStore() {
   return {
     start() { loadDemo(); COLLS.forEach(c => S.loaded[c] = true); scheduleRender(); },
     stop() {},
-    commit(ops, what) { toast("Demo mode: not saved"); return Promise.resolve(false); },
+    /* every write is refused; the last refused batch is kept on the demo
+       hook (window.Loadout.state.lastOps) so a script can check what a
+       button would have written */
+    commit(ops, what) { S.lastOps = ops; S.lastWhat = what || ""; toast("Demo mode: not saved"); return Promise.resolve(false); },
     async getAll(coll) {
       const key = coll.replace("loadout_", "");
       if (key === "movements") return S.movements.slice();
-      if (key === "settings") return [Object.assign({ id: "general" }, S.general)];
+      if (key === "settings") return [Object.assign({ id: "general" }, S.general), Object.assign({ id: "board" }, S.board)];
+      if (key === "ticket_lines") { const out = []; S.lines.forEach((m, tid) => m.forEach(l => out.push(Object.assign({ ticketId: tid }, l)))); return out; }
       const m = S[key]; return m ? Array.from(m.values()) : [];
     },
     async movementsWhere(field, id) { return S.movements.filter(m => m[field] === id); },
+    syncLines() {},
     async savePrefs() { /* demo keeps layout in memory and this browser only */ }
   };
 }
@@ -779,17 +941,39 @@ function firestoreStore(user) {
     });
     return out;
   }
-  function listen(name, q, onDocs) {
+  function listen(name, q, onDocs, meta) {
     S.loaded[name] = false; S.errors[name] = null;
-    const u = fs.onSnapshot(q, { includeMetadataChanges: false }, snap => {
+    const u = fs.onSnapshot(q, { includeMetadataChanges: !!meta }, snap => {
       S.loaded[name] = true; S.errors[name] = null;
+      if (meta) setLive(!snap.metadata.fromCache);
       onDocs(snap.docs.map(d => Object.assign({ id: d.id }, d.data({ serverTimestamps: "estimate" }))));
       paintSync(); scheduleRender();
     }, err => {
       console.warn("Listener failed for " + name + ":", err);
-      S.errors[name] = err; S.loaded[name] = true; paintSync(); scheduleRender();
+      S.errors[name] = err; S.loaded[name] = true; setLive(false); paintSync(); scheduleRender();
     });
     unsubs.push(u);
+  }
+  /* Ticket lines live in a subcollection per ticket. Every ticket that is
+     not closed gets a listener (the board, Scan, and the list need them);
+     a closed ticket's lines load while it is open on screen. Pending
+     writes mark the line so the row can show a "pending" chip. */
+  const lineUnsubs = new Map();
+  function syncLines() {
+    const want = new Set();
+    S.tickets.forEach(t => { if (t.status !== "closed") want.add(t.id); });
+    if (S.ticketId) want.add(S.ticketId);
+    lineUnsubs.forEach((u, id) => { if (!want.has(id)) { try { u(); } catch (e) {} lineUnsubs.delete(id); S.lines.delete(id); S.linesLoaded.delete(id); } });
+    want.forEach(id => {
+      if (lineUnsubs.has(id)) return;
+      const u = fs.onSnapshot(fs.collection(db, "loadout_tickets", id, "lines"), { includeMetadataChanges: true }, snap => {
+        const m = new Map();
+        snap.docs.forEach(d => m.set(d.id, Object.assign({ id: d.id, _pending: d.metadata.hasPendingWrites }, d.data({ serverTimestamps: "estimate" }))));
+        S.lines.set(id, m); S.linesLoaded.add(id); S.errors.lines = null;
+        scheduleRender();
+      }, err => { console.warn("Lines listener failed for ticket " + id + ":", err); S.errors.lines = err; S.linesLoaded.add(id); setLive(false); scheduleRender(); });
+      lineUnsubs.set(id, u);
+    });
   }
   const toMap = (key) => docs => { const m = new Map(); docs.forEach(d => m.set(d.id, d)); S[key] = m; _lastMv = null; };
   return {
@@ -804,10 +988,17 @@ function firestoreStore(user) {
         const g = docs.find(d => d.id === "general");
         S.general = Object.assign({}, DEFAULT_GENERAL, g || {});
         S.general.boxStart = Object.assign({}, DEFAULT_GENERAL.boxStart, (g && g.boxStart) || {});
+        S.board = Object.assign({}, DEFAULT_BOARD, docs.find(d => d.id === "board") || {});
+        S.importMap = docs.find(d => d.id === "importMap") || null;
       });
       listen("movements", fs.query(fs.collection(db, "loadout_movements"), fs.orderBy("at", "desc"), fs.limit(500)), docs => { S.movements = docs; _lastMv = null; });
+      listen("clients", fs.collection(db, "loadout_clients"), toMap("clients"));
+      listen("jobs", fs.collection(db, "loadout_jobs"), toMap("jobs"));
+      listen("proposals", fs.collection(db, "loadout_proposals"), toMap("proposals"));
+      listen("tickets", fs.collection(db, "loadout_tickets"), docs => { toMap("tickets")(docs); syncLines(); }, true);
     },
-    stop() { unsubs.forEach(u => { try { u(); } catch (e) {} }); unsubs = []; },
+    stop() { unsubs.forEach(u => { try { u(); } catch (e) {} }); unsubs = []; lineUnsubs.forEach(u => { try { u(); } catch (e) {} }); lineUnsubs.clear(); },
+    syncLines,
     retry(name) { this.stop(); this.start(); },
     commit(ops, what) {
       if (!ops.length) return Promise.resolve(true);
@@ -826,6 +1017,13 @@ function firestoreStore(user) {
       }).finally(() => { S.pending = Math.max(0, S.pending - 1); paintSync(); });
     },
     async getAll(coll) {
+      if (coll === "loadout_ticket_lines") {
+        /* lines sit under each ticket; the export flattens them into one tab with the ticket id beside each */
+        const out = [];
+        const ts = await fs.getDocs(fs.collection(db, "loadout_tickets"));
+        for (const t of ts.docs) { const ls = await fs.getDocs(fs.collection(db, "loadout_tickets", t.id, "lines")); ls.docs.forEach(d => out.push(Object.assign({ id: d.id, ticketId: t.id }, d.data()))); }
+        return out;
+      }
       const snap = await fs.getDocs(fs.collection(db, coll));
       return snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
     },
@@ -856,6 +1054,7 @@ function mv(type, f) {
       cut: f.cut || null,
       holderUid: f.holderUid || null, holderName: f.holderName || null, condition: f.condition || null,
       jobName: f.jobName || null,
+      ticketId: f.ticketId || null, ticketNumber: f.ticketNumber || null, ticketLineId: f.ticketLineId || null,
       note: f.note || null,
       by: S.user.email, byName: f.byName || S.user.name,
       at: f.at || NOW
@@ -959,7 +1158,12 @@ async function doRetire(it, reason) {
   if (inStockItem(it)) ops.push(productInc(it.productId, -1));
   return DB.commit(ops, "Retire of " + it.productName);
 }
-async function doBox(c, markNow, cut, recount, jobName, note, locId) {
+async function doBox(c, markNow, cut, recount, jobName, note, locId, tk) {
+  /* tk = {ticket, line}: the box sheet's For ticket chip. The cut is tagged
+     with the ticket, and the feet count as staged on the ticket's line for
+     this product when it has one. */
+  const tkf = tk && tk.ticket ? { ticketId: tk.ticket.id, ticketNumber: tk.ticket.number, ticketLineId: tk.line ? tk.line.id : null } : {};
+  if (tk && tk.ticket && !jobName) jobName = tk.ticket.jobName || null;
   const p = S.products.get(c.productId);
   const prevFt = num(c.ftLeft);
   const data = { ftLeft: markNow, lastMark: markNow, status: markNow <= 0 ? "empty" : "open", lastReadingAt: NOW, lastReadingBy: S.user.name };
@@ -968,11 +1172,12 @@ async function doBox(c, markNow, cut, recount, jobName, note, locId) {
   const ops = [{ op: "update", coll: "loadout_containers", id: c.id, data }];
   const delta = markNow - prevFt;
   if (recount) {
-    ops.push(mv("reading", { productId: c.productId, containerId: c.id, containerLabel: c.label, qty: delta, toLocationId: locId || c.locationId, jobName, note: "recount" + (note ? ". " + note : "") }));
+    ops.push(mv("reading", Object.assign({ productId: c.productId, containerId: c.id, containerLabel: c.label, qty: delta, toLocationId: locId || c.locationId, jobName, note: "recount" + (note ? ". " + note : "") }, tkf)));
   } else {
     const from = num(c.lastMark != null ? c.lastMark : c.ftLeft);
-    ops.push(mv("cut", { productId: c.productId, containerId: c.id, containerLabel: c.label, qty: -cut, toLocationId: locId || c.locationId,
-      cut: { fromMark: from, toMark: markNow, length: cut }, jobName, note: (markNow <= 0 ? "Box emptied. " : "") + (note || "") }));
+    ops.push(mv("cut", Object.assign({ productId: c.productId, containerId: c.id, containerLabel: c.label, qty: -cut, toLocationId: locId || c.locationId,
+      cut: { fromMark: from, toMark: markNow, length: cut }, jobName, note: (markNow <= 0 ? "Box emptied. " : "") + (note || "") }, tkf)));
+    if (tk && tk.ticket && tk.line && cut > 0) ops.push(...lineBumpOps(tk.ticket, tk.line, { qtyStaged: cut }));
   }
   if (delta !== 0 && p) ops.push(productInc(p.id, delta));
   return DB.commit(ops, (recount ? "Reading" : "Cut") + " on box " + c.label);
@@ -987,6 +1192,242 @@ async function doSaveLocation(id, data, isNew) {
     { op: "set", coll: "loadout_locations", id, merge: true, data: Object.assign({}, data, { qr: PAYLOAD.loc(id), updatedAt: NOW }, isNew ? { createdAt: NOW, jobId: null } : {}) },
     mv("edit", { toLocationId: id, toLocationName: data.name, note: isNew ? "Location created" : "Location edited" })
   ], "location " + data.name);
+}
+
+/* ==============================================================
+   PICK TICKETS (0.2.0): clients, jobs, proposals, tickets, lines
+   Quantities on a line, all in the product's unit:
+     qtyNeeded     from the proposal
+     qtyFromStock  pulled off our own shelves (Pull from stock)
+     qtyToOrder    what stock cannot cover: needed - staged - what is
+                   still on the shelves; recomputed when a writer saves
+     qtyStaged     laid out in the bay (a pull, Stage, or a box cut)
+     qtyDelivered  taken to site (Deliver to site)
+   The ticket's status and summary are line counts, rewritten in the
+   same batch as every line change.
+   ============================================================== */
+const linesColl = tid => "loadout_tickets/" + tid + "/lines";
+function ticketLines(tid) { const m = S.lines.get(tid); return m ? Array.from(m.values()).sort((a, b) => num(a.sort) - num(b.sort) || String(a.id).localeCompare(String(b.id))) : []; }
+function lineProduct(l) { return l && l.productId ? S.products.get(l.productId) || null : null; }
+function lineName(l) { const p = lineProduct(l); if (p) return productName(p); return l.productName || [l.brand, l.model].filter(Boolean).join(" ") || l.description || "Unnamed line"; }
+function lineIsFt(l) { const p = lineProduct(l); return p ? p.unit === "ft" : /^(ft|feet|foot)$/i.test(String(l.unit || "")); }
+function lqty(l, n) { return fmtN(n) + (lineIsFt(l) ? " ft" : ""); }
+const lineDone = (l, f) => num(l[f]) >= num(l.qtyNeeded);
+const lineLeft = l => Math.max(0, num(l.qtyNeeded) - num(l.qtyStaged));
+function summarize(lines) {
+  return { lines: lines.length, needed: lines.filter(l => num(l.qtyNeeded) > 0).length,
+    fromStock: lines.filter(l => num(l.qtyFromStock) > 0).length, toOrder: lines.filter(l => num(l.qtyToOrder) > 0).length,
+    staged: lines.filter(l => lineDone(l, "qtyStaged")).length, delivered: lines.filter(l => lineDone(l, "qtyDelivered")).length };
+}
+function statusFrom(lines, cur) {
+  if (cur === "closed") return "closed";
+  if (!lines.length) return "open";
+  if (lines.every(l => lineDone(l, "qtyDelivered"))) return "delivered";
+  if (lines.every(l => lineDone(l, "qtyStaged"))) return "staged";
+  if (lines.some(l => num(l.qtyStaged) > 0)) return "picking";
+  return "open";
+}
+function tkSummary(t) { return S.linesLoaded.has(t.id) ? summarize(ticketLines(t.id)) : Object.assign({ lines: 0, needed: 0, fromStock: 0, toOrder: 0, staged: 0, delivered: 0 }, t.summary || {}); }
+function tkStatus(t) { return t.status === "closed" ? "closed" : S.linesLoaded.has(t.id) ? statusFrom(ticketLines(t.id), t.status) : (t.status || "open"); }
+const openTickets = () => Array.from(S.tickets.values()).filter(t => t.status !== "closed").sort((a, b) => (toDate(b.createdAt) || 0) - (toDate(a.createdAt) || 0));
+function tkBay(t) { return t && t.stagingLocationId ? locName(t.stagingLocationId) : ""; }
+function tkWho(t) { return [t.clientName, t.jobName].filter(Boolean).join(", "); }
+function tkBaseFields(t, l) { return { ticketId: t.id, ticketNumber: t.number, ticketLineId: l ? l.id : null, jobName: t.jobName || null }; }
+/* stock a line can still be pulled from: shelves and areas, never a bay or a van */
+function pullableLoc(id) { const L = S.locations.get(id); return !L || (L.kind !== "bay" && L.kind !== "van"); }
+function availableFor(p) {
+  if (!p) return 0;
+  let n = 0;
+  stockRowsFor(p.id).forEach(r => { if (pullableLoc(r.locationId) && num(r.qty) > 0) n += num(r.qty); });
+  openBoxesFor(p.id).forEach(c => { if (pullableLoc(c.locationId)) n += num(c.ftLeft); });
+  itemsFor(p.id).forEach(i => { if (i.status === "in_stock" && pullableLoc(i.locationId)) n += 1; });
+  return n;
+}
+/* where a product can be pulled from, default location first, then the most stock */
+function pullSources(p) {
+  const m = new Map();
+  const get = id => { if (!m.has(id)) m.set(id, { locationId: id, qty: 0, counted: 0, items: [], boxes: [] }); return m.get(id); };
+  stockRowsFor(p.id).forEach(r => { if (r.locationId && pullableLoc(r.locationId) && num(r.qty) > 0) { const e = get(r.locationId); e.qty += num(r.qty); e.counted += num(r.qty); } });
+  itemsFor(p.id).forEach(i => { if (i.status === "in_stock" && i.locationId && pullableLoc(i.locationId)) { const e = get(i.locationId); e.qty += 1; e.items.push(i); } });
+  openBoxesFor(p.id).forEach(c => { if (pullableLoc(c.locationId)) { const e = get(c.locationId || ""); e.qty += num(c.ftLeft); e.boxes.push(c); } });
+  return Array.from(m.values()).filter(e => e.qty > 0).sort((a, b) => (b.locationId === p.defaultLocationId) - (a.locationId === p.defaultLocationId) || b.qty - a.qty);
+}
+function toOrderFor(l, p, staged, avail) { return Math.max(0, num(l.qtyNeeded) - staged - (p ? Math.max(0, avail) : 0)); }
+function ticketStatusOp(t, lines, extra) {
+  return { op: "update", coll: "loadout_tickets", id: t.id, data: Object.assign({ status: statusFrom(lines, t.status), summary: summarize(lines), updatedAt: NOW }, extra || {}) };
+}
+/* collects line changes for one ticket and closes with one ticket update */
+function tkBatch(t) {
+  const cur = new Map(ticketLines(t.id).map(l => [l.id, Object.assign({}, l)]));
+  const ops = [];
+  return {
+    ops,
+    bump(l, d, extra) {
+      const y = cur.get(l.id) || Object.assign({}, l); cur.set(l.id, y);
+      const data = { updatedAt: NOW };
+      Object.keys(d).forEach(k => { if (d[k]) { data[k] = INC(d[k]); y[k] = num(y[k]) + num(d[k]); } });
+      const ex = typeof extra === "function" ? extra(y) : extra;
+      if (ex) { Object.assign(data, ex); Object.assign(y, ex); }
+      ops.push({ op: "update", coll: linesColl(t.id), id: l.id, data });
+    },
+    finish(extra) { ops.push(ticketStatusOp(t, Array.from(cur.values()), extra)); return ops; }
+  };
+}
+function lineBumpOps(t, l, d) { const b = tkBatch(t); b.bump(l, d); return b.finish(); }
+/* Firestore takes 500 writes a batch; large closes and imports go in chunks.
+   The demo store keeps the whole list in one refused batch so it can be read back. */
+async function commitChunks(ops, what) {
+  if (DEMO || ops.length <= 450) return DB.commit(ops, what);
+  for (let i = 0; i < ops.length; i += 450) { if (!(await DB.commit(ops.slice(i, i + 450), what))) return false; }
+  return true;
+}
+
+/* o = {from, qty, items: [unit records], box: container, bayId} */
+async function doPull(t, l, o) {
+  const p = lineProduct(l), bay = o.bayId || t.stagingLocationId, tf = tkBaseFields(t, l);
+  const b = tkBatch(t), ops = b.ops, q = o.qty;
+  if (o.box) {
+    const c = o.box, from = num(c.lastMark != null ? c.lastMark : c.ftLeft), mark = from - q;
+    ops.push({ op: "update", coll: "loadout_containers", id: c.id, data: { ftLeft: mark, lastMark: mark, status: mark <= 0 ? "empty" : "open", lastReadingAt: NOW, lastReadingBy: S.user.name } });
+    ops.push(mv("cut", Object.assign({ productId: p.id, containerId: c.id, containerLabel: c.label, qty: -q, toLocationId: c.locationId, cut: { fromMark: from, toMark: mark, length: q }, note: "Pulled from stock" }, tf)));
+    ops.push(productInc(p.id, -q));
+  } else {
+    const counted = q - o.items.length;
+    if (counted > 0) {
+      ops.push(stockInc(p, o.from, -counted), stockInc(p, bay, counted));
+      ops.push(mv("pick", Object.assign({ productId: p.id, qty: counted, fromLocationId: o.from, toLocationId: bay, note: null }, tf)));
+    }
+    o.items.forEach(it => {
+      ops.push({ op: "update", coll: "loadout_items", id: it.id, data: { status: "staged", locationId: bay, locationName: locName(bay), ticketId: t.id, ticketLineId: l.id, jobId: t.jobId || null, jobName: t.jobName || null, updatedAt: NOW } });
+      ops.push(mv("pick", Object.assign({ productId: p.id, itemId: it.id, itemLabel: itemLabel(it), qty: 1, fromLocationId: it.locationId, toLocationId: bay, note: null }, tf)));
+    });
+  }
+  const avail = availableFor(p) - q;
+  b.bump(l, { qtyFromStock: q, qtyStaged: q }, y => ({ qtyToOrder: toOrderFor(y, p, num(y.qtyStaged), avail),
+    pickedFromName: o.box ? "Box " + o.box.label : locName(o.from), pickedByName: S.user.name, pickedAt: NOW }));
+  const extra = !t.stagingLocationId && bay ? { stagingLocationId: bay, stagingLocationName: locName(bay) } : null;
+  return commitChunks(b.finish(extra), "Pull on " + lineName(l));
+}
+async function doStage(t, l, q, note) {
+  const b = tkBatch(t);
+  b.ops.push(mv("stage", Object.assign({ productId: l.productId || null, productName: lineName(l), qty: q, toLocationId: t.stagingLocationId || null, note: note || "Laid out in the bay" }, tkBaseFields(t, l))));
+  b.bump(l, { qtyStaged: q });
+  return DB.commit(b.finish(), "Stage on " + lineName(l));
+}
+/* Deliver to site: what is staged and not yet delivered leaves the bay.
+   Serialized units on the line check out to the person delivering, so a
+   van load of five access points is five records in one tap (PLAN 8b). */
+function deliverPlan(t, l) {
+  const p = lineProduct(l), q = Math.max(0, num(l.qtyStaged) - num(l.qtyDelivered));
+  const items = Array.from(S.items.values()).filter(i => i.ticketId === t.id && i.ticketLineId === l.id && i.status === "staged");
+  const bay = t.stagingLocationId;
+  const counted = p && p.unit !== "ft" && bay ? Math.min(Math.max(0, q - items.length), stockQty(p, bay)) : 0;
+  return { p, q, items, counted, bay };
+}
+async function doDeliver(t, l) {
+  const d = deliverPlan(t, l); if (d.q <= 0) return false;
+  const me = { uid: S.user.uid, name: S.user.name }, tf = tkBaseFields(t, l), b = tkBatch(t), ops = b.ops;
+  d.items.forEach(it => {
+    ops.push({ op: "update", coll: "loadout_items", id: it.id, data: { status: "checked_out", holderUid: me.uid, holderName: me.name, jobId: t.jobId || null, jobName: t.jobName || null,
+      ticketId: t.id, ticketLineId: l.id, locationId: null, locationName: null, checkedOutAt: NOW, updatedAt: NOW } });
+    ops.push(mv("checkout", Object.assign({ productId: it.productId, itemId: it.id, itemLabel: itemLabel(it), qty: 1, fromLocationId: it.locationId, holderUid: me.uid, holderName: me.name, note: "Delivered to site" }, tf)));
+  });
+  if (d.counted > 0) ops.push(stockInc(d.p, d.bay, -d.counted));
+  const off = d.items.length + d.counted;
+  if (d.p && off > 0) ops.push(productInc(d.p.id, -off));
+  ops.push(mv("deliver", Object.assign({ productId: l.productId || null, productName: lineName(l), qty: d.q, fromLocationId: d.bay || null, holderUid: me.uid, holderName: me.name,
+    note: d.items.length ? d.items.length + " serialized unit" + (d.items.length > 1 ? "s" : "") + " checked out to " + me.name : null }, tf)));
+  b.bump(l, { qtyDelivered: d.q });
+  return DB.commit(b.finish(), "Deliver on " + lineName(l));
+}
+async function doLineNote(t, l, text) {
+  return DB.commit([{ op: "update", coll: linesColl(t.id), id: l.id, data: { notes: text || null, updatedAt: NOW } }], "Note on " + lineName(l));
+}
+/* Close: leftovers in the bay go back to a shelf or are written off, and
+   every unit still out on this ticket becomes installed at the job. */
+function closeLeftovers(t) {
+  const bay = t.stagingLocationId;
+  return ticketLines(t.id).map(l => {
+    const p = lineProduct(l); if (!p) return null;
+    const items = Array.from(S.items.values()).filter(i => i.ticketId === t.id && i.ticketLineId === l.id && i.status === "staged");
+    const left = Math.max(0, num(l.qtyStaged) - num(l.qtyDelivered));
+    const counted = p.unit === "ft" || !bay ? 0 : Math.min(Math.max(0, left - items.length), stockQty(p, bay));
+    return items.length || counted ? { line: l, p, items, counted } : null;
+  }).filter(Boolean);
+}
+const installsFor = t => Array.from(S.items.values()).filter(i => i.ticketId === t.id && i.status === "checked_out");
+async function doClose(t, o) {
+  const bay = t.stagingLocationId, ops = [], lo = closeLeftovers(t), drop = new Map();
+  const tf = l => tkBaseFields(t, l), ret = o.mode === "return";
+  const less = (pid, n) => drop.set(pid, (drop.get(pid) || 0) + n);
+  lo.forEach(x => {
+    if (x.counted > 0) {
+      ops.push(stockInc(x.p, bay, -x.counted));
+      if (ret) { ops.push(stockInc(x.p, o.locId, x.counted)); ops.push(mv("return", Object.assign({ productId: x.p.id, qty: x.counted, fromLocationId: bay, toLocationId: o.locId, note: "Leftover from ticket #" + t.number + ", back to stock" }, tf(x.line)))); }
+      else { less(x.p.id, x.counted); ops.push(mv("adjust", Object.assign({ productId: x.p.id, qty: -x.counted, fromLocationId: bay, note: "Written off at close of ticket #" + t.number + ": " + o.reason }, tf(x.line)))); }
+    }
+    x.items.forEach(it => {
+      if (ret) {
+        ops.push({ op: "update", coll: "loadout_items", id: it.id, data: { status: "in_stock", locationId: o.locId, locationName: locName(o.locId), ticketId: null, ticketLineId: null, jobId: null, jobName: null, updatedAt: NOW } });
+        ops.push(mv("return", Object.assign({ productId: it.productId, itemId: it.id, itemLabel: itemLabel(it), qty: 1, fromLocationId: it.locationId, toLocationId: o.locId, note: "Leftover from ticket #" + t.number + ", back to stock" }, tf(x.line))));
+      } else {
+        less(it.productId, 1);
+        ops.push({ op: "update", coll: "loadout_items", id: it.id, data: { status: "retired", locationId: null, locationName: null, retiredReason: o.reason, updatedAt: NOW } });
+        ops.push(mv("adjust", Object.assign({ productId: it.productId, itemId: it.id, itemLabel: itemLabel(it), qty: -1, fromLocationId: it.locationId, note: "Written off at close of ticket #" + t.number + ": " + o.reason }, tf(x.line))));
+      }
+    });
+  });
+  installsFor(t).forEach(it => {
+    ops.push({ op: "update", coll: "loadout_items", id: it.id, data: { status: "installed", locationId: null, locationName: null, jobId: t.jobId || null, jobName: t.jobName || null, updatedAt: NOW } });
+    ops.push(mv("adjust", Object.assign({ productId: it.productId, itemId: it.id, itemLabel: itemLabel(it), qty: 0, holderName: it.holderName, note: "Installed at " + (t.jobName || "the job") + " (ticket #" + t.number + " closed)" }, tf({ id: it.ticketLineId }))));
+  });
+  drop.forEach((n, pid) => ops.push(productInc(pid, -n)));
+  ops.push(mv("edit", Object.assign({ note: "Ticket #" + t.number + " closed" + (lo.length ? ", leftovers " + (ret ? "returned to " + locName(o.locId) : "written off: " + o.reason) : "") + (o.note ? ". " + o.note : "") }, tf(null))));
+  ops.push({ op: "update", coll: "loadout_tickets", id: t.id, data: { status: "closed", summary: summarize(ticketLines(t.id)), closedAt: NOW, closedBy: S.user.email, closedByName: S.user.name, closeNote: o.note || null, updatedAt: NOW } });
+  return commitChunks(ops, "Close of ticket #" + t.number);
+}
+/* Show on board writes only the pinned list, which the rules let warehouse change */
+async function doBoardPin(t, on) {
+  const ids = (S.board.ticketIds || []).filter(x => x !== t.id);
+  if (on) ids.push(t.id);
+  return DB.commit([{ op: "set", coll: "loadout_settings", id: "board", merge: true, data: { ticketIds: ids, updatedAt: NOW, updatedBy: S.user.email, updatedByName: S.user.name } }], "the board");
+}
+async function doSaveClient(id, data, isNew) {
+  return DB.commit([
+    { op: "set", coll: "loadout_clients", id, merge: true, data: Object.assign({}, data, { updatedAt: NOW }, isNew ? { createdAt: NOW, portalContactId: null } : {}) },
+    mv("edit", { note: (isNew ? "Client created: " : data.archived ? "Client archived: " : "Client edited: ") + data.name })
+  ], "client " + data.name);
+}
+async function doSaveJob(id, data, isNew, prevBay) {
+  const ops = [{ op: "set", coll: "loadout_jobs", id, merge: true, data: Object.assign({}, data, { updatedAt: NOW }, isNew ? { createdAt: NOW } : {}) }];
+  /* a bay reserved for a job carries the job on the location too (PLAN 3) */
+  if (prevBay && prevBay !== data.stagingLocationId && S.locations.has(prevBay)) ops.push({ op: "update", coll: "loadout_locations", id: prevBay, data: { jobId: null, jobName: null, updatedAt: NOW } });
+  if (data.stagingLocationId && S.locations.has(data.stagingLocationId)) ops.push({ op: "update", coll: "loadout_locations", id: data.stagingLocationId, data: { jobId: data.status === "closed" ? null : id, jobName: data.status === "closed" ? null : data.name, updatedAt: NOW } });
+  ops.push(mv("edit", { jobName: data.name, note: (isNew ? "Job created" : data.status === "closed" ? "Job archived" : "Job edited") + " for " + data.clientName }));
+  return DB.commit(ops, "job " + data.name);
+}
+
+/* Copy for Portal (PLAN 6, T0): a status block to paste into the proposal's internal notes */
+function wrap80(s) {
+  const out = []; let line = "";
+  s.split(/\s+/).forEach(w => { if (line && (line + " " + w).length > 80) { out.push(line); line = w; } else line = line ? line + " " + w : w; });
+  if (line) out.push(line);
+  return out.join("\n");
+}
+function portalBlock(t) {
+  const d = new Date(), lines = ticketLines(t.id), s = summarize(lines);
+  const stamp = isoDay(d) + " " + pad(d.getHours()) + ":" + pad(d.getMinutes());
+  const head = "[Loadout " + stamp + "] Pick ticket #" + t.number + " - " + (tkWho(t) || "no client");
+  const bits = ["Staged " + s.staged + "/" + s.lines + " lines" + (t.stagingLocationId ? " in " + tkBay(t) : "") + ".", "Delivered " + s.delivered + "/" + s.lines + "."];
+  const order = lines.filter(l => num(l.qtyToOrder) > 0);
+  if (order.length) bits.push("To order: " + order.length + " line" + (order.length > 1 ? "s" : "") + ", no PO yet: " + order.map(l => lineName(l) + " x" + fmtN(l.qtyToOrder) + (lineIsFt(l) ? " ft" : "")).join(", ") + ".");
+  else if (lines.length) bits.push("Nothing to order.");
+  if (t.status === "closed") bits.push("Closed " + fmtDate(t.closedAt) + ".");
+  return head + "\n" + wrap80(bits.join(" "));
+}
+async function copyText(text, title) {
+  try { await navigator.clipboard.writeText(text); toast("Copied. Paste it into the proposal's internal notes."); }
+  catch (e) { openModal(title || "Copy", '<p class="hint" style="margin-top:0">The clipboard is blocked here. Select the text and copy it.</p><textarea class="fld mono" id="copyFallback" rows="6" readonly>' + esc(text) + "</textarea>", '<button type="button" class="btn" data-close>Close</button>'); const ta = $("#copyFallback"); if (ta) { ta.focus(); ta.select(); } }
 }
 
 /* ==============================================================
@@ -1074,8 +1515,104 @@ function loadDemo() {
     return Object.assign({ id: "dm" + i, type, productName: p ? p.name : null, by: by.toLowerCase() + "@example.com", byName: by, at: new Date(Date.now() - d * day + i * 60000),
       fromLocationName: f.fromLocationId ? locName(f.fromLocationId) : null, toLocationName: f.toLocationId ? locName(f.toLocationId) : null, unit: p ? p.unit : null }, f);
   }).sort((a, b) => b.at - a.at);
+  loadDemoTickets(t, ST);
   S.products.forEach(p => p.onHand = onHandOf(p));
 }
+/* 0.2.0 fixture: 2 clients, 2 jobs, 3 tickets (one mid-pick with lines to
+   order, staged, and short; one staged; one closed), a board pinning the two
+   open ones. ?demo=1&empty=1 keeps the clients and jobs but no tickets. */
+function loadDemoTickets(t, ST) {
+  const day = 86400000;
+  [["lakeview-dental", "Lakeview Dental", 40], ["harbor-clinic", "Harbor Clinic", 35]].forEach(([id, name, d]) => S.clients.set(id, { id, name, notes: "", archived: false, portalContactId: null, createdAt: t(d), updatedAt: t(d) }));
+  const J = (id, clientId, name, address, bay, d) => {
+    S.jobs.set(id, { id, clientId, clientName: S.clients.get(clientId).name, name, address, status: "open", stagingLocationId: bay, stagingLocationName: locName(bay), createdAt: t(d), updatedAt: t(d) });
+    const L = S.locations.get(bay); if (L) { L.jobId = id; L.jobName = name; }
+  };
+  J("lakeview-dental--lakeview-office-refresh", "lakeview-dental", "Lakeview office refresh", "210 Main St, Suite 4", "bay-2", 30);
+  J("harbor-clinic--harbor-clinic-network", "harbor-clinic", "Harbor clinic network", "75 Dock Rd", "bay-1", 28);
+  if (DEMO_EMPTY) { S.board = Object.assign({}, DEFAULT_BOARD, { ticketIds: [] }); return; }
+  const setQty = (pid, lid, q) => { const k = pid + "__" + lid; if (S.stock.has(k)) S.stock.get(k).qty = q; else ST(pid, lid, q); };
+  setQty("axis-m3065-v", "warehouse", 1); setQty("axis-m3065-v", "bay-2", 2);
+  setQty("patch-cable-cat6-utp-patch-cable-rj45m-rj45m-blue-3ft", "storage-room--patch-cables", 6); setQty("patch-cable-cat6-utp-patch-cable-rj45m-rj45m-blue-3ft", "bay-2", 6);
+  setQty("patch-cable-power-cable-edison-m-c13-f-black-6ft", "storage-room--patch-cables", 5); setQty("patch-cable-power-cable-edison-m-c13-f-black-6ft", "bay-1", 4);
+  setQty("splitter-2-way-coaxial-splitter-coaxial-m-1-coaxial-m-2", "storage-room--rca-av-video", 3); setQty("splitter-2-way-coaxial-splitter-coaxial-m-1-coaxial-m-2", "bay-1", 2);
+  setQty("connector-xlr-female-3", "storage-room--rca-av-video", 4); setQty("connector-xlr-female-3", "bay-1", 2);
+  const T = (num_, jobId, status, bay, created, extra) => {
+    const j = S.jobs.get(jobId);
+    S.tickets.set(num_, Object.assign({ id: num_, number: num_, proposalId: num_, jobId, jobName: j.name, clientId: j.clientId, clientName: j.clientName, status, stagingLocationId: bay, stagingLocationName: locName(bay),
+      source: "csv", createdAt: t(created), createdBy: "warehouse@example.com", createdByName: "Warehouse", updatedAt: t(created) }, extra || {}));
+    S.proposals.set(num_, { id: num_, number: num_, name: j.name, jobId, jobName: j.name, clientId: j.clientId, clientName: j.clientName, status: "Accepted", importedAt: t(created), importSource: "csv", portalId: null });
+    S.lines.set(num_, new Map()); S.linesLoaded.add(num_);
+  };
+  let sort = 0;
+  const Ln = (tid, area, pid, need, o) => {
+    const p = pid ? S.products.get(pid) : null;
+    const id = lineIdFor(area, p ? p.brand : o.brand, p ? p.model : o.model, p ? productName(p) : o.description);
+    S.lines.get(tid).set(id, Object.assign({ id, area, option: "", sort: ++sort, productId: pid, productName: p ? productName(p) : null, brand: p ? p.brand || "" : "", model: p ? p.model || "" : "", description: p ? p.description || "" : "",
+      unit: p ? p.unit : "each", matchState: pid ? "matched" : "unmatched", qtyNeeded: need, qtyFromStock: 0, qtyToOrder: 0, qtyStaged: 0, qtyDelivered: 0, portalItemId: null, orderLineRefs: [], notes: null, createdAt: t(5), updatedAt: t(2) }, o || {}));
+    return id;
+  };
+  T("1042", "lakeview-dental--lakeview-office-refresh", "picking", "bay-2", 5, { updatedAt: t(1) });
+  Ln("1042", "Reception", "sonos-amp", 1, { qtyToOrder: 1, notes: "The only Amp on hand came back damaged. Order a new one." });
+  Ln("1042", "Reception", null, 1, { brand: "Chief", model: "RPMAU", description: "Universal projector mount, white", qtyToOrder: 1 });
+  Ln("1042", "Reception", "patch-cable-hdmi-patch-hdmim-hdmim-black-6ft", 6, {});
+  const u6 = Ln("1042", "Operatory 1-4", "ubiquiti-u6-pro", 4, { qtyFromStock: 2, qtyStaged: 2, qtyDelivered: 1, qtyToOrder: 2, pickedFromName: "Warehouse", pickedByName: "Warehouse", pickedAt: t(3) });
+  const ax = Ln("1042", "Operatory 1-4", "axis-m3065-v", 2, { qtyFromStock: 2, qtyStaged: 2, pickedFromName: "Warehouse", pickedByName: "Warehouse", pickedAt: t(3) });
+  Ln("1042", "Network closet", "middle-atlantic-u2v", 2, {});
+  Ln("1042", "Network closet", "leviton-61110-be6", 24, {});
+  const wr = Ln("1042", "Wire", "wire-cat6-riser-234-blue", 1000, { qtyStaged: 360, pickedFromName: "Box A1026", pickedByName: "Tech", pickedAt: t(1) });
+  const pc = Ln("1042", "Wire", "patch-cable-cat6-utp-patch-cable-rj45m-rj45m-blue-3ft", 12, { qtyFromStock: 6, qtyStaged: 6, pickedFromName: "Storage room, Patch cables", pickedByName: "Warehouse", pickedAt: t(2) });
+  Object.assign(S.items.get("k3m9q2x7a2"), { ticketId: "1042", ticketLineId: u6, jobId: "lakeview-dental--lakeview-office-refresh" });
+  const it = S.items.get("k3m9q2x7a1"); Object.assign(it, { status: "staged", locationId: "bay-2", locationName: "Bay 2", ticketId: "1042", ticketLineId: u6, jobId: "lakeview-dental--lakeview-office-refresh", jobName: "Lakeview office refresh" });
+  T("1048", "harbor-clinic--harbor-clinic-network", "staged", "bay-1", 4, { updatedAt: t(2) });
+  const pw = Ln("1048", "Equipment rack", "patch-cable-power-cable-edison-m-c13-f-black-6ft", 4, { qtyFromStock: 4, qtyStaged: 4, pickedFromName: "Storage room, Patch cables", pickedByName: "Warehouse", pickedAt: t(2) });
+  const sp = Ln("1048", "Waiting room", "splitter-2-way-coaxial-splitter-coaxial-m-1-coaxial-m-2", 2, { qtyFromStock: 2, qtyStaged: 2, pickedFromName: "Storage room, RCA A/V Video", pickedByName: "Warehouse", pickedAt: t(2) });
+  const xl = Ln("1048", "Waiting room", "connector-xlr-female-3", 2, { qtyFromStock: 2, qtyStaged: 2, pickedFromName: "Storage room, RCA A/V Video", pickedByName: "Warehouse", pickedAt: t(2) });
+  T("1031", "harbor-clinic--harbor-clinic-network", "closed", "bay-1", 26, { closedAt: t(18), closedBy: "warehouse@example.com", closedByName: "Warehouse", updatedAt: t(18) });
+  const sw = Ln("1031", "Equipment rack", "ubiquiti-usw-24-poe", 1, { qtyFromStock: 1, qtyStaged: 1, qtyDelivered: 1, pickedFromName: "Warehouse", pickedByName: "Warehouse" });
+  Ln("1031", "Equipment rack", "leviton-61110-be6", 12, { qtyFromStock: 12, qtyStaged: 12, qtyDelivered: 12, pickedFromName: "Warehouse", pickedByName: "Warehouse" });
+  Object.assign(S.items.get("m1x5y7u3e6"), { ticketId: "1031", ticketLineId: sw, jobId: "harbor-clinic--harbor-clinic-network" });
+  S.tickets.forEach(tk => { const ls = ticketLines(tk.id); tk.summary = summarize(ls); });
+  S.board = Object.assign({}, DEFAULT_BOARD, { ticketIds: ["1042", "1048"] });
+  /* tag the fixture's earlier movements with their tickets, then add the ticket trail */
+  const tag = (id, tid, lid) => { const m = S.movements.find(x => x.id === id); if (m) Object.assign(m, { ticketId: tid, ticketNumber: tid, ticketLineId: lid || null }); };
+  tag("dm19", "1042", wr); tag("dm15", "1042", u6); tag("dm6", "1031", sw); tag("dm7", "1031", sw);
+  const add = [
+    ["edit", 26, "Warehouse", { ticketId: "1031", note: "Ticket #1031 created from CSV, 2 lines" }],
+    ["edit", 18, "Warehouse", { ticketId: "1031", note: "Ticket #1031 closed" }],
+    ["edit", 5, "Warehouse", { ticketId: "1042", note: "Ticket #1042 created from CSV, 9 lines, 3 rows skipped" }],
+    ["edit", 4, "Warehouse", { ticketId: "1048", note: "Ticket #1048 created from CSV, 3 lines" }],
+    ["pick", 3, "Warehouse", { ticketId: "1042", ticketLineId: ax, productId: "axis-m3065-v", qty: 2, fromLocationId: "warehouse", toLocationId: "bay-2" }],
+    ["pick", 3, "Warehouse", { ticketId: "1042", ticketLineId: u6, productId: "ubiquiti-u6-pro", itemId: "k3m9q2x7a1", itemLabel: "E063DA00A1B2", qty: 1, fromLocationId: "warehouse", toLocationId: "bay-2" }],
+    ["pick", 2, "Warehouse", { ticketId: "1042", ticketLineId: pc, productId: "patch-cable-cat6-utp-patch-cable-rj45m-rj45m-blue-3ft", qty: 6, fromLocationId: "storage-room--patch-cables", toLocationId: "bay-2" }],
+    ["pick", 2, "Warehouse", { ticketId: "1048", ticketLineId: pw, productId: "patch-cable-power-cable-edison-m-c13-f-black-6ft", qty: 4, fromLocationId: "storage-room--patch-cables", toLocationId: "bay-1" }],
+    ["pick", 2, "Warehouse", { ticketId: "1048", ticketLineId: sp, productId: "splitter-2-way-coaxial-splitter-coaxial-m-1-coaxial-m-2", qty: 2, fromLocationId: "storage-room--rca-av-video", toLocationId: "bay-1" }],
+    ["pick", 2, "Warehouse", { ticketId: "1048", ticketLineId: xl, productId: "connector-xlr-female-3", qty: 2, fromLocationId: "storage-room--rca-av-video", toLocationId: "bay-1" }]
+  ];
+  add.forEach(([type, d, by, f], i) => {
+    const p = f.productId ? S.products.get(f.productId) : null, tk = S.tickets.get(f.ticketId);
+    S.movements.push(Object.assign({ id: "dt" + i, type, productName: p ? productName(p) : null, by: by.toLowerCase() + "@example.com", byName: by, at: new Date(Date.now() - d * day + i * 60000),
+      fromLocationName: f.fromLocationId ? locName(f.fromLocationId) : null, toLocationName: f.toLocationId ? locName(f.toLocationId) : null, unit: p ? p.unit : null,
+      ticketNumber: f.ticketId, jobName: tk ? tk.jobName : null }, f));
+  });
+  S.movements.sort((a, b) => b.at - a.at);
+}
+/* A Portal-style proposal CSV for the import sheet's Load sample button (demo only).
+   Invented: Portal's real column names arrive with the first real export (PLAN D3). */
+const SAMPLE_CSV = [
+  "Proposal Number,Proposal Name,Area,Item Type,Brand,Model,Description,Quantity,Unit,Item ID",
+  "1051,Lakeview phase 2,Front desk,Equipment,Ubiquiti,U6-Pro,WiFi 6 access point,2,each,it-9001",
+  "1051,Lakeview phase 2,Front desk,Equipment,Ubiquiti,U7-Pro,WiFi 7 access point,1,each,it-9002",
+  "1051,Lakeview phase 2,,Accessory,Ubiquiti,U-PoE-af,PoE injector for the AP above,1,each,it-9003",
+  "1051,Lakeview phase 2,Front desk,Labor,,,Install and configure access points,4,hr,it-9004",
+  "1051,Lakeview phase 2,Exam rooms,Equipment,AXIS,M3065-V,Mini dome camera,3,each,it-9005",
+  "1051,Lakeview phase 2,Exam rooms,Equipment,Chief,RPMAU,\"Universal projector mount, white\",1,each,it-9006",
+  "1051,Lakeview phase 2,Exam rooms,Equipment,Leviton,61110-BE6,\"Cat6 keystone jack, blue\",,each,it-9007",
+  "1051,Lakeview phase 2,Network closet,Equipment,Middle Atlantic,U2V,2RU vented rack shelf,1,each,it-9008",
+  "1051,Lakeview phase 2,Network closet,Fee,,,Equipment recycling fee,1,each,it-9009",
+  "1051,Lakeview phase 2,Network closet,CustomItem,,,Patch panel labeling,1,each,it-9010",
+  "1051,Lakeview phase 2,Wire,Equipment,Belden,2412 Blue,\"Cat6 CMR riser, blue, by the foot\",500,ft,it-9011"
+].join("\r\n");
 
 /* ==============================================================
    TABLES: sortable (asc / desc / reset), Columns manager, layout
@@ -1125,13 +1662,23 @@ function tableHTML(id, cols, rows, opts = {}) {
     return '<th class="' + (c.r ? "r" : "") + '"' + (on ? ' aria-sort="' + (pr.sortDir === "desc" ? "descending" : "ascending") + '"' : "") + (c.title ? ' title="' + esc(c.title) + '"' : "") +
       '><button type="button" class="thb" data-act="sort" data-tbl="' + id + '" data-k="' + c.k + '" title="Sort by ' + esc(c.label) + '. Click again to reverse, a third time to go back to the default order.">' + esc(c.label) + '<span class="sa" aria-hidden="true">' + arrow + "</span></button></th>";
   }).join("") + (opts.actions ? '<th class="plain"><span class="sr">Actions</span></th>' : "");
-  const body = sorted.map(r => {
+  const rowHTML = r => {
     const cls = opts.rowClass ? opts.rowClass(r) : "";
     return '<tr' + (cls ? ' class="' + cls + '"' : "") + ">" + vis.map(c => {
       const v = c.html ? c.html(r) : esc(c.text ? c.text(r) : "");
       return '<td data-l="' + esc(c.label) + '" class="' + (c.r ? "r " : "") + (c.cls || "") + '">' + v + "</td>";
     }).join("") + (opts.actions ? '<td class="act" data-l="">' + opts.actions(r) + "</td>" : "") + "</tr>";
-  }).join("");
+  };
+  let body;
+  if (opts.group) {
+    /* group rows (ticket areas, ticket statuses): sorting happens inside each group */
+    const groups = new Map();
+    sorted.forEach(r => { const k = opts.group.key(r); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(r); });
+    const order = opts.group.order || [];
+    const keys = Array.from(groups.keys()).sort((a, b) => { const x = order.indexOf(a), y = order.indexOf(b); return (x < 0 ? 1e9 : x) - (y < 0 ? 1e9 : y); });
+    const span = vis.length + (opts.actions ? 1 : 0);
+    body = keys.map(k => '<tr class="grp"><td colspan="' + span + '">' + opts.group.label(k, groups.get(k)) + "</td></tr>" + groups.get(k).map(rowHTML).join("")).join("");
+  } else body = sorted.map(rowHTML).join("");
   return '<div class="tblwrap"><table class="tbl" data-tbl="' + id + '"><thead><tr>' + head + "</tr></thead><tbody>" + body + "</tbody></table></div>";
 }
 function skelTable(cols, label) {
@@ -1196,12 +1743,16 @@ function scheduleRender() { if (_rq) return; _rq = requestAnimationFrame(() => {
 function render(force) {
   if (!S.user) return;
   _lastMv = null;
+  if (BOARD) { renderBoard(); return; }
   const ae = document.activeElement;
   const fid = ae && ae.id && $("#main").contains(ae) ? ae.id : null;
   let s0 = null, s1 = null; try { if (fid) { s0 = ae.selectionStart; s1 = ae.selectionEnd; } } catch (e) {}
-  $$("[data-go]").forEach(b => { const on = b.dataset.go === S.view; b.classList.toggle("on", on); if (on) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current"); });
+  const navView = S.view === "ticket" ? "tickets" : S.view;
+  $$("[data-go]").forEach(b => { const on = b.dataset.go === navView; b.classList.toggle("on", on); if (on) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current"); });
   $$(".view").forEach(v => v.hidden = v.id !== "v-" + S.view);
-  if (S.view === "stock") renderStock();
+  if (S.view === "tickets") renderTickets();
+  else if (S.view === "ticket") renderTicket();
+  else if (S.view === "stock") renderStock();
   else if (S.view === "scan") renderScan();
   else if (S.view === "items") renderItems();
   else if (S.view === "more") renderMore(force);
@@ -1210,6 +1761,7 @@ function render(force) {
 function go(view, sub) {
   if (S.view === "scan" && view !== "scan") stopCamera();
   S.view = view;
+  if (view === "ticket") { S.ticketId = sub || S.ticketId; if (DB) DB.syncLines(); }
   if (sub && view === "stock") S.stockTab = sub;
   if (sub && view === "more") S.moreTab = sub;
   if (sub && view === "items") S.itemsTab = sub;
@@ -1229,8 +1781,915 @@ function paintSync() {
   pill.className = "sync " + cls; txt.textContent = label;
   $("#footSync").textContent = label;
 }
-window.addEventListener("online", () => { S.online = true; paintSync(); });
-window.addEventListener("offline", () => { S.online = false; paintSync(); });
+window.addEventListener("online", () => { S.online = true; paintSync(); if (DEMO) setLive(true); else if (BOARD) paintBoardLive(); });
+window.addEventListener("offline", () => { S.online = false; paintSync(); setLive(false); });
+/* the board's "Not live since" strip: set when a listener fails, the
+   tickets listener falls back to cache, or the browser goes offline */
+function setLive(ok) {
+  if (ok) S.liveLostAt = null; else if (!S.liveLostAt) S.liveLostAt = new Date();
+  if (BOARD) paintBoardLive();
+}
+function fmtTime(v) { const d = toDate(v); if (!d) return ""; let h = d.getHours(); const ap = h >= 12 ? "PM" : "AM"; h = h % 12 || 12; return h + ":" + pad(d.getMinutes()) + " " + ap; }
+
+/* ==============================================================
+   TICKETS VIEW (home on desktop)
+   ============================================================== */
+const tkPill = (st, big) => '<span class="st ' + (TK_PILL[st] || "") + (big ? " big" : "") + '" title="Moves on its own: any line staged = Picking, all staged = Staged, all delivered = Delivered. Close is manual.">' + esc(TK_LABEL[st] || st) + "</span>";
+function progressMini(s) {
+  const pct = s.lines ? Math.round(s.staged / s.lines * 100) : 0;
+  return '<span class="mini"><span class="bar" aria-hidden="true"><i style="width:' + pct + '%"></i></span><span class="n">' + s.staged + " of " + s.lines + "</span></span>";
+}
+function ticketCols() {
+  return [
+    { k: "number", label: "Ticket", sort: t => t.number, html: t => '<button type="button" class="linkbtn" data-act="ticket" data-id="' + esc(t.id) + '"><div class="pn"><b>#' + esc(t.number) + "</b></div></button>" + (t.source === "manual" ? '<div class="pd">Built by hand</div>' : "") },
+    { k: "client", label: "Client", text: t => t.clientName || "" },
+    { k: "job", label: "Job", text: t => t.jobName || "" },
+    { k: "proposal", label: "Proposal", text: t => t.proposalId ? "#" + t.proposalId : "" },
+    { k: "status", label: "Status", sort: t => TK_STATUS.indexOf(tkStatus(t)), html: t => tkPill(tkStatus(t)) },
+    { k: "progress", label: "Staged", title: "Lines staged out of the lines on the ticket", sort: t => { const s = tkSummary(t); return s.lines ? s.staged / s.lines : 0; }, html: t => progressMini(tkSummary(t)) },
+    { k: "toOrder", label: "To order", r: true, title: "Lines that stock cannot cover", sort: t => tkSummary(t).toOrder, html: t => { const n = tkSummary(t).toOrder; return n ? '<span class="st warn">' + n + " line" + (n > 1 ? "s" : "") + "</span>" : '<span class="z">0</span>'; } },
+    { k: "bay", label: "Bay", text: t => tkBay(t) },
+    { k: "last", label: "Last activity", sort: t => toDate(t.updatedAt), text: t => fmtWhen(t.updatedAt) },
+    { k: "created", label: "Created", def: false, sort: t => toDate(t.createdAt), text: t => fmtDate(t.createdAt) + (t.createdByName ? ", " + t.createdByName : "") },
+    { k: "delivered", label: "Delivered", def: false, r: true, sort: t => tkSummary(t).delivered, text: t => { const s = tkSummary(t); return s.delivered + " of " + s.lines; } }
+  ];
+}
+function tkMatches(t) {
+  const f = S.tkFilter, st = tkStatus(t);
+  if (f.status === "active" && st === "closed") return false;
+  if (f.status !== "active" && f.status !== "all" && st !== f.status) return false;
+  if (f.client && t.clientId !== f.client) return false;
+  if (f.toOrder && !tkSummary(t).toOrder) return false;
+  if (f.backorders) return false; /* backorders exist once orders do (0.3.0) */
+  return true;
+}
+function renderTickets() {
+  const el = $("#v-tickets"), f = S.tkFilter;
+  const all = Array.from(S.tickets.values());
+  const clients = new Map(); all.forEach(t => { if (t.clientId) clients.set(t.clientId, (S.clients.get(t.clientId) || {}).name || t.clientName || t.clientId); });
+  let h = '<div class="mcard"><div class="thead"><h2 class="vt">Pick tickets</h2><span class="sp"><button type="button" class="btn sm" data-act="columns" data-tbl="tickets">Columns</button>' +
+    (isWriter() ? '<button type="button" class="btn sm acc" data-act="newTicket" title="Import a Portal proposal CSV, or type the lines by hand">New ticket</button>' : "") + "</span></div>" +
+    '<div class="filters"><div><label class="lab" for="tfStatus">Status</label><select class="fld" id="tfStatus" data-tf="status"><option value="active"' + (f.status === "active" ? " selected" : "") + ">Not closed</option>" +
+      TK_STATUS.map(s => '<option value="' + s + '"' + (f.status === s ? " selected" : "") + ">" + TK_LABEL[s] + "</option>").join("") + '<option value="all"' + (f.status === "all" ? " selected" : "") + ">All, closed too</option></select></div>" +
+    '<div><label class="lab" for="tfClient">Client</label><select class="fld" id="tfClient" data-tf="client"><option value="">Every client</option>' +
+      Array.from(clients.entries()).sort((a, b) => a[1].localeCompare(b[1])).map(([id, n]) => '<option value="' + esc(id) + '"' + (f.client === id ? " selected" : "") + ">" + esc(n) + "</option>").join("") + "</select></div>" +
+    '<label class="chk" title="Tickets with at least one line our shelves cannot cover"><input type="checkbox" id="tfOrder" data-tf="toOrder"' + (f.toOrder ? " checked" : "") + "> Has items to order</label>" +
+    '<label class="chk" title="Backorders come from purchase orders, which arrive in 0.3.0. Until then nothing matches."><input type="checkbox" id="tfBack" data-tf="backorders"' + (f.backorders ? " checked" : "") + "> Has backorders</label></div>";
+  if (S.errors.tickets) h += '<div class="errbox" role="alert"><p>Could not load tickets. Check your connection and try again.</p><button type="button" class="btn" data-act="retry" data-coll="tickets">Retry</button></div>';
+  else if (!S.loaded.tickets) h += skelTable(ticketCols().filter(c => c.def !== false), "Loading tickets");
+  else if (!all.length) h += '<div class="empty"><p>No pick tickets yet. Import a Portal CSV or build one by hand.</p>' + (isWriter() ? '<button type="button" class="btn acc" data-act="newTicket">New ticket</button>' : "") + "</div>";
+  else {
+    const list = all.filter(tkMatches);
+    if (!list.length) h += '<div class="empty"><p>No tickets match these filters.' + (f.backorders ? " Backorders are tracked once orders arrive in 0.3.0." : "") + '</p><button type="button" class="textbtn" data-act="tfClear">Clear filters</button></div>';
+    else h += tableHTML("tickets", ticketCols(), list, {
+      defaultSort: (a, b) => (toDate(b.createdAt) || 0) - (toDate(a.createdAt) || 0),
+      group: { key: t => tkStatus(t), order: TK_STATUS, label: (k, rows) => esc(TK_LABEL[k] || k) + "<span>" + rows.length + " ticket" + (rows.length > 1 ? "s" : "") + "</span>" },
+      rowClass: t => tkSummary(t).toOrder && tkStatus(t) !== "closed" ? "need" : ""
+    }) + '<p class="hint">' + list.length + " of " + all.length + " tickets. Grouped by status, newest first in the default order.</p>";
+  }
+  el.innerHTML = h + "</div>";
+}
+
+/* ==============================================================
+   TICKET DETAIL
+   ============================================================== */
+function lineChips(t, l) {
+  const c = [], p = lineProduct(l), left = lineLeft(l);
+  if (l.matchState === "new") c.push('<span class="chip new" title="Created from the proposal\'s brand and model when the ticket was made. It has no stock yet."><i></i>New product</span>');
+  else if (p) c.push('<span class="chip ok"><i></i>Matched</span>');
+  else c.push('<span class="chip warn" title="No catalog product has this brand and model. It can be staged and delivered, not pulled from stock."><i></i>Not in the catalog</span>');
+  if (l.pickedFromName && num(l.qtyStaged) > 0) c.push('<span class="chip" title="Last pulled by ' + esc(l.pickedByName || "") + '">' + esc(l.pickedFromName) + (t.stagingLocationId ? " to " + esc(tkBay(t)) : "") + "</span>");
+  if (num(l.qtyToOrder) > 0) c.push('<span class="chip warn"><i></i>To order ' + esc(lqty(l, l.qtyToOrder)) + ", no PO yet</span>");
+  if (p && left > 0 && t.status !== "closed") {
+    const av = availableFor(p), short = left - av - num(l.qtyToOrder);
+    if (short > 0) c.push('<span class="chip bad" title="The shelves hold less than this line still needs, and the rest is not marked to order."><i></i>Short ' + esc(lqty(l, short)) + "</span>");
+  }
+  const out = Array.from(S.items.values()).filter(i => i.ticketLineId === l.id && i.ticketId === t.id && (i.status === "checked_out" || i.status === "installed"));
+  if (out.length) { const who = Array.from(new Set(out.map(i => i.holderName).filter(Boolean))).join(", "); c.push('<span class="chip info"><i></i>' + out.length + " of " + fmtN(l.qtyNeeded) + (out[0].status === "installed" ? " installed" : " checked out" + (who ? " by " + esc(who) : "")) + "</span>"); }
+  if (l._pending) c.push('<span class="chip" title="Saved on this device. It reaches the server when the connection is back.">pending</span>');
+  return '<div class="chips">' + c.join("") + "</div>";
+}
+function lineCols(t) {
+  const z = (l, n) => num(n) ? '<span class="n">' + esc(lqty(l, n)) + "</span>" : '<span class="z">0</span>';
+  return [
+    { k: "product", label: "Product", sort: l => lineName(l).toLowerCase(), html: l => {
+      const p = lineProduct(l), b = p ? p.brand : l.brand, m = p ? p.model : l.model;
+      return (p ? '<button type="button" class="linkbtn" data-act="product" data-id="' + esc(p.id) + '"><div class="pn">' + (b && m ? "<b>" + esc(b) + "</b> " + esc(m) : esc(lineName(l))) + "</div></button>" : '<div class="pn">' + (b && m ? "<b>" + esc(b) + "</b> " + esc(m) : esc(lineName(l))) + "</div>") +
+        '<div class="pd">' + esc(l.description || (p && p.description) || "") + "</div>" + (l.notes ? '<div class="lnote">' + esc(l.notes) + "</div>" : ""); } },
+    { k: "needed", label: "Needed", r: true, sort: l => num(l.qtyNeeded), html: l => z(l, l.qtyNeeded) },
+    { k: "fromStock", label: "From stock", r: true, sort: l => num(l.qtyFromStock), html: l => z(l, l.qtyFromStock) },
+    { k: "toOrder", label: "To order", r: true, sort: l => num(l.qtyToOrder), html: l => z(l, l.qtyToOrder) },
+    { k: "staged", label: "Staged", r: true, sort: l => num(l.qtyStaged), html: l => z(l, l.qtyStaged) },
+    { k: "delivered", label: "Delivered", r: true, sort: l => num(l.qtyDelivered), html: l => z(l, l.qtyDelivered) },
+    { k: "status", label: "Status", sort: l => l.matchState || "", html: l => lineChips(t, l) },
+    { k: "area", label: "Area", def: false, text: l => l.area || "" },
+    { k: "portal", label: "Portal item", def: false, text: l => l.portalItemId || "" }
+  ];
+}
+function lineActions(t, l) {
+  if (t.status === "closed") return "";
+  const W = isWriter(), T = isTech(), p = lineProduct(l), left = lineLeft(l), toDeliver = num(l.qtyStaged) - num(l.qtyDelivered);
+  let h = "";
+  if (W && p && left > 0) h += '<button type="button" class="btn sm' + (availableFor(p) > 0 ? " acc" : "") + '" data-act="lnPull" data-id="' + esc(l.id) + '"' + (availableFor(p) > 0 ? ' title="Choose the shelf, scan if you like; moves the quantity to the staging bay"' : ' disabled title="Nothing on the shelves. It needs ordering."') + ">Pull from stock</button>";
+  if (T && left > 0) h += '<button type="button" class="btn sm" data-act="lnStage" data-id="' + esc(l.id) + '" title="Marks quantity laid out in the bay that did not come through Pull, for example a part that was already on the bench">Stage</button>';
+  if (T && toDeliver > 0) h += '<button type="button" class="btn sm' + (left === 0 ? " acc" : "") + '" data-act="lnDeliver" data-id="' + esc(l.id) + '" title="Takes what is staged to site in one tap. Serialized units on this line check out to you.">Deliver to site</button>';
+  if (W) h += '<button type="button" class="btn sm" data-act="lnNote" data-id="' + esc(l.id) + '">Note</button>';
+  return h;
+}
+function renderTicket() {
+  const el = $("#v-ticket"), t = S.tickets.get(S.ticketId);
+  const back = '<div class="crumb"><button type="button" class="textbtn" data-act="go" data-view="tickets">Tickets</button>';
+  if (S.errors.tickets) { el.innerHTML = '<div class="mcard">' + back + '</div><div class="errbox" role="alert"><p>Could not load tickets. Check your connection and try again.</p><button type="button" class="btn" data-act="retry" data-coll="tickets">Retry</button></div></div>'; return; }
+  if (!S.loaded.tickets) { el.innerHTML = '<div class="mcard">' + back + "</div>" + skelTable([{ label: "Product" }, { label: "Needed" }, { label: "Staged" }], "Loading the ticket") + "</div>"; return; }
+  if (!t) { el.innerHTML = '<div class="mcard">' + back + '</div><div class="empty"><p>That ticket is not in Loadout. It may have been removed, or has not reached this device yet.</p><button type="button" class="btn" data-act="go" data-view="tickets">Back to tickets</button></div></div>'; return; }
+  const loaded = S.linesLoaded.has(t.id), lines = ticketLines(t.id), s = loaded ? summarize(lines) : tkSummary(t), st = tkStatus(t), closed = st === "closed";
+  const W = isWriter(), pinned = (S.board.ticketIds || []).includes(t.id), job = S.jobs.get(t.jobId);
+  let h = '<div class="mcard">' + back + " / " + esc(TK_LABEL[st]) + "</div>" +
+    '<div class="tkrow"><h2 class="tktitle">Pick ticket <span class="n">#' + esc(t.number) + "</span></h2>" + tkPill(st, true) +
+    '<div class="tkbtns"><button type="button" class="btn" data-act="tkCopy" title="Copies the status block below so you can paste it into the proposal\'s internal notes in Portal">Copy for Portal</button>' +
+    '<button type="button" class="btn" data-act="tkPrint" title="A pick list for the clipboard, grouped by area, with where to pull each line from">Print</button>' +
+    (closed || !W ? "" : '<span title="Orders arrive in 0.3.0"><button type="button" class="btn" disabled aria-describedby="omHint">Order missing</button><span class="sr" id="omHint">Orders arrive in 0.3.0</span></span>') +
+    (W && !closed ? '<button type="button" class="btn" data-act="tkBoard" aria-pressed="' + pinned + '" title="' + (pinned ? "Takes this ticket off the warehouse TV" : "Pins this ticket to the warehouse TV so the pick path shows by the bays") + '">' + (pinned ? "Remove from board" : "Show on board") + "</button>" : "") +
+    (W && !closed ? '<button type="button" class="btn" data-act="tkClose" title="Asks what to do with anything left in the bay, then marks units out on this ticket installed">Close ticket</button>' : "") + "</div></div>" +
+    '<dl class="meta"><div><dt>Client</dt><dd>' + esc(t.clientName || "None") + "</dd></div>" +
+    "<div><dt>Job</dt><dd>" + esc(t.jobName || "None") + (job && job.address ? "<small>" + esc(job.address) + "</small>" : "") + "</dd></div>" +
+    "<div><dt>Proposal</dt><dd>" + (t.proposalId ? "#" + esc(t.proposalId) : "None") + "<small>" + (t.source === "manual" ? "Built by hand" : "Imported from CSV") + "</small></dd></div>" +
+    "<div><dt>Staging</dt><dd>" + (t.stagingLocationId ? esc(tkBay(t)) : "No bay yet") + "<small>" + (t.stagingLocationId ? "Reserved for this job" : "Pull from stock asks for one") + "</small></dd></div>" +
+    "<div><dt>Created</dt><dd>by " + esc(t.createdByName || t.createdBy || "") + ", " + esc(fmtDate(t.createdAt)) + (closed ? "<small>Closed " + esc(fmtDate(t.closedAt)) + (t.closedByName ? " by " + esc(t.closedByName) : "") + "</small>" : "") + "</dd></div></dl></div>";
+  const notOrdered = s.toOrder, stagedPct = s.lines ? s.staged / s.lines * 100 : 0;
+  const orderPct = s.lines ? lines.filter(l => num(l.qtyToOrder) > 0 && !lineDone(l, "qtyStaged")).length / s.lines * 100 : 0;
+  h += '<div class="mcard"><div class="strip">' +
+    '<div class="sv"><span class="k">Needed</span><span class="v">' + s.lines + '</span><span class="u">lines</span></div>' +
+    '<div class="sv"><span class="k">From stock</span><span class="v">' + s.fromStock + '</span><span class="u">lines pulled</span></div>' +
+    '<div class="sv' + (notOrdered ? " warn" : "") + '" title="Lines our shelves cannot cover. Purchase orders arrive in 0.3.0."><span class="k">To order</span><span class="v">' + notOrdered + '</span><span class="u">lines, no PO yet</span></div>' +
+    '<div class="sv"><span class="k">Staged</span><span class="v">' + s.staged + '</span><span class="u">lines' + (t.stagingLocationId ? " in " + esc(tkBay(t)) : "") + "</span></div>" +
+    '<div class="sv"><span class="k">Delivered</span><span class="v">' + s.delivered + '</span><span class="u">lines on site</span></div></div>' +
+    '<div class="prog" role="img" aria-label="' + s.staged + " of " + s.lines + " lines staged, " + notOrdered + ' to order"><i class="p1" style="width:' + stagedPct.toFixed(1) + '%"></i><i class="p2" style="width:' + orderPct.toFixed(1) + '%"></i></div>' +
+    '<div class="pkey"><span><i style="background:var(--m-ok)"></i>Staged ' + s.staged + '</span><span><i style="background:var(--m-warn);opacity:.55"></i>To order ' + notOrdered + '</span><span><i style="background:var(--m-card2);border:1px solid var(--m-line)"></i>Still to pull ' + Math.max(0, s.lines - s.staged - lines.filter(l => num(l.qtyToOrder) > 0 && !lineDone(l, "qtyStaged")).length) + "</span></div></div>";
+  h += '<div class="mcard"><div class="thead"><h4>Lines by area</h4><span class="sp">' +
+    (W && !closed && lines.length ? '<button type="button" class="btn sm" data-act="tkPullAll" title="Fills From stock using on-hand at each product\'s default location first, then lists what still needs ordering">Pull everything in stock</button>' : "") +
+    (W && !closed ? '<button type="button" class="btn sm" data-act="tkAddLines" title="Type more lines, or import a change order CSV for this proposal">Add lines</button>' : "") +
+    '<button type="button" class="btn sm" data-act="columns" data-tbl="ticketLines">Columns</button></span></div>';
+  if (S.errors.lines && !loaded) h += errorBox("the ticket's lines", "tickets");
+  else if (!loaded) h += skelTable([{ label: "Product" }, { label: "Needed", r: true }, { label: "Staged", r: true }], "Loading lines");
+  else if (!lines.length) h += '<div class="empty"><p>This ticket has no lines. Add a line or import a CSV.</p>' + (W && !closed ? '<button type="button" class="btn acc" data-act="tkAddLines">Add a line</button> <button type="button" class="btn" data-act="tkAddCsv">Import a CSV</button>' : "") + "</div>";
+  else {
+    const areas = []; lines.forEach(l => { const a = l.area || "No area"; if (!areas.includes(a)) areas.push(a); });
+    h += tableHTML("ticketLines", lineCols(t), lines, {
+      group: { key: l => l.area || "No area", order: areas, label: (k, rows) => esc(k) + "<span>" + rows.length + " line" + (rows.length > 1 ? "s" : "") + ", " + rows.filter(l => lineDone(l, "qtyStaged")).length + " staged</span>" },
+      rowClass: l => !closed && num(l.qtyToOrder) > 0 && !lineDone(l, "qtyStaged") ? "need" : "",
+      actions: closed || !isTech() ? null : l => lineActions(t, l)
+    });
+  }
+  h += "</div>";
+  const tl = ticketTimeline(t);
+  h += '<div class="two"><div class="mcard"><h4>Timeline</h4>' + (tl.length ? timelineHTML(tl.slice(0, 40)) + (tl.length > 40 ? '<p class="hint">Showing the latest 40 of ' + tl.length + ". More, Movements holds the rest.</p>" : "") : '<p class="hint">Nothing has moved yet.</p>') + "</div>" +
+    '<div class="mcard"><div class="thead"><h4>Portal note</h4><span class="sp"><button type="button" class="btn sm acc" data-act="tkCopy">Copy</button></span></div><pre class="note">' + esc(portalBlock(t)) + '</pre><p class="hint">Paste into the proposal\'s internal notes. Loadout writes it there itself once the Portal API is on.</p></div></div>';
+  el.innerHTML = h;
+  if (!S.tkHist[t.id]) {
+    S.tkHist[t.id] = "loading";
+    DB.movementsWhere("ticketId", t.id).then(list => { S.tkHist[t.id] = list; if (S.view === "ticket") scheduleRender(); }).catch(() => { S.tkHist[t.id] = []; });
+  }
+}
+function ticketTimeline(t) {
+  const m = new Map();
+  (Array.isArray(S.tkHist[t.id]) ? S.tkHist[t.id] : []).forEach(x => m.set(x.id, x));
+  S.movements.forEach(x => { if (x.ticketId === t.id) m.set(x.id, x); });
+  return Array.from(m.values()).sort((a, b) => (toDate(b.at) || 0) - (toDate(a.at) || 0));
+}
+const curTicket = () => S.tickets.get(S.ticketId);
+const curLine = id => { const t = curTicket(); return t && S.lines.get(t.id) ? S.lines.get(t.id).get(id) : null; };
+
+/* ---------------- Pull from stock ---------------- */
+function bayOptions(sel) { return locOptions(sel, { blankLabel: "Choose a staging bay", filter: l => l.kind === "bay" }); }
+function openPull(t, l, preset = {}) {
+  const p = lineProduct(l); if (!p) { toast("This line is not in the catalog, so there is nothing to pull.", true); return; }
+  const left = lineLeft(l), srcs = pullSources(p), ft = p.unit === "ft";
+  if (!srcs.length) { toast("Nothing on the shelves for " + productName(p) + ". It needs ordering.", true); return; }
+  if (left <= 0) { toast("This line is fully staged.", true); return; }
+  const presetSrc = preset.from && srcs.find(e => e.locationId === preset.from) ? preset.from : (srcs.length === 1 && !ft ? srcs[0].locationId : "");
+  const boxes = ft ? srcs.flatMap(e => e.boxes) : [];
+  const body = '<p class="hint" style="margin-top:0"><b>' + esc(productName(p)) + "</b>, ticket #" + esc(t.number) + ". Needs " + esc(lqty(l, left)) + " more (needed " + esc(lqty(l, l.qtyNeeded)) + ", staged " + esc(lqty(l, l.qtyStaged)) + ").</p>" +
+    (t.stagingLocationId ? "" : '<label class="lab" for="plBay" title="Where this job\'s product is laid out. It is saved on the ticket, so the next pull goes there too.">' + "<abbr>Staging bay</abbr></label><select class=\"fld\" id=\"plBay\" data-decide>" + bayOptions("") + "</select>") +
+    (ft ? '<label class="lab" for="plBox" title="Wire is pulled by cutting a box. The cut is logged with your name and this ticket.">' + "<abbr>Box</abbr></label><select class=\"fld\" id=\"plBox\" data-decide><option value=\"\">Choose a box</option>" +
+        boxes.map(c => '<option value="' + esc(c.id) + '"' + (boxes.length === 1 || c.id === preset.box ? " selected" : "") + ">" + esc(c.label) + ", " + esc(c.locationId ? locName(c.locationId) : "no location") + ", " + fmtN(c.ftLeft) + " ft left</option>").join("") + "</select>" +
+        '<label class="lab" for="plQty">Feet</label><input class="fld n" id="plQty" type="number" min="1" step="1" inputmode="numeric">'
+      : '<div class="grid2"><div><label class="lab" for="plFrom" title="Shelves and areas that hold this product. Bays and vans are left out, since stock there is already spoken for.">' + '<abbr>From</abbr></label><select class="fld" id="plFrom" data-decide><option value="">Choose a location</option>' +
+        srcs.map(e => '<option value="' + esc(e.locationId) + '"' + (e.locationId === presetSrc ? " selected" : "") + ">" + esc(locName(e.locationId)) + " (" + fmtN(e.qty) + ")</option>").join("") + "</select></div>" +
+        '<div><label class="lab" for="plQty">Quantity</label><input class="fld n" id="plQty" type="number" min="1" step="1" inputmode="numeric"></div></div><div id="plUnits"></div>') +
+    '<label class="lab" for="plScan" title="A scanner that types, or the code under a label. A shelf label picks the location, a unit label ticks that unit, and the product\'s UPC confirms it is the right thing.">' + '<abbr>Scan or type a code</abbr></label><form class="manual" id="plScanForm" style="margin:0" autocomplete="off"><input class="fld mono" id="plScan" placeholder="Shelf, unit, box, or UPC"><button type="submit" class="btn">Use</button></form>' +
+    '<p class="hint" id="plHint"></p><p class="err" id="plErr" hidden></p>';
+  const w = openModal("Pull from stock", body, '<button type="button" class="btn" data-close>Cancel</button><button type="button" class="btn acc" data-ok>Pull</button>', { wide: true });
+  wireGlow(w);
+  const picked = new Set(preset.itemIds || []);
+  const err = m => { const e = $("#plErr", w); e.textContent = m; e.hidden = !m; };
+  const src = () => ft ? null : srcs.find(e => e.locationId === $("#plFrom", w).value);
+  const paintUnits = (resetQty) => {
+    if (ft) { const c = S.containers.get($("#plBox", w).value); if (c && resetQty) $("#plQty", w).value = Math.min(left, num(c.ftLeft)); return; }
+    const e = src(), box = $("#plUnits", w);
+    if (!e) { box.innerHTML = ""; return; }
+    if (resetQty) $("#plQty", w).value = Math.min(left, e.qty);
+    const q = Math.floor(num($("#plQty", w).value));
+    if (!e.items.length) { box.innerHTML = ""; return; }
+    if (resetQty && !Array.from(picked).some(id => e.items.some(i => i.id === id))) e.items.slice(0, Math.max(0, q - e.counted)).forEach(i => picked.add(i.id));
+    box.innerHTML = '<label class="lab" title="Each of these has its own QR. Tick the ones going to the bay, or scan their labels.">' + "<abbr>Serialized units here</abbr></label>" + '<div class="pickunits">' + e.items.map(i => '<label class="chk"><input type="checkbox" data-unit="' + esc(i.id) + '"' + (picked.has(i.id) ? " checked" : "") + '> <span class="mono">' + esc(itemLabel(i)) + "</span></label>").join("") + "</div>" +
+      (e.counted ? '<p class="hint">Plus ' + fmtN(e.counted) + " counted on the shelf without their own QR.</p>" : "");
+  };
+  if (ft) $("#plBox", w).addEventListener("change", () => paintUnits(true));
+  else { $("#plFrom", w).addEventListener("change", () => { picked.clear(); paintUnits(true); }); $("#plQty", w).addEventListener("input", () => paintUnits(false)); }
+  w.addEventListener("change", e => { const id = e.target.dataset && e.target.dataset.unit; if (id) { e.target.checked ? picked.add(id) : picked.delete(id); } });
+  paintUnits(true);
+  $("#plScanForm", w).addEventListener("submit", ev => {
+    ev.preventDefault();
+    const code = $("#plScan", w).value.trim(); $("#plScan", w).value = ""; if (!code) return;
+    const m = /^loadout:(loc|ctr|item|prod):(.+)$/i.exec(code), hint = $("#plHint", w); err("");
+    if (m && m[1].toLowerCase() === "loc") {
+      if (!ft && srcs.some(e => e.locationId === m[2])) { $("#plFrom", w).value = m[2]; $("#plFrom", w).dispatchEvent(new Event("change")); hint.textContent = "Location set to " + locName(m[2]) + "."; }
+      else if (!t.stagingLocationId && $("#plBay", w) && S.locations.get(m[2]) && S.locations.get(m[2]).kind === "bay") { $("#plBay", w).value = m[2]; $("#plBay", w).dispatchEvent(new Event("change")); hint.textContent = "Staging bay set to " + locName(m[2]) + "."; }
+      else err(locName(m[2]) + " has none of this product.");
+    } else if (m && m[1].toLowerCase() === "item") {
+      const e = srcs.find(x => x.items.some(i => i.id === m[2]));
+      if (!e || ft) { err("That unit is not on a shelf for this line."); return; }
+      if ($("#plFrom", w).value !== e.locationId) { $("#plFrom", w).value = e.locationId; picked.clear(); paintUnits(true); }
+      picked.add(m[2]); const n = Math.max(num($("#plQty", w).value), Array.from(picked).length); $("#plQty", w).value = Math.min(n, left); paintUnits(false);
+      hint.textContent = "Unit " + itemLabel(S.items.get(m[2])) + " ticked.";
+    } else if (m && m[1].toLowerCase() === "ctr") {
+      if (ft && boxes.some(c => c.id === m[2])) { $("#plBox", w).value = m[2]; $("#plBox", w).dispatchEvent(new Event("change")); hint.textContent = "Box " + S.containers.get(m[2]).label + " chosen."; }
+      else err("That box is not one of this product's open boxes.");
+    } else {
+      const ok = (m && m[1].toLowerCase() === "prod" && m[2] === p.id) || (p.upc && p.upc === code) || (p.model && p.model.toLowerCase() === code.toLowerCase());
+      if (ok) hint.textContent = "Right product: " + productName(p) + ".";
+      else err("That code is not " + productName(p) + ". Check the box before pulling.");
+    }
+  });
+  w.querySelector("[data-ok]").addEventListener("click", async () => {
+    const bay = t.stagingLocationId || ($("#plBay", w) ? $("#plBay", w).value : "");
+    const q = Math.floor(num($("#plQty", w).value));
+    if (!bay) { err("Pick the staging bay for this ticket."); return; }
+    if (ft) {
+      const c = S.containers.get($("#plBox", w).value);
+      if (!c) { err("Pick the box to cut from."); return; }
+      if (q < 1 || q > num(c.ftLeft)) { err("Feet must be between 1 and the " + fmtN(c.ftLeft) + " ft left in box " + c.label + "."); return; }
+      if (q > left) { err("The line needs " + fmtN(left) + " ft more."); return; }
+      closeModal(w);
+      if (await doPull(t, l, { qty: q, items: [], box: c, bayId: bay })) toast("Cut " + fmtN(q) + " ft from box " + c.label + " for ticket #" + t.number);
+      return;
+    }
+    const e = src();
+    if (!e) { err("Pick the location to pull from."); return; }
+    if (q < 1 || q > left) { err("Quantity must be between 1 and " + fmtN(left) + ", what the line still needs."); return; }
+    const units = e.items.filter(i => picked.has(i.id));
+    if (units.length > q) { err("You ticked " + units.length + " units for a quantity of " + q + ". Untick some or raise the quantity."); return; }
+    if (q - units.length > e.counted) { err(e.items.length ? "Only " + fmtN(e.counted) + " here are counted without a QR. Tick " + (q - e.counted) + " serialized unit" + (q - e.counted > 1 ? "s" : "") + " or lower the quantity." : "There are only " + fmtN(e.qty) + " here."); return; }
+    closeModal(w);
+    if (await doPull(t, l, { from: e.locationId, qty: q, items: units, bayId: bay })) toast("Pulled " + q + " " + productName(p) + " to " + locName(bay));
+  });
+}
+function openStage(t, l) {
+  const left = lineLeft(l);
+  const body = '<p class="hint" style="margin-top:0"><b>' + esc(lineName(l)) + "</b>. Use Stage for quantity laid out in the bay that did not come through Pull from stock. Needs " + esc(lqty(l, left)) + " more.</p>" +
+    '<label class="lab" for="sgQty">Laid out now</label><input class="fld n" id="sgQty" type="number" min="1" step="1" inputmode="numeric" value="' + left + '">' +
+    '<label class="lab" for="sgNote">Note</label><input class="fld" id="sgNote" placeholder="Where it came from, optional"><p class="err" id="sgErr" hidden></p>';
+  const w = openModal("Stage", body, '<button type="button" class="btn" data-close>Cancel</button><button type="button" class="btn acc" data-ok>Stage</button>');
+  w.querySelector("[data-ok]").addEventListener("click", async () => {
+    const q = Math.floor(num($("#sgQty", w).value)), e = $("#sgErr", w);
+    if (q < 1 || q > left) { e.textContent = "Quantity must be between 1 and " + fmtN(left) + "."; e.hidden = false; return; }
+    closeModal(w);
+    if (await doStage(t, l, q, $("#sgNote", w).value.trim() || null)) toast("Staged " + fmtN(q) + " of " + lineName(l));
+  });
+}
+async function deliverLine(t, l) {
+  const d = deliverPlan(t, l); if (d.q <= 0) return;
+  if (await doDeliver(t, l)) toast("Delivered " + lqty(l, d.q) + " of " + lineName(l) + (d.items.length ? ". " + d.items.length + " unit" + (d.items.length > 1 ? "s" : "") + " checked out to you." : "."));
+}
+function openLineNote(t, l) {
+  const w = openModal("Note on " + lineName(l), '<label class="lab" for="lnText">Note</label><textarea class="fld" id="lnText" placeholder="Shows under the line on the ticket and the print">' + esc(l.notes || "") + "</textarea>", '<button type="button" class="btn" data-close>Cancel</button><button type="button" class="btn acc" data-ok>Save note</button>');
+  w.querySelector("[data-ok]").addEventListener("click", async () => { const v = $("#lnText", w).value.trim(); closeModal(w); if (await doLineNote(t, l, v)) toast("Note saved"); });
+}
+/* Pull everything we have in stock: default location first, then the most stock */
+function planPullAll(t) {
+  const used = new Map(), moves = [], wire = [], order = [];
+  ticketLines(t.id).forEach(l => {
+    const p = lineProduct(l); let left = lineLeft(l);
+    if (left <= 0) return;
+    if (!p) { order.push({ l, qty: left }); return; }
+    if (p.unit === "ft") { wire.push(l); return; }
+    pullSources(p).forEach(e => {
+      if (left <= 0) return;
+      const k = p.id + "__" + e.locationId, u = used.get(k) || { counted: 0, items: new Set() };
+      const cnt = Math.min(left, e.counted - u.counted); if (cnt > 0) { u.counted += cnt; left -= cnt; }
+      const items = []; e.items.forEach(i => { if (left > 0 && !u.items.has(i.id)) { u.items.add(i.id); items.push(i); left--; } });
+      used.set(k, u);
+      if (cnt > 0 || items.length) moves.push({ l, p, from: e.locationId, qty: Math.max(0, cnt) + items.length, items });
+    });
+    if (left > 0) order.push({ l, qty: left });
+  });
+  return { moves, wire, order };
+}
+function openPullAll(t) {
+  const pl = planPullAll(t);
+  const body = (pl.moves.length ? '<p class="hint" style="margin-top:0">Moves these to ' + (t.stagingLocationId ? esc(tkBay(t)) : "the staging bay") + ":</p>" + '<ul class="onhand">' + pl.moves.map(m => "<li><span>" + esc(productName(m.p)) + ' <span class="z">from ' + esc(locName(m.from)) + (m.items.length ? ", " + m.items.length + " serialized" : "") + "</span></span><b>" + fmtN(m.qty) + "</b></li>").join("") + "</ul>" : "<p>Nothing on the shelves covers what this ticket still needs.</p>") +
+    (t.stagingLocationId || !pl.moves.length ? "" : '<label class="lab" for="paBay" title="Saved on the ticket, so every pull goes there.">' + "<abbr>Staging bay</abbr></label><select class=\"fld\" id=\"paBay\" data-decide>" + bayOptions("") + "</select>") +
+    (pl.wire.length ? '<div class="sect"><h4 class="h4">Wire, cut on a box</h4><p class="hint" style="margin-top:0">' + pl.wire.map(l => esc(lineName(l)) + " (" + esc(lqty(l, lineLeft(l))) + ")").join(", ") + ". Use Pull from stock on the line, or the box sheet with this ticket chosen.</p></div>" : "") +
+    '<div class="sect"><h4 class="h4">Still needs ordering after this</h4>' + (pl.order.length ? '<ul class="onhand">' + pl.order.map(o => "<li><span>" + esc(lineName(o.l)) + "</span><b>" + esc(lqty(o.l, o.qty)) + "</b></li>").join("") + "</ul>" : '<p class="hint" style="margin-top:0">Nothing. Stock covers every line.</p>') + '</div><p class="err" id="paErr" hidden></p>';
+  const w = openModal("Pull everything in stock", body, '<button type="button" class="btn" data-close>Cancel</button>' + (pl.moves.length ? '<button type="button" class="btn acc" data-ok>Pull ' + pl.moves.reduce((a, m) => a + m.qty, 0) + " units</button>" : ""), { wide: true });
+  wireGlow(w);
+  const ok = w.querySelector("[data-ok]"); if (!ok) return;
+  ok.addEventListener("click", async () => {
+    const bay = t.stagingLocationId || $("#paBay", w).value;
+    if (!bay) { const e = $("#paErr", w); e.textContent = "Pick the staging bay for this ticket."; e.hidden = false; return; }
+    closeModal(w);
+    const b = tkBatch(t), avail = new Map();
+    pl.moves.forEach(m => {
+      const counted = m.qty - m.items.length, tf = tkBaseFields(t, m.l);
+      if (counted > 0) { b.ops.push(stockInc(m.p, m.from, -counted), stockInc(m.p, bay, counted)); b.ops.push(mv("pick", Object.assign({ productId: m.p.id, qty: counted, fromLocationId: m.from, toLocationId: bay, note: "Pull everything in stock" }, tf))); }
+      m.items.forEach(it => {
+        b.ops.push({ op: "update", coll: "loadout_items", id: it.id, data: { status: "staged", locationId: bay, locationName: locName(bay), ticketId: t.id, ticketLineId: m.l.id, jobId: t.jobId || null, jobName: t.jobName || null, updatedAt: NOW } });
+        b.ops.push(mv("pick", Object.assign({ productId: m.p.id, itemId: it.id, itemLabel: itemLabel(it), qty: 1, fromLocationId: it.locationId, toLocationId: bay, note: "Pull everything in stock" }, tf)));
+      });
+      const a = (avail.has(m.p.id) ? avail.get(m.p.id) : availableFor(m.p)) - m.qty; avail.set(m.p.id, a);
+      b.bump(m.l, { qtyFromStock: m.qty, qtyStaged: m.qty }, y => ({ qtyToOrder: toOrderFor(y, m.p, num(y.qtyStaged), a), pickedFromName: locName(m.from), pickedByName: S.user.name, pickedAt: NOW }));
+    });
+    const extra = !t.stagingLocationId ? { stagingLocationId: bay, stagingLocationName: locName(bay) } : null;
+    if (await commitChunks(b.finish(extra), "Pull everything on ticket #" + t.number)) toast("Pulled " + pl.moves.length + " line" + (pl.moves.length > 1 ? "s" : "") + " to " + locName(bay) + (pl.order.length ? ". " + pl.order.length + " still need ordering." : "."));
+  });
+}
+function openClose(t) {
+  const lo = closeLeftovers(t), inst = installsFor(t);
+  const body = '<p class="hint" style="margin-top:0">Closing ends the pick ticket. It drops off the board, and its lines stay as they are for the record.</p>' +
+    '<div class="sect"><h4 class="h4">Left in ' + esc(tkBay(t) || "the bay") + "</h4>" + (lo.length ? '<ul class="onhand">' + lo.map(x => "<li><span>" + esc(productName(x.p)) + (x.items.length ? ' <span class="z mono">' + esc(x.items.map(itemLabel).join(", ")) + "</span>" : "") + "</span><b>" + fmtN(x.counted + x.items.length) + "</b></li>").join("") + "</ul>" +
+      '<div role="radiogroup" aria-label="What happens to the leftovers"><label class="radio"><input type="radio" name="clMode" value="return" checked><span><b>Return to stock</b><br><span class="z">Moves it back to a shelf, logged as a return.</span></span></label>' +
+      '<label class="radio"><input type="radio" name="clMode" value="writeoff"><span><b>Write off</b><br><span class="z">Takes it out of on hand with a reason, for example damaged on site.</span></span></label></div>' +
+      '<div id="clRet"><label class="lab" for="clLoc">Back to</label><select class="fld" id="clLoc" data-decide>' + locOptions("", { filter: l => l.kind !== "bay" }) + "</select></div>" +
+      '<div id="clWo" hidden><label class="lab" for="clWhy">Reason</label><input class="fld" id="clWhy" placeholder="Damaged, lost on site, used up"></div>'
+      : '<p class="hint" style="margin-top:0">Nothing is left in the bay.</p>') + "</div>" +
+    '<div class="sect"><h4 class="h4">Marked installed at ' + esc(t.jobName || "the job") + "</h4>" + (inst.length ? '<ul class="onhand">' + inst.map(i => "<li><span>" + esc(i.productName || "") + ' <span class="z mono">' + esc(itemLabel(i)) + "</span></span><span>" + esc(i.holderName || "") + "</span></li>").join("") + "</ul>" : '<p class="hint" style="margin-top:0">No serialized units are out on this ticket.</p>') + "</div>" +
+    '<label class="lab" for="clNote">Note</label><input class="fld" id="clNote" placeholder="Optional"><p class="err" id="clErr" hidden></p>';
+  const w = openModal("Close ticket #" + t.number, body, '<button type="button" class="btn" data-close>Cancel</button><button type="button" class="btn acc" data-ok>Close ticket</button>', { wide: true });
+  wireGlow(w);
+  w.addEventListener("change", e => { if (e.target.name === "clMode") { $("#clRet", w).hidden = e.target.value !== "return"; $("#clWo", w).hidden = e.target.value !== "writeoff"; } });
+  w.querySelector("[data-ok]").addEventListener("click", async () => {
+    const mode = lo.length ? (w.querySelector("input[name=clMode]:checked") || {}).value : "return", err = $("#clErr", w);
+    const locId = lo.length && mode === "return" ? $("#clLoc", w).value : null, reason = lo.length && mode === "writeoff" ? $("#clWhy", w).value.trim() : "";
+    if (lo.length && mode === "return" && !locId) { err.textContent = "Pick where the leftovers go back."; err.hidden = false; return; }
+    if (lo.length && mode === "writeoff" && !reason) { err.textContent = "Give a reason for the write-off."; err.hidden = false; return; }
+    closeModal(w);
+    if (await doClose(t, { mode, locId, reason, note: $("#clNote", w).value.trim() || null })) toast("Ticket #" + t.number + " closed");
+  });
+}
+function printTicket(t) {
+  const lines = ticketLines(t.id), areas = [];
+  lines.forEach(l => { const a = l.area || "No area"; if (!areas.includes(a)) areas.push(a); });
+  const from = l => { const p = lineProduct(l); if (!p || lineLeft(l) <= 0) return ""; return pullSources(p).slice(0, 2).map(e => (e.locationId ? locName(e.locationId) : "No location") + " (" + fmtN(e.qty) + ")").join(", ") || "Not on a shelf"; };
+  const rows = areas.map(a => '<tr class="ga"><td colspan="6">' + esc(a) + "</td></tr>" + lines.filter(l => (l.area || "No area") === a).map(l =>
+    '<tr><td><span class="box"></span></td><td><b>' + esc(lineName(l)) + "</b>" + (l.description ? "<br>" + esc(l.description) : "") + (l.notes ? "<br><i>" + esc(l.notes) + "</i>" : "") + '</td><td class="r">' + esc(lqty(l, l.qtyNeeded)) + '</td><td class="r">' + esc(lqty(l, l.qtyStaged)) + '</td><td class="r">' + esc(lqty(l, lineLeft(l))) + "</td><td>" + esc(from(l)) + "</td></tr>").join("")).join("");
+  $("#printSheet").innerHTML = '<div class="pvbar"><button type="button" class="btn acc" id="pvPrint">Print</button><button type="button" class="btn" id="pvClose">Close preview</button><span>Pick list for ticket #' + esc(t.number) + ", letter paper.</span></div>" +
+    '<div class="picksheet"><h1>Pick ticket #' + esc(t.number) + "</h1>" +
+    '<div class="pmeta"><span><b>Client:</b> ' + esc(t.clientName || "") + "</span><span><b>Job:</b> " + esc(t.jobName || "") + "</span><span><b>Bay:</b> " + esc(tkBay(t) || "none yet") + "</span><span><b>Status:</b> " + esc(TK_LABEL[tkStatus(t)]) + "</span><span><b>Printed:</b> " + esc(fmtWhen(new Date())) + " by " + esc(S.user.name) + "</span></div>" +
+    (lines.length ? '<table><thead><tr><th style="width:22px"></th><th>Product</th><th class="r">Needed</th><th class="r">Staged</th><th class="r">To pull</th><th>Pull from</th></tr></thead><tbody>' + rows + "</tbody></table>" : "<p>This ticket has no lines.</p>") +
+    '<div class="sign"><span>Picked by ______________________</span><span>Date __________</span><span>Checked by ______________________</span></div></div>';
+  $("#printSheet").setAttribute("aria-hidden", "false");
+  document.body.classList.add("preview");
+  $("#pvPrint").addEventListener("click", () => window.print());
+  $("#pvClose").addEventListener("click", closePreview);
+  $("#pvPrint").focus();
+}
+
+/* ==============================================================
+   NEW TICKET: import a Portal CSV, or build by hand (PLAN section 5)
+   Nothing is written until Create ticket. The same sheet re-imports a
+   change order (same proposal number) and adds lines to a ticket.
+   ============================================================== */
+function parseCSV(text) {
+  text = String(text || "").replace(/^\uFEFF/, "");
+  const first = text.split(/\r?\n/)[0] || "";
+  const delim = first.split("\t").length > first.split(",").length ? "\t" : ",";
+  const rows = []; let row = [], cell = "", q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) { if (c === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else q = false; } else cell += c; }
+    else if (c === '"') q = true;
+    else if (c === delim) { row.push(cell); cell = ""; }
+    else if (c === "\n" || c === "\r") { if (c === "\r" && text[i + 1] === "\n") i++; row.push(cell); rows.push(row); row = []; cell = ""; }
+    else cell += c;
+  }
+  if (cell !== "" || row.length) { row.push(cell); rows.push(row); }
+  return rows.filter(r => r.some(c => String(c).trim() !== ""));
+}
+function lineIdFor(area, brand, model, desc) {
+  const prod = brand || model ? slug((brand || "") + "-" + (model || "")) : slug(desc || "line");
+  return ((slug(area) || "general") + "--" + (prod || "line")).slice(0, 140);
+}
+const prodKey = (b, m) => (String(b || "") + " " + String(m || "")).toLowerCase().replace(/\s+/g, " ").trim();
+function matchProduct(brand, model) {
+  if (!brand && !model) return null;
+  const k = prodKey(brand, model);
+  return Array.from(S.products.values()).find(p => (p.brand || p.model) && prodKey(p.brand, p.model) === k) || S.products.get(productIdFor({ brand, model })) || null;
+}
+function impHeaderRow(rows) {
+  const known = new Set([].concat(...IMP_FIELDS.map(f => f.names)));
+  for (let i = 0; i < Math.min(rows.length, 10); i++) if ((rows[i] || []).filter(c => known.has(hnorm(c))).length >= 2) return i;
+  return -1;
+}
+function impAutoMap(I) {
+  I.map = {};
+  const saved = (S.importMap && S.importMap.columns) || {};
+  I.headers.forEach((h, i) => { const f = saved[h]; if (f && I.map[f] == null) I.map[f] = i; });
+  IMP_FIELDS.forEach(f => { if (I.map[f.k] != null) return; const i = I.headers.findIndex(h => f.names.includes(hnorm(h))); if (i >= 0 && !Object.values(I.map).includes(i)) I.map[f.k] = i; });
+}
+function impLoadText(I, text, name) {
+  I.rows = parseCSV(text); I.fileName = name || "pasted text";
+  I.hdrIdx = impHeaderRow(I.rows); I.noHeader = I.hdrIdx < 0;
+  const w = Math.max(0, ...I.rows.map(r => r.length));
+  I.headers = I.noHeader ? Array.from({ length: w }, (_, i) => "Column " + (i + 1)) : I.rows[I.hdrIdx].map((h, i) => clean(h) || "Column " + (i + 1));
+  impAutoMap(I); impBuild(I);
+}
+function impBuild(I) {
+  const lines = new Map(), skipped = [];
+  let lastArea = "", proposal = "", pname = "";
+  const data = I.rows.slice(I.hdrIdx + 1);
+  data.forEach((r, j) => {
+    const row = I.hdrIdx + 2 + j;
+    const g = k => I.map[k] != null && I.map[k] >= 0 ? clean(r[I.map[k]]) : "";
+    if (!proposal && g("proposal")) proposal = g("proposal");
+    if (!pname && I.headers.findIndex(h => hnorm(h) === "proposal name") >= 0) pname = clean(r[I.headers.findIndex(h => hnorm(h) === "proposal name")]);
+    /* nested accessories carry no area of their own; they keep their parent's */
+    const area = g("area") || lastArea; if (g("area")) lastArea = g("area");
+    const brand = g("brand"), model = g("model"), desc = g("description"), type = g("itemType");
+    const label = [brand, model].filter(Boolean).join(" ") || desc || "Row " + row;
+    if (SKIP_TYPES.test(type)) { skipped.push({ row, label, why: type + " rows are not product" }); return; }
+    if (!brand && !model && !desc) { skipped.push({ row, label, why: "No brand, model, or description" }); return; }
+    const qs = g("qty");
+    if (qs === "") { skipped.push({ row, label, why: "Quantity is blank" }); return; }
+    const q = Number(qs.replace(/,/g, ""));
+    if (!Number.isFinite(q) || q <= 0) { skipped.push({ row, label, why: "Quantity " + qs + " is not a number above zero" }); return; }
+    const p = matchProduct(brand, model), id = lineIdFor(area, p ? p.brand || brand : brand, p ? p.model || model : model, desc);
+    if (lines.has(id)) { const e = lines.get(id); e.qtyNeeded += q; e.rows.push(row); return; }
+    lines.set(id, { id, area, option: g("option"), itemType: type, brand, model, description: desc, unit: /^(ft|feet|foot|lf)$/i.test(g("unit")) ? "ft" : (g("unit") || "each"), qtyNeeded: q, portalItemId: g("portalItemId") || null, productId: p ? p.id : null, rows: [row] });
+  });
+  I.lines = lines; I.skipped = skipped; I.proposalFromCsv = proposal; I.proposalName = pname;
+  if (!I.proposalTouched && proposal) I.proposal = proposal;
+}
+function handLines(I) {
+  const lines = new Map();
+  I.hand.forEach(h => {
+    const txt = clean(h.product), q = num(h.qty); if (!txt || q <= 0) return;
+    const k = txt.toLowerCase().replace(/\s+/g, " ");
+    const p = Array.from(S.products.values()).find(x => productName(x).toLowerCase() === k || ((x.brand || x.model) && prodKey(x.brand, x.model) === k) || (x.model && x.model.toLowerCase() === k)) || null;
+    const area = clean(h.area), id = lineIdFor(area, p ? p.brand : "", p ? p.model : "", p ? productName(p) : txt);
+    if (lines.has(id)) { lines.get(id).qtyNeeded += q; return; }
+    lines.set(id, { id, area, option: "", brand: p ? p.brand || "" : "", model: p ? p.model || "" : "", description: p ? p.description || "" : txt, unit: p ? p.unit : "each", qtyNeeded: q, portalItemId: null, productId: p ? p.id : null, rows: [] });
+  });
+  return lines;
+}
+function openNewTicket(opts = {}) {
+  const addTo = opts.ticket || null;
+  const I = { tab: opts.tab || "csv", rows: [], headers: [], map: {}, lines: new Map(), skipped: [], noCreate: new Set(), hand: [{ area: "", product: "", qty: "" }],
+    client: addTo ? addTo.clientId : "", newClient: "", job: addTo ? addTo.jobId : "", newJob: "", newAddr: "", proposal: "", proposalTouched: false, bay: "" };
+  const prodList = '<datalist id="ntProducts">' + Array.from(S.products.values()).map(p => '<option value="' + esc(productName(p)) + '">').sort().join("") + "</datalist>";
+  const body = '<div class="seg" role="tablist" aria-label="How to build the ticket"><button type="button" role="tab" data-nt="csv">Import a Portal CSV</button><button type="button" role="tab" data-nt="hand">Build by hand</button></div>' +
+    '<div id="ntCsv"><div class="step"><b>1</b>The proposal CSV</div>' +
+      '<label class="drop" id="ntDrop" for="ntFile"><span class="btn acc" aria-hidden="true">Choose a CSV file</span><p>or drop it here. In Portal: open the accepted proposal and download the CSV.</p></label><input type="file" id="ntFile" accept=".csv,.txt,text/csv" class="sr">' +
+      '<details class="more"><summary>Paste the CSV text instead</summary><label class="lab" for="ntPaste">CSV text</label><textarea class="fld mono" id="ntPaste" rows="5" placeholder="Area,Item Type,Brand,Model,Description,Quantity"></textarea><div class="btnrow"><button type="button" class="btn" id="ntReadPaste">Read the pasted text</button></div></details>' +
+      (DEMO ? '<div class="btnrow"><button type="button" class="btn" id="ntSample" title="Demo only: a made-up Portal-style CSV with skipped rows, matches, and new products">Load sample</button></div>' : "") +
+      '<p class="hint" id="ntFileName"></p><div id="ntMap"></div><div id="ntRows"></div></div>' +
+    '<div id="ntHand" hidden><div class="step"><b>1</b>Lines</div><p class="hint" style="margin-top:0">Type a catalog product name (the list suggests them) or any text. Text that matches nothing stays a typed line: it can be staged and delivered, not pulled.</p><div id="ntHandRows"></div><div class="btnrow"><button type="button" class="btn" id="ntAddRow">Add a line</button></div>' + prodList + "</div>" +
+    '<div id="ntTk"></div><p class="err" id="ntErr" hidden></p>';
+  const w = openModal(addTo ? "Add lines to ticket #" + addTo.number : "New ticket", body, '<button type="button" class="btn" data-close>Cancel</button><button type="button" class="btn acc" data-ok>Create ticket</button>', { wide: true, noFocus: true });
+  const err = m => { const e = $("#ntErr", w); e.textContent = m || ""; e.hidden = !m; };
+  const curLines = () => I.tab === "hand" ? handLines(I) : I.lines;
+  const existing = () => addTo || (I.proposal ? S.tickets.get(slug(I.proposal)) || null : null);
+  const paintTab = () => {
+    $$("[data-nt]", w).forEach(b => { const on = b.dataset.nt === I.tab; b.classList.toggle("on", on); b.setAttribute("aria-selected", on); });
+    $("#ntCsv", w).hidden = I.tab !== "csv"; $("#ntHand", w).hidden = I.tab !== "hand";
+    paintTk(); paintOk();
+  };
+  const paintMap = () => {
+    const el = $("#ntMap", w); if (!I.rows.length) { el.innerHTML = ""; return; }
+    const opt = sel => '<option value="-1">Not in this file</option>' + I.headers.map((h, i) => '<option value="' + i + '"' + (sel === i ? " selected" : "") + ">" + esc(h) + "</option>").join("");
+    const prev = I.rows.slice(I.hdrIdx + 1, I.hdrIdx + 7), shown = IMP_FIELDS.filter(f => I.map[f.k] != null && I.map[f.k] >= 0);
+    el.innerHTML = '<div class="step"><b>2</b>Columns</div>' + (I.noHeader ? '<p class="err" style="margin-top:0">Could not find column headers. Pick them below.</p>' : '<p class="hint" style="margin-top:0">Matched by header name. Fix any that are wrong; the mapping is saved for the next import.</p>') +
+      '<div class="grid3">' + IMP_FIELDS.map(f => '<div><label class="lab" for="ntm_' + f.k + '"' + (f.tip ? ' title="' + esc(f.tip) + '"' : "") + ">" + (f.tip ? "<abbr>" + esc(f.label) + "</abbr>" : esc(f.label)) + '</label><select class="fld" id="ntm_' + f.k + '" data-ntmap="' + f.k + '">' + opt(I.map[f.k] == null ? -1 : I.map[f.k]) + "</select></div>").join("") + "</div>" +
+      '<h4 class="h4" style="margin-top:14px">Preview, first rows as read</h4>' +
+      (shown.length ? '<div class="tblwrap"><table class="tbl"><thead><tr>' + shown.map(f => '<th class="plain">' + esc(f.label) + "</th>").join("") + "</tr></thead><tbody>" +
+        prev.map(r => "<tr>" + shown.map(f => '<td data-l="' + esc(f.label) + '">' + esc(clean(r[I.map[f.k]])) + "</td>").join("") + "</tr>").join("") + "</tbody></table></div>" : '<p class="hint">Map at least the quantity and the brand, model, or description.</p>');
+  };
+  const paintRows = () => {
+    const el = $("#ntRows", w); if (!I.rows.length) { el.innerHTML = ""; return; }
+    const ls = Array.from(I.lines.values()), m = ls.filter(l => l.productId).length, cr = ls.filter(l => !l.productId && (l.brand || l.model) && !I.noCreate.has(l.id)).length;
+    el.innerHTML = '<div class="step"><b>3</b>Lines</div><div class="chips" style="margin-bottom:8px"><span class="chip"><i></i>' + ls.length + " lines</span>" + '<span class="chip ok"><i></i>' + m + " matched</span>" + (cr ? '<span class="chip new"><i></i>' + cr + " new products</span>" : "") + (I.skipped.length ? '<span class="chip warn"><i></i>' + I.skipped.length + " rows skipped</span>" : "") + "</div>" +
+      (ls.length ? '<div class="tblwrap"><table class="tbl"><thead><tr><th class="plain">Area</th><th class="plain">Product</th><th class="plain r">Qty</th><th class="plain">Catalog</th></tr></thead><tbody>' + ls.map(l => {
+        const p = l.productId ? S.products.get(l.productId) : null;
+        const cat = p ? '<span class="chip ok"><i></i>Matched: ' + esc(productName(p)) + "</span>" : (l.brand || l.model) ? '<label class="chk" title="Adds ' + esc([l.brand, l.model].join(" ")) + ' to the catalog with no stock, so the line can be received and pulled later. Untick to keep it as a typed line."><input type="checkbox" data-ntcreate="' + esc(l.id) + '"' + (I.noCreate.has(l.id) ? "" : " checked") + "> Create product</label>" : '<span class="chip warn"><i></i>No brand or model, stays a typed line</span>';
+        return '<tr><td data-l="Area">' + esc(l.area || "No area") + '</td><td data-l="Product"><div class="pn">' + (l.brand || l.model ? "<b>" + esc(l.brand) + "</b> " + esc(l.model) : esc(l.description)) + '</div><div class="pd">' + esc(l.brand || l.model ? l.description : "") + (l.rows.length > 1 ? " (rows " + l.rows.join(", ") + " added together)" : "") + '</div></td><td data-l="Qty" class="r n">' + fmtN(l.qtyNeeded) + (l.unit === "ft" ? " ft" : "") + '</td><td data-l="Catalog">' + cat + "</td></tr>";
+      }).join("") + "</tbody></table></div>" : '<p class="err">No product lines found. Check the column mapping above.</p>') +
+      '<details class="more"' + (I.skipped.length ? " open" : "") + "><summary>Skipped rows (" + I.skipped.length + ')</summary><ul class="hint">' + (I.skipped.length ? I.skipped.map(s => "<li>Row " + s.row + ", " + esc(s.label) + ": " + esc(s.why) + "</li>").join("") : "<li>None</li>") + "</ul></details>";
+  };
+  const paintHand = () => {
+    $("#ntHandRows", w).innerHTML = I.hand.map((h, i) => {
+      const lsMatch = handLines({ hand: [Object.assign({}, h, { qty: 1 })] }), one = Array.from(lsMatch.values())[0];
+      const chip = !clean(h.product) ? "" : one && one.productId ? '<span class="chip ok"><i></i>Matched: ' + esc(productName(S.products.get(one.productId))) + "</span>" : '<span class="chip warn"><i></i>Not in the catalog, stays a typed line</span>';
+      return '<div class="hline"><div><label class="lab" for="nh_a' + i + '">Area</label><input class="fld" id="nh_a' + i + '" data-nh="area" data-i="' + i + '" value="' + esc(h.area) + '" placeholder="Living room"></div>' +
+        '<div class="hp"><label class="lab" for="nh_p' + i + '">Product</label><input class="fld" id="nh_p' + i + '" data-nh="product" data-i="' + i + '" list="ntProducts" value="' + esc(h.product) + '" placeholder="Ubiquiti U6-Pro"></div>' +
+        '<div><label class="lab" for="nh_q' + i + '">Qty</label><input class="fld n" id="nh_q' + i + '" data-nh="qty" data-i="' + i + '" type="number" min="1" step="any" inputmode="decimal" value="' + esc(h.qty) + '"></div>' +
+        '<button type="button" class="btn x" data-nhdel="' + i + '" aria-label="Remove line ' + (i + 1) + '"' + (I.hand.length === 1 ? " disabled" : "") + '>Remove</button><div class="mch" id="nh_m' + i + '">' + chip + "</div></div>";
+    }).join("");
+  };
+  const paintTk = () => {
+    const ex = existing(), el = $("#ntTk", w), step = I.tab === "csv" ? 4 : 2;
+    const clients = Array.from(S.clients.values()).filter(c => !c.archived).sort((a, b) => a.name.localeCompare(b.name));
+    const jobs = Array.from(S.jobs.values()).filter(j => j.clientId === I.client && j.status !== "closed").sort((a, b) => a.name.localeCompare(b.name));
+    let h = '<div class="step"><b>' + step + "</b>Ticket</div>";
+    if (ex) {
+      const have = S.lines.get(ex.id) || new Map(), ls = Array.from(curLines().values());
+      const nNew = ls.filter(l => !have.has(l.id)).length, nChg = ls.filter(l => have.has(l.id) && num(have.get(l.id).qtyNeeded) !== num(l.qtyNeeded)).length;
+      h += '<p class="hint" style="margin-top:0"><b>Ticket #' + esc(ex.number) + "</b>, " + esc(tkWho(ex)) + ". " + (addTo && I.tab === "hand" ? "These lines are added to it" : "This " + (addTo ? "import" : "proposal number") + " updates it") + ": " + nNew + " new line" + (nNew === 1 ? "" : "s") + ", " + nChg + " changed quantit" + (nChg === 1 ? "y" : "ies") + ". Lines not in this " + (I.tab === "hand" ? "list" : "file") + " stay as they are.</p>";
+    }
+    if (!addTo) h += '<div class="grid2"><div><label class="lab" for="ntProp" title="Prefilled from the CSV when it carries one. Importing the same number again adds or adjusts lines on that ticket instead of making a second one. Leave blank for a hand-built ticket and one is made up.">' + '<abbr>Proposal number</abbr></label><input class="fld mono" id="ntProp" value="' + esc(I.proposal) + '" placeholder="1042"></div>' +
+      (ex ? "" : '<div><label class="lab" for="ntBay" title="Optional. Where this job\'s product is laid out; Pull from stock moves product there. It can be set later.">' + "<abbr>Staging bay</abbr></label><select class=\"fld\" id=\"ntBay\">" + locOptions(I.bay, { blankLabel: "No bay yet", filter: l => l.kind === "bay" }) + "</select></div>") + "</div>";
+    if (!ex) {
+      h += '<div class="grid2"><div><label class="lab" for="ntClient">Client</label><select class="fld" id="ntClient" data-decide><option value="">Choose the client</option>' + clients.map(c => '<option value="' + esc(c.id) + '"' + (I.client === c.id ? " selected" : "") + ">" + esc(c.name) + "</option>").join("") + '<option value="__new"' + (I.client === "__new" ? " selected" : "") + ">New client...</option></select>" +
+        (I.client === "__new" ? '<label class="lab" for="ntNewClient">New client name</label><input class="fld" id="ntNewClient" value="' + esc(I.newClient) + '">' : "") + "</div>" +
+        '<div><label class="lab" for="ntJob">Job</label><select class="fld" id="ntJob" data-decide' + (I.client ? "" : " disabled") + '><option value="">' + (I.client ? "Choose the job" : "Pick the client first") + "</option>" + jobs.map(j => '<option value="' + esc(j.id) + '"' + (I.job === j.id ? " selected" : "") + ">" + esc(j.name) + "</option>").join("") + (I.client ? '<option value="__new"' + (I.job === "__new" ? " selected" : "") + ">New job...</option>" : "") + "</select>" +
+        (I.job === "__new" ? '<label class="lab" for="ntNewJob">New job name</label><input class="fld" id="ntNewJob" value="' + esc(I.newJob) + '" placeholder="Main office buildout"><label class="lab" for="ntNewAddr">Address</label><input class="fld" id="ntNewAddr" value="' + esc(I.newAddr) + '">' : "") + "</div></div>";
+    }
+    el.innerHTML = h; wireGlow(el);
+  };
+  const paintOk = () => {
+    const ex = existing(), b = w.querySelector("[data-ok]");
+    b.textContent = addTo ? "Add to ticket #" + addTo.number : ex ? "Update ticket #" + ex.number : "Create ticket";
+  };
+  const reload = () => { paintMap(); paintRows(); paintTk(); paintOk(); };
+  $$("[data-nt]", w).forEach(b => b.addEventListener("click", () => { I.tab = b.dataset.nt; paintTab(); }));
+  const load = (text, name) => { err(""); impLoadText(I, text, name); $("#ntFileName", w).textContent = "Read " + I.fileName + ": " + I.rows.length + " rows."; reload(); };
+  $("#ntFile", w).addEventListener("change", async e => { const f = e.target.files && e.target.files[0]; if (!f) return; try { load(await f.text(), f.name); } catch (x) { err("Could not read that file: " + (x.message || x)); } });
+  const drop = $("#ntDrop", w);
+  drop.addEventListener("dragover", e => { e.preventDefault(); drop.classList.add("over"); });
+  drop.addEventListener("dragleave", () => drop.classList.remove("over"));
+  drop.addEventListener("drop", async e => { e.preventDefault(); drop.classList.remove("over"); const f = e.dataTransfer.files && e.dataTransfer.files[0]; if (f) { try { load(await f.text(), f.name); } catch (x) { err("Could not read that file."); } } });
+  $("#ntReadPaste", w).addEventListener("click", () => { const v = $("#ntPaste", w).value; if (!v.trim()) { err("Paste the CSV text first."); return; } load(v, "pasted text"); });
+  if ($("#ntSample", w)) $("#ntSample", w).addEventListener("click", () => load(SAMPLE_CSV, "sample-proposal-1051.csv"));
+  $("#ntAddRow", w).addEventListener("click", () => { I.hand.push({ area: I.hand.length ? I.hand[I.hand.length - 1].area : "", product: "", qty: "" }); paintHand(); paintTk(); const i = I.hand.length - 1; $("#nh_p" + i, w).focus(); });
+  w.addEventListener("click", e => { const d = e.target.closest("[data-nhdel]"); if (d && !d.disabled) { I.hand.splice(+d.dataset.nhdel, 1); paintHand(); paintTk(); } });
+  w.addEventListener("input", e => {
+    const t = e.target;
+    if (t.dataset.nh) { I.hand[+t.dataset.i][t.dataset.nh] = t.value; if (t.dataset.nh === "product") { const one = Array.from(handLines({ hand: [{ area: "", product: t.value, qty: 1 }] }).values())[0]; $("#nh_m" + t.dataset.i, w).innerHTML = !clean(t.value) ? "" : one && one.productId ? '<span class="chip ok"><i></i>Matched: ' + esc(productName(S.products.get(one.productId))) + "</span>" : '<span class="chip warn"><i></i>Not in the catalog, stays a typed line</span>'; } }
+    else if (t.id === "ntProp") {
+      const was = !!existing(); I.proposal = t.value.trim(); I.proposalTouched = true;
+      if (was !== !!existing()) { paintTk(); const p = $("#ntProp", w); p.focus(); p.setSelectionRange(p.value.length, p.value.length); }
+      paintOk();
+    }
+    else if (t.id === "ntNewClient") I.newClient = t.value;
+    else if (t.id === "ntNewJob") I.newJob = t.value;
+    else if (t.id === "ntNewAddr") I.newAddr = t.value;
+  });
+  w.addEventListener("change", e => {
+    const t = e.target;
+    if (t.dataset.ntmap) { const v = +t.value; Object.keys(I.map).forEach(k => { if (I.map[k] === v && v >= 0) I.map[k] = -1; }); I.map[t.dataset.ntmap] = v; I.mapTouched = true; impBuild(I); reload(); }
+    else if (t.dataset.ntcreate) { t.checked ? I.noCreate.delete(t.dataset.ntcreate) : I.noCreate.add(t.dataset.ntcreate); paintRows(); }
+    else if (t.id === "ntClient") { I.client = t.value; I.job = ""; paintTk(); }
+    else if (t.id === "ntJob") { I.job = t.value; const j = S.jobs.get(I.job); if (j && j.stagingLocationId && !I.bay) I.bay = j.stagingLocationId; paintTk(); }
+    else if (t.id === "ntBay") I.bay = t.value;
+  });
+  paintTab(); paintHand();
+  if (addTo && I.tab === "hand") setTimeout(() => $("#nh_a0", w) && $("#nh_a0", w).focus(), 30);
+  w.querySelector("[data-ok]").addEventListener("click", () => createTicket(I, addTo, w, err));
+}
+function createTicket(I, addTo, w, err) {
+  const ls = Array.from((I.tab === "hand" ? handLines(I) : I.lines).values());
+  if (!ls.length) { err(I.tab === "hand" ? "Type at least one line with a product and a quantity." : I.rows.length ? "No product lines to import. Check the column mapping." : "Choose or paste the proposal CSV first."); return; }
+  const ex = addTo || (I.proposal ? S.tickets.get(slug(I.proposal)) || null : null);
+  const ops = [], now = new Date();
+  let clientId, clientNm, jobId, jobNm;
+  if (ex) { clientId = ex.clientId; clientNm = ex.clientName; jobId = ex.jobId; jobNm = ex.jobName; }
+  else {
+    if (!I.client) { err("Pick the client, or choose New client."); return; }
+    if (I.client === "__new") {
+      clientNm = clean(I.newClient); if (!clientNm) { err("Type the new client's name."); return; }
+      clientId = slug(clientNm); if (!clientId) { err("That client name has no letters or numbers."); return; }
+      if (S.clients.has(clientId)) { err(clientNm + " is already a client. Pick it from the list."); return; }
+      ops.push({ op: "set", coll: "loadout_clients", id: clientId, data: { name: clientNm, notes: "", archived: false, portalContactId: null, createdAt: NOW, updatedAt: NOW } });
+    } else { clientId = I.client; clientNm = (S.clients.get(clientId) || {}).name || ""; }
+    if (!I.job) { err("Pick the job, or choose New job."); return; }
+    if (I.job === "__new") {
+      jobNm = clean(I.newJob); if (!jobNm) { err("Type the new job's name."); return; }
+      jobId = clientId + "--" + slug(jobNm);
+      if (S.jobs.has(jobId)) { err("That job already exists for " + clientNm + ". Pick it from the list."); return; }
+      ops.push({ op: "set", coll: "loadout_jobs", id: jobId, data: { clientId, clientName: clientNm, name: jobNm, address: clean(I.newAddr), status: "open", stagingLocationId: I.bay || null, stagingLocationName: I.bay ? locName(I.bay) : null, createdAt: NOW, updatedAt: NOW } });
+    } else {
+      jobId = I.job; const j = S.jobs.get(jobId); jobNm = j ? j.name : "";
+      if (j && !j.stagingLocationId && I.bay) ops.push({ op: "update", coll: "loadout_jobs", id: jobId, data: { stagingLocationId: I.bay, stagingLocationName: locName(I.bay), updatedAt: NOW } });
+    }
+  }
+  const number = ex ? ex.number : (clean(I.proposal) || "H" + pad(now.getMonth() + 1) + pad(now.getDate()) + rid().slice(-3).toUpperCase());
+  const tid = ex ? ex.id : slug(number);
+  if (!tid) { err("The proposal number needs letters or numbers."); return; }
+  const have = S.lines.get(tid) || new Map(), base = have.size ? Math.max(...Array.from(have.values()).map(l => num(l.sort))) : 0;
+  const after = new Map(Array.from(have.values()).map(l => [l.id, Object.assign({}, l)]));
+  let nNew = 0, nChg = 0, nProd = 0, sortN = base;
+  ls.forEach(l => {
+    let pid = l.productId, state = pid ? "matched" : "unmatched";
+    if (!pid && (l.brand || l.model) && I.tab === "csv" && !I.noCreate.has(l.id)) {
+      pid = productIdFor({ brand: l.brand, model: l.model });
+      if (pid && !S.products.has(pid) && !ops.some(o => o.coll === "loadout_products" && o.id === pid)) {
+        const ft = l.unit === "ft", name = composeName({ brand: l.brand, model: l.model });
+        ops.push({ op: "set", coll: "loadout_products", id: pid, data: { brand: l.brand, model: l.model, name, kind: ft ? "wire" : "device", unit: ft ? "ft" : "each", type: l.itemType || "", category: "", description: l.description || "",
+          upc: null, consumable: ft, parLevel: null, defaultLocationId: null, portalItemId: l.portalItemId || null, imageUrl: null, onHand: 0, lastCountAt: null, createdAt: NOW, updatedAt: NOW } });
+        ops.push(mv("edit", { productId: pid, productName: name, ticketId: tid, ticketNumber: number, note: "Product created from proposal " + number }));
+        nProd++;
+      }
+      state = "new";
+    }
+    const p = pid ? S.products.get(pid) : null, old = have.get(l.id);
+    if (old) {
+      if (num(old.qtyNeeded) === num(l.qtyNeeded)) return;
+      const y = Object.assign({}, old, { qtyNeeded: l.qtyNeeded }); y.qtyToOrder = state === "new" ? Math.max(0, l.qtyNeeded - num(old.qtyStaged)) : toOrderFor(y, p, num(old.qtyStaged), availableFor(p));
+      after.set(l.id, y); nChg++;
+      ops.push({ op: "update", coll: linesColl(tid), id: l.id, data: { qtyNeeded: l.qtyNeeded, qtyToOrder: y.qtyToOrder, updatedAt: NOW } });
+      return;
+    }
+    const doc = { area: l.area || "", option: l.option || "", sort: ++sortN, productId: pid || null, productName: p ? productName(p) : (pid ? composeName({ brand: l.brand, model: l.model }) : null),
+      brand: l.brand || "", model: l.model || "", description: l.description || "", unit: p ? p.unit : (l.unit === "ft" ? "ft" : "each"), matchState: state,
+      qtyNeeded: l.qtyNeeded, qtyFromStock: 0, qtyToOrder: p ? toOrderFor(l, p, 0, availableFor(p)) : l.qtyNeeded, qtyStaged: 0, qtyDelivered: 0,
+      portalItemId: l.portalItemId || null, orderLineRefs: [], notes: null, createdAt: NOW, updatedAt: NOW };
+    after.set(l.id, Object.assign({ id: l.id }, doc)); nNew++;
+    ops.push({ op: "set", coll: linesColl(tid), id: l.id, data: doc });
+  });
+  if (ex && !nNew && !nChg) { err("Nothing changes: every line already matches ticket #" + ex.number + "."); return; }
+  const allLines = Array.from(after.values()), source = I.tab === "hand" ? "manual" : "csv";
+  if (ex) ops.push(ticketStatusOp(ex, allLines));
+  else ops.push({ op: "set", coll: "loadout_tickets", id: tid, data: { number, proposalId: clean(I.proposal) || null, jobId, jobName: jobNm, clientId, clientName: clientNm, status: "open",
+    stagingLocationId: I.bay || (S.jobs.get(jobId) || {}).stagingLocationId || null, stagingLocationName: (I.bay || (S.jobs.get(jobId) || {}).stagingLocationId) ? locName(I.bay || S.jobs.get(jobId).stagingLocationId) : null,
+    source, createdAt: NOW, createdBy: S.user.email, createdByName: S.user.name, updatedAt: NOW, summary: summarize(allLines) } });
+  if (clean(I.proposal) && !addTo) ops.push({ op: "set", coll: "loadout_proposals", id: slug(I.proposal), merge: true, data: { number: clean(I.proposal), name: I.proposalName || jobNm || null, jobId, jobName: jobNm, clientId, clientName: clientNm, importedAt: NOW, importSource: source, portalId: null } });
+  if (I.tab === "csv" && I.headers.length) {
+    const cols = {}; IMP_FIELDS.forEach(f => { const i = I.map[f.k]; if (i != null && i >= 0) cols[I.headers[i]] = f.k; });
+    const saved = (S.importMap && S.importMap.columns) || {};
+    if (JSON.stringify(cols) !== JSON.stringify(saved)) ops.push({ op: "set", coll: "loadout_settings", id: "importMap", data: { columns: cols, updatedAt: NOW, updatedBy: S.user.email, updatedByName: S.user.name } });
+  }
+  const what = ex ? (source === "csv" ? "Re-imported " + I.fileName : "Added by hand") + ": " + nNew + " new lines, " + nChg + " changed" : "Ticket #" + number + (source === "csv" ? " created from CSV, " + ls.length + " lines" + (I.skipped.length ? ", " + I.skipped.length + " rows skipped" : "") : " built by hand, " + ls.length + " lines");
+  ops.push(mv("edit", { ticketId: tid, ticketNumber: number, jobName: jobNm, note: what + (nProd ? ", " + nProd + " products created" : "") }));
+  closeModal(w);
+  commitChunks(ops, ex ? "the changes to ticket #" + number : "ticket #" + number).then(ok => {
+    if (!ok) return;
+    toast(ex ? "Ticket #" + number + " updated: " + nNew + " new, " + nChg + " changed" : "Ticket #" + number + " created");
+  });
+  if (!DEMO) go("ticket", tid);
+}
+
+/* ==============================================================
+   MORE: Clients, Jobs, Board
+   ============================================================== */
+function clientsHTML() {
+  const W = isWriter();
+  if (S.errors.clients) return errorBox("clients", "clients");
+  if (!S.loaded.clients) return skelTable([{ label: "Client" }, { label: "Jobs" }], "Loading clients");
+  const all = Array.from(S.clients.values()), list = all.filter(c => S.showArchived || !c.archived);
+  let h = '<div class="thead"><span class="hint" style="margin:0">Most clients arrive with an imported proposal. Archived clients drop out of the New ticket list.</span><span class="sp"><label class="chk"><input type="checkbox" id="showArch"' + (S.showArchived ? " checked" : "") + "> Show archived</label>" +
+    '<button type="button" class="btn sm" data-act="columns" data-tbl="clients">Columns</button>' + (W ? '<button type="button" class="btn sm acc" data-act="newClient">New client</button>' : "") + "</span></div>";
+  if (!all.length) return h + '<div class="empty"><p>No clients yet. Import a proposal, or add one.</p>' + (W ? '<button type="button" class="btn acc" data-act="newClient">New client</button>' : "") + "</div>";
+  if (!list.length) return h + '<div class="empty"><p>Every client is archived.</p></div>';
+  const jobsOf = c => Array.from(S.jobs.values()).filter(j => j.clientId === c.id);
+  const openTk = c => Array.from(S.tickets.values()).filter(t => t.clientId === c.id && t.status !== "closed").length;
+  const cols = [
+    { k: "name", label: "Client", sort: c => c.name.toLowerCase(), html: c => "<b>" + esc(c.name) + "</b>" + (c.archived ? ' <span class="st">Archived</span>' : "") },
+    { k: "jobs", label: "Open jobs", r: true, sort: c => jobsOf(c).filter(j => j.status !== "closed").length, text: c => String(jobsOf(c).filter(j => j.status !== "closed").length) },
+    { k: "tickets", label: "Open tickets", r: true, sort: openTk, text: c => String(openTk(c)) },
+    { k: "notes", label: "Notes", text: c => c.notes || "" },
+    { k: "created", label: "Added", def: false, sort: c => toDate(c.createdAt), text: c => fmtDate(c.createdAt) }
+  ];
+  return h + tableHTML("clients", cols, list, { defaultSort: (a, b) => a.name.localeCompare(b.name), rowClass: c => c.archived ? "dim" : "",
+    actions: W ? c => '<button type="button" class="btn sm" data-act="editClient" data-id="' + esc(c.id) + '">Edit</button><button type="button" class="btn sm" data-act="archClient" data-id="' + esc(c.id) + '">' + (c.archived ? "Restore" : "Archive") + "</button>" : null });
+}
+function jobsHTML() {
+  const W = isWriter();
+  if (S.errors.jobs) return errorBox("jobs", "jobs");
+  if (!S.loaded.jobs) return skelTable([{ label: "Job" }, { label: "Client" }], "Loading jobs");
+  const all = Array.from(S.jobs.values()), list = all.filter(j => S.showArchived || j.status !== "closed");
+  let h = '<div class="thead"><span class="hint" style="margin:0">A job is the site work for one client. Its staging bay is where the pick tickets for it are laid out.</span><span class="sp"><label class="chk"><input type="checkbox" id="showArch"' + (S.showArchived ? " checked" : "") + "> Show archived</label>" +
+    '<button type="button" class="btn sm" data-act="columns" data-tbl="jobs">Columns</button>' + (W ? '<button type="button" class="btn sm acc" data-act="newJob">New job</button>' : "") + "</span></div>";
+  if (!all.length) return h + '<div class="empty"><p>No jobs yet. Import a proposal, or add one.</p>' + (W ? '<button type="button" class="btn acc" data-act="newJob">New job</button>' : "") + "</div>";
+  if (!list.length) return h + '<div class="empty"><p>Every job is archived.</p></div>';
+  const openTk = j => Array.from(S.tickets.values()).filter(t => t.jobId === j.id && t.status !== "closed").length;
+  const cols = [
+    { k: "name", label: "Job", sort: j => j.name.toLowerCase(), html: j => "<b>" + esc(j.name) + "</b>" + (j.status === "closed" ? ' <span class="st">Archived</span>' : "") },
+    { k: "client", label: "Client", text: j => j.clientName || "" },
+    { k: "address", label: "Address", text: j => j.address || "" },
+    { k: "bay", label: "Staging bay", text: j => j.stagingLocationId ? locName(j.stagingLocationId) : "" },
+    { k: "tickets", label: "Open tickets", r: true, sort: openTk, text: j => String(openTk(j)) },
+    { k: "created", label: "Added", def: false, sort: j => toDate(j.createdAt), text: j => fmtDate(j.createdAt) }
+  ];
+  return h + tableHTML("jobs", cols, list, { defaultSort: (a, b) => String(a.clientName).localeCompare(String(b.clientName)) || a.name.localeCompare(b.name), rowClass: j => j.status === "closed" ? "dim" : "",
+    actions: W ? j => '<button type="button" class="btn sm" data-act="editJob" data-id="' + esc(j.id) + '">Edit</button><button type="button" class="btn sm" data-act="archJob" data-id="' + esc(j.id) + '">' + (j.status === "closed" ? "Reopen" : "Archive") + "</button>" : null });
+}
+function openClientForm(c) {
+  const isNew = !c;
+  const body = '<label class="lab" for="cfName">Name</label><input class="fld" id="cfName" value="' + esc(c ? c.name : "") + '"' + (isNew ? "" : ' title="Renaming does not rewrite tickets already made; they keep the name they were created with."') + ">" +
+    '<label class="lab" for="cfNotes">Notes</label><textarea class="fld" id="cfNotes" placeholder="Gate code, who to call, anything the crew should know">' + esc(c ? c.notes || "" : "") + '</textarea><p class="err" id="cfErr" hidden></p>';
+  const w = openModal(isNew ? "New client" : "Edit " + c.name, body, '<button type="button" class="btn" data-close>Cancel</button><button type="button" class="btn acc" data-ok>' + (isNew ? "Add client" : "Save") + "</button>");
+  w.querySelector("[data-ok]").addEventListener("click", async () => {
+    const name = clean($("#cfName", w).value), e = $("#cfErr", w), id = isNew ? slug(name) : c.id;
+    if (!name || !id) { e.textContent = "Type the client's name."; e.hidden = false; return; }
+    if (isNew && S.clients.has(id)) { e.textContent = "That client already exists."; e.hidden = false; return; }
+    closeModal(w);
+    if (await doSaveClient(id, { name, notes: $("#cfNotes", w).value.trim(), archived: c ? !!c.archived : false }, isNew)) toast(isNew ? "Client added" : "Saved");
+  });
+}
+function openJobForm(j) {
+  const isNew = !j, d = j || { status: "open" };
+  const clients = Array.from(S.clients.values()).filter(c => !c.archived || (j && c.id === j.clientId)).sort((a, b) => a.name.localeCompare(b.name));
+  const body = '<label class="lab" for="jfClient">Client</label><select class="fld" id="jfClient" data-decide' + (isNew ? "" : " disabled") + '><option value="">Choose the client</option>' + clients.map(c => '<option value="' + esc(c.id) + '"' + (d.clientId === c.id ? " selected" : "") + ">" + esc(c.name) + "</option>").join("") + "</select>" +
+    '<label class="lab" for="jfName">Job name</label><input class="fld" id="jfName" value="' + esc(d.name || "") + '" placeholder="Main office buildout">' +
+    '<label class="lab" for="jfAddr">Address</label><input class="fld" id="jfAddr" value="' + esc(d.address || "") + '">' +
+    '<div class="grid2"><div><label class="lab" for="jfBay" title="The bay reserved for this job. New tickets for the job start with it, and the bay\'s QR shows the job\'s ticket on Scan.">' + "<abbr>Staging bay</abbr></label><select class=\"fld\" id=\"jfBay\">" + locOptions(d.stagingLocationId || "", { blankLabel: "None", filter: l => l.kind === "bay" }) + "</select></div>" +
+    '<div><label class="lab" for="jfStatus" title="Archived jobs drop out of the New ticket list. Their tickets stay.">' + '<abbr>Status</abbr></label><select class="fld" id="jfStatus"><option value="open"' + (d.status !== "closed" ? " selected" : "") + '>Open</option><option value="closed"' + (d.status === "closed" ? " selected" : "") + ">Archived</option></select></div></div>" +
+    '<p class="err" id="jfErr" hidden></p>';
+  const w = openModal(isNew ? "New job" : "Edit " + j.name, body, '<button type="button" class="btn" data-close>Cancel</button><button type="button" class="btn acc" data-ok>' + (isNew ? "Add job" : "Save") + "</button>");
+  wireGlow(w);
+  w.querySelector("[data-ok]").addEventListener("click", async () => {
+    const cid = isNew ? $("#jfClient", w).value : j.clientId, name = clean($("#jfName", w).value), e = $("#jfErr", w), bay = $("#jfBay", w).value || null;
+    if (!cid) { e.textContent = "Pick the client."; e.hidden = false; return; }
+    if (!name) { e.textContent = "Type the job name."; e.hidden = false; return; }
+    const id = isNew ? cid + "--" + slug(name) : j.id;
+    if (isNew && S.jobs.has(id)) { e.textContent = "That job already exists for this client."; e.hidden = false; return; }
+    const other = bay && Array.from(S.jobs.values()).find(x => x.id !== id && x.stagingLocationId === bay && x.status !== "closed");
+    if (other) { e.textContent = locName(bay) + " is reserved for " + other.name + ". Pick another bay, or free it there first."; e.hidden = false; return; }
+    closeModal(w);
+    const cn = (S.clients.get(cid) || {}).name || (j && j.clientName) || "";
+    if (await doSaveJob(id, { clientId: cid, clientName: cn, name, address: clean($("#jfAddr", w).value), status: $("#jfStatus", w).value, stagingLocationId: bay, stagingLocationName: bay ? locName(bay) : null }, isNew, j ? j.stagingLocationId : null)) toast(isNew ? "Job added" : "Saved");
+  });
+}
+S.boardDraft = null;
+function boardHTML() {
+  const d = S.boardDraft || (S.boardDraft = Object.assign({}, DEFAULT_BOARD, S.board, { ticketIds: (S.board.ticketIds || []).slice() }));
+  const pinned = d.ticketIds.map(id => S.tickets.get(id)).filter(Boolean), avail = openTickets().filter(t => !d.ticketIds.includes(t.id));
+  const url = "?" + (DEMO ? "demo=1&" : "") + "board=1";
+  return '<p class="hint" style="margin-top:0">What the warehouse TV shows. Open the board URL full screen on the TV\'s browser, signed in as the board account; nothing is set on the TV itself.</p>' +
+    '<div class="grid2"><div><label class="lab" for="bdMode" title="Pinned shows only the tickets listed below. All open rotates through every ticket that still has picking to do.">' + '<abbr>Shows</abbr></label><select class="fld" id="bdMode"><option value="pinned"' + (d.mode !== "all_open" ? " selected" : "") + '>Pinned tickets</option><option value="all_open"' + (d.mode === "all_open" ? " selected" : "") + ">Every open ticket</option></select></div>" +
+    '<div><label class="lab" for="bdRotate" title="Seconds each ticket stays up before the next one. A thin bar along the top shows when it will flip.">' + '<abbr>Rotate every (seconds)</abbr></label><input class="fld n" id="bdRotate" type="number" min="5" max="600" step="1" value="' + num(d.rotateSec) + '"></div>' +
+    '<div><label class="lab" for="bdGroup" title="By shelf makes the board the pick path: lines in the walking order of the rack labels.">' + '<abbr>Group lines by</abbr></label><select class="fld" id="bdGroup"><option value="location"' + (d.groupBy !== "area" ? " selected" : "") + '>Shelf to pull from</option><option value="area"' + (d.groupBy === "area" ? " selected" : "") + ">Area on the proposal</option></select></div>" +
+    '<div><label class="lab" for="bdTheme" title="Dark reads best in a dim corner; light suits a bright shop.">' + '<abbr>Theme</abbr></label><select class="fld" id="bdTheme"><option value="dark"' + (d.theme !== "light" ? " selected" : "") + '>Dark</option><option value="light"' + (d.theme === "light" ? " selected" : "") + ">Light</option></select></div></div>" +
+    '<label class="chk" title="Off hides picked lines so only the work left shows."><input type="checkbox" id="bdStaged"' + (d.showStaged !== false ? " checked" : "") + "> Show picked lines, greyed</label>" +
+    '<div class="sect"><h4 class="h4">Pinned tickets, in rotation order</h4>' + (pinned.length ? '<ul class="collist">' + pinned.map((t, i) => '<li><span style="flex:1;min-width:0"><b>#' + esc(t.number) + "</b> " + esc(tkWho(t)) + (t.status === "closed" ? ' <span class="st">Closed, skipped</span>' : "") + "</span>" +
+      '<button type="button" class="btn sm" data-bdup="' + i + '" aria-label="Move #' + esc(t.number) + ' up"' + (i === 0 ? " disabled" : "") + '>Up</button><button type="button" class="btn sm" data-bddown="' + i + '" aria-label="Move #' + esc(t.number) + ' down"' + (i === pinned.length - 1 ? " disabled" : "") + '>Down</button><button type="button" class="btn sm" data-bdrm="' + esc(t.id) + '" aria-label="Unpin #' + esc(t.number) + '">Unpin</button></li>').join("") + "</ul>" : '<p class="hint" style="margin-top:0">Nothing pinned. The board says so until a ticket is pinned here or with Show on board.</p>') +
+    (avail.length ? '<div class="manual"><label class="sr" for="bdAdd">Ticket to pin</label><select class="fld" id="bdAdd"><option value="">Choose an open ticket</option>' + avail.map(t => '<option value="' + esc(t.id) + '">#' + esc(t.number) + " " + esc(tkWho(t)) + "</option>").join("") + '</select><button type="button" class="btn" data-act="bdPin">Pin</button></div>' : "") + "</div>" +
+    '<p class="err" id="bdErr" hidden></p><div class="btnrow"><button type="button" class="btn acc" data-act="bdSave">Save board settings</button><button type="button" class="btn" data-act="bdReset" title="Back to what is saved now">Undo changes</button><a class="btn" href="' + url + '" target="_blank" rel="noopener">Open the board</a></div>' +
+    (S.board.updatedByName ? '<p class="hint">Last changed by ' + esc(S.board.updatedByName) + (S.board.updatedAt ? " on " + fmtWhen(S.board.updatedAt) : "") + ".</p>" : "");
+}
+function readBoardForm() {
+  const d = S.boardDraft, f = $("#v-more");
+  d.mode = $("#bdMode", f).value; d.rotateSec = Math.round(num($("#bdRotate", f).value)); d.groupBy = $("#bdGroup", f).value; d.theme = $("#bdTheme", f).value; d.showStaged = $("#bdStaged", f).checked;
+}
+
+/* ---------------- scan helpers ---------------- */
+function ticketForBay(locId) { return locId ? openTickets().filter(t => t.stagingLocationId === locId) : []; }
+function needLinesFor(pid) {
+  const out = [];
+  openTickets().forEach(t => ticketLines(t.id).forEach(l => { if (l.productId === pid && lineLeft(l) > 0) out.push({ t, l }); }));
+  return out;
+}
+function openPickFor(p, item) {
+  const c = needLinesFor(p.id);
+  if (!c.length) { toast("No open ticket needs " + productName(p) + ".", true); return; }
+  const preset = item ? { from: item.locationId, itemIds: [item.id] } : { from: S.activeLoc && pullableLoc(S.activeLoc) ? S.activeLoc : null };
+  const bayHit = c.find(x => x.t.stagingLocationId && x.t.stagingLocationId === S.activeLoc);
+  if (c.length === 1) { openPull(c[0].t, c[0].l, preset); return; }
+  const body = '<p class="hint" style="margin-top:0">' + esc(productName(p)) + (item ? ", unit " + esc(itemLabel(item)) : "") + '. Open tickets that still need it:</p><label class="lab" for="pfSel" title="The ticket whose bay you scanned last is picked for you.">' + '<abbr>Ticket and line</abbr></label><select class="fld" id="pfSel" data-decide><option value="">Choose a ticket</option>' +
+    c.map(x => '<option value="' + esc(x.t.id + "|" + x.l.id) + '"' + (bayHit === x ? " selected" : "") + ">#" + esc(x.t.number) + " " + esc(tkWho(x.t)) + ", " + esc(x.l.area || "No area") + ", needs " + esc(lqty(x.l, lineLeft(x.l))) + "</option>").join("") + '</select><p class="err" id="pfErr" hidden></p>';
+  const w = openModal(item ? "Stage for ticket" : "Pick for ticket", body, '<button type="button" class="btn" data-close>Cancel</button><button type="button" class="btn acc" data-ok>Continue</button>');
+  wireGlow(w);
+  w.querySelector("[data-ok]").addEventListener("click", () => {
+    const v = $("#pfSel", w).value; if (!v) { const e = $("#pfErr", w); e.textContent = "Pick the ticket."; e.hidden = false; return; }
+    const [tid, lid] = v.split("|"); closeModal(w);
+    const t = S.tickets.get(tid), l = S.lines.get(tid) && S.lines.get(tid).get(lid); if (t && l) openPull(t, l, preset);
+  });
+}
+
+/* ==============================================================
+   WALL BOARD (?board=1, and the landing view for the board role)
+   Read-only: no nav, no buttons, nothing to tap. One ticket per
+   screen, rotating; lines grouped by the shelf to pull from in the
+   walking order of the rack labels, so the board is the pick path.
+   ============================================================== */
+const BD = { idx: 0, flipAt: 0, tid: null, scroll: 0, pauseUntil: 0, last: 0, raf: 0, tick: 0, clock: 0 };
+const CHECK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12.5 9.5 18 20 6"/></svg>';
+const MARK_SVG = '<svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="20" width="48" height="34" rx="6" fill="none" stroke="currentColor" stroke-width="5"/><path d="M24 20v-6a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v6" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/><path d="M8 35h48" stroke="currentColor" stroke-width="4"/><rect x="27" y="31" width="10" height="8" rx="2" fill="currentColor"/></svg>';
+function enterBoard() {
+  BOARD = true;
+  $("#app").hidden = true; $("#demoBar").hidden = true; closeAllModals(); stopCamera(true);
+  $("#board").hidden = false;
+  document.title = "Loadout board";
+  clearInterval(BD.tick); BD.tick = setInterval(boardTick, 1000);
+  cancelAnimationFrame(BD.raf); BD.last = 0; BD.raf = requestAnimationFrame(boardScroll);
+  renderBoard();
+}
+function boardTickets() {
+  const b = S.board;
+  if (b.mode === "all_open") return openTickets().filter(t => tkStatus(t) !== "delivered").reverse();
+  return (b.ticketIds || []).map(id => S.tickets.get(id)).filter(t => t && t.status !== "closed");
+}
+function paintBoardLive() {
+  const el = $("#bdLive"); if (!el) return;
+  const lost = S.liveLostAt || (!navigator.onLine ? new Date() : null);
+  el.hidden = !lost;
+  if (lost) el.textContent = "Not live since " + fmtTime(lost) + ". The last data stays on screen.";
+}
+function boardRows(t) {
+  const rows = [], byArea = S.board.groupBy === "area";
+  ticketLines(t.id).forEach(l => {
+    const p = lineProduct(l), left = lineLeft(l), ft = lineIsFt(l);
+    if (left <= 0) {
+      const m = S.movements.find(x => x.ticketLineId === l.id && (x.type === "pick" || x.type === "stage" || x.type === "cut"));
+      const shelf = l.pickedFromName ? l.pickedFromName.replace(/^Box [^,]+$/, "Wire boxes") : p && p.defaultLocationId ? locName(p.defaultLocationId) : "Staged";
+      rows.push({ l, st: "picked", qty: num(l.qtyNeeded), ft, shelf, meta: "Picked" + ((l.pickedByName || (m && m.byName)) ? " by " + (l.pickedByName || m.byName) : "") });
+      return;
+    }
+    const srcs = p ? pullSources(p) : [], avail = srcs.reduce((a, e) => a + e.qty, 0);
+    const top = srcs[0], shelf = top ? (top.locationId ? locName(top.locationId) : "No location yet") : (p && p.defaultLocationId ? locName(p.defaultLocationId) : "Not on a shelf");
+    const pull = Math.min(left, avail), rest = left - pull, order = num(l.qtyToOrder);
+    if (pull > 0) {
+      const from = ft && top && top.boxes.length ? "box " + top.boxes.map(c => c.label).join(", ") + ", " : "";
+      rows.push({ l, st: "pull", qty: pull, ft, shelf, meta: "Pull " + from + "to " + (tkBay(t) || "the bay"), also: rest > 0 ? (order >= rest ? { cls: "", txt: fmtN(rest) + " more to order" } : { cls: "red", txt: "short " + fmtN(rest) }) : null });
+    } else if (order > 0 || !p) rows.push({ l, st: "order", qty: left, ft, shelf: "To order", meta: (p ? "None on the shelves" : "Not in the catalog") + (l.orderLineRefs && l.orderLineRefs.length ? "" : ", no PO yet") });
+    else rows.push({ l, st: "short", qty: left, ft, shelf, meta: "Shelves have " + fmtN(avail) + ", needs " + fmtN(left) });
+  });
+  rows.forEach(r => { r.group = byArea ? (r.l.area || "No area") : r.shelf; });
+  return rows;
+}
+function boardListHTML(t) {
+  const rows = boardRows(t), show = S.board.showStaged !== false, byArea = S.board.groupBy === "area";
+  const groups = new Map(); rows.forEach(r => { if (!groups.has(r.group)) groups.set(r.group, []); groups.get(r.group).push(r); });
+  const last = k => k === "To order" || k === "Not on a shelf" || k === "Staged";
+  const keys = Array.from(groups.keys());
+  if (!byArea) keys.sort((a, b) => (last(a) - last(b)) || a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" }));
+  const lab = { pull: "Pull", picked: "Picked", order: "To order", short: "Short" }, cls = { pull: "", picked: "picked", order: "amber", short: "red" };
+  const q = r => fmtN(r.qty) + (r.ft ? "<small> ft</small>" : "");
+  return keys.map(k => {
+    const g = groups.get(k).sort((a, b) => (a.st === "picked") - (b.st === "picked") || num(a.l.sort) - num(b.l.sort));
+    const open = g.filter(r => r.st !== "picked");
+    if (!open.length) return show ? '<div class="bd-grp">' + esc(k) + '</div><div class="bd-line picked"><span class="bd-st">' + CHECK_SVG + "Picked</span><span class=\"bd-name\">All " + g.length + " line" + (g.length > 1 ? "s" : "") + " picked</span><span></span></div>" : "";
+    return '<div class="bd-grp">' + esc(k) + "</div>" + g.filter(r => show || r.st !== "picked").map(r => {
+      const lbl = r.st === "order" && r.l.orderLineRefs && r.l.orderLineRefs.length ? "On order" : lab[r.st];
+      return '<div class="bd-line ' + cls[r.st] + '"><span class="bd-st">' + (r.st === "picked" ? CHECK_SVG : "") + esc(lbl) + '</span><span><span class="bd-name">' + esc(lineName(r.l)) + '</span><br><span class="bd-meta">' + esc(r.meta) + (r.also ? ', <span class="bd-also ' + r.also.cls + '">' + esc(r.also.txt) + "</span>" : "") + '</span></span><span class="bd-qty">' + q(r) + "</span></div>";
+    }).join("");
+  }).join("");
+}
+function renderBoard() {
+  const root = $("#board"); if (!root || root.hidden) return;
+  root.dataset.theme = S.board.theme === "light" ? "light" : "dark";
+  paintBoardLive();
+  const list = boardTickets(), main = $("#bdMain"), rot = $("#bdRot");
+  if (!list.length) {
+    BD.tid = null; rot.hidden = true;
+    const pinnedMode = S.board.mode !== "all_open", anyOpen = openTickets().length > 0;
+    const low = Array.from(S.products.values()).filter(p => p.consumable && p.parLevel != null && p.parLevel !== "" && num(p.parLevel) > 0).sort((a, b) => onHandOf(a) / num(a.parLevel) - onHandOf(b) / num(b.parLevel)).slice(0, 3);
+    main.innerHTML = '<div class="bd-idle">' + MARK_SVG + '<div class="bd-clock" id="bdClock">' + esc(fmtTime(new Date())) + "</div>" +
+      (pinnedMode && anyOpen ? "<h1>Nothing pinned</h1><p>Open a ticket and press Show on board.</p>" : "<h1>Nothing to pick</h1><p>Open tickets show here as soon as one is pinned or imported.</p>") +
+      (low.length ? '<ul class="bd-low" aria-label="Lowest consumables">' + low.map(p => "<li><span>" + esc(productName(p)) + "</span><b>" + esc(qtyTxt(p, onHandOf(p))) + " left</b></li>").join("") + "</ul>" : "") + "</div>";
+    return;
+  }
+  if (BD.idx >= list.length) BD.idx = 0;
+  const t = list[BD.idx];
+  if (BD.tid !== t.id) { BD.tid = t.id; BD.scroll = 0; BD.pauseUntil = Date.now() + 3000; }
+  if (!BD.flipAt) restartRot(list.length);
+  rot.hidden = list.length < 2;
+  const s = summarize(ticketLines(t.id)), pct = s.lines ? Math.round(s.staged / s.lines * 100) : 0;
+  main.innerHTML = '<div class="bd-head"><div><div class="bd-client">' + esc(t.clientName || "No client") + '</div><div class="bd-sub">' + esc(t.jobName || "") + ' <span class="mono">#' + esc(t.number) + "</span>" + (list.length > 1 ? ", ticket " + (BD.idx + 1) + " of " + list.length : "") + "</div></div>" +
+    '<div class="bd-bay">Staging<b>' + esc(tkBay(t) || "No bay") + "</b></div></div>" +
+    '<div class="bd-count"><b>' + s.staged + " of " + s.lines + "</b> lines staged</div>" +
+    '<div class="bd-bar" role="img" aria-label="' + pct + ' percent of lines staged"><i style="width:' + pct + '%"></i></div>' +
+    '<div class="bd-list" id="bdList">' + (S.linesLoaded.has(t.id) ? boardListHTML(t) || '<div class="bd-idle"><p>Every line is picked.</p></div>' : '<div class="bd-idle"><p>Loading lines</p></div>') + "</div>";
+  const L = $("#bdList"); if (L) L.scrollTop = BD.scroll;
+}
+function restartRot(n) {
+  BD.flipAt = Date.now() + Math.max(5, num(S.board.rotateSec) || 20) * 1000;
+  const bar = $("#bdRot i"); if (!bar) return;
+  bar.style.transition = "none"; bar.style.width = "0";
+  void bar.offsetWidth;
+  if (n > 1) { bar.style.transition = "width " + Math.max(5, num(S.board.rotateSec) || 20) + "s linear"; bar.style.width = "100%"; }
+}
+function boardTick() {
+  const c = $("#bdClock"); if (c) c.textContent = fmtTime(new Date());
+  paintBoardLive();
+  const list = boardTickets();
+  if (list.length > 1 && Date.now() >= BD.flipAt) { BD.idx = (BD.idx + 1) % list.length; restartRot(list.length); renderBoard(); }
+  else if (list.length <= 1 && BD.flipAt) BD.flipAt = 0;
+}
+/* more lines than fit: scroll slowly and wrap to the top, never cut off.
+   With reduced motion it steps a page at a time instead of gliding. */
+const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
+function boardScroll(ts) {
+  BD.raf = requestAnimationFrame(boardScroll);
+  const L = $("#bdList"); if (!L || !BOARD) { BD.last = ts; return; }
+  const dt = BD.last ? (ts - BD.last) / 1000 : 0; BD.last = ts;
+  const max = L.scrollHeight - L.clientHeight;
+  if (max <= 4 || Date.now() < BD.pauseUntil) return;
+  if (BD.scroll >= max - 1) { BD.scroll = 0; L.scrollTop = 0; BD.pauseUntil = Date.now() + 4000; return; }
+  if (REDUCED) { BD.scroll = Math.min(max, BD.scroll + L.clientHeight * 0.8); BD.pauseUntil = Date.now() + 8000; }
+  else BD.scroll = Math.min(max, BD.scroll + 32 * dt);
+  L.scrollTop = BD.scroll;
+  if (BD.scroll >= max - 1) BD.pauseUntil = Date.now() + 3000;
+}
 
 /* ==============================================================
    STOCK VIEW
@@ -1550,7 +3009,7 @@ function openMoveStock(p) {
     '<div><label class="lab" for="mvTo">To</label><select class="fld" id="mvTo" data-decide>' + locOptions(S.activeLoc && !from.some(e => e.locationId === S.activeLoc && from.length === 1) ? S.activeLoc : "") + "</select></div></div>" +
     '<label class="lab" for="mvQty">Quantity</label><input class="fld n" id="mvQty" type="number" min="1" step="1" value="1" inputmode="numeric">' +
     '<label class="lab" for="mvNote">For</label><input class="fld" id="mvNote" placeholder="Job or reason, optional"><p class="err" id="mvErr" hidden></p>';
-  const w = openModal("Pick", body, '<button type="button" class="btn" data-close>Cancel</button><button type="button" class="btn acc" data-ok>Move</button>');
+  const w = openModal("Move stock", body, '<button type="button" class="btn" data-close>Cancel</button><button type="button" class="btn acc" data-ok>Move</button>');
   wireGlow(w);
   w.querySelector("[data-ok]").addEventListener("click", async () => {
     const f = $("#mvFrom", w).value, t = $("#mvTo", w).value, q = Math.floor(num($("#mvQty", w).value)), err = $("#mvErr", w);
@@ -1824,7 +3283,11 @@ function paintScanResult() {
   if (sc.kind === "item") { el.innerHTML = itemCard(S.items.get(sc.id)); return; }
   if (sc.kind === "loc") {
     const l = S.locations.get(sc.id);
-    el.innerHTML = '<div class="rk"><span>Location</span><span class="st ok">Active</span></div><div class="rt">' + esc(l.name) + '</div><p class="rm">Receive, Count, and Check in start here until you scan another shelf or clear it.</p><div class="btnrow"><button type="button" class="btn" data-act="location" data-id="' + esc(l.id) + '">What is here</button></div>';
+    const tks = l.kind === "bay" ? ticketForBay(l.id) : [], job = l.kind === "bay" ? Array.from(S.jobs.values()).find(j => j.stagingLocationId === l.id && j.status !== "closed") : null;
+    el.innerHTML = '<div class="rk"><span>Location</span><span class="st ok">Active</span></div><div class="rt">' + esc(l.name) + '</div><p class="rm">Receive, Count, and Check in start here until you scan another shelf or clear it.' + (l.kind === "bay" ? " Pick for ticket picks this bay's ticket for you." : "") + "</p>" +
+      (tks.length ? '<h4 class="h4" style="margin-top:12px">Staging for</h4><ul class="onhand">' + tks.map(t => { const s = tkSummary(t); return '<li><span><button type="button" class="textbtn" data-act="ticket" data-id="' + esc(t.id) + '">Ticket #' + esc(t.number) + "</button> " + esc(tkWho(t)) + " " + tkPill(tkStatus(t)) + "</span><b>" + s.staged + " of " + s.lines + " staged</b></li>"; }).join("") + "</ul>"
+        : job ? '<p class="hint">Reserved for ' + esc(job.clientName) + ", " + esc(job.name) + ". No open ticket yet.</p>" : "") +
+      '<div class="btnrow">' + (tks.length === 1 ? '<button type="button" class="btn acc" data-act="ticket" data-id="' + esc(tks[0].id) + '">Open ticket #' + esc(tks[0].number) + "</button>" : "") + '<button type="button" class="btn" data-act="location" data-id="' + esc(l.id) + '">What is here</button></div>';
     return;
   }
   if (sc.kind === "hits") {
@@ -1854,7 +3317,8 @@ function productCard(p) {
   if (p.unit === "ft" && boxes.length) h += '<h4 class="h4" style="margin-top:12px">Open boxes</h4><div class="ctr">' + boxes.map(c => boxRow(c, p)).join("") + "</div>";
   h += '<div class="btnrow">';
   if (W) h += '<button type="button" class="btn acc" data-act="receive" data-id="' + esc(p.id) + '">' + (p.unit === "ft" ? "Receive a box" : "Receive") + "</button>" +
-    (p.unit !== "ft" ? '<button type="button" class="btn" data-act="pick" data-id="' + esc(p.id) + '" title="No pick tickets yet in this version, so Pick moves stock from one location to another, for example shelf to bay.">Pick</button><button type="button" class="btn" data-act="count" data-id="' + esc(p.id) + '">Count</button>' : "");
+    (needLinesFor(p.id).length ? '<button type="button" class="btn" data-act="pickFor" data-id="' + esc(p.id) + '" title="Pulls this product for an open ticket that needs it. The ticket whose bay you scanned last is picked for you.">Pick for ticket</button>' : "") +
+    (p.unit !== "ft" ? '<button type="button" class="btn" data-act="pick" data-id="' + esc(p.id) + '" title="Moves stock from one location to another without a ticket, for example shelf to van.">Move</button><button type="button" class="btn" data-act="count" data-id="' + esc(p.id) + '">Count</button>' : "");
   h += '<button type="button" class="btn" data-act="product" data-id="' + esc(p.id) + '">Details</button></div>';
   return h;
 }
@@ -1876,7 +3340,7 @@ function boxSheetHTML(c, px) {
     '<div class="quick"><button type="button" class="btn" data-q="50">-50</button><button type="button" class="btn" data-q="100">-100</button><button type="button" class="btn" data-q="250">-250</button><button type="button" class="btn danger" data-empty>Empty</button></div>' +
     '<div class="grid2"><div><label class="lab" for="' + px + 'Cut" title="Last mark minus mark now. Change it when the box was stopped mid-day and you know the real figure.">' + "<abbr>Cut this time</abbr></label>" +
     '<input class="fld n" id="' + px + 'Cut" type="number" inputmode="numeric" min="0" value="0"></div>' +
-    '<div><label class="lab" for="' + px + 'Job" title="Optional. The job this footage went to, so it is charged the right amount.">' + '<abbr>For job</abbr></label><input class="fld" id="' + px + 'Job" placeholder="Optional"></div></div>' +
+    '<div><label class="lab" for="' + px + 'Job" title="Optional. The job this footage went to, so it is charged the right amount.">' + '<abbr>For job</abbr></label><input class="fld" id="' + px + 'Job" placeholder="Optional"></div></div>' + boxTicketChip(c, px) +
     '<label class="chk" title="A recount reads the box again without a cut. It replaces whatever the cuts estimated."><input type="checkbox" id="' + px + 'Recount"> Recount, no cut</label>' +
     '<label class="lab" for="' + px + 'Loc" title="Set it when the box moved, or when it came in from the sheet without a shelf.">' + '<abbr>Location</abbr></label><select class="fld" id="' + px + 'Loc"' + (c.locationId ? "" : " data-decide") + ">" + locOptions(c.locationId || "", { blankLabel: "Choose where the box is" }) + "</select>" +
     '<label class="lab" for="' + px + 'Note">Note</label><input class="fld" id="' + px + 'Note" placeholder="Optional">' +
@@ -1885,9 +3349,22 @@ function boxSheetHTML(c, px) {
     '<div class="btnrow"><button type="button" class="btn" data-act="printOne" data-kind="ctr" data-id="' + esc(c.id) + '">Print label</button>' + (p ? '<button type="button" class="btn" data-act="product" data-id="' + esc(p.id) + '">Product</button>' : "") + "</div>";
   return h;
 }
+/* For ticket chip (PLAN 7): prefilled with the ticket whose bay the box sits in */
+function boxTicketChip(c, px) {
+  const open = openTickets(); if (!open.length) return "";
+  const pre = (ticketForBay(c.locationId)[0] || ticketForBay(S.activeLoc)[0] || {}).id || "";
+  return '<div class="forticket"><label for="' + px + 'Tk" title="Tags the cut with a pick ticket. When the ticket has a line for this wire, the feet count as staged on it.">For ticket</label><select class="fld" id="' + px + 'Tk"><option value="">None</option>' +
+    open.map(t => '<option value="' + esc(t.id) + '"' + (t.id === pre ? " selected" : "") + ">#" + esc(t.number) + " " + esc(tkWho(t)) + "</option>").join("") + "</select></div>";
+}
+function boxTicketPick(root, c, px) {
+  const s = $("#" + px + "Tk", root), t = s && s.value ? S.tickets.get(s.value) : null; if (!t) return null;
+  const ls = ticketLines(t.id).filter(l => l.productId === c.productId);
+  return { ticket: t, line: ls.find(l => lineLeft(l) > 0) || ls[0] || null };
+}
 function bindBoxSheet(root, c, px, after) {
   if (!c || !$("#" + px + "Mark", root)) return;
   wireGlow(root);
+  const tks = $("#" + px + "Tk", root);
   const last = num(c.lastMark != null ? c.lastMark : c.ftLeft);
   const mark = $("#" + px + "Mark", root), cut = $("#" + px + "Cut", root), rc = $("#" + px + "Recount", root), hint = $("#" + px + "Hint", root), err = $("#" + px + "Err", root), save = $("[data-save]", root);
   let cutTouched = false;
@@ -1896,14 +3373,15 @@ function bindBoxSheet(root, c, px, after) {
     if (rc.checked) { cut.value = 0; cut.disabled = true; save.textContent = "Save reading"; }
     else { cut.disabled = false; if (!cutTouched) cut.value = Math.max(0, last - m); save.textContent = "Save cut"; }
     hint.textContent = "Last mark " + fmtN(last) + " ft" + (c.lastReadingAt ? " on " + fmtShort(c.lastReadingAt) : "") + (c.lastReadingBy ? " by " + c.lastReadingBy : "") + ". " +
-      (rc.checked ? "Saving records a reading of " + fmtN(m) + " ft (" + (m - num(c.ftLeft) >= 0 ? "+" : "") + fmtN(m - num(c.ftLeft)) + " ft)." : (num(cut.value) > 0 ? "Saving records -" + fmtN(num(cut.value)) + " ft." : "Nothing cut yet. Type the mark where the cable leaves the box."));
+      (rc.checked ? "Saving records a reading of " + fmtN(m) + " ft (" + (m - num(c.ftLeft) >= 0 ? "+" : "") + fmtN(m - num(c.ftLeft)) + " ft)." : (num(cut.value) > 0 ? "Saving records -" + fmtN(num(cut.value)) + " ft." : "Nothing cut yet. Type the mark where the cable leaves the box.")) +
+      (() => { const tk = boxTicketPick(root, c, px); if (!tk || rc.checked) return ""; return tk.line ? " The cut counts as staged on ticket #" + tk.ticket.number + ", " + (tk.line.area || "its") + " line (" + fmtN(tk.line.qtyStaged) + " of " + fmtN(tk.line.qtyNeeded) + " ft so far)." : " Ticket #" + tk.ticket.number + " has no line for this wire; the cut is only tagged with it."; })();
   };
-  mark.addEventListener("input", upd); rc.addEventListener("change", upd);
+  mark.addEventListener("input", upd); rc.addEventListener("change", upd); if (tks) tks.addEventListener("change", upd);
   cut.addEventListener("input", () => { cutTouched = true; upd(); });
   $$("[data-q]", root).forEach(b => b.addEventListener("click", () => { mark.value = Math.max(0, num(mark.value) - num(b.dataset.q)); cutTouched = false; upd(); }));
   $("[data-empty]", root).addEventListener("click", () => {
     confirmModal("Empty box " + c.label, "<p>Writes a final cut of " + fmtN(last) + " ft to zero and closes the box. It drops out of on hand.</p>", "Empty the box", async () => {
-      if (await doBox(c, 0, last, false, $("#" + px + "Job", root).value.trim() || null, "Emptied", $("#" + px + "Loc", root).value || null)) { toast("Box " + c.label + " emptied"); if (after) after(); refreshScan(); }
+      if (await doBox(c, 0, last, false, $("#" + px + "Job", root).value.trim() || null, "Emptied", $("#" + px + "Loc", root).value || null, boxTicketPick(root, c, px))) { toast("Box " + c.label + " emptied"); if (after) after(); refreshScan(); }
     }, true);
   });
   save.addEventListener("click", async () => {
@@ -1914,7 +3392,7 @@ function bindBoxSheet(root, c, px, after) {
     if (!recount && m > last) { err.textContent = "The mark is higher than the last one. Tick Recount if you measured the box again."; err.hidden = false; return; }
     if (!recount && ct <= 0) { err.textContent = "Nothing was cut. Tick Recount to log a reading instead."; err.hidden = false; return; }
     if (!loc && !c.locationId) { err.textContent = "Pick where the box is."; err.hidden = false; return; }
-    const ok = await doBox(c, m, ct, recount, $("#" + px + "Job", root).value.trim() || null, $("#" + px + "Note", root).value.trim() || null, loc);
+    const ok = await doBox(c, m, ct, recount, $("#" + px + "Job", root).value.trim() || null, $("#" + px + "Note", root).value.trim() || null, loc, boxTicketPick(root, c, px));
     if (ok) { toast(recount ? "Reading saved for " + c.label : "Cut of " + fmtN(ct) + " ft saved for " + c.label); if (after) after(); refreshScan(); }
   });
   upd();
@@ -1938,6 +3416,8 @@ function itemCard(it) {
     (recent.length ? '<h4 class="h4" style="margin-top:12px">Last movements</h4>' + timelineHTML(recent) : "") + '<div class="btnrow">';
   if (T && (it.status === "in_stock" || it.status === "staged" || it.status === "returned")) h += '<button type="button" class="btn acc" data-act="checkout" data-id="' + esc(it.id) + '">Check out</button>';
   if (T && it.status === "checked_out") h += '<button type="button" class="btn acc" data-act="checkin" data-id="' + esc(it.id) + '">Check in</button>';
+  if (W && it.status === "in_stock" && pullableLoc(it.locationId) && needLinesFor(it.productId).length) h += '<button type="button" class="btn" data-act="stageFor" data-id="' + esc(it.id) + '" title="Moves this unit to the bay of an open ticket that needs it and counts it on that line">Stage for ticket</button>';
+  if (it.ticketId && S.tickets.get(it.ticketId)) h += '<button type="button" class="btn" data-act="ticket" data-id="' + esc(it.ticketId) + '">Ticket #' + esc(S.tickets.get(it.ticketId).number) + "</button>";
   if (W && it.status !== "retired" && it.status !== "checked_out") h += '<button type="button" class="btn" data-act="moveItem" data-id="' + esc(it.id) + '">Move</button>';
   if (W && it.status === "returned") h += '<button type="button" class="btn" data-act="backToStock" data-id="' + esc(it.id) + '" title="You looked at it and it is fit to use again">Back to stock</button>';
   h += '<button type="button" class="btn" data-act="item" data-id="' + esc(it.id) + '">History</button></div>';
@@ -2071,8 +3551,8 @@ async function nudge(it) {
    MORE VIEW: Movements, Labels, Import, Settings, People, Export
    ============================================================== */
 function moreTabs() {
-  const t = [["movements", "Movements"], ["labels", "Labels"]];
-  if (isAdmin()) t.push(["import", "Import inventory sheet"], ["settings", "Settings"], ["people", "People"]);
+  const t = [["movements", "Movements"], ["clients", "Clients"], ["jobs", "Jobs"], ["labels", "Labels"]];
+  if (isAdmin()) t.push(["board", "Board"], ["import", "Import inventory sheet"], ["settings", "Settings"], ["people", "People"]);
   t.push(["export", "Export everything"]);
   return t;
 }
@@ -2082,11 +3562,15 @@ function renderMore(force) {
   const tabs = moreTabs();
   if (!tabs.some(t => t[0] === S.moreTab)) S.moreTab = "movements";
   /* forms keep what is typed: Settings and Import only redraw when asked to */
-  if (!force && _moreBuilt === S.moreTab && (S.moreTab === "settings" || S.moreTab === "import")) return;
+  if (!force && _moreBuilt === S.moreTab && (S.moreTab === "settings" || S.moreTab === "import" || S.moreTab === "board")) return;
+  if (S.moreTab === "board" && _moreBuilt !== "board") S.boardDraft = null;
   _moreBuilt = S.moreTab;
   let html = '<div class="mcard"><div class="thead"><h2 class="vt">More</h2></div><div class="toolbar"><div class="seg" role="tablist" aria-label="More">' +
     tabs.map(([k, l]) => '<button type="button" role="tab" aria-selected="' + (S.moreTab === k) + '" class="' + (S.moreTab === k ? "on" : "") + '" data-act="moreTab" data-tab="' + k + '">' + l + "</button>").join("") + "</div></div>";
   if (S.moreTab === "movements") html += movementsHTML();
+  else if (S.moreTab === "clients") html += clientsHTML();
+  else if (S.moreTab === "jobs") html += jobsHTML();
+  else if (S.moreTab === "board") html += boardHTML();
   else if (S.moreTab === "labels") html += labelsHTML();
   else if (S.moreTab === "import") html += importHTML();
   else if (S.moreTab === "settings") html += settingsHTML();
@@ -2267,9 +3751,11 @@ function openUser(u) {
 }
 
 /* ---------------- export everything ---------------- */
-const EXPORT_COLLS = ["loadout_products", "loadout_locations", "loadout_stock", "loadout_containers", "loadout_items", "loadout_movements", "loadout_users", "loadout_settings"];
+const EXPORT_COLLS = ["loadout_products", "loadout_locations", "loadout_stock", "loadout_containers", "loadout_items", "loadout_movements", "loadout_users", "loadout_settings", "loadout_clients", "loadout_jobs", "loadout_proposals", "loadout_tickets", "loadout_ticket_lines"];
 function exportHTML() {
-  const c = { loadout_products: S.products.size, loadout_locations: S.locations.size, loadout_stock: S.stock.size, loadout_containers: S.containers.size, loadout_items: S.items.size, loadout_users: S.users.size };
+  let nl = 0; S.lines.forEach(m => nl += m.size);
+  const c = { loadout_products: S.products.size, loadout_locations: S.locations.size, loadout_stock: S.stock.size, loadout_containers: S.containers.size, loadout_items: S.items.size, loadout_users: S.users.size,
+    loadout_clients: S.clients.size, loadout_jobs: S.jobs.size, loadout_proposals: S.proposals.size, loadout_tickets: S.tickets.size, loadout_ticket_lines: nl ? nl + "+" : "all" };
   return '<p class="hint" style="margin-top:0">One spreadsheet with a tab per collection, headers as the database names them, so the data reads in Excel without the app. Do it on Fridays until the nightly copy exists.</p>' +
     '<ul class="onhand">' + EXPORT_COLLS.map(k => "<li><span class=\"mono\">" + k + "</span><b>" + (c[k] != null ? fmtN(c[k]) : k === "loadout_movements" ? "all" : "1") + "</b></li>").join("") + "</ul>" +
     '<div class="btnrow"><button type="button" class="btn acc" data-act="exportAll">Download workbook (.xlsx)</button></div>';
@@ -2638,7 +4124,7 @@ async function runImport() {
   S.imp = null; render(true);
 }
 /* demo-only hooks for checking the importer and the loading and error states by script */
-if (DEMO) window.Loadout = { importBuffer: (buf, name) => importLoad(buf, name || "workbook.xlsx"), state: S, render: () => render(true) };
+if (DEMO) window.Loadout = { importBuffer: (buf, name) => importLoad(buf, name || "workbook.xlsx"), state: S, render: () => render(true), setLive, sampleCsv: () => SAMPLE_CSV, board: BD };
 
 /* ==============================================================
    CLICKS (one delegated handler; every control is a real button)
@@ -2646,6 +4132,14 @@ if (DEMO) window.Loadout = { importBuffer: (buf, name) => importLoad(buf, name |
 document.addEventListener("click", e => {
   const g = e.target.closest("[data-go]");
   if (g && !g.closest(".modal")) { go(g.dataset.go); return; }
+  const bd = e.target.closest("[data-bdup],[data-bddown],[data-bdrm]");
+  if (bd && S.boardDraft && !bd.disabled) {
+    readBoardForm();
+    const ids = S.boardDraft.ticketIds, pinnedIds = ids.filter(x => S.tickets.has(x));
+    if (bd.dataset.bdrm) S.boardDraft.ticketIds = ids.filter(x => x !== bd.dataset.bdrm);
+    else { const i = +(bd.dataset.bdup != null ? bd.dataset.bdup : bd.dataset.bddown), j = bd.dataset.bdup != null ? i - 1 : i + 1; [pinnedIds[i], pinnedIds[j]] = [pinnedIds[j], pinnedIds[i]]; S.boardDraft.ticketIds = pinnedIds; }
+    render(true); return;
+  }
   const b = e.target.closest("[data-act]"); if (!b || b.disabled) return;
   const a = b.dataset.act, id = b.dataset.id;
   const P = () => S.products.get(id), I = () => S.items.get(id);
@@ -2688,6 +4182,37 @@ document.addEventListener("click", e => {
     case "exportAll": exportAll(); break;
     case "impRefresh": collectAliases($("#v-more")); S.imp.plan = buildImportPlan(S.imp); render(true); toast("Preview updated"); break;
     case "impClear": S.imp = null; render(true); break;
+    /* 0.2.0: tickets, lines, clients, jobs, board */
+    case "ticket": closeAllModals(); go("ticket", id); break;
+    case "newTicket": openNewTicket(); break;
+    case "tfClear": S.tkFilter = { status: "active", client: "", toOrder: false, backorders: false }; render(true); break;
+    case "tkCopy": { const t = curTicket(); if (t) copyText(portalBlock(t), "Copy for Portal"); break; }
+    case "tkPrint": { const t = curTicket(); if (t) printTicket(t); break; }
+    case "tkBoard": { const t = curTicket(); if (!t) break; const on = !(S.board.ticketIds || []).includes(t.id); doBoardPin(t, on).then(ok => ok && toast(on ? "Ticket #" + t.number + " is on the board" : "Ticket #" + t.number + " is off the board")); break; }
+    case "tkClose": { const t = curTicket(); if (t) openClose(t); break; }
+    case "tkPullAll": { const t = curTicket(); if (t) openPullAll(t); break; }
+    case "tkAddLines": { const t = curTicket(); if (t) openNewTicket({ ticket: t, tab: "hand" }); break; }
+    case "tkAddCsv": { const t = curTicket(); if (t) openNewTicket({ ticket: t, tab: "csv" }); break; }
+    case "lnPull": { const t = curTicket(), l = curLine(id); if (t && l) openPull(t, l); break; }
+    case "lnStage": { const t = curTicket(), l = curLine(id); if (t && l) openStage(t, l); break; }
+    case "lnDeliver": { const t = curTicket(), l = curLine(id); if (t && l) deliverLine(t, l); break; }
+    case "lnNote": { const t = curTicket(), l = curLine(id); if (t && l) openLineNote(t, l); break; }
+    case "pickFor": openPickFor(P()); break;
+    case "stageFor": { const it = I(); if (it) openPickFor(S.products.get(it.productId) || { id: it.productId, name: it.productName }, it); break; }
+    case "newClient": openClientForm(null); break;
+    case "editClient": openClientForm(S.clients.get(id)); break;
+    case "archClient": { const c = S.clients.get(id); if (c) doSaveClient(c.id, { name: c.name, notes: c.notes || "", archived: !c.archived }, false).then(ok => ok && toast(c.archived ? "Client restored" : "Client archived")); break; }
+    case "newJob": openJobForm(null); break;
+    case "editJob": openJobForm(S.jobs.get(id)); break;
+    case "archJob": { const j = S.jobs.get(id); if (j) doSaveJob(j.id, { clientId: j.clientId, clientName: j.clientName, name: j.name, address: j.address || "", status: j.status === "closed" ? "open" : "closed", stagingLocationId: j.stagingLocationId || null, stagingLocationName: j.stagingLocationName || null }, false, j.stagingLocationId).then(ok => ok && toast(j.status === "closed" ? "Job reopened" : "Job archived")); break; }
+    case "bdPin": { readBoardForm(); const v = $("#bdAdd") && $("#bdAdd").value; if (!v) { toast("Pick a ticket to pin.", true); break; } S.boardDraft.ticketIds.push(v); render(true); break; }
+    case "bdReset": S.boardDraft = null; render(true); toast("Back to the saved settings"); break;
+    case "bdSave": {
+      readBoardForm(); const d = S.boardDraft, e = $("#bdErr");
+      if (!(d.rotateSec >= 5 && d.rotateSec <= 600)) { e.textContent = "Rotation must be between 5 and 600 seconds."; e.hidden = false; break; }
+      DB.commit([{ op: "set", coll: "loadout_settings", id: "board", merge: true, data: { mode: d.mode, ticketIds: d.ticketIds.slice(), rotateSec: d.rotateSec, groupBy: d.groupBy, showStaged: d.showStaged, theme: d.theme, updatedAt: NOW, updatedBy: S.user.email, updatedByName: S.user.name } }], "board settings").then(ok => ok && toast("Board settings saved"));
+      break;
+    }
     case "impGo": collectAliases($("#v-more")); S.imp.plan = buildImportPlan(S.imp);
       confirmModal("Import " + S.imp.fileName, "<p>Write " + fmtN(importOps(S.imp.plan).length) + " records: " + fmtN(S.imp.plan.counts.productsNew) + " new products, " + fmtN(S.imp.plan.counts.boxes) + " boxes, " + fmtN(S.imp.plan.counts.items) + " serialized units, and " + fmtN(S.imp.plan.counts.movements) + " movements by Import. Safe to run again later.</p>", "Import", runImport);
       break;
@@ -2704,13 +4229,17 @@ document.addEventListener("change", e => {
   if (t.dataset && t.dataset.mf && t.tagName === "SELECT") { S.mvFilter[t.dataset.mf] = t.value; scheduleRender(); }
   else if (t.dataset && t.dataset.lbl) { t.checked ? S.labelSel.add(t.dataset.lbl) : S.labelSel.delete(t.dataset.lbl); render(true); }
   else if (t.id === "lblSize") { S.labelSize = t.value; }
+  else if (t.dataset && t.dataset.tf) { S.tkFilter[t.dataset.tf] = t.type === "checkbox" ? t.checked : t.value; render(true); }
+  else if (t.id === "showArch") { S.showArchived = t.checked; render(true); }
   else if (t.id === "lblEmpty") { S.labelEmpty = t.checked; render(true); }
 });
 window.addEventListener("hashchange", () => applyHash());
 function applyHash() {
-  const [v, sub] = location.hash.replace(/^#/, "").split("/");
-  if (["stock", "scan", "items", "more"].includes(v)) {
+  const [v, sub0] = location.hash.replace(/^#/, "").split("/");
+  const sub = sub0 ? decodeURIComponent(sub0) : sub0;
+  if (["tickets", "ticket", "stock", "scan", "items", "more"].includes(v)) {
     if (sub && v === "stock") S.stockTab = sub; if (sub && v === "more") S.moreTab = sub; if (sub && v === "items") S.itemsTab = sub;
+    if (v === "ticket") { S.ticketId = sub || null; if (DB) DB.syncLines(); }
     if (S.view === "scan" && v !== "scan") stopCamera();
     S.view = v; render(true);
   }
@@ -2724,6 +4253,7 @@ function setMe(me) {
   const prev = S.role;
   S.role = me.active === false ? "none" : (me.role || "tech");
   $("#footRole").textContent = "Role: " + (ROLE_LABEL[S.role] || S.role);
+  if (S.role === "board" && !BOARD) { enterBoard(); return; }
   if (prev !== S.role) { _moreBuilt = ""; render(true); }
 }
 function startApp(user) {
@@ -2740,12 +4270,15 @@ function startApp(user) {
   DB = DEMO ? demoStore() : firestoreStore(user);
   DB.start();
   paintSync();
-  if (location.hash) applyHash(); else { S.view = matchMedia("(max-width:640px)").matches ? "scan" : "stock"; render(true); }
+  if (BOARD || S.role === "board") { enterBoard(); return; }
+  if (location.hash) applyHash(); else { S.view = matchMedia("(max-width:640px)").matches ? "scan" : "tickets"; render(true); }
   if (PRINT && DEMO) { S.labelSel = new Set(labelGroups().flatMap(g => g[1].map(x => x.key))); printLabels(Array.from(S.labelSel).map(k => { const i = k.indexOf(":"); return { kind: k.slice(0, i), id: k.slice(i + 1) }; })); }
 }
 function stopApp() {
   stopCamera(); if (DB) DB.stop(); DB = null;
   S.user = null; S.products = new Map(); S.locations = new Map(); S.stock = new Map(); S.containers = new Map(); S.items = new Map(); S.users = new Map(); S.movements = [];
+  S.clients = new Map(); S.jobs = new Map(); S.proposals = new Map(); S.tickets = new Map(); S.lines = new Map(); S.linesLoaded = new Set(); S.tkHist = {};
+  if (BOARD) { clearInterval(BD.tick); cancelAnimationFrame(BD.raf); $("#board").hidden = true; BOARD = QUERY.get("board") === "1"; }
   S.loaded = {}; S.errors = {}; S.scan = null; _moreBuilt = ""; const sc = $("#v-scan"); if (sc) { sc.innerHTML = ""; delete sc.dataset.built; }
   closeAllModals();
   $("#app").hidden = true;
@@ -2756,10 +4289,12 @@ if (DEMO) {
   /* No Firebase module is imported on this path, so nothing in demo mode can reach Firestore. */
   $("#signoutBtn").textContent = "Leave demo";
   $("#signoutBtn").addEventListener("click", () => { location.href = location.pathname; });
-  const asTech = QUERY.get("role") === "tech";
-  S.role = asTech ? "tech" : "admin";
-  startApp(asTech ? { uid: "demo-tech", email: "tech@example.com", name: "Tech" } : { uid: "demo-warehouse", email: "warehouse@example.com", name: "Warehouse" });
-  S.me = S.users.get(S.user.uid);
+  /* ?demo=1&role=tech|warehouse|accounting|board shows that role's view; admin otherwise */
+  const qr = QUERY.get("role"), demoRole = ["tech", "warehouse", "accounting", "board"].includes(qr) ? qr : "admin";
+  S.role = demoRole;
+  const demoName = { admin: "Warehouse", warehouse: "Warehouse", tech: "Tech", accounting: "Accounting", board: "Board" }[demoRole];
+  startApp(demoRole === "tech" ? { uid: "demo-tech", email: "tech@example.com", name: "Tech" } : demoRole === "admin" ? { uid: "demo-warehouse", email: "warehouse@example.com", name: "Warehouse" } : { uid: "demo-" + demoRole, email: demoRole + "@example.com", name: demoName });
+  S.me = S.users.get(S.user.uid) || { id: S.user.uid, role: demoRole, active: true };
 } else {
   $("#signin").style.display = "flex";
   const mods = await Promise.all([import(SDK + "firebase-app.js"), import(SDK + "firebase-auth.js"), import(SDK + "firebase-firestore.js")]);

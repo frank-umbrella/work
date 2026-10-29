@@ -352,8 +352,40 @@ service cloud.firestore {
       allow create, delete: if loadoutWriter();
       allow update: if isMSPAdmin() && loadoutProductUpdate();
     }
-    // Everything else under loadout_* (stock, locations, and later tickets,
-    // orders, shipments): everyone on the domain reads, warehouse and
+    // Pick tickets (0.2.0). Tickets, their lines, clients, jobs, and
+    // proposals fall under the wildcard below (warehouse and admin write).
+    // These add only what a tech's Stage, Deliver to site, and box cut for
+    // a ticket need. The board role is in no list, so it still only reads.
+    function loadoutTechOnly(keys) {
+      return isMSPAdmin() && loadoutRole() == 'tech' && loadoutOnly(keys);
+    }
+    match /loadout_tickets/{tid} {
+      // status and line counts are rewritten with every line change
+      allow update: if loadoutTechOnly(['status', 'summary', 'updatedAt']);
+      match /lines/{lineId} {
+        allow update: if loadoutTechOnly(['qtyStaged', 'qtyDelivered', 'updatedAt']);
+      }
+    }
+    // Deliver to site takes counted units out of the bay: a tech may only
+    // lower a stock count, never raise it or change anything else.
+    match /loadout_stock/{id} {
+      allow update: if loadoutTechOnly(['qty', 'updatedAt'])
+        && request.resource.data.qty < resource.data.qty;
+    }
+    // Warehouse may pin tickets to the wall board (Show on board) and save
+    // the CSV column mapping; the rest of settings stays admin-only above.
+    match /loadout_settings/board {
+      allow create: if loadoutWriter()
+        && request.resource.data.keys().hasOnly(['ticketIds', 'updatedAt', 'updatedBy', 'updatedByName']);
+      allow update: if loadoutWriter()
+        && loadoutOnly(['ticketIds', 'updatedAt', 'updatedBy', 'updatedByName']);
+    }
+    match /loadout_settings/importMap {
+      allow write: if loadoutWriter();
+    }
+    // Everything else under loadout_* (stock, locations, clients, jobs,
+    // proposals, tickets, and later orders and shipments): everyone on the
+    // domain reads, warehouse and
     // admin write. The prefix check keeps this from touching any other
     // tool's collections.
     match /{coll}/{docId} {

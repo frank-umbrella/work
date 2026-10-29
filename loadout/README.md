@@ -1,13 +1,14 @@
 # loadout
 
 Loadout is the shop's inventory tool: what is on each shelf, how many feet are
-left in each wire box, and who has each expensive unit. Phone first for the
+left in each wire box, who has each expensive unit, and the pick tickets that
+turn an accepted Portal proposal into a staged bay. Phone first for the
 warehouse, desktop for the office. Internal: no hub tile, no links from other
 pages, `noindex, nofollow`, and the shared Watchtower sign-in
 (`@umbrellaautomation.com` Google accounts only). The plan is `PLAN.md`; the
 chosen look is direction B, Ledger, in `design-preview.html`.
 
-Current version: **0.1.0**.
+Current version: **0.2.0**.
 
 ## Files
 
@@ -23,6 +24,22 @@ Current version: **0.1.0**.
 
 ## Using it
 
+- **Tickets** (home on the desktop): pick tickets grouped by status, with
+  filters for status, client, and items to order. **New ticket** imports a
+  Portal proposal CSV (columns matched by header name, a preview, Labor, Fee,
+  and CustomItem rows and blank quantities listed as skipped, unmatched brands
+  and models offered as new products) or takes lines typed by hand. Importing
+  the same proposal number again adds or adjusts lines on that ticket.
+- **Ticket**: lines grouped by area with Pull from stock (pick the shelf, scan
+  if you like; the quantity moves to the staging bay), Stage, Deliver to site
+  (serialized units on the line check out to whoever delivers), and Note;
+  Pull everything in stock; Copy for Portal; Print (a pick list); Show on
+  board; and Close, which returns or writes off what is left in the bay and
+  marks units out on the ticket installed at the job.
+- **Board** (`?board=1`, and the landing view for the board role): the
+  warehouse TV. One pinned ticket per screen, rotating, lines grouped by the
+  shelf to pull from in rack order; picked lines greyed, to-order amber, short
+  red; a red "Not live since" strip when the connection drops.
 - **Stock**: the catalog with search, sorting, a Columns manager, and tabs for
   All, Consumables (wire boxes with feet left), Low stock, and Locations.
   Open a product to edit it, set its UPC by scanning, receive, adjust with a
@@ -30,37 +47,54 @@ Current version: **0.1.0**.
 - **Scan**: point the phone at a UPC or a Loadout label, or type the code.
   Shelf labels set the active location; box labels open the box sheet (mark
   now, cut this time, quick -50 / -100 / -250, Empty, recount); unit labels
-  show who has it with Check out and Check in.
+  show who has it with Check out and Check in. A product card has Pick for
+  ticket, a unit card Stage for ticket, the box sheet a For ticket chip, and a
+  bay's label shows the ticket staged there.
 - **Items**: every serialized unit, with Out as the Friday list.
-- **More**: movements log with filters and CSV, label sheets (Avery 5160 or
-  2 x 4), and for admins the inventory sheet importer, Settings, and People.
+- **More**: movements log with filters and CSV, Clients and Jobs (add, edit,
+  archive; a job can reserve a staging bay), label sheets (Avery 5160 or
+  2 x 4), and for admins the Board settings, the inventory sheet importer,
+  Settings, and People.
   Export everything downloads one workbook with a tab per collection.
 
 Roles: the account named in the rules as the project owner becomes admin on
 its first sign-in; everyone else lands as Tech until an admin changes the role
-under More, People. Warehouse and admin change stock; techs scan, check out,
-check in, and record box readings; accounting and board only read.
+under More, People. Warehouse and admin change stock and build, pull, and close
+tickets; techs scan, check out, check in, record box readings, and stage and
+deliver ticket lines; accounting and board only read.
 
 ### Demo mode
 
 `?demo=1` opens the app on invented sample data with no sign-in. Every write is
-refused with a "Demo mode: not saved" toast. `?demo=1&role=tech` shows the
-tech's view, and `?demo=1&print=1` opens a label sheet preview. No Firebase
-code loads in demo mode.
+refused with a "Demo mode: not saved" toast (the refused batch stays on
+`window.Loadout.state.lastOps` for checking by script). `&role=tech`,
+`&role=warehouse`, `&role=accounting`, or `&role=board` shows that role's
+view; `&board=1` opens the wall board; `&empty=1` loads no tickets, for the
+empty states and the board's idle screen; `&print=1` opens a label sheet
+preview. The New ticket sheet has a Load sample button with a made-up Portal
+CSV in demo mode only. No Firebase code loads in demo mode.
 
 ## Data
 
 Firestore project `watchtower-6fbe1`, collections `loadout_users`,
 `loadout_settings`, `loadout_products`, `loadout_locations`, `loadout_stock`,
-`loadout_containers`, `loadout_items`, and `loadout_movements` (field lists in
-PLAN section 3). Every record carries readable names next to its ids, so the
+`loadout_containers`, `loadout_items`, `loadout_movements`, `loadout_clients`,
+`loadout_jobs`, `loadout_proposals`, and `loadout_tickets` with a `lines`
+subcollection per ticket (field lists in PLAN section 3). Ticket ids are the
+proposal number; line ids are the area plus brand and model, so a change
+order re-import finds the line it changes. Settings hold `board` (the wall
+board) and `importMap` (the saved CSV column mapping). Line quantities, all in
+the product's unit: `qtyNeeded` from the proposal, `qtyFromStock` pulled off
+our shelves, `qtyToOrder` what stock cannot cover, `qtyStaged` laid out in the
+bay, `qtyDelivered` taken to site. Every record carries readable names next to its ids, so the
 database and the export read without the app. Each person's table layout is
 saved on their own `/users/{uid}` doc under `loadoutLayout`.
 
 ## Rules
 
 The block below is appended to `../watchtower/firestore.rules` (one ruleset per
-project). It was tested in the local Firestore emulator; it is **not deployed**.
+project). It was tested in the local Firestore emulator (0.2.0 added the
+ticket, stock, and board-settings rules near the end); it is **not deployed**.
 The owner of the Firebase project deploys it from `work/watchtower` with:
 
 `firebase deploy --only firestore:rules --account frank@umbrellaautomation.com --project watchtower-6fbe1`
@@ -154,8 +188,40 @@ match /loadout_products/{id} {
   allow create, delete: if loadoutWriter();
   allow update: if isMSPAdmin() && loadoutProductUpdate();
 }
-// Everything else under loadout_* (stock, locations, and later tickets,
-// orders, shipments): everyone on the domain reads, warehouse and
+// Pick tickets (0.2.0). Tickets, their lines, clients, jobs, and
+// proposals fall under the wildcard below (warehouse and admin write).
+// These add only what a tech's Stage, Deliver to site, and box cut for
+// a ticket need. The board role is in no list, so it still only reads.
+function loadoutTechOnly(keys) {
+  return isMSPAdmin() && loadoutRole() == 'tech' && loadoutOnly(keys);
+}
+match /loadout_tickets/{tid} {
+  // status and line counts are rewritten with every line change
+  allow update: if loadoutTechOnly(['status', 'summary', 'updatedAt']);
+  match /lines/{lineId} {
+    allow update: if loadoutTechOnly(['qtyStaged', 'qtyDelivered', 'updatedAt']);
+  }
+}
+// Deliver to site takes counted units out of the bay: a tech may only
+// lower a stock count, never raise it or change anything else.
+match /loadout_stock/{id} {
+  allow update: if loadoutTechOnly(['qty', 'updatedAt'])
+    && request.resource.data.qty < resource.data.qty;
+}
+// Warehouse may pin tickets to the wall board (Show on board) and save
+// the CSV column mapping; the rest of settings stays admin-only above.
+match /loadout_settings/board {
+  allow create: if loadoutWriter()
+    && request.resource.data.keys().hasOnly(['ticketIds', 'updatedAt', 'updatedBy', 'updatedByName']);
+  allow update: if loadoutWriter()
+    && loadoutOnly(['ticketIds', 'updatedAt', 'updatedBy', 'updatedByName']);
+}
+match /loadout_settings/importMap {
+  allow write: if loadoutWriter();
+}
+// Everything else under loadout_* (stock, locations, clients, jobs,
+// proposals, tickets, and later orders and shipments): everyone on the
+// domain reads, warehouse and
 // admin write. The prefix check keeps this from touching any other
 // tool's collections.
 match /{coll}/{docId} {
@@ -175,6 +241,34 @@ match /{coll}/{docId} {
 ```
 
 ## Changelog
+
+### 0.2.0 (2026-10-29)
+
+Pick tickets, so an accepted proposal becomes a list the warehouse can pull,
+stage, and send to site without retyping it, and the office can see how far
+each job has got.
+
+- A Portal proposal CSV becomes a pick ticket in one pass. Columns are matched
+  by header name and the mapping is remembered, because Portal does not
+  publish its export format. Labor, fees, custom items, and rows with no
+  quantity are listed as skipped instead of vanishing, and a change order
+  imported later adjusts the same ticket rather than making a second one.
+- Pull from stock moves the quantity from the shelf to the job's staging bay
+  and logs it with your name, so the bay and the ticket agree on what is
+  ready. Pull everything in stock does the whole ticket and says what is left
+  to order.
+- Deliver to site checks the line's serialized units out to the person taking
+  them, and closing the ticket marks them installed at the job, so a unit
+  scanned years later still says which job it went to. Leftovers in the bay
+  go back to a shelf or are written off with a reason.
+- Copy for Portal builds the status block for the proposal's internal notes,
+  since Loadout cannot write to Portal until the API question is settled.
+- The wall board turns the TV by the bays into the pick path: lines grouped by
+  shelf in rack order, picked lines greyed as the scans land, and a red strip
+  when it stops being live, so nobody trusts a stale screen.
+- Techs can stage and deliver, and only lower a stock count when they do; the
+  board account still reads only. Orders and backorders arrive in 0.3.0; until
+  then Order missing is shown but off.
 
 ### 0.1.0 (2026-10-29)
 
