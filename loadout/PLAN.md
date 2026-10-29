@@ -254,6 +254,9 @@ the database reads without the app (section 16).
   "general"   {showCosts, carriers: {UPS: urlPattern, ...}, labelSize,
                qrThreshold: 250}            cost at or above which a received
                                             unit becomes a serialized item
+               (as built: also vendors, weekStart, boxStart by cable type,
+               and workWeek, the Week view default added in 0.4.0; the
+               Console's About tab lists every field from the code)
   "portal"    {tier: "t0"|"t1"|"t2", lastPollAt}   no secrets here
   "importMap" {header -> field} saved CSV column mapping
   "board"     {mode: "pinned"|"all_open", ticketIds: [], rotateSec: 20,

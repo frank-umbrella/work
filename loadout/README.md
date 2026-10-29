@@ -8,7 +8,7 @@ pages, `noindex, nofollow`, and the shared Watchtower sign-in
 (`@umbrellaautomation.com` Google accounts only). The plan is `PLAN.md`; the
 chosen look is direction B, Ledger, in `design-preview.html`.
 
-Current version: **0.3.0**.
+Current version: **0.4.0**.
 
 ## Files
 
@@ -86,18 +86,40 @@ Current version: **0.3.0**.
 - **Items**: every serialized unit, with Out as the Friday list. A unit opens
   in place the same way (`#items/i/<id>`), with its label, serial, condition,
   Check out, Check in, Move, Retire, and History.
+- **Console** (admin and accounting; also linked from More): **Reports**,
+  each with a From and To date (this month by default, with This month and
+  Last month buttons), a sortable table with the Columns manager, a one-line
+  total, and Export CSV / Export XLSX of the rows and columns shown: Stock on
+  hand (by product and location, category, or location, with value at last
+  cost when costs are on), Spend (POs marked ordered, by vendor and month),
+  Delivered (every Deliver to site, by delivery or by client and job), Items
+  out (who held what and for how long), Wire usage (box cuts by cut, job,
+  person, or both), Movements (the raw trail for the range, filtered by type
+  and person), and Aging (open tickets, open POs, and delivered-not-received
+  shipments in age bands). Reports read the range fresh from the database, not
+  the latest-500 list. **People** (admin): confirm newcomers, change a role
+  (including the wall board TV's Board account), deactivate or reactivate.
+  **Settings** (admin): show costs, QR threshold, week start, the Work week
+  default for the Week view, label sheet, box start lengths, carriers,
+  vendors, the Portal tier, and the wall board (mode, rotation, grouping,
+  theme, picked lines, pinned tickets), all saved by one button. **About**:
+  the data dictionary for every collection, rendered from `DATA_DICTIONARY`
+  in the code, with the readability rules. **Export everything**: every
+  collection as one workbook or as zipped CSVs, file names stamped with the
+  date and time. Accounting sees Reports, About, and Export with no edit
+  controls at all.
 - **More**: movements log with filters, Previous / This / Next week buttons,
   and CSV, Clients and Jobs (add, edit,
   archive; a job can reserve a staging bay), label sheets (Avery 5160 or
-  2 x 4), and for admins the Board settings, the inventory sheet importer,
-  Settings, and People.
-  Export everything downloads one workbook with a tab per collection. On the
-  phone the tab bar is Tickets, Scan, Week, Stock, More, and Orders, Tracking,
-  and Items sit at the top of More.
+  2 x 4), and for admins the inventory sheet importer. Admins and accounting
+  get a row of Console links (Reports, People, Settings, Board, About, Export
+  everything); warehouse and techs keep About and Export everything as tabs
+  here. On the phone the tab bar is Tickets, Scan, Week, Stock, More, and
+  Orders, Tracking, Items, and the Console sit at the top of More.
 
 Roles: the account named in the rules as the project owner becomes admin on
 its first sign-in; everyone else lands as Tech until an admin changes the role
-under More, People. Warehouse and admin change stock and build, pull, and close
+under Console, People. Warehouse and admin change stock and build, pull, and close
 tickets; techs scan, check out, check in, record box readings, and stage and
 deliver ticket lines; accounting and board only read.
 
@@ -107,7 +129,8 @@ deliver ticket lines; accounting and board only read.
 refused with a "Demo mode: not saved" toast (the refused batch stays on
 `window.Loadout.state.lastOps` for checking by script). `&role=tech`,
 `&role=warehouse`, `&role=accounting`, or `&role=board` shows that role's
-view; `&board=1` opens the wall board (`&mode=today`, `&mode=pinned`, or
+view (`&role=accounting` is the read-only Console); `&costs=1` turns Show
+costs on so the reports show values; `&board=1` opens the wall board (`&mode=today`, `&mode=pinned`, or
 `&mode=all_open` overrides the saved board mode on that screen); `&empty=1`
 loads no tickets or orders, for the
 empty states and the board's idle screen; `&print=1` opens a label sheet
@@ -115,7 +138,11 @@ preview. The New ticket sheet has a Load sample button with a made-up Portal
 CSV in demo mode only. The fixture has four purchase orders (a draft with no
 vendor, a partial one with two shipments, one ordered with a late shipment,
 one received), install dates across this week, and imported rows that show the
-0.3.0 name fixes. No Firebase code loads in demo mode.
+0.3.0 name fixes. 0.4.0 adds costs on the catalog, a closed ticket and four
+more POs from last month and this month (one still open and backordered), and
+the deliveries, box cuts, and check-outs around them, dated inside this month
+and last month so every report has rows on any day, plus a roster with Lead
+tech, Accounting, Board TV, and a deactivated Former tech. No Firebase code loads in demo mode.
 
 ## Data
 
@@ -143,7 +170,9 @@ sheet's count date and keep `importedAt`, `importTab`, `importRow`, and
 `importKey`, so a re-import skips what is already written. Every record
 carries readable names next to its ids, so the
 database and the export read without the app. Each person's table layout is
-saved on their own `/users/{uid}` doc under `loadoutLayout`.
+saved on their own `/users/{uid}` doc under `loadoutLayout`. Settings
+`general` gained `workWeek` in 0.4.0. The Console's About tab lists every
+field of every collection.
 
 ## Rules
 
@@ -152,7 +181,11 @@ project). It was tested in the local Firestore emulator (0.2.0 added the
 ticket, stock, and board-settings rules near the end; 0.3.0 added the
 vendor-list rule on `settings/general`, 36 of 36 checks passing, including
 orders, order lines, and shipments as warehouse-only writes); it is **not
-deployed**.
+deployed**. 0.4.0 changed no rules: the Console writes only `loadout_users`
+and `loadout_settings`, which were already admin-only (apart from the
+warehouse carve-outs for board pins, the import mapping, and the vendor list),
+and accounting and board appear in no writer list, so they read everything
+and write nothing.
 The owner of the Firebase project deploys it from `work/watchtower` with:
 
 `firebase deploy --only firestore:rules --account frank@umbrellaautomation.com --project watchtower-6fbe1`
@@ -309,6 +342,33 @@ match /{coll}/{docId} {
 ```
 
 ## Changelog
+
+### 0.4.0 (2026-10-29)
+
+The Console, so the office can answer money and accountability questions
+(what is on the shelves worth, what did we spend, what went to which job, who
+has the gateway) without exporting the database and building the sum by hand.
+
+- Seven reports with a date range that starts on this month: stock on hand
+  and its value, spend by vendor and month, product delivered per client and
+  job, items out, wire usage per job and person, the movement trail, and
+  aging. Each sorts, keeps its column layout, ends with a one-line total, and
+  exports to CSV or Excel, because the reports exist to be checked against
+  invoices.
+- Reports read the range straight from the database instead of the latest
+  500 movements the app keeps live, so a month-end report is complete.
+- Accounting gets the Console with no buttons that change anything, rather
+  than greyed ones, so there is no doubt about what the role can do.
+- People and Settings moved into the Console with the wall board settings,
+  so the admin screens live in one place; More keeps links. Deactivate keeps
+  a person's name on everything they touched.
+- A shop-wide Work week default for the Week view, for anyone who has not
+  chosen for themselves.
+- About shows the data dictionary from the code itself, so the description
+  of the database cannot drift from what the app writes.
+- Export everything is in the Console, adds zipped CSVs beside the workbook,
+  and stamps the file name with the date and time, so a weekly copy never
+  overwrites the last one.
 
 ### 0.3.0 (2026-10-29)
 

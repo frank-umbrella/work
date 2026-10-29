@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Loadout v0.3.0</title>
+<title>Loadout v0.4.0</title>
 <meta name="robots" content="noindex, nofollow">
-<meta name="loadout-version" content="0.3.0">
+<meta name="loadout-version" content="0.4.0">
 <meta name="description" content="Umbrella Automation shop inventory. Restricted to @umbrellaautomation.com accounts.">
 <meta name="theme-color" content="#1e6fd9">
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
@@ -621,6 +621,28 @@ body.preview #printSheet .picksheet{box-shadow:0 2px 10px rgba(0,0,0,.15)}
 @keyframes flash{0%,40%{background:color-mix(in srgb,var(--m-accent) 16%,transparent)}}
 @media (prefers-reduced-motion:reduce){.flash td{animation:none;background:color-mix(in srgb,var(--m-accent) 10%,transparent)}}
 
+/* ---------- console (0.4.0): reports, people, settings, about ---------- */
+.rr{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,170px),1fr));gap:0 14px;align-items:end;margin-bottom:6px}
+.rr .btnrow{margin:0;gap:6px}
+.rpick{margin-bottom:12px}
+/* view choices keep a field width instead of stretching one select across the page */
+.rfil{grid-template-columns:repeat(auto-fill,minmax(min(100%,220px),1fr));margin-bottom:6px}
+.rfil:empty{display:none}
+.rhint{font-size:12.5px;color:var(--m-muted);margin:4px 0 10px}
+/* the one-line total sits under the table like the sum line on a ledger page */
+.rtot{margin:10px 0 0;padding-top:8px;border-top:1.5px solid var(--m-text);font-size:13.5px;font-weight:600;overflow-wrap:anywhere}
+.rtot .z{font-weight:400}
+.rexp{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-left:auto}
+.clinks{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 12px;padding:10px 12px;border:1px solid var(--m-line);border-radius:var(--m-radius);background:var(--m-card2)}
+.clinks .h4{margin:0 6px 0 0}
+.dict{margin-top:18px}
+.dict h3{margin:0 0 2px;font:700 14px var(--m-mono);overflow-wrap:anywhere}
+.dict .pd{margin:0 0 6px}
+.dict .tbl td:first-child{font-family:var(--m-mono);font-size:12.5px;width:30%}
+.about p{max-width:78ch}
+.setsect{margin-top:22px;padding-top:14px;border-top:1px solid var(--m-line)}
+.setsect>h3{margin:0 0 4px;font-size:16px}
+
 /* ---------- phone ---------- */
 @media (max-width:640px){
   .phoneonly{display:flex}
@@ -631,7 +653,8 @@ body.preview #printSheet .picksheet{box-shadow:0 2px 10px rgba(0,0,0,.15)}
   .mcard{padding:14px}
   .fld{font-size:16px}
   /* thumbs, not cursors: every control grows to the 44px floor on the phone */
-  .btn,.btn.sm,.fld,select.fld,.seg button,.chk,.textbtn,.linkbtn,.gbtn,.locchip button,.mh .x,details.more summary,.demobar a,.radio,.forticket select.fld,.wkchip,.tch,.lines li button,.olpick .row .fld,button.chip{min-height:44px}
+  .btn,.btn.sm,.fld,select.fld,.seg button,.chk,.textbtn,.linkbtn,.gbtn,.locchip button,.mh .x,details.more summary,.demobar a,.radio,.forticket select.fld,.wkchip,.tch,.lines li button,.olpick .row .fld,button.chip,.collist li .btn{min-height:44px}
+  .collist li{flex-wrap:wrap}
   .chev{width:44px;height:44px}
   .linkbtn{display:flex;align-items:center;width:100%}
   .locchip button,.mh .x{min-width:44px}
@@ -675,7 +698,7 @@ body.preview #printSheet .picksheet{box-shadow:0 2px 10px rgba(0,0,0,.15)}
   <header class="top">
     <div class="brand">
       <svg viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="20" width="48" height="34" rx="6" fill="none" stroke="currentColor" stroke-width="5"/><path d="M24 20v-6a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v6" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/><path d="M8 35h48" stroke="currentColor" stroke-width="4"/><rect x="27" y="31" width="10" height="8" rx="2" fill="currentColor"/></svg>
-      Loadout <span class="v" id="verBadge">v0.3.0</span>
+      Loadout <span class="v" id="verBadge">v0.4.0</span>
     </div>
     <nav class="nav" aria-label="Views">
       <button type="button" data-go="tickets">Tickets</button>
@@ -685,6 +708,7 @@ body.preview #printSheet .picksheet{box-shadow:0 2px 10px rgba(0,0,0,.15)}
       <button type="button" data-go="tracking">Tracking</button>
       <button type="button" data-go="week">Week</button>
       <button type="button" data-go="items">Items</button>
+      <button type="button" data-go="console" hidden>Console</button>
       <button type="button" data-go="more">More</button>
     </nav>
     <span class="sync" id="syncPill" title="Green when every change has reached the server. Shows Offline and a pending count when the warehouse has no signal; work keeps saving on the device."><i></i><span id="syncText">Synced</span></span>
@@ -702,10 +726,11 @@ body.preview #printSheet .picksheet{box-shadow:0 2px 10px rgba(0,0,0,.15)}
     <section id="v-tracking" class="view" hidden></section>
     <section id="v-week" class="view" hidden></section>
     <section id="v-more" class="view" hidden></section>
+    <section id="v-console" class="view" hidden></section>
   </main>
 
   <footer class="foot">
-    <span id="footVer">Loadout v0.3.0</span>
+    <span id="footVer">Loadout v0.4.0</span>
     <span id="footWho"></span>
     <span id="footRole"></span>
     <span id="footSync"></span>
@@ -733,7 +758,7 @@ body.preview #printSheet .picksheet{box-shadow:0 2px 10px rgba(0,0,0,.15)}
    and its Google sign-in, like Backup Audits and Sundial. Data lives
    in loadout_* collections; rules are in watchtower/firestore.rules.
    ============================================================== */
-const VERSION = "0.3.0";
+const VERSION = "0.4.0";
 const SDK = "https://www.gstatic.com/firebasejs/12.13.0/";
 const XLSX_URL = "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";
 /* @zxing/library is not on cdnjs, so the fallback decoder comes from jsDelivr,
@@ -857,7 +882,10 @@ const S = {
   /* 0.3.0 */
   orders: new Map(), olines: new Map(), olinesLoaded: new Set(), shipments: new Map(), orderId: null,
   ordFilter: { status: "open", vendor: "" }, trFilter: { job: "", vendor: "", carrier: "", status: "", late: false },
-  weekOff: 0, x: null, focusLine: null
+  weekOff: 0, x: null, focusLine: null,
+  /* 0.4.0: the Console. rr is the report date range (default this month),
+     rf the per-report view choices, rep what the reports last read */
+  consoleTab: "reports", repTab: "stock", rr: null, rf: {}, rep: null, genDraft: null, portal: null
 };
 const COLLS = ["products", "locations", "stock", "containers", "items", "users", "movements", "settings", "clients", "jobs", "proposals", "tickets", "orders", "shipments"];
 
@@ -871,6 +899,8 @@ const money = v => "$" + num(v).toLocaleString("en-US", { minimumFractionDigits:
 const isWriter = () => S.role === "admin" || S.role === "warehouse";
 const isTech = () => isWriter() || S.role === "tech";
 const isAdmin = () => S.role === "admin";
+/* the Console (PLAN 4): the management surface for admins, read-only for accounting */
+const canConsole = () => S.role === "admin" || S.role === "accounting";
 function toDate(v) {
   if (!v) return null;
   if (v instanceof Date) return isNaN(v) ? null : v;
@@ -1109,6 +1139,7 @@ function demoStore() {
       const m = S[key]; return m ? Array.from(m.values()) : [];
     },
     async movementsWhere(field, id) { return S.movements.filter(m => m[field] === id); },
+    async movementsBetween(from, to) { return S.movements.filter(m => { const d = toDate(m.at); return d && d >= from && d <= to; }); },
     syncLines() {},
     syncOrderLines() {},
     async savePrefs() { /* demo keeps layout in memory and this browser only */ }
@@ -1198,6 +1229,7 @@ function firestoreStore(user) {
         S.general.boxStart = Object.assign({}, DEFAULT_GENERAL.boxStart, (g && g.boxStart) || {});
         S.board = Object.assign({}, DEFAULT_BOARD, docs.find(d => d.id === "board") || {});
         S.importMap = docs.find(d => d.id === "importMap") || null;
+        S.portal = docs.find(d => d.id === "portal") || null;
       });
       listen("movements", fs.query(fs.collection(db, "loadout_movements"), fs.orderBy("at", "desc"), fs.limit(500)), docs => { S.movements = docs; _lastMv = null; });
       listen("clients", fs.collection(db, "loadout_clients"), toMap("clients"));
@@ -1246,6 +1278,12 @@ function firestoreStore(user) {
     },
     async movementsWhere(field, id) {
       const snap = await fs.getDocs(fs.query(fs.collection(db, "loadout_movements"), fs.where(field, "==", id)));
+      return snap.docs.map(d => Object.assign({ id: d.id }, d.data({ serverTimestamps: "estimate" })));
+    },
+    /* reports read the live collection for their date range (PLAN 16 rule 8),
+       not the latest-500 listener; a range on one field needs no composite index */
+    async movementsBetween(from, to) {
+      const snap = await fs.getDocs(fs.query(fs.collection(db, "loadout_movements"), fs.where("at", ">=", from), fs.where("at", "<=", to), fs.orderBy("at", "desc")));
       return snap.docs.map(d => Object.assign({ id: d.id }, d.data({ serverTimestamps: "estimate" })));
     },
     async savePrefs(prefs) {
@@ -1928,7 +1966,12 @@ function loadDemo() {
   const day = 86400000, t = n => new Date(Date.now() - n * day);
   const users = [
     { id: "demo-warehouse", email: "warehouse@example.com", name: "Warehouse", role: "admin", active: true, confirmed: true, addedBy: "seed", addedAt: t(40), lastSeen: t(0) },
-    { id: "demo-tech", email: "tech@example.com", name: "Tech", role: "tech", active: true, confirmed: false, addedBy: "self-sign-in", addedAt: t(3), lastSeen: t(1) }
+    { id: "demo-tech", email: "tech@example.com", name: "Tech", role: "tech", active: true, confirmed: false, addedBy: "self-sign-in", addedAt: t(3), lastSeen: t(1) },
+    /* 0.4.0: the rest of a small shop's roster, by role only, for the Console's People tab */
+    { id: "demo-leadtech", email: "leadtech@example.com", name: "Lead tech", role: "tech", active: true, confirmed: true, addedBy: "warehouse@example.com", addedAt: t(70), lastSeen: t(0) },
+    { id: "demo-accounting", email: "accounting@example.com", name: "Accounting", role: "accounting", active: true, confirmed: true, addedBy: "warehouse@example.com", addedAt: t(50), lastSeen: t(2) },
+    { id: "demo-board", email: "board@example.com", name: "Board TV", role: "board", active: true, confirmed: true, addedBy: "warehouse@example.com", addedAt: t(45), lastSeen: t(0) },
+    { id: "demo-formertech", email: "formertech@example.com", name: "Former tech", role: "tech", active: false, confirmed: true, addedBy: "warehouse@example.com", addedAt: t(90), lastSeen: t(52) }
   ];
   users.forEach(u => S.users.set(u.id, u));
   const locs = [
@@ -2025,7 +2068,9 @@ function loadDemo() {
   });
   S.movements.sort((a, b) => b.at - a.at);
   loadDemoTickets(t, ST);
-  if (!DEMO_EMPTY) loadDemoOrders(t);
+  if (!DEMO_EMPTY) { loadDemoOrders(t); loadDemoConsole(); }
+  /* ?demo=1&costs=1 turns Show costs on, so the reports show values */
+  if (QUERY.get("costs") === "1") S.general.showCosts = true;
   S.products.forEach(p => p.onHand = onHandOf(p));
 }
 /* 0.2.0 fixture: 2 clients, 2 jobs, 3 tickets (one mid-pick with lines to
@@ -2179,6 +2224,105 @@ function loadDemoOrders(t) {
     const pr = f.productId ? S.products.get(f.productId) : null, tk = f.ticketId ? S.tickets.get(f.ticketId) : null;
     S.movements.push(Object.assign({ id: "do" + i, type, productName: pr ? pr.name : null, by: "warehouse@example.com", byName: "Warehouse", at: new Date(Date.now() - d * day + i * 60000), orderNumber: f.orderId,
       toLocationName: f.toLocationId ? locName(f.toLocationId) : null, unit: pr ? pr.unit : null, ticketNumber: f.ticketId || null, jobName: tk ? tk.jobName : null }, f));
+  });
+  S.movements.sort((a, b) => b.at - a.at);
+}
+/* 0.4.0 fixture for the Console's reports: costs on the catalog, a closed
+   ticket from last month, three more purchase orders (two last month, one
+   this month), and the deliveries, box cuts, and check-outs around them.
+   Dates are pinned to this month and last month, so the default range and
+   Last month both have rows on any day. Clients and vendors are made up;
+   people are named by role. */
+function loadDemoConsole() {
+  const now = new Date(), day = 86400000;
+  const mAt = (m, d, h) => { const x = new Date(now.getFullYear(), now.getMonth() + m, 1 + d, h || 10, 0, 0); return x > now ? new Date(now.getTime() - 3600000) : x; };
+  const ago = (n, min) => new Date(now.getTime() - n * day + (min || 0) * 60000);
+  const cost = { "ubiquiti-u6-pro": 159, "axis-m3065-v": 189, "middle-atlantic-u2v": 42, "leviton-61110-be6": 3.2, "wire-cat6-riser-234-blue": 0.18, "wire-cat5e-riser-244-gray": 0.14,
+    "wire-coaxial-rg6-white": 0.12, "patch-cable-cat6-utp-patch-cable-rj45m-rj45m-blue-3ft": 2.5, "patch-cable-hdmi-patch-hdmim-hdmim-black-6ft": 7.5,
+    "patch-cable-power-cable-edison-m-c13-f-black-6ft": 4, "splitter-2-way-coaxial-splitter-coaxial-m-1-coaxial-m-2": 3.75, "connector-xlr-female-3": 2.1, "patch-cable-1-pin-av-cable-blue-band-rca-m-rca-m-6ft": 3 };
+  Object.entries(cost).forEach(([id, c]) => { const p = S.products.get(id); if (p && p.lastCost == null) p.lastCost = c; });
+  S.items.forEach(i => { if (i.cost == null) { const p = S.products.get(i.productId); i.cost = p && p.lastCost != null ? p.lastCost : null; } });
+  /* a closed ticket from last month for a third client */
+  S.clients.set("pine-street-library", { id: "pine-street-library", name: "Pine Street Library", notes: "", archived: false, portalContactId: null, createdAt: mAt(-1, 0), updatedAt: mAt(-1, 0) });
+  const job = { id: "pine-street-library--reading-room-av", clientId: "pine-street-library", clientName: "Pine Street Library", name: "Reading room AV", address: "40 Pine St", status: "closed", stagingLocationId: null, stagingLocationName: null, createdAt: mAt(-1, 1), updatedAt: mAt(-1, 20) };
+  S.jobs.set(job.id, job);
+  const tk = { id: "1017", number: "1017", proposalId: "1017", jobId: job.id, jobName: job.name, clientId: job.clientId, clientName: job.clientName, status: "closed", stagingLocationId: "bay-3", stagingLocationName: "Bay 3",
+    source: "csv", installAt: mAt(-1, 10, 12), createdAt: mAt(-1, 2), createdBy: "warehouse@example.com", createdByName: "Warehouse", closedAt: mAt(-1, 20), closedBy: "warehouse@example.com", closedByName: "Warehouse", updatedAt: mAt(-1, 20) };
+  S.tickets.set(tk.id, tk);
+  S.proposals.set("1017", { id: "1017", number: "1017", name: job.name, jobId: job.id, jobName: job.name, clientId: job.clientId, clientName: job.clientName, status: "Completed", importedAt: mAt(-1, 2), importSource: "csv", portalId: null });
+  const lm = new Map(), tl = {};
+  [["Reading room", "patch-cable-hdmi-patch-hdmim-hdmim-black-6ft", 4], ["Reading room", "connector-xlr-female-3", 6], ["Equipment rack", "middle-atlantic-u2v", 1]].forEach(([area, pid, q], i) => {
+    const p = S.products.get(pid), id = lineIdFor(area, p.brand, p.model, productName(p)); tl[pid] = id;
+    lm.set(id, { id, area, option: "", sort: i + 1, productId: pid, productName: productName(p), brand: p.brand || "", model: p.model || "", description: p.description || "", unit: p.unit, matchState: "matched",
+      qtyNeeded: q, qtyFromStock: q, qtyToOrder: 0, qtyStaged: q, qtyDelivered: q, portalItemId: null, orderLineRefs: [], notes: null, pickedFromName: locName(p.defaultLocationId) || "Warehouse", pickedByName: "Warehouse", createdAt: mAt(-1, 2), updatedAt: mAt(-1, 10) });
+  });
+  S.lines.set("1017", lm); S.linesLoaded.add("1017"); tk.summary = summarize(Array.from(lm.values()));
+  /* three more POs, received in full */
+  const PO = (id, vendor, vno, ordered, received, lines, carrier, tracking) => {
+    S.orders.set(id, { id, number: id, vendor, orderNumber: vno, status: "received", orderedAt: ordered, orderedBy: "warehouse@example.com", orderedByName: "Warehouse", ticketId: null, ticketNumber: null, jobId: null, jobName: null, clientId: null, clientName: null,
+      notes: null, receivedAt: received, createdAt: ordered, createdBy: "warehouse@example.com", createdByName: "Warehouse", updatedAt: received });
+    const m = new Map();
+    lines.forEach(([pid, q], i) => { const p = S.products.get(pid), lid = "stock--" + pid; m.set(lid, { id: lid, productId: pid, productName: productName(p), brand: p.brand || "", model: p.model || "", unit: p.unit, qtyOrdered: q, qtyShipped: q, qtyReceived: q, status: "received", eta: null,
+      ticketId: null, ticketNumber: null, ticketLineId: null, ticketArea: null, jobName: null, clientName: null, note: null, sort: i + 1, receivedAt: received, createdAt: ordered, updatedAt: received }); });
+    S.olines.set(id, m); S.olinesLoaded.add(id); S.orders.get(id).summary = orderSummaryOf(Array.from(m.values()));
+    const sid = "dship" + id;
+    S.shipments.set(sid, { id: sid, orderId: id, orderNumber: id, vendor, carrier, tracking, trackingUrl: trackUrl(carrier, tracking), status: "received", shippedAt: new Date(ordered.getTime() + day), expectedAt: received, deliveredAt: received, receivedAt: received,
+      receivedBy: "warehouse@example.com", receivedByName: "Warehouse", lines: Array.from(m.values()).map(l => ({ orderLineId: l.id, productName: l.productName, qty: l.qtyOrdered, qtyReceived: l.qtyOrdered })), createdAt: ordered, createdBy: "warehouse@example.com", createdByName: "Warehouse" });
+    return sid;
+  };
+  const s12 = PO("7712", "Northline Supply", "SO 4410215", mAt(-1, 3), mAt(-1, 8), [["leviton-61110-be6", 200], ["patch-cable-cat6-utp-patch-cable-rj45m-rj45m-blue-3ft", 24]], "UPS", "1Z999AA10123450012");
+  const s19 = PO("7719", "Keystone Distribution", "KD-20577", mAt(-1, 14), mAt(-1, 18), [["patch-cable-hdmi-patch-hdmim-hdmim-black-6ft", 12], ["patch-cable-power-cable-edison-m-c13-f-black-6ft", 10]], "FedEx", "748912340019");
+  const s24 = PO("7724", "Harbor AV Supply", "HAV-5490", mAt(0, 0, 9), mAt(0, 3), [["connector-xlr-female-3", 10], ["splitter-2-way-coaxial-splitter-coaxial-m-1-coaxial-m-2", 6]], "USPS", "9400111899223344550024");
+  /* 7716: ordered last month for stock and still open, its camera line backordered, so Aging has an old PO */
+  S.orders.set("7716", { id: "7716", number: "7716", vendor: "Northline Supply", orderNumber: "SO 4410388", status: "ordered", orderedAt: mAt(-1, 11), orderedBy: "warehouse@example.com", orderedByName: "Warehouse", ticketId: null, ticketNumber: null, jobId: null, jobName: null,
+    clientId: null, clientName: null, notes: null, receivedAt: null, createdAt: mAt(-1, 11), createdBy: "warehouse@example.com", createdByName: "Warehouse", updatedAt: mAt(-1, 11) });
+  const ax = S.products.get("axis-m3065-v"), axl = { id: "stock--axis-m3065-v", productId: ax.id, productName: productName(ax), brand: ax.brand, model: ax.model, unit: "each", qtyOrdered: 2, qtyShipped: 0, qtyReceived: 0, status: "backordered",
+    eta: new Date(now.getTime() + 8 * day), ticketId: null, ticketNumber: null, ticketLineId: null, ticketArea: null, jobName: null, clientName: null, note: "Vendor says early next month", sort: 1, createdAt: mAt(-1, 11), updatedAt: mAt(-1, 13) };
+  S.olines.set("7716", new Map([[axl.id, axl]])); S.olinesLoaded.add("7716"); S.orders.get("7716").summary = orderSummaryOf([axl]);
+  const k17 = { ticketId: "1017", ticketNumber: "1017", jobName: job.name };
+  const k31 = { ticketId: "1031", ticketNumber: "1031", jobName: "Harbor clinic network" };
+  const k39 = { ticketId: "1039", ticketNumber: "1039", jobName: "Waiting room TVs" };
+  const k42 = { ticketId: "1042", ticketNumber: "1042", jobName: "Lakeview office refresh" };
+  const u1031 = ticketLines("1031"), l31 = pid => (u1031.find(l => l.productId === pid) || {}).id || null;
+  const l39 = pid => (ticketLines("1039").find(l => l.productId === pid) || {}).id || null;
+  const l42 = pid => (ticketLines("1042").find(l => l.productId === pid) || {}).id || null;
+  const add = [
+    ["edit", mAt(-1, 2), "Warehouse", Object.assign({ note: "Ticket #1017 created from CSV, 3 lines" }, k17)],
+    ["edit", mAt(-1, 3), "Warehouse", { orderId: "7712", orderNumber: "7712", note: "PO 7712 marked ordered with Northline Supply, vendor order SO 4410215" }],
+    ["checkout", mAt(-1, 5), "Lead tech", Object.assign({ productId: "sonos-amp", itemId: "h4n6v8b2c3", itemLabel: "V8B2C3", qty: 1, fromLocationId: "warehouse", holderName: "Lead tech" }, k17)],
+    ["pick", mAt(-1, 6), "Warehouse", Object.assign({ productId: "patch-cable-hdmi-patch-hdmim-hdmim-black-6ft", qty: 4, fromLocationId: "storage-room--rca-av-video", toLocationId: "bay-3", ticketLineId: tl["patch-cable-hdmi-patch-hdmim-hdmim-black-6ft"] }, k17)],
+    ["pick", mAt(-1, 6, 11), "Warehouse", Object.assign({ productId: "connector-xlr-female-3", qty: 6, fromLocationId: "storage-room--rca-av-video", toLocationId: "bay-3", ticketLineId: tl["connector-xlr-female-3"] }, k17)],
+    ["pick", mAt(-1, 6, 12), "Warehouse", Object.assign({ productId: "middle-atlantic-u2v", qty: 1, fromLocationId: "warehouse", toLocationId: "bay-3", ticketLineId: tl["middle-atlantic-u2v"] }, k17)],
+    ["receive", mAt(-1, 8), "Warehouse", { productId: "leviton-61110-be6", qty: 200, toLocationId: "warehouse", orderId: "7712", orderNumber: "7712", shipmentId: s12, note: "Received on PO 7712, UPS 1Z999AA10123450012" }],
+    ["receive", mAt(-1, 8, 11), "Warehouse", { productId: "patch-cable-cat6-utp-patch-cable-rj45m-rj45m-blue-3ft", qty: 24, toLocationId: "storage-room--patch-cables", orderId: "7712", orderNumber: "7712", shipmentId: s12, note: "Received on PO 7712, UPS 1Z999AA10123450012" }],
+    ["cut", mAt(-1, 9), "Lead tech", Object.assign({ productId: "wire-cat5e-riser-244-gray", containerId: "c926", containerLabel: "C926", qty: -260, toLocationId: "warehouse", cut: { fromMark: 1000, toMark: 740, length: 260 } }, k17)],
+    ["deliver", mAt(-1, 10), "Lead tech", Object.assign({ productId: "patch-cable-hdmi-patch-hdmim-hdmim-black-6ft", qty: 4, fromLocationId: "bay-3", holderName: "Lead tech", ticketLineId: tl["patch-cable-hdmi-patch-hdmim-hdmim-black-6ft"] }, k17)],
+    ["deliver", mAt(-1, 10, 11), "Lead tech", Object.assign({ productId: "connector-xlr-female-3", qty: 6, fromLocationId: "bay-3", holderName: "Lead tech", ticketLineId: tl["connector-xlr-female-3"] }, k17)],
+    ["deliver", mAt(-1, 10, 12), "Lead tech", Object.assign({ productId: "middle-atlantic-u2v", qty: 1, fromLocationId: "bay-3", holderName: "Lead tech", ticketLineId: tl["middle-atlantic-u2v"] }, k17)],
+    ["checkin", mAt(-1, 12), "Lead tech", Object.assign({ productId: "sonos-amp", itemId: "h4n6v8b2c3", itemLabel: "V8B2C3", qty: 1, toLocationId: "warehouse", condition: "good", holderName: "Lead tech" }, k17)],
+    ["edit", mAt(-1, 11), "Warehouse", { orderId: "7716", orderNumber: "7716", note: "PO 7716 marked ordered with Northline Supply, vendor order SO 4410388" }],
+    ["edit", mAt(-1, 13), "Warehouse", { orderId: "7716", orderNumber: "7716", note: "Axis M3065-V backordered on PO 7716" }],
+    ["edit", mAt(-1, 14), "Warehouse", { orderId: "7719", orderNumber: "7719", note: "PO 7719 marked ordered with Keystone Distribution, vendor order KD-20577" }],
+    ["checkout", mAt(-1, 15), "Tech", { productId: "ubiquiti-udm-se", itemId: "p8r2w5t1z9", itemLabel: "F09FC2A1B3C4", qty: 1, fromLocationId: "warehouse", holderName: "Tech", jobName: "Van stock" }],
+    ["cut", mAt(-1, 16), "Tech", Object.assign({ productId: "wire-cat5e-riser-244-gray", containerId: "c926", containerLabel: "C926", qty: -150, toLocationId: "warehouse", cut: { fromMark: 740, toMark: 590, length: 150 } }, k31)],
+    ["receive", mAt(-1, 18), "Warehouse", { productId: "patch-cable-hdmi-patch-hdmim-hdmim-black-6ft", qty: 12, toLocationId: "storage-room--rca-av-video", orderId: "7719", orderNumber: "7719", shipmentId: s19, note: "Received on PO 7719, FedEx 748912340019" }],
+    ["receive", mAt(-1, 18, 11), "Warehouse", { productId: "patch-cable-power-cable-edison-m-c13-f-black-6ft", qty: 10, toLocationId: "storage-room--patch-cables", orderId: "7719", orderNumber: "7719", shipmentId: s19, note: "Received on PO 7719, FedEx 748912340019" }],
+    ["edit", mAt(-1, 20), "Warehouse", Object.assign({ note: "Ticket #1017 closed" }, k17)],
+    ["checkin", mAt(-1, 22), "Tech", { productId: "ubiquiti-udm-se", itemId: "p8r2w5t1z9", itemLabel: "F09FC2A1B3C4", qty: 1, toLocationId: "warehouse", condition: "good", holderName: "Tech", jobName: "Van stock" }],
+    ["edit", mAt(0, 0, 9), "Warehouse", { orderId: "7724", orderNumber: "7724", note: "PO 7724 marked ordered with Harbor AV Supply, vendor order HAV-5490" }],
+    ["cut", mAt(0, 0, 15), "Lead tech", Object.assign({ productId: "wire-coaxial-rg6-white", containerId: "d926", containerLabel: "D926", qty: -60, cut: { fromMark: 400, toMark: 340, length: 60 } }, k39)],
+    ["receive", mAt(0, 3), "Warehouse", { productId: "connector-xlr-female-3", qty: 10, toLocationId: "storage-room--rca-av-video", orderId: "7724", orderNumber: "7724", shipmentId: s24, note: "Received on PO 7724, USPS 9400111899223344550024" }],
+    ["receive", mAt(0, 3, 11), "Warehouse", { productId: "splitter-2-way-coaxial-splitter-coaxial-m-1-coaxial-m-2", qty: 6, toLocationId: "storage-room--rca-av-video", orderId: "7724", orderNumber: "7724", shipmentId: s24, note: "Received on PO 7724, USPS 9400111899223344550024" }],
+    ["deliver", ago(20, 30), "Tech", Object.assign({ productId: "ubiquiti-usw-24-poe", qty: 1, fromLocationId: "bay-1", holderName: "Tech", ticketLineId: l31("ubiquiti-usw-24-poe"), note: "1 serialized unit checked out to Tech" }, k31)],
+    ["deliver", ago(20, 31), "Tech", Object.assign({ productId: "leviton-61110-be6", qty: 12, fromLocationId: "bay-1", holderName: "Tech", ticketLineId: l31("leviton-61110-be6") }, k31)],
+    ["deliver", ago(4, 1), "Tech", Object.assign({ productId: "ubiquiti-u6-pro", qty: 1, fromLocationId: "bay-2", holderName: "Tech", ticketLineId: l42("ubiquiti-u6-pro"), note: "1 serialized unit checked out to Tech" }, k42)],
+    ["deliver", ago(2), "Tech", Object.assign({ productId: "patch-cable-hdmi-patch-hdmim-hdmim-black-6ft", qty: 2, fromLocationId: "bay-3", holderName: "Tech", ticketLineId: l39("patch-cable-hdmi-patch-hdmim-hdmim-black-6ft") }, k39)],
+    ["deliver", ago(2, 1), "Tech", Object.assign({ productId: "patch-cable-power-cable-edison-m-c13-f-black-6ft", qty: 2, fromLocationId: "bay-3", holderName: "Tech", ticketLineId: l39("patch-cable-power-cable-edison-m-c13-f-black-6ft") }, k39)]
+  ];
+  add.forEach(([type, at, by, f], i) => {
+    const p = f.productId ? S.products.get(f.productId) : null;
+    S.movements.push(Object.assign({ id: "dc" + i, type, productName: p ? productName(p) : null, by: by.toLowerCase().replace(/\s+/g, "") + "@example.com", byName: by, at,
+      fromLocationName: f.fromLocationId ? locName(f.fromLocationId) : null, toLocationName: f.toLocationId ? locName(f.toLocationId) : null, unit: p ? p.unit : null }, f));
   });
   S.movements.sort((a, b) => b.at - a.at);
 }
@@ -2339,8 +2483,10 @@ function render(force) {
   let s0 = null, s1 = null; try { if (fid) { s0 = ae.selectionStart; s1 = ae.selectionEnd; } } catch (e) {}
   const navView = S.view === "ticket" ? "tickets" : S.view === "order" ? "orders" : S.view;
   /* the phone tab bar keeps Orders, Tracking, and Items under More */
-  const tabView = ["orders", "tracking", "items"].includes(navView) ? "more" : navView;
+  const tabView = ["orders", "tracking", "items", "console"].includes(navView) ? "more" : navView;
   const mark = (b, on) => { b.classList.toggle("on", on); if (on) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current"); };
+  /* the Console link shows for admin and accounting only (PLAN 4) */
+  $$('.nav [data-go="console"]').forEach(b => b.hidden = !canConsole());
   $$(".nav [data-go]").forEach(b => mark(b, b.dataset.go === navView));
   $$(".tabbar [data-go]").forEach(b => mark(b, b.dataset.go === tabView));
   $$(".view").forEach(v => v.hidden = v.id !== "v-" + S.view);
@@ -2355,10 +2501,13 @@ function render(force) {
   else if (S.view === "tracking") renderTracking();
   else if (S.view === "week") renderWeek();
   else if (S.view === "more") renderMore(force);
+  else if (S.view === "console") renderConsole(force);
   if (fid) { const el = document.getElementById(fid); if (el && el !== document.activeElement) { el.focus(); try { if (s0 != null) el.setSelectionRange(s0, s1); } catch (e) {} } }
 }
 function go(view, sub) {
+  [view, sub] = routeAlias(view, sub);
   if (S.view === "scan" && view !== "scan") stopCamera();
+  if (sub && view === "console") S.consoleTab = sub;
   if (S.x && (xView(S.x.kind) !== view || sub)) S.x = null;
   S.view = view;
   if (view === "ticket") { S.ticketId = sub || S.ticketId; if (DB) DB.syncLines(); }
@@ -3150,7 +3299,8 @@ function boardHTML() {
   const d = S.boardDraft || (S.boardDraft = Object.assign({}, DEFAULT_BOARD, S.board, { ticketIds: (S.board.ticketIds || []).slice() }));
   const pinned = d.ticketIds.map(id => S.tickets.get(id)).filter(Boolean), avail = openTickets().filter(t => !d.ticketIds.includes(t.id));
   const url = "?" + (DEMO ? "demo=1&" : "") + "board=1";
-  return '<p class="hint" style="margin-top:0">What the warehouse TV shows. Open the board URL full screen on the TV\'s browser, signed in as the board account; nothing is set on the TV itself.</p>' +
+  /* 0.4.0: a section of the Console's Settings tab; the one Save there writes it with the rest */
+  return '<div class="setsect" id="bdSect"><h3>Wall board</h3><p class="hint" style="margin-top:0">What the warehouse TV shows. Open the board URL full screen on the TV\'s browser, signed in as the board account (its role is set under People); nothing is set on the TV itself.</p>' +
     '<div class="grid2"><div><label class="lab" for="bdMode" title="Pinned shows only the tickets listed below. All open rotates through every ticket that still has picking to do. Today follows the Week view: the tickets whose install date is today.">' + '<abbr>Shows</abbr></label><select class="fld" id="bdMode"><option value="pinned"' + (d.mode !== "all_open" && d.mode !== "today" ? " selected" : "") + '>Pinned tickets</option><option value="all_open"' + (d.mode === "all_open" ? " selected" : "") + '>Every open ticket</option><option value="today"' + (d.mode === "today" ? " selected" : "") + ">Today's tickets, from the Week view</option></select></div>" +
     '<div><label class="lab" for="bdRotate" title="Seconds each ticket stays up before the next one. A thin bar along the top shows when it will flip.">' + '<abbr>Rotate every (seconds)</abbr></label><input class="fld n" id="bdRotate" type="number" min="5" max="600" step="1" value="' + num(d.rotateSec) + '"></div>' +
     '<div><label class="lab" for="bdGroup" title="By shelf makes the board the pick path: lines in the walking order of the rack labels.">' + '<abbr>Group lines by</abbr></label><select class="fld" id="bdGroup"><option value="location"' + (d.groupBy !== "area" ? " selected" : "") + '>Shelf to pull from</option><option value="area"' + (d.groupBy === "area" ? " selected" : "") + ">Area on the proposal</option></select></div>" +
@@ -3159,12 +3309,14 @@ function boardHTML() {
     '<div class="sect"><h4 class="h4">Pinned tickets, in rotation order</h4>' + (pinned.length ? '<ul class="collist">' + pinned.map((t, i) => '<li><span style="flex:1;min-width:0"><b>#' + esc(t.number) + "</b> " + esc(tkWho(t)) + (t.status === "closed" ? ' <span class="st">Closed, skipped</span>' : "") + "</span>" +
       '<button type="button" class="btn sm" data-bdup="' + i + '" aria-label="Move #' + esc(t.number) + ' up"' + (i === 0 ? " disabled" : "") + '>Up</button><button type="button" class="btn sm" data-bddown="' + i + '" aria-label="Move #' + esc(t.number) + ' down"' + (i === pinned.length - 1 ? " disabled" : "") + '>Down</button><button type="button" class="btn sm" data-bdrm="' + esc(t.id) + '" aria-label="Unpin #' + esc(t.number) + '">Unpin</button></li>').join("") + "</ul>" : '<p class="hint" style="margin-top:0">Nothing pinned. The board says so until a ticket is pinned here or with Show on board.</p>') +
     (avail.length ? '<div class="manual"><label class="sr" for="bdAdd">Ticket to pin</label><select class="fld" id="bdAdd"><option value="">Choose an open ticket</option>' + avail.map(t => '<option value="' + esc(t.id) + '">#' + esc(t.number) + " " + esc(tkWho(t)) + "</option>").join("") + '</select><button type="button" class="btn" data-act="bdPin">Pin</button></div>' : "") + "</div>" +
-    '<p class="err" id="bdErr" hidden></p><div class="btnrow"><button type="button" class="btn acc" data-act="bdSave">Save board settings</button><button type="button" class="btn" data-act="bdReset" title="Back to what is saved now">Undo changes</button><a class="btn" href="' + url + '" target="_blank" rel="noopener">Open the board</a></div>' +
-    (S.board.updatedByName ? '<p class="hint">Last changed by ' + esc(S.board.updatedByName) + (S.board.updatedAt ? " on " + fmtWhen(S.board.updatedAt) : "") + ".</p>" : "");
+    '<div class="btnrow"><a class="btn" href="' + url + '" target="_blank" rel="noopener" title="Opens the board in a new tab, the way the TV shows it">Open the board</a></div>' +
+    (S.board.updatedByName ? '<p class="hint">Board last changed by ' + esc(S.board.updatedByName) + (S.board.updatedAt ? " on " + fmtWhen(S.board.updatedAt) : "") + ".</p>" : "") + "</div>";
 }
+/* the board fields and the rest of Settings keep what is typed through a redraw (pin, unpin, reorder) */
 function readBoardForm() {
-  const d = S.boardDraft, f = $("#v-more");
-  d.mode = $("#bdMode", f).value; d.rotateSec = Math.round(num($("#bdRotate", f).value)); d.groupBy = $("#bdGroup", f).value; d.theme = $("#bdTheme", f).value; d.showStaged = $("#bdStaged", f).checked;
+  const d = S.boardDraft; if (!d || !$("#bdMode")) return;
+  d.mode = $("#bdMode").value; d.rotateSec = Math.round(num($("#bdRotate").value)); d.groupBy = $("#bdGroup").value; d.theme = $("#bdTheme").value; d.showStaged = $("#bdStaged").checked;
+  readGeneralForm();
 }
 
 /* ---------------- scan helpers ---------------- */
@@ -4021,10 +4173,12 @@ function wkCard(t) {
     '<div class="tcp"><span class="n">' + s.staged + " of " + s.lines + "</span> staged</div>" +
     (loaded ? (lines.length ? '<ul class="lines">' + lines.slice(0, 8).map(lineHTML).join("") + "</ul>" + (lines.length > 8 ? '<button type="button" class="textbtn wmore" data-act="ticket" data-id="' + esc(t.id) + '">and ' + (lines.length - 8) + " more</button>" : "") : '<p class="hint" style="margin:0">No lines yet.</p>') : '<p class="hint" style="margin:0">Lines load when the ticket opens.</p>') + "</div>";
 }
+/* a person's own Work week choice wins; otherwise the shop default from Settings (0.4.0) */
+function wwOn() { return S.prefs.workWeek != null ? !!S.prefs.workWeek : !!S.general.workWeek; }
 function renderWeek() {
   const el = $("#v-week"), today = new Date(), tIso = isoDay(today), W = isWriter();
   const ws = addDays(weekStartOf(today), S.weekOff * 7), days = Array.from({ length: 7 }, (_, i) => addDays(ws, i)), last = days[6];
-  const ww = !!S.prefs.workWeek, isWknd = d => d.getDay() === 0 || d.getDay() === 6;
+  const ww = wwOn(), isWknd = d => d.getDay() === 0 || d.getDay() === 6;
   const by = new Map(days.map(d => [isoDay(d), []]));
   const all = Array.from(S.tickets.values());
   all.forEach(t => { const k = installDay(t); if (by.has(k)) by.get(k).push(t); });
@@ -4091,6 +4245,7 @@ function curHash() {
   if (v === "stock") return S.x && S.x.kind === "p" ? "#stock/p/" + e(S.x.id) : S.x && S.x.kind === "l" ? "#stock/l/" + e(S.x.id) : "#stock/" + S.stockTab;
   if (v === "items") return S.x && S.x.kind === "i" ? "#items/i/" + e(S.x.id) : "#items/" + S.itemsTab;
   if (v === "more") return "#more/" + S.moreTab;
+  if (v === "console") return "#console/" + S.consoleTab + (S.consoleTab === "reports" ? "/" + S.repTab : "");
   if (v === "week") return "#week" + (S.weekOff ? "/" + isoDay(addDays(weekStartOf(new Date()), S.weekOff * 7)) : "");
   return "#" + v;
 }
@@ -4860,37 +5015,53 @@ async function nudge(it) {
 /* ==============================================================
    MORE VIEW: Movements, Labels, Import, Settings, People, Export
    ============================================================== */
+/* 0.4.0: Settings, People, Board, and Export everything moved to the Console.
+   More keeps links to them; About and Export stay here for the roles that
+   have no Console, so everyone can still read the dictionary and export. */
 function moreTabs() {
   const t = [["movements", "Movements"], ["clients", "Clients"], ["jobs", "Jobs"], ["labels", "Labels"]];
-  if (isAdmin()) t.push(["board", "Board"], ["import", "Import inventory sheet"], ["settings", "Settings"], ["people", "People"]);
-  t.push(["export", "Export everything"]);
+  if (isAdmin()) t.push(["import", "Import inventory sheet"]);
+  if (!canConsole()) t.push(["about", "About"], ["export", "Export everything"]);
   return t;
+}
+/* old links (#more/settings and the like) land on the same screen in the Console */
+function routeAlias(view, sub) {
+  if (view !== "more") return [view, sub];
+  if (isAdmin() && (sub === "settings" || sub === "board")) return ["console", "settings"];
+  if (isAdmin() && sub === "people") return ["console", "people"];
+  if (canConsole() && (sub === "export" || sub === "about")) return ["console", sub];
+  return [view, sub];
+}
+function consoleLinks() {
+  if (!canConsole()) return "";
+  const b = (sub, label, tip) => '<button type="button" class="btn sm" data-act="go" data-view="console" data-sub="' + sub + '" title="' + esc(tip) + '">' + label + "</button>";
+  return '<div class="clinks"><span class="h4">Console</span>' + b("reports", "Reports", "Stock value, spend, deliveries, items out, wire usage, movements, aging") +
+    (isAdmin() ? b("people", "People", "Roles, newcomers, deactivate") + b("settings", "Settings", "Costs, QR threshold, carriers, labels, box lengths, vendors") +
+      '<button type="button" class="btn sm" data-act="toBoard" title="The wall board settings, at the end of the Console Settings tab">Board</button>' : "") +
+    b("about", "About", "The data dictionary") + b("export", "Export everything", "Every collection as a workbook or zipped CSVs") + "</div>";
 }
 let _moreBuilt = "";
 function renderMore(force) {
   const el = $("#v-more");
   const tabs = moreTabs();
   if (!tabs.some(t => t[0] === S.moreTab)) S.moreTab = "movements";
-  /* forms keep what is typed: Settings and Import only redraw when asked to */
-  if (!force && _moreBuilt === S.moreTab && (S.moreTab === "settings" || S.moreTab === "import" || S.moreTab === "board")) return;
-  if (S.moreTab === "board" && _moreBuilt !== "board") S.boardDraft = null;
+  /* forms keep what is typed: Import only redraws when asked to */
+  if (!force && _moreBuilt === S.moreTab && S.moreTab === "import") return;
   _moreBuilt = S.moreTab;
   let html = '<div class="mcard"><div class="thead"><h2 class="vt">More</h2></div>' +
-    '<div class="btnrow phoneonly" style="margin:0 0 12px"><button type="button" class="btn" data-go="orders">Orders</button><button type="button" class="btn" data-go="tracking">Tracking</button><button type="button" class="btn" data-go="items">Items</button></div>' +
+    '<div class="btnrow phoneonly" style="margin:0 0 12px"><button type="button" class="btn" data-go="orders">Orders</button><button type="button" class="btn" data-go="tracking">Tracking</button><button type="button" class="btn" data-go="items">Items</button>' + (canConsole() ? '<button type="button" class="btn" data-go="console">Console</button>' : "") + "</div>" +
+    consoleLinks() +
     '<div class="toolbar"><div class="seg" role="tablist" aria-label="More">' +
     tabs.map(([k, l]) => '<button type="button" role="tab" aria-selected="' + (S.moreTab === k) + '" class="' + (S.moreTab === k ? "on" : "") + '" data-act="moreTab" data-tab="' + k + '">' + l + "</button>").join("") + "</div></div>";
   if (S.moreTab === "movements") html += movementsHTML();
   else if (S.moreTab === "clients") html += clientsHTML();
   else if (S.moreTab === "jobs") html += jobsHTML();
-  else if (S.moreTab === "board") html += boardHTML();
   else if (S.moreTab === "labels") html += labelsHTML();
   else if (S.moreTab === "import") html += importHTML();
-  else if (S.moreTab === "settings") html += settingsHTML();
-  else if (S.moreTab === "people") html += peopleHTML();
+  else if (S.moreTab === "about") html += aboutHTML();
   else if (S.moreTab === "export") html += exportHTML();
   el.innerHTML = html + "</div>";
   wireGlow(el); wireMoney(el);
-  if (S.moreTab === "settings") bindSettings(el);
   if (S.moreTab === "import") bindImport(el);
 }
 
@@ -4999,21 +5170,41 @@ function closePreview() {
   $("#printSheet").innerHTML = ""; $("#printSheet").setAttribute("aria-hidden", "true");
 }
 
-/* ---------------- settings (admin) ---------------- */
+/* ---------------- settings (admin, Console) ---------------- */
+/* What is typed lives in S.genDraft and S.boardDraft, so pinning a ticket
+   on the board part redraws the tab without losing the rest. */
+function genDraft() {
+  if (!S.genDraft) { const g = S.general; S.genDraft = { showCosts: !!g.showCosts, qrThreshold: num(g.qrThreshold).toFixed(2), weekStart: num(g.weekStart), labelSize: g.labelSize === "5163" ? "5163" : "5160", workWeek: !!g.workWeek,
+    boxStart: Object.assign({}, DEFAULT_GENERAL.boxStart, g.boxStart || {}), carriers: (g.carriers || []).map(c => ({ name: c.name || "", url: c.url || "" })), vendors: (g.vendors || []).join("\n") }; }
+  return S.genDraft;
+}
+function readGeneralForm() {
+  const d = S.genDraft; if (!d || !$("#setThr")) return;
+  d.showCosts = $("#setCosts").checked; d.qrThreshold = $("#setThr").value; d.weekStart = num($("#setWeek").value); d.labelSize = $("#setLabel").value; d.workWeek = $("#setWw").checked;
+  BOX_TYPES.forEach(b => { d.boxStart[b.k] = $("#bs_" + b.k).value; });
+  d.carriers = $$("[data-car]").map(r => ({ name: $$("input", r)[0].value, url: $$("input", r)[1].value }));
+  d.vendors = $("#setVendors").value;
+}
 function settingsHTML() {
-  const g = S.general;
-  return '<p class="hint" style="margin-top:0">Shared by everyone. Only admins change these.</p>' +
-    '<label class="chk" title="Off by default: the warehouse does not need prices. On shows cost fields on products and receiving."><input type="checkbox" id="setCosts"' + (g.showCosts ? " checked" : "") + "> Show costs</label>" +
-    '<div class="grid2"><div><label class="lab" for="setThr" title="A unit received at or above this cost gets its own QR and record, so it can be followed one by one.">' + '<abbr>QR threshold</abbr></label><div class="money"><input class="fld" id="setThr" data-money inputmode="decimal" value="' + num(g.qrThreshold).toFixed(2) + '"></div></div>' +
+  const g = genDraft(), pt = S.portal || {};
+  if (!S.boardDraft) S.boardDraft = Object.assign({}, DEFAULT_BOARD, S.board, { ticketIds: (S.board.ticketIds || []).slice() });
+  const tier = { t0: "T0, proposal CSV import", t1: "T1, Zapier intake", t2: "T2, Portal API" }[pt.tier || "t0"] || pt.tier;
+  return '<p class="hint" style="margin-top:0">Shared by everyone. Only admins change these. One Save writes the whole tab, wall board included.</p>' +
+    '<div class="setsect" style="margin-top:8px;border-top:0;padding-top:0"><h3>General</h3>' +
+    '<label class="chk" title="Off by default: the warehouse does not need prices. On shows cost fields on products and receiving, and values in the Console reports."><input type="checkbox" id="setCosts"' + (g.showCosts ? " checked" : "") + "> Show costs</label>" +
+    '<div class="grid2"><div><label class="lab" for="setThr" title="A unit received at or above this cost gets its own QR and record, so it can be followed one by one.">' + '<abbr>QR threshold</abbr></label><div class="money"><input class="fld" id="setThr" data-money inputmode="decimal" value="' + esc(g.qrThreshold) + '"></div></div>' +
     '<div><label class="lab" for="setWeek" title="The first day of each block of seven in the Week view and the Movements week buttons">' + '<abbr>Week starts on</abbr></label><select class="fld" id="setWeek"><option value="0"' + (num(g.weekStart) !== 1 ? " selected" : "") + '>Sunday</option><option value="1"' + (num(g.weekStart) === 1 ? " selected" : "") + ">Monday</option></select></div>" +
-    '<div><label class="lab" for="setLabel">Default label sheet</label><select class="fld" id="setLabel"><option value="5160"' + (g.labelSize !== "5163" ? " selected" : "") + '>Avery 5160</option><option value="5163"' + (g.labelSize === "5163" ? " selected" : "") + ">2 x 4 in</option></select></div></div>" +
-    '<div class="sect"><h4 class="h4" title="Used when a new box is received or imported. A box whose feet left is already higher takes its feet left as the start.">Box start length by cable type (ft)</h4><div class="grid3">' +
-      BOX_TYPES.map(b => '<div><label class="lab" for="bs_' + b.k + '">' + esc(b.label) + '</label><input class="fld n" id="bs_' + b.k + '" type="number" min="1" value="' + num(g.boxStart[b.k]) + '"></div>').join("") + "</div></div>" +
-    '<div class="sect"><h4 class="h4">Carriers</h4><p class="hint" style="margin-top:0">The tracking link on each shipment. Put {n} where the tracking number goes. The names UPS, FedEx, and USPS are the ones the carrier guess picks.</p><div id="carRows">' +
-      (g.carriers || []).map((c, i) => carrierRow(c, i)).join("") + '</div><button type="button" class="btn sm" id="carAdd">Add carrier</button></div>' +
-    '<div class="sect"><label class="lab" for="setVendors" title="The vendor list for purchase orders. The inventory sheet import adds the vendor columns from its pricing tab.">' + '<abbr>Vendors</abbr></label><textarea class="fld" id="setVendors" placeholder="One per line">' + esc((g.vendors || []).join("\n")) + "</textarea></div>" +
-    '<p class="err" id="setErr" hidden></p><div class="btnrow"><button type="button" class="btn acc" id="setSave">Save settings</button></div>' +
-    (g.updatedByName ? '<p class="hint">Last changed by ' + esc(g.updatedByName) + (g.updatedAt ? " on " + fmtWhen(g.updatedAt) : "") + ".</p>" : "");
+    '<div><label class="lab" for="setLabel" title="The sheet the Labels tab starts on. Anyone can switch sheets when they print.">' + '<abbr>Default label sheet</abbr></label><select class="fld" id="setLabel"><option value="5160"' + (g.labelSize !== "5163" ? " selected" : "") + '>Avery 5160</option><option value="5163"' + (g.labelSize === "5163" ? " selected" : "") + ">2 x 4 in</option></select></div></div>" +
+    '<label class="chk" title="How the Week view opens for anyone who has not chosen for themselves. A person\'s own Work week button still wins on their devices."><input type="checkbox" id="setWw"' + (g.workWeek ? " checked" : "") + "> Week view hides the weekend by default (Work week)</label></div>" +
+    '<div class="setsect"><h3 title="Used when a new box is received or imported. A box whose feet left is already higher takes its feet left as the start.">Box start length by cable type (ft)</h3><div class="grid3">' +
+      BOX_TYPES.map(b => '<div><label class="lab" for="bs_' + b.k + '">' + esc(b.label) + '</label><input class="fld n" id="bs_' + b.k + '" type="number" min="1" value="' + esc(g.boxStart[b.k]) + '"></div>').join("") + "</div></div>" +
+    '<div class="setsect"><h3>Carriers</h3><p class="hint" style="margin-top:0">The tracking link on each shipment. Put {n} where the tracking number goes. The names UPS, FedEx, and USPS are the ones the carrier guess picks.</p><div id="carRows">' +
+      g.carriers.map((c, i) => carrierRow(c, i)).join("") + '</div><button type="button" class="btn sm" id="carAdd">Add carrier</button></div>' +
+    '<div class="setsect"><h3>Vendors</h3><label class="lab" for="setVendors" title="The vendor list for purchase orders. The inventory sheet import adds the vendor columns from its pricing tab, and a vendor typed on a PO joins it too.">' + '<abbr>One per line</abbr></label><textarea class="fld" id="setVendors" placeholder="One per line">' + esc(g.vendors) + "</textarea></div>" +
+    '<div class="setsect"><h3>Portal</h3><p class="hint" style="margin-top:0">Tier: ' + esc(tier) + ". " + (pt.lastPollAt ? "Last sync " + esc(fmtWhen(pt.lastPollAt)) + "." : "No automatic sync yet; proposals arrive by CSV import.") + " The tier changes when loadout-worker arrives (PLAN section 6).</p></div>" +
+    boardHTML() +
+    '<p class="err" id="setErr" hidden></p><div class="btnrow"><button type="button" class="btn acc" id="setSave">Save settings</button><button type="button" class="btn" data-act="bdReset" title="Back to what is saved now, on every part of this tab">Undo changes</button></div>' +
+    (S.general.updatedByName ? '<p class="hint">General settings last changed by ' + esc(S.general.updatedByName) + (S.general.updatedAt ? " on " + fmtWhen(S.general.updatedAt) : "") + ".</p>" : "");
 }
 function carrierRow(c, i) {
   return '<div class="grid2" data-car><div><label class="lab" for="carN' + i + '">Name</label><input class="fld" id="carN' + i + '" value="' + esc(c.name) + '"></div><div><label class="lab" for="carU' + i + '">Tracking URL</label><input class="fld mono" id="carU' + i + '" value="' + esc(c.url) + '"></div></div>';
@@ -5021,59 +5212,87 @@ function carrierRow(c, i) {
 function bindSettings(el) {
   $("#carAdd", el).addEventListener("click", () => { const w = $("#carRows", el); const i = w.children.length; w.insertAdjacentHTML("beforeend", carrierRow({ name: "", url: "" }, i)); $("#carN" + i, el).focus(); });
   $("#setSave", el).addEventListener("click", async () => {
-    const thr = Number($("#setThr", el).value.replace(/[$,]/g, "")), err = $("#setErr", el);
-    if (!Number.isFinite(thr) || thr < 0) { err.textContent = "The QR threshold must be a number, zero or more."; err.hidden = false; return; }
-    const boxStart = {}; for (const b of BOX_TYPES) { const v = num($("#bs_" + b.k, el).value); if (v <= 0) { err.textContent = "Every start length must be more than zero."; err.hidden = false; return; } boxStart[b.k] = v; }
-    const carriers = $$("[data-car]", el).map(r => ({ name: $$("input", r)[0].value.trim(), url: $$("input", r)[1].value.trim() })).filter(c => c.name);
-    const vendors = $("#setVendors", el).value.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+    readBoardForm();
+    const g = S.genDraft, b = S.boardDraft, err = $("#setErr", el);
+    const fail = m => { err.textContent = m; err.hidden = false; err.scrollIntoView({ block: "center" }); };
+    const thr = Number(String(g.qrThreshold).replace(/[$,]/g, ""));
+    if (!Number.isFinite(thr) || thr < 0) return fail("The QR threshold must be a number, zero or more.");
+    const boxStart = {}; for (const t of BOX_TYPES) { const v = num(g.boxStart[t.k]); if (v <= 0) return fail("Every start length must be more than zero."); boxStart[t.k] = v; }
+    if (!(b.rotateSec >= 5 && b.rotateSec <= 600)) return fail("Board rotation must be between 5 and 600 seconds.");
+    const carriers = g.carriers.map(c => ({ name: c.name.trim(), url: c.url.trim() })).filter(c => c.name);
+    const vendors = g.vendors.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
     err.hidden = true;
-    const ok = await DB.commit([{ op: "set", coll: "loadout_settings", id: "general", merge: true, data: { showCosts: $("#setCosts", el).checked, qrThreshold: thr, labelSize: $("#setLabel", el).value, weekStart: num($("#setWeek", el).value), boxStart, carriers, vendors, updatedBy: S.user.email, updatedByName: S.user.name, updatedAt: NOW } }], "settings");
-    if (ok) toast("Settings saved");
+    const who = { updatedBy: S.user.email, updatedByName: S.user.name, updatedAt: NOW };
+    const ok = await DB.commit([
+      { op: "set", coll: "loadout_settings", id: "general", merge: true, data: Object.assign({ showCosts: g.showCosts, qrThreshold: thr, labelSize: g.labelSize, weekStart: num(g.weekStart), workWeek: !!g.workWeek, boxStart, carriers, vendors }, who) },
+      { op: "set", coll: "loadout_settings", id: "board", merge: true, data: Object.assign({ mode: b.mode, ticketIds: b.ticketIds.slice(), rotateSec: b.rotateSec, groupBy: b.groupBy, showStaged: b.showStaged, theme: b.theme }, who) }
+    ], "settings");
+    if (ok) { S.genDraft = null; S.boardDraft = null; toast("Settings saved"); render(true); }
   });
 }
 
-/* ---------------- people (admin) ---------------- */
+/* ---------------- people (admin, Console) ---------------- */
 function peopleHTML() {
   if (S.errors.users) return errorBox("people", "users");
   if (!S.loaded.users) return skelTable([{ label: "Name" }, { label: "Email" }, { label: "Role" }], "Loading people");
   const list = Array.from(S.users.values());
   if (!list.length) return '<div class="empty"><p>Nobody has signed in yet.</p></div>';
+  const newN = list.filter(u => u.confirmed === false).length, offN = list.filter(u => u.active === false).length;
   const cols = [
     { k: "name", label: "Name", sort: u => (u.name || "").toLowerCase(), html: u => "<b>" + esc(u.name || "") + "</b>" + (u.confirmed === false ? ' <span class="st warn">New, confirm role</span>' : "") },
     { k: "email", label: "Email", text: u => u.email },
     { k: "role", label: "Role", sort: u => ROLE_LABEL[u.role] || u.role, html: u => '<span class="st' + (u.role === "admin" ? " info" : "") + '">' + esc(ROLE_LABEL[u.role] || u.role) + "</span>" },
-    { k: "active", label: "Status", sort: u => u.active === false ? 1 : 0, text: u => u.active === false ? "Paused" : "Active" },
+    { k: "active", label: "Status", sort: u => u.active === false ? 1 : 0, text: u => u.active === false ? "Deactivated" : "Active" },
     { k: "seen", label: "Last seen", sort: u => toDate(u.lastSeen), text: u => fmtWhen(u.lastSeen) },
     { k: "added", label: "Added", def: false, sort: u => toDate(u.addedAt), text: u => fmtDate(u.addedAt) + (u.addedBy ? ", " + u.addedBy : "") }
   ];
-  return '<p class="hint" style="margin-top:0">Anyone on the domain who signs in lands here as Tech. Confirm the role, or change it. Accounting and Board read everything and change nothing.</p>' +
-    tableHTML("people", cols, list, { defaultSort: (a, b) => (a.confirmed === false ? -1 : 0) - (b.confirmed === false ? -1 : 0) || String(a.name).localeCompare(String(b.name)),
+  return '<p class="hint" style="margin-top:0">Anyone on the domain who signs in lands here as Tech. Confirm the role, or change it. Accounting and Board read everything and change nothing; give the wall board TV\'s own account the Board role and it opens straight on the board. ' +
+      (newN ? newN + " new " + (newN > 1 ? "people wait" : "person waits") + " for a role. " : "") + (offN ? offN + " deactivated." : "") + "</p>" +
+    '<div class="thead"><span class="sp"><button type="button" class="btn sm" data-act="columns" data-tbl="people">Columns</button></span></div>' +
+    tableHTML("people", cols, list, { defaultSort: (a, b) => (a.confirmed === false ? -1 : 0) - (b.confirmed === false ? -1 : 0) || (a.active === false) - (b.active === false) || String(a.name).localeCompare(String(b.name)),
       rowClass: u => u.confirmed === false ? "need" : u.active === false ? "dim" : "",
-      actions: u => (u.confirmed === false ? '<button type="button" class="btn sm acc" data-act="confirmUser" data-id="' + esc(u.id) + '">Confirm as ' + esc(ROLE_LABEL[u.role] || u.role) + "</button>" : "") + '<button type="button" class="btn sm" data-act="editUser" data-id="' + esc(u.id) + '">Change</button>' });
+      actions: u => (u.confirmed === false ? '<button type="button" class="btn sm acc" data-act="confirmUser" data-id="' + esc(u.id) + '">Confirm as ' + esc(ROLE_LABEL[u.role] || u.role) + "</button>" : "") +
+        '<button type="button" class="btn sm" data-act="editUser" data-id="' + esc(u.id) + '">Change role</button>' +
+        '<button type="button" class="btn sm' + (u.active === false ? "" : " danger") + '" data-act="userActive" data-id="' + esc(u.id) + '">' + (u.active === false ? "Reactivate" : "Deactivate") + "</button>" });
+}
+function lastAdminBlock(u, role, active) {
+  const admins = Array.from(S.users.values()).filter(x => x.role === "admin" && x.active !== false && x.id !== u.id);
+  return u.role === "admin" && u.active !== false && (role !== "admin" || !active) && !admins.length;
 }
 function openUser(u) {
-  const body = '<p class="hint" style="margin-top:0">' + esc(u.name || "") + ", " + esc(u.email) + '</p><label class="lab" for="uRole" title="Admin: everything. Warehouse: receive, count, move, labels. Tech: scan, check out and in, box readings. Accounting and Board: read only.">' + '<abbr>Role</abbr></label><select class="fld" id="uRole">' +
-    ROLES.map(r => '<option value="' + r + '"' + (u.role === r ? " selected" : "") + ">" + ROLE_LABEL[r] + "</option>").join("") + '</select><label class="chk" title="A paused person can still sign in but can only read."><input type="checkbox" id="uActive"' + (u.active === false ? "" : " checked") + '> Active</label><p class="err" id="uErr" hidden></p>';
-  const w = openModal("Change person", body, '<button type="button" class="btn" data-close>Cancel</button><button type="button" class="btn acc" data-ok>Save</button>');
+  const body = '<p class="hint" style="margin-top:0">' + esc(u.name || "") + ", " + esc(u.email) + '</p><label class="lab" for="uRole" title="Admin: everything, plus the Console. Warehouse: receive, count, move, labels, tickets, orders. Tech: scan, check out and in, box readings, stage and deliver. Accounting: reads everything and the Console reports, changes nothing. Board: the wall board TV\'s own account.">' + '<abbr>Role</abbr></label><select class="fld" id="uRole">' +
+    ROLES.map(r => '<option value="' + r + '"' + (u.role === r ? " selected" : "") + ">" + ROLE_LABEL[r] + "</option>").join("") + '</select><label class="chk" title="A deactivated person can still sign in but only reads. Their name stays on every record they touched."><input type="checkbox" id="uActive"' + (u.active === false ? "" : " checked") + '> Active</label><p class="err" id="uErr" hidden></p>';
+  const w = openModal("Change " + (u.name || u.email), body, '<button type="button" class="btn" data-close>Cancel</button><button type="button" class="btn acc" data-ok>Save</button>');
   w.querySelector("[data-ok]").addEventListener("click", async () => {
     const role = $("#uRole", w).value, active = $("#uActive", w).checked;
-    const admins = Array.from(S.users.values()).filter(x => x.role === "admin" && x.active !== false && x.id !== u.id);
-    if (u.role === "admin" && (role !== "admin" || !active) && !admins.length) { const e = $("#uErr", w); e.textContent = "Keep at least one active admin."; e.hidden = false; return; }
+    if (lastAdminBlock(u, role, active)) { const e = $("#uErr", w); e.textContent = "Keep at least one active admin."; e.hidden = false; return; }
     closeModal(w);
     if (await DB.commit([{ op: "update", coll: "loadout_users", id: u.id, data: { role, active, confirmed: true, updatedBy: S.user.email, updatedByName: S.user.name, updatedAt: NOW } }], "role for " + (u.name || u.email))) toast("Saved");
   });
 }
+function openUserActive(u) {
+  if (!u) return;
+  const on = u.active === false;
+  if (!on && lastAdminBlock(u, u.role, false)) { toast("Keep at least one active admin.", true); return; }
+  confirmModal((on ? "Reactivate " : "Deactivate ") + (u.name || u.email),
+    on ? "<p>" + esc(u.name || u.email) + " gets their " + esc(ROLE_LABEL[u.role] || u.role) + " role back at the next sign-in or page load.</p>"
+       : "<p>" + esc(u.name || u.email) + " can still sign in, but only reads. Their name stays on every movement, ticket, and unit they touched, and Reactivate gives the role back.</p>",
+    on ? "Reactivate" : "Deactivate",
+    () => DB.commit([{ op: "update", coll: "loadout_users", id: u.id, data: { active: on, updatedBy: S.user.email, updatedByName: S.user.name, updatedAt: NOW } }], (on ? "reactivating " : "deactivating ") + (u.name || u.email)).then(ok => ok && toast(on ? "Reactivated" : "Deactivated")), !on);
+}
 
-/* ---------------- export everything ---------------- */
+/* ---------------- export everything (Console; More keeps a link) ---------------- */
 const EXPORT_COLLS = ["loadout_products", "loadout_locations", "loadout_stock", "loadout_containers", "loadout_items", "loadout_movements", "loadout_users", "loadout_settings", "loadout_clients", "loadout_jobs", "loadout_proposals", "loadout_tickets", "loadout_ticket_lines", "loadout_orders", "loadout_order_lines", "loadout_shipments"];
+function exportStamp() { const d = new Date(); return isoDay(d) + "-" + pad(d.getHours()) + pad(d.getMinutes()); }
 function exportHTML() {
   let nl = 0, nol = 0; S.lines.forEach(m => nl += m.size); S.olines.forEach(m => nol += m.size);
   const c = { loadout_products: S.products.size, loadout_locations: S.locations.size, loadout_stock: S.stock.size, loadout_containers: S.containers.size, loadout_items: S.items.size, loadout_users: S.users.size,
     loadout_clients: S.clients.size, loadout_jobs: S.jobs.size, loadout_proposals: S.proposals.size, loadout_tickets: S.tickets.size, loadout_ticket_lines: nl ? nl + "+" : "all",
     loadout_orders: S.orders.size, loadout_order_lines: nol ? nol + "+" : "all", loadout_shipments: S.shipments.size };
-  return '<p class="hint" style="margin-top:0">One spreadsheet with a tab per collection, headers as the database names them, so the data reads in Excel without the app. Do it on Fridays until the nightly copy exists.</p>' +
-    '<ul class="onhand">' + EXPORT_COLLS.map(k => "<li><span class=\"mono\">" + k + "</span><b>" + (c[k] != null ? (typeof c[k] === "string" ? esc(c[k]) : fmtN(c[k])) : k === "loadout_movements" ? "all" : "1") + "</b></li>").join("") + "</ul>" +
-    '<div class="btnrow"><button type="button" class="btn acc" data-act="exportAll">Download workbook (.xlsx)</button></div>';
+  return '<p class="hint" style="margin-top:0">Every collection, read fresh from the database, with the headers as the database names them, so the data reads in Excel without the app. The file name carries the date and time, so Friday\'s copy never overwrites last week\'s. Do it on Fridays until the nightly copy exists.</p>' +
+    '<ul class="onhand">' + EXPORT_COLLS.map(k => "<li><span class=\"mono\">" + k + "</span><b>" + (c[k] != null ? (typeof c[k] === "string" ? esc(c[k]) : fmtN(c[k])) : k === "loadout_movements" ? "all" : "every doc") + "</b></li>").join("") + "</ul>" +
+    '<div class="btnrow"><button type="button" class="btn acc" data-act="exportAll" title="One workbook, a tab per collection">Download workbook (.xlsx)</button><button type="button" class="btn" data-act="exportZip" title="One CSV per collection in a zip, for anything that reads plain CSV">Download CSVs (.zip)</button></div>' +
+    '<p class="hint">File names look like loadout-export-' + esc(exportStamp()) + ".xlsx.</p>";
 }
 function flatten(o, pre = "", out = {}) {
   Object.keys(o).forEach(k => {
@@ -5086,21 +5305,508 @@ function flatten(o, pre = "", out = {}) {
   });
   return out;
 }
+async function exportTables() {
+  const out = [];
+  for (const coll of EXPORT_COLLS) {
+    const rows = (await DB.getAll(coll)).map(d => flatten(d));
+    const keys = ["id"]; rows.forEach(r => Object.keys(r).forEach(k => { if (!keys.includes(k)) keys.push(k); }));
+    out.push({ coll, rows, keys });
+  }
+  return out;
+}
 async function exportAll() {
   toast("Building the workbook");
   try {
-    const XLSX = await ensureXLSX();
+    const [XLSX, tabs] = await Promise.all([ensureXLSX(), exportTables()]);
     const wb = XLSX.utils.book_new();
-    for (const coll of EXPORT_COLLS) {
-      const docs = await DB.getAll(coll);
-      const rows = docs.map(d => flatten(d));
-      const keys = ["id"]; rows.forEach(r => Object.keys(r).forEach(k => { if (!keys.includes(k)) keys.push(k); }));
-      const ws = rows.length ? XLSX.utils.json_to_sheet(rows, { header: keys }) : XLSX.utils.aoa_to_sheet([["id"]]);
-      XLSX.utils.book_append_sheet(wb, ws, coll.replace("loadout_", "").slice(0, 31));
-    }
-    XLSX.writeFile(wb, "loadout-export-" + isoDay(new Date()) + ".xlsx");
+    tabs.forEach(t => XLSX.utils.book_append_sheet(wb, t.rows.length ? XLSX.utils.json_to_sheet(t.rows, { header: t.keys }) : XLSX.utils.aoa_to_sheet([["id"]]), t.coll.replace("loadout_", "").slice(0, 31)));
+    XLSX.writeFile(wb, "loadout-export-" + exportStamp() + ".xlsx");
     toast("Workbook downloaded");
   } catch (e) { console.warn(e); toast("Could not build the export: " + (e.message || e), true); }
+}
+/* PLAN 16 rule 6: one CSV per collection, zipped. A stored (uncompressed)
+   zip is a few dozen lines, so nothing extra loads for it. */
+let _crcT = null;
+function crc32(u8) {
+  if (!_crcT) { _crcT = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; _crcT[n] = c >>> 0; } }
+  let c = 0xFFFFFFFF; for (let i = 0; i < u8.length; i++) c = _crcT[(c ^ u8[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+function zipStore(files) {
+  const enc = new TextEncoder(), parts = [], cent = [], d = new Date();
+  const time = (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1), date = ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate();
+  let off = 0;
+  files.forEach(f => {
+    const name = enc.encode(f.name), data = f.data, crc = crc32(data);
+    const lh = new DataView(new ArrayBuffer(30));
+    lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true); lh.setUint16(6, 0x0800, true); lh.setUint16(8, 0, true); lh.setUint16(10, time, true); lh.setUint16(12, date, true);
+    lh.setUint32(14, crc, true); lh.setUint32(18, data.length, true); lh.setUint32(22, data.length, true); lh.setUint16(26, name.length, true); lh.setUint16(28, 0, true);
+    parts.push(new Uint8Array(lh.buffer), name, data);
+    const ch = new DataView(new ArrayBuffer(46));
+    ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); ch.setUint16(6, 20, true); ch.setUint16(8, 0x0800, true); ch.setUint16(10, 0, true); ch.setUint16(12, time, true); ch.setUint16(14, date, true);
+    ch.setUint32(16, crc, true); ch.setUint32(20, data.length, true); ch.setUint32(24, data.length, true); ch.setUint16(28, name.length, true); ch.setUint32(42, off, true);
+    cent.push(new Uint8Array(ch.buffer), name);
+    off += 30 + name.length + data.length;
+  });
+  const csize = cent.reduce((a, p) => a + p.length, 0);
+  const end = new DataView(new ArrayBuffer(22));
+  end.setUint32(0, 0x06054b50, true); end.setUint16(8, files.length, true); end.setUint16(10, files.length, true); end.setUint32(12, csize, true); end.setUint32(16, off, true);
+  return new Blob(parts.concat(cent, [new Uint8Array(end.buffer)]), { type: "application/zip" });
+}
+async function exportZip() {
+  toast("Building the CSVs");
+  try {
+    const enc = new TextEncoder(), tabs = await exportTables();
+    /* the byte-order mark tells Excel the CSV is UTF-8 */
+    const files = tabs.map(t => ({ name: t.coll + ".csv", data: enc.encode("\ufeff" + csvOf(t.rows, t.keys.map(k => ({ label: k, get: r => r[k] })))) }));
+    downloadBlob(zipStore(files), "loadout-export-" + exportStamp() + ".zip");
+    toast("Zip downloaded");
+  } catch (e) { console.warn(e); toast("Could not build the export: " + (e.message || e), true); }
+}
+
+/* ==============================================================
+   ABOUT: the data dictionary (PLAN 16 rule 5). PLAN section 3 is the
+   source; this constant is what the build writes, so the About tab
+   cannot drift from it. One entry per collection and subcollection,
+   and one per settings document.
+   ============================================================== */
+const DD_WHO = [["createdAt", "When the record was made"], ["updatedAt", "When it last changed"]];
+const DATA_DICTIONARY = [
+  { coll: "loadout_users", id: "Firebase sign-in uid", about: "The roster: one person per document, with their role.", fields: [
+    ["email", "Sign-in address, lower case"], ["name", "Display name from the Google account"], ["role", "admin, warehouse, tech, accounting, or board"],
+    ["active", "false when deactivated: they still sign in, but only read"], ["confirmed", "false until an admin confirms the role of a self sign-in"],
+    ["addedBy", "Who added them, or self-sign-in"], ["addedAt", "First sign-in"], ["lastSeen", "Latest sign-in or page load"],
+    ["updatedBy", "Email of the admin who last changed the role"], ["updatedByName", "Name of that admin"], ["updatedAt", "When the role last changed"]] },
+  { coll: "loadout_settings/general", id: "general", about: "Shop-wide settings, changed by admins in the Console.", fields: [
+    ["showCosts", "Show cost fields and report values"], ["qrThreshold", "Cost at or above which a received unit gets its own QR"], ["labelSize", "Default label sheet: 5160 or 5163 (2 x 4 in)"],
+    ["weekStart", "First day of the week: 0 Sunday, 1 Monday"], ["workWeek", "Week view hides the weekend for anyone who has not chosen"],
+    ["boxStart.cat, .coax, .audio, .stranded, .other", "Default start length in feet for a new box of that cable type"],
+    ["carriers", "Carrier name and tracking URL with {n} for the number"], ["vendors", "Vendor list for purchase orders"],
+    ["updatedBy", "Email of whoever saved last"], ["updatedByName", "Name of whoever saved last"], ["updatedAt", "When it was saved"]] },
+  { coll: "loadout_settings/board", id: "board", about: "The warehouse wall board.", fields: [
+    ["mode", "pinned, all_open, or today"], ["ticketIds", "Pinned tickets in rotation order"], ["rotateSec", "Seconds each ticket stays up"],
+    ["groupBy", "location (pick path) or area (proposal areas)"], ["showStaged", "Show picked lines greyed"], ["theme", "dark or light"],
+    ["updatedBy", "Email of whoever saved last"], ["updatedByName", "Name of whoever saved last"], ["updatedAt", "When it was saved"]] },
+  { coll: "loadout_settings/importMap", id: "importMap", about: "The proposal CSV column mapping, remembered between imports.", fields: [
+    ["columns", "CSV header to Loadout field"], ["updatedBy", "Email of whoever imported last"], ["updatedByName", "Name of whoever imported last"], ["updatedAt", "When"]] },
+  { coll: "loadout_settings/portal", id: "portal", about: "The Portal link (written by loadout-worker from 0.6.0; no secrets here).", fields: [
+    ["tier", "t0 (CSV), t1 (Zapier), or t2 (API)"], ["lastPollAt", "Last time the worker read Portal"]] },
+  { coll: "loadout_products", id: "brand-model slug, or kind, type, and attributes slug", about: "The catalog: one document per product, whatever shelf it sits on.", fields: [
+    ["kind", "device, patch-cable, splitter, connector, wire, or other"], ["type", "The sheet's Type column, kept as typed"], ["brand", "Maker"], ["model", "Part or model number"],
+    ["description", "Free text"], ["name", "Display name: brand and model, or type and attributes"],
+    ["connector1, connector2", "Connector at each end"], ["color", "Color"], ["length, lengthUnit", "Length and its unit (ft, m, in)"], ["gauge, gaugeUnit", "Wire gauge and unit (awg, mm)"],
+    ["amps", "Current rating"], ["inputs, outputs", "Splitter ports"], ["sex", "Male or female"], ["band", "Band"], ["pins", "Pin count"], ["wireType", "Pair count or cable spec, as 23/4 or RG6"], ["grade", "GP, Riser, Plenum, or Shielded"],
+    ["unit", "each or ft"], ["upc", "Barcode, learned on first scan"], ["category", "Wire, Network, Camera, and so on"], ["consumable", "Shows in Consumables with a par level"],
+    ["parLevel", "Reorder point in the product's unit"], ["defaultLocationId", "Usual shelf"], ["defaultLocationName", "Its name when set"], ["imageUrl", "Photo (later)"],
+    ["onHand", "Total on hand, recomputed with each movement"], ["lastCost", "Last unit cost; values in reports use it"], ["portalItemId", "Portal item id when imported"],
+    ["lastCountAt", "Count date from the inventory sheet"]].concat(DD_WHO) },
+  { coll: "loadout_locations", id: "area--shelf slug, as storage-room--rca-av-video", about: "Shelves, bays, vans, and bare areas.", fields: [
+    ["area", "Room or zone"], ["shelf", "Shelf within it, blank for a bare area"], ["name", "Area and shelf, as printed on the label"], ["kind", "shelf, bay, van, or other"],
+    ["jobId", "Job the bay is reserved for"], ["jobName", "Its name"], ["qr", "Label payload, loadout:loc:{id}"]].concat(DD_WHO) },
+  { coll: "loadout_stock", id: "{productId}__{locationId}", about: "Counted quantity of one product on one shelf.", fields: [
+    ["productId", "Product"], ["productName", "Its name when written"], ["locationId", "Location"], ["locationName", "Its name when written"], ["qty", "Count in the product's unit"], ["updatedAt", "When it last changed"]] },
+  { coll: "loadout_containers", id: "the box label slug, as a1026", about: "Wire boxes and reels for by-the-foot products.", fields: [
+    ["productId", "Product"], ["productName", "Its name"], ["locationId", "Where the box sits"], ["locationName", "Its name"], ["upc", "Barcode on the box"],
+    ["label", "The shop's box code, printed on the QR sticker"], ["startLength", "Feet when new"], ["ftLeft", "Feet left"], ["lastMark", "Footage mark the box is stopped at"],
+    ["purchasedAt", "When bought"], ["status", "open, empty, or assigned"], ["pickTicketId", "Ticket the box travels with"], ["confirmLocation", "true when the box has no confirmed shelf yet"],
+    ["orderId, orderNumber, shipmentId", "The PO and shipment it came on"], ["qr", "Label payload, loadout:ctr:{id}"], ["lastReadingAt", "Last mark entered"], ["lastReadingBy", "Who entered it"]].concat(DD_WHO) },
+  { coll: "loadout_items", id: "random", about: "Serialized units, one physical unit per document.", fields: [
+    ["productId", "Product"], ["productName", "Its name"], ["label", "Product name #n"], ["serial", "Serial number when typed or scanned"], ["cost", "Unit cost"],
+    ["qr", "Label payload, loadout:item:{id}"], ["status", "on_order, in_stock, staged, checked_out, installed, returned, or retired"],
+    ["locationId", "Where it sits when in stock or staged"], ["locationName", "Its name"], ["holderUid", "Who has it while checked out"], ["holderName", "Their name"],
+    ["jobId", "Job it is out for or installed at"], ["jobName", "Its name"], ["ticketId", "Ticket it is out for"], ["ticketLineId", "The line on that ticket"],
+    ["checkedOutAt", "When it went out"], ["checkedInAt", "When it came back"], ["condition", "good, damaged, or missing"], ["retiredReason", "Why it was retired"],
+    ["importNote", "Condition text from the inventory sheet"], ["orderId, orderNumber, shipmentId", "The PO and shipment it came on"]].concat(DD_WHO) },
+  { coll: "loadout_movements", id: "random", about: "The audit trail. Append-only: nothing here is ever edited or deleted.", fields: [
+    ["type", "receive, pick, stage, deliver, adjust, reading, cut, checkout, checkin, return, transfer, or edit"],
+    ["productId", "Product"], ["productName", "Its name when written"], ["containerId", "Box"], ["containerLabel", "Its label"], ["itemId", "Unit"], ["itemLabel", "Its label or serial"],
+    ["qty", "Quantity moved; negative for a cut or a write-off"], ["unit", "each or ft"], ["fromLocationId", "Where it came from"], ["fromLocationName", "Its name"],
+    ["toLocationId", "Where it went"], ["toLocationName", "Its name"], ["cut.fromMark, cut.toMark, cut.length", "A box cut: mark before, mark after, feet cut"],
+    ["holderUid", "Who holds a checked-out unit"], ["holderName", "Their name"], ["condition", "Condition at check-in"], ["jobName", "Job it was for"],
+    ["ticketId", "Ticket"], ["ticketNumber", "Its number"], ["ticketLineId", "Ticket line"], ["orderId", "Purchase order"], ["orderNumber", "Its PO number"], ["shipmentId", "Shipment"],
+    ["note", "Free text"], ["by", "Email of the person who did it"], ["byName", "Their name"], ["at", "When it happened (the sheet's count date for imported rows)"],
+    ["importTab, importRow, importKey", "Inventory sheet tab, row, and the key that stops a re-import repeating it"], ["importedAt", "When the import ran"]] },
+  { coll: "loadout_clients", id: "client name slug", about: "Clients, mostly arriving with an imported proposal.", fields: [
+    ["name", "Client name"], ["notes", "Gate codes, who to call"], ["archived", "Dropped from the New ticket list"], ["portalContactId", "Portal contact id when known"]].concat(DD_WHO) },
+  { coll: "loadout_jobs", id: "{clientId}--{job name slug}", about: "The site work for one client.", fields: [
+    ["clientId", "Client"], ["clientName", "Its name"], ["name", "Job name"], ["address", "Site address"], ["status", "open or closed (archived)"],
+    ["stagingLocationId", "Bay reserved for it"], ["stagingLocationName", "Its name"]].concat(DD_WHO) },
+  { coll: "loadout_proposals", id: "Portal proposal number", about: "Accepted Portal proposals, as imported.", fields: [
+    ["number", "Proposal number"], ["name", "Proposal name"], ["jobId", "Job"], ["jobName", "Its name"], ["clientId", "Client"], ["clientName", "Its name"],
+    ["status", "Accepted, Completed, and so on"], ["importedAt", "When imported"], ["importSource", "csv, zapier, api, or manual"], ["portalId", "Portal's internal id when known"]] },
+  { coll: "loadout_tickets", id: "proposal number, or {number}-co2 for a change order", about: "Pick tickets: an accepted proposal turned into a list to pull, stage, and deliver.", fields: [
+    ["number", "Ticket number (the proposal number)"], ["proposalId", "Proposal"], ["jobId", "Job"], ["jobName", "Its name"], ["clientId", "Client"], ["clientName", "Its name"],
+    ["status", "open, picking, staged, delivered, or closed"], ["stagingLocationId", "Bay it is laid out in"], ["stagingLocationName", "Its name"], ["source", "csv or manual"],
+    ["installAt", "Install day (the Week view)"], ["summary.lines, .needed, .fromStock, .toOrder, .staged, .delivered", "Line counts, rewritten with each line change"],
+    ["createdBy", "Email of whoever made it"], ["createdByName", "Their name"], ["closedAt", "When closed"], ["closedBy", "Email of whoever closed it"], ["closedByName", "Their name"], ["closeNote", "Note at close"]].concat(DD_WHO) },
+  { coll: "loadout_tickets/{ticketId}/lines", id: "area plus brand and model slug", about: "One line on a pick ticket.", fields: [
+    ["area", "Room on the proposal"], ["option", "Proposal option"], ["sort", "Order on the ticket"], ["productId", "Product, null until matched"], ["productName", "Its name"],
+    ["brand, model, description", "As on the proposal, so the line reads before it matches"], ["unit", "each or ft"], ["matchState", "matched, unmatched, or new"],
+    ["qtyNeeded", "From the proposal"], ["qtyFromStock", "Pulled off our shelves"], ["qtyToOrder", "What stock cannot cover"], ["qtyStaged", "Laid out in the bay"], ["qtyDelivered", "Taken to site"],
+    ["portalItemId", "Portal item id"], ["orderLineRefs", "Order lines serving it: orderId and orderLineId"], ["notes", "Line note"],
+    ["pickedFromName", "Shelf, box, or PO it was pulled from"], ["pickedByName", "Who pulled it"], ["pickedAt", "When"]].concat(DD_WHO) },
+  { coll: "loadout_orders", id: "PO number, from 7701 up", about: "Purchase orders.", fields: [
+    ["number", "PO number"], ["vendor", "Vendor"], ["orderNumber", "The vendor's order number"], ["status", "draft, ordered, partial, received, or cancelled"],
+    ["orderedAt", "When marked ordered (Spend uses this date)"], ["orderedBy", "Email of whoever marked it"], ["orderedByName", "Their name"],
+    ["ticketId, ticketNumber", "Ticket it serves, null for stock"], ["jobId, jobName", "Job"], ["clientId, clientName", "Client"], ["proposalId", "Proposal"], ["notes", "Free text"],
+    ["summary.lines, .qtyOrdered, .qtyReceived", "Line totals"], ["receivedAt", "When the last line came in"],
+    ["cancelledAt, cancelledBy, cancelledByName, cancelReason", "Cancellation, when cancelled"], ["createdBy", "Email of whoever started it"], ["createdByName", "Their name"]].concat(DD_WHO) },
+  { coll: "loadout_orders/{orderId}/lines", id: "{ticketId}--{lineId}, or stock--{productId}", about: "One line on a purchase order.", fields: [
+    ["productId", "Product"], ["productName", "Its name"], ["brand, model", "As ordered"], ["unit", "each or ft"], ["qtyOrdered", "On the PO"], ["qtyShipped", "On shipments so far"], ["qtyReceived", "Scanned or tapped in"],
+    ["status", "draft, ordered, backordered, shipped, delivered, or received"], ["eta", "Vendor's date on a backorder"],
+    ["ticketId, ticketNumber, ticketLineId, ticketArea", "The ticket line it serves"], ["jobName, clientName", "Job and client"], ["note", "Line note"], ["sort", "Order on the PO"], ["receivedAt", "When fully received"]].concat(DD_WHO) },
+  { coll: "loadout_shipments", id: "random", about: "A box on its way: some or all of a PO's lines.", fields: [
+    ["orderId, orderNumber", "The PO"], ["vendor", "Vendor"], ["carrier", "UPS, FedEx, USPS, or Other"], ["tracking", "Tracking number"], ["trackingUrl", "Tracking page"],
+    ["status", "shipped, out_for_delivery, delivered, or received"], ["shippedAt, expectedAt, deliveredAt, receivedAt", "The dates"], ["receivedBy, receivedByName", "Who received it"],
+    ["lines", "Order lines on it: orderLineId, productName, qty, qtyReceived"], ["ticketId, ticketNumber, jobName, clientName", "What it serves"],
+    ["createdBy", "Email of whoever added it"], ["createdByName", "Their name"]].concat(DD_WHO) }
+];
+function aboutHTML() {
+  return '<div class="about"><p style="margin-top:0"><b>Loadout v' + esc(VERSION) + '.</b> The shop\'s inventory: shelf counts, wire boxes, serialized units, pick tickets, and purchase orders, in Firestore project watchtower-6fbe1. ' +
+    "Each person's table layouts are saved on their own /users/{uid} document under loadoutLayout.</p>" +
+    '<h4 class="h4" style="margin-top:16px">Readability rules</h4>' +
+    "<p>The data has to read without the app. Collections are flat with plain English names, one per kind of thing, nested at most one level (ticket and order lines). Field names are English words; qty, ft, and id are the only abbreviations. " +
+    "Every record that points at another carries the readable name beside the id, written at the moment of the change, so a row reads on its own in the database console or a CSV; names are snapshots, and renaming a client does not rewrite history. " +
+    "Document ids are readable where the world has one (proposal numbers, brand-model slugs, shelf slugs) and random only for movements, units, boxes, and shipments, which carry names. " +
+    "Reports read the live collections, Export everything writes one tab or CSV per collection with these headers, and every collection maps one for one to a SQL table.</p>" +
+    '<h4 class="h4" style="margin-top:16px">Data dictionary</h4><p class="hint" style="margin-top:0">' + DATA_DICTIONARY.length + " collections and documents. Read from the DATA_DICTIONARY constant in the code, so it changes with the build.</p>" +
+    DATA_DICTIONARY.map(c => '<section class="dict" aria-label="' + esc(c.coll) + '"><h3>' + esc(c.coll) + '</h3><p class="pd">' + esc(c.about) + " Document id: " + esc(c.id) + ".</p>" +
+      '<div class="tblwrap"><table class="tbl"><thead><tr><th class="plain">Field</th><th class="plain">Meaning</th></tr></thead><tbody>' +
+      c.fields.map(f => '<tr><td data-l="Field">' + esc(f[0]) + '</td><td data-l="Meaning">' + esc(f[1]) + "</td></tr>").join("") + "</tbody></table></div></section>").join("") + "</div>";
+}
+
+/* ==============================================================
+   CONSOLE (0.4.0, PLAN section 4): Reports, People, Settings, About,
+   Export everything. Admin and accounting see it. Accounting gets no
+   edit controls at all, not greyed ones: the only controls rendered for
+   it are tabs, the date range, view choices, sorting, Columns, and the
+   exports. People and Settings are admin only.
+   ============================================================== */
+function consoleTabs() {
+  const t = [["reports", "Reports"]];
+  if (isAdmin()) t.push(["people", "People"], ["settings", "Settings"]);
+  t.push(["about", "About"], ["export", "Export everything"]);
+  return t;
+}
+let _conBuilt = "";
+function renderConsole(force) {
+  const el = $("#v-console");
+  if (!canConsole()) {
+    _conBuilt = "";
+    el.innerHTML = '<div class="mcard"><div class="thead"><h2 class="vt">Console</h2></div><div class="empty"><p>The Console is for the admin and accounting roles.</p><p class="hint">The data dictionary is under More, About.</p><button type="button" class="btn" data-act="go" data-view="more" data-sub="about">Open About</button></div></div>';
+    return;
+  }
+  const tabs = consoleTabs();
+  if (!tabs.some(t => t[0] === S.consoleTab)) { S.consoleTab = "reports"; setHash(); }
+  /* Settings keeps what is typed: it only redraws when asked to */
+  if (!force && _conBuilt === "settings" && S.consoleTab === "settings") return;
+  if (S.consoleTab === "settings" && _conBuilt !== "settings") { S.genDraft = null; S.boardDraft = null; }
+  _conBuilt = S.consoleTab;
+  let h = '<div class="mcard"><div class="thead"><h2 class="vt">Console</h2><span class="sp hint" style="margin:0">' + (isAdmin() ? "Reports, people, and settings" : "Read only: reports, the data dictionary, and exports") + "</span></div>" +
+    '<div class="toolbar"><div class="seg" role="tablist" aria-label="Console">' +
+    tabs.map(([k, l]) => '<button type="button" role="tab" aria-selected="' + (S.consoleTab === k) + '" class="' + (S.consoleTab === k ? "on" : "") + '" data-act="consoleTab" data-tab="' + k + '">' + l + "</button>").join("") + "</div></div>";
+  if (S.consoleTab === "reports") h += reportsHTML();
+  else if (S.consoleTab === "people") h += peopleHTML();
+  else if (S.consoleTab === "settings") h += settingsHTML();
+  else if (S.consoleTab === "about") h += aboutHTML();
+  else if (S.consoleTab === "export") h += exportHTML();
+  el.innerHTML = h + "</div>";
+  if (S.consoleTab === "settings") { wireGlow(el); wireMoney(el); bindSettings(el); }
+}
+
+/* ---------------- report helpers ---------------- */
+function monthRange(off) { const n = new Date(), a = new Date(n.getFullYear(), n.getMonth() + off, 1), b = new Date(n.getFullYear(), n.getMonth() + off + 1, 0); return { from: isoDay(a), to: isoDay(b) }; }
+function rrGet() { if (!S.rr) S.rr = monthRange(0); return S.rr; }
+function rrDates() { const r = rrGet(); return { from: new Date(r.from + "T00:00:00"), to: new Date(r.to + "T23:59:59.999") }; }
+/* "between 10/01 and 10/26"; the year shows when the range is not this year */
+function rrDay(d) { return d.getFullYear() === new Date().getFullYear() ? fmtShort(d) : fmtDate(d); }
+function rrText() { const d = rrDates(); return "between " + rrDay(d.from) + " and " + rrDay(d.to); }
+const costOn = () => !!S.general.showCosts;
+function unitCost(pid) { const p = pid ? S.products.get(pid) : null; return p && p.lastCost != null && p.lastCost !== "" ? num(p.lastCost) : null; }
+const r2 = v => v == null ? null : Math.round(num(v) * 100) / 100;
+const moneyCell = v => v == null ? "" : money(v);
+const plural = (n, one, many) => fmtN(n) + " " + (n === 1 ? one : (many || one + "s"));
+function ageBucket(d) { return d <= 7 ? "0 to 7 days" : d <= 14 ? "8 to 14 days" : d <= 30 ? "15 to 30 days" : "Over 30 days"; }
+const BUCKETS = ["0 to 7 days", "8 to 14 days", "15 to 30 days", "Over 30 days"];
+function bucketLine(rows, what) {
+  const n = BUCKETS.map(b => [b, rows.filter(r => r.bucket === b).length]).filter(x => x[1]);
+  return plural(rows.length, what) + ": " + n.map(([b, c]) => fmtN(c) + " at " + b.charAt(0).toLowerCase() + b.slice(1)).join(", ") + ".";
+}
+function clientOfMv(m) {
+  if (m.clientName) return m.clientName;
+  const t = m.ticketId ? S.tickets.get(m.ticketId) : null; if (t && t.clientName) return t.clientName;
+  const j = m.jobName ? Array.from(S.jobs.values()).find(x => x.name === m.jobName) : null;
+  return j ? j.clientName || "" : "";
+}
+function jobOfMv(m) { return m.jobName || (m.ticketNumber ? "Ticket #" + m.ticketNumber : ""); }
+const unitTxt = u => u === "ft" ? "ft" : "each";
+const dayCol = (k, label, get) => ({ k, label, cls: "nw", sort: r => toDate(get(r)), text: r => fmtDate(get(r)), x: r => isoDay(get(r)) });
+const numCol = (k, label, get, o) => Object.assign({ k, label, r: true, cls: "n", sort: r => get(r) == null ? null : num(get(r)), text: r => get(r) == null ? "" : fmtN(get(r)), x: r => get(r) == null ? "" : num(get(r)) }, o || {});
+const moneyCol = (k, label, get, o) => Object.assign({ k, label, r: true, cls: "n", sort: r => get(r), text: r => moneyCell(get(r)), x: r => get(r) == null ? "" : r2(get(r)) }, o || {});
+const txtCol = (k, label, get, o) => Object.assign({ k, label, sort: r => String(get(r) || "").toLowerCase(), text: r => get(r) || "" }, o || {});
+function viewSel(key, opts, title) {
+  const cur = S.rf[key] || opts[0][0];
+  return '<div><label class="lab" for="rf_' + key + '" title="' + esc(title || "") + '">' + (title ? "<abbr>Show</abbr>" : "Show") + '</label><select class="fld" id="rf_' + key + '" data-rf="' + key + '">' +
+    opts.map(([k, l]) => '<option value="' + k + '"' + (cur === k ? " selected" : "") + ">" + esc(l) + "</option>").join("") + "</select></div>";
+}
+const rfv = (key, def) => S.rf[key] || def;
+
+/* ---------------- the reports ----------------
+   Each build() returns {id, cols, rows, total, empty, defaultSort, rowClass}.
+   Rows that need movements read S.rep.mvs, the range read fresh from the
+   database; the rest read the live listeners. */
+const REPORTS = [
+  { k: "stock", label: "Stock on hand", file: "stock", mv: true, views: () => viewSel("stockBy", [["item", "Product and location"], ["category", "By category"], ["location", "By location"]], "Detail rows, or one row per category or per location with the totals"),
+    hint: () => "On hand is today's count. Received and Used are the movements in the range: receive, and deliver plus box cuts." + (costOn() ? " Value is quantity times last cost; units with their own cost use it." : " Values show when Show costs is on in Settings."),
+    build() {
+      const by = rfv("stockBy", "item"), mvs = S.rep.mvs || [], io = new Map(), C = costOn();
+      const key = (pid, lid) => pid + "|" + (lid || "");
+      const bump = (k, f, n) => { if (!io.has(k)) io.set(k, { rin: 0, rout: 0 }); io.get(k)[f] += n; };
+      mvs.forEach(m => {
+        if (!m.productId) return;
+        if (m.type === "receive") bump(key(m.productId, m.toLocationId), "rin", num(m.qty));
+        else if (m.type === "deliver") bump(key(m.productId, m.fromLocationId), "rout", num(m.qty));
+        else if (m.type === "cut" && m.cut) bump(key(m.productId, m.toLocationId || (S.containers.get(m.containerId) || {}).locationId), "rout", num(m.cut.length));
+      });
+      const det = [], seen = new Set();
+      const valueAt = (p, lid) => {
+        const c = unitCost(p.id); let v = 0, miss = false;
+        stockRowsFor(p.id).forEach(r => { if ((r.locationId || "") === lid && num(r.qty) > 0) { if (c == null) miss = true; else v += num(r.qty) * c; } });
+        openBoxesFor(p.id).forEach(b => { if ((b.locationId || "") === lid && num(b.ftLeft) > 0) { if (c == null) miss = true; else v += num(b.ftLeft) * c; } });
+        itemsFor(p.id).forEach(i => { if (inStockItem(i) && (i.locationId || "") === lid) { const ic = i.cost != null ? num(i.cost) : c; if (ic == null) miss = true; else v += ic; } });
+        return { v, miss };
+      };
+      const push = (p, lid, qty) => {
+        const k = key(p.id, lid); if (seen.has(k)) return; seen.add(k);
+        const val = valueAt(p, lid), f = io.get(k) || { rin: 0, rout: 0 };
+        if (!qty && !f.rin && !f.rout) return;
+        det.push({ p, name: productName(p), cat: p.category || "No category", lid, loc: lid ? locName(lid) : "No location", qty, unit: unitTxt(p.unit), cost: unitCost(p.id), value: val.miss && !val.v ? null : val.v, miss: val.miss, rin: f.rin, rout: f.rout });
+      };
+      S.products.forEach(p => byLocation(p).forEach(e => push(p, e.locationId, e.qty)));
+      io.forEach((f, k) => { const i = k.indexOf("|"), p = S.products.get(k.slice(0, i)); if (p) push(p, k.slice(i + 1), 0); });
+      const eachN = det.filter(r => r.unit !== "ft").reduce((a, r) => a + r.qty, 0), ftN = det.filter(r => r.unit === "ft").reduce((a, r) => a + r.qty, 0);
+      const valN = det.reduce((a, r) => a + num(r.value), 0), missP = new Set(det.filter(r => r.miss && r.qty > 0).map(r => r.p.id)).size;
+      const total = "On hand: " + fmtN(eachN) + " each and " + fmtN(ftN) + " ft." + (C ? " Value at last cost: " + money(valN) + "." + (missP ? ' <span class="z">' + plural(missP, "product") + " with stock " + (missP === 1 ? "has" : "have") + " no cost and count as zero.</span>" : "") : "");
+      if (by === "item") {
+        const cols = [txtCol("category", "Category", r => r.cat), txtCol("product", "Product", r => r.name, { html: r => '<span class="pn">' + esc(r.name) + "</span>" }), txtCol("location", "Location", r => r.loc),
+          numCol("qty", "On hand", r => r.qty), txtCol("unit", "Unit", r => r.unit)];
+        if (C) cols.push(moneyCol("cost", "Last cost", r => r.cost), moneyCol("value", "Value", r => r.value));
+        cols.push(numCol("rin", "Received", r => r.rin, { title: "Received into this location in the range" }), numCol("rout", "Used", r => r.rout, { title: "Delivered from or cut at this location in the range" }));
+        return { id: "rep_stock", cols, rows: det, total, defaultSort: (a, b) => a.cat.localeCompare(b.cat) || a.name.localeCompare(b.name) || a.loc.localeCompare(b.loc) };
+      }
+      const g = new Map(), gk = by === "category" ? r => r.cat : r => r.loc;
+      det.forEach(r => { const k = gk(r); if (!g.has(k)) g.set(k, { key: k, prods: new Set(), each: 0, ft: 0, value: 0, miss: 0, rin: 0, rout: 0 }); const x = g.get(k); x.prods.add(r.p.id); x[r.unit === "ft" ? "ft" : "each"] += r.qty; x.value += num(r.value); if (r.miss) x.miss++; x.rin += r.rin; x.rout += r.rout; });
+      const cols = [txtCol("key", by === "category" ? "Category" : "Location", r => r.key), numCol("prods", "Products", r => r.prods.size), numCol("each", "Each", r => r.each), numCol("ft", "Feet", r => r.ft)];
+      if (C) cols.push(moneyCol("value", "Value", r => r.value));
+      cols.push(numCol("rin", "Received", r => r.rin), numCol("rout", "Used", r => r.rout));
+      return { id: "rep_stock_" + by, cols, rows: Array.from(g.values()), total, defaultSort: (a, b) => a.key.localeCompare(b.key) };
+    },
+    empty: () => "Nothing on hand, and nothing received or used " + rrText() + "." },
+
+  { k: "spend", label: "Spend", file: "spend", mv: true, views: () => viewSel("spendBy", [["vm", "Vendor and month"], ["vendor", "By vendor"], ["month", "By month"]]),
+    hint: () => "Purchase orders by the day they were marked ordered; drafts and cancelled POs are left out." + (costOn() ? " Spend is quantity ordered times the product's last cost." : " Spend in dollars shows when Show costs is on in Settings; until then this counts lines and units."),
+    build() {
+      const d = rrDates(), by = rfv("spendBy", "vm"), C = costOn();
+      const olBy = new Map(); (S.rep.olines || []).forEach(l => { if (!olBy.has(l.orderId)) olBy.set(l.orderId, []); olBy.get(l.orderId).push(l); });
+      const pos = Array.from(S.orders.values()).filter(o => o.status !== "draft" && o.status !== "cancelled" && toDate(o.orderedAt) && toDate(o.orderedAt) >= d.from && toDate(o.orderedAt) <= d.to);
+      const g = new Map();
+      pos.forEach(o => {
+        const od = toDate(o.orderedAt), mk = od.getFullYear() + "-" + pad(od.getMonth() + 1), ml = MONTHS[od.getMonth()] + " " + od.getFullYear(), v = o.vendor || "No vendor";
+        const k = by === "vendor" ? v : by === "month" ? mk : v + "|" + mk;
+        if (!g.has(k)) g.set(k, { vendor: by === "month" ? "" : v, month: by === "vendor" ? "" : ml, mk: by === "vendor" ? "" : mk, pos: new Set(), lines: 0, each: 0, ft: 0, spend: 0, miss: 0 });
+        const x = g.get(k); x.pos.add(o.number);
+        (olBy.get(o.id) || orderLines(o.id)).forEach(l => {
+          x.lines++; const q = num(l.qtyOrdered); x[l.unit === "ft" ? "ft" : "each"] += q;
+          const c = unitCost(l.productId); if (c == null) x.miss++; else x.spend += q * c;
+        });
+      });
+      const rows = Array.from(g.values());
+      const cols = [];
+      if (by !== "month") cols.push(txtCol("vendor", "Vendor", r => r.vendor));
+      if (by !== "vendor") cols.push(txtCol("month", "Month", r => r.month, { sort: r => r.mk }));
+      cols.push(numCol("pos", "POs", r => r.pos.size), txtCol("numbers", "PO numbers", r => Array.from(r.pos).sort().join(", "), { def: false }), numCol("lines", "Lines", r => r.lines), numCol("each", "Units", r => r.each), numCol("ft", "Feet", r => r.ft));
+      if (C) cols.push(moneyCol("spend", "Spend", r => r.spend), numCol("miss", "Lines with no cost", r => r.miss, { def: false }));
+      const vend = new Set(pos.map(o => o.vendor || "No vendor")).size, ln = rows.reduce((a, r) => a + r.lines, 0), sp = rows.reduce((a, r) => a + r.spend, 0), miss = rows.reduce((a, r) => a + r.miss, 0);
+      const total = plural(pos.length, "PO") + " from " + plural(vend, "vendor") + ", " + plural(ln, "line") + "." + (C ? " Spend at last cost: " + money(sp) + "." + (miss ? ' <span class="z">' + plural(miss, "line") + " with no cost " + (miss === 1 ? "counts" : "count") + " as zero.</span>" : "") : "");
+      return { id: "rep_spend_" + by, cols, rows, total, defaultSort: (a, b) => String(a.mk).localeCompare(String(b.mk)) || String(a.vendor).localeCompare(String(b.vendor)) };
+    },
+    empty: () => "No purchase orders marked ordered " + rrText() + "." },
+
+  { k: "delivered", label: "Delivered", file: "delivered", mv: true, views: () => viewSel("delBy", [["each", "Each delivery"], ["job", "By client and job"]]),
+    hint: () => "Every Deliver to site in the range, for job costing and invoicing checks." + (costOn() ? " Cost is quantity times the product's last cost." : ""),
+    build() {
+      const by = rfv("delBy", "each"), C = costOn();
+      const rows = (S.rep.mvs || []).filter(m => m.type === "deliver").map(m => { const c = unitCost(m.productId); return { at: m.at, client: clientOfMv(m) || "No client", job: jobOfMv(m) || "No job", ticket: m.ticketNumber || "", product: m.productName || "", qty: num(m.qty), unit: unitTxt(m.unit), cost: c, total: c == null ? null : c * num(m.qty), by: m.byName || m.by || "", line: m.ticketLineId || m.productName }; });
+      const tc = rows.reduce((a, r) => a + num(r.total), 0), miss = rows.filter(r => r.total == null).length, jobs = new Set(rows.map(r => r.client + "|" + r.job)).size;
+      const total = plural(rows.length, "delivery", "deliveries") + " to " + plural(jobs, "job") + "." + (C ? " Cost at last cost: " + money(tc) + "." + (miss ? ' <span class="z">' + plural(miss, "delivery", "deliveries") + " with no cost " + (miss === 1 ? "counts" : "count") + " as zero.</span>" : "") : "");
+      if (by === "each") {
+        const cols = [dayCol("at", "Delivered", r => r.at), txtCol("client", "Client", r => r.client), txtCol("job", "Job", r => r.job), txtCol("ticket", "Ticket", r => r.ticket ? "#" + r.ticket : "", { sort: r => r.ticket }),
+          txtCol("product", "Product", r => r.product), numCol("qty", "Qty", r => r.qty), txtCol("unit", "Unit", r => r.unit, { def: false })];
+        if (C) cols.push(moneyCol("cost", "Unit cost", r => r.cost, { def: false }), moneyCol("total", "Cost", r => r.total));
+        cols.push(txtCol("by", "By", r => r.by));
+        return { id: "rep_delivered", cols, rows, total, defaultSort: (a, b) => (toDate(b.at) || 0) - (toDate(a.at) || 0) };
+      }
+      const g = new Map();
+      rows.forEach(r => { const k = r.client + "|" + r.job; if (!g.has(k)) g.set(k, { client: r.client, job: r.job, n: 0, lines: new Set(), each: 0, ft: 0, total: 0, last: null }); const x = g.get(k); x.n++; x.lines.add(r.line); x[r.unit === "ft" ? "ft" : "each"] += r.qty; x.total += num(r.total); if (!x.last || toDate(r.at) > toDate(x.last)) x.last = r.at; });
+      const cols = [txtCol("client", "Client", r => r.client), txtCol("job", "Job", r => r.job), numCol("n", "Deliveries", r => r.n), numCol("lines", "Lines", r => r.lines.size), numCol("each", "Units", r => r.each), numCol("ft", "Feet", r => r.ft)];
+      if (C) cols.push(moneyCol("total", "Cost", r => r.total));
+      cols.push(dayCol("last", "Last delivered", r => r.last));
+      return { id: "rep_delivered_job", cols, rows: Array.from(g.values()), total, defaultSort: (a, b) => a.client.localeCompare(b.client) || a.job.localeCompare(b.job) };
+    },
+    empty: () => "No deliver movements " + rrText() + "." },
+
+  { k: "itemsout", label: "Items out", file: "items-out", mv: true,
+    hint: () => "Serialized units checked out in the range, and units out now that left earlier. Days out counts to the day it came back, or to today.",
+    build() {
+      const d = rrDates(), mvs = S.rep.mvs || [], C = costOn(), now = new Date();
+      const ins = mvs.filter(m => m.type === "checkin" && m.itemId), outs = mvs.filter(m => m.type === "checkout" && m.itemId);
+      const latestOut = new Map(); outs.forEach(m => { const p = latestOut.get(m.itemId); if (!p || toDate(m.at) > toDate(p.at)) latestOut.set(m.itemId, m); });
+      const rows = outs.map(m => {
+        const it = S.items.get(m.itemId), out = toDate(m.at);
+        const back = ins.filter(x => x.itemId === m.itemId && toDate(x.at) > out).sort((a, b) => toDate(a.at) - toDate(b.at))[0];
+        let status, backAt = null;
+        if (back) { status = "Back"; backAt = toDate(back.at); }
+        else if (it && it.status === "checked_out" && latestOut.get(m.itemId) === m) status = "Still out";
+        else if (it && it.status === "installed") status = "Installed";
+        else status = "Back after the range";
+        return { holder: m.holderName || "", product: m.productName || (it ? it.productName : ""), unit: m.itemLabel || (it ? itemLabel(it) : ""), job: jobOfMv(m), out, backAt, status,
+          days: backAt || status === "Still out" ? Math.max(0, Math.floor(((backAt || now) - out) / 86400000)) : null, cost: it && it.cost != null ? num(it.cost) : unitCost(m.productId) };
+      });
+      S.items.forEach(it => { if (it.status === "checked_out" && toDate(it.checkedOutAt) && toDate(it.checkedOutAt) < d.from) rows.push({ holder: it.holderName || "", product: it.productName || "", unit: itemLabel(it), job: it.jobName || "", out: toDate(it.checkedOutAt), backAt: null, status: "Still out", days: daysSince(it.checkedOutAt), cost: it.cost != null ? num(it.cost) : unitCost(it.productId) }); });
+      const cols = [txtCol("holder", "Holder", r => r.holder), txtCol("product", "Product", r => r.product), txtCol("unit", "Unit", r => r.unit, { cls: "mono" }), txtCol("job", "Job", r => r.job),
+        dayCol("out", "Out", r => r.out), txtCol("back", "Back", r => r.backAt ? fmtDate(r.backAt) : "", { sort: r => r.backAt, x: r => r.backAt ? isoDay(r.backAt) : "" }), numCol("days", "Days out", r => r.days),
+        txtCol("status", "Status", r => r.status, { html: r => '<span class="st' + (r.status === "Still out" ? (r.days > 14 ? " warn" : " info") : r.status === "Back" ? " ok" : "") + '">' + esc(r.status) + "</span>" })];
+      if (C) cols.push(moneyCol("cost", "Cost", r => r.cost));
+      const still = rows.filter(r => r.status === "Still out"), longest = rows.filter(r => r.days != null).sort((a, b) => b.days - a.days)[0];
+      const total = plural(still.length, "unit") + " still out, " + fmtN(rows.filter(r => r.status === "Back").length) + " back, " + fmtN(rows.filter(r => r.status === "Installed").length) + " installed." + (longest ? " Longest out: " + plural(longest.days, "day") + " (" + esc(longest.holder || "no holder") + ", " + esc(longest.product) + ")." : "") + (C && still.length ? " Out now at cost: " + money(still.reduce((a, r) => a + num(r.cost), 0)) + "." : "");
+      return { id: "rep_itemsout", cols, rows, total, defaultSort: (a, b) => (a.status === "Still out" ? 0 : 1) - (b.status === "Still out" ? 0 : 1) || num(b.days) - num(a.days), rowClass: r => r.status === "Still out" && r.days > 14 ? "need" : "", raw: true };
+    },
+    empty: () => "No units checked out " + rrText() + ", and none are out now." },
+
+  { k: "wire", label: "Wire usage", file: "wire-usage", mv: true, views: () => viewSel("wireBy", [["each", "Each cut"], ["job", "By job"], ["person", "By person"], ["jobperson", "By job and person"]]),
+    hint: () => "Box cuts in the range, from the box sheet and from Pull from stock on a box." + (costOn() ? " Cost is feet times the product's last cost per foot." : ""),
+    build() {
+      const by = rfv("wireBy", "each"), C = costOn();
+      const rows = (S.rep.mvs || []).filter(m => m.type === "cut" && m.cut).map(m => { const c = unitCost(m.productId), ft = num(m.cut.length); return { at: m.at, job: jobOfMv(m) || "No job", person: m.byName || m.by || "", product: m.productName || "", box: m.containerLabel || "", from: m.cut.fromMark, to: m.cut.toMark, ft, cost: c == null ? null : c * ft }; });
+      const ft = rows.reduce((a, r) => a + r.ft, 0), cost = rows.reduce((a, r) => a + num(r.cost), 0), ppl = new Set(rows.map(r => r.person)).size;
+      const total = fmtN(ft) + " ft in " + plural(rows.length, "cut") + " by " + plural(ppl, "person", "people") + "." + (C ? " Cost at last cost: " + money(cost) + "." : "");
+      if (by === "each") {
+        const cols = [dayCol("at", "When", r => r.at), txtCol("job", "Job", r => r.job), txtCol("person", "Person", r => r.person), txtCol("product", "Product", r => r.product), txtCol("box", "Box", r => r.box, { cls: "mono" }),
+          numCol("from", "From mark", r => r.from, { def: false }), numCol("to", "To mark", r => r.to, { def: false }), numCol("ft", "Feet", r => r.ft)];
+        if (C) cols.push(moneyCol("cost", "Cost", r => r.cost));
+        return { id: "rep_wire", cols, rows, total, defaultSort: (a, b) => (toDate(b.at) || 0) - (toDate(a.at) || 0) };
+      }
+      const g = new Map(), kf = by === "job" ? r => r.job : by === "person" ? r => r.person : r => r.job + "|" + r.person;
+      rows.forEach(r => { const k = kf(r); if (!g.has(k)) g.set(k, { job: r.job, person: r.person, n: 0, boxes: new Set(), ft: 0, cost: 0 }); const x = g.get(k); x.n++; x.boxes.add(r.box); x.ft += r.ft; x.cost += num(r.cost); });
+      const cols = [];
+      if (by !== "person") cols.push(txtCol("job", "Job", r => r.job));
+      if (by !== "job") cols.push(txtCol("person", "Person", r => r.person));
+      cols.push(numCol("n", "Cuts", r => r.n), numCol("boxes", "Boxes", r => r.boxes.size), numCol("ft", "Feet", r => r.ft));
+      if (C) cols.push(moneyCol("cost", "Cost", r => r.cost));
+      return { id: "rep_wire_" + by, cols, rows: Array.from(g.values()), total, defaultSort: (a, b) => b.ft - a.ft };
+    },
+    empty: () => "No box cuts " + rrText() + "." },
+
+  { k: "movements", label: "Movements", file: "movements", mv: true,
+    views: () => {
+      const all = S.rep.mvs || [], people = Array.from(new Set(all.map(m => m.byName || m.by).filter(Boolean))).sort();
+      return '<div><label class="lab" for="rf_mvType">Type</label><select class="fld" id="rf_mvType" data-rf="mvType"><option value="">All types</option>' + Object.entries(MV_LABEL).map(([k, l]) => '<option value="' + k + '"' + (S.rf.mvType === k ? " selected" : "") + ">" + l + "</option>").join("") + "</select></div>" +
+        '<div><label class="lab" for="rf_mvPerson">Person</label><select class="fld" id="rf_mvPerson" data-rf="mvPerson"><option value="">Everyone</option>' + people.map(p => "<option" + (S.rf.mvPerson === p ? " selected" : "") + ">" + esc(p) + "</option>").join("") + "</select></div>";
+    },
+    hint: () => "The raw audit trail for the range, read in full (the Movements log under More shows the latest 500). Columns hides or shows the raw fields; the export takes the columns shown.",
+    build() {
+      const rows = (S.rep.mvs || []).filter(m => (!S.rf.mvType || m.type === S.rf.mvType) && (!S.rf.mvPerson || (m.byName || m.by) === S.rf.mvPerson));
+      const cols = [
+        { k: "at", label: "When", cls: "nw", sort: m => toDate(m.at), text: m => fmtWhen(m.at), x: m => { const d = toDate(m.at); return d ? isoDay(d) + " " + pad(d.getHours()) + ":" + pad(d.getMinutes()) : ""; } },
+        { k: "type", label: "Type", sort: m => MV_LABEL[m.type] || m.type, text: m => MV_LABEL[m.type] || m.type, html: m => '<span class="mv ' + esc(m.type) + '">' + esc(MV_LABEL[m.type] || m.type) + "</span>", x: m => m.type },
+        txtCol("product", "Product", m => m.productName), txtCol("productId", "Product id", m => m.productId, { def: false }),
+        txtCol("what", "Box or unit", m => m.containerLabel ? "Box " + m.containerLabel : m.itemLabel ? "Unit " + m.itemLabel : ""),
+        numCol("qty", "Qty", m => m.qty == null || m.type === "edit" ? null : num(m.qty)), txtCol("unit", "Unit", m => m.unit, { def: false }),
+        numCol("cutFrom", "Cut from mark", m => m.cut ? m.cut.fromMark : null, { def: false }), numCol("cutTo", "Cut to mark", m => m.cut ? m.cut.toMark : null, { def: false }), numCol("cutLength", "Cut length", m => m.cut ? m.cut.length : null, { def: false }),
+        txtCol("from", "From", m => m.fromLocationName), txtCol("to", "To", m => m.toLocationName), txtCol("by", "By", m => m.byName || m.by), txtCol("byEmail", "By email", m => m.by, { def: false }),
+        txtCol("job", "Job", m => m.jobName), txtCol("ticket", "Ticket", m => m.ticketNumber ? "#" + m.ticketNumber : "", { def: false }), txtCol("order", "PO", m => m.orderNumber, { def: false }),
+        txtCol("holder", "Holder", m => m.holderName, { def: false }), txtCol("condition", "Condition", m => m.condition, { def: false }), txtCol("note", "Note", m => m.note)];
+      return { id: "rep_movements", cols, rows, total: plural(rows.length, "movement") + (rows.length !== (S.rep.mvs || []).length ? " of " + fmtN((S.rep.mvs || []).length) + " in the range." : " in the range."), defaultSort: (a, b) => (toDate(b.at) || 0) - (toDate(a.at) || 0) };
+    },
+    empty: () => "No " + (S.rf.mvType ? (MV_LABEL[S.rf.mvType] || S.rf.mvType).toLowerCase() + " " : "") + "movements " + (S.rf.mvPerson ? "by " + S.rf.mvPerson + " " : "") + rrText() + "." },
+
+  { k: "aging", label: "Aging", file: "aging", mv: false, views: () => viewSel("aging", [["tickets", "Open tickets"], ["pos", "Open purchase orders"], ["dnr", "Delivered, not received"]]),
+    hint: () => "Everything still open today that was opened on or before the To date. From does not apply here: the oldest are the ones that matter. Age counts to today.",
+    build() {
+      const to = rrDates().to, which = rfv("aging", "tickets");
+      if (which === "tickets") {
+        const rows = Array.from(S.tickets.values()).filter(t => t.status !== "closed" && toDate(t.createdAt) && toDate(t.createdAt) <= to).map(t => { const s = tkSummary(t), age = daysSince(t.createdAt); return { t, age, bucket: ageBucket(age), st: tkStatus(t), s }; });
+        const cols = [txtCol("ticket", "Ticket", r => "#" + r.t.number, { sort: r => r.t.number }), txtCol("client", "Client", r => r.t.clientName), txtCol("job", "Job", r => r.t.jobName),
+          txtCol("status", "Status", r => TK_LABEL[r.st] || r.st), dayCol("opened", "Opened", r => r.t.createdAt), numCol("age", "Age (days)", r => r.age), txtCol("bucket", "Age band", r => r.bucket, { sort: r => r.age }),
+          dayCol("install", "Install", r => r.t.installAt), txtCol("staged", "Staged", r => r.s.staged + " of " + r.s.lines + " lines", { sort: r => r.s.lines ? r.s.staged / r.s.lines : 0 })];
+        return { id: "rep_aging_tickets", cols, rows, total: rows.length ? bucketLine(rows, "open ticket") : "", defaultSort: (a, b) => b.age - a.age, rowClass: r => r.age > 30 ? "need" : "", emptyMsg: "No open tickets opened on or before " + rrDay(to) + "." };
+      }
+      if (which === "pos") {
+        const rows = Array.from(S.orders.values()).filter(o => ["draft", "ordered", "partial"].includes(o.status)).map(o => ({ o, opened: o.orderedAt || o.createdAt })).filter(r => toDate(r.opened) && toDate(r.opened) <= to)
+          .map(r => { const age = daysSince(r.opened), s = ordSummary(r.o); return Object.assign(r, { age, bucket: ageBucket(age), s }); });
+        const cols = [txtCol("po", "PO", r => "PO " + r.o.number, { sort: r => r.o.number }), txtCol("vendor", "Vendor", r => r.o.vendor || "No vendor yet"), txtCol("for", "For", r => ordFor(r.o)),
+          txtCol("status", "Status", r => ordDnr(r.o) ? "Delivered, not received" : ORD_LABEL[r.o.status] || r.o.status), dayCol("opened", "Opened", r => r.opened), numCol("age", "Age (days)", r => r.age),
+          txtCol("bucket", "Age band", r => r.bucket, { sort: r => r.age }), txtCol("recv", "Received", r => fmtN(r.s.qtyReceived) + " of " + fmtN(r.s.qtyOrdered), { sort: r => r.s.qtyOrdered ? r.s.qtyReceived / r.s.qtyOrdered : 0 })];
+        return { id: "rep_aging_pos", cols, rows, total: rows.length ? bucketLine(rows, "open PO") + ' <span class="z">Drafts age from the day they were started, the rest from the day they were marked ordered.</span>' : "", defaultSort: (a, b) => b.age - a.age, rowClass: r => r.age > 30 ? "need" : "", emptyMsg: "No open purchase orders opened on or before " + rrDay(to) + "." };
+      }
+      const rows = Array.from(S.shipments.values()).filter(s => s.status === "delivered" && shipOpen(s) && toDate(s.deliveredAt) && toDate(s.deliveredAt) <= to).map(s => { const age = daysSince(s.deliveredAt), o = S.orders.get(s.orderId); return { s, o, age, bucket: ageBucket(age), open: (s.lines || []).filter(e => num(e.qty) - num(e.qtyReceived) > 0).length }; });
+      const cols = [txtCol("po", "PO", r => "PO " + (r.s.orderNumber || r.s.orderId), { sort: r => r.s.orderNumber }), txtCol("vendor", "Vendor", r => r.s.vendor || (r.o && r.o.vendor) || ""), txtCol("carrier", "Carrier", r => r.s.carrier),
+        txtCol("tracking", "Tracking", r => r.s.tracking, { cls: "mono" }), dayCol("delivered", "Delivered", r => r.s.deliveredAt), numCol("age", "Days waiting", r => r.age), txtCol("bucket", "Age band", r => r.bucket, { sort: r => r.age }),
+        numCol("open", "Lines waiting", r => r.open), txtCol("for", "For", r => r.o ? ordFor(r.o) : r.s.jobName || "Stock")];
+      return { id: "rep_aging_dnr", cols, rows, total: rows.length ? bucketLine(rows, "shipment") + " Find the box and press Receive on the order." : "", defaultSort: (a, b) => b.age - a.age, rowClass: () => "need", emptyMsg: "No shipments delivered and not received on or before " + rrDay(to) + "." };
+    },
+    empty: () => "" }
+];
+const curReport = () => REPORTS.find(x => x.k === S.repTab) || REPORTS[0];
+
+/* the range is read once per From and To (and on Refresh); listeners keep the rest live */
+async function repLoad(force) {
+  const r = rrGet(), key = r.from + "|" + r.to, d = rrDates();
+  if (!force && S.rep && S.rep.key === key) return;
+  if (isNaN(d.from) || isNaN(d.to)) { S.rep = { key, err: "Pick both dates.", bad: true }; return; }
+  if (d.from > d.to) { S.rep = { key, err: "From is after To. Pick a From date on or before the To date.", bad: true }; return; }
+  S.rep = { key, loading: true };
+  try {
+    const [mvs, olines] = await Promise.all([DB.movementsBetween(d.from, d.to), DB.getAll("loadout_order_lines")]);
+    if (!S.rep || S.rep.key !== key) return;
+    S.rep = { key, mvs, olines, at: new Date() };
+  } catch (e) {
+    console.warn("Report read failed:", e);
+    if (S.rep && S.rep.key === key) S.rep = { key, err: "Could not read the data for this range. Check your connection and try again." };
+  }
+  scheduleRender();
+}
+function reportsHTML() {
+  const R = curReport(); S.repTab = R.k;
+  repLoad(false);
+  const r = rrGet(), rep = S.rep || { loading: true };
+  let h = '<div class="toolbar rpick"><div class="seg" role="tablist" aria-label="Reports">' + REPORTS.map(x => '<button type="button" role="tab" aria-selected="' + (x.k === R.k) + '" class="' + (x.k === R.k ? "on" : "") + '" data-act="repTab" data-tab="' + x.k + '">' + esc(x.label) + "</button>").join("") + "</div></div>" +
+    '<div class="rr"><div><label class="lab" for="rrFrom">From</label><input class="fld" type="date" id="rrFrom" data-rr="from" value="' + esc(r.from) + '"></div>' +
+    '<div><label class="lab" for="rrTo">To</label><input class="fld" type="date" id="rrTo" data-rr="to" value="' + esc(r.to) + '"></div>' +
+    '<div><span class="lab" title="Sets From and To to a whole calendar month">Month</span><div class="btnrow"><button type="button" class="btn sm" data-act="rrPreset" data-m="0">This month</button><button type="button" class="btn sm" data-act="rrPreset" data-m="-1">Last month</button></div></div>' +
+    '<div><span class="lab" title="Reads the range again from the database. Stock and Aging are always live.">' + (rep.at ? "Read at " + esc(fmtTime(rep.at)) : "Data") + '</span><div class="btnrow"><button type="button" class="btn sm" data-act="repRefresh">Refresh</button></div></div></div>' +
+    '<p class="rhint">' + esc(R.hint()) + "</p>";
+  if (rep.err) return h + '<div class="errbox" role="alert"><p>' + esc(rep.err) + "</p>" + (rep.bad ? "" : '<button type="button" class="btn" data-act="repRefresh">Retry</button>') + "</div>";
+  if (R.mv && (rep.loading || !rep.mvs)) return h + skelTable([{ label: "Loading" }, { label: "" }, { label: "", r: true }], "Reading " + R.label.toLowerCase() + " " + rrText());
+  const b = R.build();
+  const tools = (R.views ? R.views() : "");
+  const exp = b.rows.length ? '<span class="rexp"><button type="button" class="btn sm" data-act="columns" data-tbl="' + b.id + '">Columns</button><button type="button" class="btn sm" data-act="repCsv">Export CSV</button><button type="button" class="btn sm" data-act="repXlsx">Export XLSX</button></span>' : "";
+  h += '<div class="filters rfil">' + tools + "</div>" + '<div class="thead"><h4>' + esc(R.label) + '</h4><span class="hint" style="margin:0">' + (b.rows.length ? plural(b.rows.length, "row") : "") + "</span>" + exp + "</div>";
+  if (!b.rows.length) return h + '<div class="empty"><p>' + esc(b.emptyMsg || R.empty()) + "</p>" + (R.k !== "aging" && r.from === monthRange(0).from ? '<button type="button" class="btn" data-act="rrPreset" data-m="-1">Try last month</button>' : "") + "</div>";
+  return h + tableHTML(b.id, b.cols, b.rows, { defaultSort: b.defaultSort, rowClass: b.rowClass }) + (b.total ? '<p class="rtot">' + b.total + "</p>" : "");
+}
+function repExport(kind) {
+  const R = curReport(), b = R.build(); if (!b.rows.length) { toast("Nothing to export in this range.", true); return; }
+  const vis = visibleCols(b.id, b.cols), rows = sortRows(b.id, b.cols, b.rows, b.defaultSort), r = rrGet();
+  const val = (c, x) => { const v = c.x ? c.x(x) : c.text ? c.text(x) : ""; return v == null ? "" : v; };
+  /* loadout-spend-vendor-2026-10-01-to-2026-10-31.csv: the report, its view, and the range */
+  const name = "loadout-" + b.id.replace(/^rep_/, "").replace(/_/g, "-") + "-" + r.from + "-to-" + r.to;
+  if (kind === "csv") { downloadBlob(new Blob(["\ufeff" + csvOf(rows, vis.map(c => ({ label: c.label, get: x => val(c, x) })))], { type: "text/csv" }), name + ".csv"); toast("CSV downloaded"); return; }
+  ensureXLSX().then(XLSX => {
+    const ws = XLSX.utils.aoa_to_sheet([vis.map(c => c.label)].concat(rows.map(x => vis.map(c => val(c, x)))));
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, R.label.slice(0, 31));
+    XLSX.writeFile(wb, name + ".xlsx"); toast("XLSX downloaded");
+  }).catch(e => toast(e.message || String(e), true));
 }
 
 /* ==============================================================
@@ -5564,13 +6270,17 @@ document.addEventListener("click", e => {
     case "editJob": openJobForm(S.jobs.get(id)); break;
     case "archJob": { const j = S.jobs.get(id); if (j) doSaveJob(j.id, { clientId: j.clientId, clientName: j.clientName, name: j.name, address: j.address || "", status: j.status === "closed" ? "open" : "closed", stagingLocationId: j.stagingLocationId || null, stagingLocationName: j.stagingLocationName || null }, false, j.stagingLocationId).then(ok => ok && toast(j.status === "closed" ? "Job reopened" : "Job archived")); break; }
     case "bdPin": { readBoardForm(); const v = $("#bdAdd") && $("#bdAdd").value; if (!v) { toast("Pick a ticket to pin.", true); break; } S.boardDraft.ticketIds.push(v); render(true); break; }
-    case "bdReset": S.boardDraft = null; render(true); toast("Back to the saved settings"); break;
-    case "bdSave": {
-      readBoardForm(); const d = S.boardDraft, e = $("#bdErr");
-      if (!(d.rotateSec >= 5 && d.rotateSec <= 600)) { e.textContent = "Rotation must be between 5 and 600 seconds."; e.hidden = false; break; }
-      DB.commit([{ op: "set", coll: "loadout_settings", id: "board", merge: true, data: { mode: d.mode, ticketIds: d.ticketIds.slice(), rotateSec: d.rotateSec, groupBy: d.groupBy, showStaged: d.showStaged, theme: d.theme, updatedAt: NOW, updatedBy: S.user.email, updatedByName: S.user.name } }], "board settings").then(ok => ok && toast("Board settings saved"));
-      break;
-    }
+    case "bdReset": S.boardDraft = null; S.genDraft = null; render(true); toast("Back to the saved settings"); break;
+    /* 0.4.0: the Console */
+    case "consoleTab": go("console", b.dataset.tab); break;
+    case "repTab": S.repTab = b.dataset.tab; setHash(); render(true); break;
+    case "rrPreset": S.rr = monthRange(+b.dataset.m); render(true); break;
+    case "repRefresh": repLoad(true); render(true); break;
+    case "repCsv": repExport("csv"); break;
+    case "repXlsx": repExport("xlsx"); break;
+    case "userActive": openUserActive(S.users.get(id)); break;
+    case "toBoard": closeAllModals(); go("console", "settings"); setTimeout(scrollToBoard, 80); break;
+    case "exportZip": exportZip(); break;
     /* 0.3.0: expand in place */
     case "xtoggle": xToggle(b.dataset.x, id); break;
     case "xsave": xSave(); break;
@@ -5602,7 +6312,7 @@ document.addEventListener("click", e => {
     case "trNote": { const o = S.orders.get(id), ol = o && S.olines.get(o.id) ? S.olines.get(o.id).get(b.dataset.line) : null; if (o && ol) openOlNote(o, ol); break; }
     /* 0.3.0: week */
     case "wkGo": { const d = +b.dataset.d; S.weekOff = d === 0 ? 0 : S.weekOff + d; setHash(); render(true); break; }
-    case "wkWork": S.prefs = Object.assign({}, S.prefs, { workWeek: !S.prefs.workWeek }); savePrefs(); render(true); { const t = $(".wwt"); if (t) t.focus(); } break;
+    case "wkWork": S.prefs = Object.assign({}, S.prefs, { workWeek: !wwOn() }); savePrefs(); render(true); { const t = $(".wwt"); if (t) t.focus(); } break;
     case "wkAll": S.prefs = Object.assign({}, S.prefs, { workWeek: false }); savePrefs(); render(true); toast("Work week off: the weekend shows"); break;
     case "wkLine": S.focusLine = { id: b.dataset.line, done: false }; go("ticket", id); break;
     case "mvWeek": mvWeek(+b.dataset.d); render(true); break;
@@ -5621,7 +6331,9 @@ document.addEventListener("input", e => {
 });
 document.addEventListener("change", e => {
   const t = e.target;
-  if (t.dataset && t.dataset.mf && t.tagName === "SELECT") { S.mvFilter[t.dataset.mf] = t.value; scheduleRender(); }
+  if (t.dataset && t.dataset.rr) { S.rr = Object.assign({}, rrGet(), { [t.dataset.rr]: t.value }); render(true); }
+  else if (t.dataset && t.dataset.rf) { S.rf[t.dataset.rf] = t.value; render(true); }
+  else if (t.dataset && t.dataset.mf && t.tagName === "SELECT") { S.mvFilter[t.dataset.mf] = t.value; scheduleRender(); }
   else if (t.dataset && t.dataset.lbl) { t.checked ? S.labelSel.add(t.dataset.lbl) : S.labelSel.delete(t.dataset.lbl); render(true); }
   else if (t.id === "lblSize") { S.labelSize = t.value; }
   else if (t.dataset && t.dataset.tf) { S.tkFilter[t.dataset.tf] = t.type === "checkbox" ? t.checked : t.value; render(true); }
@@ -5640,11 +6352,13 @@ document.addEventListener("change", e => {
 /* the attributes section in a product panel stays open across redraws */
 document.addEventListener("toggle", e => { if (e.target.matches && e.target.matches("details[data-xattr]") && S.x) S.x.attrOpen = e.target.open; }, true);
 window.addEventListener("hashchange", () => applyHash());
-const VIEWS = ["tickets", "ticket", "stock", "scan", "items", "orders", "order", "tracking", "week", "more"];
+const VIEWS = ["tickets", "ticket", "stock", "scan", "items", "orders", "order", "tracking", "week", "more", "console"];
 function applyHash() {
   const parts = location.hash.replace(/^#/, "").split("/").map(x => { try { return decodeURIComponent(x); } catch (e) { return x; } });
-  const v = parts[0], sub = parts[1], rest = parts.slice(2).join("/");
+  let [v, sub] = routeAlias(parts[0], parts[1]);
+  const rest = parts.slice(2).join("/");
   if (!VIEWS.includes(v)) return;
+  if (v === "console") { S.consoleTab = sub || "reports"; if (S.consoleTab === "reports" && rest && REPORTS.some(r => r.k === rest)) S.repTab = rest; if (parts[1] === "board") setTimeout(scrollToBoard, 80); }
   S.x = null;
   if (v === "stock") { if (sub === "p" && rest) { xSet("p", rest); const p = S.products.get(rest); if (S.stockTab === "locations" || !p || !stockShows(p)) { S.stockTab = "all"; S.search = ""; } } else if (sub === "l" && rest) { S.stockTab = "locations"; xSet("l", rest); } else if (sub) S.stockTab = sub; }
   if (v === "items") { if (sub === "i" && rest) { S.itemsTab = "all"; xSet("i", rest); } else if (sub) S.itemsTab = sub; }
@@ -5654,8 +6368,10 @@ function applyHash() {
   if (v === "week") S.weekOff = sub ? weekOffFor(sub) : 0;
   if (S.view === "scan" && v !== "scan") stopCamera();
   S.view = v; render(true);
+  if (v !== parts[0] || sub !== parts[1]) setHash();
   if (S.x) scrollToX();
 }
+function scrollToBoard() { const s = $("#bdSect"); if (s) { s.scrollIntoView({ block: "start", behavior: REDUCED ? "auto" : "smooth" }); const f = $("#bdMode"); if (f) f.focus({ preventScroll: true }); } }
 
 /* ==============================================================
    BOOT
@@ -5666,7 +6382,7 @@ function setMe(me) {
   S.role = me.active === false ? "none" : (me.role || "tech");
   $("#footRole").textContent = "Role: " + (ROLE_LABEL[S.role] || S.role);
   if (S.role === "board" && !BOARD) { enterBoard(); return; }
-  if (prev !== S.role) { _moreBuilt = ""; render(true); }
+  if (prev !== S.role) { _moreBuilt = ""; _conBuilt = ""; render(true); }
 }
 function startApp(user) {
   S.user = user;
