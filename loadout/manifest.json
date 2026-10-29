@@ -1,9 +1,10 @@
 {
+  "id": "./",
   "name": "Loadout",
   "short_name": "Loadout",
   "description": "Umbrella Automation shop inventory: shelf counts, wire boxes, serialized units, pick tickets, and purchase orders.",
-  "version": "0.4.0",
-  "start_url": "./",
+  "version": "0.5.0",
+  "start_url": "./#scan",
   "scope": "./",
   "display": "standalone",
   "background_color": "#f4f6f9",

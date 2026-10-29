@@ -8,7 +8,7 @@ pages, `noindex, nofollow`, and the shared Watchtower sign-in
 (`@umbrellaautomation.com` Google accounts only). The plan is `PLAN.md`; the
 chosen look is direction B, Ledger, in `design-preview.html`.
 
-Current version: **0.4.0**.
+Current version: **0.5.0**.
 
 ## Files
 
@@ -17,7 +17,8 @@ Current version: **0.4.0**.
 | `index.html` | The whole app: markup, styles, and script in one file. |
 | `qr.js` | Vendored QR encoder (qrcode-generator 1.4.4, MIT, by Kazuhiko Arase), loaded locally so labels never depend on a CDN. |
 | `favicon.svg`, `icon-192.png`, `icon-512.png` | The hard-case mark. The PNGs are rendered from the SVG. |
-| `manifest.json` | Add to Home Screen: standalone, named Loadout. |
+| `manifest.json` | Add to Home Screen: standalone, named Loadout, opens on Scan (`start_url` `./#scan`). |
+| `sw.js` | Service worker: keeps the app shell, the zxing barcode fallback, and the Firebase modules on the device so Loadout opens with no signal. The cache name carries the version. |
 | `og-image.svg`, `og-image.png` | Link preview card in the house style. |
 | `PLAN.md`, `design-preview.html`, `storyboard.html` | Plan, design switcher, and the owner's storyboard. |
 | `samples/` | Real data for testing the importer. Git-ignored; never commit it. |
@@ -115,7 +116,23 @@ Current version: **0.4.0**.
   get a row of Console links (Reports, People, Settings, Board, About, Export
   everything); warehouse and techs keep About and Export everything as tabs
   here. On the phone the tab bar is Tickets, Scan, Week, Stock, More, and
-  Orders, Tracking, Items, and the Console sit at the top of More.
+  Orders, Tracking, Items, and the Console sit at the top of More. More also
+  carries the Add to home screen card until it is dismissed on that device.
+- **Offline**: Loadout opens and works with no signal once it has been opened
+  online on that device. Every change saves on the device first; the sync
+  pill in the header reads Synced, Offline, or "3 pending" (changes waiting
+  for the server), and a row changed while offline carries a small dashed
+  "pending" chip until the server has it. The first change made offline says
+  "Saved on this device. It syncs when you are back online." Scan works
+  offline too: the camera, the zxing fallback on iOS, and lookups against what
+  the device already holds. A change the server refuses later toasts and the
+  row goes back to what it was. When a new release takes over a page that is
+  still open, a "New version available, reload" toast offers a Reload button.
+- **Photos**: a product's panel (Stock, open a row) has a Photo slot with Add
+  photo, Replace photo, and Remove photo for admin and warehouse. The photo
+  is shrunk to 1200 px and saved as JPEG before upload, and shows on the Scan
+  product card and in an optional Photo column (off by default; turn it on in
+  Columns). Adding or removing a photo needs a connection.
 
 Roles: the account named in the rules as the project owner becomes admin on
 its first sign-in; everyone else lands as Tech until an admin changes the role
@@ -142,7 +159,35 @@ one received), install dates across this week, and imported rows that show the
 more POs from last month and this month (one still open and backordered), and
 the deliveries, box cuts, and check-outs around them, dated inside this month
 and last month so every report has rows on any day, plus a roster with Lead
-tech, Accounting, Board TV, and a deactivated Former tech. No Firebase code loads in demo mode.
+tech, Accounting, Board TV, and a deactivated Former tech. 0.5.0 gives the
+Ubiquiti U6-Pro and the Sonos Amp a drawn placeholder labeled "Sample photo";
+Add, Replace, and Remove photo answer with the usual "Demo mode: not saved".
+The demo hook adds `window.Loadout.sync({online: false, pending: 3})` to drive
+the sync pill (`sync(null)` goes back to Demo),
+`window.Loadout.pending("products", id, true)` to put the pending chip on a
+row, and `window.Loadout.install("prompt" | "ios" | "menu" | "none")` to pick
+which Add to home screen card shows. No Firebase code loads in demo mode. The
+service worker does register in demo mode, since the demo is how the offline
+shell is checked.
+
+## Install on a phone
+
+Open Loadout once with signal and sign in, then add it to the home screen. It
+opens straight to Scan, full screen, and keeps working in the warehouse with
+no signal.
+
+- **Android (Chrome)**: tap **Add to home screen** on the card under More, or
+  on the strip that shows once under the header. Chrome asks to confirm.
+  Without the card, use the Chrome menu and pick **Add to Home screen** or
+  **Install app**.
+- **iPhone or iPad (Safari)**: tap **Share** (the square with the arrow) in
+  Safari's toolbar, scroll down, and tap **Add to Home Screen**. The card under
+  More shows the same two steps.
+
+The card and the strip each go away for good on that device once dismissed.
+The first sign-in needs a connection; after that the phone stays signed in
+and opens offline. Changes made offline go up the next time the phone has
+signal with Loadout open.
 
 ## Data
 
@@ -171,8 +216,10 @@ sheet's count date and keep `importedAt`, `importTab`, `importRow`, and
 carries readable names next to its ids, so the
 database and the export read without the app. Each person's table layout is
 saved on their own `/users/{uid}` doc under `loadoutLayout`. Settings
-`general` gained `workWeek` in 0.4.0. The Console's About tab lists every
-field of every collection.
+`general` gained `workWeek` in 0.4.0. Products gained `imageUrl` (the photo's
+download link), `imagePath` (`loadout/products/{id}.jpg` in Firebase Storage),
+and `imageAt` in 0.5.0. The Console's About tab lists every field of every
+collection.
 
 ## Rules
 
@@ -341,7 +388,104 @@ match /{coll}/{docId} {
 }
 ```
 
+### Storage rules (0.5.0)
+
+Product photos live in Firebase Storage in the same project, under
+`loadout/products/{productId}.jpg`. The rules are in `../watchtower/storage.rules`
+(new in 0.5.0, holding only the Loadout block), and `../watchtower/firebase.json`
+gained the matching `storage` entry. Admin and warehouse (read from the
+`loadout_users` roster, the same way the Firestore rules do) may add, replace,
+and delete a photo; anyone signed in with a verified `@umbrellaautomation.com`
+account may read one. Each file must be under 2 MB and JPEG, PNG, or WebP, by
+both its content type and its name. Tested in the local Storage and Firestore
+emulators (25 of 25 checks passing: role, paused account, no roster doc,
+outside account, unverified email, type, name, size at the 2 MB edge, other
+paths, read, and delete); it is **not deployed**. Before the first deploy the
+owner turns on Storage for `watchtower-6fbe1` in the Firebase console (the
+default bucket `watchtower-6fbe1.firebasestorage.app` the app already names).
+The first deploy of a rule that reads Firestore also asks to let Storage read
+Firestore; answer yes. Deploy from `work/watchtower` with:
+
+`firebase deploy --only storage --account frank@umbrellaautomation.com --project watchtower-6fbe1`
+
+```
+rules_version = '2';
+
+// Umbrella Automation - watchtower-6fbe1 project
+// Cloud Storage security rules.
+//
+// Only Loadout (work/loadout) stores files in this project so far: one
+// photo per catalog product. A path no block matches is denied, so
+// nothing else in the bucket is reachable. A tool that adds files later
+// adds its own block beside this one.
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // -------- Loadout (work/loadout) --------
+    // Same domain check as isMSPAdmin() in firestore.rules.
+    function loadoutSignedIn() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email.matches('.*@umbrellaautomation[.]com');
+    }
+    // Admin and warehouse, read from the Loadout roster in Firestore. A
+    // missing roster doc counts as tech and a paused one (active == false)
+    // as nobody, exactly as loadoutRole() does in firestore.rules.
+    function loadoutWriter() {
+      let path = /databases/(default)/documents/loadout_users/$(request.auth.uid);
+      return loadoutSignedIn()
+        && firestore.exists(path)
+        && firestore.get(path).data.get('active', true) == true
+        && firestore.get(path).data.get('role', 'tech') in ['admin', 'warehouse'];
+    }
+    // Product photos: loadout/products/{productId}.{jpg|jpeg|png|webp}.
+    // The app shrinks a photo to 1200 px and uploads JPEG; the rule holds
+    // the line at 2 MB and the three image types whatever the client does.
+    match /loadout/products/{file} {
+      allow read: if loadoutSignedIn();
+      allow create, update: if loadoutWriter()
+        && file.matches('[A-Za-z0-9_-]+[.](jpg|jpeg|png|webp)')
+        && request.resource.size < 2 * 1024 * 1024
+        && request.resource.contentType in ['image/jpeg', 'image/png', 'image/webp'];
+      allow delete: if loadoutWriter();
+    }
+  }
+}
+```
+
 ## Changelog
+
+### 0.5.0 (2026-10-29)
+
+Offline use, the home screen, and photos, so the phone keeps working in the
+corner of the warehouse with no signal and a new tech can tell one gray box
+from another.
+
+- Loadout now opens with no signal once it has been opened online on that
+  phone. A service worker keeps the app, the iPhone barcode decoder, and the
+  database code on the device, and the database already kept its own copy, so
+  Scan, counts, cuts, and check-outs all work in a dead spot.
+- Every change saves on the device first and goes up when there is signal.
+  The pill in the header says Synced, Offline, or how many changes are still
+  waiting, and a row changed offline carries a small "pending" chip until the
+  server has it, so nobody wonders whether a count stuck. The first change
+  made offline says so in a toast, once, instead of on every tap.
+- Screens no longer wait on a slow connection before moving on: if the server
+  has not answered in a couple of seconds the change counts as saved on the
+  device. A change the server refuses later still toasts, and the row goes
+  back to what it was.
+- When a new release reaches a phone that has Loadout open, a toast offers a
+  Reload button, rather than leaving the old version running all day.
+- Add to home screen: a card under More (and once, a strip under the header on
+  the phone) with Chrome's own install button on Android and the two Share
+  steps on iPhone, because iPhones never offer it on their own. The home
+  screen icon opens straight to Scan.
+- Product photos: Add, Replace, and Remove in the product panel, a thumbnail
+  on the Scan card, and an optional Photo column on Stock. Photos are shrunk
+  to 1200 px and saved as JPEG on the phone first, which keeps uploads small on
+  a weak signal and drops the camera's location data. The Storage rules keep
+  photos to admin and warehouse for writing and the domain for reading.
 
 ### 0.4.0 (2026-10-29)
 

@@ -1,0 +1,43 @@
+rules_version = '2';
+
+// Umbrella Automation - watchtower-6fbe1 project
+// Cloud Storage security rules.
+//
+// Only Loadout (work/loadout) stores files in this project so far: one
+// photo per catalog product. A path no block matches is denied, so
+// nothing else in the bucket is reachable. A tool that adds files later
+// adds its own block beside this one.
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // -------- Loadout (work/loadout) --------
+    // Same domain check as isMSPAdmin() in firestore.rules.
+    function loadoutSignedIn() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email.matches('.*@umbrellaautomation[.]com');
+    }
+    // Admin and warehouse, read from the Loadout roster in Firestore. A
+    // missing roster doc counts as tech and a paused one (active == false)
+    // as nobody, exactly as loadoutRole() does in firestore.rules.
+    function loadoutWriter() {
+      let path = /databases/(default)/documents/loadout_users/$(request.auth.uid);
+      return loadoutSignedIn()
+        && firestore.exists(path)
+        && firestore.get(path).data.get('active', true) == true
+        && firestore.get(path).data.get('role', 'tech') in ['admin', 'warehouse'];
+    }
+    // Product photos: loadout/products/{productId}.{jpg|jpeg|png|webp}.
+    // The app shrinks a photo to 1200 px and uploads JPEG; the rule holds
+    // the line at 2 MB and the three image types whatever the client does.
+    match /loadout/products/{file} {
+      allow read: if loadoutSignedIn();
+      allow create, update: if loadoutWriter()
+        && file.matches('[A-Za-z0-9_-]+[.](jpg|jpeg|png|webp)')
+        && request.resource.size < 2 * 1024 * 1024
+        && request.resource.contentType in ['image/jpeg', 'image/png', 'image/webp'];
+      allow delete: if loadoutWriter();
+    }
+  }
+}

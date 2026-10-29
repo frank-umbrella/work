@@ -151,7 +151,9 @@ the database reads without the app (section 16).
   consumable      bool                 shows in the Consumables view, has a par level
   parLevel        number|null          reorder point in the product's unit
   defaultLocationId (string|null)
-  imageUrl        string|null          Storage path, optional
+  imageUrl        string|null          photo download link, optional (0.5.0)
+  imagePath       string|null          its Storage path, loadout/products/{id}.jpg
+  imageAt         Timestamp|null       when the photo was last set
   onHand          number               denormalized sum; recomputed on each movement
   portalItemId    string|null          Portal referencedItemId, when imported
   lastCountAt     Timestamp|null       from the sheet's Last Date / Count Date
@@ -754,7 +756,8 @@ Build T0 first. T1 and T2 are worker work and need the plan tier known.
   every non-obvious field explaining why.
 - Favicon, OG card (house style, no version text), semver in the title, A2HS
   manifest, `noindex, nofollow`, no repo link in the UI.
-- Version constant, HTML meta, visible UI, and README changelog bump together.
+- Version constant, HTML meta, visible UI, README changelog, and the `sw.js`
+  `VERSION` (its cache name) bump together; a stale sw.js serves the old shell.
 - Every text color meets WCAG AA on every surface it sits on: 4.5:1 for
   normal text, 3:1 for 18px+ and for control borders. Status text uses the
   `--m-*-text` variables, never the raw status hue. Check with
@@ -843,6 +846,18 @@ boxes with feet left and "Confirm location" flags. To fix in the next phase:
    pattern to Items rows and Locations rows so the three tables behave
    alike. Keep the row's height stable while it is closed so sorting and
    scanning the list does not jump.
+
+6. **Tracking-number links are under 44px on the phone** (Tracking and
+   Order detail, inline text links from 0.3.0). Give them 44px tap height
+   with padding, or wrap them in the carrier chip.
+
+Decisions recorded from the 0.5.0 build (2026-10-29): the service worker
+registers in demo mode too (needed for the offline test; harmless); product
+`imageUrl` stores the Firebase download link, so anyone holding the link can
+open the image without the read rule, accepted for product photos because it
+lets photos show offline; `sw.js` carries its own `VERSION` that must be
+bumped with every release (added to section 11); Storage must be enabled on
+`watchtower-6fbe1` (may need Blaze) before the storage rules deploy.
 
 ## 13. Still open (answer before the build)
 

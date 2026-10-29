@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Loadout v0.4.0</title>
+<title>Loadout v0.5.0</title>
 <meta name="robots" content="noindex, nofollow">
-<meta name="loadout-version" content="0.4.0">
+<meta name="loadout-version" content="0.5.0">
 <meta name="description" content="Umbrella Automation shop inventory. Restricted to @umbrellaautomation.com accounts.">
 <meta name="theme-color" content="#1e6fd9">
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
@@ -643,6 +643,36 @@ body.preview #printSheet .picksheet{box-shadow:0 2px 10px rgba(0,0,0,.15)}
 .setsect{margin-top:22px;padding-top:14px;border-top:1px solid var(--m-line)}
 .setsect>h3{margin:0 0 4px;font-size:16px}
 
+/* ---------- 0.5.0: offline, install, photos ---------- */
+/* dashed outline: a state that will change by itself once the server answers */
+.chip.pend{border-style:dashed;border-color:color-mix(in srgb,var(--m-warn) 60%,var(--m-line));color:var(--m-warn-text)}
+.chip.pend i{background:var(--m-warn)}
+/* the one toast with a button (a new version): it stays until used or dismissed */
+.toast.act{pointer-events:auto;display:flex;align-items:center;gap:10px;text-align:left;padding:6px 6px 6px 16px}
+.toast .tbtn{border:1px solid #fff;background:#fff;color:#1a2233;border-radius:6px;font-weight:700;min-height:36px;padding:0 12px;cursor:pointer;white-space:nowrap}
+.toast .tx{border:0;background:none;color:#fff;font-size:20px;line-height:1;min-width:36px;min-height:36px;border-radius:6px;cursor:pointer}
+.toast .tbtn:focus-visible,.toast .tx:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.a2card{display:flex;gap:12px;align-items:flex-start;border:1px solid var(--m-line);background:var(--m-card2);border-radius:var(--m-radius);padding:12px 14px;margin:0 0 14px;min-width:0}
+.a2card svg.mk{width:28px;height:28px;flex:none;color:var(--m-brandmark);margin-top:2px}
+.a2card .a2t{flex:1;min-width:0}
+.a2card .a2t b{display:block;font-size:14px}
+.a2card .a2t p{margin:3px 0 0;font-size:13px;color:var(--m-text)}
+.a2card ol{margin:6px 0 0;padding-left:20px;font-size:13px}
+.a2card ol li{margin:2px 0}
+.a2card .btnrow{margin-top:8px}
+.shareic{display:inline-block;width:15px;height:15px;vertical-align:-2px;color:var(--m-accent2)}
+.a2strip{display:none}
+.pslot{display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap;min-width:0}
+.pslot .pimg{width:168px;height:168px;flex:none;border-radius:var(--m-radius);border:1px solid var(--m-line);background:var(--m-card);object-fit:contain;display:block}
+.pslot .pnone{display:grid;place-items:center;text-align:center;color:var(--m-muted);font-size:12.5px;padding:10px}
+.pslot .pact{flex:1 1 200px;min-width:0}
+.pslot .pact .btnrow{margin-top:8px}
+.thumb{width:44px;height:44px;object-fit:cover;border-radius:6px;border:1px solid var(--m-line);background:var(--m-card2);display:block}
+.res .phead{display:flex;gap:12px;align-items:flex-start;margin-top:4px}
+.res .phead img{width:76px;height:76px;flex:none;object-fit:cover;border-radius:var(--m-radius);border:1px solid var(--m-line);background:var(--m-card2)}
+.res .phead .rt{margin-top:0}
+#photoFile{display:none}
+
 /* ---------- phone ---------- */
 @media (max-width:640px){
   .phoneonly{display:flex}
@@ -670,6 +700,12 @@ body.preview #printSheet .picksheet{box-shadow:0 2px 10px rgba(0,0,0,.15)}
   .mh{padding:10px 14px}
   .cam{height:230px}
   .toast{top:60px}
+  .toast .tbtn,.toast .tx{min-height:44px;min-width:44px}
+  .a2strip:not([hidden]){display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--m-navon);border-bottom:1px solid var(--m-line);padding:6px 6px 6px 12px;font-size:13px;color:var(--m-text)}
+  .a2strip .a2s{flex:1 1 180px;min-width:0}
+  .a2strip .btn{min-height:44px}
+  .a2strip .x{border:0;background:none;color:var(--m-muted);font-size:22px;line-height:1;min-width:44px;min-height:44px;border-radius:var(--m-radius);cursor:pointer}
+  .pslot .pimg{width:132px;height:132px}
 }
 </style>
 </head>
@@ -698,7 +734,7 @@ body.preview #printSheet .picksheet{box-shadow:0 2px 10px rgba(0,0,0,.15)}
   <header class="top">
     <div class="brand">
       <svg viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="20" width="48" height="34" rx="6" fill="none" stroke="currentColor" stroke-width="5"/><path d="M24 20v-6a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v6" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/><path d="M8 35h48" stroke="currentColor" stroke-width="4"/><rect x="27" y="31" width="10" height="8" rx="2" fill="currentColor"/></svg>
-      Loadout <span class="v" id="verBadge">v0.4.0</span>
+      Loadout <span class="v" id="verBadge">v0.5.0</span>
     </div>
     <nav class="nav" aria-label="Views">
       <button type="button" data-go="tickets">Tickets</button>
@@ -714,6 +750,7 @@ body.preview #printSheet .picksheet{box-shadow:0 2px 10px rgba(0,0,0,.15)}
     <span class="sync" id="syncPill" title="Green when every change has reached the server. Shows Offline and a pending count when the warehouse has no signal; work keeps saving on the device."><i></i><span id="syncText">Synced</span></span>
     <div class="who"><span class="em" id="whoEmail"></span><button type="button" class="btn sm" id="signoutBtn">Sign out</button></div>
   </header>
+  <div class="a2strip" id="a2Strip" hidden></div>
 
   <main class="body" id="main">
     <section id="v-tickets" class="view" hidden></section>
@@ -730,7 +767,7 @@ body.preview #printSheet .picksheet{box-shadow:0 2px 10px rgba(0,0,0,.15)}
   </main>
 
   <footer class="foot">
-    <span id="footVer">Loadout v0.4.0</span>
+    <span id="footVer">Loadout v0.5.0</span>
     <span id="footWho"></span>
     <span id="footRole"></span>
     <span id="footSync"></span>
@@ -749,6 +786,7 @@ body.preview #printSheet .picksheet{box-shadow:0 2px 10px rgba(0,0,0,.15)}
 
 <div id="printSheet" aria-hidden="true"></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+<input type="file" id="photoFile" accept="image/jpeg,image/png,image/webp" tabindex="-1" aria-hidden="true">
 <div id="modalRoot"></div>
 
 <script type="module">
@@ -758,7 +796,7 @@ body.preview #printSheet .picksheet{box-shadow:0 2px 10px rgba(0,0,0,.15)}
    and its Google sign-in, like Backup Audits and Sundial. Data lives
    in loadout_* collections; rules are in watchtower/firestore.rules.
    ============================================================== */
-const VERSION = "0.4.0";
+const VERSION = "0.5.0";
 const SDK = "https://www.gstatic.com/firebasejs/12.13.0/";
 const XLSX_URL = "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";
 /* @zxing/library is not on cdnjs, so the fallback decoder comes from jsDelivr,
@@ -870,7 +908,11 @@ const S = {
   loaded: {}, errors: {},
   view: "stock", stockTab: "all", itemsTab: "out", moreTab: "movements",
   search: "", activeLoc: null, pendingUpcFor: null,
-  prefs: {}, pending: 0, online: navigator.onLine,
+  /* 0.5.0: queue holds one entry per write batch the server has not
+     acknowledged yet (the sync pill's count); demoSync is the demo hook's
+     stand-in for the real sync state; photoBusy is the product whose photo
+     is uploading */
+  prefs: {}, queue: [], demoSync: null, offNoted: false, photoBusy: null, online: navigator.onLine,
   mvFilter: { type: "", person: "", q: "", from: "", to: "" },
   scan: null,
   /* 0.2.0 */
@@ -1003,13 +1045,26 @@ function mvWhat(m) {
 }
 
 /* ---------------- toast + modal ---------------- */
-function toast(msg, bad = false) {
+function toast(msg, bad = false, ms) {
   const t = $("#toast");
+  t.classList.remove("act");
   t.textContent = msg;
   t.classList.toggle("bad", !!bad);
   t.classList.add("show");
   clearTimeout(toast._t);
-  toast._t = setTimeout(() => t.classList.remove("show"), bad ? 4200 : 2600);
+  /* a waiting "New version" prompt comes back once the passing message is read */
+  toast._t = setTimeout(() => { t.classList.remove("show"); if (toast.sticky) setTimeout(paintStickyToast, 200); }, ms || (bad ? 4200 : 2600));
+}
+/* 0.5.0: the one toast with a button. It stays until used or dismissed. */
+function toastAction(msg, label, fn) { toast.sticky = { msg, label, fn }; paintStickyToast(); }
+function paintStickyToast() {
+  const s = toast.sticky, t = $("#toast"); if (!s) return;
+  clearTimeout(toast._t);
+  t.classList.remove("bad");
+  t.innerHTML = "<span>" + esc(s.msg) + '</span><button type="button" class="tbtn">' + esc(s.label) + '</button><button type="button" class="tx" aria-label="Dismiss">&times;</button>';
+  t.classList.add("show", "act");
+  t.querySelector(".tbtn").addEventListener("click", () => { toast.sticky = null; t.classList.remove("show", "act"); s.fn(); });
+  t.querySelector(".tx").addEventListener("click", () => { toast.sticky = null; t.classList.remove("show", "act"); });
 }
 /* Modals close only via the X, Cancel, the confirm button, or Escape.
    Clicking the backdrop deliberately does nothing. */
@@ -1161,10 +1216,12 @@ function firestoreStore(user) {
   }
   function listen(name, q, onDocs, meta) {
     S.loaded[name] = false; S.errors[name] = null;
-    const u = fs.onSnapshot(q, { includeMetadataChanges: !!meta }, snap => {
+    /* metadata changes on every listener (0.5.0): a doc written on this
+       device carries _pending until the server has it, for the row chip */
+    const u = fs.onSnapshot(q, { includeMetadataChanges: true }, snap => {
       S.loaded[name] = true; S.errors[name] = null;
       if (meta) setLive(!snap.metadata.fromCache);
-      onDocs(snap.docs.map(d => Object.assign({ id: d.id }, d.data({ serverTimestamps: "estimate" }))));
+      onDocs(snap.docs.map(d => Object.assign({ id: d.id, _pending: d.metadata.hasPendingWrites }, d.data({ serverTimestamps: "estimate" }))));
       paintSync(); scheduleRender();
     }, err => {
       console.warn("Listener failed for " + name + ":", err);
@@ -1205,9 +1262,9 @@ function firestoreStore(user) {
     olUnsubs.forEach((u, id) => { if (!want.has(id)) { try { u(); } catch (e) {} olUnsubs.delete(id); S.olines.delete(id); S.olinesLoaded.delete(id); } });
     want.forEach(id => {
       if (olUnsubs.has(id)) return;
-      const u = fs.onSnapshot(fs.collection(db, "loadout_orders", id, "lines"), snap => {
+      const u = fs.onSnapshot(fs.collection(db, "loadout_orders", id, "lines"), { includeMetadataChanges: true }, snap => {
         const m = new Map();
-        snap.docs.forEach(d => m.set(d.id, Object.assign({ id: d.id }, d.data({ serverTimestamps: "estimate" }))));
+        snap.docs.forEach(d => m.set(d.id, Object.assign({ id: d.id, _pending: d.metadata.hasPendingWrites }, d.data({ serverTimestamps: "estimate" }))));
         S.olines.set(id, m); S.olinesLoaded.add(id); S.errors.olines = null;
         scheduleRender();
       }, err => { console.warn("Order lines listener failed for PO " + id + ":", err); S.errors.olines = err; S.olinesLoaded.add(id); scheduleRender(); });
@@ -1238,6 +1295,11 @@ function firestoreStore(user) {
       listen("tickets", fs.collection(db, "loadout_tickets"), docs => { toMap("tickets")(docs); syncLines(); }, true);
       listen("orders", fs.collection(db, "loadout_orders"), docs => { toMap("orders")(docs); syncOrderLines(); });
       listen("shipments", fs.collection(db, "loadout_shipments"), toMap("shipments"));
+      /* every listener caught up with the same moment: repaint the pill */
+      unsubs.push(fs.onSnapshotsInSync(db, () => { S.inSyncAt = new Date(); paintSync(); }));
+      /* batches written before a reload are still in the cache's own queue;
+         their promises are gone, so wait for the cache to say they landed */
+      if (S.queue.some(q => q.restored)) fs.waitForPendingWrites(db).then(qDoneRestored).catch(() => {});
     },
     stop() { unsubs.forEach(u => { try { u(); } catch (e) {} }); unsubs = []; lineUnsubs.forEach(u => { try { u(); } catch (e) {} }); lineUnsubs.clear(); olUnsubs.forEach(u => { try { u(); } catch (e) {} }); olUnsubs.clear(); },
     syncLines, syncOrderLines,
@@ -1252,12 +1314,21 @@ function firestoreStore(user) {
         if (o.op === "set") batch.set(ref, conv(o.data), o.merge ? { merge: true } : {});
         else batch.update(ref, conv(o.data));
       });
-      S.pending++; paintSync();
-      return batch.commit().then(() => true).catch(err => {
+      /* Local first (PLAN 9). The batch lands in the persistent cache at
+         once and the promise settles when the server acknowledges it. With
+         no connection the screen moves on right away; online, it waits a
+         moment for the server so a refusal still shows before the modal
+         closes. A refusal after that toasts, and Firestore puts the rows
+         back to their previous values on its own. */
+      const q = qAdd(what);
+      const server = batch.commit().then(() => true).catch(err => {
         console.warn("Write failed:", what, err);
         toast("Could not save " + (what || "that change") + ". Try again.", true);
         return false;
-      }).finally(() => { S.pending = Math.max(0, S.pending - 1); paintSync(); });
+      }).finally(() => qDone(q));
+      if (!navigator.onLine) { offlineNote(); return Promise.resolve(true); }
+      const slow = new Promise(r => setTimeout(() => r("slow"), 2500));
+      return Promise.race([server, slow]).then(r => { if (r === "slow") { offlineNote(); return true; } return r; });
     },
     async getAll(coll) {
       if (coll === "loadout_ticket_lines") {
@@ -1962,6 +2033,15 @@ async function copyText(text, title) {
    People are named by role only; clients and vendors are made up.
    Nothing here is real and no Firebase module is ever imported here.
    ============================================================== */
+/* 0.5.0: demo photos are drawn inline and say what they are, so nothing
+   in the demo passes for a real product shot or reaches Storage */
+function demoPhoto(label) {
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240"><rect width="240" height="240" fill="#e9edf3"/>' +
+    '<rect x="50" y="78" width="140" height="96" rx="10" fill="#ffffff" stroke="#5b6675" stroke-width="5"/><path d="M90 78v-14a8 8 0 0 1 8-8h44a8 8 0 0 1 8 8v14" fill="none" stroke="#5b6675" stroke-width="5"/>' +
+    '<text x="120" y="206" font-family="Segoe UI,Arial,sans-serif" font-size="17" font-weight="600" text-anchor="middle" fill="#1a2233">' + label + '</text>' +
+    '<text x="120" y="36" font-family="Segoe UI,Arial,sans-serif" font-size="14" text-anchor="middle" fill="#5b6675">Sample photo</text></svg>';
+  return "data:image/svg+xml," + encodeURIComponent(svg);
+}
 function loadDemo() {
   const day = 86400000, t = n => new Date(Date.now() - n * day);
   const users = [
@@ -1985,11 +2065,11 @@ function loadDemo() {
   ];
   locs.forEach(([id, area, shelf, kind]) => S.locations.set(id, { id, area, shelf, kind, name: composeLocName(area, shelf), qr: PAYLOAD.loc(id), jobId: null }));
   const P = (id, o) => S.products.set(id, Object.assign({ id, kind: "device", unit: "each", consumable: false, parLevel: null, upc: null, brand: "", model: "", type: "", category: "", description: "", defaultLocationId: null, lastCountAt: t(20), createdAt: t(30) }, o));
-  P("ubiquiti-u6-pro", { brand: "Ubiquiti", model: "U6-Pro", name: "Ubiquiti U6-Pro", type: "Network", category: "Network", description: "WiFi 6 access point", upc: "810010074409", parLevel: 2, consumable: true, defaultLocationId: "warehouse", lastCost: 159 });
+  P("ubiquiti-u6-pro", { brand: "Ubiquiti", model: "U6-Pro", name: "Ubiquiti U6-Pro", type: "Network", category: "Network", description: "WiFi 6 access point", upc: "810010074409", parLevel: 2, consumable: true, defaultLocationId: "warehouse", lastCost: 159, imageUrl: demoPhoto("Ubiquiti U6-Pro"), imagePath: "loadout/products/ubiquiti-u6-pro.jpg", imageAt: t(6) });
   P("ubiquiti-udm-se", { brand: "Ubiquiti", model: "UDM-SE", name: "Ubiquiti UDM-SE", type: "Network", category: "Network", description: "Dream Machine SE gateway", defaultLocationId: "warehouse", lastCost: 499 });
   P("ubiquiti-usw-24-poe", { brand: "Ubiquiti", model: "USW-24-POE", name: "Ubiquiti USW-24-POE", type: "Network", category: "Network", description: "24-port PoE switch", lastCost: 379 });
   P("axis-m3065-v", { brand: "Axis", model: "M3065-V", name: "Axis M3065-V", type: "Surveillance", category: "Surveillance", description: "Mini dome camera", parLevel: 2, defaultLocationId: "warehouse" });
-  P("sonos-amp", { brand: "Sonos", model: "Amp", name: "Sonos Amp", type: "Amplifier", category: "Audio", description: "Streaming amplifier", lastCost: 449 });
+  P("sonos-amp", { brand: "Sonos", model: "Amp", name: "Sonos Amp", type: "Amplifier", category: "Audio", description: "Streaming amplifier", lastCost: 449, imageUrl: demoPhoto("Sonos Amp"), imagePath: "loadout/products/sonos-amp.jpg", imageAt: t(12) });
   P("middle-atlantic-u2v", { brand: "Middle Atlantic", model: "U2V", name: "Middle Atlantic U2V", type: "Rack", category: "Rack", description: "2RU vented rack shelf" });
   P("leviton-61110-be6", { brand: "Leviton", model: "61110-BE6", name: "Leviton 61110-BE6", type: "Keystone", category: "Connector", kind: "connector", description: "Cat6 keystone jack, blue", consumable: true, parLevel: 100, upc: "078477581138" });
   P("wire-cat6-riser-234-blue", { kind: "wire", unit: "ft", type: "CAT6 Riser", wireType: "23/4", color: "Blue", grade: "Riser", name: "CAT6 Riser, 23/4, Blue", category: "Wire", consumable: true, parLevel: 1000, upc: "612825120034" });
@@ -2348,6 +2428,7 @@ const SAMPLE_CSV = [
    saved per user (localStorage first, then /users/{uid}.loadoutLayout).
    ============================================================== */
 const TABLES = {};
+const PEND_CHIP = '<span class="chip pend" title="Saved on this device. It reaches the server when the connection is back."><i></i>pending</span>';
 function layoutKey() { return "loadout.layout." + (S.user ? S.user.uid : "anon"); }
 function loadLocalPrefs() { try { S.prefs = JSON.parse(localStorage.getItem(layoutKey()) || "{}") || {}; } catch (e) { S.prefs = {}; } }
 let _prefT = null;
@@ -2397,8 +2478,9 @@ function tableHTML(id, cols, rows, opts = {}) {
     const xid = X ? X.id(r) : null, open = X && xIs(X.kind, xid);
     const cls = [opts.rowClass ? opts.rowClass(r) : "", X ? "xrow" : "", open ? "xopen" : ""].filter(Boolean).join(" ");
     const rid_ = opts.rowId ? opts.rowId(r) : "";
-    return '<tr' + (rid_ ? ' id="' + esc(rid_) + '" tabindex="-1"' : "") + (cls ? ' class="' + cls + '"' : "") + (X ? ' data-xk="' + X.kind + '" data-xid="' + esc(xid) + '"' : "") + ">" + vis.map(c => {
-      const v = c.html ? c.html(r) : esc(c.text ? c.text(r) : "");
+    return '<tr' + (rid_ ? ' id="' + esc(rid_) + '" tabindex="-1"' : "") + (cls ? ' class="' + cls + '"' : "") + (X ? ' data-xk="' + X.kind + '" data-xid="' + esc(xid) + '"' : "") + ">" + vis.map((c, ci) => {
+      /* a row written on this device and not yet on the server (PLAN 4) */
+      const v = (c.html ? c.html(r) : esc(c.text ? c.text(r) : "")) + (ci === 0 && r && r._pending ? " " + PEND_CHIP : "");
       return '<td data-l="' + esc(c.label) + '" class="' + (c.r ? "r " : "") + (c.cls || "") + '">' + v + "</td>";
     }).join("") + (opts.actions ? '<td class="act" data-l="">' + opts.actions(r) + "</td>" : "") +
       (X ? '<td class="xc" data-l="">' + chevBtn(X.kind, xid, X.label(r)) + "</td>" : "") + "</tr>" +
@@ -2491,6 +2573,7 @@ function render(force) {
   $$(".tabbar [data-go]").forEach(b => mark(b, b.dataset.go === tabView));
   $$(".view").forEach(v => v.hidden = v.id !== "v-" + S.view);
   $("#app").classList.toggle("wide", S.view === "week");
+  paintA2();
   if (S.view === "tickets") renderTickets();
   else if (S.view === "ticket") renderTicket();
   else if (S.view === "stock") renderStock();
@@ -2520,18 +2603,45 @@ function go(view, sub) {
   render(true);
   window.scrollTo(0, 0);
 }
+/* ---------------- sync pill (0.5.0, PLAN 4 and 9) ----------------
+   S.queue has one entry per write batch the server has not acknowledged.
+   It is mirrored to localStorage, so a reload while offline still counts
+   what the Firestore cache will send; those restored entries clear when
+   waitForPendingWrites says the cache's own queue has landed. */
+const qKey = () => "loadout.queue." + (S.user ? S.user.uid : "anon");
+function qSave() { try { localStorage.setItem(qKey(), JSON.stringify(S.queue.map(q => ({ id: q.id, what: q.what, at: q.at })))); } catch (e) {} }
+function qLoad() {
+  S.queue = [];
+  if (DEMO) return;
+  try { const a = JSON.parse(localStorage.getItem(qKey()) || "[]"); if (Array.isArray(a)) S.queue = a.slice(-200).map(q => Object.assign({}, q, { restored: true })); } catch (e) {}
+}
+function qAdd(what) { const e = { id: rid(), what: what || "", at: Date.now() }; S.queue.push(e); qSave(); paintSync(); return e; }
+function qDone(e) { S.queue = S.queue.filter(x => x !== e); qSave(); if (!S.queue.length) S.offNoted = false; paintSync(); }
+function qDoneRestored() { S.queue = S.queue.filter(x => !x.restored); qSave(); paintSync(); }
+/* the first write with no connection says where it went; once per outage */
+function offlineNote() {
+  if (S.offNoted) return;
+  S.offNoted = true;
+  setTimeout(() => toast("Saved on this device. It syncs when you are back online.", false, 4200), 0);
+}
+function syncState() {
+  if (DEMO && S.demoSync) return S.demoSync;
+  return { online: S.online && !Object.values(S.errors).some(Boolean), pending: S.queue.length };
+}
+const SYNC_TIP = "Synced when every change has reached the server. Offline, work keeps saving on this device and the count shows what is waiting to go up.";
 function paintSync() {
-  const pill = $("#syncPill"), txt = $("#syncText");
+  const pill = $("#syncPill"), txt = $("#syncText"); if (!pill) return;
+  const st = syncState(), n = st.pending;
   let label, cls = "";
-  const err = Object.values(S.errors).some(Boolean);
-  if (DEMO) { label = "Demo"; cls = "demo"; pill.title = "Demo mode: nothing reaches a server."; }
-  else if (!S.online || err) { label = "Offline" + (S.pending ? ", " + S.pending + " pending" : ""); cls = "off"; }
-  else if (S.pending) { label = "Saving, " + S.pending + " pending"; cls = "busy"; }
+  if (DEMO && !S.demoSync) { label = "Demo"; cls = "demo"; }
+  else if (!st.online) { label = "Offline" + (n ? ", " + n + " pending" : ""); cls = "off"; }
+  else if (n) { label = n + " pending"; cls = "busy"; }
   else label = "Synced";
   pill.className = "sync " + cls; txt.textContent = label;
+  pill.title = DEMO && !S.demoSync ? "Demo mode: nothing reaches a server." : SYNC_TIP;
   $("#footSync").textContent = label;
 }
-window.addEventListener("online", () => { S.online = true; paintSync(); if (DEMO) setLive(true); else if (BOARD) paintBoardLive(); });
+window.addEventListener("online", () => { S.online = true; S.offNoted = false; paintSync(); if (DEMO) setLive(true); else if (BOARD) paintBoardLive(); });
 window.addEventListener("offline", () => { S.online = false; paintSync(); setLive(false); });
 /* the board's "Not live since" strip: set when a listener fails, the
    tickets listener falls back to cache, or the browser goes offline */
@@ -2627,7 +2737,7 @@ function lineChips(t, l) {
   }
   const out = Array.from(S.items.values()).filter(i => i.ticketLineId === l.id && i.ticketId === t.id && (i.status === "checked_out" || i.status === "installed"));
   if (out.length) { const who = Array.from(new Set(out.map(i => i.holderName).filter(Boolean))).join(", "); c.push('<span class="chip info"><i></i>' + out.length + " of " + fmtN(l.qtyNeeded) + (out[0].status === "installed" ? " installed" : " checked out" + (who ? " by " + esc(who) : "")) + "</span>"); }
-  if (l._pending) c.push('<span class="chip" title="Saved on this device. It reaches the server when the connection is back.">pending</span>');
+  /* 0.5.0: the pending chip now comes from tableHTML on every table's first column */
   return '<div class="chips">' + c.join("") + "</div>";
 }
 function lineCols(t) {
@@ -3481,6 +3591,8 @@ function boardScroll(ts) {
    ============================================================== */
 function productCols() {
   return [
+    /* 0.5.0: off by default; a page of thumbnails is slow on a phone in the warehouse */
+    { k: "photo", label: "Photo", def: false, title: "The product photo, when one has been added", sort: p => p.imageUrl ? 0 : 1, html: p => p.imageUrl ? '<img class="thumb" src="' + esc(p.imageUrl) + '" alt="" loading="lazy" width="44" height="44">' : '<span class="z">-</span>' },
     { k: "name", label: "Product", sort: p => productName(p).toLowerCase(), html: p => '<button type="button" class="linkbtn" data-act="xtoggle" data-x="p" data-id="' + esc(p.id) + '"><div class="pn">' + (p.brand && p.model ? "<b>" + esc(p.brand) + "</b> " + esc(p.model) : esc(productName(p))) + '</div></button><div class="pd">' + esc(p.brand && p.model ? (p.description || p.type || "") : (p.description || "")) + "</div>" },
     { k: "category", label: "Category", text: p => p.category || "" },
     { k: "kind", label: "Kind", def: false, text: p => KIND_LABEL[p.kind] || p.kind || "" },
@@ -4317,6 +4429,7 @@ function productPanel(p) {
   const unitLocked = allBoxesFor(p.id).length || stockRowsFor(p.id).length;
   let h = '<div class="xhead"><b>' + esc(productName(p)) + "</b>" + (isLow(p) ? '<span class="st warn">Low stock</span>' : "") + (p.consumable ? '<span class="st info">Consumable</span>' : "") +
     '<span class="hint" style="margin:0">' + esc(qtyTxt(p, oh)) + " on hand" + (p.lastCountAt ? ", last counted " + esc(fmtDate(p.lastCountAt)) : "") + "</span></div>";
+  h += photoSlot(p);
   if (W) {
     const d = xDraft(p, XF_P);
     const fi = (k, label, tip, extra) => "<div><label class=\"lab\" for=\"xf_" + k + '"' + (tip ? ' title="' + esc(tip) + '"' : "") + ">" + (tip ? "<abbr>" + esc(label) + "</abbr>" : esc(label)) + '</label><input class="fld" id="xf_' + k + '" data-xf="' + k + '" value="' + esc(d[k]) + '"' + (extra || "") + "></div>";
@@ -4437,6 +4550,92 @@ async function xSave() {
     if (!d.kind || d.kind === l.kind) { toast("Nothing changed"); return; }
     if (await doSaveLocation(l.id, { area: l.area, shelf: l.shelf || "", kind: d.kind, name: l.name }, false)) toast("Saved");
   }
+}
+
+/* ---------------- product photos (0.5.0, PLAN 3 imageUrl) ----------------
+   One photo per product in Firebase Storage at loadout/products/{id}.jpg in
+   watchtower-6fbe1. The rules (watchtower/storage.rules) cap it at 2 MB,
+   allow JPEG, PNG, and WebP, let admin and warehouse write, and let anyone
+   signed in on the domain read. The browser shrinks it to 1200 px on the
+   long side and re-encodes it as JPEG first, which also drops the camera's
+   location data. The product keeps the download link (imageUrl) and the
+   Storage path (imagePath) so the record reads on its own. */
+const PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const PHOTO_MAX = 2 * 1024 * 1024, PHOTO_PX = 1200;
+function photoSlot(p) {
+  const W = isWriter(), url = p.imageUrl, busy = S.photoBusy === p.id, id = esc(p.id);
+  if (!W && !url) return "";
+  const img = url ? '<img class="pimg" src="' + esc(url) + '" alt="Photo of ' + esc(productName(p)) + '" loading="lazy" width="168" height="168">' : '<div class="pimg pnone">No photo yet</div>';
+  let act = "";
+  if (W) act = '<div class="pact"><p class="hint" style="margin:0">' + (busy ? "Uploading the photo." : "A shelf photo helps whoever picks it find the right box. JPEG, PNG, or WebP; it is shrunk to 1200 px before upload.") + "</p>" +
+    '<div class="btnrow"><button type="button" class="btn" data-act="photoPick" data-id="' + id + '"' + (busy ? " disabled" : "") + ' title="Take a photo or pick one from the phone or computer. Uploading needs a connection.">' + (url ? "Replace photo" : "Add photo") + "</button>" +
+    (url ? '<button type="button" class="btn danger" data-act="photoRemove" data-id="' + id + '"' + (busy ? " disabled" : "") + ">Remove photo</button>" : "") + "</div></div>";
+  return '<div class="sect"><h4 class="h4">Photo</h4><div class="pslot">' + img + act + "</div></div>";
+}
+function photoPick(p) {
+  if (!p) return;
+  if (DEMO) { toast("Demo mode: not saved"); return; }
+  if (!navigator.onLine) { toast("Photos need a connection. Try again when you are back online.", true); return; }
+  S.photoFor = p.id;
+  const f = $("#photoFile"); f.value = ""; f.click();
+}
+/* decode, shrink to PHOTO_PX on the long side, and encode as JPEG under PHOTO_MAX */
+async function shrinkPhoto(file) {
+  if (!PHOTO_TYPES.includes(file.type)) throw new Error("Use a JPEG, PNG, or WebP photo.");
+  let src, w, h, done = () => {};
+  try { src = await createImageBitmap(file, { imageOrientation: "from-image" }); w = src.width; h = src.height; done = () => src.close && src.close(); }
+  catch (e) {
+    const url = URL.createObjectURL(file);
+    src = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error("That file could not be read as a photo.")); i.src = url; });
+    w = src.naturalWidth; h = src.naturalHeight; done = () => URL.revokeObjectURL(url);
+  }
+  const k = Math.min(1, PHOTO_PX / Math.max(w, h)), cw = Math.max(1, Math.round(w * k)), ch = Math.max(1, Math.round(h * k));
+  const c = document.createElement("canvas"); c.width = cw; c.height = ch;
+  const g = c.getContext("2d");
+  g.fillStyle = "#ffffff"; g.fillRect(0, 0, cw, ch); /* PNG transparency becomes white, not black */
+  g.drawImage(src, 0, 0, cw, ch); done();
+  for (const qy of [0.85, 0.72, 0.58]) {
+    const b = await new Promise(res => c.toBlob(res, "image/jpeg", qy));
+    if (b && b.size <= PHOTO_MAX) return b;
+  }
+  throw new Error("That photo is still over 2 MB after shrinking. Try another one.");
+}
+async function storageApi() {
+  if (!fb.st) { const m = await import(SDK + "firebase-storage.js"); fb.stMod = m; fb.st = m.getStorage(fb.app); }
+  return { m: fb.stMod, st: fb.st };
+}
+async function doSetPhoto(p, file) {
+  if (DEMO || !isWriter()) { toast("Demo mode: not saved"); return false; }
+  const had = !!p.imageUrl;
+  S.photoBusy = p.id; render(true);
+  try {
+    const blob = await shrinkPhoto(file);
+    const { m, st } = await storageApi();
+    const path = "loadout/products/" + p.id + ".jpg", ref = m.ref(st, path);
+    await m.uploadBytes(ref, blob, { contentType: "image/jpeg", cacheControl: "private, max-age=86400" });
+    const url = await m.getDownloadURL(ref);
+    return await DB.commit([{ op: "update", coll: "loadout_products", id: p.id, data: { imageUrl: url, imagePath: path, imageAt: NOW, updatedAt: NOW } },
+      mv("edit", { productId: p.id, note: had ? "Photo replaced" : "Photo added" })], "the photo of " + productName(p));
+  } catch (e) {
+    console.warn("Photo upload failed:", e);
+    const msg = e && e.code === "storage/unauthorized" ? "Only admin and warehouse can change photos." : e && e.message && !e.code ? e.message : "Could not upload the photo. Check the connection and try again.";
+    toast(msg, true); return false;
+  } finally { S.photoBusy = null; render(true); }
+}
+async function doRemovePhoto(p) {
+  if (DEMO || !isWriter()) { toast("Demo mode: not saved"); return false; }
+  if (!navigator.onLine) { toast("Removing a photo needs a connection. Try again when you are back online.", true); return false; }
+  S.photoBusy = p.id; render(true);
+  try {
+    const { m, st } = await storageApi();
+    try { await m.deleteObject(m.ref(st, p.imagePath || "loadout/products/" + p.id + ".jpg")); }
+    catch (e) { if (!e || e.code !== "storage/object-not-found") throw e; }
+    return await DB.commit([{ op: "update", coll: "loadout_products", id: p.id, data: { imageUrl: null, imagePath: null, imageAt: null, updatedAt: NOW } },
+      mv("edit", { productId: p.id, note: "Photo removed" })], "the photo of " + productName(p));
+  } catch (e) {
+    console.warn("Photo removal failed:", e);
+    toast(e && e.code === "storage/unauthorized" ? "Only admin and warehouse can change photos." : "Could not remove the photo. Try again.", true); return false;
+  } finally { S.photoBusy = null; render(true); }
 }
 
 /* ---------------- stock modals ---------------- */
@@ -4802,7 +5001,10 @@ function paintScanResult() {
 function productCard(p) {
   if (!p) return '<p class="err">That product is gone from the catalog.</p>';
   const bl = byLocation(p), W = isWriter(), boxes = openBoxesFor(p.id);
-  let h = '<div class="rk"><span>Product</span>' + (isLow(p) ? '<span class="st warn">Low stock</span>' : "") + '</div><div class="rt">' + esc(productName(p)) + "</div>" +
+  /* 0.5.0: the photo beside the name, so the box in hand can be checked against it */
+  const title = '<div class="rt">' + esc(productName(p)) + "</div>";
+  let h = '<div class="rk"><span>Product</span>' + (p._pending ? PEND_CHIP : "") + (isLow(p) ? '<span class="st warn">Low stock</span>' : "") + "</div>" +
+    (p.imageUrl ? '<div class="phead"><img src="' + esc(p.imageUrl) + '" alt="Photo of ' + esc(productName(p)) + '" width="76" height="76"><div>' + title + "</div></div>" : title) +
     '<div class="rm">' + [p.category, p.upc ? "UPC " + p.upc : ""].filter(Boolean).map(esc).join(" - ") + " - <b>" + qtyTxt(p, onHandOf(p)) + "</b> on hand</div>" +
     (bl.length ? '<ul class="onhand">' + bl.map(e => "<li><span>" + esc(e.locationId ? locName(e.locationId) : "No location yet") + "</span><b>" + qtyTxt(p, e.qty) + "</b></li>").join("") + "</ul>" : '<p class="hint">None on hand.</p>');
   if (p.unit === "ft" && boxes.length) h += '<h4 class="h4" style="margin-top:12px">Open boxes</h4><div class="ctr">' + boxes.map(c => boxRow(c, p)).join("") + "</div>";
@@ -5050,7 +5252,7 @@ function renderMore(force) {
   _moreBuilt = S.moreTab;
   let html = '<div class="mcard"><div class="thead"><h2 class="vt">More</h2></div>' +
     '<div class="btnrow phoneonly" style="margin:0 0 12px"><button type="button" class="btn" data-go="orders">Orders</button><button type="button" class="btn" data-go="tracking">Tracking</button><button type="button" class="btn" data-go="items">Items</button>' + (canConsole() ? '<button type="button" class="btn" data-go="console">Console</button>' : "") + "</div>" +
-    consoleLinks() +
+    installCardHTML() + consoleLinks() +
     '<div class="toolbar"><div class="seg" role="tablist" aria-label="More">' +
     tabs.map(([k, l]) => '<button type="button" role="tab" aria-selected="' + (S.moreTab === k) + '" class="' + (S.moreTab === k ? "on" : "") + '" data-act="moreTab" data-tab="' + k + '">' + l + "</button>").join("") + "</div></div>";
   if (S.moreTab === "movements") html += movementsHTML();
@@ -5295,7 +5497,8 @@ function exportHTML() {
     '<p class="hint">File names look like loadout-export-' + esc(exportStamp()) + ".xlsx.</p>";
 }
 function flatten(o, pre = "", out = {}) {
-  Object.keys(o).forEach(k => {
+  /* keys starting with _ are screen state (the pending flag), not data */
+  Object.keys(o).filter(k => k[0] !== "_").forEach(k => {
     const v = o[k], key = pre ? pre + "." + k : k;
     const d = v && (v instanceof Date || typeof v.toDate === "function") ? toDate(v) : null;
     if (d) out[key] = isoDay(d) + " " + pad(d.getHours()) + ":" + pad(d.getMinutes());
@@ -5397,7 +5600,7 @@ const DATA_DICTIONARY = [
     ["connector1, connector2", "Connector at each end"], ["color", "Color"], ["length, lengthUnit", "Length and its unit (ft, m, in)"], ["gauge, gaugeUnit", "Wire gauge and unit (awg, mm)"],
     ["amps", "Current rating"], ["inputs, outputs", "Splitter ports"], ["sex", "Male or female"], ["band", "Band"], ["pins", "Pin count"], ["wireType", "Pair count or cable spec, as 23/4 or RG6"], ["grade", "GP, Riser, Plenum, or Shielded"],
     ["unit", "each or ft"], ["upc", "Barcode, learned on first scan"], ["category", "Wire, Network, Camera, and so on"], ["consumable", "Shows in Consumables with a par level"],
-    ["parLevel", "Reorder point in the product's unit"], ["defaultLocationId", "Usual shelf"], ["defaultLocationName", "Its name when set"], ["imageUrl", "Photo (later)"],
+    ["parLevel", "Reorder point in the product's unit"], ["defaultLocationId", "Usual shelf"], ["defaultLocationName", "Its name when set"], ["imageUrl", "Download link of the product photo (Firebase Storage)"], ["imagePath", "Storage path of the photo: loadout/products/{id}.jpg"], ["imageAt", "When the photo was last added or replaced"],
     ["onHand", "Total on hand, recomputed with each movement"], ["lastCost", "Last unit cost; values in reports use it"], ["portalItemId", "Portal item id when imported"],
     ["lastCountAt", "Count date from the inventory sheet"]].concat(DD_WHO) },
   { coll: "loadout_locations", id: "area--shelf slug, as storage-room--rca-av-video", about: "Shelves, bays, vans, and bare areas.", fields: [
@@ -6183,7 +6386,13 @@ async function runImport() {
   S.imp = null; render(true);
 }
 /* demo-only hooks for checking the importer and the loading and error states by script */
-if (DEMO) window.Loadout = { importBuffer: (buf, name) => importLoad(buf, name || "workbook.xlsx"), state: S, render: () => render(true), setLive, sampleCsv: () => SAMPLE_CSV, board: BD };
+if (DEMO) window.Loadout = { importBuffer: (buf, name) => importLoad(buf, name || "workbook.xlsx"), state: S, render: () => render(true), setLive, sampleCsv: () => SAMPLE_CSV, board: BD,
+  /* 0.5.0 checks by script: sync({online:false, pending:3}) drives the pill (sync(null) goes back to Demo);
+     pending("products", id, true) puts the pending chip on a row; install("prompt"|"ios"|"menu"|"none"|null) picks the home screen card */
+  sync: st => { S.demoSync = st ? { online: st.online !== false, pending: Math.max(0, num(st.pending)) } : null; paintSync(); return syncState(); },
+  pending: (coll, id, on = true) => { const r = S[coll] && S[coll].get && S[coll].get(id); if (r) { r._pending = !!on; render(true); refreshScan(); } return !!r; },
+  install: mode => { A2.force = mode || null; A2.hidden = null; paintA2(); render(true); return a2Mode(); },
+  offlineNote };
 
 /* ==============================================================
    CLICKS (one delegated handler; every control is a real button)
@@ -6285,6 +6494,12 @@ document.addEventListener("click", e => {
     case "xtoggle": xToggle(b.dataset.x, id); break;
     case "xsave": xSave(); break;
     case "xhist": xLoadHist(); break;
+    /* 0.5.0: product photos */
+    case "photoPick": photoPick(P()); break;
+    case "photoRemove": { const p = P(); if (p) confirmModal("Remove photo", "<p>Deletes the photo of " + esc(productName(p)) + " from storage. The product and its counts stay as they are.</p>", "Remove photo", () => doRemovePhoto(p).then(ok => ok && toast("Photo removed")), true); break; }
+    case "a2Add": a2Prompt(); break;
+    case "a2Hide": a2Dismiss(b.dataset.k); paintA2(); if (S.view === "more") render(true); break;
+    case "a2How": a2Dismiss("strip"); paintA2(); go("more"); break;
     case "xupc": { const p = P(); if (!p) break; S.x = null; S.pendingUpcFor = p.id; go("scan"); toast("Scan the barcode on the box for " + productName(p)); break; }
     case "adjust": openAdjust(P()); break;
     case "serialize": openSerialize(P()); break;
@@ -6331,6 +6546,7 @@ document.addEventListener("input", e => {
 });
 document.addEventListener("change", e => {
   const t = e.target;
+  if (t.id === "photoFile") { const f = t.files && t.files[0], p = S.photoFor && S.products.get(S.photoFor); S.photoFor = null; if (f && p) doSetPhoto(p, f).then(ok => ok && toast("Photo saved")); return; }
   if (t.dataset && t.dataset.rr) { S.rr = Object.assign({}, rrGet(), { [t.dataset.rr]: t.value }); render(true); }
   else if (t.dataset && t.dataset.rf) { S.rf[t.dataset.rf] = t.value; render(true); }
   else if (t.dataset && t.dataset.mf && t.tagName === "SELECT") { S.mvFilter[t.dataset.mf] = t.value; scheduleRender(); }
@@ -6374,6 +6590,79 @@ function applyHash() {
 function scrollToBoard() { const s = $("#bdSect"); if (s) { s.scrollIntoView({ block: "start", behavior: REDUCED ? "auto" : "smooth" }); const f = $("#bdMode"); if (f) f.focus({ preventScroll: true }); } }
 
 /* ==============================================================
+   ADD TO HOME SCREEN (0.5.0, PLAN 12)
+   A card at the top of More, and once a dismissible strip under the
+   header on the phone. Chrome on Android hands over its own install
+   prompt (beforeinstallprompt); Safari on iOS has none, so the card
+   shows the two steps by hand. Each is remembered as dismissed per
+   device. Nothing shows once Loadout runs from the home screen.
+   ============================================================== */
+const A2 = { evt: null, installed: false, force: null };
+window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); A2.evt = e; paintA2(); if (S.view === "more") render(true); });
+window.addEventListener("appinstalled", () => { A2.evt = null; A2.installed = true; paintA2(); if (S.view === "more") render(true); });
+const SHARE_SVG = '<svg class="shareic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3M8 7l4-4 4 4"/><path d="M6 11H5a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-8a1 1 0 0 0-1-1h-1"/></svg>';
+function a2Standalone() { try { return A2.installed || matchMedia("(display-mode: standalone)").matches || navigator.standalone === true; } catch (e) { return false; } }
+/* prompt: Chrome's own dialog; ios: the Share steps; menu: another phone browser; none: nothing to offer */
+function a2Mode() {
+  if (A2.force) return A2.force;
+  if (a2Standalone() || BOARD) return "none";
+  if (A2.evt) return "prompt";
+  const ua = navigator.userAgent || "";
+  if (/iPhone|iPad|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)) return "ios";
+  if (matchMedia("(max-width:640px)").matches || matchMedia("(pointer:coarse)").matches) return "menu";
+  return "none";
+}
+function a2Off(k) { try { return localStorage.getItem("loadout.a2hs." + k) === "1"; } catch (e) { return false; } }
+function a2Dismiss(k) { try { localStorage.setItem("loadout.a2hs." + k, "1"); } catch (e) {} A2.hidden = Object.assign({}, A2.hidden, { [k]: true }); }
+const a2Hidden = k => a2Off(k) || !!(A2.hidden && A2.hidden[k]);
+async function a2Prompt() {
+  if (DEMO && A2.force === "prompt" && !A2.evt) { toast("Demo mode: the browser's install dialog opens here on a phone"); return; }
+  const e = A2.evt; if (!e) return;
+  A2.evt = null;
+  try { e.prompt(); const r = await e.userChoice; if (r && r.outcome === "accepted") { A2.installed = true; toast("Loadout is on the home screen"); } } catch (err) {}
+  paintA2(); if (S.view === "more") render(true);
+}
+function installCardHTML() {
+  const m = a2Mode(); if (m === "none" || a2Hidden("card")) return "";
+  const why = "<p>It opens straight to Scan, full screen, and keeps working in the warehouse with no signal.</p>";
+  const body = m === "prompt" ? why + '<div class="btnrow"><button type="button" class="btn acc" data-act="a2Add">Add to home screen</button><button type="button" class="btn" data-act="a2Hide" data-k="card">Not now</button></div>'
+    : m === "ios" ? why + "<ol><li>Tap Share " + SHARE_SVG + " in Safari's toolbar.</li><li>Scroll down and tap <b style=\"display:inline\">Add to Home Screen</b>.</li></ol>" + '<div class="btnrow"><button type="button" class="btn" data-act="a2Hide" data-k="card">Got it</button></div>'
+    : why + "<p>Open the browser menu and pick Add to Home screen or Install app.</p>" + '<div class="btnrow"><button type="button" class="btn" data-act="a2Hide" data-k="card">Got it</button></div>';
+  return '<div class="a2card" id="a2Card"><svg class="mk" viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="20" width="48" height="34" rx="6" fill="none" stroke="currentColor" stroke-width="5"/><path d="M24 20v-6a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v6" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/><path d="M8 35h48" stroke="currentColor" stroke-width="4"/><rect x="27" y="31" width="10" height="8" rx="2" fill="currentColor"/></svg>' +
+    '<div class="a2t"><b>Add Loadout to the home screen</b>' + body + "</div></div>";
+}
+function paintA2() {
+  const el = $("#a2Strip"); if (!el) return;
+  const m = a2Mode();
+  /* on More the card says the same thing, so the strip steps aside there */
+  if (!S.user || m === "none" || a2Hidden("strip") || S.view === "more") { el.hidden = true; el.innerHTML = ""; el._h = ""; return; }
+  /* render() calls this on every redraw; rewrite only on a change so focus stays put */
+  const html = '<span class="a2s">' + (m === "ios" ? "Add Loadout to the home screen: tap Share " + SHARE_SVG + ", then Add to Home Screen." : "Add Loadout to the home screen. It opens to Scan and works with no signal.") + "</span>" +
+    (m === "prompt" ? '<button type="button" class="btn sm acc" data-act="a2Add">Add</button>' : '<button type="button" class="btn sm" data-act="a2How">Show me how</button>') +
+    '<button type="button" class="x" data-act="a2Hide" data-k="strip" aria-label="Dismiss the home screen tip">&times;</button>';
+  if (el._h !== html) { el.innerHTML = html; el._h = html; }
+  el.hidden = false;
+}
+
+/* ==============================================================
+   SERVICE WORKER (0.5.0, PLAN 9)
+   sw.js keeps the shell, the zxing fallback, and the Firebase modules on
+   the device. It registers in demo mode too: the demo is how the offline
+   shell gets checked, and the cache is Loadout's own. When a newer sw.js
+   takes over a page that is still running the old build, it says so.
+   ============================================================== */
+if ("serviceWorker" in navigator && location.protocol !== "file:") {
+  navigator.serviceWorker.register("sw.js").then(reg => {
+    /* a phone left open on Scan all day still hears about a release */
+    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") reg.update().catch(() => {}); });
+  }).catch(err => console.warn("Service worker did not register:", err));
+  navigator.serviceWorker.addEventListener("message", ev => {
+    const d = ev.data || {};
+    if (d.type === "loadout-update" && d.version !== VERSION) toastAction("New version available, reload", "Reload", () => location.reload());
+  });
+}
+
+/* ==============================================================
    BOOT
    ============================================================== */
 function setMe(me) {
@@ -6387,6 +6676,7 @@ function setMe(me) {
 function startApp(user) {
   S.user = user;
   loadLocalPrefs();
+  qLoad();
   try { S.activeLoc = sessionStorage.getItem("loadout.activeLoc") || null; } catch (e) {}
   $("#signin").style.display = "none";
   $("#app").hidden = false;
@@ -6399,6 +6689,7 @@ function startApp(user) {
   DB.start();
   paintSync();
   if (BOARD || S.role === "board") { enterBoard(); return; }
+  paintA2();
   if (location.hash) applyHash(); else { S.view = matchMedia("(max-width:640px)").matches ? "scan" : "tickets"; render(true); }
   if (PRINT && DEMO) { S.labelSel = new Set(labelGroups().flatMap(g => g[1].map(x => x.key))); printLabels(Array.from(S.labelSel).map(k => { const i = k.indexOf(":"); return { kind: k.slice(0, i), id: k.slice(i + 1) }; })); }
 }
@@ -6409,6 +6700,7 @@ function stopApp() {
   if (BOARD) { clearInterval(BD.tick); cancelAnimationFrame(BD.raf); $("#board").hidden = true; BOARD = QUERY.get("board") === "1"; }
   S.loaded = {}; S.errors = {}; S.scan = null; _moreBuilt = ""; const sc = $("#v-scan"); if (sc) { sc.innerHTML = ""; delete sc.dataset.built; }
   closeAllModals();
+  S.queue = []; paintA2();
   $("#app").hidden = true;
   $("#signin").style.display = "flex";
 }
@@ -6430,7 +6722,7 @@ if (DEMO) {
   const fbApp = appMod.initializeApp(firebaseConfig);
   const auth = authMod.getAuth(fbApp);
   const db = fsMod.initializeFirestore(fbApp, { localCache: fsMod.persistentLocalCache({ tabManager: fsMod.persistentMultipleTabManager() }) });
-  fb = { fs: fsMod, db, auth, authMod };
+  fb = { fs: fsMod, db, auth, authMod, app: fbApp };
 
   $("#signinBtn").addEventListener("click", async () => {
     $("#signinErr").hidden = true;
@@ -6458,8 +6750,12 @@ if (DEMO) {
     /* roles: the first sign-in writes the person's own doc (admin only for the D2 account; everyone else tech, unconfirmed) */
     const ref = fsMod.doc(db, "loadout_users", user.uid);
     let role = "tech";
+    /* offline (0.5.0): read the roster and layout from the device cache
+       instead of waiting out the server timeout; the sign-in itself is
+       remembered by Firebase Auth from the last time there was signal */
+    const getD = r => navigator.onLine ? fsMod.getDoc(r) : fsMod.getDocFromCache(r);
     try {
-      const snap = await fsMod.getDoc(ref);
+      const snap = await getD(ref);
       if (!snap.exists()) {
         role = email === ADMIN_EMAIL ? "admin" : "tech";
         await fsMod.setDoc(ref, { email, name: me.name, role, active: true, confirmed: role === "admin", addedBy: "self-sign-in", addedAt: fsMod.serverTimestamp(), lastSeen: fsMod.serverTimestamp() });
@@ -6469,7 +6765,7 @@ if (DEMO) {
       }
     } catch (e) { console.warn("Could not read the roster; using tech until it loads.", e); }
     S.role = role;
-    try { const pf = await fsMod.getDoc(fsMod.doc(db, "users", user.uid)); if (pf.exists() && pf.data().loadoutLayout) { S.user = me; loadLocalPrefs(); S.prefs = Object.assign({}, pf.data().loadoutLayout, S.prefs); } } catch (e) {}
+    try { const pf = await getD(fsMod.doc(db, "users", user.uid)); if (pf.exists() && pf.data().loadoutLayout) { S.user = me; loadLocalPrefs(); S.prefs = Object.assign({}, pf.data().loadoutLayout, S.prefs); } } catch (e) {}
     startApp(me);
     if (S.prefs && Object.keys(S.prefs).length) savePrefs();
   });
