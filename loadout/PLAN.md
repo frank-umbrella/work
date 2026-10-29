@@ -265,45 +265,21 @@ the database reads without the app (section 16).
 Rules to add to `watchtower/firestore.rules` (shared file, deployed with
 Watchtower's `firebase.json`, work account `frank@umbrellaautomation.com`):
 
-```
-function loadoutRole() {
-  return exists(/databases/$(database)/documents/loadout_users/$(request.auth.uid))
-    ? get(/databases/$(database)/documents/loadout_users/$(request.auth.uid)).data.role
-    : 'tech';
-}
-// 'accounting' and 'board' are read-only: they appear in no writer list below
-function loadoutAdmin()  { return isMSPAdmin() && loadoutRole() == 'admin'; }
-function loadoutWriter() { return isMSPAdmin() && loadoutRole() in ['admin', 'warehouse']; }
-function loadoutTech()   { return isMSPAdmin() && loadoutRole() in ['admin', 'warehouse', 'tech']; }
-
-match /loadout_users/{uid}   { allow read: if isMSPAdmin(); allow write: if loadoutAdmin(); }
-match /loadout_settings/{k}  { allow read: if isMSPAdmin(); allow write: if loadoutAdmin(); }
-match /loadout_movements/{id} {
-  allow read: if isMSPAdmin();
-  allow create: if loadoutTech();
-  allow update, delete: if false;          // audit trail is append-only
-}
-// techs may change the fields their scans touch, nothing else
-match /loadout_items/{id}      { allow read: if isMSPAdmin(); allow create, delete: if loadoutWriter();
-  allow update: if loadoutWriter() || (loadoutTech() && request.resource.data.diff(resource.data).affectedKeys()
-    .hasOnly(['status','holderUid','holderName','jobId','ticketId','ticketLineId','locationId',
-              'checkedOutAt','checkedInAt','condition','updatedAt'])); }
-match /loadout_containers/{id} { allow read: if isMSPAdmin(); allow create, delete: if loadoutWriter();
-  allow update: if loadoutWriter() || (loadoutTech() && request.resource.data.diff(resource.data).affectedKeys()
-    .hasOnly(['ftLeft','lastMark','status','pickTicketId','lastReadingAt','lastReadingBy','locationId'])); }
-match /{coll}/{docId} {
-  allow read: if isMSPAdmin() && coll.matches('loadout_.*');      // accounting reads everything
-  allow write: if loadoutWriter() && coll.matches('loadout_.*');
-  match /{sub=**} { allow read: if isMSPAdmin() && coll.matches('loadout_.*');
-                    allow write: if loadoutWriter() && coll.matches('loadout_.*'); }
-}
-```
-
-(Firestore evaluates the specific matches first; the wildcard match must not
-grant anything to non-loadout collections, hence the prefix check. Each
-`get()` in `loadoutRole()` counts against the per-request limit of ten, so
-keep it to one lookup per rule. Verify in the rules playground before
-deploying.)
+The deployed source of truth is the `// -------- Loadout (work/loadout) --------`
+block in `watchtower/firestore.rules` (copied into `loadout/README.md` under
+"Rules"). It differs from the first draft of this section in two ways the
+0.1.0 build proved in the Firestore emulator: the `loadout_.*` wildcard no
+longer covers collections that have their own rules (Firestore allows a write
+if ANY matching rule allows it, so the wildcard was letting warehouse users
+edit movements and settings and admins delete movements), and
+`loadout_users` lets a signed-in domain account create its own doc as tech,
+with the owner account (the existing `backupsOwner()` check) creating its own
+as admin, since otherwise the first admin could never exist. Techs may also
+write `onHand`, `updatedAt`, `locationName`, `jobName`, and `confirmLocation`
+on products and containers so names and totals stay right after a cut or a
+check-out, and every movement must carry `by` equal to the signed-in email.
+Subcollections use `/{subcoll}/{rest=**}` because a bare `{sub=**}` also
+matches the parent document.
 
 The worker (section 6, T1/T2) writes through a service account and bypasses
 rules, same as watchtower-worker.
@@ -772,6 +748,31 @@ Each version is a release: bump the version everywhere, README changelog entry
 with the why, small commits.
 
 ## 13. Still open (answer before the build)
+
+**Assumed for the first build (2026-10-29).** The user asked for the build to
+start so the shop can feel it out before the owner's decisions are in. The
+build proceeds on these defaults; each is a one-line change later and the
+decision text below stays until the real answer lands.
+
+| Decision | Assumed |
+|---|---|
+| D1 Portal plan | Unknown; T0 only (CSV import + Copy for Portal). No worker. |
+| D2 Roles | `frank@umbrellaautomation.com` seeded as admin; every other domain sign-in lands as tech until an admin confirms a role. Warehouse and admin receive; techs do not. |
+| D3 Sample CSV | None yet; the importer maps by header name with a preview, prefilled for Area, Item Type, Brand, Model, Description, Quantity, Unit. |
+| D4 Staging | Labeled bays: Bay 1 to Bay 4 seeded as locations of kind `bay`. |
+| D5 Vans | Location kind `van` exists; Van 1 and Van 2 seeded. |
+| D6 Receiving | Tap-to-receive by line, scanning optional. |
+| D7 Costs | Behind the Settings toggle, off by default. |
+| D8 Name | Loadout (settled). |
+| D9 Design | B Ledger. |
+| D10 Firebase | `watchtower-6fbe1`, collections `loadout_*`, rules appended to `watchtower/firestore.rules`. |
+| D11 QR threshold | $250. |
+| D12 Wire boxes | Count down from the start length; mark now = feet left. |
+| D13 Sign-off | Build is a prototype for feel; the owner's mark-ups land as changes, not as a blocker. |
+| D14 Wall board | Any full-screen browser; pinned mode, 20 s rotation. |
+| D15 Database | Firestore (settled). |
+| D16 Box start lengths | Default by cable type at import: Cat5e / Cat6 / coax 1,000 ft; audio, speaker, and stranded 500 ft; anything else 1,000; every box editable afterwards. Boxes whose feet left exceed the default take their feet left as the start. |
+| D17 Assigned inventory | Unassigned only; jobs start from new pick tickets. |
 
 - **D1 Portal plan.** Which plan is Umbrella on (Lite / Pro / Premium /
   Unlimited), and is the Integrations add-on active? Decides whether 0.5.0 is

@@ -263,5 +263,112 @@ service cloud.firestore {
         allow read, write: if isMSPAdmin() && request.auth.uid == uid;
       }
     }
+
+    // -------- Loadout (work/loadout) --------
+    // Shop inventory. Shares THIS project's login like Backup Audits and
+    // Sundial. Data lives in loadout_* collections shared by everyone on
+    // the domain; what differs per person is the role on
+    // /loadout_users/{uid}: admin, warehouse, tech, accounting, board.
+    // Accounting and board appear in no writer list, so they only read.
+    // A signed-in account with no roster doc counts as tech; a paused one
+    // (active == false) counts as 'none' and only reads.
+    //
+    // Firestore allows a request when ANY matching statement allows it,
+    // so the wildcard match at the end leaves out the collections that
+    // have their own rules here. Without that, a warehouse user could
+    // update the append-only movements through the wildcard.
+    //
+    // loadoutRole() reads one document. exists() and get() on the same
+    // path count once toward the per-request lookup limit, and every rule
+    // below calls loadoutRole() once (the update rules bind it with let).
+    function loadoutRole() {
+      let path = /databases/$(database)/documents/loadout_users/$(request.auth.uid);
+      return !exists(path) ? 'tech'
+        : (get(path).data.get('active', true) == true ? get(path).data.get('role', 'tech') : 'none');
+    }
+    function loadoutAdmin()  { return isMSPAdmin() && loadoutRole() == 'admin'; }
+    function loadoutWriter() { return isMSPAdmin() && loadoutRole() in ['admin', 'warehouse']; }
+    function loadoutTech()   { return isMSPAdmin() && loadoutRole() in ['admin', 'warehouse', 'tech']; }
+    function loadoutOnly(keys) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
+    }
+    // techs may change the fields their scans touch, nothing else
+    function loadoutItemUpdate() {
+      let r = loadoutRole();
+      return r in ['admin', 'warehouse']
+        || (r == 'tech' && loadoutOnly(['status', 'holderUid', 'holderName', 'jobId', 'jobName',
+             'ticketId', 'ticketLineId', 'locationId', 'locationName', 'checkedOutAt',
+             'checkedInAt', 'condition', 'updatedAt']));
+    }
+    function loadoutContainerUpdate() {
+      let r = loadoutRole();
+      return r in ['admin', 'warehouse']
+        || (r == 'tech' && loadoutOnly(['ftLeft', 'lastMark', 'status', 'pickTicketId',
+             'lastReadingAt', 'lastReadingBy', 'locationId', 'locationName', 'confirmLocation']));
+    }
+    // a tech's cut or check-out moves the product's denormalized on-hand total
+    function loadoutProductUpdate() {
+      let r = loadoutRole();
+      return r in ['admin', 'warehouse'] || (r == 'tech' && loadoutOnly(['onHand', 'updatedAt']));
+    }
+
+    // Roster. A person's first sign-in writes their own doc as tech; the
+    // project's hardwired owner (backupsOwner() above, PLAN D2) may write
+    // it as admin. Everyone may refresh their own lastSeen and name;
+    // only admins change roles.
+    match /loadout_users/{uid} {
+      allow read: if isMSPAdmin();
+      allow create: if loadoutAdmin()
+        || (isMSPAdmin() && request.auth.uid == uid
+            && request.resource.data.email == request.auth.token.email.lower()
+            && (request.resource.data.role == 'tech'
+                || (request.resource.data.role == 'admin' && backupsOwner())));
+      allow update: if isMSPAdmin()
+        && ((request.auth.uid == uid && loadoutOnly(['lastSeen', 'name'])) || loadoutAdmin());
+      allow delete: if loadoutAdmin();
+    }
+    match /loadout_settings/{key} {
+      allow read: if isMSPAdmin();
+      allow write: if loadoutAdmin();
+    }
+    // Audit trail: append-only, and each entry names its own author.
+    match /loadout_movements/{id} {
+      allow read: if isMSPAdmin();
+      allow create: if loadoutTech() && request.resource.data.by == request.auth.token.email.lower();
+      allow update, delete: if false;
+    }
+    match /loadout_items/{id} {
+      allow read: if isMSPAdmin();
+      allow create, delete: if loadoutWriter();
+      allow update: if isMSPAdmin() && loadoutItemUpdate();
+    }
+    match /loadout_containers/{id} {
+      allow read: if isMSPAdmin();
+      allow create, delete: if loadoutWriter();
+      allow update: if isMSPAdmin() && loadoutContainerUpdate();
+    }
+    match /loadout_products/{id} {
+      allow read: if isMSPAdmin();
+      allow create, delete: if loadoutWriter();
+      allow update: if isMSPAdmin() && loadoutProductUpdate();
+    }
+    // Everything else under loadout_* (stock, locations, and later tickets,
+    // orders, shipments): everyone on the domain reads, warehouse and
+    // admin write. The prefix check keeps this from touching any other
+    // tool's collections.
+    match /{coll}/{docId} {
+      allow read: if isMSPAdmin() && coll.matches('loadout_.*');
+      allow write: if coll.matches('loadout_.*')
+        && !(coll in ['loadout_users', 'loadout_settings', 'loadout_movements',
+                      'loadout_items', 'loadout_containers', 'loadout_products'])
+        && loadoutWriter();
+      // subcollections (ticket lines, order lines). {rest=**} sits under a
+      // named segment because a bare {sub=**} also matches zero segments,
+      // which would re-match the parent documents and undo the exclusion above.
+      match /{subcoll}/{rest=**} {
+        allow read: if isMSPAdmin() && coll.matches('loadout_.*');
+        allow write: if coll.matches('loadout_.*') && loadoutWriter();
+      }
+    }
   }
 }
