@@ -1,0 +1,13 @@
+node_modules/
+.wrangler/
+.dev.vars
+*.log
+dist/
+
+# Service-account JSON belongs in `wrangler secret put`, never here. If one
+# lands in this folder by accident, git still will not track it.
+*-firebase-adminsdk-*.json
+*service-account*.json
+*serviceAccount*.json
+*credentials*.json
+gcp-*.json

@@ -1,0 +1,231 @@
+{
+  "id": 55120,
+  "name": "Harbor Street office refresh",
+  "number": 1077,
+  "status": "Accepted",
+  "total": 9876.5,
+  "proposalPdf": "https://example.com/proposals/55120.pdf",
+  "proposalCsv": "https://example.com/proposals/55120.csv",
+  "installerPdf": "https://example.com/proposals/55120-installer.pdf",
+  "salesPerson": "Sales Desk",
+  "salesPersonEmail": "sales@example.com",
+  "customer": {
+    "id": 7301,
+    "partyType": "Company",
+    "contactType": "Client",
+    "firstName": "Test",
+    "lastName": "Contact",
+    "companyName": "Example Dental Group",
+    "contactEmail": "office@example.com",
+    "contactEmailCC": "",
+    "contactPhone": "555-0100",
+    "location": {
+      "id": 8801,
+      "street": "100 Harbor Street",
+      "suite": "Suite 2",
+      "city": "Sampletown",
+      "postalCode": "00000",
+      "state": "Example State",
+      "stateAbbrev": "EX",
+      "country": "US",
+      "phone": "555-0100"
+    }
+  },
+  "areas": [
+    {
+      "id": 301,
+      "name": "Front Office",
+      "options": [
+        {
+          "id": 401,
+          "status": "Accepted",
+          "lastModifiedDate": "2026-10-28T15:02:11Z",
+          "clientDescription": "Base network package",
+          "installerDescription": "",
+          "total": 2410.0,
+          "totalRecurringService": 0,
+          "items": [
+            {
+              "id": 9001, "parentId": null, "itemType": "Part", "referencedItemId": 70011,
+              "createdDate": "2026-10-20T13:00:00Z", "lastModifiedDate": "2026-10-28T15:02:11Z",
+              "brand": "Ubiquiti", "model": "U6-Pro", "name": null, "shortDescription": "UniFi 6 Pro access point",
+              "quantity": 2, "msrp": 159.0, "sellPrice": 189.0, "cost": 149.0, "supplier": "Sample Distribution",
+              "total": { "amount": 378.0, "currency": { "code": "USD", "symbol": "$" }, "isCombinedPrice": false },
+              "isTaxExempt": false, "isRecurringService": false, "linkedOrders": []
+            },
+            {
+              "id": 9002, "parentId": null, "itemType": "Part", "referencedItemId": 70012,
+              "createdDate": "2026-10-20T13:00:00Z", "lastModifiedDate": "2026-10-28T15:02:11Z",
+              "brand": "Ubiquiti", "model": "USW-Pro-24-PoE", "name": null, "shortDescription": "24 port PoE switch",
+              "quantity": 1, "msrp": 699.0, "sellPrice": 799.0, "cost": 649.0, "supplier": "Sample Distribution",
+              "total": { "amount": 799.0, "currency": { "code": "USD", "symbol": "$" }, "isCombinedPrice": false },
+              "isTaxExempt": false, "isRecurringService": false, "linkedOrders": []
+            },
+            {
+              "id": 9003, "parentId": null, "itemType": "Part", "referencedItemId": 70011,
+              "createdDate": "2026-10-21T13:00:00Z", "lastModifiedDate": "2026-10-28T15:02:11Z",
+              "brand": "ubiquiti", "model": "U6 Pro", "name": null, "shortDescription": "UniFi 6 Pro access point, lobby",
+              "quantity": 1, "msrp": 159.0, "sellPrice": 189.0, "cost": 149.0, "supplier": "Sample Distribution",
+              "total": { "amount": 189.0, "currency": { "code": "USD", "symbol": "$" }, "isCombinedPrice": false },
+              "isTaxExempt": false, "isRecurringService": false, "linkedOrders": []
+            },
+            {
+              "id": 9004, "parentId": null, "itemType": "Labor", "referencedItemId": 730,
+              "createdDate": "2026-10-20T13:00:00Z", "lastModifiedDate": "2026-10-28T15:02:11Z",
+              "brand": null, "model": null, "name": "Installation Labor", "shortDescription": "Installation Labor",
+              "quantity": 4, "msrp": 0, "sellPrice": 95.0, "cost": null, "supplier": null,
+              "total": { "amount": 380.0, "currency": { "code": "USD", "symbol": "$" }, "isCombinedPrice": false },
+              "isTaxExempt": false, "isRecurringService": false, "linkedOrders": []
+            },
+            {
+              "id": 9005, "parentId": 9002, "itemType": "Part", "referencedItemId": 70013,
+              "createdDate": "2026-10-20T13:00:00Z", "lastModifiedDate": "2026-10-28T15:02:11Z",
+              "brand": "Panduit", "model": "CJ688TGBU", "name": null, "shortDescription": "Cat6 jack, blue",
+              "quantity": 24, "msrp": 6.0, "sellPrice": 9.5, "cost": 5.1, "supplier": "Sample Distribution",
+              "total": { "amount": 228.0, "currency": { "code": "USD", "symbol": "$" }, "isCombinedPrice": false },
+              "isTaxExempt": false, "isRecurringService": false, "linkedOrders": []
+            }
+          ]
+        },
+        {
+          "id": 402,
+          "status": "Declined",
+          "lastModifiedDate": "2026-10-28T15:02:11Z",
+          "clientDescription": "Wi-Fi 7 upgrade",
+          "installerDescription": "",
+          "total": 598.0,
+          "totalRecurringService": 0,
+          "items": [
+            {
+              "id": 9010, "parentId": null, "itemType": "Part", "referencedItemId": 70020,
+              "createdDate": "2026-10-20T13:00:00Z", "lastModifiedDate": "2026-10-28T15:02:11Z",
+              "brand": "Ubiquiti", "model": "U7-Pro", "name": null, "shortDescription": "UniFi 7 Pro access point",
+              "quantity": 2, "msrp": 189.0, "sellPrice": 229.0, "cost": 179.0, "supplier": "Sample Distribution",
+              "total": { "amount": 458.0, "currency": { "code": "USD", "symbol": "$" }, "isCombinedPrice": false },
+              "isTaxExempt": false, "isRecurringService": false, "linkedOrders": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 302,
+      "name": "Conference Room",
+      "options": [
+        {
+          "id": 403,
+          "status": "Draft",
+          "lastModifiedDate": "2026-10-28T15:02:11Z",
+          "clientDescription": "",
+          "installerDescription": "Ceiling speakers on the amp",
+          "total": 1500.0,
+          "totalRecurringService": 0,
+          "items": [
+            {
+              "id": 9020, "parentId": null, "itemType": "Part", "referencedItemId": 88213,
+              "createdDate": "2026-10-20T13:00:00Z", "lastModifiedDate": "2026-10-28T15:02:11Z",
+              "brand": "Sonos", "model": "Amp", "name": null, "shortDescription": "Sonos Amp",
+              "quantity": 1, "msrp": 699.0, "sellPrice": 699.0, "cost": 499.0, "supplier": "Sample Audio Supply",
+              "total": { "amount": 699.0, "currency": { "code": "USD", "symbol": "$" }, "isCombinedPrice": false },
+              "isTaxExempt": false, "isRecurringService": false, "linkedOrders": []
+            },
+            {
+              "id": 9021, "parentId": 9020, "itemType": "Part", "referencedItemId": 90144,
+              "createdDate": "2026-10-20T13:00:00Z", "lastModifiedDate": "2026-10-28T15:02:11Z",
+              "brand": "Sonance", "model": "VP62R", "name": null, "shortDescription": "Sonance VP62R in-ceiling speaker",
+              "quantity": 4, "msrp": 137.5, "sellPrice": 137.5, "cost": 90.0, "supplier": "Sample Audio Supply",
+              "total": { "amount": 550.0, "currency": { "code": "USD", "symbol": "$" }, "isCombinedPrice": false },
+              "isTaxExempt": false, "isRecurringService": false, "linkedOrders": []
+            },
+            {
+              "id": 9022, "parentId": null, "itemType": "CustomItem", "referencedItemId": 6001,
+              "createdDate": "2026-10-20T13:00:00Z", "lastModifiedDate": "2026-10-28T15:02:11Z",
+              "brand": "Custom", "model": "Plate engraving", "name": null, "shortDescription": "Engraved wall plate labels",
+              "quantity": 2, "msrp": 0, "sellPrice": 25.0, "cost": 10.0, "supplier": null,
+              "total": { "amount": 50.0, "currency": { "code": "USD", "symbol": "$" }, "isCombinedPrice": false },
+              "isTaxExempt": false, "isRecurringService": false, "linkedOrders": []
+            },
+            {
+              "id": 9023, "parentId": null, "itemType": "Fee", "referencedItemId": 5001,
+              "createdDate": "2026-10-20T13:00:00Z", "lastModifiedDate": "2026-10-28T15:02:11Z",
+              "brand": null, "model": "Permit fee", "name": null, "shortDescription": "Permit fee",
+              "quantity": 1, "msrp": 0, "sellPrice": 75.0, "cost": null, "supplier": null,
+              "total": { "amount": 75.0, "currency": { "code": "USD", "symbol": "$" }, "isCombinedPrice": false },
+              "isTaxExempt": false, "isRecurringService": false, "linkedOrders": []
+            },
+            {
+              "id": 9024, "parentId": null, "itemType": "Part", "referencedItemId": 88213,
+              "createdDate": "2026-10-20T13:00:00Z", "lastModifiedDate": "2026-10-28T15:02:11Z",
+              "brand": "Sonos", "model": "Amp", "name": null, "shortDescription": "Spare Sonos Amp, removed",
+              "quantity": 0, "msrp": 699.0, "sellPrice": 699.0, "cost": 499.0, "supplier": "Sample Audio Supply",
+              "total": { "amount": 0, "currency": { "code": "USD", "symbol": "$" }, "isCombinedPrice": false },
+              "isTaxExempt": false, "isRecurringService": false, "linkedOrders": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 303,
+      "name": "Network Closet",
+      "options": [
+        {
+          "id": 404,
+          "status": "Accepted",
+          "lastModifiedDate": "2026-10-28T15:02:11Z",
+          "clientDescription": "Cabling",
+          "installerDescription": "",
+          "total": 450.0,
+          "totalRecurringService": 0,
+          "items": [
+            {
+              "id": 9030, "parentId": null, "itemType": "Part", "referencedItemId": 70040,
+              "createdDate": "2026-10-20T13:00:00Z", "lastModifiedDate": "2026-10-28T15:02:11Z",
+              "brand": "Belden", "model": "1583A", "name": null, "shortDescription": "Cat5e riser cable, per foot",
+              "quantity": 1000, "msrp": 0.3, "sellPrice": 0.35, "cost": 0.2, "supplier": "Sample Distribution",
+              "total": { "amount": 350.0, "currency": { "code": "USD", "symbol": "$" }, "isCombinedPrice": false },
+              "isTaxExempt": false, "isRecurringService": false, "linkedOrders": []
+            },
+            {
+              "id": 9031, "parentId": null, "itemType": "Part", "referencedItemId": 70041,
+              "createdDate": "2026-10-20T13:00:00Z", "lastModifiedDate": "2026-10-28T15:02:11Z",
+              "brand": null, "model": null, "name": null, "shortDescription": "Velcro cable ties",
+              "quantity": 3, "msrp": 0, "sellPrice": 12.0, "cost": 6.0, "supplier": "Sample Distribution",
+              "total": { "amount": 36.0, "currency": { "code": "USD", "symbol": "$" }, "isCombinedPrice": false },
+              "isTaxExempt": false, "isRecurringService": false, "linkedOrders": []
+            }
+          ]
+        },
+        {
+          "id": 405,
+          "status": "Draft",
+          "lastModifiedDate": "2026-10-28T15:02:11Z",
+          "clientDescription": "Cabling, plenum alternative",
+          "installerDescription": "",
+          "total": 520.0,
+          "totalRecurringService": 0,
+          "items": [
+            {
+              "id": 9040, "parentId": null, "itemType": "Part", "referencedItemId": 70042,
+              "createdDate": "2026-10-20T13:00:00Z", "lastModifiedDate": "2026-10-28T15:02:11Z",
+              "brand": "Belden", "model": "1585A", "name": null, "shortDescription": "Cat5e plenum cable, per foot",
+              "quantity": 1000, "msrp": 0.4, "sellPrice": 0.45, "cost": 0.3, "supplier": "Sample Distribution",
+              "total": { "amount": 450.0, "currency": { "code": "USD", "symbol": "$" }, "isCombinedPrice": false },
+              "isTaxExempt": false, "isRecurringService": false, "linkedOrders": []
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "financialSummary": {
+    "partsSubtotal": 3693.0, "partsDiscountType": "Fixed", "partsDiscountPercentage": 0, "partsDiscount": 0,
+    "partsDiscountTaxable": 0, "partsDiscountTaxExempt": 0, "partsTotal": 3693.0, "laborTotal": 380.0, "feeTotal": 75.0,
+    "proposalSubtotal": 4148.0, "proposalTotal": 4148.0,
+    "currency": { "code": "USD", "symbol": "$" },
+    "salesTax": { "taxStatus": "Ok", "total": 0, "calculation": { "method": "None", "applyTo": "Parts" } }
+  },
+  "profit": { "total": 1200.0, "percentage": 29, "partTotal": 900.0, "partPercentage": 24, "laborTotal": 300.0, "laborPercentage": 79, "isProfitIncludeCos": false },
+  "recurringServices": { "items": [], "totalRecurringService": 0 },
+  "changeOrders": []
+}

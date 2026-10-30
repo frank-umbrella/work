@@ -454,6 +454,18 @@ service firebase.storage {
 }
 ```
 
+## Worker
+
+`worker/` is loadout-worker, a Cloudflare Worker on the umbrella account. It
+takes accepted Portal proposals from a Zap (PLAN section 6, T1) and writes the
+proposal, the pick ticket, and its lines with the same ids the CSV import uses,
+flagged `needsReview` until someone looks. Every night at 09:00 UTC it writes
+one CSV per collection to the "Loadout backups" Drive folder in a dated
+subfolder and prunes folders older than 90 days (PLAN section 16 rule 7). It
+writes through a service account, so the rules above do not change. The
+Portal API intake (T2) is a stub until D1 is answered. Secrets, owner setup,
+the Zap, and deploy steps are in `worker/README.md`.
+
 ## Changelog
 
 ### 0.5.0 (2026-10-29)

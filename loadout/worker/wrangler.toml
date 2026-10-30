@@ -1,0 +1,37 @@
+name = "loadout-worker"
+main = "src/index.js"
+compatibility_date = "2026-10-29"
+
+# Pinned to the umbrella Cloudflare account (same as watchtower-worker), so
+# wrangler refuses to deploy with a token for the personal account. Deploy
+# from PowerShell with the `wrangler` wrapper or `cf umbrella` first.
+account_id = "87034c82986d2aacbc4d52e8de0fa2fd"
+
+# Nightly CSV export to Google Drive (PLAN section 16 rule 7). 09:00 UTC is
+# early morning in the US, after the shop's day has closed out.
+[triggers]
+crons = ["0 9 * * *"]
+
+# Not secrets. Real secrets go through `wrangler secret put`.
+[vars]
+# Same Firebase project as the app and Watchtower.
+FIREBASE_PROJECT_ID = "watchtower-6fbe1"
+
+# The "Loadout backups" folder id (the part after /folders/ in its Drive
+# URL). The owner fills this in; while it is empty the nightly export skips.
+DRIVE_FOLDER_ID = ""
+
+# Secrets, set with `wrangler secret put <NAME>`, never in this file:
+#   FIREBASE_SERVICE_ACCOUNT  JSON key of a service account on watchtower-6fbe1
+#                             with the Cloud Datastore User role; the same key
+#                             calls the Drive API for the nightly export
+#   ZAPIER_SHARED_SECRET      random string; the Zap sends it in X-Loadout-Secret
+#
+# T2 (Portal API), left unset until PLAN D1 says the shop is on the
+# Unlimited plan with an approved API application:
+#   PORTAL_APP_ID
+#   PORTAL_USER_KEY
+#   PORTAL_BASE_URL
+#
+# Optional var, only if Drive refuses the folder (see README, Troubleshooting):
+#   DRIVE_SCOPE = "https://www.googleapis.com/auth/drive"

@@ -1,0 +1,20 @@
+{
+  "name": "loadout-worker",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Cloudflare Worker for Loadout: Portal proposals pushed by Zapier become pick tickets in Firestore, and a nightly CSV export goes to Google Drive.",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "node --test",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "tail": "wrangler tail"
+  },
+  "dependencies": {
+    "jose": "^5.9.6"
+  },
+  "devDependencies": {
+    "wrangler": "^4.94.0"
+  }
+}

@@ -622,6 +622,8 @@ appears in Loadout with "Imported from Portal, review" before anyone touches it.
 Order-status triggers can also update order lines to Received when Portal's
 own PO is marked received. Still no write-back.
 
+Built 2026-10-29 in `loadout/worker/`; T2 stub only until D1 is answered.
+
 **T2 - API (Unlimited + approved application).** The worker holds the Portal
 app id and user key as secrets (`wrangler secret put`, never in chat). It
 subscribes to `proposal.status_changed`, pulls the proposal on Accepted, and
@@ -850,6 +852,16 @@ boxes with feet left and "Confirm location" flags. To fix in the next phase:
 6. **Tracking-number links are under 44px on the phone** (Tracking and
    Order detail, inline text links from 0.3.0). Give them 44px tap height
    with padding, or wrap them in the carrier chip.
+
+7. **Worker-imported tickets are not marked in the app.** The worker sets
+   `needsReview: true` and `importSource: "zapier"`, but 0.5.0 shows neither:
+   ticket detail labels every non-manual ticket "Imported from CSV". Show an
+   "Imported from Portal, review" chip on the Tickets list and the ticket
+   header while `needsReview` is set, with a Reviewed button that clears it
+   (warehouse/admin), and label the source by `importSource`.
+8. **Order lines should carry a unit cost** (`unitCost` at Mark ordered,
+   defaulting from the product's last cost) so the Spend and Delivered
+   reports stay fixed when a product's cost later changes.
 
 Decisions recorded from the 0.5.0 build (2026-10-29): the service worker
 registers in demo mode too (needed for the offline test; harmless); product
