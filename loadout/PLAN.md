@@ -897,6 +897,89 @@ lets photos show offline; `sw.js` carries its own `VERSION` that must be
 bumped with every release (added to section 11); Storage must be enabled on
 `watchtower-6fbe1` (may need Blaze) before the storage rules deploy.
 
+## 12c. Clean pass (user, 2026-11-02): mobile one-handed, desktop, TV
+
+After audit-002's fixes, one release devoted to finish. Fable writes the
+detail; Opus makes every edit. The bar: a tech holding a box in one hand
+and the phone in the other can do every warehouse action with a thumb, the
+desktop reads like one product and not five phases, and the TV board is
+legible from the bays.
+
+**Phone, one hand (under 640px)**
+1. Primary action at the bottom. Every sheet and modal on the phone opens as
+   a **bottom sheet** (slides up, rounded top, drag handle, 16px side gutter)
+   with its confirm button full-width at the bottom and Cancel above it, so
+   the thumb never reaches the top of the screen. Escape and the handle
+   close it; outside-tap does not (Playbook).
+2. The bottom tab bar stays: Tickets, Scan, Week, Stock, More; Scan is the
+   raised center button. Safe-area padding on iOS. Nothing important sits
+   under it (scroll padding equal to the bar height).
+3. Row actions on cards sit in the card footer as full-width or half-width
+   44px buttons, never as small links; at most two visible, the rest under a
+   "..." sheet. The most likely action is first and filled (accent).
+4. Scan is the phone's home: the camera area is as tall as the viewport
+   allows above the result card; the manual field is one tap away; the
+   result card's buttons are large; the Box sheet's number field is 44px
+   high with the quick buttons directly under the thumb.
+5. Reach: the sticky header shrinks to 48px when scrolling on the phone;
+   filters collapse into one "Filters" button that opens a bottom sheet;
+   search fields keep a clear (x) button.
+6. Inputs: 16px font so iOS does not zoom; numeric fields use
+   `inputmode="numeric"` or `decimal`; date fields use the native picker;
+   selects are native on the phone.
+7. Text: 15px body minimum on cards, 13px for muted meta; nothing smaller.
+   Tap targets 44px with 8px between neighbors; pills are not tappable.
+8. Feedback: every write shows its toast within the thumb's view (top-center
+   stays, but on the phone the toast sits just under the header, not behind
+   the notch); offline writes say so once per outage.
+
+**Desktop (640px and up)**
+9. One header, one nav order, one spacing scale (8 / 12 / 16 / 24 / 32),
+   one card radius, one table style, one pill set across all nine views; the
+   consistency map from audit-002 is the checklist.
+10. Expand-in-place rows: open state has a visible left accent bar and a
+    close chevron at top right; only one open; the row above and below keep
+    their height.
+11. Tables: header row sticks under the app header on long lists; sort
+    arrows visible on hover and on the active column; the Columns manager is
+    a popover, not a modal; empty states inside the table body.
+12. Forms: labels above fields, 2-column grid at 900px and up, single column
+    below; the first field focused on open; Enter submits where there is one
+    text field; required fields marked by the glow when they are decisions
+    and by a plain "required" note otherwise.
+13. Keyboard: Tab order follows the visual order; focus ring 2px accent;
+    `/` focuses search; Escape closes anything open.
+
+**TV board (`?board=1`)**
+14. Legible from 4 m: product line 32px, counts 48px, headers 26px; line
+    height 1.3; no element under 24px.
+15. One screen per ticket; if the lines do not fit, the list scrolls slowly
+    (40px per second) and pauses 3 s at each end; the header and the
+    progress bar stay fixed.
+16. The rotation progress bar is 6px and visible from the floor; the "Not
+    live since" strip is 32px tall with the time.
+17. Burn-in: nothing stays at the exact same pixels for hours; shift the
+    layout by 2px every rotation; the idle screen moves its clock.
+18. Light theme contrast checked on a bright shop (4.5:1 minimum, 7:1 for
+    the counts).
+
+**Details, everywhere**
+19. Numbers: tabular figures; feet and counts right-aligned; money `$` with
+    two decimals; dates as "Nov 2" in the current year and "Nov 2, 2025"
+    otherwise; times as "8:14 AM"; relative "3 days late" only next to the
+    absolute date.
+20. Words: one term per thing across the app (pick ticket, bay, box, unit,
+    PO, shipment); button labels are verbs; pills are states; no two
+    spellings of the same state.
+21. Icons: the five tab bar icons plus chevrons and the case mark; nothing
+    else decorative.
+22. Motion: 150 ms for sheets and expands, none for pills; the attention
+    glow three pulses then static; no endless animation anywhere but the
+    board's rotation bar.
+23. Empty, loading, and error states on every list, with the next action.
+24. Every non-obvious field has a tooltip that says why; on the phone the
+    tooltip is a tappable "?" that opens a small sheet.
+
 ## 13. Still open (answer before the build)
 
 **Assumed for the first build (2026-10-29).** The user asked for the build to
