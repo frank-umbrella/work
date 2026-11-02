@@ -8,7 +8,7 @@ pages, `noindex, nofollow`, and the shared Watchtower sign-in
 (`@umbrellaautomation.com` Google accounts only). The plan is `PLAN.md`; the
 chosen look is direction B, Ledger, in `design-preview.html`.
 
-Current version: **0.5.1**.
+Current version: **0.5.2**.
 
 ## Files
 
@@ -42,9 +42,13 @@ Current version: **0.5.1**.
   with PO, carrier, and dates); Print (a pick list); Show on board; and Close,
   which returns or writes off what is left in the bay and marks units out on
   the ticket installed at the job. The header carries the install date.
-  **Order missing** and a line's **Order** put what stock cannot cover on a
-  draft purchase order, and each line shows a chip per PO, for example
-  "PO 7731 - UPS 1Z999AA1 - shipped 10/23". A ticket flagged for review has a
+  Each line leads with its state: Pull, Staged (or "Staged 2 of 4"),
+  Delivered, On order (with the ETA, or "Delivered, not received"), or Short
+  (red: the shelves and open POs do not cover it). **Order missing** and a
+  line's **Order** put the Short quantity on a draft purchase order, and each
+  line shows a chip per PO, for example "PO 7731, UPS 1Z999AA1: Shipped,
+  Oct 23". The Tickets list, its "Has items to order" filter, the ticket's
+  strip, the board, and Week all count Short the same way. A ticket flagged for review has a
   **Reviewed** button (warehouse and admin) that clears the flag and logs who
   did it.
 - **Orders**: purchase orders with filters for status and vendor. A draft's
@@ -86,24 +90,28 @@ Current version: **0.5.1**.
   Unscheduled list with a date field. On the phone the days stack, today first.
 - **Board** (`?board=1`, and the landing view for the board role): the
   warehouse TV. One pinned ticket per screen, rotating, lines grouped by the
-  shelf to pull from in rack order; picked lines greyed, to-order amber (with
-  the PO and ETA once ordered), short red; a red "Not live since" strip when
+  shelf to pull from in rack order; staged lines greyed with a check (a line
+  staged from a PO under Staged), on-order amber with the PO and ETA, short
+  red; a red "Not live since" strip when
   the connection drops. The Today mode shows the tickets whose install date is
   today, from the Week view.
 - **Stock**: the catalog with search, sorting, a Columns manager, and tabs for
   All, Consumables (wire boxes with feet left), Low stock (with Reorder), and
   Locations. A product or location row opens in place under itself: fields in
   two columns, on hand by location, boxes, and one row of buttons (Save,
-  Receive, Adjust, Serialize, New box, Reorder, Print label, History). One is
+  Receive or Receive a box, Pull for ticket, Move, Count, Adjust, Serialize,
+  Reorder, Print label, History); the Scan card shows the first of the same
+  buttons, in the same order. One is
   open at a time; Escape or the chevron closes it, and the address carries it
   (`#stock/p/<id>`, `#stock/l/<id>`), so a link lands on it open. Modals stay
   for the decisions that need a confirm.
 - **Scan**: point the phone at a UPC or a Loadout label, or type the code.
   Shelf labels set the active location; box labels open the box sheet (mark
   now, cut this time, quick -50 / -100 / -250, Empty, recount); unit labels
-  show who has it with Check out and Check in. A product card has Pick for
-  ticket, a unit card Stage for ticket, the box sheet a For ticket chip, and a
-  bay's label shows the ticket staged there.
+  show who has it with Check out and Check in. Product and unit cards have
+  Pull for ticket, the box sheet a For ticket chip, and a bay's label shows
+  the ticket staged there. On a phone or tablet, a label that explains itself
+  has a ? beside it that opens the explanation (a mouse shows it on hover).
 - **Items**: every serialized unit, with Out as the Friday list. A unit opens
   in place the same way (`#items/i/<id>`), with its label, serial, condition,
   Check out, Check in, Move, Retire, and History.
@@ -190,8 +198,16 @@ Add, Replace, and Remove photo answer with the usual "Demo mode: not saved".
 The demo hook adds `window.Loadout.sync({online: false, pending: 3})` to drive
 the sync pill (`sync(null)` goes back to Demo),
 `window.Loadout.pending("products", id, true)` to put the pending chip on a
-row, and `window.Loadout.install("prompt" | "ios" | "menu" | "none")` to pick
-which Add to home screen card shows. No Firebase code loads in demo mode. The
+row, `window.Loadout.install("prompt" | "ios" | "menu" | "none")` to pick
+which Add to home screen card shows, and (0.5.2) `window.Loadout.exportTables()`
+to read the Export everything tables without downloading. 0.5.2 adds a Short
+line with stock elsewhere (ticket #1053 needs 80 keystones; 64 are on the
+shelves and 24 ride in Van 1, which a ticket never pulls from, so 16 are
+Short), a draft started with no connection (no PO number until Mark ordered
+numbers it), and PO 7738 with an office box out for delivery, so every
+shipment state shows. `sync({online: false})` also makes the demo act offline
+for numbering: a new PO becomes a draft with no number, and Mark ordered on it
+says "Connect to assign the PO number". No Firebase code loads in demo mode. The
 service worker does register in demo mode, since the demo is how the offline
 shell is checked.
 
@@ -251,8 +267,46 @@ change (`status`, `at`, `by`, `byName`, `note`) that Tracking reads the last
 entry of. A shipment written before 0.5.1 has no log and reads its status with
 the matching date; its first change seeds the log from its dates. Tickets
 gained `reviewedAt`, `reviewedBy`, and `reviewedByName` beside the worker's
-`needsReview`. The Console's About tab lists every field of every
-collection.
+`needsReview`.
+
+0.5.2 (audit-002):
+
+- PO numbers come from `loadout_settings/counters` (`po`, the last number
+  handed out, with `updatedAt`, `updatedBy`, `updatedByName`), read and bumped
+  in one transaction with the PO it numbers, so two people never take the
+  same number. On first use it starts from the highest PO in Loadout. A draft
+  started with no connection has the id `draft-<random>` and an empty
+  `number` until Mark ordered gives it one (online only); its id stays as it
+  is, so its history and the ticket lines that point at it keep working.
+- A new box is written with a create precondition: online, in a transaction
+  that stops if the label exists; offline, the rules refuse a write that would
+  replace another box (its `createdAt` may not change).
+- Units carry `ticketNumber` and `clientName` beside `ticketId` and `jobId`,
+  and boxes received for a ticket carry `pickTicketNumber`. A unit received
+  on a PO takes the PO line's `unitCost` as its `cost` (the product's last
+  cost only when the line has none), and the QR threshold reads the same cost.
+- A ticket line's `qtyToOrder` is now a cache, rewritten with every
+  warehouse save: needed minus staged minus what the shelves hold for that
+  product (bays and vans left out) minus what open PO lines for that line
+  still bring. The screens work the same sum out live and never read the
+  cache alone.
+- Movement types: `receive`, `pull` (shelf to a bay for a ticket), `move`
+  (shelf to shelf, no ticket), `stage`, `deliver`, `cut`, `reading`,
+  `adjust`, `checkout`, `checkin`, `return` (a unit back from a client's
+  site), `writeoff`, and `edit`. Rows written before 0.5.2 keep what they say
+  in the database (`pick`, `transfer`, `return` for close leftovers, `adjust`
+  for write-offs and retirements); the app reads them as the new words.
+- Export everything writes a shipment's `statusLog` as its own file,
+  `loadout_shipments_status.csv` (shipment id first, one row per change), and
+  its `lines` as `loadout_shipments_lines.csv` (one row per line); the
+  shipments file no longer carries either. A ticket line's `orderLineRefs`
+  reads as one `orderId/orderLineId; ...` column. Nothing in the export is
+  JSON text any more.
+- Each person's saved table layout (`loadoutLayout` on `/users/{uid}`)
+  carries `updatedAt`; at sign-in the newer of the device's copy and the
+  account's wins.
+
+The Console's About tab lists every field of every collection.
 
 ## Rules
 
@@ -269,6 +323,14 @@ and write nothing. 0.5.1 changed no rules either: the new fields on purchase
 orders, order lines, and shipments fall under the wildcard (warehouse and
 admin write, techs do not), and clearing a ticket's `needsReview` is a ticket
 update a tech's carve-out (`status`, `summary`, `updatedAt`) does not allow.
+0.5.2 changes three things, checked in the local Firestore emulator on a
+scratch port (34 of 34 checks passing): `loadout_settings/counters` (the PO
+number) may be created and bumped by warehouse and admin, holding only `po`
+and who took it, and `po` only goes up; a warehouse or admin write to a box
+may not change its `createdAt`, so a box write never replaces another box;
+and a tech's unit update may also write `ticketNumber` and `clientName`
+(Deliver to site and check-in), and a tech's box update `pickTicketNumber`.
+**Not deployed.**
 The owner of the Firebase project deploys it from `work/watchtower` with:
 
 `firebase deploy --only firestore:rules --account frank@umbrellaautomation.com --project watchtower-6fbe1`
@@ -302,18 +364,28 @@ function loadoutTech()   { return isMSPAdmin() && loadoutRole() in ['admin', 'wa
 function loadoutOnly(keys) {
   return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
 }
-// techs may change the fields their scans touch, nothing else
+// techs may change the fields their scans touch, nothing else.
+// 0.5.2: a unit also carries ticketNumber and clientName beside its
+// ticket and job ids (PLAN 16 rule 3), so a tech's Deliver to site and
+// check-in may write those two as well.
 function loadoutItemUpdate() {
   let r = loadoutRole();
   return r in ['admin', 'warehouse']
     || (r == 'tech' && loadoutOnly(['status', 'holderUid', 'holderName', 'jobId', 'jobName',
-         'ticketId', 'ticketLineId', 'locationId', 'locationName', 'checkedOutAt',
-         'checkedInAt', 'condition', 'updatedAt']));
+         'clientName', 'ticketId', 'ticketNumber', 'ticketLineId', 'locationId', 'locationName',
+         'checkedOutAt', 'checkedInAt', 'condition', 'updatedAt']));
+}
+// 0.5.2: a box write never replaces another box. A new box is written
+// with createdAt, so a write that would land on a label another device
+// already took (two people receiving offline) changes createdAt and is
+// refused, instead of overwriting that box's feet and shelf.
+function loadoutKeepsCreated() {
+  return request.resource.data.get('createdAt', null) == resource.data.get('createdAt', null);
 }
 function loadoutContainerUpdate() {
   let r = loadoutRole();
-  return r in ['admin', 'warehouse']
-    || (r == 'tech' && loadoutOnly(['ftLeft', 'lastMark', 'status', 'pickTicketId',
+  return (r in ['admin', 'warehouse'] && loadoutKeepsCreated())
+    || (r == 'tech' && loadoutOnly(['ftLeft', 'lastMark', 'status', 'pickTicketId', 'pickTicketNumber',
          'lastReadingAt', 'lastReadingBy', 'locationId', 'locationName', 'confirmLocation']));
 }
 // a tech's cut or check-out moves the product's denormalized on-hand total
@@ -392,6 +464,18 @@ match /loadout_settings/board {
 }
 match /loadout_settings/importMap {
   allow write: if loadoutWriter();
+}
+// 0.5.2: the shared PO number counter. Warehouse and admin take the next
+// number in the same transaction as the PO it numbers; it holds only the
+// number and who took it, and it only goes up.
+match /loadout_settings/counters {
+  allow create: if loadoutWriter()
+    && request.resource.data.keys().hasOnly(['po', 'updatedAt', 'updatedBy', 'updatedByName'])
+    && request.resource.data.po is int;
+  allow update: if loadoutWriter()
+    && loadoutOnly(['po', 'updatedAt', 'updatedBy', 'updatedByName'])
+    && request.resource.data.po is int
+    && request.resource.data.po > resource.data.po;
 }
 // A vendor typed on a purchase order (0.3.0) joins the vendor list in
 // settings/general. Warehouse may add to that list and nothing else
@@ -503,6 +587,60 @@ Portal API intake (T2) is a stub until D1 is answered. Secrets, owner setup,
 the Zap, and deploy steps are in `worker/README.md`.
 
 ## Changelog
+
+### 0.5.2 (2026-11-02)
+
+The fixes from the second audit (audit-002, all 36 findings), so the app
+says the same thing in every view, cannot lose a PO or a box to a second
+device, and works for a keyboard, a thumb, and a tablet.
+
+- A short line can now be ordered from its ticket. "To order" used to read a
+  number saved when the line last changed, so stock taken by another ticket
+  never made a line orderable and Order missing stayed off. It is now worked
+  out live everywhere it shows: what the line still needs, less what the
+  shelves hold (bays and vans do not count), less what open POs for that
+  line still bring. The Tickets list, its filter, the ticket, the board, and
+  Week all agree.
+- One set of words and colors for every state, in every view, the board,
+  Week, Tracking, and the exports. Lines read Pull, Staged ("Staged 2 of 4"
+  when part of it is), Delivered, On order, or Short; "Picked" is gone, since
+  it meant two different things. A box delivered and not scanned in reads
+  "Delivered, not received" everywhere, instead of seven different phrasings.
+  Delivered and installed are a green outline, closed, cancelled, and retired
+  a grey one, so finished things no longer look like things in progress.
+- Movement history uses one word per thing: pull (shelf to a bay for a
+  ticket), move (shelf to shelf), return (a unit back from a client's site),
+  write off. Older entries read in the new words without being rewritten.
+- PO numbers come from one shared counter, so two people starting a PO at
+  the same time, or one of them offline, can no longer take the same number
+  and merge two orders. A PO started with no signal is a draft with no number
+  until Mark ordered, which needs a connection. A new box label works the same
+  way: if someone else already used it, Loadout says so and offers the next
+  free one, rather than writing over their box.
+- Every field, button, and chevron edge is dark enough to see (3:1 or
+  better), and grey pills and links inside open panels pass 4.5:1, because
+  a secondary button used to be found by its text alone.
+- Keyboard: Tab stays inside an open dialog and focus goes back where it came
+  from when it closes; the file pickers are real buttons; a Skip to content
+  link starts every page.
+- Phones in landscape and tablets get the same 44 px controls as a phone in
+  portrait, and on any touch screen the "why" behind a field is a ? you can
+  tap, since nothing there ever shows a hover tooltip.
+- Units keep the cost on their PO line, so Items out and stock value match
+  what was paid. Units and boxes carry the ticket number and client name, so a
+  row reads on its own in the database and the export.
+- Export everything gives a shipment's status history and its lines their own
+  files, one row each, instead of JSON text in a cell.
+- A saved column layout follows you: the newest change wins on every device.
+- Smaller things: dates read "Nov 2" or "Nov 2, 2026" everywhere; "Mark
+  backordered" and "Change ETA" say what they do; a deactivated person reads
+  Deactivated, not Paused; "Low stock" everywhere; one "Receive a box" button;
+  an error the rules cause says so instead of blaming the connection; the
+  board's title carries the version; the link preview uses a full image URL;
+  the label print preview fits a 360 px phone.
+- The Firestore rules changed (the PO counter, the box guard, and two unit
+  fields a tech's delivery writes); checked in the local emulator, not
+  deployed.
 
 ### 0.5.1 (2026-11-02)
 

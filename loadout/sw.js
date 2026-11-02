@@ -3,7 +3,7 @@
    cleanly; activate drops the older caches and tells open pages a newer
    version took over, so they can offer a reload. Bump VERSION with the app
    (index.html VERSION, manifest.json, README) on every release. */
-const VERSION = "0.5.1";
+const VERSION = "0.5.2";
 const SHELL_CACHE = "loadout-shell-v" + VERSION;
 const LIB_CACHE = "loadout-lib-v" + VERSION;
 /* product photos keep their own cache across releases: they do not change

@@ -292,18 +292,28 @@ service cloud.firestore {
     function loadoutOnly(keys) {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
     }
-    // techs may change the fields their scans touch, nothing else
+    // techs may change the fields their scans touch, nothing else.
+    // 0.5.2: a unit also carries ticketNumber and clientName beside its
+    // ticket and job ids (PLAN 16 rule 3), so a tech's Deliver to site and
+    // check-in may write those two as well.
     function loadoutItemUpdate() {
       let r = loadoutRole();
       return r in ['admin', 'warehouse']
         || (r == 'tech' && loadoutOnly(['status', 'holderUid', 'holderName', 'jobId', 'jobName',
-             'ticketId', 'ticketLineId', 'locationId', 'locationName', 'checkedOutAt',
-             'checkedInAt', 'condition', 'updatedAt']));
+             'clientName', 'ticketId', 'ticketNumber', 'ticketLineId', 'locationId', 'locationName',
+             'checkedOutAt', 'checkedInAt', 'condition', 'updatedAt']));
+    }
+    // 0.5.2: a box write never replaces another box. A new box is written
+    // with createdAt, so a write that would land on a label another device
+    // already took (two people receiving offline) changes createdAt and is
+    // refused, instead of overwriting that box's feet and shelf.
+    function loadoutKeepsCreated() {
+      return request.resource.data.get('createdAt', null) == resource.data.get('createdAt', null);
     }
     function loadoutContainerUpdate() {
       let r = loadoutRole();
-      return r in ['admin', 'warehouse']
-        || (r == 'tech' && loadoutOnly(['ftLeft', 'lastMark', 'status', 'pickTicketId',
+      return (r in ['admin', 'warehouse'] && loadoutKeepsCreated())
+        || (r == 'tech' && loadoutOnly(['ftLeft', 'lastMark', 'status', 'pickTicketId', 'pickTicketNumber',
              'lastReadingAt', 'lastReadingBy', 'locationId', 'locationName', 'confirmLocation']));
     }
     // a tech's cut or check-out moves the product's denormalized on-hand total
@@ -382,6 +392,18 @@ service cloud.firestore {
     }
     match /loadout_settings/importMap {
       allow write: if loadoutWriter();
+    }
+    // 0.5.2: the shared PO number counter. Warehouse and admin take the next
+    // number in the same transaction as the PO it numbers; it holds only the
+    // number and who took it, and it only goes up.
+    match /loadout_settings/counters {
+      allow create: if loadoutWriter()
+        && request.resource.data.keys().hasOnly(['po', 'updatedAt', 'updatedBy', 'updatedByName'])
+        && request.resource.data.po is int;
+      allow update: if loadoutWriter()
+        && loadoutOnly(['po', 'updatedAt', 'updatedBy', 'updatedByName'])
+        && request.resource.data.po is int
+        && request.resource.data.po > resource.data.po;
     }
     // A vendor typed on a purchase order (0.3.0) joins the vendor list in
     // settings/general. Warehouse may add to that list and nothing else

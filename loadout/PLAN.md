@@ -226,7 +226,13 @@ the database reads without the app (section 16).
   notes
 
 /loadout_orders/{orderId}                purchase order
-  vendor, orderNumber, orderedAt, orderedBy
+  Document id (0.5.2): a PO created online takes its number from the
+  counter in loadout_settings/counters inside a transaction; a PO created
+  offline gets id "draft-<random>" and reads "Draft (no number yet)" until
+  Mark ordered assigns the number (online only). The id stays as created;
+  `number` is the PO number people see and search by. Settled 2026-11-02:
+  records are not moved to a numbered id, so history and ticket links hold.
+  number, vendor, orderNumber, orderedAt, orderedBy
   status      "draft" | "ordered" | "partial" | "received" | "cancelled"
   jobId, clientId, proposalId          null for stock replenishment
   notes
@@ -247,6 +253,9 @@ the database reads without the app (section 16).
 /loadout_movements/{movementId}          append-only audit trail
   type        "receive"|"pick"|"stage"|"deliver"|"adjust"|"reading"|"cut"|
               "checkout"|"checkin"|"return"|"transfer"
+              (0.5.2 vocabulary: "pick" became "pull" (shelf to bay for a
+              ticket) and "transfer" became "move" (shelf to shelf, no
+              ticket); "writeoff" added; older records convert on read)
   productId, containerId (null), itemId (null), qty
   fromLocationId, toLocationId
   ticketId, ticketLineId, orderId, shipmentId   whichever apply
@@ -888,6 +897,10 @@ Status: items 6, 7, and 8 are done in 0.5.1 with the Tracking split (README
 changelog). Item 7 reads the source from the ticket's `source` or the
 proposal's `importSource`, since the worker writes `source: "zapier"` on the
 ticket.
+
+Status (2026-11-02): audit-002 (`anti-slop/audit-002-2026-11-02.md`, 36
+findings) is fixed in 0.5.2; the follow-up table at the end of the audit
+lists each fix with its evidence. Section 12c is the next release.
 
 Decisions recorded from the 0.5.0 build (2026-10-29): the service worker
 registers in demo mode too (needed for the offline test; harmless); product
