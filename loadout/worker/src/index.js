@@ -9,15 +9,17 @@
 // account, which bypasses security rules (same as watchtower-worker).
 
 import { getAccessToken, getDoc, queryAll, queryEq, commitWrites, SCOPE_DATASTORE, SCOPE_DRIVE_FILE } from './firestore.js';
-import { buildTable, toCsv, splitLines } from './csv.js';
+import { buildTable, toCsv, splitLines, shipmentTables } from './csv.js';
 import { dayStamp, foldersToPrune, listChildren, createFolder, uploadCsv, trashFile, RETENTION_DAYS } from './drive.js';
 import { parseProposal, buildImport, matchProduct, secretsMatch, slug } from './zapier.js';
 import { portalConfigured, handlePortalWebhook } from './portal.js';
 
-const VERSION = '0.1.0';
+const VERSION = '0.1.1';
 
 // Root collections in the same order as the app's Console export
-// (index.html EXPORT_COLLS); ticket and order lines are added after.
+// (index.html EXPORT_COLLS); ticket and order lines are added after, and a
+// shipment's statusLog and lines go to the two files at the end
+// (EXPORT_EXTRA in the app).
 const ROOT_COLLS = [
   'loadout_products', 'loadout_locations', 'loadout_stock', 'loadout_containers', 'loadout_items',
   'loadout_movements', 'loadout_users', 'loadout_settings', 'loadout_clients', 'loadout_jobs',
@@ -27,6 +29,7 @@ const FILE_ORDER = [
   'loadout_products', 'loadout_locations', 'loadout_stock', 'loadout_containers', 'loadout_items',
   'loadout_movements', 'loadout_users', 'loadout_settings', 'loadout_clients', 'loadout_jobs',
   'loadout_proposals', 'loadout_tickets', 'loadout_ticket_lines', 'loadout_orders', 'loadout_order_lines', 'loadout_shipments',
+  'loadout_shipments_status', 'loadout_shipments_lines',
 ];
 
 function json(body, status = 200) {
@@ -191,7 +194,11 @@ async function runNightlyExport(env, now = new Date()) {
   const folderName = dayStamp(now);
   try {
     const tables = {};
-    for (const coll of ROOT_COLLS) tables[coll] = buildTable(await queryAll(env, token, coll));
+    for (const coll of ROOT_COLLS) {
+      const docs = await queryAll(env, token, coll);
+      if (coll === 'loadout_shipments') Object.assign(tables, shipmentTables(docs));
+      else tables[coll] = buildTable(docs);
+    }
     Object.assign(tables, splitLines(await queryAll(env, token, 'lines', { allDescendants: true })));
 
     const dayFolders = await listChildren(token, env.DRIVE_FOLDER_ID, { foldersOnly: true });

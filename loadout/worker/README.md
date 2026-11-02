@@ -15,7 +15,7 @@ Cloudflare Worker for Loadout (`work/loadout`). It does two jobs:
 The Portal API intake (T2) is a stub until PLAN D1 is answered; see
 "T2 boundary" below.
 
-Version: **0.1.0**. Worker URL once deployed:
+Version: **0.1.1**. Worker URL once deployed:
 `https://loadout-worker.umbrelladev.workers.dev`.
 
 ## Endpoints
@@ -165,13 +165,29 @@ Files, one per collection, named as the app's Console export names them:
 `loadout_containers.csv`, `loadout_items.csv`, `loadout_movements.csv`,
 `loadout_users.csv`, `loadout_settings.csv`, `loadout_clients.csv`,
 `loadout_jobs.csv`, `loadout_proposals.csv`, `loadout_tickets.csv`,
-`loadout_ticket_lines.csv` (first column `ticketId`),
-`loadout_orders.csv`, `loadout_order_lines.csv` (first column `orderId`),
-`loadout_shipments.csv`.
+`loadout_ticket_lines.csv` (columns `id`, then `ticketId`),
+`loadout_orders.csv`, `loadout_order_lines.csv` (columns `id`, then
+`orderId`),
+`loadout_shipments.csv`, `loadout_shipments_status.csv`,
+`loadout_shipments_lines.csv`.
+
+A shipment's two lists get their own files, the same as the app's Export
+everything since 0.5.2, so no file holds JSON text:
+
+- `loadout_shipments_status.csv`: one row per entry in `statusLog`, oldest
+  first. Columns `shipmentId`, `orderNumber`, `tracking`, `seq`, `status`,
+  `statusLabel` (the app's words, "Delivered to site" for a client-site
+  package), `at`, `by`, `byName`, `note`.
+- `loadout_shipments_lines.csv`: one row per entry in `lines`. Columns
+  `shipmentId`, `orderId`, `orderNumber`, `tracking`, `orderLineId`,
+  `productName`, `qty`, `qtyReceived`.
+- `loadout_shipments.csv` leaves out `statusLog` and `lines`.
 
 Each has a UTF-8 byte-order mark so Excel reads it right, field names as
 headers, maps as dotted columns (`summary.lines`), lists joined with `; `,
-and times as `YYYY-MM-DD HH:MM` in UTC. A rerun on the same day replaces the
+and times as `YYYY-MM-DD HH:MM` in UTC. Any other list of objects prints
+each object's plain values joined with `/`, the same rule as the app, so a
+ticket line's `orderLineRefs` reads `7701/l1; 7702/l3` (orderId/orderLineId). A rerun on the same day replaces the
 files in that day's folder instead of adding copies. Pruned folders go to
 the Shared Drive's trash, which empties itself after 30 days.
 
@@ -204,7 +220,7 @@ approved the API application.
   Shared Drive (setup step 3).
 - **"Too many subrequests".** The Workers free plan allows 50 outbound calls
   per run. The export makes about 40 (one token, one read per collection
-  per 1,000 documents, three folder calls, 16 uploads, one prune per old
+  per 1,000 documents, three folder calls, 18 uploads, one prune per old
   folder, one status write). When movements pass a few thousand, the umbrella
   account needs the Workers Paid plan.
 - **Firestore asks for an index on `lines`.** The export reads ticket and
@@ -221,12 +237,25 @@ npm test                                  # node --test, no network
 npx wrangler deploy --dry-run --outdir dist   # builds without deploying
 ```
 
-Tests cover the CSV writer, the Firestore value codec, the Zapier parser on
+Tests cover the CSV writer (including the two shipment files and the
+`orderLineRefs` column), the Firestore value codec, the Zapier parser on
 the fixture, id and name composition against the app's rules, replays and
 change orders over existing lines, retention date math, and the routes that
 answer before touching Firestore.
 
 ## Changelog
+
+### 0.1.1 (2026-11-02)
+
+The nightly files now match the app's Export everything (Loadout 0.5.2)
+column for column, so a nightly copy and a hand export open the same way in
+Excel and can be compared or swapped. A shipment's status history and its
+lines come as their own files (`loadout_shipments_status.csv`,
+`loadout_shipments_lines.csv`), one row each with the shipment id first,
+instead of JSON text in one cell. Other lists of objects, like a ticket
+line's `orderLineRefs`, read as `orderId/orderLineId`. Ticket and order
+line files start with `id`, then the ticket or order id, as the app's do.
+Still not deployed.
 
 ### 0.1.0 (2026-10-29)
 
@@ -234,5 +263,6 @@ First build. Accepted Portal proposals can now reach Loadout through Zapier
 on their own, so the warehouse sees the pick ticket without waiting for
 someone to download and import the CSV. The nightly export puts a dated copy
 of every collection in Drive, which replaces the Friday hand export in
-SOP-10 once it is running. Not deployed yet; the owner setup above comes
-first.
+SOP-10 once it is running. The Portal API route is a stub that answers 501,
+so the T2 path has a fixed place to land once the Unlimited plan is
+confirmed. Not deployed yet; the owner setup above comes first.
