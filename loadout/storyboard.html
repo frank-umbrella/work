@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Loadout - Overview, Storyboard, SOP and Tech spec v0.6.0</title>
+<title>Loadout - Overview, Storyboard, SOP and Tech spec v0.6.1</title>
 <meta name="description" content="Storyboard and functional SOP for Loadout, the internal inventory, pick ticket, and order tracking tool, updated to match the built app. Draft for owner review.">
 <meta name="robots" content="noindex, nofollow">
-<meta name="version" content="0.6.0">
+<meta name="version" content="0.6.1">
 <script>
   // ?print=1 strips the chrome for a PDF. ?tab=overview|story|sop|tech picks the tab;
   // ?all=1 shows every tab at once (for a single PDF of the whole document).
@@ -156,14 +156,17 @@
   .wf .md { fill: #fff; stroke: #8a93a3; }
   .wf .c2 { fill: #f1f4f8; stroke: #dde3ea; }
   .wf .hb { fill: #f1f4f8; }
-  .wf .bt { fill: #f1f4f8; stroke: #c7d0da; }
+  .wf .bt { fill: #f1f4f8; stroke: #767f8c; }
   .wf .pr { fill: #1e6fd9; }
-  .wf .fl { fill: #fff; stroke: #c7d0da; }
+  .wf .fl { fill: #fff; stroke: #767f8c; }
   .wf .navon { fill: #e8f0fc; }
   .wf .pok { fill: #e0f1e8; }
   .wf .pwa { fill: #f9ecdb; }
   .wf .pin { fill: #e0ebfa; }
   .wf .pmu { fill: #e8eaec; }
+  /* 0.5.2 pill map: red = Short; green outline = Delivered, Installed */
+  .wf .pbd { fill: #f9e6e5; }
+  .wf .pdn { fill: none; stroke: #166b3e; }
   .wf .dnr { fill: #fdf6ec; stroke: #d98b1e; }
   .wf .past { fill: #fafbfc; stroke: #e7ecf1; }
   .wf .today { fill: #fff; stroke: #9abeee; stroke-width: 2; }
@@ -367,7 +370,7 @@
 </head>
 <body>
 <svg class="wfdefs" width="0" height="0" aria-hidden="true" focusable="false"><defs>
-<g id="hdD"><path d="M7 1.6H293a5.4 5.4 0 0 1 5.4 5.4V34H1.6V7A5.4 5.4 0 0 1 7 1.6z" fill="#fff"/><line x1="1.6" y1="34" x2="298.4" y2="34" stroke="#dde3ea"/><rect x="10" y="9.5" width="11" height="8" rx="1.6" fill="none" stroke="#1e6fd9" stroke-width="1.5"/><path d="M13.6 9.5V7.6h3.8v1.9" fill="none" stroke="#1e6fd9" stroke-width="1.3"/><text x="25" y="17" font-size="10" font-weight="700" fill="#1a2233">Loadout</text><rect x="66" y="9" width="26" height="10" rx="2" fill="#fff" stroke="#dde3ea"/><text x="79" y="16.2" font-size="6" text-anchor="middle" fill="#5b6675" font-family="Consolas, monospace">v0.5.1</text><rect x="248" y="8" width="44" height="12" rx="6" fill="#fff" stroke="#dde3ea"/><circle cx="255" cy="14" r="2.2" fill="#1f9d5a"/><text x="260" y="16.6" font-size="7" fill="#5b6675">Synced</text><text y="28.6" font-size="7.5" fill="#5b6675" text-anchor="middle"><tspan x="23.5">Tickets</tspan><tspan x="51">Scan</tspan><tspan x="74.5">Stock</tspan><tspan x="102">Orders</tspan><tspan x="135.5">Tracking</tspan><tspan x="166.5">Week</tspan><tspan x="191.5">Items</tspan><tspan x="221">Console</tspan><tspan x="249.5">More</tspan></text></g>
+<g id="hdD"><path d="M7 1.6H293a5.4 5.4 0 0 1 5.4 5.4V34H1.6V7A5.4 5.4 0 0 1 7 1.6z" fill="#fff"/><line x1="1.6" y1="34" x2="298.4" y2="34" stroke="#dde3ea"/><rect x="10" y="9.5" width="11" height="8" rx="1.6" fill="none" stroke="#1e6fd9" stroke-width="1.5"/><path d="M13.6 9.5V7.6h3.8v1.9" fill="none" stroke="#1e6fd9" stroke-width="1.3"/><text x="25" y="17" font-size="10" font-weight="700" fill="#1a2233">Loadout</text><rect x="66" y="9" width="26" height="10" rx="2" fill="#fff" stroke="#dde3ea"/><text x="79" y="16.2" font-size="6" text-anchor="middle" fill="#5b6675" font-family="Consolas, monospace">v0.5.2</text><rect x="248" y="8" width="44" height="12" rx="6" fill="#fff" stroke="#dde3ea"/><circle cx="255" cy="14" r="2.2" fill="#1f9d5a"/><text x="260" y="16.6" font-size="7" fill="#5b6675">Synced</text><text y="28.6" font-size="7.5" fill="#5b6675" text-anchor="middle"><tspan x="23.5">Tickets</tspan><tspan x="51">Scan</tspan><tspan x="74.5">Stock</tspan><tspan x="102">Orders</tspan><tspan x="135.5">Tracking</tspan><tspan x="166.5">Week</tspan><tspan x="191.5">Items</tspan><tspan x="221">Console</tspan><tspan x="249.5">More</tspan></text></g>
 <g id="hdP"><line x1="7" y1="28" x2="149" y2="28" stroke="#dde3ea"/><rect x="15" y="12.5" width="11" height="8" rx="1.6" fill="none" stroke="#1e6fd9" stroke-width="1.5"/><path d="M18.6 12.5v-1.9h3.8v1.9" fill="none" stroke="#1e6fd9" stroke-width="1.3"/><text x="30" y="20" font-size="10" font-weight="700" fill="#1a2233">Loadout</text><rect x="102" y="10" width="40" height="12" rx="6" fill="#fff" stroke="#dde3ea"/><circle cx="108.5" cy="16" r="2.2" fill="#1f9d5a"/><text x="113" y="18.6" font-size="7" fill="#5b6675">Synced</text></g>
 <g id="tb-tickets"><line x1="7" y1="196.5" x2="149" y2="196.5" stroke="#dde3ea"/><g transform="translate(15.6 198.7) scale(.4)" fill="none" stroke="#1e6fd9" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 10h6M9 14h6M9 18h3"/></g><text x="20.4" y="215.5" font-size="6.8" text-anchor="middle" fill="#1e6fd9" font-weight="600">Tickets</text><circle cx="49.2" cy="201" r="9.5" fill="#f1f4f8" stroke="#dde3ea"/><g transform="translate(44.4 196.2) scale(.4)" fill="none" stroke="#5b6675" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4M4 12h16"/></g><text x="49.2" y="215.5" font-size="6.8" text-anchor="middle" fill="#5b6675">Scan</text><g transform="translate(73.2 198.7) scale(.4)" fill="none" stroke="#5b6675" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></g><text x="78" y="215.5" font-size="6.8" text-anchor="middle" fill="#5b6675">Week</text><g transform="translate(102.0 198.7) scale(.4)" fill="none" stroke="#5b6675" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5z"/><path d="M3 7.5 12 12l9-4.5M12 12v9"/></g><text x="106.8" y="215.5" font-size="6.8" text-anchor="middle" fill="#5b6675">Stock</text><g transform="translate(130.8 198.7) scale(.4)" fill="#5b6675"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></g><text x="135.6" y="215.5" font-size="6.8" text-anchor="middle" fill="#5b6675">More</text></g>
 <g id="tb-scan"><line x1="7" y1="196.5" x2="149" y2="196.5" stroke="#dde3ea"/><g transform="translate(15.6 198.7) scale(.4)" fill="none" stroke="#5b6675" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 10h6M9 14h6M9 18h3"/></g><text x="20.4" y="215.5" font-size="6.8" text-anchor="middle" fill="#5b6675">Tickets</text><circle cx="49.2" cy="201" r="9.5" fill="#1e6fd9" stroke="#1e6fd9"/><g transform="translate(44.4 196.2) scale(.4)" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4M4 12h16"/></g><text x="49.2" y="215.5" font-size="6.8" text-anchor="middle" fill="#1e6fd9" font-weight="600">Scan</text><g transform="translate(73.2 198.7) scale(.4)" fill="none" stroke="#5b6675" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></g><text x="78" y="215.5" font-size="6.8" text-anchor="middle" fill="#5b6675">Week</text><g transform="translate(102.0 198.7) scale(.4)" fill="none" stroke="#5b6675" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5z"/><path d="M3 7.5 12 12l9-4.5M12 12v9"/></g><text x="106.8" y="215.5" font-size="6.8" text-anchor="middle" fill="#5b6675">Stock</text><g transform="translate(130.8 198.7) scale(.4)" fill="#5b6675"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></g><text x="135.6" y="215.5" font-size="6.8" text-anchor="middle" fill="#5b6675">More</text></g>
@@ -414,7 +417,7 @@
     Loadout
   </h1>
   <p class="subtitle">How product moves through the shop, from approved proposal to installed, and what gets recorded at each step</p>
-  <p class="draft">Draft for review, 2026-11-02. Updated to match the built app, releases 0.1.0 to 0.5.1: every screen, button, and status word below is the one in the app today, and two panels are new (14, the Week view, and 15, Tracking). Earlier drafts: v0.5 named the tool Loadout, v0.4 added the Tech spec tab, v0.3 the Overview, v0.2 the wall board.</p>
+  <p class="draft">Draft for review, 2026-11-02 (v0.6.1: words match the app's 0.5.2 vocabulary). Updated to match the built app, releases 0.1.0 to 0.5.2: every screen, button, and status word below is the one in the app today, and two panels are new (14, the Week view, and 15, Tracking). Earlier drafts: v0.5 named the tool Loadout, v0.4 added the Tech spec tab, v0.3 the Overview, v0.2 the wall board.</p>
 
   <div class="tabs" role="tablist" aria-label="Sections of this document">
     <button type="button" role="tab" id="tabbtn-overview" aria-controls="tab-overview" aria-selected="true" data-tab="overview">Overview<span class="hint">the five-minute read</span></button>
@@ -443,7 +446,7 @@
             <li><a href="#sop-1">SOP-1 Receiving product</a></li>
             <li><a href="#sop-2">SOP-2 Labeling</a></li>
             <li><a href="#sop-3">SOP-3 Building a pick ticket</a></li>
-            <li><a href="#sop-4">SOP-4 Picking and staging</a></li>
+            <li><a href="#sop-4">SOP-4 Pulling and staging</a></li>
             <li><a href="#sop-5">SOP-5 Ordering and tracking</a></li>
             <li><a href="#sop-6">SOP-6 Wire boxes</a></li>
           </ul>
@@ -471,9 +474,9 @@
   <h3>How a job moves through it</h3>
   <ol class="flow">
     <li><b>The proposal is accepted in Portal.</b> Download its CSV. In Loadout open Tickets, press New ticket, keep Import a Portal CSV, and press Create ticket. Loadout builds pick ticket #1042 with every part grouped by area. A job with no proposal can use Build by hand instead.</li>
-    <li><b>Pull what we already have.</b> On the ticket, Pull everything in stock fills what the shelves can cover. On the phone, scan the shelf label and the product, press Pick for ticket, and Pull; the parts go into the job's staging bay. Show on board puts the ticket on the TV by the bays as the pick path.</li>
-    <li><b>Order the rest.</b> Order missing puts every uncovered line on a draft purchase order. Pick the vendor, press Mark ordered with the vendor's order number, and say whether it ships to the office or straight to the job site. When the ship notice arrives, Add shipment takes the tracking number.</li>
-    <li><b>Watch it come in.</b> Tracking shows packages coming to the office on the left and packages going straight to clients on the right, each with its status and the time of that status. A box delivered here but never scanned sits on top in amber. Week lays out the install days with each ticket's lines and where they stand.</li>
+    <li><b>Pull what we already have.</b> On the ticket, Pull everything in stock fills what the shelves can cover. On the phone, scan the shelf label and the product, press Pull for ticket, and Pull; the parts go into the job's staging bay. Show on board puts the ticket on the TV by the bays as the pick path.</li>
+    <li><b>Order the rest.</b> Order missing puts every line marked Short on a draft purchase order. Pick the vendor, press Mark ordered with the vendor's order number, and say whether it ships to the office or straight to the job site. When the ship notice arrives, Add shipment takes the tracking number.</li>
+    <li><b>Watch it come in.</b> Tracking shows packages coming to the office on the left and packages going straight to clients on the right, each with its status and the time of that status. A box delivered here but never scanned sits on top in amber and reads Delivered, not received. Week lays out the install days with each ticket's lines and where they stand.</li>
     <li><b>Receive it.</b> Press Receive on the package's card. Lines for a ticket go into its staging bay; anything at or above $250 gets its own QR and Print labels comes up on the spot. A box shipped to a job site gets Mark delivered instead and never touches the shelves.</li>
     <li><b>Wire.</b> Each box of cable has a label. After pulling cable, scan it, type the footage mark into Mark now, and press Save cut. Loadout logs the cut with your name and the ticket, and the box's feet left update.</li>
     <li><b>Deliver.</b> On install day press Deliver to site on each line going out. The serialized units on it check out to whoever delivers. Anything that comes back is scanned and checked in with its condition.</li>
@@ -487,7 +490,7 @@
     <li><b>Serialized units.</b> Anything at or above the QR threshold gets its own label, named like "Ubiquiti UDM-SE #1". One scan shows where it is, who has it, and its history; a service call years later can scan the label in the rack and see when it went in.</li>
     <li><b>Pick tickets.</b> One per approved proposal, with its install date: needed, from stock, to order, staged in the bay, delivered.</li>
     <li><b>Orders and shipments.</b> Vendor, order number, where it ships, carrier, tracking number, expected date, and every status change with who made it and when.</li>
-    <li><b>A log of every change.</b> Every receive, pick, cut, check-out, check-in, delivery, and adjustment carries a name and a time. Nothing changes anonymously.</li>
+    <li><b>A log of every change.</b> Every movement (receive, pull, move, stage, deliver, cut, reading, adjust, checkout, checkin, return, writeoff, edit) carries a name and a time. Nothing changes anonymously.</li>
   </ul>
 
   <h3>Who uses it</h3>
@@ -528,6 +531,7 @@
     <li><b>0.4.0, 2026-10-29.</b> The Console: seven reports with spreadsheet export, People, Settings, About, and Export everything.</li>
     <li><b>0.5.0, 2026-10-29.</b> Works with no signal, installs on the phone's home screen, and product photos.</li>
     <li><b>0.5.1, 2026-11-02.</b> Tracking split into office and clients with status times, Mark delivered for drop-shipped boxes, costs fixed on the PO, and the Reviewed button for tickets made from Portal.</li>
+    <li><b>0.5.2, 2026-11-02.</b> One set of words and pill colors for every state, in every view, the board, Week, Tracking, and the exports; one word per movement in the log; PO numbers from one shared counter; and a Short line can be ordered from its ticket.</li>
     <li><b>The worker.</b> loadout-worker, for the Zapier import and the nightly backup to Google Drive, is built but not deployed yet.</li>
   </ul>
 
@@ -554,7 +558,7 @@
   <div class="tab" id="tab-story" role="tabpanel" aria-labelledby="tabbtn-story">
   <!-- ================= PART 1 ================= -->
   <h2 id="part1"><span class="no">Part 1.</span>A day in the warehouse</h2>
-  <p class="lede">One job, start to finish: Acme Dental's main office, pick ticket #1042. Every panel is drawn from the app as built in release 0.5.1: the same top bar, buttons, and status words. Phone screens are what a person holds in the warehouse or the van; desktop screens are the office. Panels 14 and 15 are the two planning screens the office reads each morning.</p>
+  <p class="lede">One job, start to finish: Acme Dental's main office, pick ticket #1042. Every panel is drawn from the app as built in release 0.5.2: the same top bar, buttons, and status words. Phone screens are what a person holds in the warehouse or the van; desktop screens are the office. Panels 14 and 15 are the two planning screens the office reads each morning.</p>
 
   <div class="panels">
 
@@ -592,7 +596,7 @@
     <!-- 2 -->
     <article class="panel" id="panel-2">
       <h3><span class="pn">2</span>Pull from stock</h3>
-      <svg class="wf" viewBox="0 0 300 224" role="img" aria-label="Phone sketch: Scan with the location chip Rack A3 and the Pull from stock window for the Ubiquiti U6-Pro on ticket 1042, From Rack A3 (6), Quantity 2, a scan field, and Cancel and Pull buttons. Beside it the Rack A3 shelf label and the ticket line after the pull: needed 4, from stock 2, to order 2 with no PO yet.">
+      <svg class="wf" viewBox="0 0 300 224" role="img" aria-label="Phone sketch: Scan with the location chip Rack A3 and the Pull from stock window for the Ubiquiti U6-Pro on ticket 1042, From Rack A3 (2), Quantity 2, a scan field, and Cancel and Pull buttons. Beside it the Rack A3 shelf label and the ticket line after the pull: needed 4, from stock 2, and a red Short 2 pill.">
         <rect class="frp" x="6" y="2" width="144" height="220" rx="14"/><rect class="pg" x="7" y="28.5" width="142" height="167.5"/>
         <use href="#hdP"/><use href="#tb-scan"/>
         <text class="t" x="13" y="43">Scan</text>
@@ -602,7 +606,7 @@
         <text class="s m" x="17" y="76">Ubiquiti U6-Pro, ticket #1042.<tspan x="17" dy="9">Needs 4 more (needed 4, staged 0).</tspan></text>
         <text class="s m" y="99"><tspan x="17">From</tspan><tspan x="93">Quantity</tspan></text>
         <rect class="fl" x="17" y="102" width="70" height="14" rx="3"/><rect class="fl" x="93" y="102" width="46" height="14" rx="3"/>
-        <text class="s" y="111.8"><tspan x="21">Rack A3 (6)</tspan><tspan class="b" x="97">2</tspan></text>
+        <text class="s" y="111.8"><tspan x="21">Rack A3 (2)</tspan><tspan class="b" x="97">2</tspan></text>
         <text class="s m" x="17" y="128">Scan or type a code</text>
         <rect class="fl" x="17" y="131" width="122" height="14" rx="3"/><text class="s m mo" x="21" y="140.8">Shelf, unit, or UPC</text>
         <text class="s tok" x="17" y="157">Location set to Rack A3.</text>
@@ -615,16 +619,16 @@
         <rect class="cd" x="166" y="106" width="124" height="64" rx="4"/>
         <text class="s b" x="172" y="119">Ubiquiti U6-Pro<tspan class="m" font-weight="400" x="172" dy="10">Operatory 1-4</tspan></text>
         <text class="s" y="143"><tspan x="172">Needed 4</tspan><tspan x="214">From stock 2</tspan></text>
-        <rect class="pwa" x="172" y="150" width="78" height="12" rx="6"/><text class="xs twa" x="211" y="158.4" text-anchor="middle">To order 2, no PO yet</text>
+        <rect class="pbd" x="172" y="150" width="36" height="12" rx="6"/><text class="xs tbd" x="190" y="158.4" text-anchor="middle">Short 2</text>
       </svg>
-      <p class="cap"><strong>What you do</strong>At Rack A3, open Scan and scan the shelf label so the location chip reads Rack A3, then scan the U6-Pro box. On the product card press Pick for ticket, choose #1042, and press Continue. In Pull from stock, check From Rack A3 and Quantity 2, press Pull, and set the two APs in Bay 2.</p>
-      <p class="cap"><strong>What Loadout records</strong>A pick movement: who, Ubiquiti U6-Pro x2, from Rack A3 into Bay 2, for ticket #1042. The line now reads 2 from stock and 2 staged, with 2 still to order.</p>
+      <p class="cap"><strong>What you do</strong>At Rack A3, open Scan and scan the shelf label so the location chip reads Rack A3, then scan the U6-Pro box. On the product card press Pull for ticket, choose #1042, and press Continue. In Pull from stock, check From Rack A3 and Quantity 2, press Pull, and set the two APs in Bay 2.</p>
+      <p class="cap"><strong>What Loadout records</strong>A pull movement: who, Ubiquiti U6-Pro x2, from Rack A3 into Bay 2, for ticket #1042. Rack A3 is now empty, so the line reads Short 2 in red: 2 staged, and 2 that no shelf or PO covers yet.</p>
     </article>
 
     <!-- 3 -->
     <article class="panel" id="panel-3">
       <h3><span class="pn">3</span>Order the rest</h3>
-      <svg class="wf" viewBox="0 0 300 224" role="img" aria-label="Desktop sketch: pick ticket 1042, status Picking, with the buttons Copy for Portal, Print, Order missing, Show on board, and Close ticket, then Lines by area with a Pull everything in stock button. The U6-Pro line shows needed 4, from stock 2, to order 2, staged 2 and a To order 2, no PO yet chip.">
+      <svg class="wf" viewBox="0 0 300 224" role="img" aria-label="Desktop sketch: pick ticket 1042, status Picking, with the buttons Copy for Portal, Print, Order missing, Show on board, and Close ticket, then Lines by area with a Pull everything in stock button. The U6-Pro line shows needed 4, from stock 2, to order 2, staged 2 and a red Short 2 pill.">
         <rect class="fr" x="1" y="1" width="298" height="222" rx="6"/>
         <use href="#hdD"/>
         <rect class="navon" x="7" y="21" width="33" height="11" rx="3"/><text class="nv tac" x="23.5" y="28.6" text-anchor="middle">Tickets</text>
@@ -640,25 +644,25 @@
         <text class="s b m" y="139.8"><tspan x="14">Product</tspan><tspan x="150">Needed</tspan><tspan x="184">From stock</tspan><tspan x="226">To order</tspan><tspan x="262">Staged</tspan></text>
         <text class="s b" x="14" y="155">Operatory 1-4<tspan class="m" font-weight="400" dx="6">2 lines, 0 staged</tspan></text>
         <text class="s" y="167"><tspan class="b" x="14">Ubiquiti U6-Pro</tspan><tspan x="150">4</tspan><tspan x="184">2</tspan><tspan x="226">2</tspan><tspan x="262">2</tspan></text>
-        <rect class="pwa" x="14" y="171" width="76" height="10" rx="5"/><text class="xs twa" x="52" y="178.3" text-anchor="middle">To order 2, no PO yet</text>
+        <rect class="pbd" x="14" y="171" width="34" height="10" rx="5"/><text class="xs tbd" x="31" y="178.3" text-anchor="middle">Short 2</text>
         <text class="s" y="193"><tspan class="b" x="14">Belden 2412 Cat6 blue</tspan><tspan x="150">600 ft</tspan><tspan x="184">600 ft</tspan><tspan x="226">0</tspan><tspan x="262">0</tspan></text>
         <line class="ln" x1="10" y1="199" x2="290" y2="199"/>
-        <text class="s b" x="14" y="212">Server closet<tspan class="m" font-weight="400" dx="6">2 lines, 0 staged: UDM-SE and USW-Pro-24-PoE to order</tspan></text>
+        <text class="s b" x="14" y="212">Server closet<tspan class="m" font-weight="400" dx="6">2 lines, 0 staged: UDM-SE and USW-Pro-24-PoE Short</tspan></text>
       </svg>
-      <p class="cap"><strong>What you do</strong>On the ticket, press Pull everything in stock first; what the shelves cannot cover stays To order. Then press Order missing, and the three uncovered lines go onto draft PO 7731. Open it under Orders, pick ADI in Vendor, and when the order is placed press Mark ordered, type ADI's order number, and say it ships to the office.</p>
-      <p class="cap"><strong>What Loadout records</strong>No stock moves: PO 7731 to ADI with each line tied to its ticket line and its unit cost on the day it was ordered, and who marked it ordered and when. Each ticket line shows a chip such as PO 7731 - ordered 10/27.</p>
+      <p class="cap"><strong>What you do</strong>On the ticket, press Pull everything in stock first; what the shelves cannot cover reads Short, in red. Then press Order missing, and the three uncovered lines go onto draft PO 7731. Open it under Orders, pick ADI in Vendor, and when the order is placed press Mark ordered, type ADI's order number, and say it ships to the office.</p>
+      <p class="cap"><strong>What Loadout records</strong>No stock moves: PO 7731 to ADI with each line tied to its ticket line and its unit cost on the day it was ordered, and who marked it ordered and when. Each of those lines turns On order, in amber, with a chip such as PO 7731: Ordered, Oct 27.</p>
     </article>
 
     <!-- 4 -->
     <article class="panel" id="panel-4">
       <h3><span class="pn">4</span>Add the shipment</h3>
-      <svg class="wf" viewBox="0 0 300 224" role="img" aria-label="Desktop sketch: purchase order 7731, status Ordered, to ADI, shipping to the office for ticket 1042, with Add shipment and Note buttons. Its lines: UDM-SE and USW-Pro-24-PoE shipped, U6-Pro x2 backordered with an ETA of 11/04. Below, one UPS shipment in transit, expected 10/30.">
+      <svg class="wf" viewBox="0 0 300 224" role="img" aria-label="Desktop sketch: purchase order 7731, status Ordered, to ADI, shipping to the office for ticket 1042, with Add shipment and Note buttons. Its lines: UDM-SE and USW-Pro-24-PoE shipped, U6-Pro x2 backordered with an ETA of 11/04. Below, one UPS shipment, Shipped, expected 10/30.">
         <rect class="fr" x="1" y="1" width="298" height="222" rx="6"/>
         <use href="#hdD"/>
         <rect class="navon" x="87" y="21" width="30" height="11" rx="3"/><text class="nv tac" x="102" y="28.6" text-anchor="middle">Orders</text>
         <text class="s m" x="10" y="46">Orders / Ordered</text>
         <text class="h" x="10" y="61">PO 7731</text>
-        <rect class="pmu" x="58" y="52" width="38" height="12" rx="6"/><text class="xs m b" x="77" y="60.4" text-anchor="middle">Ordered</text>
+        <rect class="pin" x="58" y="52" width="38" height="12" rx="6"/><text class="xs tin" x="77" y="60.4" text-anchor="middle">Ordered</text>
         <rect class="pr" x="200" y="50" width="56" height="14" rx="3"/><rect class="bt" x="260" y="50" width="30" height="14" rx="3"/>
         <text class="xs b" y="59.2" text-anchor="middle"><tspan class="w" x="228">Add shipment</tspan><tspan x="275">Note</tspan></text>
         <text class="s m" y="79"><tspan x="10">ADI - order no. 55120847 - ordered 10/27/2026 by Warehouse</tspan><tspan x="10" dy="10">Ships to the office - for ticket #1042, Acme Dental, Main office</tspan></text>
@@ -675,11 +679,11 @@
         <rect class="c2" x="10" y="194" width="280" height="22" rx="4"/>
         <rect class="ups" x="16" y="199.5" width="20" height="11" rx="2"/><text class="xs w" x="26" y="207.3" text-anchor="middle">UPS</text>
         <text class="s mo tlk" x="42" y="207.5">1Z999AA10123456784</text>
-        <rect class="pin" x="124" y="199.5" width="42" height="11" rx="5.5"/><text class="xs tin" x="145" y="207.3" text-anchor="middle">In transit</text>
+        <rect class="pin" x="124" y="199.5" width="42" height="11" rx="5.5"/><text class="xs tin" x="145" y="207.3" text-anchor="middle">Shipped</text>
         <text class="s m" x="172" y="207.5">2 lines - expected 10/30</text>
       </svg>
       <p class="cap"><strong>What you do</strong>When ADI's ship notice arrives, open PO 7731 under Orders and press Add shipment. Paste the tracking number (Loadout reads 1Z as UPS), tick the lines in that box, and type the expected date. When ADI says the U6-Pros are backordered, set that line to Backordered with the vendor's ETA.</p>
-      <p class="cap"><strong>What Loadout records</strong>No stock moves: a shipment on PO 7731 with carrier, tracking number, the lines it carries, and a status log that starts at In transit with who added it and when. From here the package shows on Tracking (panel 15).</p>
+      <p class="cap"><strong>What Loadout records</strong>No stock moves: a shipment on PO 7731 with carrier, tracking number, the lines it carries, and a status log that starts at Shipped with who added it and when. From here the package shows on Tracking (panel 15).</p>
     </article>
 
     <!-- 5 -->
@@ -788,9 +792,10 @@
         <rect class="pok" x="104" y="45" width="34" height="11" rx="5.5"/><text class="xs tok" x="121" y="52.7" text-anchor="middle">Staged</text>
         <text class="s m" x="13" y="65">Acme Dental, Main office - Bay 2</text>
         <rect class="c2" x="11" y="71" width="134" height="30" rx="4"/><rect class="c2" x="11" y="105" width="134" height="30" rx="4"/><rect class="c2" x="11" y="139" width="134" height="30" rx="4"/>
-        <text class="s b" x="16" y="83">Ubiquiti U6-Pro<tspan class="m" font-weight="400" x="16" dy="11">Staged 4 of 4</tspan></text>
-        <text class="s b" x="16" y="117">Ubiquiti UDM-SE<tspan class="m" font-weight="400" x="16" dy="11">Staged 1 of 1</tspan></text>
-        <text class="s b" x="16" y="151">USW-Pro-24-PoE<tspan class="m" font-weight="400" x="16" dy="11">Staged 1 of 1</tspan></text>
+        <text class="s b"><tspan x="16" y="83">Ubiquiti U6-Pro</tspan><tspan x="16" y="117">Ubiquiti UDM-SE</tspan><tspan x="16" y="151">USW-Pro-24-PoE</tspan></text>
+        <rect class="pok" x="16" y="87" width="28" height="9" rx="4.5"/><rect class="pok" x="16" y="121" width="28" height="9" rx="4.5"/><rect class="pok" x="16" y="155" width="28" height="9" rx="4.5"/>
+        <text class="xs tok" text-anchor="middle"><tspan x="30" y="93.8">Staged</tspan><tspan x="30" y="127.8">Staged</tspan><tspan x="30" y="161.8">Staged</tspan></text>
+        <text class="xs m"><tspan x="48" y="93.8">x4</tspan><tspan x="48" y="127.8">x1</tspan><tspan x="48" y="161.8">x1</tspan></text>
         <rect class="pr" x="87" y="79" width="54" height="14" rx="3"/><rect class="pr" x="87" y="113" width="54" height="14" rx="3"/><rect class="pr" x="87" y="147" width="54" height="14" rx="3"/>
         <text class="xs w" text-anchor="middle"><tspan x="114" y="88.4">Deliver to site</tspan><tspan x="114" y="122.4">Deliver to site</tspan><tspan x="114" y="156.4">Deliver to site</tspan></text>
         <text class="s m" x="13" y="182">and 9 more lines</text>
@@ -800,13 +805,13 @@
         <text class="s m" x="166" y="168">6 units, for #1042</text>
       </svg>
       <p class="cap"><strong>What you do</strong>With Bay 2 loaded into the van, open #1042 and press Deliver to site on each line you are taking today. Each press takes what is staged on that line to site, and the serialized units on it check out to you in the same tap.</p>
-      <p class="cap"><strong>What Loadout records</strong>A deliver movement per line (who, product, quantity, ticket, job) and a check-out per serialized unit with you as the holder. The ticket turns Delivered once every line is on site.</p>
+      <p class="cap"><strong>What Loadout records</strong>A deliver movement per line (who, product, quantity, ticket, job) and a checkout movement per serialized unit with you as the holder. The ticket turns Delivered once every line is on site.</p>
     </article>
 
     <!-- 9 -->
     <article class="panel" id="panel-9">
       <h3><span class="pn">9</span>On site, years later</h3>
-      <svg class="wf" viewBox="0 0 300 224" role="img" aria-label="Desktop sketch: Items, Installed tab, with the row Ubiquiti UDM-SE number 1 opened in place: Installed at Acme Dental, Main office, ticket 1042, ID 7C41E2, condition Good, the buttons Print label, Move, Retire, and History, and its history of receive, delivery, and install.">
+      <svg class="wf" viewBox="0 0 300 224" role="img" aria-label="Desktop sketch: Items, Installed tab, with the row Ubiquiti UDM-SE number 1 opened in place: Installed at Acme Dental, Main office, ticket 1042, ID 7C41E2, condition Good, the buttons Print label, Move, Retire, and History, and its history: receive, checkout on delivery, and the adjust that marked it installed.">
         <rect class="fr" x="1" y="1" width="298" height="222" rx="6"/>
         <use href="#hdD"/>
         <rect class="navon" x="179" y="21" width="25" height="11" rx="3"/><text class="nv tac" x="191.5" y="28.6" text-anchor="middle">Items</text>
@@ -816,20 +821,20 @@
         <rect class="hb" x="10" y="78" width="280" height="11"/>
         <text class="s b m" y="85.8"><tspan x="14">Unit</tspan><tspan x="104">Status</tspan><tspan x="152">Job</tspan><tspan x="250">Ticket</tspan></text>
         <text class="s" y="101"><tspan class="b" x="14">Ubiquiti UDM-SE #1</tspan><tspan x="152">Acme Dental, Main office</tspan><tspan x="250">#1042</tspan></text>
-        <rect class="pok" x="104" y="93" width="38" height="11" rx="5.5"/><text class="xs tok" x="123" y="100.7" text-anchor="middle">Installed</text>
+        <rect class="pdn" x="104.5" y="93.5" width="37" height="10" rx="5"/><text class="xs tok" x="123" y="100.7" text-anchor="middle">Installed</text>
         <rect class="cd" x="10" y="107" width="280" height="110" rx="4"/>
         <text class="s" y="121"><tspan class="m" x="18">ID</tspan><tspan class="mo" x="60">7C41E2</tspan><tspan class="m" x="150">Condition</tspan><tspan x="196">Good</tspan></text>
         <text class="s" y="133"><tspan class="m" x="18">Where</tspan><tspan x="60">Acme Dental, Main office</tspan><tspan class="m" x="150">Proposal</tspan><tspan x="196">2291</tspan></text>
         <rect class="bt" x="18" y="139" width="46" height="13" rx="3"/><rect class="bt" x="68" y="139" width="28" height="13" rx="3"/><rect class="bt" x="100" y="139" width="30" height="13" rx="3"/><rect class="pr" x="134" y="139" width="36" height="13" rx="3"/>
         <text class="xs b" y="147.8" text-anchor="middle"><tspan x="41">Print label</tspan><tspan x="82">Move</tspan><tspan x="115">Retire</tspan><tspan class="w" x="152">History</tspan></text>
         <line class="ln" x1="18" y1="158" x2="282" y2="158"/>
-        <text class="s" y="170"><tspan x="18">11/06/2026</tspan><tspan x="70">Installed, ticket #1042 closed</tspan><tspan class="m" x="236">Warehouse</tspan></text>
-        <text class="s" y="183"><tspan x="18">11/05/2026</tspan><tspan x="70">Delivered to site, checked out for #1042</tspan><tspan class="m" x="236">Tech</tspan></text>
-        <text class="s" y="196"><tspan x="18">11/02/2026</tspan><tspan x="70">Received on PO 7731 into Bay 2</tspan><tspan class="m" x="236">Warehouse</tspan></text>
+        <text class="s" y="170"><tspan x="18">11/06/2026</tspan><tspan class="xs twa b" x="62">ADJUST</tspan><tspan x="104">Installed, ticket #1042 closed</tspan><tspan class="m" x="236">Warehouse</tspan></text>
+        <text class="s" y="183"><tspan x="18">11/05/2026</tspan><tspan class="xs tin b" x="62">CHECK OUT</tspan><tspan x="104">Delivered to site, ticket #1042</tspan><tspan class="m" x="236">Tech</tspan></text>
+        <text class="s" y="196"><tspan x="18">11/02/2026</tspan><tspan class="xs tok b" x="62">RECEIVE</tspan><tspan x="104">On PO 7731, to Bay 2</tspan><tspan class="m" x="236">Warehouse</tspan></text>
         <text class="s m" x="18" y="210">Opened from a scan on a service call, 03/14/2028</text>
       </svg>
       <p class="cap"><strong>What you do</strong>On a service call, scan the label on the unit in the rack with your phone, or type the ID under it into Scan. At the office, open Items, Installed, and the row opens in place. It shows the unit went in on 11/06/2026 under proposal 2291, ticket #1042.</p>
-      <p class="cap"><strong>What Loadout records</strong>Nothing new: the unit's history already holds the receive, the delivery, and the install, each with a name and a date.</p>
+      <p class="cap"><strong>What Loadout records</strong>Nothing new: the unit's history already holds the receive movement, the checkout from Deliver to site, and the adjust that marked it Installed at close, each with a name and a date.</p>
     </article>
 
     <!-- 10 -->
@@ -854,10 +859,10 @@
         <rect class="cd" x="166" y="40" width="124" height="92" rx="4"/>
         <text class="s b" x="172" y="55">From a client's home?</text>
         <text class="s m" x="172" y="69">Tick the box: it goes in as<tspan x="172" dy="10">Returned, not In stock, until</tspan><tspan x="172" dy="10">the warehouse looks it over</tspan><tspan x="172" dy="10">and presses Back to stock.</tspan></text>
-        <rect class="pmu" x="172" y="112" width="42" height="12" rx="6"/><text class="xs m b" x="193" y="120.4" text-anchor="middle">Returned</text>
+        <rect class="pwa" x="172" y="112" width="42" height="12" rx="6"/><text class="xs twa" x="193" y="120.4" text-anchor="middle">Returned</text>
       </svg>
       <p class="cap"><strong>What you do</strong>Back at the shop with an AP that was not needed, scan its label. The unit card shows it out with you; press Check in, confirm Back to (Rack A3, its usual shelf), pick the condition, and press Check in.</p>
-      <p class="cap"><strong>What Loadout records</strong>A check-in movement: who, Ubiquiti U6-Pro #4, back from ticket #1042, into Rack A3, condition Good.</p>
+      <p class="cap"><strong>What Loadout records</strong>A checkin movement: who, Ubiquiti U6-Pro #4, back from ticket #1042, into Rack A3, condition Good.</p>
     </article>
 
     <!-- 11 -->
@@ -872,8 +877,7 @@
         <rect class="bt" x="13" y="68" width="38" height="12" rx="3"/><rect class="pr" x="55" y="68" width="40" height="12" rx="3"/><rect class="bt" x="99" y="68" width="30" height="12" rx="3"/>
         <text class="xs b" y="76.3" text-anchor="middle"><tspan x="32">Previous</tspan><tspan class="w" x="75">This week</tspan><tspan x="114">Next</tspan></text>
         <rect class="cd" x="11" y="86" width="134" height="34" rx="4"/><rect class="cd" x="11" y="124" width="134" height="34" rx="4"/>
-        <rect class="pmu" x="16" y="91" width="20" height="10" rx="5"/><rect class="pmu" x="16" y="129" width="20" height="10" rx="5"/>
-        <text class="xs m b" text-anchor="middle"><tspan x="26" y="98.3">Cut</tspan><tspan x="26" y="136.3">Cut</tspan></text>
+        <text class="xs twa b" text-anchor="middle"><tspan x="26" y="98.3">CUT</tspan><tspan x="26" y="136.3">CUT</tspan></text>
         <text class="s b" x="40" y="99">Box Cat6 blue box 3</text>
         <text class="s m" x="16" y="113">-360 ft - #1042 - 4:52 PM - Tech</text>
         <text class="s b" x="40" y="137">Box Cat6 blue box 4</text>
@@ -927,7 +931,7 @@
     <!-- 13 -->
     <article class="panel" id="panel-13">
       <h3><span class="pn">13</span>The wall board</h3>
-      <svg class="wf" viewBox="0 0 300 224" role="img" aria-label="TV sketch on a dark screen: the wall board for pick ticket 1042, Acme Dental, Main office, Bay 2, 9 of 12 lines staged with a progress bar, then lines grouped by the shelf to pull from: Rack A3 with a U6-Pro pair picked and Cat6 still to pull from boxes 3 and 4, Rack C2 with four cameras to pull, and a To order group in amber with the U6-Pro pair on PO 7731, ETA 11/04.">
+      <svg class="wf" viewBox="0 0 300 224" role="img" aria-label="TV sketch on a dark screen: the wall board for pick ticket 1042, Acme Dental, Main office, Bay 2, 9 of 12 lines staged with a progress bar, then lines grouped by the shelf to pull from: Rack A3 with a U6-Pro pair greyed as Staged with a check and Cat6 still to pull from boxes 3 and 4, Rack C2 with four cameras to pull, and an On order group in amber with the U6-Pro pair on PO 7731, ETA 11/04.">
         <rect class="tv" x="1" y="1" width="298" height="222" rx="6"/>
         <rect class="tvb" x="2" y="2" width="296" height="4"/><rect class="tvp" x="2" y="2" width="120" height="4"/>
         <text class="tvh tt" x="14" y="28">Acme Dental</text>
@@ -937,16 +941,16 @@
         <rect class="tvb" x="14" y="66" width="272" height="6" rx="3"/><rect class="tvo" x="14" y="66" width="204" height="6" rx="3"/>
         <text class="tm mo b" x="14" y="88">Rack A3</text>
         <line class="tvl" x1="14" y1="92" x2="286" y2="92"/>
-        <text class="s tm" y="105"><tspan x="14">x2</tspan><tspan x="44">Ubiquiti U6-Pro</tspan></text><text class="s tm" x="286" y="105" text-anchor="end">Picked by Warehouse</text>
+        <text class="s tm" y="105"><tspan x="14">x2</tspan><tspan x="44">Ubiquiti U6-Pro</tspan></text><path d="M205 101.6l2.2 2.2 4.4-4.8" fill="none" stroke="#aab4c0" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/><text class="s tm" x="286" y="105" text-anchor="end">Staged by Warehouse</text>
         <text class="s tt" y="121"><tspan class="b" x="14">600 ft</tspan><tspan x="44">Belden 2412 Cat6 blue</tspan></text><text class="s tt b" x="286" y="121" text-anchor="end">Pull box 3, 4, to Bay 2</text>
         <text class="tm mo b" x="14" y="143">Rack C2</text>
         <line class="tvl" x1="14" y1="147" x2="286" y2="147"/>
         <text class="s tt" y="160"><tspan class="b" x="14">x4</tspan><tspan x="44">Axis M3065-V</tspan></text><text class="s tt b" x="286" y="160" text-anchor="end">Pull to Bay 2</text>
-        <text class="tm mo b" x="14" y="182">To order</text>
+        <text class="tm mo b" x="14" y="182">On order</text>
         <line class="tvl" x1="14" y1="186" x2="286" y2="186"/>
         <text class="s ta" y="199"><tspan x="14">x2</tspan><tspan x="44">Ubiquiti U6-Pro</tspan></text><text class="s ta" x="286" y="199" text-anchor="end">On PO 7731, ETA 11/04</text>
       </svg>
-      <p class="cap"><strong>What you do</strong>Nothing on the TV. On the ticket, press Show on board. The screen by the bays shows what is left to pull, grouped by the shelf it sits on in rack order, greys each line as the phone scans it into the bay, and shows to-order lines in amber with their PO and ETA. If the connection drops, a red Not live since strip says so.</p>
+      <p class="cap"><strong>What you do</strong>Nothing on the TV. On the ticket, press Show on board. The screen by the bays shows what is left to pull, grouped by the shelf it sits on in rack order, greys each line as the phone scans it into the bay and marks it Staged with a check, shows On order lines in amber with their PO and ETA, and Short lines in red. If the connection drops, a red Not live since strip says so.</p>
       <p class="cap"><strong>What Loadout records</strong>Nothing: the board signs in as the Board role, which reads everything and changes nothing, so a stray hand on the screen cannot move a count.</p>
     </article>
 
@@ -967,7 +971,7 @@
         <text class="xs m"><tspan x="14" y="118">Nothing due.</tspan><tspan x="206" y="118">Nothing due.</tspan></text>
         <rect class="past" x="108" y="103" width="84" height="25" rx="4"/>
         <text class="xs m"><tspan class="b" x="112" y="113">Bayside Vet #1038</tspan><tspan x="112" y="124">Sonos Amp x2</tspan></text>
-        <rect class="pmu" x="158" y="117" width="32" height="9" rx="4.5"/><text class="xs m" x="174" y="123.8" text-anchor="middle">Delivered</text>
+        <rect class="pdn" x="156.5" y="117.5" width="35" height="8" rx="4"/><text class="xs tok" x="174" y="123.8" text-anchor="middle">Delivered</text>
         <rect class="today" x="9" y="139" width="90" height="62" rx="5"/>
         <text class="s b" x="14" y="150">Wednesday Nov 4</text>
         <rect class="pin" x="76" y="143" width="20" height="9" rx="4.5"/><text class="xs tin" x="86" y="149.8" text-anchor="middle">Today</text>
@@ -986,14 +990,14 @@
         <text class="s b" x="14" y="258">Saturday Nov 7</text>
         <text class="xs m"><tspan x="206" y="168">Nothing due.</tspan><tspan x="14" y="270">Nothing due.</tspan></text>
       </svg>
-      <p class="cap"><strong>What you do</strong>Open Week each morning. Every ticket sits on the day of its install date, with its lines and a status on the right: Pull, Picked, Staged, On order with the ETA, Short, or Delivered. Press a card to open the ticket, or a line to open that line on it. Work week hides Saturday and Sunday; tickets with no install date wait in the Unscheduled list below the grid.</p>
+      <p class="cap"><strong>What you do</strong>Open Week each morning. Every ticket sits on the day of its install date, with its lines and a status on the right: Pull, Staged ("Staged 2 of 4" when part of it is in the bay), On order with the ETA, Short, or Delivered. Press a card to open the ticket, or a line to open that line on it. Work week hides Saturday and Sunday; tickets with no install date wait in the Unscheduled list below the grid.</p>
       <p class="cap"><strong>What Loadout records</strong>Nothing: the view reads the tickets and their lines. Setting an install date, on the ticket or in the Unscheduled list, is the only change made here, and Work week is remembered for you on every device.</p>
     </article>
 
     <!-- 15 -->
     <article class="panel" id="panel-15">
       <h3><span class="pn">15</span>Tracking</h3>
-      <svg class="wf" viewBox="0 0 300 292" role="img" aria-label="Desktop sketch: Tracking split in two. The Office column holds a UPS package delivered Oct 30 at 2:41 PM and not received for 3 days, in amber with Receive and Note buttons, and a backordered U6-Pro pair on PO 7731 with an Add shipment button. The To clients column holds a FedEx package for Bayside Vet, Out for delivery since Nov 2 at 8:14 AM, with Mark delivered and Note. Below, Recently delivered lists one received UPS package.">
+      <svg class="wf" viewBox="0 0 300 292" role="img" aria-label="Desktop sketch: Tracking split in two. The Office column holds a UPS package reading Delivered, not received since Oct 30 at 2:41 PM, 3 days, in amber with Receive and Note buttons, and a backordered U6-Pro pair on PO 7731 with an Add shipment button. The To clients column holds a FedEx package for Bayside Vet, Out for delivery since Nov 2 at 8:14 AM, with Mark delivered and Note. Below, Recently delivered lists one received UPS package.">
         <rect class="fr" x="1" y="1" width="298" height="290" rx="6"/>
         <use href="#hdD"/>
         <rect class="navon" x="117" y="21" width="37" height="11" rx="3"/><text class="nv tac" x="135.5" y="28.6" text-anchor="middle">Tracking</text>
@@ -1003,9 +1007,8 @@
         <rect class="dnr" x="10" y="76" width="136" height="98" rx="4"/>
         <rect class="ups" x="16" y="82" width="20" height="11" rx="2"/><text class="xs w" x="26" y="89.8" text-anchor="middle">UPS</text>
         <text class="s mo tlk" x="40" y="90">1Z999AA10123456784</text>
-        <rect class="pwa" x="16" y="97" width="38" height="11" rx="5.5"/><text class="xs twa" x="35" y="104.8" text-anchor="middle">Delivered</text>
-        <text class="s m" x="58" y="105">Oct 30, 2:41 PM</text>
-        <text class="s twa" x="16" y="119">Not received yet, 3 days<tspan x="16" dy="9">since delivery.</tspan></text>
+        <rect class="pwa" x="16" y="97" width="86" height="11" rx="5.5"/><text class="xs twa" x="59" y="104.8" text-anchor="middle">Delivered, not received</text>
+        <text class="s" x="16" y="119"><tspan class="m">Oct 30, 2:41 PM</tspan><tspan class="twa" x="16" dy="9">3 days since delivery.</tspan></text>
         <text class="s" x="16" y="141">UDM-SE x1, USW-Pro-24-PoE x1<tspan class="m" x="16" dy="10">PO 7731, ADI - for #1042</tspan></text>
         <rect class="pr" x="16" y="157" width="40" height="12" rx="3"/><rect class="bt" x="60" y="157" width="28" height="12" rx="3"/>
         <text class="xs b" y="165.4" text-anchor="middle"><tspan class="w" x="36">Receive</tspan><tspan x="74">Note</tspan></text>
@@ -1033,7 +1036,7 @@
         <rect class="pok" x="84" y="275" width="36" height="9" rx="4.5"/><text class="xs tok" x="102" y="281.8" text-anchor="middle">Received</text>
       </svg>
       <p class="cap"><strong>What you do</strong>Open Tracking each morning. Packages coming to the office are on the left; packages a vendor ships straight to a job site are on the right, grouped by client and job. Each card shows its status with the date and time. Receive the box that was delivered here but never scanned (it sits on top in amber). For a drop-shipped box, press Mark delivered once the site has it. Late packages say how late, in amber.</p>
-      <p class="cap"><strong>What Loadout records</strong>Nothing until you act. Receive writes receive movements (panel 5). Mark delivered counts the lines as received on the PO and staged on the ticket without adding anything to the shelves, and adds Delivered to the shipment's status log with your name and the time.</p>
+      <p class="cap"><strong>What Loadout records</strong>Nothing until you act. Receive writes receive movements (panel 5). Mark delivered counts the lines as received on the PO and staged on the ticket without adding anything to the shelves, and the card reads Delivered to site, with your name and the time in the shipment's status log.</p>
     </article>
 
   </div>
@@ -1044,7 +1047,7 @@
   <div class="tab" id="tab-sop" role="tabpanel" aria-labelledby="tabbtn-sop">
   <!-- ================= PART 2 ================= -->
   <h2 id="part2"><span class="no">Part 2.</span>Functional SOP</h2>
-  <p class="lede">Twelve procedures, in the order product moves. Button and screen names match the app as built (0.5.1) and the Storyboard tab. "Recorded" is what lands in the movement log, which is the audit trail behind every count.</p>
+  <p class="lede">Twelve procedures, in the order product moves. Button and screen names match the app as built (0.5.2) and the Storyboard tab. "Recorded" is what lands in the movement log, which is the audit trail behind every count.</p>
 
   <section class="sop" id="sop-1">
     <h3><span class="sop-id">SOP-1</span>Receiving product</h3>
@@ -1052,7 +1055,7 @@
     <p class="whowhen"><span><b>Who</b>Warehouse or admin</span><span><b>When</b>The day a delivery arrives, before the box is opened or shelved</span></p>
     <p class="sub">With a PO</p>
     <ol>
-      <li>Open Tracking. A box delivered to the office and not received yet sits at the top of the Office column in amber. Press Receive on its card, or open the PO under Orders and press Receive on the shipment.</li>
+      <li>Open Tracking. A box delivered to the office and not scanned in reads Delivered, not received and sits at the top of the Office column in amber. Press Receive on its card, or open the PO under Orders and press Receive on the shipment.</li>
       <li>The Receive shipment window lists each line in the box with its quantity, a chip for the ticket it serves (or Stock), and Gets its own QR when the unit costs at or above the QR threshold.</li>
       <li>Scan each box's UPC in Scan a UPC to count it, or keep the quantity shown. A line of wire asks for a Box label: the code written on the box.</li>
       <li>Check where each line goes: Into the bay for a ticket line, Onto a shelf for stock. Press Receive.</li>
@@ -1105,38 +1108,38 @@
   </section>
 
   <section class="sop" id="sop-4">
-    <h3><span class="sop-id">SOP-4</span>Picking and staging</h3>
+    <h3><span class="sop-id">SOP-4</span>Pulling and staging</h3>
     <p class="purpose">Lay out everything a job needs in its own bay, taking from the shelves first.</p>
     <p class="whowhen"><span><b>Who</b>Warehouse pulls; Tech may stage and deliver</span><span><b>When</b>As soon as the ticket exists, before anything is ordered</span></p>
     <ol>
       <li>Open the ticket and press Pull everything in stock. Loadout fills what it can from each product's usual shelf first and lists what still needs ordering.</li>
-      <li>Press Show on board. The TV by the bays shows this ticket's lines grouped by the shelf to pull from, in rack order, greys each line as it is scanned into the bay, and shows to-order lines in amber. Walk the racks in that order.</li>
+      <li>Press Show on board. The TV by the bays shows this ticket's lines grouped by the shelf to pull from, in rack order, greys each line as it is scanned into the bay and marks it Staged with a check, and shows On order lines in amber and Short lines in red. Walk the racks in that order.</li>
       <li>To pull a line at the shelf: open Scan, scan the shelf label (the location chip changes to that shelf), then scan the product's UPC.</li>
-      <li>On the product card press Pick for ticket, choose the ticket and line, and press Continue.</li>
+      <li>On the product card press Pull for ticket, choose the ticket and line, and press Continue.</li>
       <li>In Pull from stock check From and Quantity, tick the serialized units going (or scan their labels), and press Pull. From the desk, the same window opens from Pull from stock on the ticket line.</li>
       <li>For a part already on the bench that did not come through a pull, press Stage on the line.</li>
-      <li>Keep one ticket per bay. If the shelf is short, pull what is there; the rest shows on the line as To order, or Short in red when no PO covers it. Do not borrow from another ticket's bay.</li>
+      <li>Keep one ticket per bay. If the shelf is short, pull what is there; the rest shows on the line as Short, in red, until a PO covers it, then On order, in amber, with the ETA. Do not borrow from another ticket's bay.</li>
       <li>Watch the ticket status: Picking once any line is staged, Staged when every line is laid out.</li>
-      <li>Each morning, open Week. Every ticket sits on its install day with its lines on the right: Pull, Picked, Staged, On order with the ETA, Short, or Delivered. Press a line to open it on the ticket. Work week hides the weekend; past days are faded and today is outlined.</li>
+      <li>Each morning, open Week. Every ticket sits on its install day with its lines on the right: Pull, Staged ("Staged 2 of 4" when part of it is in the bay), On order with the ETA, Short, or Delivered. Press a line to open it on the ticket. Work week hides the weekend; past days are faded and today is outlined.</li>
     </ol>
-    <p class="recorded"><b>Recorded:</b> a pick movement for each pull with who, product, quantity, the shelf it came from, the bay it went to, and the ticket; a stage movement for Stage.</p>
+    <p class="recorded"><b>Recorded:</b> a pull movement for each pull with who, product, quantity, the shelf it came from, the bay it went to, and the ticket; a stage movement for Stage.</p>
   </section>
 
   <section class="sop" id="sop-5">
     <h3><span class="sop-id">SOP-5</span>Ordering and tracking</h3>
     <p class="purpose">Order what stock cannot cover and know where every ordered part is without opening the PO.</p>
-    <p class="whowhen"><span><b>Who</b>Warehouse or admin, whoever places orders</span><span><b>When</b>The same day as the pick; Tracking every morning after that</span></p>
+    <p class="whowhen"><span><b>Who</b>Warehouse or admin, whoever places orders</span><span><b>When</b>The same day as the pull; Tracking every morning after that</span></p>
     <ol>
       <li>On the ticket press Order missing, or Order on a single line. Reorder on Stock, Low stock does the same for shelf stock.</li>
-      <li>Open Orders and the draft PO. Pick the Vendor; the empty select glows until one is picked, and a vendor typed there joins the list.</li>
+      <li>Open Orders and the draft PO. Pick the Vendor; the empty select glows until one is chosen, and a vendor typed there joins the list.</li>
       <li>Place the order with the vendor the way you do today.</li>
       <li>Press Mark ordered, type the vendor's order number, and pick where it ships: the office, or straight to the job's site.</li>
       <li>When the vendor says a line is backordered, set it to Backordered and type the vendor's ETA.</li>
       <li>When a ship notice arrives, press Add shipment, paste the tracking number, tick the lines in that box, and type the expected date. Loadout guesses the carrier from the number (1Z is UPS, 12 or 15 digits FedEx, 20 to 22 digits starting with 9 USPS); change it if it guessed wrong. One box can be sent somewhere other than the PO says.</li>
       <li>Open Tracking each morning. Packages coming to the office are in the left column, packages going straight to a client's site in the right column grouped by client and job, and the last 30 days of deliveries in Recently delivered along the bottom. Each card shows the carrier, the tracking number as a link, what is in it, the PO and vendor, who it is for, and its status with the date and time. The filters (client and job, vendor, carrier, status, Late only) apply to all three parts.</li>
       <li>Late cards read like "Expected Oct 30, 3 days late" in amber; call the vendor about those.</li>
-      <li>A card delivered to the office and not received sits at the top of the Office column in amber. That is a box somewhere in the building that nobody scanned: find it and press Receive (SOP-1).</li>
-      <li>For a box shipped to a job site, press Mark delivered on its card once the site has it, set the time it arrived, and add a note such as who signed. Its lines count as received on the PO and staged on the ticket; nothing goes onto the shelves.</li>
+      <li>A card that reads Delivered, not received sits at the top of the Office column in amber. That is a box somewhere in the building that nobody scanned: find it and press Receive (SOP-1).</li>
+      <li>For a box shipped to a job site, press Mark delivered on its card once the site has it, set the time it arrived, and add a note such as who signed. The card reads Delivered to site, and its lines count as received on the PO and staged on the ticket; nothing goes onto the shelves.</li>
       <li>Use Note on any card for anything else, for example "left at the front desk".</li>
       <li>Carrier status is typed by hand or set from the shipment dates; Loadout does not check UPS or FedEx on its own yet.</li>
     </ol>
@@ -1183,7 +1186,7 @@
       <li>If a unit shows under your name and someone else has it, ask Warehouse to change the holder; do not check it in for them.</li>
       <li>On Fridays, a manager opens Items, Out, to see who has what and since when. Nudge copies a one-line reminder to paste into a message.</li>
     </ol>
-    <p class="recorded"><b>Recorded:</b> a check-out or check-in movement with who, the unit, the holder, the job, the time, where it went back to, and its condition.</p>
+    <p class="recorded"><b>Recorded:</b> a checkout or checkin movement with who, the unit, the holder, the job, the time, where it went back to, and its condition.</p>
   </section>
 
   <section class="sop" id="sop-8">
@@ -1201,7 +1204,7 @@
       <li>Press Close ticket in the window to finish.</li>
     </ol>
     <p class="open"><b>Settled:</b> units become Installed at close, not at delivery, so a unit that comes back unused never shows as installed.</p>
-    <p class="recorded"><b>Recorded:</b> a deliver movement per line (who, product, quantity, ticket, job), a check-out per serialized unit, and on close a return or write-off movement for each leftover with its reason.</p>
+    <p class="recorded"><b>Recorded:</b> a deliver movement per line (who, product, quantity, ticket, job), a checkout movement per serialized unit, and on close a move movement back to the shelf, or a writeoff movement with its reason, for each leftover.</p>
   </section>
 
   <section class="sop" id="sop-9">
@@ -1209,7 +1212,7 @@
     <p class="purpose">Fix a count that is wrong, and leave a reason anyone can read later.</p>
     <p class="whowhen"><span><b>Who</b>Warehouse and admin only; techs and accounting cannot adjust</span><span><b>When</b>Whenever a shelf count does not match Loadout</span></p>
     <ol>
-      <li>Before changing anything, open the product under Stock (the row opens in place) and press History. A gap is often an unscanned pick or receive; record that movement instead of adjusting.</li>
+      <li>Before changing anything, open the product under Stock (the row opens in place) and press History. A gap is often an unscanned pull or receive; record that movement instead of adjusting.</li>
       <li>Count what is on the shelf.</li>
       <li>On Scan, scan the shelf label, then the product, and press Count. Type what you counted in Counted and press Save count.</li>
       <li>From a desk, open the product's row under Stock and press Adjust. Type the change in Change by (negative to take away, positive to add).</li>
@@ -1255,11 +1258,10 @@
       <li>In Portal, open the proposal and its internal notes.</li>
       <li>Paste the block at the end. Do not replace the notes already there. Save in Portal.</li>
     </ol>
-<pre class="block">[Loadout 2026-10-28 14:05] Pick ticket #1042 - Acme Dental, Main office
-Staged 9/12 lines in Bay 2. Delivered 0/12. On order: Ubiquiti UDM-SE x1,
-PO 7731 - UPS 1Z999AA1 - shipped 10/28; Ubiquiti USW-Pro-24-PoE x1, PO 7731 -
-UPS 1Z999AA1 - shipped 10/28; Ubiquiti U6-Pro x2, PO 7731 - backordered, ETA
-11/04.</pre>
+<pre class="block">[Loadout 2026-10-28 14:05] Pick ticket #1042, Acme Dental, Main office
+Staged 9/12 lines in Bay 2. Delivered 0/12. On order: Ubiquiti UDM-SE x1, PO
+7731, UPS 1Z999AA1: Shipped, Oct 28; Ubiquiti USW-Pro-24-PoE x1, PO 7731, UPS
+1Z999AA1: Shipped, Oct 28; Ubiquiti U6-Pro x2, PO 7731: Backordered, ETA Nov 4.</pre>
     <p class="sub">A ticket Zapier made from Portal</p>
     <ol start="5">
       <li>Once the Zapier import is on (it depends on the Portal plan), an accepted proposal becomes a ticket by itself. It carries an "Imported from Portal, review" chip on the Tickets list and on the ticket.</li>
@@ -1398,7 +1400,7 @@ UPS 1Z999AA1 - shipped 10/28; Ubiquiti U6-Pro x2, PO 7731 - backordered, ETA
 </article>
 
 <footer class="pagefoot">
-  <p>Loadout storyboard v0.6.0, 2026-11-02. Matches the app at 0.5.1. Internal, Umbrella Automation.</p>
+  <p>Loadout storyboard v0.6.1, 2026-11-02. Matches the app at 0.5.2. Internal, Umbrella Automation.</p>
   <button type="button" class="btn-print" id="printTab">Print this tab as PDF</button>
   <button type="button" class="btn-print" id="printAll">Print everything as PDF</button>
 </footer>
