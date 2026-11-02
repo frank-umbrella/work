@@ -238,8 +238,10 @@ the database reads without the app (section 16).
 
 /loadout_shipments/{shipmentId}
   orderId, carrier ("UPS"|"FedEx"|"USPS"|"Other"), tracking, trackingUrl
+  shipTo      "office" | "client"      client = drop-shipped to the job site
   status ("shipped"|"out_for_delivery"|"delivered"|"received")
-  shippedAt, deliveredAt, receivedAt
+  statusLog   [{status, at, by, note}] every change, newest last
+  shippedAt, expectedAt, deliveredAt, receivedAt
   lines [{orderLineId, qty}]           partial shipments carry only their lines
 
 /loadout_movements/{movementId}          append-only audit trail
@@ -447,21 +449,40 @@ every screen: Synced / Offline, 3 pending.
   to this shipment."
 
 ### Tracking (dashboard)
-- One page for everything on order that has not been received, so nobody
-  opens a PO to answer "where is it". Grouped by job (then stock), one row
-  per order line: product, qty, vendor, PO, order date, line status
-  (ordered / backordered with ETA / shipped / out for delivery / delivered,
-  not received), carrier chip, tracking number as a link, expected date, days
-  open. Rows that are delivered but not received float to the top with the
-  amber treatment, because that is a box sitting somewhere unscanned.
-- Filters: job, vendor, carrier, status, "late" (past expected date).
-- Each row has **Receive** (opens the shipment receive flow) and **Note**.
+- **Layout (user, 2026-11-02): split down the middle, history along the
+  bottom.** Left column: packages coming **to the office**. Right column:
+  packages going **straight to a client's site** (drop-shipped), every
+  client in that one column, grouped by client and job. Bottom, full width:
+  **Recently delivered**, the last 30 days of packages marked delivered or
+  received, newest first. Under 900px the two columns stack, office first.
+- Each package is one card: carrier chip, tracking number as a link to the
+  carrier page, what is in it (product and qty, several lines collapse to
+  "3 lines" with a tooltip), the PO and vendor, who it is for (client and
+  job, or "Stock" for the office side), the **current status** as a pill,
+  and the **date and time of that status** ("Out for delivery, Nov 2 8:14
+  AM"). Late packages carry "Expected Oct 30, 3 days late" in amber;
+  delivered-but-not-received on the office side float to the top in amber,
+  because that is a box in the building nobody scanned. Each card has
+  Receive (office side; opens the shipment receive flow), Mark delivered
+  (client side; a package to a job site is never received into stock, it is
+  staged on the ticket), and Note.
+- Status history: every status change on a shipment appends
+  `{status, at, by, note}` to `statusLog` on the shipment, and the card's
+  pill reads the last entry. A hand-typed status, a delivery date entered on
+  the PO, and later a carrier poll all write the same log.
+- Filters above both columns: job / client, vendor, carrier, status, late.
+  A count in each column header ("Office, 4 packages", "To clients, 2").
+- Data: shipments gain `shipTo` ("office" | "client"), set on Add shipment
+  from the PO's ship-to (a PO gains `shipTo` and, for client, the job's
+  address) and overridable per shipment; `statusLog` as above; `expectedAt`.
 - Carrier status is typed by hand or set by the shipment dates in v1; a
   worker cron that polls the carriers' tracking APIs is the later upgrade
-  (section 8) and fills the same fields.
-- **States.** Nothing on order: "Nothing in transit. Lines you order from a
-  ticket or the low-stock list show here until they are received." Late:
-  the row says "Expected 10/24, 2 days late".
+  and fills the same log.
+- **States.** Nothing on either side: "Nothing in transit. Lines you order
+  from a ticket or the low-stock list show here until they are received."
+  An empty column keeps its header and says "No packages to the office" or
+  "No packages going to clients". Empty history: "Nothing delivered in the
+  last 30 days."
 
 ### Items (serialized units)
 - Table of every serialized item: product, serial, status, location or
@@ -862,6 +883,11 @@ boxes with feet left and "Confirm location" flags. To fix in the next phase:
 8. **Order lines should carry a unit cost** (`unitCost` at Mark ordered,
    defaulting from the product's last cost) so the Spend and Delivered
    reports stay fixed when a product's cost later changes.
+
+Status: items 6, 7, and 8 are done in 0.5.1 with the Tracking split (README
+changelog). Item 7 reads the source from the ticket's `source` or the
+proposal's `importSource`, since the worker writes `source: "zapier"` on the
+ticket.
 
 Decisions recorded from the 0.5.0 build (2026-10-29): the service worker
 registers in demo mode too (needed for the offline test; harmless); product

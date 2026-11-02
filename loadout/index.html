@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Loadout v0.5.0</title>
+<title>Loadout v0.5.1</title>
 <meta name="robots" content="noindex, nofollow">
-<meta name="loadout-version" content="0.5.0">
+<meta name="loadout-version" content="0.5.1">
 <meta name="description" content="Umbrella Automation shop inventory. Restricted to @umbrellaautomation.com accounts.">
 <meta name="theme-color" content="#1e6fd9">
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
@@ -39,6 +39,8 @@
   /* Week view, past days: surfaces and borders at 55%, text stays at full strength so it keeps 4.5:1 */
   --m-pastcard:color-mix(in srgb,var(--m-card) 55%,var(--m-bg));
   --m-pastline:color-mix(in srgb,var(--m-line) 55%,var(--m-bg));
+  /* 0.5.1: a delivered-not-received package card; text on it keeps 4.5:1 (#fdf6ec) */
+  --m-dnrbg:#fdf6ec;
   color-scheme:light;
 }
 *{box-sizing:border-box}
@@ -173,6 +175,9 @@ select.fld{appearance:none;padding-right:30px;background-image:linear-gradient(4
 .tbl td.nw{white-space:nowrap}
 .tbl td.act{white-space:nowrap;text-align:right}
 .tbl td.act .btn+.btn{margin-left:6px}
+/* 0.5.1: a row with many actions (a ticket line can show five) wraps its buttons
+   instead of pushing the table past the card on a laptop-width window */
+@container (max-width:1000px){.tbl td.act{white-space:normal}.tbl td.act .btn{margin-top:2px;margin-bottom:2px}}
 .tbl tr.need td{background:color-mix(in srgb,var(--m-warn) 9%,transparent)}
 /* left stripe on a .need row marks a real state (below par / needs attention), not decoration */
 .tbl tr.need td:first-child{box-shadow:inset 3px 0 0 var(--m-warn)}
@@ -547,6 +552,40 @@ body.preview #printSheet .picksheet{box-shadow:0 2px 10px rgba(0,0,0,.15)}
 .late{color:var(--m-bad-text);font-weight:600}
 .phoneonly{display:none}
 
+/* ---------- tracking split (0.5.1, PLAN 4 and 12b item 6) ----------
+   Office on the left, job sites on the right, history full width below.
+   The tracking link is a 44px target everywhere it appears, so a thumb on
+   the phone opens the carrier page and not the card under it. */
+.trk{display:inline-flex;align-items:center;min-height:44px;padding:0 2px}
+.trsplit{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:899.98px){.trsplit{grid-template-columns:minmax(0,1fr)}}
+.trcol{min-width:0}
+.trh{margin:0 0 10px;font-size:16px;font-weight:700;line-height:1.3}
+.trempty{margin:0;padding:16px 12px;border:1px dashed var(--m-line2);border-radius:var(--m-radius);color:var(--m-muted);text-align:center}
+.trgrp{margin:0 0 16px}
+.trgrp:last-child{margin-bottom:0}
+.mcard .trgh{margin:0 0 8px;padding-bottom:6px;border-bottom:1.5px solid var(--m-text);font-size:13.5px;font-weight:700;overflow-wrap:anywhere;text-transform:none;letter-spacing:0;color:var(--m-text)}
+.trgh span{font-weight:400;color:var(--m-muted);font-size:12px;margin-left:6px}
+.trgh small{display:block;font-weight:400;color:var(--m-muted);font-size:12px;margin-top:1px}
+.pkgs{display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
+.pkg{border:1px solid var(--m-line);border-radius:var(--m-radius);background:var(--m-card2);padding:8px 12px 10px;min-width:0}
+/* amber edge: a real state (a box in the building nobody scanned), not decoration */
+.pkg.dnr{border-color:var(--m-warn);background:var(--m-dnrbg);box-shadow:inset 3px 0 0 var(--m-warn)}
+.pkg .ph{display:flex;flex-wrap:wrap;align-items:center;gap:0 8px;min-height:44px}
+.pkg .stw{margin-left:auto;display:inline-flex;flex-wrap:wrap;align-items:center;gap:4px 8px}
+.pkg .when{font-size:12.5px;color:var(--m-muted);white-space:nowrap}
+.pkg .what{margin:4px 0 0;font-size:13.5px;overflow-wrap:anywhere}
+.pkg dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,120px),1fr));gap:4px 14px;margin:8px 0 0}
+.pkg dt{font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--m-muted);font-weight:600}
+.pkg dd{margin:1px 0 0;font-size:13px;overflow-wrap:anywhere;min-width:0}
+.pkg dd small{display:block;color:var(--m-muted);font-size:12px}
+.pkg dd .textbtn{font-weight:600;color:var(--m-accent2)}
+.pkg .lnote{margin-top:8px}
+.pkg .pf{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.lateA{margin:4px 0 0;color:var(--m-warn-text);font-weight:600;font-size:13px}
+.pexp{margin:4px 0 0;color:var(--m-muted);font-size:12.5px}
+.tipd{text-decoration:underline dotted;text-underline-offset:3px;cursor:help}
+
 /* ---------- week (0.3.0, layout B: the timesheet grid) ---------- */
 #app.wide .body,#app.wide .foot{max-width:none}
 .wkwrap{container-type:inline-size;display:grid;grid-template-columns:minmax(0,1fr);gap:16px;min-width:0}
@@ -734,7 +773,7 @@ body.preview #printSheet .picksheet{box-shadow:0 2px 10px rgba(0,0,0,.15)}
   <header class="top">
     <div class="brand">
       <svg viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="20" width="48" height="34" rx="6" fill="none" stroke="currentColor" stroke-width="5"/><path d="M24 20v-6a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v6" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/><path d="M8 35h48" stroke="currentColor" stroke-width="4"/><rect x="27" y="31" width="10" height="8" rx="2" fill="currentColor"/></svg>
-      Loadout <span class="v" id="verBadge">v0.5.0</span>
+      Loadout <span class="v" id="verBadge">v0.5.1</span>
     </div>
     <nav class="nav" aria-label="Views">
       <button type="button" data-go="tickets">Tickets</button>
@@ -767,7 +806,7 @@ body.preview #printSheet .picksheet{box-shadow:0 2px 10px rgba(0,0,0,.15)}
   </main>
 
   <footer class="foot">
-    <span id="footVer">Loadout v0.5.0</span>
+    <span id="footVer">Loadout v0.5.1</span>
     <span id="footWho"></span>
     <span id="footRole"></span>
     <span id="footSync"></span>
@@ -796,7 +835,7 @@ body.preview #printSheet .picksheet{box-shadow:0 2px 10px rgba(0,0,0,.15)}
    and its Google sign-in, like Backup Audits and Sundial. Data lives
    in loadout_* collections; rules are in watchtower/firestore.rules.
    ============================================================== */
-const VERSION = "0.5.0";
+const VERSION = "0.5.1";
 const SDK = "https://www.gstatic.com/firebasejs/12.13.0/";
 const XLSX_URL = "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";
 /* @zxing/library is not on cdnjs, so the fallback decoder comes from jsDelivr,
@@ -1174,6 +1213,10 @@ const PAYLOAD = { loc: id => "loadout:loc:" + id, ctr: id => "loadout:ctr:" + id
    ============================================================== */
 const INC = n => ({ __inc: n });
 const NOW = { __now: true };
+/* 0.5.1: appends to an array field (a shipment's statusLog) with arrayUnion,
+   so two devices adding an entry offline both land. Entries carry a client
+   Date: Firestore takes no server timestamp inside an array. */
+const APPEND = (...items) => ({ __append: items });
 let fb = null;      // { fs, db, auth, authMod }
 let DB = null;
 
@@ -1209,6 +1252,7 @@ function firestoreStore(user) {
     Object.keys(data).forEach(k => {
       const v = data[k];
       if (v && typeof v === "object" && v.__inc != null) out[k] = fs.increment(v.__inc);
+      else if (v && typeof v === "object" && Array.isArray(v.__append)) out[k] = fs.arrayUnion(...v.__append);
       else if (v === NOW) out[k] = fs.serverTimestamp();
       else out[k] = v;
     });
@@ -1853,6 +1897,50 @@ function olChipText(o, ol) {
 }
 function olChipClass(o, ol) { if (!ol) return o.status === "received" ? "ok" : "info"; const st = olStatus(o, ol); return st === "received" ? "ok" : st === "delivered" || st === "backordered" ? "warn" : st === "draft" ? "new" : "info"; }
 
+/* ---------------- 0.5.1: ship-to, the status log, unit cost ----------------
+   A PO ships to the office or straight to the job's site (shipTo, set at
+   Mark ordered, default office); a shipment takes its PO's and can be set
+   per shipment. Every status change on a shipment appends {status, at, by,
+   byName, note} to statusLog, and Tracking reads the last entry. */
+function jobOf(o) { return o && o.jobId ? S.jobs.get(o.jobId) || null : null; }
+function jobAddress(o) { const j = jobOf(o); return j && j.address ? j.address : (o && o.shipToAddress) || ""; }
+function shipSide(s, o) { o = o || S.orders.get(s.orderId); return (s.shipTo || (o && o.shipTo)) === "client" ? "client" : "office"; }
+function shipAddress(s, o) { o = o || S.orders.get(s.orderId); return s.shipToAddress || (o && o.shipToAddress) || jobAddress(o); }
+/* migrate on read: a shipment from before 0.5.1 has no log, so its status reads with the matching date */
+function shipLegacyAt(s) {
+  const st = s.status;
+  return st === "received" ? s.receivedAt || s.deliveredAt || s.shippedAt : st === "delivered" ? s.deliveredAt || s.shippedAt : st === "out_for_delivery" ? s.updatedAt || s.shippedAt : s.shippedAt || s.createdAt;
+}
+function shipLog(s) { return Array.isArray(s.statusLog) && s.statusLog.length ? s.statusLog : [{ status: s.status || "shipped", at: shipLegacyAt(s), by: null, byName: null, note: null }]; }
+function shipLast(s) { const l = shipLog(s); return l[l.length - 1]; }
+/* the first write to a pre-0.5.1 shipment seeds the log from its dates, so its history keeps its start */
+function logSeed(s) {
+  if (Array.isArray(s.statusLog) && s.statusLog.length) return [];
+  const out = [], e = (status, at, note) => { const d = toDate(at); if (d) out.push({ status, at: d, by: null, byName: null, note }); };
+  e("shipped", s.shippedAt, "From the shipped date");
+  if (s.status === "out_for_delivery") e("out_for_delivery", s.updatedAt || s.shippedAt, "Status before the log");
+  if (s.status === "delivered" || s.status === "received") e("delivered", s.deliveredAt, "From the delivered date");
+  if (s.status === "received") e("received", s.receivedAt, "From the received date");
+  return out;
+}
+function logEntry(status, at, note) { return { status, at: toDate(at) || new Date(), by: S.user.email, byName: S.user.name, note: note || null }; }
+function logOp(s, status, at, note) { return { statusLog: APPEND(...logSeed(s), logEntry(status, at, note)) }; }
+/* a date typed as a day: today means now, any other day means noon that day */
+function dayAt(iso) { return !iso || iso === isoDay(new Date()) ? new Date() : new Date(iso + "T12:00:00"); }
+/* "Nov 2, 8:14 AM" */
+function fmtStamp(v) { const d = toDate(v); return d ? MONTHS[d.getMonth()] + " " + d.getDate() + (d.getFullYear() !== new Date().getFullYear() ? " " + d.getFullYear() : "") + ", " + fmtTime(d) : ""; }
+/* what a line cost on its PO: the unit cost from Mark ordered, else the product's last cost */
+function olUnitCost(ol) { return ol && ol.unitCost != null && ol.unitCost !== "" ? num(ol.unitCost) : unitCost(ol && ol.productId); }
+/* where a ticket came from (PLAN 12b item 7). The worker writes source on the
+   ticket and importSource on the proposal; either names it. */
+function tkSource(t) { const p = t.proposalId ? S.proposals.get(t.proposalId) : null; return t.importSource || t.source || (p && p.importSource) || "csv"; }
+function tkSourceLabel(t) { const s = tkSource(t); return s === "manual" ? "Built by hand" : s === "zapier" || s === "api" ? "Imported from Portal" : "Imported from CSV"; }
+const REVIEW_CHIP = '<span class="chip warn" title="Zapier made or changed this ticket from a Portal proposal. Check the lines and the matches, then press Reviewed on the ticket."><i></i>Imported from Portal, review</span>';
+async function doReviewed(t) {
+  return DB.commit([{ op: "update", coll: "loadout_tickets", id: t.id, data: { needsReview: false, reviewedAt: NOW, reviewedBy: S.user.email, reviewedByName: S.user.name, updatedAt: NOW } },
+    mv("edit", Object.assign({ note: "Ticket #" + t.number + " reviewed after the import from Portal" }, tkBaseFields(t, null)))], "the review on ticket #" + t.number);
+}
+
 /* ---------------- order writes ---------------- */
 /* adds lines to a draft PO, making the draft when there is none.
    items: [{p, name, brand, model, unit, qty, t, l}] */
@@ -1894,28 +1982,69 @@ async function doSetVendor(o, v) {
   const va = vendorAddOp(v); if (va) ops.push(va);
   return DB.commit(ops, "the vendor on PO " + o.number);
 }
-async function doMarkOrdered(o, vendor, orderNumber, note) {
-  const ops = [{ op: "update", coll: "loadout_orders", id: o.id, data: { status: "ordered", vendor, orderNumber, orderedAt: NOW, orderedBy: S.user.email, orderedByName: S.user.name, notes: note || o.notes || null, updatedAt: NOW } }];
-  orderLines(o.id).forEach(ol => ops.push({ op: "update", coll: olColl(o.id), id: ol.id, data: { status: "ordered", updatedAt: NOW } }));
+/* costs: Map of order line id to the unit cost typed at Mark ordered (costs on).
+   Lines not in it take the product's last cost, so Spend and Delivered stay
+   fixed when a product's cost changes later (PLAN 12b item 8). */
+async function doMarkOrdered(o, vendor, orderNumber, note, shipTo, costs) {
+  const st = shipTo === "client" && jobOf(o) ? "client" : "office", addr = st === "client" ? jobAddress(o) || null : null;
+  const ops = [{ op: "update", coll: "loadout_orders", id: o.id, data: { status: "ordered", vendor, orderNumber, orderedAt: NOW, orderedBy: S.user.email, orderedByName: S.user.name, notes: note || o.notes || null, shipTo: st, shipToAddress: addr, updatedAt: NOW } }];
+  orderLines(o.id).forEach(ol => { const c = costs && costs.has(ol.id) ? costs.get(ol.id) : unitCost(ol.productId); ops.push({ op: "update", coll: olColl(o.id), id: ol.id, data: { status: "ordered", unitCost: c == null ? null : c, updatedAt: NOW } }); });
   const va = vendorAddOp(vendor); if (va) ops.push(va);
-  ops.push(orderMv(o, "PO " + o.number + " marked ordered with " + vendor + ", vendor order " + orderNumber));
+  ops.push(orderMv(o, "PO " + o.number + " marked ordered with " + vendor + ", vendor order " + orderNumber + ", ships to " + (st === "client" ? "the job site" + (addr ? " at " + addr : "") : "the office")));
   return DB.commit(ops, "PO " + o.number);
 }
-/* d = {carrier, tracking, shippedAt, expectedAt, lines: [{ol, qty}]} */
+/* d = {carrier, tracking, shippedAt, logAt, expectedAt, shipTo, lines: [{ol, qty}]} */
 async function doAddShipment(o, d) {
-  const id = rid();
+  const id = rid(), st = d.shipTo === "client" && jobOf(o) ? "client" : "office";
   const ops = [{ op: "set", coll: "loadout_shipments", id, data: { orderId: o.id, orderNumber: o.number, vendor: o.vendor || null, carrier: d.carrier, tracking: d.tracking, trackingUrl: trackUrl(d.carrier, d.tracking),
     status: "shipped", shippedAt: d.shippedAt, expectedAt: d.expectedAt || null, deliveredAt: null, receivedAt: null, receivedBy: null, receivedByName: null,
+    shipTo: st, shipToAddress: st === "client" ? jobAddress(o) || null : null, note: null,
+    statusLog: [logEntry("shipped", d.logAt || d.shippedAt, "Added by hand")],
     lines: d.lines.map(x => ({ orderLineId: x.ol.id, productName: olName(x.ol), qty: x.qty, qtyReceived: 0 })),
-    ticketId: o.ticketId || null, ticketNumber: o.ticketNumber || null, jobName: o.jobName || null, clientName: o.clientName || null,
+    ticketId: o.ticketId || null, ticketNumber: o.ticketNumber || null, jobId: o.jobId || null, jobName: o.jobName || null, clientId: o.clientId || null, clientName: o.clientName || null,
     createdAt: NOW, createdBy: S.user.email, createdByName: S.user.name, updatedAt: NOW } }];
   d.lines.forEach(x => ops.push({ op: "update", coll: olColl(o.id), id: x.ol.id, data: { qtyShipped: INC(x.qty), status: "shipped", updatedAt: NOW } }));
-  ops.push(orderMv(o, "Shipment " + d.carrier + " " + d.tracking + " added to PO " + o.number + ", " + d.lines.length + " line" + (d.lines.length > 1 ? "s" : ""), { shipmentId: id }));
+  ops.push(orderMv(o, "Shipment " + d.carrier + " " + d.tracking + " added to PO " + o.number + ", " + d.lines.length + " line" + (d.lines.length > 1 ? "s" : "") + ", to " + (st === "client" ? "the job site" : "the office"), { shipmentId: id }));
   return DB.commit(ops, "the shipment on PO " + o.number);
 }
+/* Mark delivered on a package to a job site (PLAN 4, Tracking). It is never
+   received into stock: each line counts as received on the PO and staged on
+   the ticket it serves, with a stage movement naming the site. The tech's
+   Deliver to site later takes from the bay only what is really in the bay. */
+async function doMarkDelivered(s, at, note) {
+  const o = S.orders.get(s.orderId); if (!o) return false;
+  const addr = shipAddress(s, o), where = "the job site" + (addr ? " at " + addr : "");
+  const ops = [], tkbs = new Map(), base = { orderId: o.id, orderNumber: o.number, shipmentId: s.id };
+  const after = new Map(orderLines(o.id).map(x => [x.id, Object.assign({}, x)]));
+  const sl = (s.lines || []).map(e => Object.assign({}, e));
+  sl.forEach(e => {
+    const q = Math.max(0, num(e.qty) - num(e.qtyReceived)); if (!q) return;
+    e.qtyReceived = num(e.qtyReceived) + q;
+    const y = after.get(e.orderLineId); if (!y) return;
+    y.qtyReceived = num(y.qtyReceived) + q;
+    ops.push({ op: "update", coll: olColl(o.id), id: y.id, data: Object.assign({ qtyReceived: INC(q), updatedAt: NOW }, y.qtyReceived >= num(y.qtyOrdered) ? { status: "received", receivedAt: NOW } : {}) });
+    const t = y.ticketId ? S.tickets.get(y.ticketId) : null, l = t && S.lines.get(t.id) ? S.lines.get(t.id).get(y.ticketLineId) || null : null;
+    ops.push(mv("stage", Object.assign({ productId: y.productId || null, productName: olName(y), qty: q, toLocationId: null,
+      note: "Delivered to " + where + " on PO " + o.number + (s.carrier ? ", " + s.carrier + " " + (s.tracking || "") : "") + ". Staged on the ticket, not counted into stock" }, t && l ? tkBaseFields(t, l) : { jobName: o.jobName || null }, base)));
+    if (t && l) {
+      if (!tkbs.has(t.id)) tkbs.set(t.id, tkBatch(t));
+      tkbs.get(t.id).bump(l, { qtyStaged: q }, yy => ({ qtyToOrder: Math.max(0, num(yy.qtyToOrder) - q), pickedFromName: "PO " + o.number + ", at the job site", pickedByName: S.user.name, pickedAt: NOW }));
+    }
+  });
+  tkbs.forEach(b => ops.push(...b.finish()));
+  ops.push({ op: "update", coll: "loadout_shipments", id: s.id, data: Object.assign({ status: "delivered", deliveredAt: at, deliveredBy: S.user.email, deliveredByName: S.user.name, lines: sl, updatedAt: NOW }, logOp(s, "delivered", at, note || "Delivered to " + where)) });
+  const lines = Array.from(after.values()), st = orderStatusFrom(o, lines);
+  ops.push({ op: "update", coll: "loadout_orders", id: o.id, data: Object.assign({ status: st, summary: orderSummaryOf(lines), updatedAt: NOW }, st === "received" ? { receivedAt: NOW } : {}) });
+  ops.push(orderMv(o, "Shipment " + (s.carrier || "Other") + " " + (s.tracking || "") + " marked delivered at " + where + (note ? ": " + note : ""), { shipmentId: s.id }));
+  return commitChunks(ops, "the delivery on PO " + o.number);
+}
+async function doShipNote(s, text) { return DB.commit([{ op: "update", coll: "loadout_shipments", id: s.id, data: { note: text || null, updatedAt: NOW } }], "the note on " + (s.carrier || "the") + " " + (s.tracking || "shipment")); }
+async function doPoNote(o, text) { return DB.commit([{ op: "update", coll: "loadout_orders", id: o.id, data: { notes: text || null, updatedAt: NOW } }], "the note on PO " + o.number); }
 async function doShipmentStatus(s, st, expectedAt, deliveredAt) {
   const o = S.orders.get(s.orderId);
-  const ops = [{ op: "update", coll: "loadout_shipments", id: s.id, data: { status: st, expectedAt: expectedAt || null, deliveredAt: st === "delivered" ? (deliveredAt || NOW) : null, updatedAt: NOW } }];
+  /* a status change appends to the log; changing only the expected date does not */
+  const ops = [{ op: "update", coll: "loadout_shipments", id: s.id, data: Object.assign({ status: st, expectedAt: expectedAt || null, deliveredAt: st === "delivered" ? (deliveredAt || NOW) : null, updatedAt: NOW },
+    st !== s.status ? logOp(s, st, st === "delivered" ? deliveredAt || new Date() : new Date(), "Typed by hand") : {}) }];
   const lst = st === "delivered" ? "delivered" : st === "out_for_delivery" ? "out_for_delivery" : "shipped";
   (s.lines || []).forEach(e => { if (num(e.qty) - num(e.qtyReceived) > 0) ops.push({ op: "update", coll: olColl(s.orderId), id: e.orderLineId, data: { status: lst, updatedAt: NOW } }); });
   if (o) ops.push(orderMv(o, "Shipment " + s.carrier + " " + s.tracking + " marked " + (SHIP_LABEL[st] || st).toLowerCase(), { shipmentId: s.id }));
@@ -1993,7 +2122,7 @@ async function doReceiveShipment(s, rows) {
   });
   tkbs.forEach(k => ops.push(...k.b.finish(k.bay ? { stagingLocationId: k.bay, stagingLocationName: locName(k.bay) } : null)));
   const allIn = sl.every(x => num(x.qtyReceived) >= num(x.qty));
-  ops.push({ op: "update", coll: "loadout_shipments", id: s.id, data: Object.assign({ lines: sl, updatedAt: NOW, receivedBy: S.user.email, receivedByName: S.user.name }, allIn ? { status: "received", receivedAt: NOW } : {}) });
+  ops.push({ op: "update", coll: "loadout_shipments", id: s.id, data: Object.assign({ lines: sl, updatedAt: NOW, receivedBy: S.user.email, receivedByName: S.user.name }, allIn ? Object.assign({ status: "received", receivedAt: NOW }, logOp(s, "received", new Date(), "Received into " + Array.from(new Set(rows.filter(r => r.q > 0).map(r => locName(r.dest)))).join(", "))) : {}) });
   const lines = Array.from(after.values()), st = orderStatusFrom(o, lines);
   ops.push({ op: "update", coll: "loadout_orders", id: o.id, data: Object.assign({ status: st, summary: orderSummaryOf(lines), updatedAt: NOW }, st === "received" ? { receivedAt: NOW } : {}) });
   const ok = await commitChunks(ops, "Receive on PO " + o.number);
@@ -2217,10 +2346,18 @@ function loadDemoTickets(t, ST) {
   const sat = 6 - new Date().getDay();
   T("1050", "lakeview-dental--lakeview-office-refresh", "open", "bay-2", 2, { updatedAt: t(2), installAt: at(sat) });
   Ln("1050", "Lobby", "axis-m3065-v", 3, { qtyToOrder: 2, notes: "Change order: one more camera for the lobby." });
-  Ln("1050", "Lobby", "connector-xlr-female-3", 2, {});
+  /* 0.5.1: the XLR line came drop-shipped to the site on PO 7736 (Tracking history) */
+  Ln("1050", "Lobby", "connector-xlr-female-3", 2, { qtyStaged: 2, pickedFromName: "PO 7736, at the job site", pickedByName: "Warehouse", pickedAt: t(3) });
   T("1053", "ridge-family-practice--waiting-room-tvs", "open", null, 1, { updatedAt: t(1) });
-  Ln("1053", "Back office", "middle-atlantic-u2v", 1, {});
-  Ln("1053", "Back office", "patch-cable-1-pin-av-cable-blue-band-rca-m-rca-m-6ft", 2, {});
+  Ln("1053", "Back office", "middle-atlantic-u2v", 1, { qtyToOrder: 1 });
+  Ln("1053", "Back office", "patch-cable-1-pin-av-cable-blue-band-rca-m-rca-m-6ft", 2, { qtyToOrder: 2 });
+  /* 0.5.1 (PLAN 12b item 7): a ticket loadout-worker made from a Portal proposal through
+     Zapier, still flagged for review. The worker writes source on the ticket and
+     importSource on the proposal. */
+  T("1056", "harbor-clinic--harbor-clinic-network", "open", "bay-1", 0, { updatedAt: t(0), source: "zapier", needsReview: true, createdBy: "Zapier", createdByName: "Zapier", installAt: null });
+  Object.assign(S.proposals.get("1056"), { importSource: "zapier", acceptedAt: t(0) });
+  Ln("1056", "Exam rooms", "ubiquiti-u6-pro", 2, { qtyToOrder: 2, portalItemId: "pi-88213" });
+  Ln("1056", "Exam rooms", "leviton-61110-be6", 12, { portalItemId: "pi-88214" });
   S.tickets.forEach(tk => { const ls = ticketLines(tk.id); tk.summary = summarize(ls); });
   S.board = Object.assign({}, DEFAULT_BOARD, { ticketIds: ["1042", "1048"] });
   /* tag the fixture's earlier movements with their tickets, then add the ticket trail */
@@ -2231,6 +2368,7 @@ function loadDemoTickets(t, ST) {
     ["edit", 18, "Warehouse", { ticketId: "1031", note: "Ticket #1031 closed" }],
     ["edit", 5, "Warehouse", { ticketId: "1042", note: "Ticket #1042 created from CSV, 9 lines, 3 rows skipped" }],
     ["edit", 4, "Warehouse", { ticketId: "1048", note: "Ticket #1048 created from CSV, 3 lines" }],
+    ["edit", 0.1, "Zapier", { ticketId: "1056", note: "Ticket #1056 created from Portal by Zapier, 2 lines. Imported from Portal, review." }],
     ["pick", 3, "Warehouse", { ticketId: "1042", ticketLineId: ax, productId: "axis-m3065-v", qty: 2, fromLocationId: "warehouse", toLocationId: "bay-2" }],
     ["pick", 3, "Warehouse", { ticketId: "1042", ticketLineId: u6, productId: "ubiquiti-u6-pro", itemId: "k3m9q2x7a1", itemLabel: "E063DA00A1B2", qty: 1, fromLocationId: "warehouse", toLocationId: "bay-2" }],
     ["pick", 2, "Warehouse", { ticketId: "1042", ticketLineId: pc, productId: "patch-cable-cat6-utp-patch-cable-rj45m-rj45m-blue-3ft", qty: 6, fromLocationId: "storage-room--patch-cables", toLocationId: "bay-2" }],
@@ -2271,36 +2409,67 @@ function loadDemoOrders(t) {
   const k1042 = { ticketId: "1042", ticketNumber: "1042", jobId: "lakeview-dental--lakeview-office-refresh", jobName: "Lakeview office refresh", clientId: "lakeview-dental", clientName: "Lakeview Dental", proposalId: "1042" };
   /* 7731: partial, two shipments */
   O("7731", Object.assign({ vendor: "Northline Supply", orderNumber: "SO 4418873", status: "partial", orderedAt: t(6), orderedBy: "warehouse@example.com", orderedByName: "Warehouse", createdAt: t(7) }, k1042));
-  const a1 = OL("7731", "sonos-amp", 1, { t: "1042", l: amp, x: { qtyShipped: 1, qtyReceived: 1, status: "received", receivedAt: t(2) } });
-  const a2 = OL("7731", null, 1, { t: "1042", l: chief, name: "Chief RPMAU", brand: "Chief", model: "RPMAU", x: { qtyShipped: 1, status: "delivered" } });
-  OL("7731", "ubiquiti-u6-pro", 2, { t: "1042", l: u6, x: { status: "backordered", eta: at(6) } });
+  /* 0.5.1: ordered lines carry the unit cost fixed at Mark ordered (PLAN 12b item 8) */
+  const a1 = OL("7731", "sonos-amp", 1, { t: "1042", l: amp, x: { qtyShipped: 1, qtyReceived: 1, status: "received", receivedAt: t(2), unitCost: 439 } });
+  const a2 = OL("7731", null, 1, { t: "1042", l: chief, name: "Chief RPMAU", brand: "Chief", model: "RPMAU", x: { qtyShipped: 1, status: "delivered", unitCost: 289 } });
+  OL("7731", "ubiquiti-u6-pro", 2, { t: "1042", l: u6, x: { status: "backordered", eta: at(6), unitCost: 152.5 } });
   SH("dshipa", "7731", "FedEx", "748912345678", { status: "received", shippedAt: t(4), expectedAt: t(2), deliveredAt: t(2), receivedAt: t(2), receivedBy: "warehouse@example.com", receivedByName: "Warehouse" }, [[a1, 1, 1]]);
-  SH("dshipb", "7731", "UPS", "1Z999AA10123456784", { status: "delivered", shippedAt: t(3), expectedAt: at(-1), deliveredAt: t(1) }, [[a2, 1, 0]]);
+  /* 0.5.1: clock times for the status log; today's never land after now */
+  const hm = (n, h, m) => { const d = new Date(); d.setDate(d.getDate() - n); d.setHours(h, m, 0, 0); return d > new Date() ? new Date(Date.now() - 20 * 60000) : d; };
+  const lg = (status, at_, by, note) => ({ status, at: at_, by: by ? by.toLowerCase() + "@example.com" : null, byName: by || null, note: note || null });
+  SH("dshipb", "7731", "UPS", "1Z999AA10123456784", { status: "delivered", shippedAt: t(3), expectedAt: at(-1), deliveredAt: hm(1, 14, 12), shipTo: "office",
+    statusLog: [lg("shipped", hm(3, 16, 40), "Warehouse", "Added by hand"), lg("out_for_delivery", hm(1, 7, 52), "Warehouse", "Typed by hand"), lg("delivered", hm(1, 14, 12), "Warehouse", "Typed by hand")] }, [[a2, 1, 0]]);
   Object.assign(amp, { qtyStaged: 1, qtyToOrder: 0, pickedFromName: "PO 7731", pickedByName: "Warehouse", pickedAt: t(2) });
   S.items.set("rcvsonosamp1", { id: "rcvsonosamp1", productId: "sonos-amp", productName: "Sonos Amp", label: "Sonos Amp #2", serial: null, status: "staged", locationId: "bay-2", locationName: "Bay 2", holderUid: null, holderName: null,
     jobId: k1042.jobId, jobName: k1042.jobName, ticketId: "1042", ticketLineId: amp.id, condition: "good", orderId: "7731", orderNumber: "7731", shipmentId: "dshipa", qr: PAYLOAD.item("rcvsonosamp1"), createdAt: t(2) });
   /* 7733: ordered for stock, a USPS shipment past its expected date, one line not shipped */
   O("7733", { vendor: "Keystone Distribution", orderNumber: "KD-20931", status: "ordered", orderedAt: t(5), orderedBy: "warehouse@example.com", orderedByName: "Warehouse", createdAt: t(5) });
-  const c1 = OL("7733", "leviton-61110-be6", 100, { x: { qtyShipped: 100, status: "shipped" } });
-  OL("7733", "patch-cable-power-cable-edison-m-c13-f-black-6ft", 10, {});
+  const c1 = OL("7733", "leviton-61110-be6", 100, { x: { qtyShipped: 100, status: "shipped", unitCost: 2.95 } });
+  OL("7733", "patch-cable-power-cable-edison-m-c13-f-black-6ft", 10, { x: { unitCost: 3.85 } });
   SH("dshipc", "7733", "USPS", "9400111899223344556677", { shippedAt: t(6), expectedAt: at(-2) }, [[c1, 100, 0]]);
   /* 7728: received, for the closed ticket 1031 */
   O("7728", { vendor: "Harbor AV Supply", orderNumber: "HAV-5512", status: "received", orderedAt: t(27), orderedBy: "warehouse@example.com", orderedByName: "Warehouse", createdAt: t(27), receivedAt: t(21),
     ticketId: "1031", ticketNumber: "1031", jobId: "harbor-clinic--harbor-clinic-network", jobName: "Harbor clinic network", clientId: "harbor-clinic", clientName: "Harbor Clinic" });
-  const d1 = OL("7728", "ubiquiti-usw-24-poe", 1, { t: "1031", l: usw, x: { qtyShipped: 1, qtyReceived: 1, status: "received", receivedAt: t(21) } });
+  const d1 = OL("7728", "ubiquiti-usw-24-poe", 1, { t: "1031", l: usw, x: { qtyShipped: 1, qtyReceived: 1, status: "received", receivedAt: t(21), unitCost: 369 } });
   SH("dshipd", "7728", "FedEx", "612345678901234", { status: "received", shippedAt: t(24), expectedAt: t(21), deliveredAt: t(21), receivedAt: t(21), receivedBy: "warehouse@example.com", receivedByName: "Warehouse" }, [[d1, 1, 1]]);
   Object.assign(S.items.get("m1x5y7u3e6"), { orderId: "7728", orderNumber: "7728", shipmentId: "dshipd" });
   /* 7735: a draft with no vendor yet, started from the low-stock list */
   O("7735", { createdAt: t(0) });
   OL("7735", "wire-cat5e-riser-244-gray", 1000, { x: { status: "draft" } });
   OL("7735", "patch-cable-hdmi-patch-hdmim-hdmim-black-6ft", 6, { x: { status: "draft" } });
+  /* 0.5.1: drop-shipped to job sites (Tracking's right column). 7736 to Lakeview
+     Dental: the camera box is out for delivery, the XLR box was delivered to the
+     site three days ago. 7737 to Ridge Family Practice: a UPS box past its
+     expected date and a USPS box due tomorrow. */
+  const k1050 = { ticketId: "1050", ticketNumber: "1050", jobId: "lakeview-dental--lakeview-office-refresh", jobName: "Lakeview office refresh", clientId: "lakeview-dental", clientName: "Lakeview Dental", proposalId: "1050", shipTo: "client", shipToAddress: "210 Main St, Suite 4" };
+  O("7736", Object.assign({ vendor: "Northline Supply", orderNumber: "SO 4420114", status: "partial", orderedAt: t(5), orderedBy: "warehouse@example.com", orderedByName: "Warehouse", createdAt: t(5) }, k1050));
+  const e1 = OL("7736", "axis-m3065-v", 2, { t: "1050", l: line("1050", "axis-m3065-v"), x: { qtyShipped: 2, status: "shipped", unitCost: 182 } });
+  const e2 = OL("7736", "connector-xlr-female-3", 2, { t: "1050", l: line("1050", "connector-xlr-female-3"), x: { qtyShipped: 2, qtyReceived: 2, status: "received", receivedAt: hm(3, 13, 40), unitCost: 2.05 } });
+  SH("dship7736a", "7736", "FedEx", "748912349901", { status: "out_for_delivery", shippedAt: t(2), expectedAt: at(0), shipTo: "client", shipToAddress: k1050.shipToAddress,
+    statusLog: [lg("shipped", hm(2, 15, 5), "Warehouse", "Added by hand"), lg("out_for_delivery", hm(0, 8, 14), "Warehouse", "Typed by hand")] }, [[e1, 2, 0]]);
+  SH("dship7736b", "7736", "USPS", "9400111899223344559911", { status: "delivered", shippedAt: t(5), expectedAt: t(3), deliveredAt: hm(3, 13, 40), deliveredBy: "warehouse@example.com", deliveredByName: "Warehouse", shipTo: "client", shipToAddress: k1050.shipToAddress,
+    statusLog: [lg("shipped", hm(5, 11, 0), "Warehouse", "Added by hand"), lg("delivered", hm(3, 13, 40), "Warehouse", "Delivered to the job site at 210 Main St, Suite 4")] }, [[e2, 2, 2]]);
+  const k1053 = { ticketId: "1053", ticketNumber: "1053", jobId: "ridge-family-practice--waiting-room-tvs", jobName: "Waiting room TVs", clientId: "ridge-family-practice", clientName: "Ridge Family Practice", proposalId: "1053", shipTo: "client", shipToAddress: "9 Ridge Ave" };
+  O("7737", Object.assign({ vendor: "Keystone Distribution", orderNumber: "KD-21007", status: "ordered", orderedAt: t(7), orderedBy: "warehouse@example.com", orderedByName: "Warehouse", createdAt: t(7) }, k1053));
+  const g1 = OL("7737", "middle-atlantic-u2v", 1, { t: "1053", l: line("1053", "middle-atlantic-u2v"), x: { qtyShipped: 1, status: "shipped", unitCost: 40.5 } });
+  const g2 = OL("7737", "patch-cable-1-pin-av-cable-blue-band-rca-m-rca-m-6ft", 2, { t: "1053", l: line("1053", "patch-cable-1-pin-av-cable-blue-band-rca-m-rca-m-6ft"), x: { qtyShipped: 2, status: "shipped", unitCost: 2.9 } });
+  SH("dship7737a", "7737", "UPS", "1Z999AA10123457731", { shippedAt: t(6), expectedAt: at(-3), shipTo: "client", shipToAddress: k1053.shipToAddress, statusLog: [lg("shipped", hm(6, 17, 20), "Warehouse", "Added by hand")] }, [[g1, 1, 0]]);
+  SH("dship7737b", "7737", "USPS", "9400111899223344558822", { shippedAt: t(1), expectedAt: at(1), shipTo: "client", shipToAddress: k1053.shipToAddress, statusLog: [lg("shipped", hm(1, 10, 5), "Warehouse", "Added by hand")] }, [[g2, 2, 0]]);
+  /* 7739: a draft for the Portal ticket with its vendor picked, so Mark ordered
+     (ship-to glow, unit costs) can be tried straight away */
+  O("7739", { vendor: "Northline Supply", ticketId: "1056", ticketNumber: "1056", jobId: "harbor-clinic--harbor-clinic-network", jobName: "Harbor clinic network", clientId: "harbor-clinic", clientName: "Harbor Clinic", proposalId: "1056", createdAt: t(0) });
+  OL("7739", "ubiquiti-u6-pro", 2, { t: "1056", l: line("1056", "ubiquiti-u6-pro"), x: { status: "draft" } });
   S.orders.forEach(o => o.summary = orderSummaryOf(orderLines(o.id)));
   S.tickets.forEach(tk => { tk.summary = summarize(ticketLines(tk.id)); });
   /* the order trail */
   [["edit", 6, { orderId: "7731", ticketId: "1042", note: "PO 7731 marked ordered with Northline Supply, vendor order SO 4418873" }],
    ["receive", 2, { orderId: "7731", shipmentId: "dshipa", ticketId: "1042", ticketLineId: amp.id, productId: "sonos-amp", itemId: "rcvsonosamp1", itemLabel: "Sonos Amp #2", qty: 1, toLocationId: "bay-2", note: "Received on PO 7731, FedEx 748912345678" }],
    ["edit", 5, { orderId: "7733", note: "PO 7733 marked ordered with Keystone Distribution, vendor order KD-20931" }],
-   ["edit", 0, { orderId: "7735", note: "Draft PO 7735 started: CAT5E Riser, 24/4, Gray x1,000 ft, HDMI patch x6" }]].forEach(([type, d, f], i) => {
+   ["edit", 0, { orderId: "7735", note: "Draft PO 7735 started: CAT5E Riser, 24/4, Gray x1,000 ft, HDMI patch x6" }],
+   ["edit", 5, { orderId: "7736", ticketId: "1050", note: "PO 7736 marked ordered with Northline Supply, vendor order SO 4420114, ships to the job site at 210 Main St, Suite 4" }],
+   ["stage", 3, { orderId: "7736", shipmentId: "dship7736b", ticketId: "1050", ticketLineId: line("1050", "connector-xlr-female-3").id, productId: "connector-xlr-female-3", qty: 2, note: "Delivered to the job site at 210 Main St, Suite 4 on PO 7736, USPS 9400111899223344559911. Staged on the ticket, not counted into stock" }],
+   ["edit", 7, { orderId: "7737", ticketId: "1053", note: "PO 7737 marked ordered with Keystone Distribution, vendor order KD-21007, ships to the job site at 9 Ridge Ave" }],
+   ["edit", 0, { orderId: "7739", ticketId: "1056", note: "Draft PO 7739 started: Ubiquiti U6-Pro x2" }]].forEach(([type, d, f], i) => {
     const pr = f.productId ? S.products.get(f.productId) : null, tk = f.ticketId ? S.tickets.get(f.ticketId) : null;
     S.movements.push(Object.assign({ id: "do" + i, type, productName: pr ? pr.name : null, by: "warehouse@example.com", byName: "Warehouse", at: new Date(Date.now() - d * day + i * 60000), orderNumber: f.orderId,
       toLocationName: f.toLocationId ? locName(f.toLocationId) : null, unit: pr ? pr.unit : null, ticketNumber: f.ticketId || null, jobName: tk ? tk.jobName : null }, f));
@@ -2342,7 +2511,7 @@ function loadDemoConsole() {
     S.orders.set(id, { id, number: id, vendor, orderNumber: vno, status: "received", orderedAt: ordered, orderedBy: "warehouse@example.com", orderedByName: "Warehouse", ticketId: null, ticketNumber: null, jobId: null, jobName: null, clientId: null, clientName: null,
       notes: null, receivedAt: received, createdAt: ordered, createdBy: "warehouse@example.com", createdByName: "Warehouse", updatedAt: received });
     const m = new Map();
-    lines.forEach(([pid, q], i) => { const p = S.products.get(pid), lid = "stock--" + pid; m.set(lid, { id: lid, productId: pid, productName: productName(p), brand: p.brand || "", model: p.model || "", unit: p.unit, qtyOrdered: q, qtyShipped: q, qtyReceived: q, status: "received", eta: null,
+    lines.forEach(([pid, q, uc], i) => { const p = S.products.get(pid), lid = "stock--" + pid; m.set(lid, { id: lid, productId: pid, productName: productName(p), brand: p.brand || "", model: p.model || "", unit: p.unit, qtyOrdered: q, qtyShipped: q, qtyReceived: q, status: "received", eta: null, unitCost: uc == null ? null : uc,
       ticketId: null, ticketNumber: null, ticketLineId: null, ticketArea: null, jobName: null, clientName: null, note: null, sort: i + 1, receivedAt: received, createdAt: ordered, updatedAt: received }); });
     S.olines.set(id, m); S.olinesLoaded.add(id); S.orders.get(id).summary = orderSummaryOf(Array.from(m.values()));
     const sid = "dship" + id;
@@ -2350,13 +2519,13 @@ function loadDemoConsole() {
       receivedBy: "warehouse@example.com", receivedByName: "Warehouse", lines: Array.from(m.values()).map(l => ({ orderLineId: l.id, productName: l.productName, qty: l.qtyOrdered, qtyReceived: l.qtyOrdered })), createdAt: ordered, createdBy: "warehouse@example.com", createdByName: "Warehouse" });
     return sid;
   };
-  const s12 = PO("7712", "Northline Supply", "SO 4410215", mAt(-1, 3), mAt(-1, 8), [["leviton-61110-be6", 200], ["patch-cable-cat6-utp-patch-cable-rj45m-rj45m-blue-3ft", 24]], "UPS", "1Z999AA10123450012");
-  const s19 = PO("7719", "Keystone Distribution", "KD-20577", mAt(-1, 14), mAt(-1, 18), [["patch-cable-hdmi-patch-hdmim-hdmim-black-6ft", 12], ["patch-cable-power-cable-edison-m-c13-f-black-6ft", 10]], "FedEx", "748912340019");
-  const s24 = PO("7724", "Harbor AV Supply", "HAV-5490", mAt(0, 0, 9), mAt(0, 3), [["connector-xlr-female-3", 10], ["splitter-2-way-coaxial-splitter-coaxial-m-1-coaxial-m-2", 6]], "USPS", "9400111899223344550024");
+  const s12 = PO("7712", "Northline Supply", "SO 4410215", mAt(-1, 3), mAt(-1, 8), [["leviton-61110-be6", 200, 3.1], ["patch-cable-cat6-utp-patch-cable-rj45m-rj45m-blue-3ft", 24, 2.4]], "UPS", "1Z999AA10123450012");
+  const s19 = PO("7719", "Keystone Distribution", "KD-20577", mAt(-1, 14), mAt(-1, 18), [["patch-cable-hdmi-patch-hdmim-hdmim-black-6ft", 12, 7.25], ["patch-cable-power-cable-edison-m-c13-f-black-6ft", 10, 3.9]], "FedEx", "748912340019");
+  const s24 = PO("7724", "Harbor AV Supply", "HAV-5490", mAt(0, 0, 9), mAt(0, 3), [["connector-xlr-female-3", 10, 2.05], ["splitter-2-way-coaxial-splitter-coaxial-m-1-coaxial-m-2", 6, 3.6]], "USPS", "9400111899223344550024");
   /* 7716: ordered last month for stock and still open, its camera line backordered, so Aging has an old PO */
   S.orders.set("7716", { id: "7716", number: "7716", vendor: "Northline Supply", orderNumber: "SO 4410388", status: "ordered", orderedAt: mAt(-1, 11), orderedBy: "warehouse@example.com", orderedByName: "Warehouse", ticketId: null, ticketNumber: null, jobId: null, jobName: null,
     clientId: null, clientName: null, notes: null, receivedAt: null, createdAt: mAt(-1, 11), createdBy: "warehouse@example.com", createdByName: "Warehouse", updatedAt: mAt(-1, 11) });
-  const ax = S.products.get("axis-m3065-v"), axl = { id: "stock--axis-m3065-v", productId: ax.id, productName: productName(ax), brand: ax.brand, model: ax.model, unit: "each", qtyOrdered: 2, qtyShipped: 0, qtyReceived: 0, status: "backordered",
+  const ax = S.products.get("axis-m3065-v"), axl = { id: "stock--axis-m3065-v", productId: ax.id, productName: productName(ax), brand: ax.brand, model: ax.model, unit: "each", qtyOrdered: 2, qtyShipped: 0, qtyReceived: 0, status: "backordered", unitCost: 182,
     eta: new Date(now.getTime() + 8 * day), ticketId: null, ticketNumber: null, ticketLineId: null, ticketArea: null, jobName: null, clientName: null, note: "Vendor says early next month", sort: 1, createdAt: mAt(-1, 11), updatedAt: mAt(-1, 13) };
   S.olines.set("7716", new Map([[axl.id, axl]])); S.olinesLoaded.add("7716"); S.orders.get("7716").summary = orderSummaryOf([axl]);
   const k17 = { ticketId: "1017", ticketNumber: "1017", jobName: job.name };
@@ -2661,7 +2830,7 @@ function progressMini(s) {
 }
 function ticketCols() {
   return [
-    { k: "number", label: "Ticket", sort: t => t.number, html: t => '<button type="button" class="linkbtn" data-act="ticket" data-id="' + esc(t.id) + '"><div class="pn"><b>#' + esc(t.number) + "</b></div></button>" + (t.source === "manual" ? '<div class="pd">Built by hand</div>' : "") },
+    { k: "number", label: "Ticket", sort: t => t.number, html: t => '<button type="button" class="linkbtn" data-act="ticket" data-id="' + esc(t.id) + '"><div class="pn"><b>#' + esc(t.number) + "</b></div></button>" + (t.needsReview ? '<div class="chips" style="margin-top:4px">' + REVIEW_CHIP + "</div>" : '<div class="pd">' + esc(tkSourceLabel(t)) + "</div>") },
     { k: "client", label: "Client", text: t => t.clientName || "" },
     { k: "job", label: "Job", text: t => t.jobName || "" },
     { k: "proposal", label: "Proposal", text: t => t.proposalId ? "#" + t.proposalId : "" },
@@ -2777,8 +2946,8 @@ function renderTicket() {
   const loaded = S.linesLoaded.has(t.id), lines = ticketLines(t.id), s = loaded ? summarize(lines) : tkSummary(t), st = tkStatus(t), closed = st === "closed";
   const W = isWriter(), pinned = (S.board.ticketIds || []).includes(t.id), job = S.jobs.get(t.jobId);
   let h = '<div class="mcard">' + back + " / " + esc(TK_LABEL[st]) + "</div>" +
-    '<div class="tkrow"><h2 class="tktitle">Pick ticket <span class="n">#' + esc(t.number) + "</span></h2>" + tkPill(st, true) +
-    '<div class="tkbtns"><button type="button" class="btn" data-act="tkCopy" title="Copies the status block below so you can paste it into the proposal\'s internal notes in Portal">Copy for Portal</button>' +
+    '<div class="tkrow"><h2 class="tktitle">Pick ticket <span class="n">#' + esc(t.number) + "</span></h2>" + tkPill(st, true) + (t.needsReview ? REVIEW_CHIP : "") +
+    '<div class="tkbtns">' + (t.needsReview && W ? '<button type="button" class="btn acc" data-act="tkReviewed" title="Clears the review flag once the lines, quantities, and product matches from Portal look right. The timeline keeps who reviewed it.">Reviewed</button>' : "") + '<button type="button" class="btn" data-act="tkCopy" title="Copies the status block below so you can paste it into the proposal\'s internal notes in Portal">Copy for Portal</button>' +
     '<button type="button" class="btn" data-act="tkPrint" title="A pick list for the clipboard, grouped by area, with where to pull each line from">Print</button>' +
     (closed || !W ? "" : lines.some(l => uncovered(t, l) > 0) ? '<button type="button" class="btn" data-act="tkOrder" title="Puts every line that stock cannot cover, and no PO carries yet, on a draft purchase order">Order missing</button>'
       : '<span title="Every line is covered by stock or a PO"><button type="button" class="btn" disabled aria-describedby="omHint">Order missing</button><span class="sr" id="omHint">Every line is covered by stock or a PO</span></span>') +
@@ -2786,7 +2955,7 @@ function renderTicket() {
     (W && !closed ? '<button type="button" class="btn" data-act="tkClose" title="Asks what to do with anything left in the bay, then marks units out on this ticket installed">Close ticket</button>' : "") + "</div></div>" +
     '<dl class="meta"><div><dt>Client</dt><dd>' + esc(t.clientName || "None") + "</dd></div>" +
     "<div><dt>Job</dt><dd>" + esc(t.jobName || "None") + (job && job.address ? "<small>" + esc(job.address) + "</small>" : "") + "</dd></div>" +
-    "<div><dt>Proposal</dt><dd>" + (t.proposalId ? "#" + esc(t.proposalId) : "None") + "<small>" + (t.source === "manual" ? "Built by hand" : "Imported from CSV") + "</small></dd></div>" +
+    "<div><dt>Proposal</dt><dd>" + (t.proposalId ? "#" + esc(t.proposalId) : "None") + "<small>" + esc(tkSourceLabel(t)) + (t.reviewedAt && !t.needsReview ? ", reviewed by " + esc(t.reviewedByName || t.reviewedBy || "") : "") + "</small></dd></div>" +
     "<div><dt>Staging</dt><dd>" + (t.stagingLocationId ? esc(tkBay(t)) : "No bay yet") + "<small>" + (t.stagingLocationId ? "Reserved for this job" : "Pull from stock asks for one") + "</small></dd></div>" +
     "<div><dt>Install</dt><dd>" + (W && !closed ? '<label class="sr" for="tkInstall">Install date</label><input class="fld" type="date" id="tkInstall" data-install="' + esc(t.id) + '" value="' + esc(installDay(t)) + '" title="The day this job installs. It puts the ticket on that day in the Week view, sorts the Tickets list, and feeds the board\'s Today mode." style="max-width:200px">'
       : (t.installAt ? esc(fmtDate(t.installAt)) : '<span class="z">Not set</span>')) + "</dd></div>" +
@@ -3877,6 +4046,9 @@ function olCols(o) {
     { k: "ordered", label: "Ordered", r: true, sort: ol => num(ol.qtyOrdered), html: ol => '<span class="n">' + esc(olQty(ol, ol.qtyOrdered)) + "</span>" },
     { k: "shipped", label: "Shipped", r: true, def: false, sort: ol => num(ol.qtyShipped), html: ol => num(ol.qtyShipped) ? '<span class="n">' + esc(olQty(ol, ol.qtyShipped)) + "</span>" : '<span class="z">0</span>' },
     { k: "received", label: "Received", r: true, sort: ol => num(ol.qtyReceived), html: ol => num(ol.qtyReceived) ? '<span class="n">' + esc(olQty(ol, ol.qtyReceived)) + "</span>" : '<span class="z">0</span>' },
+    /* 0.5.1: the cost on the PO, fixed at Mark ordered; shown only with Show costs on */
+    ...(costOn() ? [{ k: "unitCost", label: "Unit cost", r: true, title: "Set at Mark ordered from the product's last cost. Spend and Delivered use it, so they do not move when the product's cost changes later.", sort: ol => ol.unitCost == null ? null : num(ol.unitCost),
+      html: ol => ol.unitCost != null && ol.unitCost !== "" ? '<span class="n">' + esc(money(ol.unitCost)) + "</span>" : o.status === "draft" && unitCost(ol.productId) != null ? '<span class="z" title="The product\'s last cost. It is fixed on the line at Mark ordered.">' + esc(money(unitCost(ol.productId))) + "</span>" : '<span class="z">Not set</span>' }] : []),
     { k: "status", label: "Status", sort: ol => olStatus(o, ol), html: ol => { const st = olStatus(o, ol), e = olExpected(o, ol), late = olLate(o, ol);
       return '<span class="st ' + (OL_PILL[st] || "") + '">' + esc(OL_LABEL[st] || st) + "</span>" + (st === "backordered" ? '<div class="pd">' + (ol.eta ? "Vendor says " + esc(fmtShort(ol.eta)) : "No ETA yet") + "</div>" : e && st !== "received" && st !== "draft" ? '<div class="pd' + (late ? " late" : "") + '">Expected ' + esc(fmtShort(e)) + (late ? ", " + daysLate(e) + " day" + (daysLate(e) === 1 ? "" : "s") + " late" : "") + "</div>" : ""); } },
     { k: "serves", label: "Serves", sort: ol => ol.ticketNumber || "", html: ol => ol.ticketId ? '<button type="button" class="textbtn" data-act="ticket" data-id="' + esc(ol.ticketId) + '">#' + esc(ol.ticketNumber || ol.ticketId) + "</button> " + esc(ol.ticketArea || "") : '<span class="z">Stock</span>' }
@@ -3892,16 +4064,21 @@ function olActions(o, ol) {
   return h;
 }
 function shipCardHTML(o, s) {
-  const W = isWriter(), open = shipOpen(s), dnr = s.status === "delivered" && open;
+  const W = isWriter(), open = shipOpen(s), client = shipSide(s, o) === "client", dnr = !client && s.status === "delivered" && open, last = shipLast(s);
   const goes = (s.lines || []).filter(e => num(e.qty) - num(e.qtyReceived) > 0).map(e => { const ol = orderLines(o.id).find(x => x.id === e.orderLineId); const t = ol && ol.ticketId ? S.tickets.get(ol.ticketId) : null; return t ? (t.stagingLocationId ? tkBay(t) + " for #" + t.number : "the bay for #" + t.number) : "stock"; });
-  const where = Array.from(new Set(goes));
-  return '<div class="ship' + (dnr ? " dnr" : "") + '"><div class="sh">' + carrierChip(s.carrier) + trackLink(s) + '<span class="st ' + (SHIP_PILL[s.status] || "") + '">' + esc(SHIP_LABEL[s.status] || s.status) + "</span></div>" +
+  const where = client ? ["the job site" + (shipAddress(s, o) ? " at " + shipAddress(s, o) : "")] : Array.from(new Set(goes));
+  const doneTxt = client && s.status === "delivered" ? "Delivered to the job site " + esc(fmtShort(s.deliveredAt)) + (s.deliveredByName ? ", marked by " + esc(s.deliveredByName) : "") + ". Staged on the ticket, not in stock." : "Received " + esc(fmtShort(s.receivedAt)) + (s.receivedByName ? " by " + esc(s.receivedByName) : "");
+  return '<div class="ship' + (dnr ? " dnr" : "") + '"><div class="sh">' + carrierChip(s.carrier) + trackLink(s) + '<span class="st ' + (SHIP_PILL[last.status] || "") + '" title="' + esc(fmtStamp(last.at)) + '">' + esc(SHIP_LABEL[last.status] || last.status) + "</span></div>" +
     "<dl><div><dt>Shipped</dt><dd class=\"n\">" + esc(fmtShort(s.shippedAt)) + "</dd></div>" +
     (s.status === "received" ? "<div><dt>Received</dt><dd class=\"n\">" + esc(fmtShort(s.receivedAt)) + "</dd></div>" : s.deliveredAt ? "<div><dt>Delivered</dt><dd class=\"n\">" + esc(fmtShort(s.deliveredAt)) + "</dd></div>" : "<div><dt>Expected</dt><dd class=\"n\">" + (s.expectedAt ? esc(fmtShort(s.expectedAt)) : '<span class="z">Not given</span>') + "</dd></div>") +
+    "<div><dt>Ships to</dt><dd>" + (client ? "Job site" : "Office") + "</dd></div>" +
     "<div><dt>Lines</dt><dd class=\"n\">" + (s.lines || []).length + "</dd></div></dl>" +
-    "<ul>" + (s.lines || []).map(e => { const ol = orderLines(o.id).find(x => x.id === e.orderLineId); return "<li>" + esc(ol ? olName(ol) : e.productName || "") + " x" + esc(ol ? olQty(ol, e.qty) : fmtN(e.qty)) + (num(e.qtyReceived) ? ", " + fmtN(e.qtyReceived) + " received" : "") + "</li>"; }).join("") + "</ul>" +
-    '<div class="sf">' + (W && open ? '<button type="button" class="btn acc" data-act="shipRecv" data-id="' + esc(s.id) + '" title="Walks each line: tap or scan the UPC, the quantity, then into the bay or onto the shelf">Receive</button><button type="button" class="btn" data-act="shipUpd" data-id="' + esc(s.id) + '" title="In transit, out for delivery, or delivered, and the expected date">Update</button>' : "") +
-    '<span class="hint">' + (open ? "Goes to " + esc(where.join(" and ")) + (dnr ? ". Delivered " + esc(fmtShort(s.deliveredAt)) + " and not received yet." : "") : "Received " + esc(fmtShort(s.receivedAt)) + (s.receivedByName ? " by " + esc(s.receivedByName) : "")) + "</span></div></div>";
+    "<ul>" + (s.lines || []).map(e => { const ol = orderLines(o.id).find(x => x.id === e.orderLineId); return "<li>" + esc(ol ? olName(ol) : e.productName || "") + " x" + esc(ol ? olQty(ol, e.qty) : fmtN(e.qty)) + (num(e.qtyReceived) ? ", " + fmtN(e.qtyReceived) + (client ? " delivered" : " received") : "") + "</li>"; }).join("") + "</ul>" +
+    (s.note ? '<div class="lnote" style="margin:0 0 10px">' + esc(s.note) + "</div>" : "") +
+    '<div class="sf">' + (W && open ? (client ? '<button type="button" class="btn acc" data-act="trDeliver" data-id="' + esc(s.id) + '" title="The box reached the job site. Its lines count as received on this PO and staged on the ticket; nothing goes into stock.">Mark delivered</button>'
+      : '<button type="button" class="btn acc" data-act="shipRecv" data-id="' + esc(s.id) + '" title="Walks each line: tap or scan the UPC, the quantity, then into the bay or onto the shelf">Receive</button>') +
+      '<button type="button" class="btn" data-act="shipUpd" data-id="' + esc(s.id) + '" title="In transit, out for delivery, or delivered, and the expected date. Each change is logged with the time.">Update</button>' : "") +
+    '<span class="hint">' + (open ? "Goes to " + esc(where.join(" and ")) + ". " + esc(SHIP_LABEL[last.status] || last.status) + " " + esc(fmtStamp(last.at)) + (dnr ? ", not received yet." : ".") : doneTxt) + "</span></div></div>";
 }
 function renderOrder() {
   const el = $("#v-order"), o = S.orders.get(S.orderId), W = isWriter();
@@ -3922,6 +4099,7 @@ function renderOrder() {
     '<dl class="meta"><div><dt>Vendor order</dt><dd class="mono">' + (o.orderNumber ? esc(o.orderNumber) : '<span class="z">Typed at Mark ordered</span>') + "</dd></div>" +
     "<div><dt>Ordered</dt><dd>" + (o.orderedAt ? esc(fmtDate(o.orderedAt)) + "<small>by " + esc(o.orderedByName || o.orderedBy || "") + "</small>" : '<span class="z">Not yet</span>') + "</dd></div>" +
     "<div><dt>For</dt><dd>" + esc(ordFor(o)) + "<small>" + (o.ticketId ? '<button type="button" class="textbtn" data-act="ticket" data-id="' + esc(o.ticketId) + '">Pick ticket #' + esc(o.ticketNumber || o.ticketId) + "</button>" : "Restock") + "</small></dd></div>" +
+    "<div><dt>Ships to</dt><dd>" + (draft ? '<span class="z">Picked at Mark ordered</span>' : o.shipTo === "client" ? "Job site<small>" + esc(o.shipToAddress || jobAddress(o) || "No address on the job") + "</small>" : "Office") + "</dd></div>" +
     "<div><dt>Received</dt><dd class=\"n\">" + fmtN(sm.qtyReceived) + " of " + fmtN(sm.qtyOrdered) + " units</dd></div>" +
     "<div><dt>Started</dt><dd>" + esc(fmtDate(o.createdAt)) + "<small>by " + esc(o.createdByName || o.createdBy || "") + "</small></dd></div>" +
     (o.status === "cancelled" ? "<div><dt>Cancelled</dt><dd>" + esc(fmtDate(o.cancelledAt)) + "<small>" + esc(o.cancelReason || "") + "</small></dd></div>" : "") + "</dl>";
@@ -4030,12 +4208,15 @@ function openNewVendor(done) {
   });
 }
 function openMarkOrdered(o) {
-  const body = '<p class="hint" style="margin-top:0">PO ' + esc(o.number) + ", " + ordSummary(o).lines + " lines for " + esc(ordFor(o)) + ". Saving stamps today's date and your name.</p>" +
+  const body = '<p class="hint" style="margin-top:0">PO ' + esc(o.number) + ", " + ordSummary(o).lines + (ordSummary(o).lines === 1 ? " line for " : " lines for ") + esc(ordFor(o)) + ". Saving stamps today's date and your name.</p>" +
     '<div class="grid2"><div><label class="lab" for="moVendor">Vendor</label><select class="fld" id="moVendor" data-decide>' + vendorOptions(o.vendor) + "</select></div>" +
     '<div><label class="lab" for="moNum" title="The order or confirmation number the vendor gave you. It is what you quote when you call them about it.">' + '<abbr>Vendor order number</abbr></label><input class="fld mono" id="moNum" value="' + esc(o.orderNumber || "") + '" placeholder="SO 4418873"></div></div>' +
+    shipToField(o) + costLinesHTML(o) +
     '<label class="lab" for="moNote">Note</label><input class="fld" id="moNote" placeholder="Optional, for example who you spoke to"><p class="err" id="moErr" hidden></p>';
-  const w = openModal("Mark PO " + o.number + " ordered", body, '<button type="button" class="btn" data-close>Cancel</button><button type="button" class="btn acc" data-ok>Mark ordered</button>');
-  wireGlow(w);
+  const w = openModal("Mark PO " + o.number + " ordered", body, '<button type="button" class="btn" data-close>Cancel</button><button type="button" class="btn acc" data-ok>Mark ordered</button>', { wide: costOn() && ordSummary(o).lines > 0 });
+  wireGlow(w); wireMoney(w);
+  const stSel = $("#moShip", w), stHint = $("#moShipHint", w);
+  if (stSel) stSel.addEventListener("change", () => { stHint.textContent = shipToHint(o, stSel.value); });
   const sel = $("#moVendor", w);
   sel.addEventListener("change", () => { if (sel.value === "__new") openNewVendor(v => { if (v) { if (!Array.from(sel.options).some(x => x.value === v)) sel.insertAdjacentHTML("afterbegin", "<option>" + esc(v) + "</option>"); sel.value = v; } else sel.value = o.vendor || ""; sel.dispatchEvent(new Event("change")); }); });
   w.querySelector("[data-ok]").addEventListener("click", async () => {
@@ -4043,9 +4224,42 @@ function openMarkOrdered(o) {
     if (!v) { e.textContent = "Pick the vendor."; e.hidden = false; return; }
     if (!n) { e.textContent = "Type the vendor's order number."; e.hidden = false; return; }
     if (!ordSummary(o).lines) { e.textContent = "This PO has no lines yet."; e.hidden = false; return; }
+    const costs = new Map();
+    for (const inp of $$("input[data-ucost]", w)) {
+      const raw = inp.value.replace(/[$,]/g, "").trim();
+      if (raw === "") { costs.set(inp.dataset.ucost, null); continue; }
+      const c = Number(raw);
+      if (!Number.isFinite(c) || c < 0) { e.textContent = "Unit costs are dollars, zero or more. Clear the field if there is no cost yet."; e.hidden = false; inp.focus(); return; }
+      costs.set(inp.dataset.ucost, Math.round(c * 100) / 100);
+    }
+    /* an unpicked ship-to means the office (PLAN 3: default Office) */
+    const shipTo = stSel && stSel.value === "client" ? "client" : "office";
     closeModal(w);
-    if (await doMarkOrdered(o, v, n, $("#moNote", w).value.trim() || null)) toast("PO " + o.number + " marked ordered");
+    if (await doMarkOrdered(o, v, n, $("#moNote", w).value.trim() || null, shipTo, costs)) toast("PO " + o.number + " marked ordered, shipping to " + (shipTo === "client" ? "the job site" : "the office"));
   });
+}
+/* Ship to on Mark ordered: a decision for a PO with a job (office or the
+   job's site), so the select glows until picked; a stock PO has no site. */
+function shipToField(o) {
+  const j = jobOf(o);
+  if (!j) return '<p class="hint" id="moShipHint">Ships to the office. A stock PO has no job site to drop-ship to.</p>';
+  return '<label class="lab" for="moShip" title="Office: it comes here, gets received, and goes into the bay or onto a shelf. Job site: the vendor drop-ships it to the client and Tracking shows it under the client.">' +
+    '<abbr>Ships to</abbr></label><select class="fld" id="moShip" data-decide><option value="">Choose: office or job site</option><option value="office">Office</option><option value="client">Job site, ' + esc(j.address || "no address on the job") + "</option></select>" +
+    '<p class="hint" id="moShipHint">' + esc(shipToHint(o, "")) + "</p>";
+}
+function shipToHint(o, v) {
+  const j = jobOf(o);
+  return v === "client" ? "Drop-shipped to " + (j && j.name ? j.name : "the job") + (j && j.address ? " at " + j.address : "") + ". Mark it delivered from Tracking when it arrives." : v === "office" ? "Comes to the office and is received into the bay for ticket #" + (o.ticketNumber || o.ticketId || "") + "." : "Left unpicked, it ships to the office.";
+}
+/* unit cost per line at Mark ordered, from the product's last cost; editable only with Show costs on */
+function costLinesHTML(o) {
+  if (!costOn()) return "";
+  const ls = orderLines(o.id); if (!ls.length) return "";
+  return '<h4 class="h4" style="margin-top:14px" title="Fixed on the PO line so Spend and Delivered keep this price when the product\'s cost changes later">Unit cost on this PO</h4><div class="olpick">' + ls.map(ol => {
+    const c = ol.unitCost != null && ol.unitCost !== "" ? num(ol.unitCost) : unitCost(ol.productId);
+    return '<div class="row"><span><span class="pn">' + esc(olName(ol)) + '</span> <span class="z">x' + esc(olQty(ol, ol.qtyOrdered)) + (c == null ? ", no last cost" : "") + "</span></span>" +
+      '<div><label class="sr" for="uc_' + esc(ol.id) + '">Unit cost of ' + esc(olName(ol)) + '</label><div class="money"><input class="fld n" id="uc_' + esc(ol.id) + '" data-ucost="' + esc(ol.id) + '" data-money inputmode="decimal" value="' + (c == null ? "" : c.toFixed(2)) + '" placeholder="0.00"></div></div></div>';
+  }).join("") + "</div>";
 }
 function openAddShipment(o) {
   const ls = orderLines(o.id).filter(ol => num(ol.qtyOrdered) - num(ol.qtyShipped) > 0 || olOpen(ol) > 0);
@@ -4055,7 +4269,11 @@ function openAddShipment(o) {
     '<div><label class="lab" for="shCar" title="Worked out from the tracking number. Change it if the guess is wrong.">' + "<abbr>Carrier</abbr></label><select class=\"fld\" id=\"shCar\">" + CARRIERS.map(c => '<option value="' + c + '"' + (c === "Other" ? " selected" : "") + ">" + c + "</option>").join("") + "</select></div></div>" +
     '<p class="hint" id="shDet">Type the tracking number and the carrier is picked for you.</p>' +
     '<div class="grid2"><div><label class="lab" for="shDate">Shipped</label><input class="fld" id="shDate" type="date" value="' + today + '"></div>' +
-    '<div><label class="lab" for="shExp" title="Optional. Tracking shows the line as late once this day passes.">' + '<abbr>Expected</abbr></label><input class="fld" id="shExp" type="date"></div></div>' +
+    '<div><label class="lab" for="shExp" title="Optional. Tracking shows the package as late, in amber, once this day passes.">' + '<abbr>Expected</abbr></label><input class="fld" id="shExp" type="date"></div></div>' +
+    (jobOf(o) ? '<label class="lab" for="shTo" title="Starts at what the PO says. Change it when the vendor split the order, for example one box to the office and one to the site.">' + "<abbr>Ships to</abbr></label>" +
+      '<select class="fld" id="shTo"><option value="office"' + (o.shipTo !== "client" ? " selected" : "") + ">Office</option><option value=\"client\"" + (o.shipTo === "client" ? " selected" : "") + ">Job site, " + esc(jobAddress(o) || "no address on the job") + "</option></select>" +
+      '<p class="hint" id="shToHint">' + (o.shipTo === "client" ? "Shows under the client on Tracking. Mark it delivered when it arrives; it is never received into stock." : "Shows on the office side of Tracking until it is received.") + "</p>"
+      : '<p class="hint">Ships to the office: a stock PO has no job site.</p>') +
     '<h4 class="h4" style="margin-top:14px">Lines on this shipment</h4><div class="olpick">' + ls.map(ol => { const left = Math.max(0, num(ol.qtyOrdered) - num(ol.qtyShipped)) || olOpen(ol);
       return '<div class="row"><label class="chk"><input type="checkbox" data-sh="' + esc(ol.id) + '"' + (num(ol.qtyOrdered) - num(ol.qtyShipped) > 0 ? " checked" : "") + "> <span>" + esc(olName(ol)) + ' <span class="z">' + esc(olQty(ol, num(ol.qtyShipped))) + " of " + esc(olQty(ol, ol.qtyOrdered)) + " shipped</span></span></label>" +
         '<div><label class="sr" for="shq_' + esc(ol.id) + '">Quantity of ' + esc(olName(ol)) + '</label><input class="fld n" id="shq_' + esc(ol.id) + '" type="number" min="1" step="any" value="' + left + '"></div></div>'; }).join("") + "</div>" +
@@ -4071,6 +4289,8 @@ function openAddShipment(o) {
   };
   $("#shTrk", w).addEventListener("input", det);
   $("#shCar", w).addEventListener("change", () => { touched = true; det(); });
+  const toSel = $("#shTo", w);
+  if (toSel) toSel.addEventListener("change", () => { $("#shToHint", w).textContent = toSel.value === "client" ? "Shows under the client on Tracking. Mark it delivered when it arrives; it is never received into stock." : "Shows on the office side of Tracking until it is received."; });
   w.querySelector("[data-ok]").addEventListener("click", async () => {
     const e = $("#shErr", w), trk = $("#shTrk", w).value.replace(/\s+/g, "").trim(), car = $("#shCar", w).value, picked = [];
     const fail = m => { e.textContent = m; e.hidden = false; };
@@ -4085,7 +4305,8 @@ function openAddShipment(o) {
     if (!picked.length) return fail("Add at least one line to this shipment.");
     const sd = $("#shDate", w).value, ed = $("#shExp", w).value;
     closeModal(w);
-    if (await doAddShipment(o, { carrier: car, tracking: trk, shippedAt: sd ? new Date(sd + "T12:00:00") : new Date(), expectedAt: ed ? new Date(ed + "T12:00:00") : null, lines: picked })) toast(car + " shipment added to PO " + o.number);
+    const to = toSel ? toSel.value : "office";
+    if (await doAddShipment(o, { carrier: car, tracking: trk, shippedAt: sd ? new Date(sd + "T12:00:00") : new Date(), logAt: dayAt(sd), expectedAt: ed ? new Date(ed + "T12:00:00") : null, shipTo: to, lines: picked })) toast(car + " shipment added to PO " + o.number + ", to " + (to === "client" ? "the job site" : "the office"));
   });
   setTimeout(() => $("#shTrk", w).focus(), 30);
 }
@@ -4100,7 +4321,9 @@ function openShipUpdate(s) {
   w.querySelector("[data-ok]").addEventListener("click", async () => {
     const st = $("#suSt", w).value, ex = $("#suExp", w).value, dl = $("#suDel", w).value;
     closeModal(w);
-    if (await doShipmentStatus(s, st, ex ? new Date(ex + "T12:00:00") : null, dl ? new Date(dl + "T12:00:00") : null)) toast("Shipment marked " + SHIP_LABEL[st].toLowerCase());
+    /* a package to a job site that is delivered is done: same path as Mark delivered on Tracking */
+    if (st === "delivered" && shipSide(s) === "client" && shipOpen(s)) { if (await doMarkDelivered(s, dayAt(dl), "Typed by hand")) toast("Delivered to the job site, staged on the ticket"); return; }
+    if (await doShipmentStatus(s, st, ex ? new Date(ex + "T12:00:00") : null, dl ? dayAt(dl) : null)) toast("Shipment marked " + SHIP_LABEL[st].toLowerCase());
   });
 }
 function openBackorder(o, ol) {
@@ -4181,75 +4404,163 @@ function openReceiveShipment(s, focusLineId) {
   });
 }
 
-/* ---------------- Tracking ---------------- */
-function trackRows() {
-  const rows = [];
+/* ---------------- Tracking (0.5.1, PLAN 4) ----------------
+   Split down the middle, history along the bottom (user, 2026-11-02).
+   Left: packages coming to the office. Right: packages drop-shipped to a
+   client's site, grouped by client and job. Bottom: Recently delivered, the
+   last 30 days of packages received (office) or delivered (site). One card
+   per shipment, plus one per PO for lines no shipment carries yet, so a
+   backorder still answers "where is it". */
+const TR_STATUS = ["delivered", "out_for_delivery", "shipped", "backordered", "ordered", "received"];
+const TR_LABEL = { ordered: "Ordered", backordered: "Backordered", shipped: "In transit", out_for_delivery: "Out for delivery", delivered: "Delivered", received: "Received" };
+const TR_PILL = { ordered: "", backordered: "warn", shipped: "info", out_for_delivery: "info", delivered: "warn", received: "ok" };
+const TR_RANK = s => ["delivered", "out_for_delivery", "shipped", "backordered", "ordered"].indexOf(s);
+function pkgWho(o) { return o.ticketId ? [o.clientName, o.jobName].filter(Boolean).join(", ") || "Ticket #" + (o.ticketNumber || o.ticketId) : "Stock"; }
+function trackPkgs() {
+  const out = [], today = isoDay(new Date());
+  S.shipments.forEach(s => {
+    const o = S.orders.get(s.orderId); if (!o || o.status === "cancelled") return;
+    const side = shipSide(s, o), last = shipLast(s), st = last.status, done = !shipOpen(s) || st === "received";
+    const lines = (s.lines || []).map(e => { const ol = orderLines(o.id).find(x => x.id === e.orderLineId); return { name: ol ? olName(ol) : e.productName || "Unnamed line", qty: ol ? olQty(ol, e.qty) : fmtN(e.qty) }; });
+    const exp = toDate(s.expectedAt);
+    out.push({ id: s.id, kind: "ship", s, o, side, st: done && side === "client" && st !== "received" ? "delivered" : st, at: last.at, last, lines, exp,
+      late: !done && !!exp && st !== "delivered" && st !== "received" && isoDay(exp) < today,
+      dnr: side === "office" && !done && st === "delivered", done,
+      doneAt: done ? (side === "client" ? s.deliveredAt || last.at : s.receivedAt || last.at) : null,
+      doneBy: side === "client" ? s.deliveredByName || last.byName || "" : s.receivedByName || "",
+      who: pkgWho(o), carrier: s.carrier || "Other", vendor: o.vendor || "", addr: side === "client" ? shipAddress(s, o) : "", note: s.note || "" });
+  });
   S.orders.forEach(o => {
     if (o.status !== "ordered" && o.status !== "partial") return;
-    orderLines(o.id).forEach(ol => {
-      if (olOpen(ol) <= 0) return;
-      const st = olStatus(o, ol); if (st === "received" || st === "draft") return;
-      const s = olShipment(o, ol), t = ol.ticketId ? S.tickets.get(ol.ticketId) : null;
-      const job = ol.ticketId ? (t ? tkWho(t) : [ol.clientName, ol.jobName].filter(Boolean).join(", ")) || "Ticket #" + (ol.ticketNumber || ol.ticketId) : "Stock";
-      rows.push({ id: o.id + "/" + ol.id, o, ol, st, s, t, group: job, exp: olExpected(o, ol), late: olLate(o, ol), days: daysSince(o.orderedAt), dnr: st === "delivered" });
-    });
+    const ls = orderLines(o.id).filter(ol => olOpen(ol) > 0 && num(ol.qtyOrdered) - num(ol.qtyShipped) > 0);
+    if (!ls.length) return;
+    const back = ls.filter(ol => ol.status === "backordered"), etas = back.map(ol => toDate(ol.eta)).filter(Boolean).sort((a, b) => a - b), exp = etas[0] || null;
+    const side = o.shipTo === "client" && jobOf(o) ? "client" : "office";
+    out.push({ id: "po-" + o.id, kind: "po", s: null, o, side, st: back.length ? "backordered" : "ordered",
+      at: back.length ? back.map(ol => toDate(ol.updatedAt)).filter(Boolean).sort((a, b) => b - a)[0] || o.orderedAt : o.orderedAt,
+      lines: ls.map(ol => ({ name: olName(ol), qty: olQty(ol, num(ol.qtyOrdered) - num(ol.qtyShipped)) })), exp, late: !!exp && isoDay(exp) < today, dnr: false, done: false,
+      who: pkgWho(o), carrier: "", vendor: o.vendor || "", addr: side === "client" ? o.shipToAddress || jobAddress(o) : "", note: o.notes || "" });
   });
-  return rows;
+  return out;
 }
-function trackCols() {
-  return [
-    { k: "product", label: "Product", sort: r => olName(r.ol).toLowerCase(), html: r => '<div class="pn">' + esc(olName(r.ol)) + '</div><div class="pd">' + (r.ol.ticketId ? '<button type="button" class="textbtn" data-act="ticket" data-id="' + esc(r.ol.ticketId) + '">#' + esc(r.ol.ticketNumber || r.ol.ticketId) + "</button> " + esc(r.ol.ticketArea || "") : "Restock") + "</div>" + (r.ol.note ? '<div class="lnote">' + esc(r.ol.note) + "</div>" : "") },
-    { k: "qty", label: "Qty", r: true, title: "Still to receive", sort: r => olOpen(r.ol), html: r => '<span class="n">' + esc(olQty(r.ol, olOpen(r.ol))) + "</span>" },
-    { k: "vendor", label: "Vendor", text: r => r.o.vendor || "" },
-    { k: "po", label: "PO", cls: "nw", sort: r => num(r.o.number), html: r => '<button type="button" class="textbtn" data-act="order" data-id="' + esc(r.o.id) + '">' + esc(r.o.number) + "</button>" },
-    { k: "ordered", label: "Ordered", cls: "nw", sort: r => toDate(r.o.orderedAt), text: r => fmtShort(r.o.orderedAt) },
-    { k: "status", label: "Status", sort: r => ["delivered", "out_for_delivery", "shipped", "backordered", "ordered"].indexOf(r.st), html: r => '<span class="st ' + (OL_PILL[r.st] || "") + '">' + esc(OL_LABEL[r.st] || r.st) + "</span>" },
-    { k: "carrier", label: "Carrier", cls: "nw", sort: r => r.s ? r.s.carrier : "", html: r => r.s ? carrierChip(r.s.carrier) : '<span class="z">-</span>' },
-    { k: "tracking", label: "Tracking", cls: "nw", sort: r => r.s ? r.s.tracking : "", html: r => r.s ? trackLink(r.s, true) : '<span class="z">No shipment yet</span>' },
-    { k: "expected", label: "Expected", sort: r => r.exp, html: r => r.dnr ? '<span style="color:var(--m-warn-text);font-weight:600">Delivered ' + esc(fmtShort(r.s && r.s.deliveredAt)) + "</span>" : r.exp ? (r.late ? '<span class="late">Expected ' + esc(fmtShort(r.exp)) + ", " + daysLate(r.exp) + " day" + (daysLate(r.exp) === 1 ? "" : "s") + " late</span>" : esc(fmtShort(r.exp)) + (r.st === "backordered" ? '<div class="pd">Vendor ETA</div>' : "")) : '<span class="z">' + (r.st === "backordered" ? "No ETA" : "Not given") + "</span>" },
-    { k: "days", label: "Days open", r: true, sort: r => r.days, text: r => r.days == null ? "" : String(r.days) }
-  ];
-}
-function trMatches(r) {
+function trMatches(p) {
   const f = S.trFilter;
-  if (f.job && r.group !== f.job) return false;
-  if (f.vendor && r.o.vendor !== f.vendor) return false;
-  if (f.carrier && (!r.s || r.s.carrier !== f.carrier)) return false;
-  if (f.status && r.st !== f.status) return false;
-  if (f.late && !r.late) return false;
+  if (f.job && p.who !== f.job) return false;
+  if (f.vendor && p.vendor !== f.vendor) return false;
+  if (f.carrier && p.carrier !== f.carrier) return false;
+  if (f.status && p.st !== f.status) return false;
+  if (f.late && !p.late) return false;
   return true;
 }
+const trFiltered = () => { const f = S.trFilter; return !!(f.job || f.vendor || f.carrier || f.status || f.late); };
+const plDays = n => n + " day" + (n === 1 ? "" : "s");
+/* "3 lines" with the list in a tooltip; one or two lines read in full */
+function pkgWhat(p) {
+  if (!p.lines.length) return '<span class="z">No lines</span>';
+  if (p.lines.length > 2) { const all = p.lines.map(x => x.name + " x" + x.qty).join("; "); return '<span class="tipd" title="' + esc(all) + '">' + p.lines.length + ' lines</span><span class="sr">: ' + esc(all) + "</span>"; }
+  return p.lines.map(x => esc(x.name) + ' <span class="z">x' + esc(x.qty) + "</span>").join("<br>");
+}
+function pkgCard(p) {
+  const W = isWriter(), o = p.o, s = p.s, open = !p.done;
+  let h = '<article class="pkg' + (p.dnr ? " dnr" : "") + '" aria-label="' + esc((s ? (s.carrier || "Other") + " package " + (s.tracking || "") : "PO " + o.number + ", not shipped yet") + ", " + TR_LABEL[p.st]) + '"><div class="ph">' +
+    (s ? carrierChip(s.carrier) + trackLink(s) : '<span class="z">No tracking number yet</span>') +
+    '<span class="stw"><span class="st ' + (TR_PILL[p.st] || "") + '">' + esc(p.st === "ordered" ? "Ordered" : TR_LABEL[p.st] || p.st) + "</span>" + (p.at ? '<span class="when">' + esc(fmtStamp(p.at)) + "</span>" : "") + "</span></div>";
+  if (p.dnr) h += '<p class="lateA">Not received yet' + (daysSince(s.deliveredAt || p.at) ? ", " + plDays(daysSince(s.deliveredAt || p.at)) + " since delivery" : "") + ". Find the box and press Receive.</p>";
+  else if (p.late) h += '<p class="lateA">Expected ' + esc(fmtMD(p.exp)) + ", " + plDays(daysLate(p.exp)) + " late</p>";
+  else if (p.exp && open) h += '<p class="pexp">' + (p.kind === "po" ? "Vendor ETA " : "Expected ") + esc(fmtMD(p.exp)) + "</p>";
+  else if (p.kind === "po" && p.st === "backordered") h += '<p class="pexp">No ETA from the vendor yet</p>';
+  h += '<div class="what">' + pkgWhat(p) + "</div>" +
+    '<dl><div><dt>PO</dt><dd><button type="button" class="textbtn" data-act="order" data-id="' + esc(o.id) + '" title="Opens PO ' + esc(o.number) + '">PO ' + esc(o.number) + "</button>" + (p.vendor ? '<small>' + esc(p.vendor) + "</small>" : "") + "</dd></div>" +
+    "<div><dt>For</dt><dd>" + (p.side === "client" ? (o.ticketId ? '<button type="button" class="textbtn" data-act="ticket" data-id="' + esc(o.ticketId) + '">Ticket #' + esc(o.ticketNumber || o.ticketId) + "</button>" : esc(p.who)) + (p.addr ? "<small>" + esc(p.addr) + "</small>" : "")
+      : esc(p.who) + (o.ticketId ? '<small>Into the bay for #' + esc(o.ticketNumber || o.ticketId) + "</small>" : "<small>Onto a shelf</small>")) + "</dd></div></dl>" +
+    (p.note ? '<div class="lnote">' + esc(p.note) + "</div>" : "");
+  if (W && open) {
+    let b = "";
+    if (p.kind === "ship" && p.side === "office") b += '<button type="button" class="btn' + (p.dnr ? " acc" : "") + '" data-act="trRecv" data-id="' + esc(s.id) + '" title="Walks each line: scan or tap, the quantity, then into the bay or onto the shelf">Receive</button>';
+    if (p.kind === "ship" && p.side === "client") b += '<button type="button" class="btn" data-act="trDeliver" data-id="' + esc(s.id) + '" title="The box reached the job site. Its lines count as received on the PO and staged on the ticket; nothing goes into stock.">Mark delivered</button>';
+    if (p.kind === "po" && (o.status === "ordered" || o.status === "partial")) b += '<button type="button" class="btn" data-act="trShip" data-id="' + esc(o.id) + '" title="The vendor sent tracking: add it and the lines it carries">Add shipment</button>';
+    b += '<button type="button" class="btn" data-act="trNote" data-kind="' + p.kind + '" data-id="' + esc(s ? s.id : o.id) + '" title="Shows on this card and on the PO, for example: left at the front desk">Note</button>';
+    h += '<div class="pf">' + b + "</div>";
+  }
+  return h + "</article>";
+}
+function trColHTML(side, list, any) {
+  const n = list.length, id = "trh_" + side;
+  let h = '<section class="trcol" aria-labelledby="' + id + '"><h3 class="trh" id="' + id + '">' + (side === "office" ? "Office" : "To clients") + ", " + n + " package" + (n === 1 ? "" : "s") + "</h3>";
+  if (!n) return h + '<p class="trempty">' + (any && trFiltered() ? "No packages here match these filters." : side === "office" ? "No packages to the office" : "No packages going to clients") + "</p></section>";
+  const ord = (a, b) => b.dnr - a.dnr || b.late - a.late || TR_RANK(a.st) - TR_RANK(b.st) || (toDate(a.exp) || 8.64e15) - (toDate(b.exp) || 8.64e15) || (toDate(b.at) || 0) - (toDate(a.at) || 0);
+  if (side === "office") return h + '<div class="pkgs">' + list.slice().sort(ord).map(pkgCard).join("") + "</div></section>";
+  const g = new Map();
+  list.forEach(p => { if (!g.has(p.who)) g.set(p.who, []); g.get(p.who).push(p); });
+  const keys = Array.from(g.keys()).sort((a, b) => g.get(b).some(p => p.late) - g.get(a).some(p => p.late) || a.localeCompare(b));
+  return h + keys.map(k => { const ps = g.get(k).sort(ord), addr = (ps.find(p => p.addr) || {}).addr;
+    return '<div class="trgrp"><h4 class="trgh">' + esc(k) + " <span>" + ps.length + " package" + (ps.length === 1 ? "" : "s") + "</span>" + (addr ? "<small>" + esc(addr) + "</small>" : "") + '</h4><div class="pkgs">' + ps.map(pkgCard).join("") + "</div></div>"; }).join("") + "</section>";
+}
+function trHistCols() {
+  return [
+    { k: "when", label: "Delivered", cls: "nw", sort: p => toDate(p.doneAt), text: p => fmtStamp(p.doneAt) },
+    { k: "status", label: "Status", sort: p => p.side, html: p => p.side === "client" ? '<span class="st ok">Delivered to site</span>' : '<span class="st ok">Received</span>' },
+    { k: "carrier", label: "Carrier", sort: p => p.carrier, html: p => carrierChip(p.carrier) },
+    { k: "tracking", label: "Tracking", sort: p => p.s.tracking || "", html: p => trackLink(p.s, true) },
+    { k: "what", label: "Contents", sort: p => p.lines.length, html: pkgWhat },
+    { k: "po", label: "PO", cls: "nw", sort: p => num(p.o.number), html: p => '<button type="button" class="textbtn" data-act="order" data-id="' + esc(p.o.id) + '">PO ' + esc(p.o.number) + "</button>" },
+    { k: "vendor", label: "Vendor", text: p => p.vendor },
+    { k: "for", label: "For", text: p => p.who + (p.side === "client" && p.addr ? ", " + p.addr : "") },
+    { k: "by", label: "By", def: false, text: p => p.doneBy },
+    { k: "where", label: "Ships to", def: false, text: p => p.side === "client" ? "Job site" : "Office" }
+  ];
+}
 function renderTracking() {
-  const el = $("#v-tracking"), f = S.trFilter, W = isWriter();
-  const all = trackRows(), groups = Array.from(new Set(all.map(r => r.group))).sort((a, b) => (a === "Stock") - (b === "Stock") || a.localeCompare(b));
-  const vendors = Array.from(new Set(all.map(r => r.o.vendor).filter(Boolean))).sort();
-  const dnr = all.filter(r => r.dnr).length, late = all.filter(r => r.late).length;
-  let h = '<div class="mcard"><div class="thead"><h2 class="vt">Tracking</h2><span class="sp"><button type="button" class="btn sm" data-act="columns" data-tbl="tracking">Columns</button><button type="button" class="btn sm" data-act="go" data-view="orders">Orders</button></span></div>' +
-    '<p class="hint" style="margin:0 0 10px">Everything on order that has not been received, so nobody opens a PO to answer "where is it". Delivered but not received rises to the top in amber: that is a box sitting somewhere unscanned.</p>' +
-    '<div class="filters"><div><label class="lab" for="trJob">Job</label><select class="fld" id="trJob" data-tr="job"><option value="">Every job and stock</option>' + groups.map(g => "<option" + (f.job === g ? " selected" : "") + ">" + esc(g) + "</option>").join("") + "</select></div>" +
+  const el = $("#v-tracking"), f = S.trFilter;
+  let h = '<div class="mcard"><div class="thead"><h2 class="vt">Tracking</h2><span class="sp"><button type="button" class="btn sm" data-act="go" data-view="orders">Orders</button></span></div>' +
+    '<p class="hint" style="margin:0 0 10px">Packages coming to the office on the left, packages going straight to a client\'s site on the right. Delivered and not received floats to the top of the office side in amber: that is a box in the building nobody scanned.</p>';
+  if (S.errors.orders || S.errors.shipments || S.errors.olines) { el.innerHTML = h + errorBox("what is on order", "orders") + "</div>"; return; }
+  if (!S.loaded.orders || !S.loaded.shipments) { el.innerHTML = h + skelTable([{ label: "Package" }, { label: "Status" }, { label: "For" }], "Loading what is on order") + "</div>"; return; }
+  const all = trackPkgs(), since = Date.now() - 30 * 86400000;
+  const live = all.filter(p => !p.done), hist = all.filter(p => p.done && toDate(p.doneAt) && toDate(p.doneAt).getTime() >= since);
+  const whos = Array.from(new Set(live.concat(hist).map(p => p.who))).sort((a, b) => (a === "Stock") - (b === "Stock") || a.localeCompare(b));
+  const vendors = Array.from(new Set(live.concat(hist).map(p => p.vendor).filter(Boolean))).sort();
+  h += '<div class="filters"><div><label class="lab" for="trJob">Client and job</label><select class="fld" id="trJob" data-tr="job"><option value="">Every job and stock</option>' + whos.map(g => "<option" + (f.job === g ? " selected" : "") + ">" + esc(g) + "</option>").join("") + "</select></div>" +
     '<div><label class="lab" for="trVendor">Vendor</label><select class="fld" id="trVendor" data-tr="vendor"><option value="">Every vendor</option>' + vendors.map(v => "<option" + (f.vendor === v ? " selected" : "") + ">" + esc(v) + "</option>").join("") + "</select></div>" +
     '<div><label class="lab" for="trCarrier">Carrier</label><select class="fld" id="trCarrier" data-tr="carrier"><option value="">Every carrier</option>' + CARRIERS.map(c => "<option" + (f.carrier === c ? " selected" : "") + ">" + c + "</option>").join("") + "</select></div>" +
-    '<div><label class="lab" for="trStatus">Status</label><select class="fld" id="trStatus" data-tr="status"><option value="">Every status</option>' + ["ordered", "backordered", "shipped", "out_for_delivery", "delivered"].map(k => '<option value="' + k + '"' + (f.status === k ? " selected" : "") + ">" + esc(OL_LABEL[k]) + "</option>").join("") + "</select></div>" +
-    '<label class="chk" title="Past the shipment\'s expected date, or the vendor\'s ETA on a backorder, and not delivered"><input type="checkbox" id="trLate" data-tr="late"' + (f.late ? " checked" : "") + "> Late only</label></div>";
-  if (S.errors.orders || S.errors.shipments || S.errors.olines) h += errorBox("what is on order", "orders");
-  else if (!S.loaded.orders || !S.loaded.shipments) h += skelTable(trackCols(), "Loading what is on order");
-  else if (!all.length) h += '<div class="empty"><p>Nothing in transit. Lines you order from a ticket or the low-stock list show here until they are received.</p><button type="button" class="btn" data-act="go" data-view="orders">Open Orders</button></div>';
+    '<div><label class="lab" for="trStatus">Status</label><select class="fld" id="trStatus" data-tr="status"><option value="">Every status</option>' + TR_STATUS.map(k => '<option value="' + k + '"' + (f.status === k ? " selected" : "") + ">" + esc(TR_LABEL[k]) + "</option>").join("") + "</select></div>" +
+    '<label class="chk" title="Past the shipment\'s expected date, or the vendor\'s ETA on a backorder, and not delivered"><input type="checkbox" id="trLate" data-tr="late"' + (f.late ? " checked" : "") + "> Late only</label></div>" +
+    (trFiltered() ? '<p class="hint" style="margin:-4px 0 12px"><button type="button" class="textbtn" data-act="trClear">Clear filters</button></p>' : "");
+  if (!live.length) h += '<div class="empty"><p>Nothing in transit. Lines you order from a ticket or the low-stock list show here until they are received.</p><button type="button" class="btn" data-act="go" data-view="orders">Open Orders</button></div>';
   else {
-    const list = all.filter(trMatches);
-    h += '<div class="strip" style="margin-bottom:12px">' + sv("On order", all.length, "lines not received") + svw("Delivered, not received", dnr, "find and scan these") + svw("Late", late, "past the expected date") + "</div>";
-    if (!list.length) h += '<div class="empty"><p>No lines match these filters.</p><button type="button" class="textbtn" data-act="trClear">Clear filters</button></div>';
-    else {
-      const order = groups.slice().sort((a, b) => (list.some(r => r.group === b && r.dnr) - list.some(r => r.group === a && r.dnr)) || (a === "Stock") - (b === "Stock") || a.localeCompare(b));
-      h += tableHTML("tracking", trackCols(), list, {
-        defaultSort: (a, b) => b.dnr - a.dnr || b.late - a.late || num(b.days) - num(a.days),
-        group: { key: r => r.group, order, label: (k, rows) => esc(k) + "<span>" + rows.length + " line" + (rows.length > 1 ? "s" : "") + (rows.some(r => r.dnr) ? ", delivered and not received" : "") + "</span>" },
-        rowClass: r => r.dnr ? "need" : "",
-        actions: W ? r => (r.s && shipOpen(r.s) ? '<button type="button" class="btn sm' + (r.dnr ? " acc" : "") + '" data-act="trRecv" data-id="' + esc(r.s.id) + '" data-line="' + esc(r.ol.id) + '">Receive</button>' : '<span title="No shipment carries this line yet. Add one on the PO."><button type="button" class="btn sm" disabled>Receive</button></span>') +
-          '<button type="button" class="btn sm" data-act="trNote" data-id="' + esc(r.o.id) + '" data-line="' + esc(r.ol.id) + '">Note</button>' : null
-      }) + '<p class="hint">' + list.length + " of " + all.length + " lines. Grouped by job, then stock.</p>";
-    }
+    const vis = live.filter(trMatches);
+    h += '<div class="trsplit">' + trColHTML("office", vis.filter(p => p.side === "office"), live.some(p => p.side === "office")) + trColHTML("client", vis.filter(p => p.side === "client"), live.some(p => p.side === "client")) + "</div>";
   }
-  el.innerHTML = h + "</div>";
+  h += "</div>";
+  const hv = hist.filter(trMatches);
+  h += '<div class="mcard"><div class="thead"><h3 class="trh" style="margin:0">Recently delivered, ' + hv.length + " package" + (hv.length === 1 ? "" : "s") + "</h3>" + (hv.length ? '<span class="sp"><button type="button" class="btn sm" data-act="columns" data-tbl="trackHist">Columns</button></span>' : "") + "</div>" +
+    (!hv.length ? '<div class="empty"><p>' + (hist.length && trFiltered() ? "Nothing delivered in the last 30 days matches these filters." : "Nothing delivered in the last 30 days.") + "</p></div>"
+      : tableHTML("trackHist", trHistCols(), hv, { defaultSort: (a, b) => (toDate(b.doneAt) || 0) - (toDate(a.doneAt) || 0) }) + '<p class="hint">Received at the office or delivered to a job site in the last 30 days, newest first.</p>') + "</div>";
+  el.innerHTML = h;
+}
+/* Mark delivered on a package to a job site: when, and an optional note */
+function openMarkDelivered(s) {
+  const o = S.orders.get(s.orderId); if (!o) return;
+  const now = new Date(), v = isoDay(now) + "T" + pad(now.getHours()) + ":" + pad(now.getMinutes()), addr = shipAddress(s, o);
+  const body = '<p class="hint" style="margin-top:0">' + carrierChip(s.carrier) + " " + esc(s.tracking || "") + ", PO " + esc(o.number) + " for " + esc(pkgWho(o)) + (addr ? ", " + esc(addr) : "") + ".</p>" +
+    "<p>Its lines count as received on the PO" + (o.ticketId ? " and staged on ticket #" + esc(o.ticketNumber || o.ticketId) : "") + ". Nothing goes into stock: the box is at the site, not in the building.</p>" +
+    '<label class="lab" for="mdAt" title="When it reached the site. The card and the shipment\'s status log show this time.">' + '<abbr>Delivered at</abbr></label><input class="fld" id="mdAt" type="datetime-local" value="' + v + '">' +
+    '<label class="lab" for="mdNote">Note</label><input class="fld" id="mdNote" placeholder="Optional, for example who signed for it"><p class="err" id="mdErr" hidden></p>';
+  const w = openModal("Mark delivered", body, '<button type="button" class="btn" data-close>Cancel</button><button type="button" class="btn acc" data-ok>Mark delivered</button>');
+  w.querySelector("[data-ok]").addEventListener("click", async () => {
+    const raw = $("#mdAt", w).value, at = raw ? new Date(raw) : new Date(), e = $("#mdErr", w);
+    if (isNaN(at)) { e.textContent = "Type the date and time it arrived."; e.hidden = false; return; }
+    if (at.getTime() > Date.now() + 5 * 60000) { e.textContent = "That time is still ahead. Use when it actually arrived."; e.hidden = false; return; }
+    closeModal(w);
+    if (await doMarkDelivered(s, at, $("#mdNote", w).value.trim() || null)) toast("Delivered to the job site" + (o.ticketId ? ", staged on ticket #" + (o.ticketNumber || o.ticketId) : ""));
+  });
+}
+function openPkgNote(kind, id) {
+  const s = kind === "ship" ? S.shipments.get(id) : null, o = kind === "po" ? S.orders.get(id) : null;
+  if (!s && !o) return;
+  const w = openModal("Note on " + (s ? (s.carrier || "Other") + " " + (s.tracking || "") : "PO " + o.number), '<label class="lab" for="pkNote">Note</label><textarea class="fld" id="pkNote" placeholder="Shows on the package card in Tracking and on the PO, for example: left at the front desk">' + esc((s ? s.note : o.notes) || "") + "</textarea>",
+    '<button type="button" class="btn" data-close>Cancel</button><button type="button" class="btn acc" data-ok>Save note</button>');
+  w.querySelector("[data-ok]").addEventListener("click", async () => { const v = $("#pkNote", w).value.trim(); closeModal(w); if (await (s ? doShipNote(s, v) : doPoNote(o, v))) toast("Note saved"); });
 }
 
 /* ==============================================================
@@ -5639,7 +5950,8 @@ const DATA_DICTIONARY = [
     ["status", "Accepted, Completed, and so on"], ["importedAt", "When imported"], ["importSource", "csv, zapier, api, or manual"], ["portalId", "Portal's internal id when known"]] },
   { coll: "loadout_tickets", id: "proposal number, or {number}-co2 for a change order", about: "Pick tickets: an accepted proposal turned into a list to pull, stage, and deliver.", fields: [
     ["number", "Ticket number (the proposal number)"], ["proposalId", "Proposal"], ["jobId", "Job"], ["jobName", "Its name"], ["clientId", "Client"], ["clientName", "Its name"],
-    ["status", "open, picking, staged, delivered, or closed"], ["stagingLocationId", "Bay it is laid out in"], ["stagingLocationName", "Its name"], ["source", "csv or manual"],
+    ["status", "open, picking, staged, delivered, or closed"], ["stagingLocationId", "Bay it is laid out in"], ["stagingLocationName", "Its name"], ["source", "csv, manual, or zapier (made by loadout-worker from Portal)"],
+    ["needsReview", "true while a ticket Zapier made or changed waits for a person to check it"], ["reviewedAt, reviewedBy, reviewedByName", "Who cleared the review flag, and when"],
     ["installAt", "Install day (the Week view)"], ["summary.lines, .needed, .fromStock, .toOrder, .staged, .delivered", "Line counts, rewritten with each line change"],
     ["createdBy", "Email of whoever made it"], ["createdByName", "Their name"], ["closedAt", "When closed"], ["closedBy", "Email of whoever closed it"], ["closedByName", "Their name"], ["closeNote", "Note at close"]].concat(DD_WHO) },
   { coll: "loadout_tickets/{ticketId}/lines", id: "area plus brand and model slug", about: "One line on a pick ticket.", fields: [
@@ -5651,17 +5963,22 @@ const DATA_DICTIONARY = [
   { coll: "loadout_orders", id: "PO number, from 7701 up", about: "Purchase orders.", fields: [
     ["number", "PO number"], ["vendor", "Vendor"], ["orderNumber", "The vendor's order number"], ["status", "draft, ordered, partial, received, or cancelled"],
     ["orderedAt", "When marked ordered (Spend uses this date)"], ["orderedBy", "Email of whoever marked it"], ["orderedByName", "Their name"],
-    ["ticketId, ticketNumber", "Ticket it serves, null for stock"], ["jobId, jobName", "Job"], ["clientId, clientName", "Client"], ["proposalId", "Proposal"], ["notes", "Free text"],
+    ["ticketId, ticketNumber", "Ticket it serves, null for stock"], ["jobId, jobName", "Job"], ["clientId, clientName", "Client"], ["proposalId", "Proposal"], ["notes", "Free text; the Note on its not-yet-shipped card in Tracking"],
+    ["shipTo", "office or client (drop-shipped to the job's site), set at Mark ordered"], ["shipToAddress", "The job's address when shipTo is client"],
     ["summary.lines, .qtyOrdered, .qtyReceived", "Line totals"], ["receivedAt", "When the last line came in"],
     ["cancelledAt, cancelledBy, cancelledByName, cancelReason", "Cancellation, when cancelled"], ["createdBy", "Email of whoever started it"], ["createdByName", "Their name"]].concat(DD_WHO) },
   { coll: "loadout_orders/{orderId}/lines", id: "{ticketId}--{lineId}, or stock--{productId}", about: "One line on a purchase order.", fields: [
     ["productId", "Product"], ["productName", "Its name"], ["brand, model", "As ordered"], ["unit", "each or ft"], ["qtyOrdered", "On the PO"], ["qtyShipped", "On shipments so far"], ["qtyReceived", "Scanned or tapped in"],
     ["status", "draft, ordered, backordered, shipped, delivered, or received"], ["eta", "Vendor's date on a backorder"],
+    ["unitCost", "Cost per unit, fixed at Mark ordered from the product's last cost; Spend and Delivered use it"],
     ["ticketId, ticketNumber, ticketLineId, ticketArea", "The ticket line it serves"], ["jobName, clientName", "Job and client"], ["note", "Line note"], ["sort", "Order on the PO"], ["receivedAt", "When fully received"]].concat(DD_WHO) },
   { coll: "loadout_shipments", id: "random", about: "A box on its way: some or all of a PO's lines.", fields: [
     ["orderId, orderNumber", "The PO"], ["vendor", "Vendor"], ["carrier", "UPS, FedEx, USPS, or Other"], ["tracking", "Tracking number"], ["trackingUrl", "Tracking page"],
     ["status", "shipped, out_for_delivery, delivered, or received"], ["shippedAt, expectedAt, deliveredAt, receivedAt", "The dates"], ["receivedBy, receivedByName", "Who received it"],
-    ["lines", "Order lines on it: orderLineId, productName, qty, qtyReceived"], ["ticketId, ticketNumber, jobName, clientName", "What it serves"],
+    ["shipTo", "office or client, from the PO unless changed on Add shipment"], ["shipToAddress", "The job's address when shipTo is client"],
+    ["statusLog", "Every status change, oldest first: status, at, by, byName, note. Tracking reads the last entry"],
+    ["deliveredBy, deliveredByName", "Who marked a job-site package delivered"], ["note", "The Note on its Tracking card"],
+    ["lines", "Order lines on it: orderLineId, productName, qty, qtyReceived (delivered, for a job-site package)"], ["ticketId, ticketNumber, jobId, jobName, clientId, clientName", "What it serves"],
     ["createdBy", "Email of whoever added it"], ["createdByName", "Their name"]].concat(DD_WHO) }
 ];
 function aboutHTML() {
@@ -5727,6 +6044,20 @@ function rrText() { const d = rrDates(); return "between " + rrDay(d.from) + " a
 const costOn = () => !!S.general.showCosts;
 function unitCost(pid) { const p = pid ? S.products.get(pid) : null; return p && p.lastCost != null && p.lastCost !== "" ? num(p.lastCost) : null; }
 const r2 = v => v == null ? null : Math.round(num(v) * 100) / 100;
+/* 0.5.1 (PLAN 12b item 8): what a delivered ticket line cost on its POs.
+   Key ticketId|ticketLineId; the quantity-weighted unit cost over the order
+   lines that serve it and carry a unitCost, cancelled POs left out. */
+function deliverPoCosts() {
+  const acc = new Map();
+  (S.rep && S.rep.olines || []).forEach(l => {
+    if (!l.ticketId || !l.ticketLineId || l.unitCost == null || l.unitCost === "") return;
+    const o = S.orders.get(l.orderId); if (o && o.status === "cancelled") return;
+    const k = l.ticketId + "|" + l.ticketLineId, q = num(l.qtyOrdered) || 1;
+    if (!acc.has(k)) acc.set(k, { q: 0, v: 0 });
+    const a = acc.get(k); a.q += q; a.v += q * num(l.unitCost);
+  });
+  const out = new Map(); acc.forEach((a, k) => out.set(k, a.q ? Math.round(a.v / a.q * 100) / 100 : null)); return out;
+}
 const moneyCell = v => v == null ? "" : money(v);
 const plural = (n, one, many) => fmtN(n) + " " + (n === 1 ? one : (many || one + "s"));
 function ageBucket(d) { return d <= 7 ? "0 to 7 days" : d <= 14 ? "8 to 14 days" : d <= 30 ? "15 to 30 days" : "Over 30 days"; }
@@ -5807,7 +6138,7 @@ const REPORTS = [
     empty: () => "Nothing on hand, and nothing received or used " + rrText() + "." },
 
   { k: "spend", label: "Spend", file: "spend", mv: true, views: () => viewSel("spendBy", [["vm", "Vendor and month"], ["vendor", "By vendor"], ["month", "By month"]]),
-    hint: () => "Purchase orders by the day they were marked ordered; drafts and cancelled POs are left out." + (costOn() ? " Spend is quantity ordered times the product's last cost." : " Spend in dollars shows when Show costs is on in Settings; until then this counts lines and units."),
+    hint: () => "Purchase orders by the day they were marked ordered; drafts and cancelled POs are left out." + (costOn() ? " Spend is quantity ordered times the unit cost fixed on the PO line at Mark ordered; lines from before 0.5.1 use the product's last cost." : " Spend in dollars shows when Show costs is on in Settings; until then this counts lines and units."),
     build() {
       const d = rrDates(), by = rfv("spendBy", "vm"), C = costOn();
       const olBy = new Map(); (S.rep.olines || []).forEach(l => { if (!olBy.has(l.orderId)) olBy.set(l.orderId, []); olBy.get(l.orderId).push(l); });
@@ -5820,7 +6151,7 @@ const REPORTS = [
         const x = g.get(k); x.pos.add(o.number);
         (olBy.get(o.id) || orderLines(o.id)).forEach(l => {
           x.lines++; const q = num(l.qtyOrdered); x[l.unit === "ft" ? "ft" : "each"] += q;
-          const c = unitCost(l.productId); if (c == null) x.miss++; else x.spend += q * c;
+          const c = olUnitCost(l); if (c == null) x.miss++; else x.spend += q * c;
         });
       });
       const rows = Array.from(g.values());
@@ -5830,18 +6161,19 @@ const REPORTS = [
       cols.push(numCol("pos", "POs", r => r.pos.size), txtCol("numbers", "PO numbers", r => Array.from(r.pos).sort().join(", "), { def: false }), numCol("lines", "Lines", r => r.lines), numCol("each", "Units", r => r.each), numCol("ft", "Feet", r => r.ft));
       if (C) cols.push(moneyCol("spend", "Spend", r => r.spend), numCol("miss", "Lines with no cost", r => r.miss, { def: false }));
       const vend = new Set(pos.map(o => o.vendor || "No vendor")).size, ln = rows.reduce((a, r) => a + r.lines, 0), sp = rows.reduce((a, r) => a + r.spend, 0), miss = rows.reduce((a, r) => a + r.miss, 0);
-      const total = plural(pos.length, "PO") + " from " + plural(vend, "vendor") + ", " + plural(ln, "line") + "." + (C ? " Spend at last cost: " + money(sp) + "." + (miss ? ' <span class="z">' + plural(miss, "line") + " with no cost " + (miss === 1 ? "counts" : "count") + " as zero.</span>" : "") : "");
+      const total = plural(pos.length, "PO") + " from " + plural(vend, "vendor") + ", " + plural(ln, "line") + "." + (C ? " Spend: " + money(sp) + "." + (miss ? ' <span class="z">' + plural(miss, "line") + " with no cost " + (miss === 1 ? "counts" : "count") + " as zero.</span>" : "") : "");
       return { id: "rep_spend_" + by, cols, rows, total, defaultSort: (a, b) => String(a.mk).localeCompare(String(b.mk)) || String(a.vendor).localeCompare(String(b.vendor)) };
     },
     empty: () => "No purchase orders marked ordered " + rrText() + "." },
 
   { k: "delivered", label: "Delivered", file: "delivered", mv: true, views: () => viewSel("delBy", [["each", "Each delivery"], ["job", "By client and job"]]),
-    hint: () => "Every Deliver to site in the range, for job costing and invoicing checks." + (costOn() ? " Cost is quantity times the product's last cost." : ""),
+    hint: () => "Every Deliver to site in the range, for job costing and invoicing checks." + (costOn() ? " Cost is quantity times the unit cost on the PO line that served the ticket line, when there is one, else the product's last cost." : ""),
     build() {
       const by = rfv("delBy", "each"), C = costOn();
-      const rows = (S.rep.mvs || []).filter(m => m.type === "deliver").map(m => { const c = unitCost(m.productId); return { at: m.at, client: clientOfMv(m) || "No client", job: jobOfMv(m) || "No job", ticket: m.ticketNumber || "", product: m.productName || "", qty: num(m.qty), unit: unitTxt(m.unit), cost: c, total: c == null ? null : c * num(m.qty), by: m.byName || m.by || "", line: m.ticketLineId || m.productName }; });
+      const poCost = deliverPoCosts();
+      const rows = (S.rep.mvs || []).filter(m => m.type === "deliver").map(m => { const k = m.ticketId && m.ticketLineId ? m.ticketId + "|" + m.ticketLineId : null, c = k && poCost.has(k) ? poCost.get(k) : unitCost(m.productId); return { at: m.at, client: clientOfMv(m) || "No client", job: jobOfMv(m) || "No job", ticket: m.ticketNumber || "", product: m.productName || "", qty: num(m.qty), unit: unitTxt(m.unit), cost: c, total: c == null ? null : c * num(m.qty), by: m.byName || m.by || "", line: m.ticketLineId || m.productName }; });
       const tc = rows.reduce((a, r) => a + num(r.total), 0), miss = rows.filter(r => r.total == null).length, jobs = new Set(rows.map(r => r.client + "|" + r.job)).size;
-      const total = plural(rows.length, "delivery", "deliveries") + " to " + plural(jobs, "job") + "." + (C ? " Cost at last cost: " + money(tc) + "." + (miss ? ' <span class="z">' + plural(miss, "delivery", "deliveries") + " with no cost " + (miss === 1 ? "counts" : "count") + " as zero.</span>" : "") : "");
+      const total = plural(rows.length, "delivery", "deliveries") + " to " + plural(jobs, "job") + "." + (C ? " Cost: " + money(tc) + "." + (miss ? ' <span class="z">' + plural(miss, "delivery", "deliveries") + " with no cost " + (miss === 1 ? "counts" : "count") + " as zero.</span>" : "") : "");
       if (by === "each") {
         const cols = [dayCol("at", "Delivered", r => r.at), txtCol("client", "Client", r => r.client), txtCol("job", "Job", r => r.job), txtCol("ticket", "Ticket", r => r.ticket ? "#" + r.ticket : "", { sort: r => r.ticket }),
           txtCol("product", "Product", r => r.product), numCol("qty", "Qty", r => r.qty), txtCol("unit", "Unit", r => r.unit, { def: false })];
@@ -6524,7 +6856,11 @@ document.addEventListener("click", e => {
     case "shipRecv": { const s = S.shipments.get(id); if (s) openReceiveShipment(s); break; }
     case "shipUpd": { const s = S.shipments.get(id); if (s) openShipUpdate(s); break; }
     case "trRecv": { const s = S.shipments.get(id); if (s) openReceiveShipment(s, b.dataset.line); break; }
-    case "trNote": { const o = S.orders.get(id), ol = o && S.olines.get(o.id) ? S.olines.get(o.id).get(b.dataset.line) : null; if (o && ol) openOlNote(o, ol); break; }
+    /* 0.5.1: Tracking cards and the review flag */
+    case "trNote": openPkgNote(b.dataset.kind, id); break;
+    case "trDeliver": { const s = S.shipments.get(id); if (s) openMarkDelivered(s); break; }
+    case "trShip": { const o = S.orders.get(id); if (o) openAddShipment(o); break; }
+    case "tkReviewed": { const t = curTicket(); if (t) doReviewed(t).then(ok => ok && toast("Ticket #" + t.number + " marked reviewed")); break; }
     /* 0.3.0: week */
     case "wkGo": { const d = +b.dataset.d; S.weekOff = d === 0 ? 0 : S.weekOff + d; setHash(); render(true); break; }
     case "wkWork": S.prefs = Object.assign({}, S.prefs, { workWeek: !wwOn() }); savePrefs(); render(true); { const t = $(".wwt"); if (t) t.focus(); } break;

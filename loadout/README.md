@@ -8,7 +8,7 @@ pages, `noindex, nofollow`, and the shared Watchtower sign-in
 (`@umbrellaautomation.com` Google accounts only). The plan is `PLAN.md`; the
 chosen look is direction B, Ledger, in `design-preview.html`.
 
-Current version: **0.5.0**.
+Current version: **0.5.1**.
 
 ## Files
 
@@ -31,7 +31,10 @@ Current version: **0.5.0**.
   Portal proposal CSV (columns matched by header name, a preview, Labor, Fee,
   and CustomItem rows and blank quantities listed as skipped, unmatched brands
   and models offered as new products) or takes lines typed by hand. Importing
-  the same proposal number again adds or adjusts lines on that ticket.
+  the same proposal number again adds or adjusts lines on that ticket. Each
+  ticket says where it came from (Imported from CSV, Imported from Portal, or
+  Built by hand), and a ticket Zapier made from Portal carries an "Imported
+  from Portal, review" chip until someone checks it.
 - **Ticket**: lines grouped by area with Pull from stock (pick the shelf, scan
   if you like; the quantity moves to the staging bay), Stage, Deliver to site
   (serialized units on the line check out to whoever delivers), and Note;
@@ -41,23 +44,40 @@ Current version: **0.5.0**.
   the ticket installed at the job. The header carries the install date.
   **Order missing** and a line's **Order** put what stock cannot cover on a
   draft purchase order, and each line shows a chip per PO, for example
-  "PO 7731 - UPS 1Z999AA1 - shipped 10/23".
+  "PO 7731 - UPS 1Z999AA1 - shipped 10/23". A ticket flagged for review has a
+  **Reviewed** button (warehouse and admin) that clears the flag and logs who
+  did it.
 - **Orders**: purchase orders with filters for status and vendor. A draft's
   empty Vendor select glows until one is picked; a vendor typed there joins the
   list in Settings. An order shows its lines (ordered, backordered with the
   vendor's ETA, shipped, delivered, received, and the ticket line each serves)
   and its shipments. **Mark ordered** needs the vendor and the vendor's order
-  number. **Add shipment** guesses the carrier from the tracking number (1Z is
+  number, and asks where it ships: the office, or straight to the job's site
+  (the select glows until picked; left alone it means the office; a stock PO
+  always ships to the office). With Show costs on it also lists each line's
+  unit cost, filled from the product's last cost and editable; with costs off
+  the last cost is stored without asking. **Add shipment** guesses the carrier from the tracking number (1Z is
   UPS, 12 or 15 digits FedEx, 20 to 22 digits starting with 9 USPS; it can be
-  changed) and carries some or all of the lines. **Receive** walks a shipment
+  changed), carries some or all of the lines, takes the expected date, and
+  can send that one box somewhere other than the PO says. **Receive** walks a shipment
   line by line: tap to take the quantity, or scan each unit's UPC to count it;
   lines for a ticket go into its staging bay and count as staged, the rest go
   on a shelf; units at or above the QR threshold become serialized units
   ("Product name #n") with a prompt to print their labels.
-- **Tracking**: every order line not yet received, grouped by job and then
-  stock, with carrier, tracking link, expected date, and days open. Delivered
-  but not received rises to the top in amber and late lines say how late.
-  Filters for job, vendor, carrier, status, and late; Receive and Note per row.
+- **Tracking**: split down the middle. Left, packages coming to the office;
+  right, packages going straight to a client's site, grouped by client and job;
+  along the bottom, Recently delivered, the last 30 days newest first (a
+  sortable table with Columns). Each package is a card with the carrier, the
+  tracking number as a link (a 44 px target), what is in it, the PO and vendor,
+  who it is for, and its status with the date and time of that status. Late
+  packages say "Expected Oct 30, 3 days late" in amber; a box delivered to the
+  office and not received floats to the top in amber. Office cards have
+  Receive, job-site cards have **Mark delivered** (the lines count as received
+  on the PO and staged on the ticket; nothing goes into stock), and both have
+  Note. Lines no shipment carries yet show as one card per PO (Ordered or
+  Backordered, with Add shipment). Filters for client and job, vendor,
+  carrier, status, and late apply to all three parts, and each column header
+  counts its packages. Under 900 px the columns stack, office first.
 - **Week**: the staging schedule as a timesheet, one block per day with a card
   per ticket by its install date and each line's status on the right. Previous
   week, This week, Next week; a Work week toggle (remembered per person) hides
@@ -155,7 +175,12 @@ preview. The New ticket sheet has a Load sample button with a made-up Portal
 CSV in demo mode only. The fixture has four purchase orders (a draft with no
 vendor, a partial one with two shipments, one ordered with a late shipment,
 one received), install dates across this week, and imported rows that show the
-0.3.0 name fixes. 0.4.0 adds costs on the catalog, a closed ticket and four
+0.3.0 name fixes. 0.5.1 adds two POs drop-shipped to job sites (three boxes on
+the client side for two clients, one late, one out for delivery, and one
+already delivered to the site), a draft PO 7739 with its vendor picked for
+trying Mark ordered, unit costs on the ordered lines, status logs with clock
+times on the newer shipments (the older ones read through the migration), and
+ticket #1056, made by Zapier from Portal and still flagged for review. 0.4.0 adds costs on the catalog, a closed ticket and four
 more POs from last month and this month (one still open and backordered), and
 the deliveries, box cuts, and check-outs around them, dated inside this month
 and last month so every report has rows on any day, plus a roster with Lead
@@ -218,7 +243,15 @@ database and the export read without the app. Each person's table layout is
 saved on their own `/users/{uid}` doc under `loadoutLayout`. Settings
 `general` gained `workWeek` in 0.4.0. Products gained `imageUrl` (the photo's
 download link), `imagePath` (`loadout/products/{id}.jpg` in Firebase Storage),
-and `imageAt` in 0.5.0. The Console's About tab lists every field of every
+and `imageAt` in 0.5.0. In 0.5.1 purchase orders gained `shipTo` ("office"
+or "client") and `shipToAddress`; order lines gained `unitCost`, fixed at
+Mark ordered; shipments gained `shipTo`, `shipToAddress`, `note`,
+`deliveredBy` and `deliveredByName`, and `statusLog`, a list of every status
+change (`status`, `at`, `by`, `byName`, `note`) that Tracking reads the last
+entry of. A shipment written before 0.5.1 has no log and reads its status with
+the matching date; its first change seeds the log from its dates. Tickets
+gained `reviewedAt`, `reviewedBy`, and `reviewedByName` beside the worker's
+`needsReview`. The Console's About tab lists every field of every
 collection.
 
 ## Rules
@@ -232,7 +265,10 @@ deployed**. 0.4.0 changed no rules: the Console writes only `loadout_users`
 and `loadout_settings`, which were already admin-only (apart from the
 warehouse carve-outs for board pins, the import mapping, and the vendor list),
 and accounting and board appear in no writer list, so they read everything
-and write nothing.
+and write nothing. 0.5.1 changed no rules either: the new fields on purchase
+orders, order lines, and shipments fall under the wildcard (warehouse and
+admin write, techs do not), and clearing a ticket's `needsReview` is a ticket
+update a tech's carve-out (`status`, `summary`, `updatedAt`) does not allow.
 The owner of the Firebase project deploys it from `work/watchtower` with:
 
 `firebase deploy --only firestore:rules --account frank@umbrellaautomation.com --project watchtower-6fbe1`
@@ -467,6 +503,40 @@ Portal API intake (T2) is a stub until D1 is answered. Secrets, owner setup,
 the Zap, and deploy steps are in `worker/README.md`.
 
 ## Changelog
+
+### 0.5.1 (2026-11-02)
+
+Tracking now answers "where is it" the way the shop asks it: what is coming
+here, and what is going straight to a client.
+
+- Tracking is split down the middle. Packages coming to the office are on the
+  left; packages the vendor ships straight to a job site are on the right,
+  grouped by client and job; the last 30 days of deliveries run along the
+  bottom. Before, everything sat in one long table and a drop-shipped box
+  looked like one waiting to be scanned in.
+- Each package is a card with its current status and the time of that status
+  ("Out for delivery, Nov 2, 8:14 AM"), so nobody has to open the carrier page
+  to see whether today's box is on the truck. Late boxes say how late, in
+  amber, and a box delivered here but never scanned stays at the top of the
+  office side until someone receives it.
+- A box sent to a job site has Mark delivered instead of Receive. It counts
+  the lines as received on the PO and staged on the ticket without adding
+  anything to the shelves, because the box never came through the building.
+- Every status change on a shipment is now kept with who made it and when, so
+  the history of a box reads in order, and a later carrier lookup can add to
+  the same list. Older shipments show their last known status and date.
+- Mark ordered asks where the order ships, office or the job's site, and a
+  single shipment can be sent elsewhere when the vendor splits an order.
+- Purchase order lines keep the unit cost from the day they were ordered.
+  Spend and Delivered now use it, so last month's numbers stay put when a
+  product's price changes.
+- Tickets made by Zapier from Portal now say so, with an "Imported from
+  Portal, review" chip on the list and the ticket until someone presses
+  Reviewed. Every ticket names its source: CSV, Portal, or built by hand.
+- Tracking links are a full thumb-sized target on the phone, on Tracking and
+  on the order page, so tapping one opens the carrier page and not the card.
+- A ticket line with many buttons no longer pushes the table past the edge of
+  a laptop-width window: the buttons wrap instead.
 
 ### 0.5.0 (2026-10-29)
 
