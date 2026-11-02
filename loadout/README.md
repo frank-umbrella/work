@@ -8,7 +8,7 @@ pages, `noindex, nofollow`, and the shared Watchtower sign-in
 (`@umbrellaautomation.com` Google accounts only). The plan is `PLAN.md`; the
 chosen look is direction B, Ledger, in `design-preview.html`.
 
-Current version: **0.5.2**.
+Current version: **0.6.0**.
 
 ## Files
 
@@ -25,7 +25,8 @@ Current version: **0.5.2**.
 
 ## Using it
 
-- **Tickets** (home on the desktop): pick tickets grouped by status, with
+- **Tickets** (home on the desktop): pick tickets grouped by status, with a
+  search (ticket number, client, job, proposal, or bay; `/` jumps to it),
   filters for status, client, install date, items to order, and backorders,
   and an Install column that sorts. **New ticket** imports a
   Portal proposal CSV (columns matched by header name, a preview, Labor, Fee,
@@ -49,7 +50,7 @@ Current version: **0.5.2**.
   line shows a chip per PO, for example "PO 7731, UPS 1Z999AA1: Shipped,
   Oct 23". The Tickets list, its "Has items to order" filter, the ticket's
   strip, the board, and Week all count Short the same way. A ticket flagged for review has a
-  **Reviewed** button (warehouse and admin) that clears the flag and logs who
+  **Mark reviewed** button (warehouse and admin) that clears the flag and logs who
   did it.
 - **Orders**: purchase orders with filters for status and vendor. A draft's
   empty Vendor select glows until one is picked; a vendor typed there joins the
@@ -90,19 +91,25 @@ Current version: **0.5.2**.
   Unscheduled list with a date field. On the phone the days stack, today first.
 - **Board** (`?board=1`, and the landing view for the board role): the
   warehouse TV. One pinned ticket per screen, rotating, lines grouped by the
-  shelf to pull from in rack order; staged lines greyed with a check (a line
-  staged from a PO under Staged), on-order amber with the PO and ETA, short
-  red; a red "Not live since" strip when
-  the connection drops. The Today mode shows the tickets whose install date is
+  shelf to pull from in rack order; staged lines greyed (a line staged from a
+  PO under Staged), on-order amber with the PO and ETA, short red; a 32 px red
+  "Not live since 8:14 AM" strip when the connection drops. Type is sized to
+  read from four meters (product lines 32 px, counts 48 px, headers 26 px,
+  nothing under 24 px); a list longer than the screen scrolls at 40 px a
+  second with a 3 second pause at each end while the header and progress bar
+  stay put; a 6 px bar along the top shows when the next ticket comes up.
+  Against burn-in the whole board steps 2 px on every rotation (once a minute
+  when nothing rotates), and the idle screen walks its clock. The Today mode shows the tickets whose install date is
   today, from the Week view.
 - **Stock**: the catalog with search, sorting, a Columns manager, and tabs for
   All, Consumables (wire boxes with feet left), Low stock (with Reorder), and
   Locations. A product or location row opens in place under itself: fields in
   two columns, on hand by location, boxes, and one row of buttons (Save,
   Receive or Receive a box, Pull for ticket, Move, Count, Adjust, Serialize,
-  Reorder, Print label, History); the Scan card shows the first of the same
-  buttons, in the same order. One is
-  open at a time; Escape or the chevron closes it, and the address carries it
+  Reorder, Print label, Show history); the Scan card shows the first of the
+  same buttons, in the same order. One is open at a time, marked by a blue
+  bar down its left edge; Escape or the chevron at its top right closes it,
+  and the address carries it
   (`#stock/p/<id>`, `#stock/l/<id>`), so a link lands on it open. Modals stay
   for the decisions that need a confirm.
 - **Scan**: point the phone at a UPC or a Loadout label, or type the code.
@@ -112,17 +119,18 @@ Current version: **0.5.2**.
   Pull for ticket, the box sheet a For ticket chip, and a bay's label shows
   the ticket staged there. On a phone or tablet, a label that explains itself
   has a ? beside it that opens the explanation (a mouse shows it on hover).
-- **Items**: every serialized unit, with Out as the Friday list. A unit opens
-  in place the same way (`#items/i/<id>`), with its label, serial, condition,
-  Check out, Check in, Move, Retire, and History.
+- **Units** (called Items before 0.6.0): every serialized unit, with Out as
+  the Friday list. A unit opens in place the same way (`#items/i/<id>`), with
+  its label, serial, condition, Check out, Check in, Move, Retire, and Show
+  history.
 - **Console** (admin and accounting; also linked from More): **Reports**,
   each with a From and To date (this month by default, with This month and
   Last month buttons), a sortable table with the Columns manager, a one-line
   total, and Export CSV / Export XLSX of the rows and columns shown: Stock on
   hand (by product and location, category, or location, with value at last
   cost when costs are on), Spend (POs marked ordered, by vendor and month),
-  Delivered (every Deliver to site, by delivery or by client and job), Items
-  out (who held what and for how long), Wire usage (box cuts by cut, job,
+  Delivered (every Deliver to site, by delivery or by client and job), Units
+  out (who held which unit and for how long), Wire usage (box cuts by cut, job,
   person, or both), Movements (the raw trail for the range, filtered by type
   and person), and Aging (open tickets, open POs, and delivered-not-received
   shipments in age bands). Reports read the range fresh from the database, not
@@ -143,8 +151,8 @@ Current version: **0.5.2**.
   2 x 4), and for admins the inventory sheet importer. Admins and accounting
   get a row of Console links (Reports, People, Settings, Board, About, Export
   everything); warehouse and techs keep About and Export everything as tabs
-  here. On the phone the tab bar is Tickets, Scan, Week, Stock, More, and
-  Orders, Tracking, Items, and the Console sit at the top of More. More also
+  here. On the phone the tab bar is Tickets, Week, Scan, Stock, More, and
+  Orders, Tracking, Units, and the Console sit at the top of More. More also
   carries the Add to home screen card until it is dismissed on that device.
 - **Offline**: Loadout opens and works with no signal once it has been opened
   online on that device. Every change saves on the device first; the sync
@@ -156,6 +164,13 @@ Current version: **0.5.2**.
   the device already holds. A change the server refuses later toasts and the
   row goes back to what it was. When a new release takes over a page that is
   still open, a "New version available, reload" toast offers a Reload button.
+- **Desktop**: tables keep their header row in view under the app header on
+  a long list, and show a sort arrow on hover; Edit columns opens a small
+  panel under its button instead of a dialog; an empty list says so inside
+  the table under its headers, with the next step. Forms put two fields side
+  by side from 900 px up and one below; the first field takes focus, Enter
+  saves a form that has one text field, and a required field that is not a
+  choice says "required". `/` jumps to the view's search field.
 - **Photos**: a product's panel (Stock, open a row) has a Photo slot with Add
   photo, Replace photo, and Remove photo for admin and warehouse. The photo
   is shrunk to 1200 px and saved as JPEG before upload, and shows on the Scan
@@ -200,7 +215,9 @@ the sync pill (`sync(null)` goes back to Demo),
 `window.Loadout.pending("products", id, true)` to put the pending chip on a
 row, `window.Loadout.install("prompt" | "ios" | "menu" | "none")` to pick
 which Add to home screen card shows, and (0.5.2) `window.Loadout.exportTables()`
-to read the Export everything tables without downloading. 0.5.2 adds a Short
+to read the Export everything tables without downloading, and (0.6.0)
+`window.Loadout.boardRotate(6)` to set the board's rotation for watching the
+scroll and the 2 px shift. 0.5.2 adds a Short
 line with stock elsewhere (ticket #1053 needs 80 keystones; 64 are on the
 shelves and 24 ride in Van 1, which a ticket never pulls from, so 16 are
 Short), a draft started with no connection (no PO number until Mark ordered
@@ -210,6 +227,41 @@ for numbering: a new PO becomes a draft with no number, and Mark ordered on it
 says "Connect to assign the PO number". No Firebase code loads in demo mode. The
 service worker does register in demo mode, since the demo is how the offline
 shell is checked.
+
+## On the phone
+
+Loadout is laid out for one hand: a tech holding a box in one hand and the
+phone in the other. Everything you press sits in the lower half of the
+screen, where the thumb already is.
+
+- **The tab bar** along the bottom: Tickets, Week, Scan, Stock, More. Scan is
+  the raised button in the middle. Nothing on a page ends up hidden behind
+  the bar; the page always scrolls far enough.
+- **Every dialog is a sheet that slides up from the bottom.** The button that
+  does the job is the last one, full width, right above the bar; Cancel sits
+  above it. The body scrolls between the title and the buttons, so the
+  confirm button never moves off screen. Swipe the handle at the top down, or
+  tap it, to close; Escape on a keyboard does the same. A tap on the dimmed
+  page above does nothing, so a stray thumb never throws away what was typed.
+- **Cards, not tables.** Each row of a list is a card. Its buttons sit at the
+  bottom of the card: at most two, the likely one first and blue, the rest
+  under the **...** button, which opens them in a sheet.
+- **Filters fold away.** A list with filters shows one Filters button (it says
+  how many are on); the filters open in a sheet with Clear filters and Done.
+  Search fields stay on the page and have their own clear button.
+- **The header shrinks** to 48 px once you scroll, and messages appear just
+  under it, never behind the notch.
+- **Scan** gives the camera as much of the screen as it can, with the type-it
+  field right under it and the result card peeking above the tab bar. The
+  box sheet keeps -50, -100, -250, Empty, and Save cut in the bottom bar.
+- **Typing**: number fields open the number pad; fields use 16 px text so the
+  phone does not zoom in; dates use the phone's own date picker.
+- **Reading**: card text is 15 px, small grey text 13 px, nothing smaller; every
+  button is at least 44 px tall with 8 px between neighbors. A field whose
+  reason is not obvious has a ? that opens the reason.
+- **On its side** the full desktop menu shows, the header scrolls away with
+  the page, sheets put their buttons in one row, and Scan puts the camera and
+  the result side by side.
 
 ## Install on a phone
 
@@ -587,6 +639,50 @@ Portal API intake (T2) is a stub until D1 is answered. Secrets, owner setup,
 the Zap, and deploy steps are in `worker/README.md`.
 
 ## Changelog
+
+### 0.6.0 (2026-11-02)
+
+The clean pass (PLAN 12c). Nothing new to learn; everything gets easier to
+reach with one thumb, reads like one product on the desktop, and reads from
+across the shop on the TV.
+
+- On the phone every dialog is now a sheet from the bottom, with the button
+  that does the job at the bottom, full width, and Cancel above it. Before,
+  the confirm button sat at the top right of a dialog that could run off the
+  screen, which meant two hands or a scroll for every pull and every cut.
+  The sheet's body scrolls on its own, so Save is always in reach. A swipe
+  down on the handle closes it; a tap outside still does not.
+- Card buttons on the phone sit at the bottom of each card, two at most, the
+  likely one first. A ticket line with five buttons used to wrap into a
+  block of small ones; the rest are now under a ... button.
+- Filters fold into one Filters button on the phone, so a list starts with
+  the list, not with five dropdowns. Search fields gain a clear button, and
+  Tickets gains a search.
+- The header drops to 48 px as soon as you scroll, and messages show just
+  under it. The tab bar puts Scan in the middle, raised, where the thumb rests.
+- Scan's camera fills the screen above the result card. The box sheet keeps
+  the quick -50 / -100 / -250 buttons and Save cut at the bottom, under the
+  thumb. On a touch screen a sheet no longer pops the keyboard up over itself.
+- Text on the phone is 15 px on cards and never under 13 px; number fields
+  open the number pad (the Adjust field keeps the minus key).
+- Desktop: one spacing scale and one corner radius across every view; table
+  headers stay in view on long lists; Edit columns opens under its button;
+  an empty list shows inside its table; forms go two-up only from 900 px;
+  Enter saves a one-field form; `/` jumps to search; the open row in Stock,
+  Units, and Locations has a blue bar and its chevron.
+- The TV board is sized for four meters: 32 px lines, 48 px counts, nothing
+  under 24 px. A long list scrolls at a steady 40 px a second with a pause at
+  each end, the "Not live since" strip is 32 px with the time, and the board
+  moves 2 px every rotation so a ticket left up all day does not burn in. On
+  the light theme the counts now pass 7:1 for a bright shop.
+- Details: one date format everywhere ("Nov 2" this year, "Nov 2, 2025"
+  otherwise); "3 days ago" only next to the date it counts from; button
+  labels are verbs (Edit columns, Print label, Open details, Show history,
+  Mark reviewed); one word per thing, so Items is now Units and a label sheet
+  picks locations, boxes, and units; the check mark on the board's staged
+  lines is gone (the word Staged says it); nothing moves except sheets and
+  panels opening (150 ms) and the board's rotation bar.
+- No Firestore rule changes.
 
 ### 0.5.2 (2026-11-02)
 

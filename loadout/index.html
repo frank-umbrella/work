@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Loadout v0.5.2</title>
+<title>Loadout v0.6.0</title>
 <meta name="robots" content="noindex, nofollow">
-<meta name="loadout-version" content="0.5.2">
+<meta name="loadout-version" content="0.6.0">
 <meta name="description" content="Umbrella Automation shop inventory. Restricted to @umbrellaautomation.com accounts.">
 <meta name="theme-color" content="#1e6fd9">
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
@@ -43,6 +43,14 @@
   --m-font:"Segoe UI",system-ui,-apple-system,Helvetica,Arial,sans-serif;
   --m-mono:Consolas,"Cascadia Mono",Menlo,monospace;
   --m-radius:8px;--m-tap:38px;--m-tapsm:30px;
+  /* 0.6.0 (PLAN 12c item 9): one spacing scale for layout (gaps between
+     components, card and section padding); 4px stays only inside a
+     component (label to field, pill padding). One radius: --m-radius for
+     cards, fields, buttons, modals; 999px for pills only. */
+  --s1:8px;--s2:12px;--s3:16px;--s4:24px;--s5:32px;
+  /* set by sizeChrome(): the sticky header's height (sticky table headers,
+     the Week bar, the toast) and the phone tab bar's height (scroll padding) */
+  --hdr-h:58px;--tab-h:0px;
   /* Week view, past days: surfaces and borders at 55%, text stays at full strength so it keeps 4.5:1 */
   --m-pastcard:color-mix(in srgb,var(--m-card) 55%,var(--m-bg));
   --m-pastline:color-mix(in srgb,var(--m-line) 55%,var(--m-bg));
@@ -52,7 +60,9 @@
 }
 *{box-sizing:border-box}
 html,body{margin:0}
-body{background:var(--m-bg);color:var(--m-text);font:14px/1.45 var(--m-font);overflow-x:hidden;min-height:100vh}
+/* tabular figures everywhere (12c item 19): counts and feet line up in columns and never jitter when they change */
+body{background:var(--m-bg);color:var(--m-text);font:14px/1.45 var(--m-font);font-variant-numeric:tabular-nums;overflow-x:hidden;min-height:100vh}
+html{scroll-padding-top:calc(var(--hdr-h) + 8px);scroll-padding-bottom:calc(var(--tab-h) + 8px)}
 a{color:var(--m-accent)}
 button,input,select,textarea{font:inherit;color:inherit}
 :focus-visible{outline:2px solid var(--m-accent);outline-offset:2px}
@@ -76,8 +86,8 @@ button,input,select,textarea{font:inherit;color:inherit}
 .demobar a{color:#1a2233;display:inline-flex;align-items:center;min-height:32px}
 
 /* ---------- app chrome ---------- */
-.top{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:8px 14px;padding:8px 18px;background:var(--m-topbar);color:var(--m-toptext);border-bottom:1px solid var(--m-line);flex-wrap:wrap;min-height:58px}
-.brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:19px;letter-spacing:.01em}
+.top{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:var(--s1) var(--s3);padding:var(--s1) var(--s4);background:var(--m-topbar);color:var(--m-toptext);border-bottom:1px solid var(--m-line);flex-wrap:wrap;min-height:58px}
+.brand{display:flex;align-items:center;gap:var(--s1);font-weight:700;font-size:19px;letter-spacing:.01em}
 .brand svg{width:26px;height:26px;flex:none;color:var(--m-brandmark)}
 .brand .v{font:500 11px var(--m-mono);color:var(--m-topmuted);border:1px solid var(--m-line);border-radius:4px;padding:1px 5px;letter-spacing:0}
 .nav{display:flex;gap:2px;flex-wrap:wrap}
@@ -95,29 +105,31 @@ button,input,select,textarea{font:inherit;color:inherit}
 .locchip{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:2px 4px 2px 10px;border-radius:999px;border:1px solid var(--m-line);color:var(--m-text);background:var(--m-card2);max-width:100%}
 .locchip b{font-weight:600;overflow-wrap:anywhere}
 .locchip button{border:0;background:none;color:var(--m-muted);cursor:pointer;min-width:28px;min-height:28px;border-radius:50%;font-size:16px;line-height:1}
-.body{max-width:1280px;margin:0 auto;padding:18px;display:grid;grid-template-columns:minmax(0,1fr);gap:16px}
-.foot{max-width:1280px;margin:0 auto;padding:10px 18px 24px;font-size:12px;color:var(--m-muted);display:flex;gap:6px 16px;flex-wrap:wrap}
+.body{max-width:1280px;margin:0 auto;padding:var(--s4);display:grid;grid-template-columns:minmax(0,1fr);gap:var(--s3)}
+.foot{max-width:1280px;margin:0 auto;padding:var(--s2) var(--s4) var(--s4);font-size:12px;color:var(--m-muted);display:flex;gap:var(--s1) var(--s3);flex-wrap:wrap}
 .tabbar{display:none}
 
 /* ---------- building blocks ---------- */
-.mcard{background:var(--m-card);border:1px solid var(--m-line);border-radius:var(--m-radius);padding:16px 18px;min-width:0}
+.mcard{background:var(--m-card);border:1px solid var(--m-line);border-radius:var(--m-radius);padding:var(--s3) var(--s4);min-width:0}
 /* uppercase labels with light tracking (.04em): they read as field labels beside dense numbers */
-.h4,.mcard h4{margin:0 0 10px;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--m-muted);font-weight:600}
+.h4,.mcard h4{margin:0 0 var(--s2);font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--m-muted);font-weight:600}
 h2.vt{margin:0;font-size:22px;font-weight:700;line-height:1.2}
-.thead{display:flex;align-items:center;gap:8px 10px;flex-wrap:wrap;margin-bottom:10px}
+.thead{display:flex;align-items:center;gap:var(--s1) var(--s2);flex-wrap:wrap;margin-bottom:var(--s2)}
 .thead h4{margin:0}
-.thead .sp{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.thead .sp{margin-left:auto;display:flex;gap:var(--s1);flex-wrap:wrap;align-items:center}
 .n{font-variant-numeric:tabular-nums}
 .mono{font-family:var(--m-mono)}
 .z{color:var(--m-muted)}
-.hint{font-size:12px;color:var(--m-muted);margin:6px 0 0}
-.err{color:var(--m-bad-text);font-size:13px;margin:6px 0 0}
-.lab{display:block;font-size:12px;color:var(--m-muted);margin:10px 0 4px;font-weight:600}
+.hint{font-size:12px;color:var(--m-muted);margin:var(--s1) 0 0}
+.err{color:var(--m-bad-text);font-size:13px;margin:var(--s1) 0 0}
+.lab{display:block;font-size:12px;color:var(--m-muted);margin:var(--s2) 0 4px;font-weight:600}
+/* 12c item 12: a required field that is not a decision (no glow) says so in plain words */
+.req{font-weight:400;margin-left:6px;color:var(--m-muted)}
 .lab abbr{text-decoration:none;cursor:help;border-bottom:1px dotted var(--m-muted)}
 /* 0.5.2 (finding 19, PLAN 12c item 24): on a touch screen no title ever shows,
    so a label with a "why" gets a tappable ? that opens the same text in a
    small sheet. Added by enhanceTips() only on coarse pointers. */
-.labrow{display:flex;align-items:center;gap:6px;margin:10px 0 4px;min-width:0}
+.labrow{display:flex;align-items:center;gap:var(--s1);margin:var(--s2) 0 var(--s1);min-width:0}
 .labrow>.lab{margin:0;min-width:0}
 .labrow>.chk{flex:0 1 auto;min-width:0}
 .tipq{flex:none;display:inline-grid;place-items:center;width:28px;height:28px;padding:0;border-radius:50%;border:1px solid var(--m-control-line);background:var(--m-card);color:var(--m-text);font:700 13px/1 var(--m-font);cursor:pointer}
@@ -137,8 +149,10 @@ select.fld{appearance:none;padding-right:30px;background-image:linear-gradient(4
 .money{position:relative}
 .money .fld{padding-left:24px}
 .money:before{content:"$";position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--m-muted);pointer-events:none}
-.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:0 14px}
-.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:0 14px}
+/* 12c item 12: forms sit in two columns at 900px and up, one column below */
+.grid2{display:grid;grid-template-columns:minmax(0,1fr);gap:0 var(--s3)}
+@media (min-width:900px){.grid2{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:0 var(--s3)}
 .chk{display:flex;align-items:center;gap:10px;min-height:38px;cursor:pointer;font-size:14px}
 .chk input{width:18px;height:18px;flex:none;accent-color:var(--m-accent)}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:var(--m-tap);border:1px solid var(--m-control-line);background:var(--m-card2);color:var(--m-text);border-radius:var(--m-radius);padding:0 14px;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap;text-decoration:none}
@@ -152,7 +166,7 @@ select.fld{appearance:none;padding-right:30px;background-image:linear-gradient(4
 .linkbtn{background:none;border:0;padding:0;color:var(--m-text);cursor:pointer;text-align:left;font:inherit}
 .linkbtn:hover .pn{text-decoration:underline}
 .textbtn{background:none;border:0;padding:0 2px;color:var(--m-accent);cursor:pointer;font:inherit;font-weight:600;text-decoration:underline;text-underline-offset:2px;min-height:30px}
-.btnrow{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px}
+.btnrow{display:flex;gap:var(--s1);flex-wrap:wrap;align-items:center;margin-top:var(--s2)}
 .btnrow.end{justify-content:flex-end}
 
 .st{display:inline-flex;align-items:center;gap:6px;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap;color:var(--m-pilltext);background:color-mix(in srgb,var(--m-muted) 14%,transparent)}
@@ -173,7 +187,7 @@ select.fld{appearance:none;padding-right:30px;background-image:linear-gradient(4
 .chip.info i{background:var(--m-info)}
 
 /* segmented tabs */
-.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.toolbar{display:flex;gap:var(--s2);flex-wrap:wrap;align-items:center;margin-bottom:var(--s2)}
 .seg{display:flex;flex-wrap:wrap;gap:4px;background:var(--m-card2);border:1px solid var(--m-control-line);border-radius:var(--m-radius);padding:3px;max-width:100%}
 .seg button{border:0;background:none;padding:5px 11px;border-radius:calc(var(--m-radius) - 2px);font-size:13px;cursor:pointer;white-space:nowrap;color:var(--m-text);min-height:32px}
 .seg button b{font-weight:600;color:var(--m-muted);margin-left:5px;font-size:12px;font-variant-numeric:tabular-nums}
@@ -183,13 +197,20 @@ select.fld{appearance:none;padding-right:30px;background-image:linear-gradient(4
 .seg button.on.warnt b{color:inherit}
 .search{flex:1 1 220px;width:auto;min-width:0}
 
-/* ---------- tables (card-stack under 640px of container width) ---------- */
+/* ---------- tables (card-stack under 720px of container width) ----------
+   0.6.0: was 640px; at 13px headers a ten-column list no longer fits a
+   phone on its side (683px of card), so it stacks as cards there too. */
 .tblwrap{container-type:inline-size;min-width:0}
 .tbl{width:100%;border-collapse:collapse;font-size:13.5px}
-.tbl th{font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--m-muted);font-weight:600;border-bottom:1px solid var(--m-line);padding:0;text-align:left;white-space:nowrap}
+/* 12c item 11: the header row sticks under the app header on a long list */
+.tbl th{font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--m-muted);font-weight:600;border-bottom:1px solid var(--m-line);padding:0;text-align:left;white-space:nowrap;position:sticky;top:var(--hdr-h);z-index:3;background:var(--m-card);box-shadow:0 1px 0 var(--m-line)}
+.xp .tbl th,.modal .tbl th{position:static}
 .tbl th .thb{background:none;border:0;padding:8px;font:inherit;letter-spacing:inherit;text-transform:inherit;color:inherit;cursor:pointer;display:inline-flex;gap:4px;align-items:center;width:100%;justify-content:inherit}
 .tbl th.r .thb{justify-content:flex-end}
 .tbl th .sa{font-size:9px;color:var(--m-accent);min-width:8px}
+/* the sort arrow shows on hover and on the active column; muted until it is the active one */
+.tbl th .thb:hover .sa:empty:after,.tbl th .thb:focus-visible .sa:empty:after{content:"\25B2";color:var(--m-muted)}
+.tbl td .tv{min-width:0}
 .tbl th.plain{padding:8px}
 .tbl th.r,.tbl td.r{text-align:right}
 .tbl td{padding:9px 8px;border-bottom:1px solid var(--m-line);vertical-align:top;min-width:0;overflow-wrap:anywhere}
@@ -198,7 +219,7 @@ select.fld{appearance:none;padding-right:30px;background-image:linear-gradient(4
 .tbl td.act .btn+.btn{margin-left:6px}
 /* 0.5.1: a row with many actions (a ticket line can show five) wraps its buttons
    instead of pushing the table past the card on a laptop-width window */
-@container (max-width:1000px){.tbl td.act{white-space:normal}.tbl td.act .btn{margin-top:2px;margin-bottom:2px}
+@container (max-width:1000px){.tbl td.act{white-space:normal}.tbl td.act .btn{margin-top:2px;margin-bottom:2px;white-space:normal;line-height:1.2}
   /* 0.5.2: a landscape phone (740px) gets full tables with 44px controls;
      headers, pills, and the progress figure wrap and the cell padding
      tightens, so the table never runs past the card */
@@ -216,18 +237,31 @@ select.fld{appearance:none;padding-right:30px;background-image:linear-gradient(4
 .unit{font-size:11px;color:var(--m-muted);margin-left:2px}
 .locs{font-size:12.5px;color:var(--m-muted)}
 .locs b{color:var(--m-text);font-weight:600}
-@container (max-width:640px){
+@container (max-width:719.98px){
   .tbl thead{display:none}
   .tbl,.tbl tbody,.tbl tr,.tbl td{display:block;width:100%}
-  .tbl tr{border:1px solid var(--m-line);border-radius:var(--m-radius);margin-bottom:10px;padding:6px 10px;background:var(--m-card)}
-  .tbl td{border:0;padding:4px 0 4px 104px;position:relative;text-align:left!important;min-height:26px}
-  .tbl td:before{content:attr(data-l);position:absolute;left:0;top:6px;width:96px;font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--m-muted);font-weight:600}
+  .tbl tr{border:1px solid var(--m-line);border-radius:var(--m-radius);margin-bottom:var(--s2);padding:var(--s1) var(--s2);background:var(--m-card)}
+  .tbl td{border:0;padding:4px 0 4px 120px;position:relative;text-align:left!important;min-height:26px}
+  .tbl td:before{content:attr(data-l);position:absolute;left:0;top:6px;width:112px;font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--m-muted);font-weight:600}
+  /* 0.6.0: a cell built by tableHTML holds its value in .tv, so the label
+     and the value sit in a two-column grid: a long label wraps in its own
+     column instead of running into the next row */
+  .tbl td.cv{display:grid;grid-template-columns:112px minmax(0,1fr);column-gap:var(--s1);padding-left:0;align-items:baseline}
+  .tbl td.cv:before{position:static;width:auto;overflow-wrap:anywhere}
+  .tbl td.cv.r .tv{text-align:right}
   .tbl td.full{padding-left:0}
   .tbl td.full:before{display:none}
-  .tbl td.act{white-space:normal;padding-top:8px;padding-left:0}
+  .tbl td.cv.full{display:block}
+  /* 12c item 3: row actions sit in the card footer as 44px buttons, half
+     width side by side, at most two visible; the rest open from the ... sheet */
+  .tbl td.act{white-space:normal;padding:var(--s1) 0 0;margin-top:4px;border-top:1px solid var(--m-line)}
+  .tbl td.act:empty{display:none}
   .tbl td.act:before{display:none}
-  .tbl td.act .btn{margin:0 6px 6px 0}
+  .tbl td.act.acts{display:flex;gap:var(--s1)}
+  .tbl td.act .btn{margin:0;flex:1 1 0;min-width:0;white-space:normal;line-height:1.2;text-align:center}
   .tbl td.act .btn+.btn{margin-left:0}
+  .tbl td.act.acts>.ovf{display:none}
+  .tbl td.act.acts>.moreacts{display:inline-flex;flex:0 0 44px}
   .tbl td .st{white-space:normal}
   .tbl tr.need{box-shadow:inset 3px 0 0 var(--m-warn)}
   .tbl tr.need td:first-child{box-shadow:none}
@@ -301,7 +335,9 @@ select.fld{appearance:none;padding-right:30px;background-image:linear-gradient(4
 /* ---------- scan ---------- */
 .scangrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start}
 @media (max-width:860px){.scangrid{grid-template-columns:minmax(0,1fr)}}
-.cam{position:relative;height:280px;border-radius:calc(var(--m-radius) + 4px);overflow:hidden;background:radial-gradient(ellipse at 50% 42%,#39424c 0,#1b2026 48%,#090a0c 100%)}
+/* a phone on its side: camera on the left, the result card beside it */
+@media (max-height:500px) and (min-width:600px){.scangrid{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
+.cam{position:relative;height:var(--cam-h,280px);border-radius:calc(var(--m-radius) + 4px);overflow:hidden;background:radial-gradient(ellipse at 50% 42%,#39424c 0,#1b2026 48%,#090a0c 100%)}
 .cam video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .cam .box{position:absolute;left:14%;right:14%;top:22%;bottom:26%;border:2px solid rgba(255,255,255,.92);border-radius:10px;box-shadow:0 0 0 999px rgba(0,0,0,.28);pointer-events:none}
 .cam .laser{position:absolute;left:18%;right:18%;top:47%;height:2px;background:var(--m-accent);opacity:.9;pointer-events:none}
@@ -333,18 +369,27 @@ select.fld{appearance:none;padding-right:30px;background-image:linear-gradient(4
 .onhand li b{font-variant-numeric:tabular-nums}
 
 /* ---------- toast + modal ---------- */
-.toast{position:fixed;left:50%;top:66px;transform:translate(-50%,-8px);z-index:200;background:#1a2233;color:#fff;padding:10px 16px;border-radius:var(--m-radius);font-size:14px;font-weight:600;max-width:min(92vw,520px);text-align:center;opacity:0;pointer-events:none;transition:opacity .15s,transform .15s}
+/* 12c item 8: just under the sticky header (sizeChrome sets --toast-top), so on the phone it sits in the thumb's view and never behind the notch */
+.toast{position:fixed;left:50%;top:var(--toast-top,66px);transform:translate(-50%,-8px);z-index:200;background:#1a2233;color:#fff;padding:10px 16px;border-radius:var(--m-radius);font-size:14px;font-weight:600;max-width:min(92vw,520px);text-align:center;opacity:0;pointer-events:none;transition:opacity .15s,transform .15s}
 .toast.show{opacity:1;transform:translate(-50%,0)}
 .toast.bad{background:#a82e29}
-.modal{position:fixed;inset:0;z-index:100;background:rgba(15,20,30,.45);display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;overflow-y:auto}
-.mbox{background:var(--m-card);border-radius:10px;border:1px solid var(--m-line);width:100%;max-width:520px;min-width:0;box-shadow:0 12px 40px rgba(20,30,50,.25)}
+.modal{position:fixed;inset:0;z-index:100;background:rgba(15,20,30,.45);display:flex;align-items:flex-start;justify-content:center;padding:var(--s5) var(--s3);overflow-y:auto}
+/* the shadow marks the one raised layer: a dialog over the page */
+.mbox{background:var(--m-card);border-radius:var(--m-radius);border:1px solid var(--m-line);width:100%;max-width:520px;min-width:0;box-shadow:0 12px 40px rgba(20,30,50,.25)}
 .mbox.wide{max-width:920px}
-.mh{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--m-line)}
+.mh{display:flex;align-items:center;gap:var(--s2);padding:var(--s2) var(--s3);border-bottom:1px solid var(--m-line);position:relative}
 .mh b{font-size:16px;overflow-wrap:anywhere;min-width:0}
 .mh .x{margin-left:auto;flex:none;width:38px;height:38px;border-radius:50%;border:1px solid var(--m-control-line);background:var(--m-card2);font-size:20px;line-height:1;cursor:pointer}
-.mbody{padding:14px 18px;min-width:0}
-.mbox .btnrow.end{padding:0 18px 16px;margin-top:0}
-.sect{margin-top:18px}
+.mbody{padding:var(--s3);min-width:0}
+.mbox .btnrow.end{padding:0 var(--s3) var(--s3);margin-top:0}
+.btnrow.end>.quick{flex:1 1 100%;margin:0}
+.modal.pop .grid2{grid-template-columns:minmax(0,1fr)}
+/* the drag handle exists only on a bottom sheet */
+.grab{display:none}
+/* 12c item 11: the Columns manager opens as a popover under its button on desktop */
+.modal.pop{background:transparent;padding:0;display:block;overflow:hidden}
+.modal.pop .mbox{position:fixed;width:340px;max-width:calc(100vw - 32px);overflow:auto;box-shadow:0 8px 28px rgba(20,30,50,.22)}
+.sect{margin-top:var(--s4)}
 .sect:first-child{margin-top:0}
 details.more{margin-top:12px}
 details.more summary{cursor:pointer;font-weight:600;color:var(--m-accent);min-height:32px;display:flex;align-items:center}
@@ -412,7 +457,7 @@ body.preview #printSheet .sheet{margin:0 auto 16px;box-shadow:0 2px 10px rgba(0,
 @media (max-width:900px){.two{grid-template-columns:minmax(0,1fr)}}
 pre.note{margin:0;background:var(--m-card2);border:1px solid var(--m-line);border-radius:var(--m-radius);padding:12px 14px;font:12.5px/1.55 var(--m-mono);white-space:pre-wrap;overflow-wrap:anywhere;color:var(--m-text)}
 .chip.new{border-style:dashed}
-button.chip{text-align:left;cursor:pointer;border-color:var(--m-control-line)}
+button.chip{text-align:left;cursor:pointer;border-color:var(--m-control-line);font:inherit;font-size:12px}
 button.chip.warn,button.chip.bad,button.chip.info,button.chip.ok{border-color:currentColor}
 button.chip:hover{border-color:var(--m-muted)}
 .chip.new i{background:var(--m-accent)}
@@ -459,57 +504,65 @@ body.preview #printSheet .picksheet{box-shadow:0 2px 10px rgba(0,0,0,.15)}
 @media (max-width:640px){body.preview #printSheet .picksheet{padding:16px;font-size:10pt}}
 
 /* ---------- wall board (?board=1, role board) ----------
-   Read from three to five meters: 30px lines, 44px counts, 24px headers.
-   Dark by default because the TV sits in a dim corner by the bays; every
-   text color below was checked at 4.5:1 or better on --b-bg and --b-card. */
-#board{position:fixed;inset:0;z-index:50;display:flex;flex-direction:column;overflow:hidden;cursor:none;background:var(--b-bg);color:var(--b-text);font-family:var(--m-font)}
+   0.6.0 (PLAN 12c items 14 to 18): read from four meters. Product lines
+   32px, counts 48px, group headers 26px, line height 1.3, nothing under
+   24px. Dark by default because the TV sits in a dim corner by the bays;
+   the light theme is for a bright shop. Every text color below passes
+   4.5:1 on --b-bg and --b-card, and the counts pass 7:1 in both themes
+   (light: text 14.69, amber 7.54, red 8.24, greyed 7.18; dark: text 17.28,
+   amber 10.20, red 8.28, greyed 7.29). --bx/--by move the whole board 2px
+   on every rotation so nothing burns into the panel (item 17). */
+#board{position:fixed;inset:0;z-index:50;display:flex;flex-direction:column;overflow:hidden;cursor:none;background:var(--b-bg);color:var(--b-text);font-family:var(--m-font);line-height:1.3;--bx:0px;--by:0px}
 #board[data-theme="dark"]{--b-bg:#0e1116;--b-card:#161b22;--b-line:#2b333d;--b-text:#f2f5f8;--b-muted:#aab4c0;--b-dim:#97a2ae;--b-amber:#f2b34a;--b-red:#ff8a80;--b-ok:#5fd39a;color-scheme:dark}
-#board[data-theme="light"]{--b-bg:#f4f6f9;--b-card:#ffffff;--b-line:#c7d0da;--b-text:#1a2233;--b-muted:#4f5a68;--b-dim:#5b6675;--b-amber:#8a5a14;--b-red:#a82e29;--b-ok:#166b3e;color-scheme:light}
+#board[data-theme="light"]{--b-bg:#f4f6f9;--b-card:#ffffff;--b-line:#c7d0da;--b-text:#1a2233;--b-muted:#4f5a68;--b-dim:#4a5361;--b-amber:#6e4710;--b-red:#8a2420;--b-ok:#166b3e;color-scheme:light}
+/* the rotation bar: 6px, the one endless motion in the app; the fill reads 6.08:1 (dark) and 4.50:1 (light) against its track */
 .bd-rot{flex:none;height:6px;background:var(--b-line)}
 .bd-rot i{display:block;height:100%;width:0;background:var(--b-muted)}
-.bd-live{flex:none;background:#a82e29;color:#fff;font-size:24px;font-weight:700;padding:10px 40px}
-.bd-main{flex:1;min-height:0;display:flex;flex-direction:column;padding:22px 40px 0}
-.bd-head{flex:none;display:flex;flex-wrap:wrap;align-items:flex-end;gap:6px 28px}
+/* 32px tall with the time; white on #a82e29 is 6.80:1 */
+.bd-live{flex:none;height:32px;line-height:32px;background:#a82e29;color:#fff;font-size:24px;font-weight:700;padding:0 40px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bd-main{flex:1;min-height:0;display:flex;flex-direction:column;padding:24px 40px 0;transform:translate(var(--bx),var(--by))}
+.bd-head{flex:none;display:flex;flex-wrap:wrap;align-items:flex-end;gap:8px 32px}
 .bd-client{font-size:40px;font-weight:700;line-height:1.1;overflow-wrap:anywhere}
-.bd-sub{font-size:24px;color:var(--b-muted);overflow-wrap:anywhere}
+.bd-sub{font-size:26px;color:var(--b-muted);overflow-wrap:anywhere}
 .bd-sub .mono{font-family:var(--m-mono)}
-.bd-bay{margin-left:auto;text-align:right;font-size:24px;color:var(--b-muted)}
-.bd-bay b{display:block;font-size:44px;color:var(--b-text);line-height:1.1}
-.bd-count{flex:none;display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 14px;margin:14px 0 8px;font-size:24px;color:var(--b-muted)}
-.bd-count b{font-size:44px;color:var(--b-text);font-variant-numeric:tabular-nums}
+.bd-bay{margin-left:auto;text-align:right;font-size:26px;color:var(--b-muted)}
+.bd-bay b{display:block;font-size:48px;color:var(--b-text);line-height:1.1}
+.bd-count{flex:none;display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 16px;margin:16px 0 8px;font-size:26px;color:var(--b-muted)}
+.bd-count b{font-size:48px;color:var(--b-text)}
 .bd-bar{flex:none;height:16px;border-radius:999px;background:var(--b-line);overflow:hidden}
 .bd-bar i{display:block;height:100%;background:var(--b-ok)}
 .bd-list{flex:1;min-height:0;overflow:hidden;margin-top:12px;padding-bottom:24px}
-.bd-grp{font:700 24px var(--m-mono);color:var(--b-muted);border-bottom:2px solid var(--b-line);padding:16px 0 6px;overflow-wrap:anywhere}
-.bd-line{display:grid;grid-template-columns:150px minmax(0,1fr) auto;gap:4px 24px;align-items:center;padding:12px 0;border-bottom:1px solid var(--b-line)}
-.bd-st{font-size:24px;font-weight:700;display:flex;align-items:center;gap:8px}
-.bd-st svg{width:28px;height:28px;flex:none}
-.bd-name{font-size:30px;font-weight:600;line-height:1.2;overflow-wrap:anywhere}
+.bd-grp{font:700 26px/1.3 var(--m-mono);color:var(--b-muted);border-bottom:2px solid var(--b-line);padding:16px 0 8px;overflow-wrap:anywhere}
+.bd-line{display:grid;grid-template-columns:160px minmax(0,1fr) auto;gap:4px 24px;align-items:center;padding:12px 0;border-bottom:1px solid var(--b-line)}
+.bd-st{font-size:24px;font-weight:700}
+.bd-name{font-size:32px;font-weight:600;overflow-wrap:anywhere}
 .bd-meta{font-size:24px;color:var(--b-muted);overflow-wrap:anywhere}
-.bd-qty{font-size:44px;font-weight:700;font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+.bd-qty{font-size:48px;font-weight:700;text-align:right;white-space:nowrap;line-height:1.1}
 .bd-qty small{font-size:24px;font-weight:600}
 .bd-line.picked .bd-st,.bd-line.picked .bd-name,.bd-line.picked .bd-qty,.bd-line.picked .bd-meta{color:var(--b-dim)}
 .bd-line.amber .bd-st,.bd-line.amber .bd-qty{color:var(--b-amber)}
 .bd-line.red .bd-st,.bd-line.red .bd-qty{color:var(--b-red)}
 .bd-line .bd-also{color:var(--b-amber)}
 .bd-line .bd-also.red{color:var(--b-red)}
-.bd-idle{flex:1;min-height:0;overflow:hidden auto;display:flex;flex-direction:column;align-items:center;justify-content:safe center;gap:16px;text-align:center;padding:24px}
+/* the idle screen walks its clock around a small square, a step a minute */
+.bd-idle{flex:1;min-height:0;overflow:hidden auto;display:flex;flex-direction:column;align-items:center;justify-content:safe center;gap:16px;text-align:center;padding:24px;transform:translate(var(--ix,0px),var(--iy,0px))}
 .bd-idle svg.mark{width:96px;height:96px;color:var(--b-muted)}
 .bd-idle h1{margin:0;font-size:56px}
-.bd-idle p{margin:0;font-size:30px;color:var(--b-muted);max-width:28ch}
-.bd-clock{font-size:96px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1}
-.bd-low{list-style:none;margin:8px 0 0;padding:0;font-size:30px;width:min(100%,900px)}
-.bd-low li{display:flex;justify-content:space-between;gap:24px;padding:10px 0;border-bottom:1px solid var(--b-line);text-align:left}
+.bd-idle p{margin:0;font-size:32px;color:var(--b-muted);max-width:28ch}
+.bd-clock{font-size:96px;font-weight:700;line-height:1}
+.bd-low{list-style:none;margin:8px 0 0;padding:0;font-size:32px;width:min(100%,900px)}
+.bd-low li{display:flex;justify-content:space-between;gap:24px;padding:12px 0;border-bottom:1px solid var(--b-line);text-align:left}
 .bd-low li b{color:var(--b-amber);white-space:nowrap}
+/* a phone or a small monitor showing the board: tighter, still nothing under 24px */
 @media (max-width:760px){
-  .bd-main{padding:14px 16px 0}
-  .bd-live{padding:8px 16px;font-size:18px}
-  .bd-client{font-size:28px}.bd-sub,.bd-bay,.bd-count,.bd-meta,.bd-st,.bd-grp{font-size:18px}
-  .bd-bay{margin-left:0;text-align:left}.bd-bay b,.bd-count b,.bd-qty{font-size:30px}
-  .bd-name{font-size:22px}
-  .bd-line{grid-template-columns:minmax(0,1fr) auto;gap:2px 12px}
+  .bd-main{padding:16px 16px 0}
+  .bd-live{padding:0 16px}
+  .bd-client{font-size:32px}.bd-sub,.bd-bay,.bd-count,.bd-meta,.bd-st,.bd-grp{font-size:24px}
+  .bd-bay{margin-left:0;text-align:left}.bd-bay b,.bd-count b,.bd-qty{font-size:36px}
+  .bd-name{font-size:26px}
+  .bd-line{grid-template-columns:minmax(0,1fr) auto;gap:4px 12px}
   .bd-line .bd-st{grid-column:1/-1}
-  .bd-idle h1{font-size:36px}.bd-idle p,.bd-low{font-size:20px}.bd-clock{font-size:64px}
+  .bd-idle h1{font-size:36px}.bd-idle p,.bd-low{font-size:24px}.bd-clock{font-size:64px}
 }
 
 /* ---------- expand in place (0.3.0, PLAN 12b item 5) ----------
@@ -518,17 +571,25 @@ body.preview #printSheet .picksheet{box-shadow:0 2px 10px rgba(0,0,0,.15)}
 .tbl tr.xrow{cursor:pointer}
 .tbl tr.xrow:hover td{background:color-mix(in srgb,var(--m-accent) 3%,transparent)}
 .tbl tr.xopen td{background:color-mix(in srgb,var(--m-accent) 6%,var(--m-card));border-bottom-color:transparent}
-.tbl th.xc,.tbl td.xc{width:44px;padding-left:2px;padding-right:2px;text-align:center}
+/* 12c item 10: the open row carries the accent bar its panel continues; the chevron at the top right closes it */
+.tbl tr.xopen td:first-child{box-shadow:inset 3px 0 0 var(--m-accent)}
+.tbl th.xc,.tbl td.xc{width:44px;padding-left:4px;padding-right:2px;text-align:center}
 .chev{display:inline-grid;place-items:center;width:32px;height:32px;border:1px solid var(--m-control-line);border-radius:6px;background:var(--m-card);color:var(--m-text);cursor:pointer;padding:0}
 .chev svg{width:16px;height:16px;transition:transform .15s}
 .chev[aria-expanded="true"]{border-color:var(--m-accent);color:var(--m-accent2)}
 .chev[aria-expanded="true"] svg{transform:rotate(90deg)}
 @media (prefers-reduced-motion:reduce){.chev svg{transition:none}}
 .tbl tr.xpanel td{padding:0;border-bottom:1px solid var(--m-line);cursor:auto}
-.xp{padding:14px 16px 16px;border-left:3px solid var(--m-accent);background:var(--m-card2);min-width:0}
-.xp .xhead{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;margin-bottom:6px}
+/* 150ms reveal (12c item 22): long enough to see where the panel came from, short enough not to wait on */
+.xp{padding:var(--s3);border-left:3px solid var(--m-accent);background:var(--m-card2);min-width:0}
+/* only the render that opens it animates; a live redraw of an open panel stays still */
+.xp.fresh{animation:xin .15s ease-out}
+@media (prefers-reduced-motion:reduce){.xp.fresh{animation:none}}
+@keyframes xin{from{opacity:0;transform:translateY(-4px)}}
+.xp .xhead{display:flex;flex-wrap:wrap;gap:var(--s1) var(--s2);align-items:center;margin-bottom:var(--s1)}
 .xp .xhead b{font-size:15px;overflow-wrap:anywhere}
-.xgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 16px}
+.xgrid{display:grid;grid-template-columns:minmax(0,1fr);gap:0 var(--s3)}
+@media (min-width:900px){.xgrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .xgrid .lab{margin-top:8px}
 .xgrid .chk{margin-top:26px}
 .xp .sect{margin-top:14px}
@@ -536,7 +597,7 @@ body.preview #printSheet .picksheet{box-shadow:0 2px 10px rgba(0,0,0,.15)}
 .xp .upcrow{display:flex;gap:8px;align-items:center}
 .xp .upcrow .fld{flex:1;min-width:0}
 .cons .xp{margin:10px -14px -12px;border-radius:0 0 var(--m-radius) var(--m-radius)}
-@container (max-width:640px){
+@container (max-width:719.98px){
   .tbl tr.xrow{position:relative}
   .tbl tr.xrow td:first-child{padding-right:52px}
   .tbl td.xc{position:absolute;top:6px;right:6px;width:auto;padding:0;min-height:0}
@@ -575,6 +636,7 @@ body.preview #printSheet .picksheet{box-shadow:0 2px 10px rgba(0,0,0,.15)}
 .ship ul{margin:0 0 10px;padding-left:18px;font-size:13px}
 .ship .sf{display:flex;align-items:center;gap:8px 10px;flex-wrap:wrap}
 .ship .sf .hint{margin:0}
+.ship .sfb{display:flex;flex-wrap:wrap;gap:var(--s1)}
 .rcv{border-top:1px dashed var(--m-line);padding:10px 0}
 .rcv:first-of-type{border-top:0}
 .rcv .rhead{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:baseline}
@@ -672,7 +734,7 @@ body.preview #printSheet .picksheet{box-shadow:0 2px 10px rgba(0,0,0,.15)}
 .lines .x{color:var(--m-muted)}
 .lines .st{margin-left:auto;white-space:normal;max-width:100%;font-size:12px;padding:1px 7px;border-radius:9px}
 .st.done{color:var(--m-ok-text);background:transparent;box-shadow:inset 0 0 0 1px var(--m-ok-text)}
-.wmore{margin-top:4px;font-size:13px}
+.wmore{margin-top:var(--s1);font-size:13px}
 .earlier{display:none;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--m-muted);font-weight:600;margin:6px 2px 0}
 .urow{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px 16px;padding:8px 0;border-top:1px dashed var(--m-line)}
 .urow:first-of-type{border-top:0}
@@ -681,7 +743,7 @@ body.preview #printSheet .picksheet{box-shadow:0 2px 10px rgba(0,0,0,.15)}
 .urow .ud .lab{margin-top:0}
 .skday{height:120px}
 @container (max-width:639px){
-  .wkbar{position:sticky;top:54px;z-index:5;padding:10px 12px}
+  .wkbar{position:sticky;top:var(--hdr-h);z-index:5;padding:var(--s2)}
   .wkbar .hint{display:none}
   .wnav{margin-left:0;width:100%;display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
   .wnav .btn{white-space:normal;line-height:1.2;text-align:center;padding:0 6px;font-size:13px}
@@ -693,16 +755,15 @@ body.preview #printSheet .picksheet{box-shadow:0 2px 10px rgba(0,0,0,.15)}
   .day.past{order:4}
   .urow .ud{flex:1 1 100%}
 }
-.flash td{animation:flash 2.4s ease-out 1}
-@keyframes flash{0%,40%{background:color-mix(in srgb,var(--m-accent) 16%,transparent)}}
-@media (prefers-reduced-motion:reduce){.flash td{animation:none;background:color-mix(in srgb,var(--m-accent) 10%,transparent)}}
+/* the line a Week button landed on: a plain tint for 2.6 s, no fade (12c item 22: no motion beyond sheets and expands) */
+.flash td{background:color-mix(in srgb,var(--m-accent) 12%,transparent)}
 
 /* ---------- console (0.4.0): reports, people, settings, about ---------- */
 .rr{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,170px),1fr));gap:0 14px;align-items:end;margin-bottom:6px}
 .rr .btnrow{margin:0;gap:6px}
 .rpick{margin-bottom:12px}
 /* view choices keep a field width instead of stretching one select across the page */
-.rfil{grid-template-columns:repeat(auto-fill,minmax(min(100%,220px),1fr));margin-bottom:6px}
+.rfil{grid-template-columns:repeat(auto-fill,minmax(min(100%,220px),1fr));margin-bottom:var(--s2)}
 .rfil:empty{display:none}
 .rhint{font-size:12.5px;color:var(--m-muted);margin:4px 0 10px}
 /* the one-line total sits under the table like the sum line on a ledger page */
@@ -756,44 +817,142 @@ body.preview #printSheet .picksheet{box-shadow:0 2px 10px rgba(0,0,0,.15)}
 
 /* ---------- thumbs, not cursors ----------
    0.5.2 (finding 20): the 44px floor follows the pointer, not only the
-   width, so a phone in landscape and a tablet get it too. Kept apart from
-   the phone layout below so the bottom-sheet work (PLAN 12c) can keep it. */
+   width, so a phone in landscape and a tablet get it too. 0.6.0 adds 16px
+   fields (iOS does not zoom) and 8px between neighbors (12c items 6, 7). */
 @media (max-width:640px),(pointer:coarse){
-  .btn,.btn.sm,.fld,select.fld,.seg button,.chk,.textbtn,.linkbtn,.gbtn,.locchip button,.mh .x,details.more summary,.demobar a,.radio,.forticket select.fld,.wkchip,.tch,.lines li button,.olpick .row .fld,.olpick .row .chk,button.chip,.collist li .btn,.nav button{min-height:44px}
+  .btn,.btn.sm,.fld,select.fld,.seg button,.chk,.textbtn,.linkbtn,.gbtn,.locchip button,.mh .x,details.more summary,.demobar a,.radio,.forticket select.fld,.wkchip,.tch,.lines li button,.olpick .row .fld,.olpick .row .chk,button.chip,.collist li .btn,.nav button,.srch .clr{min-height:44px}
   .chev{width:44px;height:44px}
-  .locchip button,.mh .x{min-width:44px}
+  .locchip button,.mh .x,.srch .clr{min-width:44px}
   .tbl th .thb{min-height:44px}
   .tipq{width:44px;height:44px;font-size:16px}
   .toast .tbtn,.toast .tx{min-height:44px;min-width:44px}
+  .fld,.manual .fld{font-size:16px}
+  .seg,.chips,.wnav,.pkg .pf,.rr .btnrow,.tkbtns,.podbtns,.quick{gap:var(--s1)}
+  /* 8px between neighbors: sort buttons in a header row, line buttons on a Week card, a button under a form row */
+  .tbl th{padding:0 4px}
+  .nav{gap:var(--s1)}
+  .lines li+li{padding-top:var(--s1)}
+  #carAdd{margin-top:var(--s1)}
 }
+
+/* ---------- bottom sheets (0.6.0, PLAN 12c item 1) ----------
+   On a phone, or any touch screen, every modal opens from the bottom: the
+   confirm button full width at the bottom, Cancel above it, the body
+   scrolling between, so the thumb never has to reach the top. The drag
+   handle and Escape close it; a tap outside does not (Playbook). One
+   mechanism: openModal() builds every modal, and this block reshapes it. */
+@keyframes sheetup{from{transform:translateY(100%)}}
+@keyframes sheetdown{to{transform:translateY(100%)}}
+@keyframes shade{from{background:rgba(15,20,30,0)}}
+@keyframes unshade{to{background:rgba(15,20,30,0)}}
+@media (max-width:640px),(pointer:coarse){
+  .modal{align-items:flex-end;padding:var(--s4) 0 0;overflow:hidden;animation:shade .15s ease-out}
+  .modal .mbox,.modal .mbox.wide{max-width:min(100%,720px);max-height:calc(100dvh - var(--s4) - env(safe-area-inset-top));display:flex;flex-direction:column;border-radius:12px 12px 0 0;border-bottom:0;box-shadow:0 -8px 32px rgba(20,30,50,.22);animation:sheetup .15s ease-out}
+  .modal.closing{pointer-events:none;animation:unshade .15s ease-in forwards}
+  .modal.closing .mbox{animation:sheetdown .15s ease-in forwards}
+  .mh{flex:none;padding:28px var(--s3) var(--s2)}
+  .mh .x{display:none}
+  .grab{display:block;position:absolute;top:0;left:50%;width:96px;height:44px;margin-left:-48px;padding:0;border:0;background:none;cursor:grab;touch-action:none;border-radius:var(--m-radius)}
+  /* the bar is #767f8c, 4.05:1 on the sheet, so it reads as a control */
+  .grab:before{content:"";position:absolute;top:10px;left:28px;width:40px;height:5px;border-radius:999px;background:var(--m-control-line)}
+  .mbody{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:var(--s3)}
+  .mbox .btnrow.end{flex:none;flex-direction:column;align-items:stretch;flex-wrap:nowrap;gap:var(--s1);padding:var(--s2) var(--s3) calc(var(--s2) + env(safe-area-inset-bottom));border-top:1px solid var(--m-line);margin:0;background:var(--m-card)}
+  .mbox .btnrow.end>*{width:100%}
+  .mbox .btnrow.end>span>.btn{width:100%}
+  /* the box sheet's quick buttons ride in the footer, right above Save cut */
+  .mbox .btnrow.end>.quick{margin:0}
+}
+/* a phone on its side: the footer is one row, confirm on the right, so the body keeps its height */
+@media (pointer:coarse) and (max-height:500px){
+  .modal{padding-top:var(--s1)}
+  .modal .mbox,.modal .mbox.wide{max-height:calc(100dvh - var(--s1))}
+  .mh{padding-top:24px}
+  .mbox .btnrow.end{flex-direction:row;flex-wrap:wrap}
+  .mbox .btnrow.end>*{width:auto;flex:1 1 0}
+  .mbox .btnrow.end>.quick{flex-basis:100%}
+}
+@media (prefers-reduced-motion:reduce){.modal,.modal .mbox,.modal.closing,.modal.closing .mbox{animation:none!important}}
+
+/* ---------- card footers (12c item 3) ----------
+   Outside tables (Tracking cards, shipment cards, open panels, the Scan
+   card) the same rule: two 44px buttons, the likely one first and filled,
+   the rest under the ... button, which opens them in a sheet. */
+.moreacts{display:none;padding:0;width:44px;justify-content:center}
+.moreacts svg{width:20px;height:20px}
+@media (max-width:640px){
+  .acts:not(td){display:flex;flex-wrap:nowrap;gap:var(--s1)}
+  .acts:not(td)>.btn,.acts:not(td)>span{flex:1 1 0;min-width:0}
+  .acts:not(td)>.btn,.acts:not(td)>span>.btn{white-space:normal;line-height:1.2;text-align:center;width:100%}
+  .acts:not(td)>.ovf{display:none}
+  .acts:not(td)>.moreacts{display:inline-flex;flex:0 0 44px}
+}
+.actsheet .btn{width:100%;margin-top:var(--s1)}
+.actsheet .btn:first-child{margin-top:0}
+
+/* ---------- filters and search (12c item 5) ----------
+   On the phone a view's filters fold into one Filters button that opens
+   them in a sheet; every search field keeps its own clear button. */
+.filtbar{display:none}
+.srch{position:relative;display:flex;flex:1 1 220px;min-width:0}
+.srch .fld{flex:1;min-width:0;padding-right:40px}
+.srch .clr{position:absolute;right:0;top:0;bottom:0;width:38px;border:0;background:none;color:var(--m-muted);font-size:20px;line-height:1;cursor:pointer;border-radius:var(--m-radius)}
+.srch .fld:placeholder-shown+.clr{display:none}
+.srch input[type=search]::-webkit-search-cancel-button{display:none}
+@media (max-width:640px){
+  .filtbar{display:flex;flex-wrap:wrap;gap:var(--s1);align-items:center;margin-bottom:var(--s2)}
+  .filtbar .btn{flex:1 1 auto}
+  #main .filters{display:none}
+  .srch .fld{padding-right:48px}
+}
+.modal .filters{display:grid;grid-template-columns:minmax(0,1fr);margin:0}
 
 /* ---------- phone ---------- */
 @media (max-width:640px){
   .phoneonly{display:flex}
-  .top{padding:8px 12px;min-height:54px;gap:6px 10px}
+  .top{padding:var(--s1) var(--s2);min-height:56px;gap:var(--s1) var(--s2)}
+  /* 12c item 5: the header shrinks to 48px once the page scrolls */
+  .top.shrunk{min-height:48px;padding-top:1px;padding-bottom:2px}
+  /* one row on a 360px phone: the version shows in the footer and the tab title instead of the badge */
+  .brand{font-size:17px}
+  .brand .v{display:none}
+  .top .sync{margin-left:auto}
+  .top.shrunk .brand{font-size:16px}
+  .top.shrunk .brand svg{width:22px;height:22px}
   .nav,.who .em{display:none}
-  .body{padding:12px;padding-bottom:96px}
-  .foot{padding-bottom:96px}
-  .mcard{padding:14px}
-  .fld{font-size:16px}
+  .body{padding:var(--s2);padding-bottom:calc(var(--tab-h) + var(--s3))}
+  .foot{padding-bottom:calc(var(--tab-h) + var(--s3))}
+  .mcard{padding:var(--s3)}
   .collist li{flex-wrap:wrap}
   .linkbtn{display:flex;align-items:center;width:100%}
-  .tabbar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--m-card);border-top:1px solid var(--m-line);padding:6px 4px calc(8px + env(safe-area-inset-bottom))}
-  .tabbar button{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:11px;color:var(--m-muted);background:none;border:0;padding:4px 0;cursor:pointer;min-height:52px}
+  /* 12c item 2: Tickets, Week, Scan (raised, in the middle under the thumb), Stock, More */
+  .tabbar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--m-card);border-top:1px solid var(--m-line);padding:4px 4px calc(4px + env(safe-area-inset-bottom))}
+  .tabbar{gap:var(--s1)}
+  .btn.sm{font-size:13px}
+  .tabbar button{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:13px;color:var(--m-muted);background:none;border:0;padding:4px 0;cursor:pointer;min-height:52px}
   .tabbar button svg{width:22px;height:22px}
-  .tabbar button.on{color:var(--m-accent);font-weight:600}
-  .tabbar button.scan svg{width:42px;height:42px;padding:9px;border-radius:50%;margin-top:-16px;background:var(--m-card2);border:1px solid var(--m-line)}
+  .tabbar button.on{color:var(--m-accent2);font-weight:600}
+  .tabbar button.scan svg{width:44px;height:44px;padding:10px;border-radius:50%;margin-top:-18px;background:var(--m-card2);border:1px solid var(--m-control-line)}
   .tabbar button.scan.on svg{background:var(--m-accent);color:var(--m-onaccent);border-color:var(--m-accent)}
-  .modal{padding:12px 8px}
-  .mbody{padding:12px 14px}
-  .mh{padding:10px 14px}
-  .cam{height:230px}
-  .toast{top:60px}
-  .a2strip:not([hidden]){display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--m-navon);border-bottom:1px solid var(--m-line);padding:6px 6px 6px 12px;font-size:13px;color:var(--m-text)}
+  .cam{height:var(--cam-h,230px)}
+  .bignum .fld{height:56px;font-size:32px}
+  .a2strip:not([hidden]){display:flex;align-items:center;gap:var(--s1);flex-wrap:wrap;background:var(--m-navon);border-bottom:1px solid var(--m-line);padding:6px 6px 6px 12px;font-size:13px;color:var(--m-text)}
   .a2strip .a2s{flex:1 1 180px;min-width:0}
   .a2strip .btn{min-height:44px}
   .a2strip .x{border:0;background:none;color:var(--m-muted);font-size:22px;line-height:1;min-width:44px;min-height:44px;border-radius:var(--m-radius);cursor:pointer}
   .pslot .pimg{width:132px;height:132px}
+}
+/* a phone on its side keeps the full desktop nav; the header scrolls away
+   with the page instead of holding a third of a 360px screen */
+@media (pointer:coarse) and (max-height:500px){
+  .top{position:relative}
+  .body{padding:var(--s2)}
+  .mcard{padding:var(--s3)}
+}
+/* 12c item 7, on any phone or touch screen: 15px body text on cards, 13px muted meta, nothing smaller */
+@media (max-width:640px),(pointer:coarse){
+  .btn.sm{font-size:13px}
+  body,.tbl,.onhand li,.crow,.ship dd,.ship ul,.pkg .what,.pkg dd,.tl li,.chead .pn,.rcv,.olpick,.a2card .a2t p,.a2card ol,.tipsheet p,.dict .tbl td:first-child,.tc,.tc .pd,.trk,.tbl tr.grp td,.dh b{font-size:15px}
+  .hint,.pd,.locs,.chip,.st,.lab,.h4,.mcard h4,.tbl th,.sv .k,.sv .u,.meta dt,.meta dd small,.unit,.mv,.tl .when,.sync,.brand .v,.who span,.foot,.pkey,.seg button,.seg button b,.dh .st,.dh .dd,.lines .st,.crumb,.loadmsg,.err,.tcp,.tch .tn,.trgh span,.trgh small,.pkg .when,.pkg dt,.pkg dd small,.ship dt,.carrier,.rhint,.camhint,.cam .read,.forticket label,.res .rk,.res .rm,.wkchip,.earlier,.lnote,.pexp,.lateA,.tbl tr.grp td span,.req,.demobar,.day .empty,.drop p,.step b,button.chip,pre.note{font-size:13px}
 }
 </style>
 </head>
@@ -823,16 +982,17 @@ body.preview #printSheet .picksheet{box-shadow:0 2px 10px rgba(0,0,0,.15)}
   <header class="top">
     <div class="brand">
       <svg viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="20" width="48" height="34" rx="6" fill="none" stroke="currentColor" stroke-width="5"/><path d="M24 20v-6a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v6" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/><path d="M8 35h48" stroke="currentColor" stroke-width="4"/><rect x="27" y="31" width="10" height="8" rx="2" fill="currentColor"/></svg>
-      Loadout <span class="v" id="verBadge">v0.5.2</span>
+      Loadout <span class="v" id="verBadge">v0.6.0</span>
     </div>
     <nav class="nav" aria-label="Views">
+      <!-- 0.6.0: the tab bar's five in the tab bar's order, then the rest -->
       <button type="button" data-go="tickets">Tickets</button>
+      <button type="button" data-go="week">Week</button>
       <button type="button" data-go="scan">Scan</button>
       <button type="button" data-go="stock">Stock</button>
       <button type="button" data-go="orders">Orders</button>
       <button type="button" data-go="tracking">Tracking</button>
-      <button type="button" data-go="week">Week</button>
-      <button type="button" data-go="items">Items</button>
+      <button type="button" data-go="items">Units</button>
       <button type="button" data-go="console" hidden>Console</button>
       <button type="button" data-go="more">More</button>
     </nav>
@@ -856,7 +1016,7 @@ body.preview #printSheet .picksheet{box-shadow:0 2px 10px rgba(0,0,0,.15)}
   </main>
 
   <footer class="foot">
-    <span id="footVer">Loadout v0.5.2</span>
+    <span id="footVer">Loadout v0.6.0</span>
     <span id="footWho"></span>
     <span id="footRole"></span>
     <span id="footSync"></span>
@@ -864,8 +1024,8 @@ body.preview #printSheet .picksheet{box-shadow:0 2px 10px rgba(0,0,0,.15)}
 
   <nav class="tabbar" aria-label="Views">
     <button type="button" data-go="tickets"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 10h6M9 14h6M9 18h3"/></svg>Tickets</button>
-    <button type="button" data-go="scan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4M4 12h16"/></svg>Scan</button>
     <button type="button" data-go="week"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>Week</button>
+    <button type="button" class="scan" data-go="scan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8V4h4M16 4h4v4M20 16v4h-4M8 20H4v-4M4 12h16"/></svg>Scan</button>
     <button type="button" data-go="stock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5z"/><path d="M3 7.5 12 12l9-4.5M12 12v9"/></svg>Stock</button>
     <button type="button" data-go="more"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>More</button>
   </nav>
@@ -885,7 +1045,7 @@ body.preview #printSheet .picksheet{box-shadow:0 2px 10px rgba(0,0,0,.15)}
    and its Google sign-in, like Backup Audits and Sundial. Data lives
    in loadout_* collections; rules are in watchtower/firestore.rules.
    ============================================================== */
-const VERSION = "0.5.2";
+const VERSION = "0.6.0";
 const SDK = "https://www.gstatic.com/firebasejs/12.13.0/";
 const XLSX_URL = "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";
 /* @zxing/library is not on cdnjs, so the fallback decoder comes from jsDelivr,
@@ -1039,7 +1199,7 @@ const S = {
   clients: new Map(), jobs: new Map(), proposals: new Map(), tickets: new Map(),
   lines: new Map(), linesLoaded: new Set(), ticketId: null, tkHist: {},
   board: Object.assign({}, DEFAULT_BOARD), importMap: null,
-  tkFilter: { status: "active", client: "", toOrder: false, backorders: false, install: "" },
+  tkFilter: { status: "active", client: "", toOrder: false, backorders: false, install: "", q: "" },
   showArchived: false, liveLostAt: null,
   /* 0.3.0 */
   orders: new Map(), olines: new Map(), olinesLoaded: new Set(), shipments: new Map(), orderId: null,
@@ -1073,12 +1233,12 @@ function toDate(v) {
   const d = new Date(v); return isNaN(d) ? null : d;
 }
 const pad = n => String(n).padStart(2, "0");
-/* 0.5.2 (finding 34, PLAN 12c item 19): two date formats. Records (tables,
-   history, the ticket header) read "Nov 2, 2026"; near dates (chips, cards,
-   ETAs) read "Nov 2", with the year only when it is not this year. Times
-   read "8:14 AM". Exports keep ISO dates so a spreadsheet sorts them. */
-function fmtDate(v) { const d = toDate(v); return d ? MONTHS[d.getMonth()] + " " + d.getDate() + ", " + d.getFullYear() : ""; }
+/* 0.6.0 (PLAN 12c item 19): one date format. "Nov 2" in the current year,
+   "Nov 2, 2025" otherwise, everywhere; times read "8:14 AM"; a relative
+   "3 days late" only ever sits next to the date it counts from. Exports
+   keep ISO dates so a spreadsheet sorts them. */
 function fmtShort(v) { const d = toDate(v); return d ? MONTHS[d.getMonth()] + " " + d.getDate() + (d.getFullYear() !== new Date().getFullYear() ? ", " + d.getFullYear() : "") : ""; }
+const fmtDate = fmtShort;
 function fmtWhen(v) { const d = toDate(v); return d ? fmtDate(d) + ", " + fmtTime(d) : ""; }
 function isoStamp(v) { const d = toDate(v); return d ? isoDay(d) + " " + pad(d.getHours()) + ":" + pad(d.getMinutes()) : ""; }
 function isoDay(v) { const d = toDate(v); return d ? d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()) : ""; }
@@ -1170,6 +1330,7 @@ function mvWhat(m) {
 /* ---------------- toast + modal ---------------- */
 function toast(msg, bad = false, ms) {
   const t = $("#toast");
+  positionToast();
   t.classList.remove("act");
   t.textContent = msg;
   t.classList.toggle("bad", !!bad);
@@ -1182,6 +1343,7 @@ function toast(msg, bad = false, ms) {
 function toastAction(msg, label, fn) { toast.sticky = { msg, label, fn }; paintStickyToast(); }
 function paintStickyToast() {
   const s = toast.sticky, t = $("#toast"); if (!s) return;
+  positionToast();
   clearTimeout(toast._t);
   t.classList.remove("bad");
   t.innerHTML = "<span>" + esc(s.msg) + '</span><button type="button" class="tbtn">' + esc(s.label) + '</button><button type="button" class="tx" aria-label="Dismiss">&times;</button>';
@@ -1189,12 +1351,28 @@ function paintStickyToast() {
   t.querySelector(".tbtn").addEventListener("click", () => { toast.sticky = null; t.classList.remove("show", "act"); s.fn(); });
   t.querySelector(".tx").addEventListener("click", () => { toast.sticky = null; t.classList.remove("show", "act"); });
 }
-/* Modals close only via the X, Cancel, the confirm button, or Escape.
-   Clicking the backdrop deliberately does nothing.
+/* 0.6.0 (PLAN 12c item 8): the toast sits 8px under the sticky header,
+   wherever the header is (taller on the desktop, 48px once the phone
+   scrolls, gone when the board or sign-in shows), never behind the notch */
+function positionToast() {
+  const top = $(".top"), app = $("#app");
+  const below = top && app && !app.hidden ? Math.max(0, top.getBoundingClientRect().bottom) : 0;
+  document.documentElement.style.setProperty("--toast-top", "calc(" + Math.round(below + 8) + "px + " + (below ? "0px" : "env(safe-area-inset-top)") + ")");
+}
+/* Modals close only via the X, Cancel, the confirm button, Escape, or (on
+   a bottom sheet) the drag handle. Clicking the backdrop deliberately does
+   nothing.
    0.5.2 (audit-002 finding 4): a real focus trap. Tab and Shift+Tab cycle
    inside the top modal, the page under it is inert, and focus goes back to
    the control that opened it, found again by its id or data-act if a redraw
-   replaced it. The bottom-sheet work (PLAN 12c item 1) keeps all of this. */
+   replaced it.
+   0.6.0 (PLAN 12c item 1): on a phone or a touch screen the same modal is a
+   bottom sheet. The CSS reshapes it (SHEETQ below); this function adds the
+   drag handle, keeps the keyboard down on a touch screen (no first-field
+   focus), and slides it away on close. One mechanism for every modal. */
+const SHEETQ = matchMedia("(max-width:640px),(pointer:coarse)");
+const PHONEQ = matchMedia("(max-width:640px)");
+const REDUCEDQ = matchMedia("(prefers-reduced-motion: reduce)");
 let modalStack = [];
 const FOCUSABLE = 'a[href],button,input:not([type=hidden]),select,textarea,summary,[tabindex]';
 function focusables(root) {
@@ -1205,8 +1383,8 @@ function focusKey(el) {
   if (!el || el === document.body || !el.getAttribute) return null;
   if (el.id) return "#" + CSS.escape(el.id);
   const a = el.getAttribute("data-act"); if (!a) return null;
-  const id = el.getAttribute("data-id"), x = el.getAttribute("data-x");
-  return '[data-act="' + CSS.escape(a) + '"]' + (id != null ? '[data-id="' + CSS.escape(id) + '"]' : "") + (x != null ? '[data-x="' + CSS.escape(x) + '"]' : "");
+  const id = el.getAttribute("data-id"), x = el.getAttribute("data-x"), k = el.getAttribute("data-kind");
+  return '[data-act="' + CSS.escape(a) + '"]' + (id != null ? '[data-id="' + CSS.escape(id) + '"]' : "") + (x != null ? '[data-x="' + CSS.escape(x) + '"]' : "") + (k != null ? '[data-kind="' + CSS.escape(k) + '"]' : "");
 }
 function syncInert() {
   const on = modalStack.length > 0;
@@ -1220,13 +1398,14 @@ function trapTab(e, wrap) {
   if (e.shiftKey && (a === first || !inside)) { e.preventDefault(); last.focus(); }
   else if (!e.shiftKey && (a === last || !inside)) { e.preventDefault(); first.focus(); }
 }
+/* opts: wide, cls, noFocus, onClose, pop (the button a desktop popover hangs under) */
 function openModal(title, bodyHTML, footHTML, opts = {}) {
   const wrap = document.createElement("div");
   wrap.className = "modal";
   const tid = "mt" + rid();
   wrap.innerHTML =
-    '<div class="mbox' + (opts.wide ? " wide" : "") + (opts.cls ? " " + opts.cls : "") + '" role="dialog" aria-modal="true" aria-labelledby="' + tid + '">' +
-      '<div class="mh"><b id="' + tid + '">' + esc(title) + '</b><button type="button" class="x" data-close aria-label="Close">&times;</button></div>' +
+    '<div class="mbox' + (opts.wide ? " wide" : "") + (opts.cls ? " " + opts.cls : "") + '" role="dialog" aria-modal="true" aria-labelledby="' + tid + '" tabindex="-1">' +
+      '<div class="mh"><button type="button" class="grab" aria-label="Close" title="Drag down or tap to close"></button><b id="' + tid + '">' + esc(title) + '</b><button type="button" class="x" data-close aria-label="Close">&times;</button></div>' +
       '<div class="mbody">' + bodyHTML + '</div>' +
       (footHTML ? '<div class="btnrow end">' + footHTML + '</div>' : "") +
     '</div>';
@@ -1236,20 +1415,58 @@ function openModal(title, bodyHTML, footHTML, opts = {}) {
   $("#modalRoot").appendChild(wrap);
   modalStack.push(wrap);
   syncInert();
+  const box = wrap.querySelector(".mbox");
+  /* a desktop popover (the Columns manager) hangs under the button that opened it */
+  if (opts.pop && !SHEETQ.matches && opts.pop.getBoundingClientRect) {
+    wrap.classList.add("pop");
+    const r = opts.pop.getBoundingClientRect(), w = Math.min(340, innerWidth - 32);
+    const top = Math.max(16, Math.min(r.bottom + 8, innerHeight - 240));
+    box.style.top = top + "px"; box.style.left = Math.max(16, Math.min(r.right - w, innerWidth - w - 16)) + "px"; box.style.maxHeight = (innerHeight - top - 16) + "px";
+  }
   wrap.querySelectorAll("[data-close]").forEach(b => b.addEventListener("click", () => closeModal(wrap)));
-  const focusable = wrap.querySelector(".mbody input:not([type=checkbox]):not([disabled]),.mbody select,.mbody textarea") || wrap.querySelector(".x");
-  if (focusable && !opts.noFocus) setTimeout(() => focusable.focus(), 30);
-  else setTimeout(() => { if (!wrap.contains(document.activeElement)) { const x = wrap.querySelector(".x"); if (x) x.focus(); } }, 30);
+  wireGrab(wrap, box);
+  fixInputs(wrap);
+  /* 12c item 12: Enter submits a sheet that has one text field */
+  wrap.addEventListener("keydown", e => {
+    if (e.key !== "Enter" || e.shiftKey || e.isComposing) return;
+    const t = e.target;
+    if (!t.matches || !t.matches("input") || t.closest("form") || /^(checkbox|radio|file|button|submit)$/.test(t.type)) return;
+    const texts = $$("input", wrap.querySelector(".mbody")).filter(i => !/^(checkbox|radio|hidden|file|button|submit)$/.test(i.type) && !i.disabled && i.getClientRects().length);
+    const ok = wrap.querySelector("[data-ok]");
+    if (texts.length === 1 && ok && !ok.disabled) { e.preventDefault(); ok.click(); }
+  });
+  /* the first field takes focus on a keyboard and mouse; on a touch screen
+     the sheet itself does, so the on-screen keyboard does not cover it */
+  const focusable = wrap.querySelector(".mbody input:not([type=checkbox]):not([disabled]),.mbody select,.mbody textarea");
+  if (focusable && !opts.noFocus && !COARSE.matches) setTimeout(() => focusable.focus(), 30);
+  else setTimeout(() => { if (!wrap.contains(document.activeElement)) { const x = SHEETQ.matches ? box : wrap.querySelector(".x"); if (x) x.focus({ preventScroll: true }); } }, 30);
   return wrap;
+}
+/* the handle: a tap closes the sheet; a drag follows the finger and closes past 80px, or springs back */
+function wireGrab(wrap, box) {
+  const g = wrap.querySelector(".grab"); if (!g) return;
+  let y0 = null, dy = 0, moved = false;
+  g.addEventListener("pointerdown", e => { if (!SHEETQ.matches) return; y0 = e.clientY; dy = 0; moved = false; try { g.setPointerCapture(e.pointerId); } catch (x) {} box.style.transition = "none"; });
+  g.addEventListener("pointermove", e => { if (y0 == null) return; dy = Math.max(0, e.clientY - y0); if (dy > 6) moved = true; box.style.transform = dy ? "translateY(" + dy + "px)" : ""; });
+  const end = () => {
+    if (y0 == null) return; y0 = null;
+    if (dy > 80) { closeModal(wrap); return; }
+    box.style.transition = REDUCEDQ.matches ? "none" : "transform .15s ease-out"; box.style.transform = "";
+  };
+  g.addEventListener("pointerup", end); g.addEventListener("pointercancel", end);
+  g.addEventListener("click", () => { if (moved) { moved = false; return; } closeModal(wrap); });
 }
 function closeModal(wrap) {
   if (!wrap) wrap = modalStack[modalStack.length - 1];
-  if (!wrap) return;
-  wrap.remove();
+  if (!wrap || wrap._closed) return;
+  wrap._closed = true;
   modalStack = modalStack.filter(m => m !== wrap);
   syncInert();
+  /* a sheet slides down in 150ms; it is out of the stack and inert at once, so the next step never waits on it */
+  if (SHEETQ.matches && !REDUCEDQ.matches && !wrap.classList.contains("pop")) { wrap.inert = true; wrap.classList.add("closing"); setTimeout(() => wrap.remove(), 150); }
+  else wrap.remove();
   const back = wrap._prevFocus && document.contains(wrap._prevFocus) ? wrap._prevFocus : wrap._prevKey ? document.querySelector(wrap._prevKey) : null;
-  if (back) { try { back.focus(); } catch (e) {} }
+  if (back) { try { back.focus({ preventScroll: SHEETQ.matches }); } catch (e) {} }
   if (wrap._onClose) { const f = wrap._onClose; wrap._onClose = null; f(); }
 }
 function closeAllModals() { while (modalStack.length) closeModal(); }
@@ -1257,8 +1474,15 @@ document.addEventListener("keydown", e => {
   if (e.key === "Tab" && modalStack.length) { trapTab(e, modalStack[modalStack.length - 1]); return; }
   if (e.key === "Escape" && modalStack.length) { closeModal(); return; }
   if (e.key === "Escape" && document.body.classList.contains("preview")) { closePreview(); return; }
-  /* Escape closes an open row panel (Stock, Items, Locations) */
-  if (e.key === "Escape" && S.x && S.user && !BOARD) { e.preventDefault(); xClose(); }
+  /* Escape closes an open row panel (Stock, Units, Locations) */
+  if (e.key === "Escape" && S.x && S.user && !BOARD) { e.preventDefault(); xClose(); return; }
+  /* 12c item 13: / jumps to the view's search field, unless typing already */
+  if (e.key === "/" && !e.ctrlKey && !e.metaKey && !e.altKey && !modalStack.length && S.user && !BOARD && !document.body.classList.contains("preview")) {
+    const t = e.target; if (t && t.closest && t.closest("input,textarea,select,[contenteditable]")) return;
+    const v = $("#v-" + S.view);
+    const f = v && ($$('input[type=search]', v).find(i => i.getClientRects().length) || (S.view === "scan" ? $("#manualCode") : null));
+    if (f) { e.preventDefault(); f.focus(); try { f.select(); } catch (x) {} }
+  }
 });
 function confirmModal(title, bodyHTML, confirmLabel, onConfirm, danger) {
   const w = openModal(title, bodyHTML,
@@ -1293,7 +1517,7 @@ function enhanceTips(root) {
   $$(TIP_SEL, root || document).forEach(el => {
     if (el.dataset.tipd || el.closest(".labrow") || el.closest("#board") || el.closest(".tbl thead")) return;
     el.dataset.tipd = "1";
-    const text = el.getAttribute("title"), name = el.textContent.replace(/\s+/g, " ").trim();
+    const text = el.getAttribute("title"), name = el.textContent.replace(/\s+/g, " ").replace(/\s*required$/, "").trim();
     const btn = document.createElement("button");
     btn.type = "button"; btn.className = "tipq"; btn.textContent = "?";
     btn.setAttribute("aria-label", "Why: " + name); btn.dataset.tip = text; btn.dataset.tipFor = name;
@@ -1306,8 +1530,152 @@ function enhanceTips(root) {
 function openTip(name, text) {
   openModal(name || "Why", '<div class="tipsheet"><p>' + esc(text) + "</p></div>", '<button type="button" class="btn acc" data-close>Got it</button>', { cls: "tipbox", noFocus: true });
 }
-let _tipT = 0;
-new MutationObserver(() => { if (!COARSE.matches || _tipT) return; _tipT = requestAnimationFrame(() => { _tipT = 0; enhanceTips(); }); }).observe(document.documentElement, { childList: true, subtree: true });
+
+/* ---------------- 0.6.0: one pass over whatever was just drawn ----------------
+   A MutationObserver runs these after every redraw, so no view has to
+   remember them: the ? buttons (touch only), the card footers (two buttons
+   and ...), the Filters button, and the number keyboards. Each is
+   idempotent, so its own changes do not set it off again. */
+function fixInputs(root) {
+  /* 12c item 6: the number pad on a phone. A field that takes a minus sign
+     (data-signed) keeps type=number alone, which on iOS brings the keyboard
+     with the minus key. */
+  $$('input[type=number]:not([inputmode]):not([data-signed])', root || document).forEach(i => i.setAttribute("inputmode", /any|\./.test(i.getAttribute("step") || "") ? "decimal" : "numeric"));
+}
+const MORE_SVG = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>';
+/* card footers: a table row's actions, a Tracking or shipment card, an open panel, the Scan card */
+const ACT_SEL = ".tbl td.act, .pkg .pf, .ship .sfb, .xp > .btnrow, .res > .btnrow";
+const actBtn = k => k.matches(".btn") ? k : k.querySelector(".btn");
+function enhanceActs() {
+  $$(ACT_SEL).forEach(c => {
+    if (c.dataset.acts || c.closest(".modal")) return;
+    c.dataset.acts = "1";
+    const kids = Array.from(c.children);
+    if (!kids.length || kids.some(k => !actBtn(k))) return;
+    c.classList.add("acts");
+    /* the most likely action first and filled (the accent one), anything disabled last */
+    const rank = k => { const b = actBtn(k); return b.disabled ? 2 : b.classList.contains("acc") ? 0 : 1; };
+    const sorted = kids.slice().sort((a, b) => rank(a) - rank(b));
+    const keep = c.contains(document.activeElement);
+    if (!keep && sorted.some((k, i) => k !== kids[i])) sorted.forEach(k => c.appendChild(k));
+    const order = keep ? kids : sorted;
+    if (order.length > 2) {
+      order.slice(2).forEach(k => k.classList.add("ovf"));
+      const host = c.closest("tr,.pkg,.ship,.xp,.res");
+      const nameEl = host && host.querySelector(".pn,.xhead b,.rt,.trk,.carrier");
+      c.dataset.title = nameEl ? nameEl.textContent.replace(/\s+/g, " ").trim().slice(0, 80) : "";
+      c.insertAdjacentHTML("beforeend", '<button type="button" class="btn moreacts" data-act="moreActs" aria-label="More actions' + (c.dataset.title ? " for " + esc(c.dataset.title) : "") + '" aria-haspopup="dialog" title="More actions">' + MORE_SVG + "</button>");
+    }
+  });
+}
+/* the ... sheet: the hidden actions as full-width buttons; each one closes the sheet and presses the original */
+function openMoreActs(c) {
+  if (!c) return;
+  const items = $$(":scope > .ovf", c).map(actBtn).filter(Boolean);
+  if (!items.length) return;
+  const body = '<div class="actsheet">' + items.map((b, i) => '<button type="button" class="btn' + (b.classList.contains("danger") ? " danger" : "") + '" data-i="' + i + '"' + (b.disabled ? " disabled" : "") + (b.title ? ' title="' + esc(b.title) + '"' : "") + ">" + esc(b.textContent.replace(/\s+/g, " ").trim()) + "</button>").join("") + "</div>";
+  const w = openModal(c.dataset.title || "More actions", body, '<button type="button" class="btn" data-close>Cancel</button>', { noFocus: true });
+  w.querySelector(".actsheet").addEventListener("click", e => {
+    const x = e.target.closest("[data-i]"); if (!x || x.disabled) return;
+    const orig = items[+x.dataset.i], key = focusKey(orig);
+    closeModal(w);
+    const now = document.contains(orig) ? orig : key ? document.querySelector(key) : null;
+    if (now) now.click();
+  });
+}
+/* 12c item 5: on the phone a view's filters fold into one Filters button */
+const filtCtls = el => $$("select,input,textarea", el).filter(i => i.type !== "hidden");
+function filtCount(f) {
+  return filtCtls(f).filter(i => i.type === "checkbox" ? i.checked : i.tagName === "SELECT" ? i.selectedIndex > 0 : i.value.trim() !== "").length;
+}
+function enhanceFilters() {
+  $$(".view").forEach(v => $$(".filters", v).forEach((f, i) => {
+    if (f.dataset.fb || !filtCtls(f).length) return;
+    f.dataset.fb = "1"; f.dataset.fk = v.id + ":" + i;
+    const n = filtCount(f), bar = document.createElement("div");
+    bar.className = "filtbar";
+    bar.innerHTML = '<button type="button" class="btn" data-act="filters" data-fk="' + esc(f.dataset.fk) + '" aria-haspopup="dialog">' + (n ? "Filters, " + n + " on" : "Filters") + "</button>";
+    f.parentNode.insertBefore(bar, f);
+  }));
+}
+function openFilters(fk) {
+  const orig = () => document.querySelector('#main .filters[data-fk="' + CSS.escape(fk) + '"]');
+  const f = orig(); if (!f) return;
+  const clone = f.cloneNode(true);
+  delete clone.dataset.fb; delete clone.dataset.fk;
+  $$("[id]", clone).forEach(e => { e.id = "fs_" + e.id; });
+  $$("label[for]", clone).forEach(l => l.setAttribute("for", "fs_" + l.getAttribute("for")));
+  /* the copies carry no data-* hooks, so only the mirror below acts on them */
+  filtCtls(clone).forEach(i => Object.keys(i.dataset).forEach(k => delete i.dataset[k]));
+  $$(".tipq", clone).forEach(b => b.remove()); $$(".labrow", clone).forEach(r => { while (r.firstChild) r.parentNode.insertBefore(r.firstChild, r); r.remove(); });
+  $$("[data-tipd]", clone).forEach(e => delete e.dataset.tipd);
+  const w = openModal("Filters", "", '<button type="button" class="btn" data-fclear>Clear filters</button><button type="button" class="btn acc" data-close>Done</button>', { noFocus: true });
+  const body = w.querySelector(".mbody"); body.appendChild(clone);
+  const mine = () => filtCtls(clone);
+  const resync = () => { const o = orig(); if (!o) return; const oc = filtCtls(o); mine().forEach((c, i) => { const x = oc[i]; if (!x || c === document.activeElement) return; if (c.type === "checkbox") c.checked = x.checked; else c.value = x.value; }); };
+  const mirror = (c, type) => {
+    const o = orig(); if (!o) return;
+    const x = filtCtls(o)[mine().indexOf(c)]; if (!x) return;
+    if (x.type === "checkbox") x.checked = c.checked; else x.value = c.value;
+    x.dispatchEvent(new Event(type, { bubbles: true }));
+  };
+  clone.addEventListener("input", e => { if (e.target.type !== "checkbox" && e.target.tagName !== "SELECT") mirror(e.target, "input"); });
+  clone.addEventListener("change", e => { mirror(e.target, "change"); setTimeout(resync, 60); });
+  /* buttons inside (the Movements week buttons, a search clear) act on the page; the copy then reads the page back */
+  clone.addEventListener("click", e => { if (e.target.closest("button")) setTimeout(resync, 60); });
+  w.querySelector("[data-fclear]").addEventListener("click", () => {
+    mine().forEach(c => {
+      if (c.type === "checkbox") { if (!c.checked) return; c.checked = false; }
+      else if (c.tagName === "SELECT") { if (c.selectedIndex === 0) return; c.selectedIndex = 0; }
+      else { if (!c.value) return; c.value = ""; }
+      mirror(c, c.tagName === "SELECT" || c.type === "checkbox" || c.type === "date" ? "change" : "input");
+    });
+    setTimeout(resync, 60); toast("Filters cleared");
+  });
+}
+function enhanceAll() { enhanceTips(); enhanceActs(); enhanceFilters(); fixInputs(); }
+new MutationObserver(() => enhanceAll()).observe(document.documentElement, { childList: true, subtree: true });
+
+/* ---------------- 0.6.0: the header, the tab bar, the camera ----------------
+   --hdr-h (sticky table headers, the Week bar) and --tab-h (scroll padding
+   so nothing sits under the tab bar) follow the real sizes; the phone
+   header drops to 48px once the page scrolls (12c items 2, 5). */
+function sizeChrome() {
+  const top = $(".top"), tb = $(".tabbar"), st = document.documentElement.style;
+  /* a header that scrolls away (a phone on its side) leaves nothing for sticky rows to sit under */
+  if (top) st.setProperty("--hdr-h", (getComputedStyle(top).position === "sticky" ? top.offsetHeight : 0) + "px");
+  st.setProperty("--tab-h", tb && getComputedStyle(tb).display !== "none" ? tb.offsetHeight + "px" : "0px");
+  positionToast();
+}
+function onScrollChrome() {
+  const top = $(".top"); if (!top) return;
+  const y = window.scrollY, was = top.classList.contains("shrunk");
+  const on = PHONEQ.matches && (was ? y > 4 : y > 24);
+  if (on !== was) { top.classList.toggle("shrunk", on); sizeChrome(); }
+  else if ($("#toast").classList.contains("show")) positionToast();
+}
+window.addEventListener("scroll", onScrollChrome, { passive: true });
+window.addEventListener("resize", () => { sizeChrome(); onScrollChrome(); sizeCam(); });
+if (window.ResizeObserver) { const ro = new ResizeObserver(() => sizeChrome()); [".top", ".tabbar"].forEach(q => { const el = $(q); if (el) ro.observe(el); }); }
+/* 12c item 4: Scan's camera fills the screen above the result card. One
+   column: down to the tab bar, less the manual field and a strip of the
+   result card so a read shows up in view. Two columns (a phone on its
+   side): down to the bottom of the screen. */
+function sizeCam() {
+  const cam = $("#cam"), st = document.documentElement.style;
+  const small = PHONEQ.matches || matchMedia("(max-height:500px)").matches;
+  if (!cam || S.view !== "scan" || !small || !cam.getClientRects().length) { st.removeProperty("--cam-h"); return; }
+  const vh = window.visualViewport ? window.visualViewport.height : innerHeight;
+  const card = cam.closest(".mcard"), grid = cam.closest(".scangrid"), form = $("#manualForm"), up = $("#upcPending");
+  const camTop = cam.getBoundingClientRect().top + window.scrollY;
+  const tab = PHONEQ.matches ? ($(".tabbar") ? $(".tabbar").offsetHeight : 0) : 0;
+  const cs = getComputedStyle(card), below = (form ? form.offsetHeight + 10 : 0) + (up && !up.hidden ? up.offsetHeight + 8 : 0) + parseFloat(cs.paddingBottom) + 1;
+  const twoCol = grid && getComputedStyle(grid).gridTemplateColumns.split(" ").length > 1;
+  const peek = twoCol ? 8 : 16 + 72;
+  /* two columns (on its side): the camera fits the screen once the Scan card is scrolled to the top */
+  const h = twoCol ? Math.round(vh - (camTop - (card.getBoundingClientRect().top + window.scrollY)) - below - 16) : Math.round(vh - tab - camTop - below - peek);
+  st.setProperty("--cam-h", Math.max(200, Math.min(h, 720)) + "px");
+}
 /* money fields: $ prefix in CSS, two decimals on blur */
 function wireMoney(root) {
   $$("input[data-money]", root).forEach(i => i.addEventListener("blur", () => {
@@ -2218,7 +2586,7 @@ function logOp(s, status, at, note) { return { statusLog: APPEND(...logSeed(s), 
 /* a date typed as a day: today means now, any other day means noon that day */
 function dayAt(iso) { return !iso || iso === isoDay(new Date()) ? new Date() : new Date(iso + "T12:00:00"); }
 /* "Nov 2, 8:14 AM" */
-function fmtStamp(v) { const d = toDate(v); return d ? MONTHS[d.getMonth()] + " " + d.getDate() + (d.getFullYear() !== new Date().getFullYear() ? " " + d.getFullYear() : "") + ", " + fmtTime(d) : ""; }
+function fmtStamp(v) { const d = toDate(v); return d ? fmtShort(d) + ", " + fmtTime(d) : ""; }
 /* what a line cost on its PO: the unit cost from Mark ordered, else the product's last cost */
 function olUnitCost(ol) { return ol && ol.unitCost != null && ol.unitCost !== "" ? num(ol.unitCost) : unitCost(ol && ol.productId); }
 /* where a ticket came from (PLAN 12b item 7). The worker writes source on the
@@ -3001,7 +3369,8 @@ function tableHTML(id, cols, rows, opts = {}) {
     return '<tr' + (rid_ ? ' id="' + esc(rid_) + '" tabindex="-1"' : "") + (cls ? ' class="' + cls + '"' : "") + (X ? ' data-xk="' + X.kind + '" data-xid="' + esc(xid) + '"' : "") + ">" + vis.map((c, ci) => {
       /* a row written on this device and not yet on the server (PLAN 4) */
       const v = (c.html ? c.html(r) : esc(c.text ? c.text(r) : "")) + (ci === 0 && r && r._pending ? " " + PEND_CHIP : "");
-      return '<td data-l="' + esc(c.label) + '" class="' + (c.r ? "r " : "") + (c.cls || "") + '">' + v + "</td>";
+      /* the value sits in .tv so the phone card can lay label and value side by side (cv) */
+      return '<td data-l="' + esc(c.label) + '" class="cv ' + (c.r ? "r " : "") + (c.cls || "") + '"><div class="tv">' + v + "</div></td>";
     }).join("") + (opts.actions ? '<td class="act" data-l="">' + opts.actions(r) + "</td>" : "") +
       (X ? '<td class="xc" data-l="">' + chevBtn(X.kind, xid, X.label(r)) + "</td>" : "") + "</tr>" +
       (open ? '<tr class="xpanel"><td colspan="' + span + '">' + X.panel(r) + "</td></tr>" : "");
@@ -3015,6 +3384,8 @@ function tableHTML(id, cols, rows, opts = {}) {
     const keys = Array.from(groups.keys()).sort((a, b) => { const x = order.indexOf(a), y = order.indexOf(b); return (x < 0 ? 1e9 : x) - (y < 0 ? 1e9 : y); });
     body = keys.map(k => '<tr class="grp"><td colspan="' + span + '">' + opts.group.label(k, groups.get(k)) + "</td></tr>" + groups.get(k).map(rowHTML).join("")).join("");
   } else body = sorted.map(rowHTML).join("");
+  /* 12c item 11: an empty list says so inside the table body, under its own headers */
+  if (!rows.length && opts.empty) body = '<tr class="emptyrow"><td class="full" colspan="' + span + '"><div class="empty">' + opts.empty + "</div></td></tr>";
   return '<div class="tblwrap"><table class="tbl" data-tbl="' + id + '"><thead><tr>' + head + "</tr></thead><tbody>" + body + "</tbody></table></div>";
 }
 function skelTable(cols, label) {
@@ -3034,7 +3405,7 @@ function onSortClick(tbl, k) {
   else { delete pr.sortKey; delete pr.sortDir; }
   savePrefs(); render(true);
 }
-function openColumns(tbl) {
+function openColumns(tbl, anchor) {
   const cols = TABLES[tbl]; if (!cols) return;
   const pr = S.prefs[tbl] || {};
   let order = visibleCols(tbl, cols).map(c => c.k);
@@ -3046,7 +3417,7 @@ function openColumns(tbl) {
     '<div class="grid2"><div><label class="lab" for="colSort" title="The default order is the one the page uses when nothing is picked here.">Sort by</label><select class="fld" id="colSort"><option value="">Default order</option>' +
       cols.map(c => '<option value="' + c.k + '"' + (pr.sortKey === c.k ? " selected" : "") + ">" + esc(c.label) + "</option>").join("") + "</select></div>" +
     '<div><label class="lab" for="colDir">Direction</label><select class="fld" id="colDir"><option value="asc"' + (pr.sortDir !== "desc" ? " selected" : "") + '>Ascending</option><option value="desc"' + (pr.sortDir === "desc" ? " selected" : "") + ">Descending</option></select></div></div>",
-    '<button type="button" class="btn" data-reset title="Back to the columns and order this table ships with">Reset layout</button><button type="button" class="btn" data-close>Cancel</button><button type="button" class="btn acc" data-ok>Save layout</button>');
+    '<button type="button" class="btn" data-reset title="Back to the columns and order this table ships with">Reset layout</button><button type="button" class="btn" data-close>Cancel</button><button type="button" class="btn acc" data-ok>Save layout</button>', { pop: anchor, noFocus: true });
   const paint = () => {
     $("#colList", w).innerHTML = order.map((k, i) => {
       const c = cols.find(x => x.k === k);
@@ -3207,6 +3578,7 @@ function tkMatches(t) {
   if (f.client && t.clientId !== f.client) return false;
   if (f.toOrder && !tkSummary(t).toOrder) return false;
   if (f.backorders && !tkHasBackorder(t)) return false;
+  if (f.q) { const hay = ["#" + t.number, t.number, t.clientName, t.jobName, t.proposalId, tkBay(t)].join(" ").toLowerCase(); if (!f.q.toLowerCase().split(/\s+/).filter(Boolean).every(w => hay.includes(w))) return false; }
   if (f.install) {
     const d = installDay(t), ws = weekStartOf(new Date()), a = isoDay(ws), b = isoDay(addDays(ws, 6)), na = isoDay(addDays(ws, 7)), nb = isoDay(addDays(ws, 13));
     if (f.install === "none" && d) return false;
@@ -3220,8 +3592,9 @@ function renderTickets() {
   const el = $("#v-tickets"), f = S.tkFilter;
   const all = Array.from(S.tickets.values());
   const clients = new Map(); all.forEach(t => { if (t.clientId) clients.set(t.clientId, (S.clients.get(t.clientId) || {}).name || t.clientName || t.clientId); });
-  let h = '<div class="mcard"><div class="thead"><h2 class="vt">Pick tickets</h2><span class="sp"><button type="button" class="btn sm" data-act="columns" data-tbl="tickets">Columns</button>' +
+  let h = '<div class="mcard"><div class="thead"><h2 class="vt">Pick tickets</h2><span class="sp"><button type="button" class="btn sm" data-act="columns" data-tbl="tickets">Edit columns</button>' +
     (isWriter() ? '<button type="button" class="btn sm acc" data-act="newTicket" title="Import a Portal proposal CSV, or type the lines by hand">New ticket</button>' : "") + "</span></div>" +
+    '<div class="toolbar"><label class="sr" for="tfQ">Search tickets</label><span class="srch"><input class="fld" id="tfQ" type="search" data-tf="q" value="' + esc(f.q || "") + '" placeholder="Ticket number, client, job, or bay" title="Matches the ticket number, client, job, proposal, and bay. Press / to jump here."><button type="button" class="clr" data-act="clearSearch" data-for="tfQ" aria-label="Clear the search">&times;</button></span></div>' +
     '<div class="filters"><div><label class="lab" for="tfStatus">Status</label><select class="fld" id="tfStatus" data-tf="status"><option value="active"' + (f.status === "active" ? " selected" : "") + ">Not closed</option>" +
       TK_STATUS.map(s => '<option value="' + s + '"' + (f.status === s ? " selected" : "") + ">" + TK_LABEL[s] + "</option>").join("") + '<option value="all"' + (f.status === "all" ? " selected" : "") + ">All, closed too</option></select></div>" +
     '<div><label class="lab" for="tfClient">Client</label><select class="fld" id="tfClient" data-tf="client"><option value="">Every client</option>' +
@@ -3234,12 +3607,12 @@ function renderTickets() {
   else if (!all.length) h += '<div class="empty"><p>No pick tickets yet. Import a Portal CSV or build one by hand.</p>' + (isWriter() ? '<button type="button" class="btn acc" data-act="newTicket">New ticket</button>' : "") + "</div>";
   else {
     const list = all.filter(tkMatches);
-    if (!list.length) h += '<div class="empty"><p>No tickets match these filters.</p><button type="button" class="textbtn" data-act="tfClear">Clear filters</button></div>';
-    else h += tableHTML("tickets", ticketCols(), list, {
+    h += tableHTML("tickets", ticketCols(), list, {
+      empty: '<p>No tickets match ' + (f.q ? "this search and " : "") + 'these filters.</p><button type="button" class="btn" data-act="tfClear">Clear filters</button>',
       defaultSort: (a, b) => (toDate(b.createdAt) || 0) - (toDate(a.createdAt) || 0),
       group: { key: t => tkStatus(t), order: TK_STATUS, label: (k, rows) => esc(TK_LABEL[k] || k) + "<span>" + rows.length + " ticket" + (rows.length > 1 ? "s" : "") + "</span>" },
       rowClass: t => tkStatus(t) !== "closed" && tkSummary(t).toOrder ? "need" : ""
-    }) + '<p class="hint">' + list.length + " of " + all.length + " tickets. Grouped by status, newest first in the default order.</p>";
+    }) + (list.length ? '<p class="hint">' + list.length + " of " + all.length + " tickets. Grouped by status, newest first in the default order.</p>" : "");
   }
   el.innerHTML = h + "</div>";
 }
@@ -3254,7 +3627,7 @@ function lineChips(t, l) {
   else if (p) c.push('<span class="chip ok"><i></i>Matched</span>');
   else c.push('<span class="chip warn" title="No catalog product has this brand and model. It can be staged and delivered, not pulled from stock."><i></i>Not in the catalog</span>');
   if (l.pickedFromName && num(l.qtyStaged) > 0) c.push('<span class="chip" title="Last pulled by ' + esc(l.pickedByName || "") + '">' + esc(l.pickedFromName) + (t.stagingLocationId ? " to " + esc(tkBay(t)) : "") + "</span>");
-  olinksFor(t, l).forEach(x => c.push('<button type="button" class="chip ' + olChipClass(x.o, x.ol) + '" data-act="order" data-id="' + esc(x.o.id) + '" title="Opens ' + esc(poLabel(x.o)) + (x.ol ? ", " + esc(olQty(x.ol, x.ol.qtyOrdered)) + " on it" : "") + '" style="cursor:pointer;font:inherit;font-size:12px"><i></i>' + esc(olChipText(x.o, x.ol)) + "</button>"));
+  olinksFor(t, l).forEach(x => c.push('<button type="button" class="chip ' + olChipClass(x.o, x.ol) + '" data-act="order" data-id="' + esc(x.o.id) + '" title="Opens ' + esc(poLabel(x.o)) + (x.ol ? ", " + esc(olQty(x.ol, x.ol.qtyOrdered)) + " on it" : "") + '"><i></i>' + esc(olChipText(x.o, x.ol)) + "</button>"));
   const out = Array.from(S.items.values()).filter(i => i.ticketLineId === l.id && i.ticketId === t.id && (i.status === "checked_out" || i.status === "installed"));
   if (out.length) { const who = Array.from(new Set(out.map(i => i.holderName).filter(Boolean))).join(", "); c.push('<span class="chip info"><i></i>' + out.length + " of " + fmtN(l.qtyNeeded) + (out[0].status === "installed" ? " installed" : " checked out" + (who ? " by " + esc(who) : "")) + "</span>"); }
   /* 0.5.0: the pending chip now comes from tableHTML on every table's first column */
@@ -3300,7 +3673,7 @@ function renderTicket() {
   const W = isWriter(), pinned = (S.board.ticketIds || []).includes(t.id), job = S.jobs.get(t.jobId);
   let h = '<div class="mcard">' + back + " / " + esc(TK_LABEL[st]) + "</div>" +
     '<div class="tkrow"><h2 class="tktitle">Pick ticket <span class="n">#' + esc(t.number) + "</span></h2>" + tkPill(st, true) + (t.needsReview ? REVIEW_CHIP : "") +
-    '<div class="tkbtns">' + (t.needsReview && W ? '<button type="button" class="btn acc" data-act="tkReviewed" title="Clears the review flag once the lines, quantities, and product matches from Portal look right. The timeline keeps who reviewed it.">Reviewed</button>' : "") + '<button type="button" class="btn" data-act="tkCopy" title="Copies the status block below so you can paste it into the proposal\'s internal notes in Portal">Copy for Portal</button>' +
+    '<div class="tkbtns">' + (t.needsReview && W ? '<button type="button" class="btn acc" data-act="tkReviewed" title="Clears the review flag once the lines, quantities, and product matches from Portal look right. The timeline keeps who reviewed it.">Mark reviewed</button>' : "") + '<button type="button" class="btn" data-act="tkCopy" title="Copies the status block below so you can paste it into the proposal\'s internal notes in Portal">Copy for Portal</button>' +
     '<button type="button" class="btn" data-act="tkPrint" title="A pick list for the clipboard, grouped by area, with where to pull each line from">Print</button>' +
     (closed || !W ? "" : lines.some(isShort) ? '<button type="button" class="btn" data-act="tkOrder" title="Puts every Short line (the shelves cannot cover it and no PO carries it yet) on a draft purchase order">Order missing</button>'
       : '<span title="Every line is covered by stock or a PO"><button type="button" class="btn" disabled aria-describedby="omHint">Order missing</button><span class="sr" id="omHint">Every line is covered by stock or a PO</span></span>') +
@@ -3328,7 +3701,7 @@ function renderTicket() {
   h += '<div class="mcard"><div class="thead"><h4>Lines by area</h4><span class="sp">' +
     (W && !closed && lines.length ? '<button type="button" class="btn sm" data-act="tkPullAll" title="Fills From stock using on-hand at each product\'s default location first, then lists what still needs ordering">Pull everything in stock</button>' : "") +
     (W && !closed ? '<button type="button" class="btn sm" data-act="tkAddLines" title="Type more lines, or import a change order CSV for this proposal">Add lines</button>' : "") +
-    '<button type="button" class="btn sm" data-act="columns" data-tbl="ticketLines">Columns</button></span></div>';
+    '<button type="button" class="btn sm" data-act="columns" data-tbl="ticketLines">Edit columns</button></span></div>';
   if (S.errors.lines && !loaded) h += errorBox("the ticket's lines", "tickets");
   else if (!loaded) h += skelTable([{ label: "Product" }, { label: "Needed", r: true }, { label: "Staged", r: true }], "Loading lines");
   else if (!lines.length) h += '<div class="empty"><p>This ticket has no lines. Add a line or import a CSV.</p>' + (W && !closed ? '<button type="button" class="btn acc" data-act="tkAddLines">Add a line</button> <button type="button" class="btn" data-act="tkAddCsv">Import a CSV</button>' : "") + "</div>";
@@ -3453,7 +3826,7 @@ function openPull(t, l, preset = {}) {
 function openStage(t, l) {
   const left = lineLeft(l);
   const body = '<p class="hint" style="margin-top:0"><b>' + esc(lineName(l)) + "</b>. Use Stage for quantity laid out in the bay that did not come through Pull from stock. Needs " + esc(lqty(l, left)) + " more.</p>" +
-    '<label class="lab" for="sgQty">Laid out now</label><input class="fld n" id="sgQty" type="number" min="1" step="1" inputmode="numeric" value="' + left + '">' +
+    '<label class="lab" for="sgQty">Laid out now <span class="req">required</span></label><input class="fld n" id="sgQty" type="number" min="1" step="1" inputmode="numeric" value="' + left + '">' +
     '<label class="lab" for="sgNote">Note</label><input class="fld" id="sgNote" placeholder="Where it came from, optional"><p class="err" id="sgErr" hidden></p>';
   const w = openModal("Stage", body, '<button type="button" class="btn" data-close>Cancel</button><button type="button" class="btn acc" data-ok>Stage</button>');
   w.querySelector("[data-ok]").addEventListener("click", async () => {
@@ -3526,7 +3899,7 @@ function openClose(t) {
       '<div role="radiogroup" aria-label="What happens to the leftovers"><label class="radio"><input type="radio" name="clMode" value="return" checked><span><b>Back to stock</b><br><span class="z">Moves it back to a shelf, logged as a move.</span></span></label>' +
       '<label class="radio"><input type="radio" name="clMode" value="writeoff"><span><b>Write off</b><br><span class="z">Takes it out of on hand with a reason, for example damaged on site.</span></span></label></div>' +
       '<div id="clRet"><label class="lab" for="clLoc">Back to</label><select class="fld" id="clLoc" data-decide>' + locOptions("", { filter: l => l.kind !== "bay" }) + "</select></div>" +
-      '<div id="clWo" hidden><label class="lab" for="clWhy">Reason</label><input class="fld" id="clWhy" placeholder="Damaged, lost on site, used up"></div>'
+      '<div id="clWo" hidden><label class="lab" for="clWhy">Reason <span class="req">required</span></label><input class="fld" id="clWhy" placeholder="Damaged, lost on site, used up"></div>'
       : '<p class="hint" style="margin-top:0">Nothing is left in the bay.</p>') + "</div>" +
     '<div class="sect"><h4 class="h4">Marked installed at ' + esc(t.jobName || "the job") + "</h4>" + (inst.length ? '<ul class="onhand">' + inst.map(i => "<li><span>" + esc(i.productName || "") + ' <span class="z mono">' + esc(itemLabel(i)) + "</span></span><span>" + esc(i.holderName || "") + "</span></li>").join("") + "</ul>" : '<p class="hint" style="margin-top:0">No serialized units are out on this ticket.</p>') + "</div>" +
     '<label class="lab" for="clNote">Note</label><input class="fld" id="clNote" placeholder="Optional"><p class="err" id="clErr" hidden></p>';
@@ -3762,7 +4135,7 @@ function openNewTicket(opts = {}) {
     else if (t.id === "ntBay") I.bay = t.value;
   });
   paintTab(); paintHand();
-  if (addTo && I.tab === "hand") setTimeout(() => $("#nh_a0", w) && $("#nh_a0", w).focus(), 30);
+  if (addTo && I.tab === "hand" && !COARSE.matches) setTimeout(() => $("#nh_a0", w) && $("#nh_a0", w).focus(), 30);
   w.querySelector("[data-ok]").addEventListener("click", () => createTicket(I, addTo, w, err));
 }
 function createTicket(I, addTo, w, err) {
@@ -3857,7 +4230,7 @@ function clientsHTML() {
   if (!S.loaded.clients) return skelTable([{ label: "Client" }, { label: "Jobs" }], "Loading clients");
   const all = Array.from(S.clients.values()), list = all.filter(c => S.showArchived || !c.archived);
   let h = '<div class="thead"><span class="hint" style="margin:0">Most clients arrive with an imported proposal. Archived clients drop out of the New ticket list.</span><span class="sp"><label class="chk"><input type="checkbox" id="showArch"' + (S.showArchived ? " checked" : "") + "> Show archived</label>" +
-    '<button type="button" class="btn sm" data-act="columns" data-tbl="clients">Columns</button>' + (W ? '<button type="button" class="btn sm acc" data-act="newClient">New client</button>' : "") + "</span></div>";
+    '<button type="button" class="btn sm" data-act="columns" data-tbl="clients">Edit columns</button>' + (W ? '<button type="button" class="btn sm acc" data-act="newClient">New client</button>' : "") + "</span></div>";
   if (!all.length) return h + '<div class="empty"><p>No clients yet. Import a proposal, or add one.</p>' + (W ? '<button type="button" class="btn acc" data-act="newClient">New client</button>' : "") + "</div>";
   if (!list.length) return h + '<div class="empty"><p>Every client is archived.</p></div>';
   const jobsOf = c => Array.from(S.jobs.values()).filter(j => j.clientId === c.id);
@@ -3878,7 +4251,7 @@ function jobsHTML() {
   if (!S.loaded.jobs) return skelTable([{ label: "Job" }, { label: "Client" }], "Loading jobs");
   const all = Array.from(S.jobs.values()), list = all.filter(j => S.showArchived || j.status !== "closed");
   let h = '<div class="thead"><span class="hint" style="margin:0">A job is the site work for one client. Its staging bay is where the pick tickets for it are laid out.</span><span class="sp"><label class="chk"><input type="checkbox" id="showArch"' + (S.showArchived ? " checked" : "") + "> Show archived</label>" +
-    '<button type="button" class="btn sm" data-act="columns" data-tbl="jobs">Columns</button>' + (W ? '<button type="button" class="btn sm acc" data-act="newJob">New job</button>' : "") + "</span></div>";
+    '<button type="button" class="btn sm" data-act="columns" data-tbl="jobs">Edit columns</button>' + (W ? '<button type="button" class="btn sm acc" data-act="newJob">New job</button>' : "") + "</span></div>";
   if (!all.length) return h + '<div class="empty"><p>No jobs yet. Import a proposal, or add one.</p>' + (W ? '<button type="button" class="btn acc" data-act="newJob">New job</button>' : "") + "</div>";
   if (!list.length) return h + '<div class="empty"><p>Every job is archived.</p></div>';
   const openTk = j => Array.from(S.tickets.values()).filter(t => t.jobId === j.id && t.status !== "closed").length;
@@ -3895,7 +4268,7 @@ function jobsHTML() {
 }
 function openClientForm(c) {
   const isNew = !c;
-  const body = '<label class="lab" for="cfName">Name</label><input class="fld" id="cfName" value="' + esc(c ? c.name : "") + '"' + (isNew ? "" : ' title="Renaming does not rewrite tickets already made; they keep the name they were created with."') + ">" +
+  const body = '<label class="lab" for="cfName">Name <span class="req">required</span></label><input class="fld" id="cfName" value="' + esc(c ? c.name : "") + '"' + (isNew ? "" : ' title="Renaming does not rewrite tickets already made; they keep the name they were created with."') + ">" +
     '<label class="lab" for="cfNotes">Notes</label><textarea class="fld" id="cfNotes" placeholder="Gate code, who to call, anything the crew should know">' + esc(c ? c.notes || "" : "") + '</textarea><p class="err" id="cfErr" hidden></p>';
   const w = openModal(isNew ? "New client" : "Edit " + c.name, body, '<button type="button" class="btn" data-close>Cancel</button><button type="button" class="btn acc" data-ok>' + (isNew ? "Add client" : "Save") + "</button>");
   w.querySelector("[data-ok]").addEventListener("click", async () => {
@@ -3910,7 +4283,7 @@ function openJobForm(j) {
   const isNew = !j, d = j || { status: "open" };
   const clients = Array.from(S.clients.values()).filter(c => !c.archived || (j && c.id === j.clientId)).sort((a, b) => a.name.localeCompare(b.name));
   const body = '<label class="lab" for="jfClient">Client</label><select class="fld" id="jfClient" data-decide' + (isNew ? "" : " disabled") + '><option value="">Choose the client</option>' + clients.map(c => '<option value="' + esc(c.id) + '"' + (d.clientId === c.id ? " selected" : "") + ">" + esc(c.name) + "</option>").join("") + "</select>" +
-    '<label class="lab" for="jfName">Job name</label><input class="fld" id="jfName" value="' + esc(d.name || "") + '" placeholder="Main office buildout">' +
+    '<label class="lab" for="jfName">Job name <span class="req">required</span></label><input class="fld" id="jfName" value="' + esc(d.name || "") + '" placeholder="Main office buildout">' +
     '<label class="lab" for="jfAddr">Address</label><input class="fld" id="jfAddr" value="' + esc(d.address || "") + '">' +
     '<div class="grid2"><div><label class="lab" for="jfBay" title="The bay reserved for this job. New tickets for the job start with it, and the bay\'s QR shows the job\'s ticket on Scan.">' + "<abbr>Staging bay</abbr></label><select class=\"fld\" id=\"jfBay\">" + locOptions(d.stagingLocationId || "", { blankLabel: "None", filter: l => l.kind === "bay" }) + "</select></div>" +
     '<div><label class="lab" for="jfStatus" title="Archived jobs drop out of the New ticket list. Their tickets stay.">' + '<abbr>Status</abbr></label><select class="fld" id="jfStatus"><option value="open"' + (d.status !== "closed" ? " selected" : "") + '>Open</option><option value="closed"' + (d.status === "closed" ? " selected" : "") + ">Archived</option></select></div></div>" +
@@ -3985,8 +4358,7 @@ function openPickFor(p, item) {
    screen, rotating; lines grouped by the shelf to pull from in the
    walking order of the rack labels, so the board is the pick path.
    ============================================================== */
-const BD = { idx: 0, flipAt: 0, tid: null, scroll: 0, pauseUntil: 0, last: 0, raf: 0, tick: 0, clock: 0 };
-const CHECK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12.5 9.5 18 20 6"/></svg>';
+const BD = { idx: 0, flipAt: 0, tid: null, scroll: 0, pauseUntil: 0, last: 0, raf: 0, tick: 0, clock: 0, shift: 0, shiftAt: 0 };
 const MARK_SVG = '<svg class="mark" viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="20" width="48" height="34" rx="6" fill="none" stroke="currentColor" stroke-width="5"/><path d="M24 20v-6a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v6" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/><path d="M8 35h48" stroke="currentColor" stroke-width="4"/><rect x="27" y="31" width="10" height="8" rx="2" fill="currentColor"/></svg>';
 function enterBoard() {
   BOARD = true;
@@ -3994,7 +4366,7 @@ function enterBoard() {
   $("#board").hidden = false;
   /* finding 32: the board keeps the version in its title (PLAN 11) */
   document.title = "Loadout board v" + VERSION;
-  clearInterval(BD.tick); BD.tick = setInterval(boardTick, 1000);
+  clearInterval(BD.tick); BD.tick = setInterval(boardTick, 1000); BD.shiftAt = Date.now();
   cancelAnimationFrame(BD.raf); BD.last = 0; BD.raf = requestAnimationFrame(boardScroll);
   renderBoard();
 }
@@ -4010,7 +4382,7 @@ function paintBoardLive() {
   const el = $("#bdLive"); if (!el) return;
   const lost = S.liveLostAt || (!navigator.onLine ? new Date() : null);
   el.hidden = !lost;
-  if (lost) el.textContent = "Not live since " + fmtTime(lost) + ". The last data stays on screen.";
+  if (lost) el.textContent = "Not live since " + fmtTime(lost) + ". Showing the last data.";
 }
 /* 0.5.2: the board reads lines with the same words and the same "to order"
    sum as every other view (findings 7, 9, 12): Pull, Staged (greyed, with a
@@ -4056,10 +4428,10 @@ function boardListHTML(t) {
   return keys.map(k => {
     const g = groups.get(k).sort((a, b) => (a.st === "picked") - (b.st === "picked") || num(a.l.sort) - num(b.l.sort));
     const open = g.filter(r => r.st !== "picked");
-    if (!open.length) return show ? '<div class="bd-grp">' + esc(k) + '</div><div class="bd-line picked"><span class="bd-st">' + CHECK_SVG + "Staged</span><span class=\"bd-name\">All " + g.length + " line" + (g.length > 1 ? "s" : "") + " staged</span><span></span></div>" : "";
+    if (!open.length) return show ? '<div class="bd-grp">' + esc(k) + '</div><div class="bd-line picked"><span class="bd-st">Staged</span><span class="bd-name">All ' + g.length + " line" + (g.length > 1 ? "s" : "") + " staged</span><span></span></div>" : "";
     return '<div class="bd-grp">' + esc(k) + "</div>" + g.filter(r => show || r.st !== "picked").map(r => {
       const lbl = r.st === "picked" ? r.word : lab[r.st];
-      return '<div class="bd-line ' + cls[r.st] + '"><span class="bd-st">' + (r.st === "picked" ? CHECK_SVG : "") + esc(lbl) + '</span><span><span class="bd-name">' + esc(lineName(r.l)) + '</span><br><span class="bd-meta">' + esc(r.meta) + (r.also ? ', <span class="bd-also ' + r.also.cls + '">' + esc(r.also.txt) + "</span>" : "") + '</span></span><span class="bd-qty">' + q(r) + "</span></div>";
+      return '<div class="bd-line ' + cls[r.st] + '"><span class="bd-st">' + esc(lbl) + '</span><span><span class="bd-name">' + esc(lineName(r.l)) + '</span><br><span class="bd-meta">' + esc(r.meta) + (r.also ? ', <span class="bd-also ' + r.also.cls + '">' + esc(r.also.txt) + "</span>" : "") + '</span></span><span class="bd-qty">' + q(r) + "</span></div>";
     }).join("");
   }).join("");
 }
@@ -4097,25 +4469,38 @@ function restartRot(n) {
   void bar.offsetWidth;
   if (n > 1) { bar.style.transition = "width " + Math.max(5, num(S.board.rotateSec) || 20) + "s linear"; bar.style.width = "100%"; }
 }
+/* 12c item 17: against burn-in the whole board steps 2px around a small
+   square on every rotation (and once a minute when nothing rotates); the
+   idle screen walks its clock and mark 24px a step. */
+const BD_SHIFT = [[0, 0], [2, 0], [2, 2], [0, 2]];
+function boardShift() {
+  BD.shift = (BD.shift + 1) % BD_SHIFT.length; BD.shiftAt = Date.now();
+  const b = $("#board"), [x, y] = BD_SHIFT[BD.shift]; if (!b) return;
+  b.style.setProperty("--bx", x + "px"); b.style.setProperty("--by", y + "px");
+  b.style.setProperty("--ix", x * 12 + "px"); b.style.setProperty("--iy", y * 12 + "px");
+}
 function boardTick() {
   const c = $("#bdClock"); if (c) c.textContent = fmtTime(new Date());
   paintBoardLive();
   const list = boardTickets();
-  if (list.length > 1 && Date.now() >= BD.flipAt) { BD.idx = (BD.idx + 1) % list.length; restartRot(list.length); renderBoard(); }
+  if (list.length > 1 && Date.now() >= BD.flipAt) { BD.idx = (BD.idx + 1) % list.length; restartRot(list.length); boardShift(); renderBoard(); }
   else if (list.length <= 1 && BD.flipAt) BD.flipAt = 0;
+  if (list.length <= 1 && Date.now() - BD.shiftAt >= 60000) boardShift();
 }
-/* more lines than fit: scroll slowly and wrap to the top, never cut off.
-   With reduced motion it steps a page at a time instead of gliding. */
+/* more lines than fit (12c item 15): scroll at 40px a second, pause 3 s at
+   the top and 3 s at the bottom, then start over; the header and the
+   progress bar stay put. With reduced motion it steps a page at a time. */
 const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
 function boardScroll(ts) {
   BD.raf = requestAnimationFrame(boardScroll);
   const L = $("#bdList"); if (!L || !BOARD) { BD.last = ts; return; }
-  const dt = BD.last ? (ts - BD.last) / 1000 : 0; BD.last = ts;
+  /* a frame gap (a hidden tab, a TV waking) never turns into a jump: at most a tenth of a second counts */
+  const dt = BD.last ? Math.min(0.1, (ts - BD.last) / 1000) : 0; BD.last = ts;
   const max = L.scrollHeight - L.clientHeight;
   if (max <= 4 || Date.now() < BD.pauseUntil) return;
-  if (BD.scroll >= max - 1) { BD.scroll = 0; L.scrollTop = 0; BD.pauseUntil = Date.now() + 4000; return; }
+  if (BD.scroll >= max - 1) { BD.scroll = 0; L.scrollTop = 0; BD.pauseUntil = Date.now() + 3000; return; }
   if (REDUCED) { BD.scroll = Math.min(max, BD.scroll + L.clientHeight * 0.8); BD.pauseUntil = Date.now() + 8000; }
-  else BD.scroll = Math.min(max, BD.scroll + 32 * dt);
+  else BD.scroll = Math.min(max, BD.scroll + 40 * dt);
   L.scrollTop = BD.scroll;
   if (BD.scroll >= max - 1) BD.pauseUntil = Date.now() + 3000;
 }
@@ -4155,12 +4540,12 @@ function renderStock() {
   const tabs = [["all", "All", prods.length], ["consumables", "Consumables", cons.length], ["low", "Low stock", low.length], ["locations", "Locations", S.locations.size]];
   let html = '<div class="mcard"><div class="thead"><h2 class="vt">Stock</h2><span class="sp">' +
     /* finding 22: Consumables has a Columns button too, for its "Counted by the each" table */
-    '<button type="button" class="btn sm" data-act="columns" data-tbl="' + (S.stockTab === "locations" ? "locations" : S.stockTab === "consumables" ? "consumables" : "catalog") + '">Columns</button>' +
+    '<button type="button" class="btn sm" data-act="columns" data-tbl="' + (S.stockTab === "locations" ? "locations" : S.stockTab === "consumables" ? "consumables" : "catalog") + '">Edit columns</button>' +
     '<button type="button" class="btn sm" data-act="go" data-view="more" data-sub="labels" title="Opens the label sheet picker under More">Print labels</button>' +
     (isWriter() ? (S.stockTab === "locations" ? '<button type="button" class="btn sm acc" data-act="newLocation">New location</button>' : '<button type="button" class="btn sm acc" data-act="newProduct">New product</button>') : "") +
     '</span></div><div class="toolbar"><div class="seg" role="group" aria-label="Stock lists">' +
     tabs.map(([k, l, n]) => '<button type="button" aria-pressed="' + (S.stockTab === k) + '" class="' + (S.stockTab === k ? "on " : "") + (k === "low" ? "warnt" : "") + '" data-act="stockTab" data-tab="' + k + '">' + l + "<b>" + n + "</b></button>").join("") +
-    '</div><label class="sr" for="stockSearch">Search</label><input class="fld search" id="stockSearch" type="search" value="' + esc(S.search) + '" placeholder="' + (S.stockTab === "locations" ? "Search area or shelf" : "Search brand, model, UPC, or box label") + '" title="Matches brand, model, type, the learned UPC, and box labels like A826."></div>';
+    '</div><label class="sr" for="stockSearch">Search</label><span class="srch"><input class="fld search" id="stockSearch" type="search" value="' + esc(S.search) + '" placeholder="' + (S.stockTab === "locations" ? "Search area or shelf" : "Search brand, model, UPC, or box label") + '" title="Matches brand, model, type, the learned UPC, and box labels like A826. Press / to jump here."><button type="button" class="clr" data-act="clearSearch" data-for="stockSearch" aria-label="Clear the search">&times;</button></span></div>';
   const loading = !S.loaded.products || !S.loaded.stock || !S.loaded.containers || !S.loaded.items || !S.loaded.locations;
   const errd = ["products", "stock", "containers", "items", "locations"].find(c => S.errors[c]);
   if (errd) html += errorBox(S.stockTab === "locations" ? "locations" : "products", errd);
@@ -4170,16 +4555,18 @@ function renderStock() {
   else {
     const list = (S.stockTab === "low" ? low : prods).filter(p => matchesSearch(p, q));
     if (!prods.length) html += '<div class="empty"><p>No products yet. Scan a box on the shelf or import the inventory sheet to start the catalog.</p>' + (isAdmin() ? '<button type="button" class="btn acc" data-act="go" data-view="more" data-sub="import">Import the inventory sheet</button>' : "") + "</div>";
-    else if (!list.length && q) html += '<div class="empty"><p>Nothing matches \'' + esc(S.search.trim()) + "'." + (isWriter() ? " Add it as a new product?" : "") + "</p>" + (isWriter() ? '<button type="button" class="btn acc" data-act="newProduct" data-prefill="' + esc(S.search.trim()) + '">Add as a new product</button>' : "") + "</div>";
-    else if (!list.length) html += '<div class="empty"><p>Nothing is under its par level. Products marked consumable with a par level show here when they run low.</p></div>';
     else {
+      /* 12c item 11: an empty list reads inside the table, under its headers, with the next step */
+      const empty = q ? "<p>Nothing matches '" + esc(S.search.trim()) + "'." + (isWriter() ? " Add it as a new product?" : "") + "</p>" + (isWriter() ? '<button type="button" class="btn acc" data-act="newProduct" data-prefill="' + esc(S.search.trim()) + '">Add as a new product</button>' : "")
+        : '<p>Nothing is under its par level. Products marked consumable with a par level show here when they run low.</p><button type="button" class="btn" data-act="stockTab" data-tab="all">Show every product</button>';
       html += tableHTML("catalog", productCols(), list, {
+        empty,
         defaultSort: (a, b) => (isLow(b) - isLow(a)) || productName(a).localeCompare(productName(b)),
         rowClass: p => isLow(p) ? "need" : "",
         expand: PX,
         actions: S.stockTab === "low" && isWriter() ? p => '<button type="button" class="btn sm" data-act="reorder" data-id="' + esc(p.id) + '" title="Puts it on a draft purchase order for stock, enough to get back to par">Reorder</button>' : null
       });
-      html += '<p class="hint">' + fmtN(list.length) + " of " + fmtN(prods.length) + " products. Low stock rises to the top in the default order.</p>";
+      if (list.length) html += '<p class="hint">' + fmtN(list.length) + " of " + fmtN(prods.length) + " products. Low stock rises to the top in the default order.</p>";
     }
   }
   html += "</div>";
@@ -4222,7 +4609,7 @@ function boxRow(c, p) {
   const start = num(c.startLength) || 1000, ft = num(c.ftLeft), pct = Math.max(0, Math.min(100, Math.round(ft / start * 100)));
   return '<div class="crow"><span class="cl">' + esc(c.label) + '</span><span class="loc">' + (c.locationId ? esc(locName(c.locationId)) : '<span class="chip warn"><i></i>Confirm location</span>') +
     '</span><span class="bar' + (pct < 30 ? " lo" : "") + '" title="' + pct + '% of the ' + fmtN(start) + ' ft it started with"><i style="width:' + pct + '%"></i></span><span class="ft">' + fmtN(ft) + ' ft</span><span class="rd">' +
-    (c.lastReadingAt ? "read " + fmtShort(c.lastReadingAt) : "") + '</span><span class="go"><button type="button" class="btn sm" data-act="boxSheet" data-id="' + esc(c.id) + '">Box sheet</button></span></div>';
+    (c.lastReadingAt ? "read " + fmtShort(c.lastReadingAt) : "") + '</span><span class="go"><button type="button" class="btn sm" data-act="boxSheet" data-id="' + esc(c.id) + '">Open box sheet</button></span></div>';
 }
 function locationsTable(q) {
   if (!S.locations.size) return '<div class="empty"><p>No locations yet. Add a shelf, bay, or van, or import the inventory sheet.</p>' + (isWriter() ? '<button type="button" class="btn acc" data-act="newLocation">New location</button>' : "") + "</div>";
@@ -4233,7 +4620,6 @@ function locationsTable(q) {
   S.items.forEach(i => { if (inStockItem(i) || i.status === "returned") bump(i.locationId, "items", 1); });
   const cnt = (l, k) => { const c = counts.get(l.id); return c ? (k === "prods" ? c.prods.size : c[k]) : 0; };
   const list = Array.from(S.locations.values()).filter(l => !q || (l.name + " " + l.kind).toLowerCase().includes(q));
-  if (!list.length) return '<div class="empty"><p>Nothing matches \'' + esc(q) + "'.</p></div>";
   const cols = [
     { k: "name", label: "Location", sort: l => l.name.toLowerCase(), html: l => '<button type="button" class="linkbtn" data-act="xtoggle" data-x="l" data-id="' + esc(l.id) + '"><div class="pn">' + esc(l.name) + "</div></button>" + (l.jobName ? '<div class="pd">Reserved for ' + esc(l.jobName) + "</div>" : "") },
     { k: "area", label: "Area", text: l => l.area },
@@ -4247,7 +4633,8 @@ function locationsTable(q) {
   ];
   return tableHTML("locations", cols, list, {
     defaultSort: (a, b) => LOC_KINDS.indexOf(a.kind) - LOC_KINDS.indexOf(b.kind) || a.name.localeCompare(b.name),
-    actions: l => '<button type="button" class="btn sm" data-act="printOne" data-kind="loc" data-id="' + esc(l.id) + '">Label</button>',
+    empty: "<p>Nothing matches '" + esc(q) + "'.</p>" + '<button type="button" class="btn" data-act="clearSearch" data-for="stockSearch">Clear the search</button>',
+    actions: l => '<button type="button" class="btn sm" data-act="printOne" data-kind="loc" data-id="' + esc(l.id) + '">Print label</button>',
     expand: { kind: "l", id: l => l.id, label: l => l.name, panel: l => locPanel(l) }
   });
 }
@@ -4382,8 +4769,8 @@ function ordMatches(o) {
 }
 function renderOrders() {
   const el = $("#v-orders"), f = S.ordFilter, all = Array.from(S.orders.values()), W = isWriter();
-  let h = '<div class="mcard"><div class="thead"><h2 class="vt">Purchase orders</h2><span class="sp"><button type="button" class="btn sm" data-act="columns" data-tbl="orders">Columns</button>' +
-    '<button type="button" class="btn sm" data-act="go" data-view="tracking" title="Everything on order that has not been received, in one list">Tracking</button>' +
+  let h = '<div class="mcard"><div class="thead"><h2 class="vt">Purchase orders</h2><span class="sp"><button type="button" class="btn sm" data-act="columns" data-tbl="orders">Edit columns</button>' +
+    '<button type="button" class="btn sm" data-act="go" data-view="tracking" title="Everything on order that has not been received, in one list">Open tracking</button>' +
     (W ? '<button type="button" class="btn sm acc" data-act="newPo" title="A draft PO for stock. Lines for a job come from the ticket\'s Order missing or a line\'s Order.">New PO</button>' : "") + "</span></div>" +
     '<div class="filters"><div><label class="lab" for="ofStatus">Status</label><select class="fld" id="ofStatus" data-of="status">' +
       [["open", "Open, not received"]].concat(ORD_STATUS.map(s => [s, ORD_LABEL[s]]), [["all", "All, received too"]]).map(([k, l]) => '<option value="' + k + '"' + (f.status === k ? " selected" : "") + ">" + esc(l) + "</option>").join("") + "</select></div>" +
@@ -4393,11 +4780,11 @@ function renderOrders() {
   else if (!all.length) h += '<div class="empty"><p>No purchase orders yet. Order from a pick ticket line or from the low-stock list and the PO appears here.</p>' + (W ? '<button type="button" class="btn" data-act="go" data-view="stock" data-sub="low">Open the low-stock list</button>' : "") + "</div>";
   else {
     const list = all.filter(ordMatches);
-    if (!list.length) h += '<div class="empty"><p>No purchase orders match these filters.</p><button type="button" class="textbtn" data-act="ofClear">Clear filters</button></div>';
-    else h += tableHTML("orders", orderCols(), list, {
+    h += tableHTML("orders", orderCols(), list, {
+      empty: '<p>No POs match these filters.</p><button type="button" class="btn" data-act="ofClear">Clear filters</button>',
       defaultSort: (a, b) => (a.status === "draft" ? 0 : 1) - (b.status === "draft" ? 0 : 1) || ordDnr(b) - ordDnr(a) || num(b.number) - num(a.number),
       rowClass: o => (o.status === "draft" && !o.vendor) || ordDnr(o) ? "need" : o.status === "cancelled" ? "dim" : ""
-    }) + '<p class="hint">' + list.length + " of " + all.length + " purchase orders. Drafts first, then anything delivered and not received.</p>";
+    }) + (list.length ? '<p class="hint">' + list.length + " of " + all.length + " POs. Drafts first, then anything delivered and not received.</p>" : "");
   }
   el.innerHTML = h + "</div>";
   wireGlow(el);
@@ -4440,9 +4827,9 @@ function shipCardHTML(o, s) {
     "<div><dt>Lines</dt><dd class=\"n\">" + (s.lines || []).length + "</dd></div></dl>" +
     "<ul>" + (s.lines || []).map(e => { const ol = orderLines(o.id).find(x => x.id === e.orderLineId); return "<li>" + esc(ol ? olName(ol) : e.productName || "") + " x" + esc(ol ? olQty(ol, e.qty) : fmtN(e.qty)) + (num(e.qtyReceived) ? ", " + fmtN(e.qtyReceived) + (client ? " delivered" : " received") : "") + "</li>"; }).join("") + "</ul>" +
     (s.note ? '<div class="lnote" style="margin:0 0 10px">' + esc(s.note) + "</div>" : "") +
-    '<div class="sf">' + (W && open ? (client ? '<button type="button" class="btn acc" data-act="trDeliver" data-id="' + esc(s.id) + '" title="The box reached the job site. Its lines count as received on this PO and staged on the ticket; nothing goes into stock.">Mark delivered</button>'
+    '<div class="sf"><div class="sfb">' + (W && open ? (client ? '<button type="button" class="btn acc" data-act="trDeliver" data-id="' + esc(s.id) + '" title="The box reached the job site. Its lines count as received on this PO and staged on the ticket; nothing goes into stock.">Mark delivered</button>'
       : '<button type="button" class="btn acc" data-act="shipRecv" data-id="' + esc(s.id) + '" title="Walks each line: tap or scan the UPC, the quantity, then into the bay or onto the shelf">Receive</button>') +
-      '<button type="button" class="btn" data-act="shipUpd" data-id="' + esc(s.id) + '" title="Shipped, out for delivery, or delivered, and the expected date. Each change is logged with the time.">Update</button>' : "") +
+      '<button type="button" class="btn" data-act="shipUpd" data-id="' + esc(s.id) + '" title="Shipped, out for delivery, or delivered, and the expected date. Each change is logged with the time.">Update</button>' : "") + "</div>" +
     '<span class="hint">' + (open ? "Goes to " + esc(where.join(" and ")) + ". " + esc(pillLabel("ship", sk)) + ", " + esc(fmtStamp(last.at)) + "." : doneTxt) + "</span></div></div>";
 }
 function renderOrder() {
@@ -4469,7 +4856,7 @@ function renderOrder() {
     "<div><dt>Received</dt><dd class=\"n\">" + fmtN(sm.qtyReceived) + " of " + fmtN(sm.qtyOrdered) + " units</dd></div>" +
     "<div><dt>Started</dt><dd>" + esc(fmtDate(o.createdAt)) + "<small>by " + esc(o.createdByName || o.createdBy || "") + "</small></dd></div>" +
     (o.status === "cancelled" ? "<div><dt>Cancelled</dt><dd>" + esc(fmtDate(o.cancelledAt)) + "<small>" + esc(o.cancelReason || "") + "</small></dd></div>" : "") + "</dl>";
-  h += '<div class="thead" style="margin-top:18px"><h4>Lines</h4><span class="sp"><button type="button" class="btn sm" data-act="columns" data-tbl="orderLines">Columns</button></span></div>';
+  h += '<div class="thead" style="margin-top:18px"><h4>Lines</h4><span class="sp"><button type="button" class="btn sm" data-act="columns" data-tbl="orderLines">Edit columns</button></span></div>';
   if (S.errors.olines && !loaded) h += errorBox("the order's lines", "orders");
   else if (!loaded) h += skelTable([{ label: "Product" }, { label: "Ordered", r: true }, { label: "Status" }], "Loading lines");
   else if (!lines.length) h += '<div class="empty"><p>This PO has no lines. ' + (draft ? "Add a product, or use Order on a ticket line." : "") + "</p></div>";
@@ -4570,7 +4957,7 @@ function openPoAddLine(o) {
   });
 }
 function openNewVendor(done) {
-  const w = openModal("Add a vendor", '<label class="lab" for="nvName">Vendor name</label><input class="fld" id="nvName" placeholder="As it appears on their invoices"><p class="hint">It joins the vendor list in Settings, so the next PO can pick it.</p><p class="err" id="nvErr" hidden></p>',
+  const w = openModal("Add a vendor", '<label class="lab" for="nvName">Vendor name <span class="req">required</span></label><input class="fld" id="nvName" placeholder="As it appears on their invoices"><p class="hint">It joins the vendor list in Settings, so the next PO can pick it.</p><p class="err" id="nvErr" hidden></p>',
     '<button type="button" class="btn" data-close>Cancel</button><button type="button" class="btn acc" data-ok>Add vendor</button>', { onClose: () => done(null) });
   w.querySelector("[data-ok]").addEventListener("click", () => {
     const v = clean($("#nvName", w).value);
@@ -4582,7 +4969,7 @@ function openNewVendor(done) {
 function openMarkOrdered(o) {
   const body = '<p class="hint" style="margin-top:0">' + esc(poLabel(o)) + ", " + ordSummary(o).lines + (ordSummary(o).lines === 1 ? " line for " : " lines for ") + esc(ordFor(o)) + ". Saving stamps today's date and your name" + (o.number ? "." : ", and gives this draft the next PO number from the shared counter (needs a connection).") + "</p>" +
     '<div class="grid2"><div><label class="lab" for="moVendor">Vendor</label><select class="fld" id="moVendor" data-decide>' + vendorOptions(o.vendor) + "</select></div>" +
-    '<div><label class="lab" for="moNum" title="The order or confirmation number the vendor gave you. It is what you quote when you call them about it.">' + '<abbr>Vendor order number</abbr></label><input class="fld mono" id="moNum" value="' + esc(o.orderNumber || "") + '" placeholder="SO 4418873"></div></div>' +
+    '<div><label class="lab" for="moNum" title="The order or confirmation number the vendor gave you. It is what you quote when you call them about it.">' + '<abbr>Vendor order number</abbr> <span class="req">required</span></label><input class="fld mono" id="moNum" value="' + esc(o.orderNumber || "") + '" placeholder="SO 4418873"></div></div>' +
     shipToField(o) + costLinesHTML(o) +
     '<label class="lab" for="moNote">Note</label><input class="fld" id="moNote" placeholder="Optional, for example who you spoke to"><p class="err" id="moErr" hidden></p>';
   const w = openModal(o.number ? "Mark PO " + o.number + " ordered" : "Mark the draft ordered", body, '<button type="button" class="btn" data-close>Cancel</button><button type="button" class="btn acc" data-ok>Mark ordered</button>', { wide: costOn() && ordSummary(o).lines > 0 });
@@ -4639,7 +5026,7 @@ function openAddShipment(o) {
   const ls = orderLines(o.id).filter(ol => num(ol.qtyOrdered) - num(ol.qtyShipped) > 0 || olOpen(ol) > 0);
   if (!ls.length) { toast("Every line on PO " + o.number + " is received.", true); return; }
   const today = isoDay(new Date());
-  const body = '<div class="grid2"><div><label class="lab" for="shTrk" title="Paste or scan it. 1Z is UPS, 12 or 15 digits is FedEx, 20 to 22 digits starting with 9 is USPS.">' + '<abbr>Tracking number</abbr></label><input class="fld mono" id="shTrk" autocomplete="off" placeholder="1Z999AA10123456784"></div>' +
+  const body = '<div class="grid2"><div><label class="lab" for="shTrk" title="Paste or scan it. 1Z is UPS, 12 or 15 digits is FedEx, 20 to 22 digits starting with 9 is USPS.">' + '<abbr>Tracking number</abbr> <span class="req">required</span></label><input class="fld mono" id="shTrk" autocomplete="off" placeholder="1Z999AA10123456784"></div>' +
     '<div><label class="lab" for="shCar" title="Worked out from the tracking number. Change it if the guess is wrong.">' + "<abbr>Carrier</abbr></label><select class=\"fld\" id=\"shCar\">" + CARRIERS.map(c => '<option value="' + c + '"' + (c === "Other" ? " selected" : "") + ">" + c + "</option>").join("") + "</select></div></div>" +
     '<p class="hint" id="shDet">Type the tracking number and the carrier is picked for you.</p>' +
     '<div class="grid2"><div><label class="lab" for="shDate">Shipped</label><input class="fld" id="shDate" type="date" value="' + today + '"></div>' +
@@ -4682,7 +5069,7 @@ function openAddShipment(o) {
     const to = toSel ? toSel.value : "office";
     if (await doAddShipment(o, { carrier: car, tracking: trk, shippedAt: sd ? new Date(sd + "T12:00:00") : new Date(), logAt: dayAt(sd), expectedAt: ed ? new Date(ed + "T12:00:00") : null, shipTo: to, lines: picked })) toast(car + " shipment added to PO " + o.number + ", to " + (to === "client" ? "the job site" : "the office"));
   });
-  setTimeout(() => $("#shTrk", w).focus(), 30);
+  if (!COARSE.matches) setTimeout(() => $("#shTrk", w).focus(), 30);
 }
 function openShipUpdate(s) {
   const body = '<p class="hint" style="margin-top:0">' + carrierChip(s.carrier) + " " + esc(s.tracking || "") + ", PO " + esc(s.orderNumber || "") + ". Typed by hand until a carrier tracking poll exists.</p>" +
@@ -4713,7 +5100,7 @@ function openOlNote(o, ol) {
   w.querySelector("[data-ok]").addEventListener("click", async () => { const v = $("#onText", w).value.trim(); closeModal(w); if (await doOlNote(o, ol, v)) toast("Note saved"); });
 }
 function openOlQty(o, ol) {
-  const w = openModal("Quantity on " + (o.number ? "PO " + o.number : "the draft"), '<p class="hint" style="margin-top:0">' + esc(olName(ol)) + '</p><label class="lab" for="oqQty">Quantity' + (olIsFt(ol) ? " (ft)" : "") + '</label><input class="fld n" id="oqQty" type="number" min="1" step="any" value="' + num(ol.qtyOrdered) + '"><p class="err" id="oqErr" hidden></p>', '<button type="button" class="btn" data-close>Cancel</button><button type="button" class="btn acc" data-ok>Save</button>');
+  const w = openModal("Quantity on " + (o.number ? "PO " + o.number : "the draft"), '<p class="hint" style="margin-top:0">' + esc(olName(ol)) + '</p><label class="lab" for="oqQty">Quantity' + (olIsFt(ol) ? " (ft)" : "") + ' <span class="req">required</span></label><input class="fld n" id="oqQty" type="number" min="1" step="any" value="' + num(ol.qtyOrdered) + '"><p class="err" id="oqErr" hidden></p>', '<button type="button" class="btn" data-close>Cancel</button><button type="button" class="btn acc" data-ok>Save</button>');
   w.querySelector("[data-ok]").addEventListener("click", async () => { const q = num($("#oqQty", w).value); if (!(q > 0)) { const e = $("#oqErr", w); e.textContent = "Type a quantity above zero."; e.hidden = false; return; } closeModal(w); if (await doOlQty(o, ol, q)) toast("Quantity saved"); });
 }
 /* Receive a shipment: one row per line still open on it. Tap to take the
@@ -4744,8 +5131,8 @@ function openReceiveShipment(s, focusLineId) {
     '<p class="err" id="rsErr" hidden></p>';
   const w = openModal("Receive shipment", body, '<button type="button" class="btn" data-close>Cancel</button><button type="button" class="btn acc" data-ok>Receive</button>', { wide: true, noFocus: true });
   wireGlow(w);
-  if (focusLineId) { const i = rows.findIndex(r => r.ol.id === focusLineId); if (i >= 0) setTimeout(() => { const q = $("#rsQty" + i, w); if (q) { q.focus(); q.select(); } }, 40); }
-  else setTimeout(() => $("#rsScan", w).focus(), 40);
+  if (focusLineId) { const i = rows.findIndex(r => r.ol.id === focusLineId); if (i >= 0) setTimeout(() => { const q = $("#rsQty" + i, w); if (q) { if (COARSE.matches) q.scrollIntoView({ block: "center" }); else { q.focus(); q.select(); } } }, 40); }
+  else if (!COARSE.matches) setTimeout(() => $("#rsScan", w).focus(), 40);
   $("#rsScanForm", w).addEventListener("submit", ev => {
     ev.preventDefault();
     const code = $("#rsScan", w).value.trim(); $("#rsScan", w).value = ""; if (!code) return;
@@ -4845,7 +5232,7 @@ function pkgCard(p) {
   let h = '<article class="pkg' + (p.dnr ? " dnr" : "") + '" aria-label="' + esc((s ? (s.carrier || "Other") + " package " + (s.tracking || "") : "PO " + o.number + ", not shipped yet") + ", " + trLabel(p.st)) + '"><div class="ph">' +
     (s ? carrierChip(s.carrier) + trackLink(s) : '<span class="z">No tracking number yet</span>') +
     '<span class="stw">' + pill(trKind(p.st), p.st) + (p.at ? '<span class="when">' + esc(fmtStamp(p.at)) + "</span>" : "") + "</span></div>";
-  if (p.dnr) { const n = daysSince(s.deliveredAt || p.at); h += '<p class="lateA">' + (n ? plDays(n) + " since delivery. " : "") + "Find the box and press Receive.</p>"; }
+  if (p.dnr) { const d = s.deliveredAt || p.at, n = daysSince(d); h += '<p class="lateA">Delivered ' + esc(fmtShort(d)) + (n ? ", " + plDays(n) + " ago" : "") + ". Find the box and press Receive.</p>"; }
   else if (p.late) h += '<p class="lateA">Expected ' + esc(fmtMD(p.exp)) + ", " + plDays(daysLate(p.exp)) + " late</p>";
   else if (p.exp && open) h += '<p class="pexp">' + (p.kind === "po" ? "Vendor ETA " : "Expected ") + esc(fmtMD(p.exp)) + "</p>";
   else if (p.kind === "po" && p.st === "backordered") h += '<p class="pexp">No ETA from the vendor yet</p>';
@@ -4892,7 +5279,7 @@ function trHistCols() {
 }
 function renderTracking() {
   const el = $("#v-tracking"), f = S.trFilter;
-  let h = '<div class="mcard"><div class="thead"><h2 class="vt">Tracking</h2><span class="sp"><button type="button" class="btn sm" data-act="go" data-view="orders">Orders</button></span></div>' +
+  let h = '<div class="mcard"><div class="thead"><h2 class="vt">Tracking</h2><span class="sp"><button type="button" class="btn sm" data-act="go" data-view="orders">Open orders</button></span></div>' +
     '<p class="hint" style="margin:0 0 10px">Packages coming to the office on the left, packages going straight to a client\'s site on the right. Delivered and not received floats to the top of the office side in amber: that is a box in the building nobody scanned.</p>';
   if (S.errors.orders || S.errors.shipments || S.errors.olines) { el.innerHTML = h + errorBox("what is on order", "orders") + "</div>"; return; }
   if (!S.loaded.orders || !S.loaded.shipments) { el.innerHTML = h + skelTable([{ label: "Package" }, { label: "Status" }, { label: "For" }], "Loading what is on order") + "</div>"; return; }
@@ -4913,9 +5300,10 @@ function renderTracking() {
   }
   h += "</div>";
   const hv = hist.filter(trMatches);
-  h += '<div class="mcard"><div class="thead"><h3 class="trh" style="margin:0">Recently delivered, ' + hv.length + " package" + (hv.length === 1 ? "" : "s") + "</h3>" + (hv.length ? '<span class="sp"><button type="button" class="btn sm" data-act="columns" data-tbl="trackHist">Columns</button></span>' : "") + "</div>" +
-    (!hv.length ? '<div class="empty"><p>' + (hist.length && trFiltered() ? "Nothing delivered in the last 30 days matches these filters." : "Nothing delivered in the last 30 days.") + "</p></div>"
-      : tableHTML("trackHist", trHistCols(), hv, { defaultSort: (a, b) => (toDate(b.doneAt) || 0) - (toDate(a.doneAt) || 0) }) + '<p class="hint">Received at the office or delivered to a job site in the last 30 days, newest first.</p>') + "</div>";
+  h += '<div class="mcard"><div class="thead"><h3 class="trh" style="margin:0">Recently delivered, ' + hv.length + " package" + (hv.length === 1 ? "" : "s") + "</h3>" + (hv.length ? '<span class="sp"><button type="button" class="btn sm" data-act="columns" data-tbl="trackHist">Edit columns</button></span>' : "") + "</div>" +
+    tableHTML("trackHist", trHistCols(), hv, { defaultSort: (a, b) => (toDate(b.doneAt) || 0) - (toDate(a.doneAt) || 0),
+      empty: hist.length && trFiltered() ? '<p>Nothing delivered in the last 30 days matches these filters.</p><button type="button" class="btn" data-act="trClear">Clear filters</button>' : "<p>Nothing delivered in the last 30 days. Received and delivered packages land here.</p>" }) +
+      (hv.length ? '<p class="hint">Received at the office or delivered to a job site in the last 30 days, newest first.</p>' : "") + "</div>";
   el.innerHTML = h;
 }
 /* Mark delivered on a package to a job site: when, and an optional note */
@@ -4950,7 +5338,7 @@ function openPkgNote(kind, id) {
    ============================================================== */
 function weekStartOf(d) { const x = new Date(d); x.setHours(0, 0, 0, 0); const ws = num(S.general.weekStart) || 0; x.setDate(x.getDate() - ((x.getDay() - ws + 7) % 7)); return x; }
 function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
-function fmtMD(d) { return MONTHS[d.getMonth()] + " " + d.getDate(); }
+const fmtMD = fmtShort;
 function weekOffFor(iso) { const d = new Date(iso + "T12:00:00"); if (isNaN(d)) return 0; return Math.round((weekStartOf(d) - weekStartOf(new Date())) / (7 * 86400000)); }
 function installDay(t) { const d = toDate(t.installAt); return d ? isoDay(d) : ""; }
 /* status pill for one line on a Week card */
@@ -4982,7 +5370,7 @@ function renderWeek() {
   const unsched = all.filter(t => !t.installAt && t.status !== "closed").sort((a, b) => (toDate(a.createdAt) || 0) - (toDate(b.createdAt) || 0));
   const shown = ww ? days.filter(d => !isWknd(d)) : days;
   const chips = ww ? days.filter(isWknd).map(d => { const n = by.get(isoDay(d)).length; return n ? '<button type="button" class="wkchip" data-act="wkAll" title="Turns Work week off so the weekend shows">' + n + " ticket" + (n > 1 ? "s" : "") + " on " + WEEKDAYS[d.getDay()].slice(0, 3) + "</button>" : ""; }).join("") : "";
-  const range = WEEKDAYS[days[0].getDay()].slice(0, 3) + " " + fmtMD(days[0]) + " to " + WEEKDAYS[last.getDay()].slice(0, 3) + " " + fmtMD(last) + ", " + last.getFullYear();
+  const range = WEEKDAYS[days[0].getDay()].slice(0, 3) + " " + fmtMD(days[0]) + " to " + WEEKDAYS[last.getDay()].slice(0, 3) + " " + fmtMD(last);
   let h = '<div class="wkwrap"><div class="mcard wkbar"><div class="wkt"><span class="h4">Week</span><b>' + esc(range) + "</b></div>" +
     '<div class="wnav"><button type="button" class="btn sm" data-act="wkGo" data-d="-1">Previous week</button><button type="button" class="btn sm" data-act="wkGo" data-d="0" aria-pressed="' + (S.weekOff === 0) + '" title="Jumps back to the week with today in it">This week</button><button type="button" class="btn sm" data-act="wkGo" data-d="1">Next week</button>' +
     '<button type="button" class="btn sm wwt" data-act="wkWork" aria-pressed="' + ww + '" title="Hides Saturday and Sunday so five days share the width. Remembered for you on every device.">Work week</button></div>' +
@@ -5030,7 +5418,9 @@ const CHEV_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" str
 const xView = k => k === "i" ? "items" : "stock";
 const xDomId = id => "xp-" + String(id).replace(/[^A-Za-z0-9_-]/g, "_");
 function xIs(kind, id) { return !!S.x && S.x.kind === kind && S.x.id === id; }
-function xSet(kind, id) { S.x = { kind, id, draft: null, hist: null, showHist: false, err: "" }; }
+function xSet(kind, id) { S.x = { kind, id, draft: null, hist: null, showHist: false, err: "", openedAt: Date.now() }; }
+/* the 150ms reveal plays on the render that opens the panel, not on every live redraw after it */
+function xFresh() { return S.x && Date.now() - (S.x.openedAt || 0) < 250 ? " fresh" : ""; }
 function chevBtn(kind, id, label) { const o = xIs(kind, id); return '<button type="button" class="chev" data-act="xtoggle" data-x="' + kind + '" data-id="' + esc(id) + '" aria-expanded="' + o + '" aria-controls="' + xDomId(id) + '" aria-label="' + (o ? "Close " : "Open ") + esc(label) + '">' + CHEV_SVG + "</button>"; }
 function setHash() { const h = curHash(); if (location.hash !== h) history.replaceState(null, "", location.pathname + location.search + h); }
 function curHash() {
@@ -5138,7 +5528,7 @@ function productPanel(p) {
   if (units.length) h += '<div class="sect"><h4 class="h4">Serialized units</h4><ul class="onhand">' + units.map(i => '<li><span><button type="button" class="textbtn" data-act="item" data-id="' + esc(i.id) + '">' + esc(itemLabel(i)) + "</button> " + statusPill(i.status) + "</span><span>" + esc(whereItem(i)) + "</span></li>").join("") + "</ul></div>";
   if (S.x.err) h += '<p class="err" role="alert">' + esc(S.x.err) + "</p>";
   h += '<div class="btnrow">' + (W ? '<button type="button" class="btn acc" data-act="xsave">Save</button>' : "") + productActions(p, "panel") + "</div>" + xHistHTML();
-  return '<div class="xp" id="' + xDomId(p.id) + '">' + h + "</div>";
+  return '<div class="xp' + xFresh() + '" id="' + xDomId(p.id) + '">' + h + "</div>";
 }
 /* 0.5.2 (audit-002 finding 15): one action list per record kind. The Stock
    panel shows all of it; the Scan card shows the part that fits the phone
@@ -5155,7 +5545,7 @@ function productActions(p, where) {
   if (!scan && W && onShelf) a.push(B("serialize", "Serialize", "Give units already on the shelf their own QR so each one can be checked out and followed"));
   if (!scan && W) a.push(B("reorder", "Reorder", "Puts it on a draft purchase order for stock"));
   if (!scan) a.push('<button type="button" class="btn" data-act="printOne" data-kind="prod" data-id="' + id + '">Print label</button>');
-  a.push(scan ? B("product", "Details", "Opens the product on Stock with every action and its history") : '<button type="button" class="btn" data-act="xhist" aria-pressed="' + !!(S.x && S.x.showHist) + '">History</button>');
+  a.push(scan ? B("product", "Open details", "Opens the product on Stock with every action and its history") : '<button type="button" class="btn" data-act="xhist" aria-pressed="' + !!(S.x && S.x.showHist) + '">Show history</button>');
   return a.join("");
 }
 function unitActions(it, where) {
@@ -5169,7 +5559,7 @@ function unitActions(it, where) {
   if (W && it.status === "returned") a.push(B("backToStock", "Back to stock", "You looked at it and it is fit to use again"));
   if (!scan) a.push('<button type="button" class="btn" data-act="printOne" data-kind="item" data-id="' + id + '">Print label</button>');
   if (!scan && W && it.status !== "retired") a.push(B("retire", "Retire", "", "danger"));
-  a.push(scan ? B("item", "Details", "Opens the unit on the Items view with every action and its history") : '<button type="button" class="btn" data-act="xhist" aria-pressed="' + !!(S.x && S.x.showHist) + '">History</button>');
+  a.push(scan ? B("item", "Open details", "Opens the unit on the Units view with every action and its history") : '<button type="button" class="btn" data-act="xhist" aria-pressed="' + !!(S.x && S.x.showHist) + '">Show history</button>');
   return a.join("");
 }
 function itemPanel(it) {
@@ -5193,7 +5583,7 @@ function itemPanel(it) {
     (it.importNote ? '<p class="hint">' + esc(it.importNote) + "</p>" : "");
   if (S.x.err) h += '<p class="err" role="alert">' + esc(S.x.err) + "</p>";
   h += '<div class="btnrow">' + (W ? '<button type="button" class="btn acc" data-act="xsave">Save</button>' : "") + unitActions(it, "panel") + "</div>" + xHistHTML();
-  return '<div class="xp" id="' + xDomId(it.id) + '">' + h + "</div>";
+  return '<div class="xp' + xFresh() + '" id="' + xDomId(it.id) + '">' + h + "</div>";
 }
 function locPanel(l) {
   const W = isWriter(), id = l.id, rows = [];
@@ -5215,8 +5605,8 @@ function locPanel(l) {
   h += '<div class="btnrow">' + (W ? '<button type="button" class="btn acc" data-act="xsave">Save</button>' : "") +
     '<button type="button" class="btn" data-act="printOne" data-kind="loc" data-id="' + esc(id) + '">Print label</button>' +
     (S.activeLoc === id ? "" : '<button type="button" class="btn" data-act="useLoc" data-id="' + esc(id) + '" title="Makes this the active location for Receive, Count, and Check in on the Scan view">Use as active location</button>') +
-    '<button type="button" class="btn" data-act="xhist" aria-pressed="' + !!S.x.showHist + '">History</button></div>' + xHistHTML();
-  return '<div class="xp" id="' + xDomId(id) + '">' + h + "</div>";
+    '<button type="button" class="btn" data-act="xhist" aria-pressed="' + !!S.x.showHist + '">Show history</button></div>' + xHistHTML();
+  return '<div class="xp' + xFresh() + '" id="' + xDomId(id) + '">' + h + "</div>";
 }
 async function xSave() {
   const x = S.x; if (!x || !x.draft) { toast("Nothing changed"); return; }
@@ -5345,7 +5735,7 @@ function openReceive(p, presetLoc) {
   const sel = presetLoc || S.activeLoc || p.defaultLocationId || "";
   const body = '<p class="hint" style="margin-top:0">' + esc(productName(p)) + "</p>" +
     '<div class="grid2"><div><label class="lab" for="rcLoc">Into</label><select class="fld" id="rcLoc" data-decide title="Where the units go on the shelf. Scan a shelf label first to preset this.">' + locOptions(sel) + "</select></div>" +
-    '<div><label class="lab" for="rcQty">Quantity</label><input class="fld n" id="rcQty" type="number" min="1" step="1" value="1" inputmode="numeric"></div></div>' +
+    '<div><label class="lab" for="rcQty">Quantity <span class="req">required</span></label><input class="fld n" id="rcQty" type="number" min="1" step="1" value="1" inputmode="numeric"></div></div>' +
     (S.general.showCosts ? '<div><label class="lab" for="rcCost" title="Units at or above the QR threshold in Settings get their own QR so they can be followed.">' + "<abbr>Unit cost</abbr></label><div class=\"money\"><input class=\"fld\" id=\"rcCost\" data-money inputmode=\"decimal\" value=\"" + (p.lastCost != null ? num(p.lastCost).toFixed(2) : "") + '"></div></div>' : "") +
     '<label class="chk" title="Each unit gets its own record and QR sticker, so it can be checked out and followed. Automatic at or above the QR threshold (' + money(thr) + ')."><input type="checkbox" id="rcSer"' + (auto ? " checked" : "") + "> Serialize these units (one QR each)</label>" +
     '<div id="rcSerBox"' + (auto ? "" : " hidden") + '><label class="lab" for="rcSerials" title="Optional. One per line, in the order the stickers will go on.">' + "<abbr>Serial numbers</abbr></label><textarea class=\"fld mono\" id=\"rcSerials\" placeholder=\"One per line, optional\"></textarea></div>" +
@@ -5402,7 +5792,7 @@ function boxTypeOf(type, wireType) {
 function openNewBox(p, presetUpc) {
   const start = num(S.general.boxStart[boxTypeOf(p.type, p.wireType)] || 1000);
   const body = '<p class="hint" style="margin-top:0">' + esc(productName(p)) + "</p>" +
-    '<div class="grid2"><div><label class="lab" for="nbLabel" title="The code written on the box. The shop scheme is a letter plus month and year of purchase, like A826. It goes on the QR sticker.">' + '<abbr>Box label</abbr></label><input class="fld mono" id="nbLabel" value="' + esc(nextBoxLabel()) + '"></div>' +
+    '<div class="grid2"><div><label class="lab" for="nbLabel" title="The code written on the box. The shop scheme is a letter plus month and year of purchase, like A826. It goes on the QR sticker.">' + '<abbr>Box label</abbr> <span class="req">required</span></label><input class="fld mono" id="nbLabel" value="' + esc(nextBoxLabel()) + '"></div>' +
     '<div><label class="lab" for="nbStart" title="Feet on the box when full. Defaults by cable type from Settings.">' + '<abbr>Start length (ft)</abbr></label><input class="fld n" id="nbStart" type="number" min="1" value="' + start + '"></div></div>' +
     '<div class="grid2"><div><label class="lab" for="nbLoc">Location</label><select class="fld" id="nbLoc" data-decide>' + locOptions(S.activeLoc || p.defaultLocationId || "") + "</select></div>" +
     '<div><label class="lab" for="nbDate">Purchase date</label><input class="fld" id="nbDate" type="date" value="' + isoDay(new Date()) + '"></div></div>' +
@@ -5433,7 +5823,7 @@ function openMoveStock(p) {
   const body = '<p class="hint" style="margin-top:0">' + esc(productName(p)) + ". Moves counted units between locations, for example from a shelf to a staging bay or a van.</p>" +
     '<div class="grid2"><div><label class="lab" for="mvFrom">From</label><select class="fld" id="mvFrom" data-decide><option value="">Choose where from</option>' + from.map(e => '<option value="' + esc(e.locationId) + '"' + (from.length === 1 ? " selected" : "") + ">" + esc(locName(e.locationId)) + " (" + fmtN(stockQty(p, e.locationId)) + ")</option>").join("") + "</select></div>" +
     '<div><label class="lab" for="mvTo">To</label><select class="fld" id="mvTo" data-decide>' + locOptions(S.activeLoc && !from.some(e => e.locationId === S.activeLoc && from.length === 1) ? S.activeLoc : "") + "</select></div></div>" +
-    '<label class="lab" for="mvQty">Quantity</label><input class="fld n" id="mvQty" type="number" min="1" step="1" value="1" inputmode="numeric">' +
+    '<label class="lab" for="mvQty">Quantity <span class="req">required</span></label><input class="fld n" id="mvQty" type="number" min="1" step="1" value="1" inputmode="numeric">' +
     '<label class="lab" for="mvNote">For</label><input class="fld" id="mvNote" placeholder="Job or reason, optional"><p class="err" id="mvErr" hidden></p>';
   const w = openModal("Move stock", body, '<button type="button" class="btn" data-close>Cancel</button><button type="button" class="btn acc" data-ok>Move</button>');
   wireGlow(w);
@@ -5451,7 +5841,7 @@ function openCount(p) {
   const sel = S.activeLoc || p.defaultLocationId || (byLocation(p)[0] || {}).locationId || "";
   const body = '<p class="hint" style="margin-top:0">' + esc(productName(p)) + ". Type what is on the shelf now; the difference is logged as an adjustment.</p>" +
     '<div class="grid2"><div><label class="lab" for="ctLoc">Location</label><select class="fld" id="ctLoc" data-decide>' + locOptions(sel, { qty: l => fmtN(stockQty(p, l.id)) + " now" }) + "</select></div>" +
-    '<div><label class="lab" for="ctQty">Counted</label><input class="fld n" id="ctQty" type="number" min="0" step="1" inputmode="numeric"></div></div><p class="hint" id="ctHint"></p><p class="err" id="ctErr" hidden></p>';
+    '<div><label class="lab" for="ctQty">Counted <span class="req">required</span></label><input class="fld n" id="ctQty" type="number" min="0" step="1" inputmode="numeric"></div></div><p class="hint" id="ctHint"></p><p class="err" id="ctErr" hidden></p>';
   const w = openModal("Count", body, '<button type="button" class="btn" data-close>Cancel</button><button type="button" class="btn acc" data-ok>Save count</button>');
   wireGlow(w);
   const upd = () => { const l = $("#ctLoc", w).value, c = $("#ctQty", w).value; $("#ctHint", w).textContent = l ? "System shows " + fmtN(stockQty(p, l)) + " here" + (c !== "" ? ". Saving records " + ((num(c) - stockQty(p, l)) >= 0 ? "+" : "") + fmtN(num(c) - stockQty(p, l)) + "." : ".") : ""; };
@@ -5469,7 +5859,7 @@ function openCount(p) {
 function openAdjust(p) {
   const body = '<p class="hint" style="margin-top:0">' + esc(productName(p)) + "</p>" +
     '<div class="grid2"><div><label class="lab" for="adLoc">Location</label><select class="fld" id="adLoc" data-decide>' + locOptions(S.activeLoc || p.defaultLocationId || "", { qty: l => fmtN(stockQty(p, l.id)) }) + "</select></div>" +
-    '<div><label class="lab" for="adQty" title="Negative to take away, positive to add. For a full recount use Count on the Scan card instead.">' + '<abbr>Change by</abbr></label><input class="fld n" id="adQty" type="number" step="1" placeholder="-2 or 3" inputmode="numeric"></div></div>' +
+    '<div><label class="lab" for="adQty" title="Negative to take away, positive to add. For a full recount use Count on the Scan card instead.">' + '<abbr>Change by</abbr> <span class="req">required</span></label><input class="fld n" id="adQty" type="number" step="1" placeholder="-2 or 3" data-signed></div></div>' +
     '<label class="lab" for="adReason" title="Required. The reason is what explains the count to whoever looks at it next.">' + '<abbr>Reason</abbr></label><select class="fld" id="adReason" data-decide><option value="">Choose a reason</option>' + ADJUST_REASONS.map(r => "<option>" + esc(r) + "</option>").join("") + "</select>" +
     '<label class="lab" for="adNote">Note</label><input class="fld" id="adNote" placeholder="Required when the reason is Other"><p class="err" id="adErr" hidden></p>';
   const w = openModal("Adjust", body, '<button type="button" class="btn" data-close>Cancel</button><button type="button" class="btn acc" data-ok>Save adjustment</button>');
@@ -5489,7 +5879,7 @@ function openSerialize(p) {
   const from = byLocation(p).filter(e => e.locationId && stockQty(p, e.locationId) > 0);
   const body = '<p class="hint" style="margin-top:0">' + esc(productName(p)) + ". Each unit gets its own record and QR, so it can be checked out and followed. On hand does not change.</p>" +
     '<div class="grid2"><div><label class="lab" for="szLoc">From</label><select class="fld" id="szLoc" data-decide><option value="">Choose a location</option>' + from.map(e => '<option value="' + esc(e.locationId) + '"' + (from.length === 1 ? " selected" : "") + ">" + esc(locName(e.locationId)) + " (" + fmtN(stockQty(p, e.locationId)) + ")</option>").join("") + "</select></div>" +
-    '<div><label class="lab" for="szQty">How many</label><input class="fld n" id="szQty" type="number" min="1" step="1" value="1"></div></div>' +
+    '<div><label class="lab" for="szQty">How many <span class="req">required</span></label><input class="fld n" id="szQty" type="number" min="1" step="1" value="1"></div></div>' +
     '<label class="lab" for="szSer" title="Optional. One per line.">' + '<abbr>Serial numbers</abbr></label><textarea class="fld mono" id="szSer" placeholder="One per line, optional"></textarea><p class="err" id="szErr" hidden></p>';
   const w = openModal("Serialize", body, '<button type="button" class="btn" data-close>Cancel</button><button type="button" class="btn acc" data-ok>Serialize</button>');
   wireGlow(w);
@@ -5505,7 +5895,7 @@ function openSerialize(p) {
 /* ---------------- locations ---------------- */
 function openLocationForm(l) {
   const isNew = !l; const d = l || { kind: "" };
-  const body = '<div class="grid2"><div><label class="lab" for="lfArea" title="The room or zone, for example Storage room or Warehouse">' + '<abbr>Area</abbr></label><input class="fld" id="lfArea" value="' + esc(d.area || "") + '"' + (isNew ? "" : " disabled") + "></div>" +
+  const body = '<div class="grid2"><div><label class="lab" for="lfArea" title="The room or zone, for example Storage room or Warehouse">' + '<abbr>Area</abbr> <span class="req">required</span></label><input class="fld" id="lfArea" value="' + esc(d.area || "") + '"' + (isNew ? "" : " disabled") + "></div>" +
     '<div><label class="lab" for="lfShelf" title="Blank for a bare area, a bay, or a van">' + '<abbr>Shelf</abbr></label><input class="fld" id="lfShelf" value="' + esc(d.shelf || "") + '"' + (isNew ? "" : " disabled") + "></div></div>" +
     '<label class="lab" for="lfKind" title="Bays hold product staged for a job; vans are stock that travels.">' + '<abbr>Kind</abbr></label><select class="fld" id="lfKind" data-decide><option value="">Choose a kind</option>' + LOC_KINDS.map(k => '<option value="' + k + '"' + (d.kind === k ? " selected" : "") + ">" + k[0].toUpperCase() + k.slice(1) + "</option>").join("") + "</select>" +
     (isNew ? "" : '<p class="hint">Area and shelf make the label code, so they stay as they are. Add a new location if the shelf moved.</p>') + '<p class="err" id="lfErr" hidden></p>';
@@ -5547,6 +5937,7 @@ function renderScan() {
   if (S.pendingUpcFor && S.products.get(S.pendingUpcFor)) { up.hidden = false; up.innerHTML = "Waiting for a barcode to set as the UPC of <b>" + esc(productName(S.products.get(S.pendingUpcFor))) + '</b>. <button type="button" class="textbtn" data-act="cancelUpc">Cancel</button>'; }
   else up.hidden = true;
   if (!CAM.stream && !CAM.starting) autoStartCamera();
+  sizeCam();
 }
 function paintLocChip() {
   const w = $("#locChipWrap"); if (!w) return;
@@ -5735,7 +6126,8 @@ function productCard(p) {
 }
 
 /* ---------------- box sheet (PLAN section 7) ---------------- */
-function boxSheetHTML(c, px) {
+/* inSheet: the modal version keeps the quick buttons and Save for its footer (boxSheetFoot) */
+function boxSheetHTML(c, px, inSheet) {
   if (!c) return '<p class="err">That box is gone.</p>';
   const p = S.products.get(c.productId), last = num(c.lastMark != null ? c.lastMark : c.ftLeft), empty = c.status === "empty";
   const canEdit = isTech() && !empty;
@@ -5748,7 +6140,7 @@ function boxSheetHTML(c, px) {
   }
   h += '<label class="lab" for="' + px + 'Mark" title="The footage printed on the cable where it leaves the box. Pull boxes count down, so the mark is the feet left.">' + "<abbr>Mark now</abbr></label>" +
     '<div class="bignum"><input class="fld" id="' + px + 'Mark" type="number" inputmode="numeric" min="0" max="' + num(c.startLength) + '" value="' + last + '" aria-describedby="' + px + 'Hint"><span>ft</span></div>' +
-    '<div class="quick"><button type="button" class="btn" data-q="50">-50</button><button type="button" class="btn" data-q="100">-100</button><button type="button" class="btn" data-q="250">-250</button><button type="button" class="btn danger" data-empty>Empty</button></div>' +
+    (inSheet ? "" : BOX_QUICK) +
     '<div class="grid2"><div><label class="lab" for="' + px + 'Cut" title="Last mark minus mark now. Change it when the box was stopped mid-day and you know the real figure.">' + "<abbr>Cut this time</abbr></label>" +
     '<input class="fld n" id="' + px + 'Cut" type="number" inputmode="numeric" min="0" value="0"></div>' +
     '<div><label class="lab" for="' + px + 'Job" title="Optional. The job this footage went to, so it is charged the right amount.">' + '<abbr>For job</abbr></label><input class="fld" id="' + px + 'Job" placeholder="Optional"></div></div>' + boxTicketChip(c, px) +
@@ -5756,10 +6148,11 @@ function boxSheetHTML(c, px) {
     '<label class="lab" for="' + px + 'Loc" title="Set it when the box moved, or when it came in from the sheet without a shelf.">' + '<abbr>Location</abbr></label><select class="fld" id="' + px + 'Loc"' + (c.locationId ? "" : " data-decide") + ">" + locOptions(c.locationId || "", { blankLabel: "Choose where the box is" }) + "</select>" +
     '<label class="lab" for="' + px + 'Note">Note</label><input class="fld" id="' + px + 'Note" placeholder="Optional">' +
     '<p class="hint" id="' + px + 'Hint"></p><p class="err" id="' + px + 'Err" hidden></p>' +
-    '<button type="button" class="btn acc save" data-save>Save cut</button>' +
-    '<div class="btnrow"><button type="button" class="btn" data-act="printOne" data-kind="ctr" data-id="' + esc(c.id) + '">Print label</button>' + (p ? '<button type="button" class="btn" data-act="product" data-id="' + esc(p.id) + '">Product</button>' : "") + "</div>";
+    (inSheet ? "" : '<button type="button" class="btn acc save" data-save>Save cut</button>') +
+    '<div class="btnrow"><button type="button" class="btn" data-act="printOne" data-kind="ctr" data-id="' + esc(c.id) + '">Print label</button>' + (p ? '<button type="button" class="btn" data-act="product" data-id="' + esc(p.id) + '">Open product</button>' : "") + "</div>";
   return h;
 }
+const BOX_QUICK = '<div class="quick"><button type="button" class="btn" data-q="50">-50</button><button type="button" class="btn" data-q="100">-100</button><button type="button" class="btn" data-q="250">-250</button><button type="button" class="btn danger" data-empty>Empty</button></div>';
 /* For ticket chip (PLAN 7): prefilled with the ticket whose bay the box sits in */
 function boxTicketChip(c, px) {
   const open = openTickets(); if (!open.length) return "";
@@ -5810,7 +6203,9 @@ function bindBoxSheet(root, c, px, after) {
 }
 function openBoxSheet(id) {
   const c = S.containers.get(id); if (!c) return;
-  const w = openModal("Box " + c.label, '<div class="res">' + boxSheetHTML(c, "bm") + "</div>", '<button type="button" class="btn" data-close>Close</button>', { noFocus: true });
+  const edit = isTech() && c.status !== "empty";
+  const w = openModal("Box " + c.label, '<div class="res">' + boxSheetHTML(c, "bm", edit) + "</div>",
+    (edit ? BOX_QUICK : "") + '<button type="button" class="btn" data-close>' + (edit ? "Cancel" : "Close") + "</button>" + (edit ? '<button type="button" class="btn acc" data-save>Save cut</button>' : ""), { noFocus: true });
   bindBoxSheet(w, c, "bm", () => closeModal(w));
 }
 
@@ -5831,7 +6226,7 @@ function openCheckout(it) {
   const admin = isWriter();
   const people = Array.from(S.users.values()).filter(u => u.active !== false).sort((a, b) => (a.name || a.email).localeCompare(b.name || b.email));
   const body = '<p class="hint" style="margin-top:0">' + esc(it.productName) + ", " + esc(itemLabel(it)) + "</p>" +
-    '<label class="lab" for="coJob" title="The job it is going to, or Van stock when it rides in a van until needed.">' + '<abbr>For</abbr></label><div class="manual" style="margin:0"><input class="fld" id="coJob" placeholder="Job name or address"><button type="button" class="btn" id="coVan">Van stock</button></div>' +
+    '<label class="lab" for="coJob" title="The job it is going to, or Van stock when it rides in a van until needed.">' + '<abbr>For</abbr> <span class="req">required</span></label><div class="manual" style="margin:0"><input class="fld" id="coJob" placeholder="Job name or address"><button type="button" class="btn" id="coVan" title="Fills For with Van stock: it rides in a van until a job needs it">Use van stock</button></div>' +
     (admin ? '<label class="lab" for="coWho" title="Pick someone else when they took it and you are recording it for them.">' + '<abbr>Held by</abbr></label><select class="fld" id="coWho">' + people.map(u => '<option value="' + esc(u.id) + '"' + (u.id === S.user.uid ? " selected" : "") + ">" + esc(u.name || u.email) + "</option>").join("") + (people.some(u => u.id === S.user.uid) ? "" : '<option value="' + esc(S.user.uid) + '" selected>' + esc(S.user.name) + "</option>") + "</select>" : '<p class="hint">Held by you (' + esc(S.user.name) + ").</p>") +
     '<label class="lab" for="coNote">Note</label><input class="fld" id="coNote" placeholder="Optional"><p class="err" id="coErr" hidden></p>';
   const w = openModal("Check out", body, '<button type="button" class="btn" data-close>Cancel</button><button type="button" class="btn acc" data-ok>Check out</button>');
@@ -5876,7 +6271,7 @@ function openMoveItem(it, backToStock) {
   });
 }
 function openRetire(it) {
-  const body = '<p class="hint" style="margin-top:0">' + esc(it.productName) + ", " + esc(itemLabel(it)) + '. A retired unit leaves stock for good but keeps its history.</p><label class="lab" for="rtWhy">Reason</label><input class="fld" id="rtWhy" placeholder="Broken beyond repair, lost, sold"><p class="err" id="rtErr" hidden></p>';
+  const body = '<p class="hint" style="margin-top:0">' + esc(it.productName) + ", " + esc(itemLabel(it)) + '. A retired unit leaves stock for good but keeps its history.</p><label class="lab" for="rtWhy">Reason <span class="req">required</span></label><input class="fld" id="rtWhy" placeholder="Broken beyond repair, lost, sold"><p class="err" id="rtErr" hidden></p>';
   const w = openModal("Retire unit", body, '<button type="button" class="btn" data-close>Cancel</button><button type="button" class="btn danger" data-ok>Retire</button>');
   w.querySelector("[data-ok]").addEventListener("click", async () => {
     const r = $("#rtWhy", w).value.trim(); if (!r) { const e = $("#rtErr", w); e.textContent = "Give a reason."; e.hidden = false; return; }
@@ -5891,26 +6286,26 @@ function renderItems() {
   const all = Array.from(S.items.values());
   const tabs = [["out", "Out", i => i.status === "checked_out"], ["in", "In stock", i => i.status === "in_stock"], ["staged", "Staged", i => i.status === "staged"], ["installed", "Installed", i => i.status === "installed"], ["returned", "Returned", i => i.status === "returned"], ["all", "All", () => true]];
   const cur = tabs.find(t => t[0] === S.itemsTab) || tabs[0];
-  let html = '<div class="mcard"><div class="thead"><h2 class="vt">Items</h2><span class="sp"><button type="button" class="btn sm" data-act="columns" data-tbl="items">Columns</button></span></div>' +
+  let html = '<div class="mcard"><div class="thead"><h2 class="vt">Units</h2><span class="sp"><button type="button" class="btn sm" data-act="columns" data-tbl="items">Edit columns</button></span></div>' +
     '<p class="hint" style="margin:0 0 10px">Serialized units, each with its own QR. Out is the Friday list: who has what, since when, for which job.</p>' +
-    '<div class="toolbar"><div class="seg" role="group" aria-label="Item lists">' + tabs.map(([k, l, f]) => '<button type="button" aria-pressed="' + (cur[0] === k) + '" class="' + (cur[0] === k ? "on" : "") + '" data-act="itemsTab" data-tab="' + k + '">' + l + "<b>" + all.filter(f).length + "</b></button>").join("") + "</div></div>";
+    '<div class="toolbar"><div class="seg" role="group" aria-label="Unit lists">' + tabs.map(([k, l, f]) => '<button type="button" aria-pressed="' + (cur[0] === k) + '" class="' + (cur[0] === k ? "on" : "") + '" data-act="itemsTab" data-tab="' + k + '">' + l + "<b>" + all.filter(f).length + "</b></button>").join("") + "</div></div>";
   const cols = [
     { k: "product", label: "Product", sort: i => (i.productName || "").toLowerCase(), html: i => '<button type="button" class="linkbtn" data-act="xtoggle" data-x="i" data-id="' + esc(i.id) + '"><div class="pn">' + esc(i.productName || "") + '</div></button><div class="pd' + (i.serial || !i.label ? " mono" : "") + '">' + esc(itemLabel(i)) + "</div>" },
     { k: "serial", label: "Serial", def: false, html: i => i.serial ? '<span class="mono">' + esc(i.serial) + "</span>" : '<span class="z">None</span>' },
     { k: "status", label: "Status", sort: i => ITEM_STATUS[i.status] || i.status, html: i => statusPill(i.status) },
     { k: "where", label: "Where or who", sort: i => whereItem(i), text: i => i.status === "checked_out" ? (i.holderName || "") : (i.locationId ? locName(i.locationId) : (i.status === "installed" ? "At the client" : "")) },
     { k: "job", label: "Job", text: i => i.jobName || "" },
-    { k: "days", label: "Days out", r: true, sort: i => i.status === "checked_out" ? daysSince(i.checkedOutAt) : null, text: i => i.status === "checked_out" && i.checkedOutAt ? String(daysSince(i.checkedOutAt)) : "" },
+    { k: "days", label: "Days out", sort: i => i.status === "checked_out" ? daysSince(i.checkedOutAt) : null, text: i => i.status === "checked_out" && i.checkedOutAt ? plDays(daysSince(i.checkedOutAt)) + ", since " + fmtDate(i.checkedOutAt) : "" },
     { k: "since", label: "Out since", def: false, sort: i => toDate(i.checkedOutAt), text: i => i.status === "checked_out" ? fmtDate(i.checkedOutAt) : "" },
     { k: "last", label: "Last movement", sort: i => { const m = S.movements.find(x => x.itemId === i.id); return m ? toDate(m.at) : null; }, text: i => { const m = S.movements.find(x => x.itemId === i.id); return m ? (MV_LABEL[m.type] || m.type) + ", " + fmtShort(m.at) + (m.byName ? " by " + m.byName : "") : ""; } }
   ];
-  if (S.errors.items) html += errorBox("items", "items");
-  else if (!S.loaded.items) html += skelTable(cols.filter(c => c.def !== false), "Loading items");
-  else if (!all.length) html += '<div class="empty"><p>No serialized items yet. Receive something at or above the QR threshold (Settings), or open a product and choose Serialize.</p></div>';
+  if (S.errors.items) html += errorBox("units", "items");
+  else if (!S.loaded.items) html += skelTable(cols.filter(c => c.def !== false), "Loading units");
+  else if (!all.length) html += '<div class="empty"><p>No serialized units yet. Receive something at or above the QR threshold (Settings), or open a product and choose Serialize.</p></div>';
   else {
     const list = all.filter(cur[2]);
-    if (!list.length) html += '<div class="empty"><p>Nothing in ' + esc(cur[1]) + ' right now.</p><button type="button" class="btn" data-act="itemsTab" data-tab="all">Show all units</button></div>';
-    else html += tableHTML("items", cols, list, {
+    html += tableHTML("items", cols, list, {
+      empty: "<p>Nothing in " + esc(cur[1]) + ' right now.</p><button type="button" class="btn" data-act="itemsTab" data-tab="all">Show all units</button>',
       defaultSort: (a, b) => (daysSince(b.checkedOutAt) || 0) - (daysSince(a.checkedOutAt) || 0) || String(a.productName).localeCompare(String(b.productName)),
       rowClass: i => i.status === "checked_out" && daysSince(i.checkedOutAt) > 14 ? "need" : "",
       actions: list.some(i => i.status === "checked_out") ? i => i.status === "checked_out" ? (isTech() ? '<button type="button" class="btn sm acc" data-act="checkin" data-id="' + esc(i.id) + '">Check in</button>' : "") + '<button type="button" class="btn sm" data-act="nudge" data-id="' + esc(i.id) + '" title="Copies a one-line reminder to the clipboard to paste into a chat or text">Nudge</button>' : "" : null,
@@ -5948,7 +6343,7 @@ function routeAlias(view, sub) {
 function consoleLinks() {
   if (!canConsole()) return "";
   const b = (sub, label, tip) => '<button type="button" class="btn sm" data-act="go" data-view="console" data-sub="' + sub + '" title="' + esc(tip) + '">' + label + "</button>";
-  return '<div class="clinks"><span class="h4">Console</span>' + b("reports", "Reports", "Stock value, spend, deliveries, items out, wire usage, movements, aging") +
+  return '<div class="clinks"><span class="h4">Console</span>' + b("reports", "Reports", "Stock value, spend, deliveries, units out, wire usage, movements, aging") +
     (isAdmin() ? b("people", "People", "Roles, newcomers, deactivate") + b("settings", "Settings", "Costs, QR threshold, carriers, labels, box lengths, vendors") +
       '<button type="button" class="btn sm" data-act="toBoard" title="The wall board settings, at the end of the Console Settings tab">Board</button>' : "") +
     b("about", "About", "The data dictionary") + b("export", "Export everything", "Every collection as a workbook or zipped CSVs") + "</div>";
@@ -5962,7 +6357,7 @@ function renderMore(force) {
   if (!force && _moreBuilt === S.moreTab && S.moreTab === "import") return;
   _moreBuilt = S.moreTab;
   let html = '<div class="mcard"><div class="thead"><h2 class="vt">More</h2></div>' +
-    '<div class="btnrow phoneonly" style="margin:0 0 12px"><button type="button" class="btn" data-go="orders">Orders</button><button type="button" class="btn" data-go="tracking">Tracking</button><button type="button" class="btn" data-go="items">Items</button>' + (canConsole() ? '<button type="button" class="btn" data-go="console">Console</button>' : "") + "</div>" +
+    '<div class="btnrow phoneonly" style="margin:0 0 12px"><button type="button" class="btn" data-go="orders">Orders</button><button type="button" class="btn" data-go="tracking">Tracking</button><button type="button" class="btn" data-go="items">Units</button>' + (canConsole() ? '<button type="button" class="btn" data-go="console">Console</button>' : "") + "</div>" +
     installCardHTML() + consoleLinks() +
     '<div class="toolbar"><div class="seg" role="group" aria-label="More">' +
     tabs.map(([k, l]) => '<button type="button" aria-pressed="' + (S.moreTab === k) + '" class="' + (S.moreTab === k ? "on" : "") + '" data-act="moreTab" data-tab="' + k + '">' + l + "</button>").join("") + "</div></div>";
@@ -6008,20 +6403,19 @@ const MV_COLS = [
 function movementsHTML() {
   const f = S.mvFilter;
   const people = Array.from(new Set(S.movements.map(m => m.byName || m.by).filter(Boolean))).sort();
-  let h = '<div class="grid3" style="margin-bottom:10px">' +
+  let h = '<div class="grid3 filters">' +
     '<div><label class="lab" for="mfType">Type</label><select class="fld" id="mfType" data-mf="type"><option value="">All types</option>' + Object.entries(MV_LABEL).map(([k, l]) => '<option value="' + k + '"' + (f.type === k ? " selected" : "") + ">" + l + "</option>").join("") + "</select></div>" +
     '<div><label class="lab" for="mfPerson">Person</label><select class="fld" id="mfPerson" data-mf="person"><option value="">Everyone</option>' + people.map(p => '<option' + (f.person === p ? " selected" : "") + ">" + esc(p) + "</option>").join("") + "</select></div>" +
-    '<div><label class="lab" for="mfQ">Search</label><input class="fld" id="mfQ" data-mf="q" type="search" value="' + esc(f.q) + '" placeholder="Product, box, location, note"></div>' +
+    '<div><label class="lab" for="mfQ">Search</label><span class="srch"><input class="fld" id="mfQ" data-mf="q" type="search" value="' + esc(f.q) + '" placeholder="Product, box, location, note"><button type="button" class="clr" data-act="clearSearch" data-for="mfQ" aria-label="Clear the search">&times;</button></span></div>' +
     '<div><label class="lab" for="mfFrom">From</label><input class="fld" id="mfFrom" data-mf="from" type="date" value="' + esc(f.from) + '"></div>' +
     '<div><label class="lab" for="mfTo">To</label><input class="fld" id="mfTo" data-mf="to" type="date" value="' + esc(f.to) + '"></div>' +
-    '<div><span class="lab" title="Fills From and To with a Sunday to Saturday week, so what moved this week is one tap">Week</span><div class="btnrow" style="margin:0;gap:6px"><button type="button" class="btn sm" data-act="mvWeek" data-d="-1">Previous</button><button type="button" class="btn sm" data-act="mvWeek" data-d="0">This week</button><button type="button" class="btn sm" data-act="mvWeek" data-d="1">Next</button></div></div></div>';
+    '<div><span class="lab" title="Fills From and To with a Sunday to Saturday week, so what moved this week is one tap">Week</span><div class="btnrow" style="margin:0"><button type="button" class="btn sm" data-act="mvWeek" data-d="-1">Previous</button><button type="button" class="btn sm" data-act="mvWeek" data-d="0">This week</button><button type="button" class="btn sm" data-act="mvWeek" data-d="1">Next</button></div></div></div>';
   if (S.errors.movements) return h + errorBox("movements", "movements");
   if (!S.loaded.movements) return h + skelTable(MV_COLS.filter(c => c.def !== false), "Loading movements");
-  if (!S.movements.length) return h + '<div class="empty"><p>No movements yet. The first scan, pick, or reading lands here.</p></div>';
+  if (!S.movements.length) return h + '<div class="empty"><p>No movements yet. The first scan, pull, or reading lands here.</p><button type="button" class="btn" data-act="go" data-view="scan">Open Scan</button></div>';
   const list = mvFiltered();
-  h += '<div class="thead"><span class="hint" style="margin:0">' + fmtN(list.length) + " of the latest " + fmtN(S.movements.length) + ' movements. Export everything holds the full trail.</span><span class="sp"><button type="button" class="btn sm" data-act="columns" data-tbl="movements">Columns</button><button type="button" class="btn sm" data-act="mvCsv"' + (list.length ? "" : " disabled") + ">Export CSV</button></span></div>";
-  if (!list.length) return h + '<div class="empty"><p>No movements match these filters.</p><button type="button" class="textbtn" data-act="mvClear">Clear filters</button></div>';
-  return h + tableHTML("movements", MV_COLS, list, { defaultSort: (a, b) => (toDate(b.at) || 0) - (toDate(a.at) || 0) });
+  h += '<div class="thead"><span class="hint" style="margin:0">' + fmtN(list.length) + " of the latest " + fmtN(S.movements.length) + ' movements. Export everything holds the full trail.</span><span class="sp"><button type="button" class="btn sm" data-act="columns" data-tbl="movements">Edit columns</button><button type="button" class="btn sm" data-act="mvCsv"' + (list.length ? "" : " disabled") + ">Export CSV</button></span></div>";
+  return h + tableHTML("movements", MV_COLS, list, { defaultSort: (a, b) => (toDate(b.at) || 0) - (toDate(a.at) || 0), empty: '<p>No movements match these filters.</p><button type="button" class="btn" data-act="mvClear">Clear filters</button>' });
 }
 function exportMvCsv() {
   const list = sortRows("movements", MV_COLS, mvFiltered(), (a, b) => (toDate(b.at) || 0) - (toDate(a.at) || 0));
@@ -6046,14 +6440,14 @@ function labelsHTML() {
   const size = S.labelSize || S.general.labelSize || "5160";
   const groups = labelGroups(), n = S.labelSel.size;
   let h = '<div class="grid2"><div><label class="lab" for="lblSize" title="Avery 5160 is 30 small labels for shelves and boxes; 2 x 4 is 10 large ones for racks and bays.">' + '<abbr>Sheet</abbr></label><select class="fld" id="lblSize" data-act-change="lblSize"><option value="5160"' + (size === "5160" ? " selected" : "") + '>Avery 5160, 1 x 2-5/8 in, 30 per sheet</option><option value="5163"' + (size === "5163" ? " selected" : "") + ">2 x 4 in, 10 per sheet</option></select></div>" +
-    '<div><label class="lab" for="lblQ">Filter</label><input class="fld" id="lblQ" type="search" value="' + esc(S.labelQ) + '" placeholder="Name, box label, or serial"></div></div>' +
+    '<div><label class="lab" for="lblQ">Filter</label><span class="srch"><input class="fld" id="lblQ" type="search" value="' + esc(S.labelQ) + '" placeholder="Name, box label, or serial"><button type="button" class="clr" data-act="clearSearch" data-for="lblQ" aria-label="Clear the filter">&times;</button></span></div></div>' +
     '<label class="chk"><input type="checkbox" id="lblEmpty"' + (S.labelEmpty ? " checked" : "") + "> Include empty boxes</label>";
   groups.forEach(([title, list]) => {
     h += '<div class="sect"><div class="thead"><h4>' + esc(title) + ' <span class="z">(' + list.filter(x => S.labelSel.has(x.key)).length + " of " + list.length + ')</span></h4><span class="sp"><button type="button" class="btn sm" data-act="lblAll" data-g="' + esc(title) + '">Select all</button><button type="button" class="btn sm" data-act="lblNone" data-g="' + esc(title) + '">Clear</button></span></div>' +
       (list.length ? '<div class="lbl-pick">' + list.map(x => '<label class="chk"><input type="checkbox" data-lbl="' + esc(x.key) + '"' + (S.labelSel.has(x.key) ? " checked" : "") + "> <span" + (x.mono ? ' class="mono"' : "") + ">" + esc(x.text) + '</span> <span class="z">' + esc(x.sub || "") + "</span></label>").join("") + "</div>" : '<p class="hint">Nothing to label here.</p>') + "</div>";
   });
-  h += '<div class="btnrow"><button type="button" class="btn acc" data-act="lblPrint"' + (n ? "" : ' disabled title="Pick at least one location or container."') + ">Preview and print " + (n ? n + " label" + (n > 1 ? "s" : "") : "") + "</button>" +
-    (n ? "" : '<span class="hint" style="margin:0">Pick at least one location or container.</span>') + "</div>";
+  h += '<div class="btnrow"><button type="button" class="btn acc" data-act="lblPrint"' + (n ? "" : ' disabled title="Pick at least one location, box, or unit."') + ">Preview and print " + (n ? n + " label" + (n > 1 ? "s" : "") : "") + "</button>" +
+    (n ? "" : '<span class="hint" style="margin:0">Pick at least one location, box, or unit.</span>') + "</div>";
   return h;
 }
 function printLabels(list, size) {
@@ -6161,7 +6555,7 @@ function peopleHTML() {
   ];
   return '<p class="hint" style="margin-top:0">Anyone on the domain who signs in lands here as Tech. Confirm the role, or change it. Accounting and Board read everything and change nothing; give the wall board TV\'s own account the Board role and it opens straight on the board. ' +
       (newN ? newN + " new " + (newN > 1 ? "people wait" : "person waits") + " for a role. " : "") + (offN ? offN + " deactivated." : "") + "</p>" +
-    '<div class="thead"><span class="sp"><button type="button" class="btn sm" data-act="columns" data-tbl="people">Columns</button></span></div>' +
+    '<div class="thead"><span class="sp"><button type="button" class="btn sm" data-act="columns" data-tbl="people">Edit columns</button></span></div>' +
     tableHTML("people", cols, list, { defaultSort: (a, b) => (a.confirmed === false ? -1 : 0) - (b.confirmed === false ? -1 : 0) || (a.active === false) - (b.active === false) || String(a.name).localeCompare(String(b.name)),
       rowClass: u => u.confirmed === false ? "need" : u.active === false ? "dim" : "",
       actions: u => (u.confirmed === false ? '<button type="button" class="btn sm acc" data-act="confirmUser" data-id="' + esc(u.id) + '">Confirm as ' + esc(ROLE_LABEL[u.role] || u.role) + "</button>" : "") +
@@ -6609,7 +7003,7 @@ const REPORTS = [
     },
     empty: () => "No deliver movements " + rrText() + "." },
 
-  { k: "itemsout", label: "Items out", file: "items-out", mv: true,
+  { k: "itemsout", label: "Units out", file: "items-out", mv: true,
     hint: () => "Serialized units checked out in the range, and units out now that left earlier. Days out counts to the day it came back, or to today.",
     build() {
       const d = rrDates(), mvs = S.rep.mvs || [], C = costOn(), now = new Date();
@@ -6744,7 +7138,7 @@ function reportsHTML() {
   if (R.mv && (rep.loading || !rep.mvs)) return h + skelTable([{ label: "Loading" }, { label: "" }, { label: "", r: true }], "Reading " + R.label.toLowerCase() + " " + rrText());
   const b = R.build();
   const tools = (R.views ? R.views() : "");
-  const exp = b.rows.length ? '<span class="rexp"><button type="button" class="btn sm" data-act="columns" data-tbl="' + b.id + '">Columns</button><button type="button" class="btn sm" data-act="repCsv">Export CSV</button><button type="button" class="btn sm" data-act="repXlsx">Export XLSX</button></span>' : "";
+  const exp = b.rows.length ? '<span class="rexp"><button type="button" class="btn sm" data-act="columns" data-tbl="' + b.id + '">Edit columns</button><button type="button" class="btn sm" data-act="repCsv">Export CSV</button><button type="button" class="btn sm" data-act="repXlsx">Export XLSX</button></span>' : "";
   h += '<div class="filters rfil">' + tools + "</div>" + '<div class="thead"><h4>' + esc(R.label) + '</h4><span class="hint" style="margin:0">' + (b.rows.length ? plural(b.rows.length, "row") : "") + "</span>" + exp + "</div>";
   if (!b.rows.length) return h + '<div class="empty"><p>' + esc(b.emptyMsg || R.empty()) + "</p>" + (R.k !== "aging" && r.from === monthRange(0).from ? '<button type="button" class="btn" data-act="rrPreset" data-m="-1">Try last month</button>' : "") + "</div>";
   return h + tableHTML(b.id, b.cols, b.rows, { defaultSort: b.defaultSort, rowClass: b.rowClass }) + (b.total ? '<p class="rtot">' + b.total + "</p>" : "");
@@ -6954,7 +7348,7 @@ function buildImportPlan(imp) {
         itemsNew.push({ id, label, productId: pid, productName: d.name, locationId: locId, condition: c, note: "Condition on the sheet: " + cond, tab: rec.tab, row: rec.row, date });
       }
       itemCounter.set(pid, base + qv);
-      if (base + qv < have) warnings.push(d.name + ": the sheet shows fewer units than were imported before. Nothing was retired; check them on the Items view.");
+      if (base + qv < have) warnings.push(d.name + ": the sheet shows fewer units than were imported before. Nothing was retired; check them on the Units view.");
       rec.rep.used++;
       return;
     }
@@ -7102,7 +7496,7 @@ function importHTML() {
   const pcols = [{ k: "name", label: "Product", sort: p => p.data.name.toLowerCase(), text: p => p.data.name }, { k: "kind", label: "Kind", text: p => KIND_LABEL[p.data.kind] || p.data.kind || "" },
     { k: "change", label: "Change", sort: p => p.isNew ? 0 : 1, html: p => p.isNew ? '<span class="st info">New</span>' : '<span class="st">Update</span>' },
     { k: "from", label: "From", text: p => p.sources.slice(0, 3).join("; ") + (p.sources.length > 3 ? " and " + (p.sources.length - 3) + " more" : "") }];
-  h += '<details class="more"' + (S.imp.prodOpen ? " open" : "") + ' data-impprods><summary>Products (' + prods.length + ')</summary><div class="thead" style="margin-top:8px"><span class="hint" style="margin:0">' + (prods.length > 400 ? "The first 400 in the order shown." : "") + '</span><span class="sp"><button type="button" class="btn sm" data-act="columns" data-tbl="impProducts">Columns</button></span></div>' +
+  h += '<details class="more"' + (S.imp.prodOpen ? " open" : "") + ' data-impprods><summary>Products (' + prods.length + ')</summary><div class="thead" style="margin-top:8px"><span class="hint" style="margin:0">' + (prods.length > 400 ? "The first 400 in the order shown." : "") + '</span><span class="sp"><button type="button" class="btn sm" data-act="columns" data-tbl="impProducts">Edit columns</button></span></div>' +
     tableHTML("impProducts", pcols, sortRows("impProducts", pcols, prods, (a, b) => a.data.name.localeCompare(b.data.name)).slice(0, 400), { defaultSort: (a, b) => a.data.name.localeCompare(b.data.name) }) + "</details>";
   const total = importOps(pl).length;
   h += '<div class="btnrow"><button type="button" class="btn acc" data-act="impGo"' + (total ? "" : " disabled") + ' title="Writes ' + total + ' records in batches. Safe to run again later: names are corrected in place and movements already written are skipped.">Import ' + fmtN(c.productsNew + c.productsUpd) + " products and " + fmtN(c.boxes) + " boxes</button>" +
@@ -7147,7 +7541,9 @@ if (DEMO) window.Loadout = { importBuffer: (buf, name) => importLoad(buf, name |
   install: mode => { A2.force = mode || null; A2.hidden = null; paintA2(); render(true); return a2Mode(); },
   /* 0.5.2: the export tables without downloading, for checking the CSV split by script */
   exportTables,
-  offlineNote };
+  offlineNote,
+  /* 0.6.0: boardRotate(6) sets the rotation for checking the scroll and the 2px shift by eye */
+  boardRotate: sec => { S.board.rotateSec = Math.max(5, num(sec)); BD.flipAt = 0; renderBoard(); return { rotateSec: S.board.rotateSec, shift: BD.shift }; } };
 
 /* ==============================================================
    CLICKS (one delegated handler; every control is a real button)
@@ -7178,7 +7574,11 @@ document.addEventListener("click", e => {
   const P = () => S.products.get(id), I = () => S.items.get(id);
   switch (a) {
     case "sort": onSortClick(b.dataset.tbl, b.dataset.k); break;
-    case "columns": openColumns(b.dataset.tbl); break;
+    case "columns": openColumns(b.dataset.tbl, b); break;
+    /* 0.6.0: the ... sheet of a card footer, the phone Filters sheet, a search field's clear button */
+    case "moreActs": openMoreActs(b.closest(".acts")); break;
+    case "filters": openFilters(b.dataset.fk); break;
+    case "clearSearch": { const f = document.getElementById(b.dataset.for); if (f) { f.value = ""; f.dispatchEvent(new Event("input", { bubbles: true })); f.focus(); } break; }
     case "retry": if (DB && DB.retry) DB.retry(b.dataset.coll); render(true); break;
     case "go": closeAllModals(); go(b.dataset.view, b.dataset.sub); break;
     case "stockTab": S.stockTab = b.dataset.tab; go("stock", S.stockTab); break;
@@ -7217,7 +7617,7 @@ document.addEventListener("click", e => {
     /* 0.2.0: tickets, lines, clients, jobs, board */
     case "ticket": closeAllModals(); go("ticket", id); break;
     case "newTicket": openNewTicket(); break;
-    case "tfClear": S.tkFilter = { status: "active", client: "", toOrder: false, backorders: false, install: "" }; render(true); break;
+    case "tfClear": S.tkFilter = { status: "active", client: "", toOrder: false, backorders: false, install: "", q: "" }; render(true); break;
     case "tkCopy": { const t = curTicket(); if (t) copyText(portalBlock(t), "Copy for Portal"); break; }
     case "tkPrint": { const t = curTicket(); if (t) printTicket(t); break; }
     case "tkBoard": { const t = curTicket(); if (!t) break; const on = !(S.board.ticketIds || []).includes(t.id); doBoardPin(t, on).then(ok => ok && toast(on ? "Ticket #" + t.number + " is on the board" : "Ticket #" + t.number + " is off the board")); break; }
@@ -7302,6 +7702,7 @@ document.addEventListener("click", e => {
 document.addEventListener("input", e => {
   const t = e.target;
   if (t.id === "stockSearch") { S.search = t.value; scheduleRender(); }
+  else if (t.id === "tfQ") { S.tkFilter.q = t.value; scheduleRender(); }
   else if (t.dataset && t.dataset.mf) { S.mvFilter[t.dataset.mf] = t.value; scheduleRender(); }
   else if (t.id === "lblQ") { S.labelQ = t.value; scheduleRender(); }
   /* expand-in-place fields keep what is typed through live redraws */
@@ -7315,7 +7716,7 @@ document.addEventListener("change", e => {
   else if (t.dataset && t.dataset.mf && t.tagName === "SELECT") { S.mvFilter[t.dataset.mf] = t.value; scheduleRender(); }
   else if (t.dataset && t.dataset.lbl) { t.checked ? S.labelSel.add(t.dataset.lbl) : S.labelSel.delete(t.dataset.lbl); render(true); }
   else if (t.id === "lblSize") { S.labelSize = t.value; }
-  else if (t.dataset && t.dataset.tf) { S.tkFilter[t.dataset.tf] = t.type === "checkbox" ? t.checked : t.value; render(true); }
+  else if (t.dataset && t.dataset.tf && t.id !== "tfQ") { S.tkFilter[t.dataset.tf] = t.type === "checkbox" ? t.checked : t.value; render(true); }
   else if (t.id === "showArch") { S.showArchived = t.checked; render(true); }
   else if (t.id === "lblEmpty") { S.labelEmpty = t.checked; render(true); }
   else if (t.dataset && t.dataset.xf && S.x) { if (!S.x.draft) S.x.draft = {}; S.x.draft[t.dataset.xf] = t.type === "checkbox" ? t.checked : t.value; }
@@ -7451,6 +7852,7 @@ function startApp(user) {
   DB = DEMO ? demoStore() : firestoreStore(user);
   DB.start();
   paintSync();
+  requestAnimationFrame(sizeChrome);
   if (BOARD || S.role === "board") { enterBoard(); return; }
   paintA2();
   if (location.hash) applyHash(); else { S.view = matchMedia("(max-width:640px)").matches ? "scan" : "tickets"; render(true); }

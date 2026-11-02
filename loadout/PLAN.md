@@ -993,6 +993,8 @@ legible from the bays.
 24. Every non-obvious field has a tooltip that says why; on the phone the
     tooltip is a tappable "?" that opens a small sheet.
 
+Status (2026-11-02): all 24 items built in 0.6.0, not committed (README changelog lists the choices: Scan as the middle tab, Items renamed Units).
+
 ## 13. Still open (answer before the build)
 
 **Assumed for the first build (2026-10-29).** The user asked for the build to
