@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { encodeValue, decodeValue, encodeFields, decodeFields, decodeDoc, relPath, quoteFieldPath, toRestWrite, chunk } from '../src/firestore.js';
+import { encodeValue, decodeValue, encodeFields, decodeFields, decodeDoc, relPath, quoteFieldPath, toRestWrite, chunk, parseServiceAccount } from '../src/firestore.js';
 
 test('codec: scalar types encode to Firestore REST values', () => {
   assert.deepEqual(encodeValue(null), { nullValue: null });
@@ -60,4 +60,18 @@ test('codec: write descriptors map to REST writes with masks and preconditions',
 test('codec: writes are chunked at 450 per commit', () => {
   const parts = chunk(Array.from({ length: 1000 }, (_, i) => i));
   assert.deepEqual(parts.map(p => p.length), [450, 450, 100]);
+});
+
+test('service account: a byte-order mark and surrounding whitespace are ignored', () => {
+  const clean = JSON.stringify({ type: 'service_account', client_email: 'x@demo.iam.gserviceaccount.com', private_key: 'k' });
+  const expected = parseServiceAccount(clean);
+  assert.deepEqual(parseServiceAccount('\uFEFF' + clean), expected);
+  assert.deepEqual(parseServiceAccount('\uFEFF  ' + clean + '\r\n'), expected);
+  assert.equal(expected.client_email, 'x@demo.iam.gserviceaccount.com');
+});
+
+test('service account: text that is not JSON throws the clear message', () => {
+  const msg = 'FIREBASE_SERVICE_ACCOUNT is not valid JSON (did the key file get a byte-order mark?)';
+  assert.throws(() => parseServiceAccount('not json'), { message: msg });
+  assert.throws(() => parseServiceAccount('\uFEFF{"a":'), { message: msg });
 });

@@ -14,7 +14,7 @@ import { dayStamp, dayPrefix, objectName, foldersToPrune, listDays, uploadCsv, d
 import { parseProposal, buildImport, matchProduct, secretsMatch, slug } from './zapier.js';
 import { portalConfigured, handlePortalWebhook } from './portal.js';
 
-const VERSION = '0.2.0';
+const VERSION = '0.2.1';
 
 // Root collections in the same order as the app's Console export
 // (index.html EXPORT_COLLS); ticket and order lines are added after, and a

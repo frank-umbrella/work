@@ -15,7 +15,7 @@ Cloudflare Worker for Loadout (`work/loadout`). It does two jobs:
 The Portal API intake (T2) is a stub until PLAN D1 is answered; see
 "T2 boundary" below.
 
-Version: **0.2.0**. Worker URL once deployed:
+Version: **0.2.1**. Worker URL once deployed:
 `https://loadout-worker.umbrelladev.workers.dev`.
 
 ## Endpoints
@@ -249,6 +249,21 @@ approved the API application.
 - **Firestore asks for an index on `lines`.** The export reads ticket and
   order lines with one collection-group query ordered by document name. If
   Firestore answers with an index link, open it and create the index.
+- **`/health` shows a `readError` about an unexpected token at the start**
+  (`Unexpected token '\uFEFF'`, or "did the key file get a byte-order
+  mark?"). The `FIREBASE_SERVICE_ACCOUNT` secret was uploaded with a
+  byte-order mark, which Windows PowerShell 5.1 adds to anything it pipes
+  into a native program (setting `$OutputEncoding` does not stop it). 0.2.1
+  strips it, so a redeploy is enough. To upload a clean copy anyway, let
+  cmd do the piping, since `type` passes the file's bytes untouched:
+
+  ```powershell
+  cmd /c 'type "T:\path\to\key.json" | npx wrangler secret put FIREBASE_SERVICE_ACCOUNT'
+  ```
+
+  The same applies to `ZAPIER_SHARED_SECRET`: a value piped from PowerShell
+  gets the mark too and then never matches the Zap's header (every call
+  answers 401). Upload it from a file the same way, with no trailing newline.
 - **A Zap run shows 422.** The proposal had no product lines after skipping
   Labor, Fee, and CustomItem items; the response lists what was skipped.
 
@@ -269,6 +284,17 @@ request and response (`test/storage.test.js`), and the routes that answer
 before touching Firestore.
 
 ## Changelog
+
+### 0.2.1 (2026-11-03)
+
+The first deploy could not read its own service account key. Piping the
+key file into `wrangler secret put` from PowerShell put a byte-order mark
+in front of the JSON, so `/health` showed "Unexpected token" and the
+nightly export would have failed the same way. The worker now drops a
+leading byte-order mark and stray whitespace before reading the key, and
+if the key still does not parse, the error says so in plain words and
+names the likely cause. The README's Troubleshooting has the command to
+upload a clean copy.
 
 ### 0.2.0 (2026-11-03)
 

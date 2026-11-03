@@ -22,6 +22,17 @@ export const PAGE_SIZE = 1000;
 
 const tokenCache = new Map();
 
+// 0.2.1: a key piped through PowerShell 5.1 arrives with a UTF-8 byte-order
+// mark in front, which JSON.parse rejects. Strip it and stray whitespace.
+export function parseServiceAccount(raw) {
+  const text = String(raw == null ? '' : raw).replace(/^\uFEFF/, '').trim();
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error('FIREBASE_SERVICE_ACCOUNT is not valid JSON (did the key file get a byte-order mark?)');
+  }
+}
+
 // One token can carry several scopes; the nightly export asks for Firestore
 // and Storage together so it mints once.
 export async function getAccessToken(env, scopes) {
@@ -30,7 +41,7 @@ export async function getAccessToken(env, scopes) {
   if (hit && hit.expiresAt > Date.now() + 60_000) return hit.token;
 
   if (!env.FIREBASE_SERVICE_ACCOUNT) throw new Error('FIREBASE_SERVICE_ACCOUNT secret is not set');
-  const sa = JSON.parse(env.FIREBASE_SERVICE_ACCOUNT);
+  const sa = parseServiceAccount(env.FIREBASE_SERVICE_ACCOUNT);
   const tokenUri = sa.token_uri || 'https://oauth2.googleapis.com/token';
   const key = await importPKCS8(sa.private_key, 'RS256');
   const jwt = await new SignJWT({ scope })
