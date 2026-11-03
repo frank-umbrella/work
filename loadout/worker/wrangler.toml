@@ -7,8 +7,9 @@ compatibility_date = "2026-10-29"
 # from PowerShell with the `wrangler` wrapper or `cf umbrella` first.
 account_id = "87034c82986d2aacbc4d52e8de0fa2fd"
 
-# Nightly CSV export to Google Drive (PLAN section 16 rule 7). 09:00 UTC is
-# early morning in the US, after the shop's day has closed out.
+# Nightly CSV export to the project's Storage bucket (PLAN section 16 rule 7),
+# loadout/backups/YYYY-MM-DD/. 09:00 UTC is early morning in the US, after
+# the shop's day has closed out.
 [triggers]
 crons = ["0 9 * * *"]
 
@@ -17,14 +18,16 @@ crons = ["0 9 * * *"]
 # Same Firebase project as the app and Watchtower.
 FIREBASE_PROJECT_ID = "watchtower-6fbe1"
 
-# The "Loadout backups" folder id (the part after /folders/ in its Drive
-# URL). The owner fills this in; while it is empty the nightly export skips.
-DRIVE_FOLDER_ID = ""
+# The Firebase Storage bucket the app already uses for product photos
+# (firebaseConfig.storageBucket in index.html). The nightly CSVs go under
+# loadout/backups/ in it. Must match the bucket name in the Firebase console.
+STORAGE_BUCKET = "watchtower-6fbe1.firebasestorage.app"
 
 # Secrets, set with `wrangler secret put <NAME>`, never in this file:
-#   FIREBASE_SERVICE_ACCOUNT  JSON key of a service account on watchtower-6fbe1
-#                             with the Cloud Datastore User role; the same key
-#                             calls the Drive API for the nightly export
+#   FIREBASE_SERVICE_ACCOUNT  JSON key of the loadout-worker service account on
+#                             watchtower-6fbe1, with the roles Cloud Datastore
+#                             User and Storage Object Admin; the same key
+#                             writes the nightly export to Storage
 #   ZAPIER_SHARED_SECRET      random string; the Zap sends it in X-Loadout-Secret
 #
 # T2 (Portal API), left unset until PLAN D1 says the shop is on the
@@ -32,6 +35,3 @@ DRIVE_FOLDER_ID = ""
 #   PORTAL_APP_ID
 #   PORTAL_USER_KEY
 #   PORTAL_BASE_URL
-#
-# Optional var, only if Drive refuses the folder (see README, Troubleshooting):
-#   DRIVE_SCOPE = "https://www.googleapis.com/auth/drive"

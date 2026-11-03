@@ -8,24 +8,24 @@ Cloudflare Worker for Loadout (`work/loadout`). It does two jobs:
    **New ticket > Import a Portal CSV** would, so the ticket is waiting in
    Loadout before anyone opens Portal.
 2. **Nightly export (PLAN section 16 rule 7).** Every day at 09:00 UTC it
-   writes one CSV per collection to a Google Drive folder, in a dated
-   subfolder (`2026-10-29`), and moves subfolders older than 90 days to the
-   Drive trash.
+   writes one CSV per collection to the project's Firebase Storage bucket,
+   under `loadout/backups/2026-11-02/`, and deletes days older than 90. The
+   app lists them under Console > Backups.
 
 The Portal API intake (T2) is a stub until PLAN D1 is answered; see
 "T2 boundary" below.
 
-Version: **0.1.1**. Worker URL once deployed:
+Version: **0.2.0**. Worker URL once deployed:
 `https://loadout-worker.umbrelladev.workers.dev`.
 
 ## Endpoints
 
 | Route | What it does |
 | --- | --- |
-| `GET /health` | Version, which intakes are configured (`csv`, `zapier`, `portalApi`), and the last export time, folder, and error, read from `loadout_settings/worker`. |
+| `GET /health` | Version, which intakes are configured (`csv`, `zapier`, `portalApi`), and under `export`: `configured` (the service account secret exists), `bucket` (`STORAGE_BUCKET`), and the last export time, day folder, and error, read from `loadout_settings/worker`. |
 | `POST /zapier/proposal` | Needs header `X-Loadout-Secret` equal to `ZAPIER_SHARED_SECRET`. Body is the Portal "Update Proposal Status" payload. Only status `Accepted` does anything; any other status answers 200 with `ignored: true` so the Zap does not show an error. |
 | `POST /portal/webhook` | Always 501 for now: "Portal API intake is not configured (needs the Unlimited plan and PORTAL_* secrets)", or "not built yet" once the secrets exist. |
-| cron `0 9 * * *` | The nightly export. Skips quietly while `DRIVE_FOLDER_ID` is empty. |
+| cron `0 9 * * *` | The nightly export to `loadout/backups/YYYY-MM-DD/` in `STORAGE_BUCKET`. Skips quietly while `FIREBASE_SERVICE_ACCOUNT` is not set. |
 
 ## What an accepted proposal writes
 
@@ -70,19 +70,26 @@ in this repo, or in a chat.
 
 | Name | What it is |
 | --- | --- |
-| `FIREBASE_SERVICE_ACCOUNT` | The JSON key of a service account on `watchtower-6fbe1` with the Cloud Datastore User role. The same key calls the Drive API for the export. |
+| `FIREBASE_SERVICE_ACCOUNT` | The JSON key of the `loadout-worker` service account on `watchtower-6fbe1`, with the roles Cloud Datastore User and Storage Object Admin. The same key writes the export to Storage. |
 | `ZAPIER_SHARED_SECRET` | A long random string. The Zap sends it in the `X-Loadout-Secret` header. |
 | `PORTAL_APP_ID`, `PORTAL_USER_KEY`, `PORTAL_BASE_URL` | T2 only. Leave unset until the shop is on Portal's Unlimited plan with an approved API application. |
 
 Vars in `wrangler.toml` (not secret): `FIREBASE_PROJECT_ID =
-"watchtower-6fbe1"` and `DRIVE_FOLDER_ID` (empty until the owner fills it).
-Optional: `DRIVE_SCOPE`, see Troubleshooting.
+"watchtower-6fbe1"` and `STORAGE_BUCKET =
+"watchtower-6fbe1.firebasestorage.app"` (the app's `storageBucket`).
 
-## Firestore rules
+## Firestore and Storage rules
 
-No change. The worker writes through the service account, which bypasses
-security rules, the same as watchtower-worker. The Loadout block in
+Firestore: no change. The worker writes through the service account, which
+bypasses security rules, the same as watchtower-worker. The Loadout block in
 `watchtower/firestore.rules` stays as it is.
+
+Storage: the service account skips the rules too, so the worker needs none.
+The app's Backups tab reads the files as the signed-in person, so
+`watchtower/storage.rules` gained `loadoutReader()` (admin and accounting)
+and `match /loadout/backups/{day}/{file}` with read for those two and write
+for nobody, plus a list-only match on the day level (Loadout 0.6.1; the
+block is copied in `../README.md`).
 
 ## Owner setup
 
@@ -93,24 +100,20 @@ Done once, by the owner, in this order.
    account, name it `loadout-worker`, give it the role **Cloud Datastore
    User**. Open it > Keys > Add key > JSON. A JSON file downloads; keep it
    out of this folder (the `.gitignore` catches the usual names anyway).
-2. **Drive API.** In the same project: APIs and Services > Library > Google
-   Drive API > Enable.
-3. **Backup folder.** Create a folder named **Loadout backups** on a
-   **Shared Drive** and add the service account's email (it ends in
-   `@watchtower-6fbe1.iam.gserviceaccount.com`) as **Content manager**, or as
-   Editor if the folder sits in a Shared Drive that already allows it. A
-   folder in someone's My Drive does not work: a service account has no Drive
-   storage of its own, so uploads there fail with `storageQuotaExceeded`.
-4. **Folder id.** Open the folder; the id is the part of the address after
-   `/folders/`. Put it in `wrangler.toml` as `DRIVE_FOLDER_ID = "..."`.
-5. **Shared secret.** Make one in PowerShell:
+2. **Storage role.** IAM and Admin > IAM > edit the principal
+   `loadout-worker@watchtower-6fbe1.iam.gserviceaccount.com` > Add another
+   role > **Storage Object Admin** > Save, so it sits beside Cloud Datastore
+   User. It lets the worker write, list, and delete the backup files.
+   Storage itself must be on for the project (Firebase console > Storage),
+   which it already is once product photos work.
+3. **Shared secret.** Make one in PowerShell:
 
    ```powershell
    $b = New-Object byte[] 32; [System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b); [Convert]::ToBase64String($b)
    ```
 
-   Keep it for steps 6 and 8.
-6. **Secrets and deploy**, from PowerShell (the `cf umbrella` helper loads
+   Keep it for steps 4 and 6.
+4. **Secrets and deploy**, from PowerShell (the `cf umbrella` helper loads
    the umbrella account's Cloudflare token; `account_id` in `wrangler.toml`
    also pins it):
 
@@ -119,14 +122,17 @@ Done once, by the owner, in this order.
    npm install
    cf umbrella
    wrangler secret put FIREBASE_SERVICE_ACCOUNT   # paste the whole JSON key
-   wrangler secret put ZAPIER_SHARED_SECRET       # paste the string from step 5
+   wrangler secret put ZAPIER_SHARED_SECRET       # paste the string from step 3
    wrangler deploy
    ```
 
-7. **Check it.** Open
+5. **Check it.** Open
    `https://loadout-worker.umbrelladev.workers.dev/health`. `intakes.zapier`
-   should be `true` and `export.configured` `true`.
-8. **The Zap.** In Zapier (Portal needs the Premium plan and the
+   should be `true`, `export.configured` `true`, and `export.bucket`
+   `watchtower-6fbe1.firebasestorage.app`. Deploy the Storage rules as well
+   (`../README.md`, Storage rules), so the Console's Backups tab can list
+   the files.
+6. **The Zap.** In Zapier (Portal needs the Premium plan and the
    Integrations add-on for its Zapier triggers):
    - Trigger: **Portal > Update Proposal Status**.
    - Filter: only continue if Status exactly matches `Accepted`.
@@ -137,7 +143,7 @@ Done once, by the owner, in this order.
        areas, options, and items intact. Filling in fields one by one
        flattens the item lists.
      - Wrap Request In Array: No (the worker accepts either).
-     - Headers: `X-Loadout-Secret` = the string from step 5.
+     - Headers: `X-Loadout-Secret` = the string from step 3.
    - Test the action on an accepted proposal. The response lists the ticket
      id, how many lines were new or changed, and every skipped item.
 
@@ -159,6 +165,16 @@ curl.exe -X POST https://loadout-worker.umbrelladev.workers.dev/zapier/proposal 
 A second identical post answers `unchanged: true` and writes nothing.
 
 ## Nightly export
+
+Where the files live: the project's Firebase Storage bucket
+(`STORAGE_BUCKET`, `watchtower-6fbe1.firebasestorage.app`, the same bucket
+as the product photos), one folder per night,
+`loadout/backups/2026-11-02/loadout_products.csv` and so on, content type
+`text/csv; charset=UTF-8`. The day is the UTC date of the run. In the app,
+Console > Backups lists the days newest first; a day opens in place to its
+files with their sizes and Download links. The Storage rule lets admin and
+accounting read and list them and nobody write them from the app; only the
+worker, through its service account, writes and deletes.
 
 Files, one per collection, named as the app's Console export names them:
 `loadout_products.csv`, `loadout_locations.csv`, `loadout_stock.csv`,
@@ -187,15 +203,21 @@ Each has a UTF-8 byte-order mark so Excel reads it right, field names as
 headers, maps as dotted columns (`summary.lines`), lists joined with `; `,
 and times as `YYYY-MM-DD HH:MM` in UTC. Any other list of objects prints
 each object's plain values joined with `/`, the same rule as the app, so a
-ticket line's `orderLineRefs` reads `7701/l1; 7702/l3` (orderId/orderLineId). A rerun on the same day replaces the
-files in that day's folder instead of adding copies. Pruned folders go to
-the Shared Drive's trash, which empties itself after 30 days.
+ticket line's `orderLineRefs` reads `7701/l1; 7702/l3` (orderId/orderLineId). A rerun on the same day writes the
+same object names, so it replaces that day's files instead of adding
+copies. Days older than 90 (by the folder's date, not the files' times) are
+deleted for good: Storage has no trash, and the 90 newer days are the
+safety net. The delete goes through Storage's batch endpoint, one request
+for a whole day's files, to stay inside the subrequest budget (see
+Troubleshooting).
 
 After each run the worker writes `loadout_settings/worker`:
-`lastExportAt`, `lastExportFolder`, `lastExportFolderId`,
-`lastExportFiles`, `lastExportRows`, `lastExportPruned`, and
-`lastExportError` (null on success). `/health` shows the time, folder, and
-error.
+`lastExportAt`, `lastExportFolder` (the day, `2026-11-02`),
+`lastExportBucket`, `lastExportPrefix` (`loadout/backups/2026-11-02/`),
+`lastExportFiles`, `lastExportRows`, `lastExportPruned` (the days deleted),
+and `lastExportError` (null on success). A failed run writes only
+`lastExportError` and `lastExportErrorAt`. `/health` shows the time, day,
+and error; Console > Backups shows the same as its status line.
 
 ## T2 boundary
 
@@ -211,17 +233,18 @@ approved the API application.
 
 ## Troubleshooting
 
-- **Drive answers 404 for the backup folder.** The `drive.file` scope only
-  reaches files the service account created or was given through an app,
-  and some Workspace setups do not count a shared folder. Add
-  `DRIVE_SCOPE = "https://www.googleapis.com/auth/drive"` under `[vars]` in
-  `wrangler.toml` and deploy again.
-- **`storageQuotaExceeded`.** The folder is in a My Drive. Move it to a
-  Shared Drive (setup step 3).
+- **403 on upload** (`does not have storage.objects.create access`). The
+  service account is missing the Storage Object Admin role (setup step 2).
+- **404 on the bucket** (`The specified bucket does not exist`).
+  `STORAGE_BUCKET` in `wrangler.toml` does not match the bucket name in the
+  Firebase console (Storage, the `gs://` name at the top of the Files tab).
+- **The Backups tab says the rules do not allow your role.** The Storage
+  rules with `loadoutReader()` are not deployed yet (`../README.md`).
 - **"Too many subrequests".** The Workers free plan allows 50 outbound calls
-  per run. The export makes about 40 (one token, one read per collection
-  per 1,000 documents, three folder calls, 18 uploads, one prune per old
-  folder, one status write). When movements pass a few thousand, the umbrella
+  per run. A normal night makes 36: one token, 15 Firestore reads (one per
+  collection per 1,000 documents), 18 uploads, one list of the days, and one
+  status write. A night that prunes a day adds two (its file list and one
+  batch delete), so 38. When movements pass a few thousand, the umbrella
   account needs the Workers Paid plan.
 - **Firestore asks for an index on `lines`.** The export reads ticket and
   order lines with one collection-group query ordered by document name. If
@@ -240,10 +263,28 @@ npx wrangler deploy --dry-run --outdir dist   # builds without deploying
 Tests cover the CSV writer (including the two shipment files and the
 `orderLineRefs` column), the Firestore value codec, the Zapier parser on
 the fixture, id and name composition against the app's rules, replays and
-change orders over existing lines, retention date math, and the routes that
-answer before touching Firestore.
+change orders over existing lines, retention date math, the Storage object
+names, day parsing, prune selection, name encoding, and the batch delete
+request and response (`test/storage.test.js`), and the routes that answer
+before touching Firestore.
 
 ## Changelog
+
+### 0.2.0 (2026-11-03)
+
+The nightly export now writes to the project's own Firebase Storage bucket
+instead of Google Drive. The shop's Workspace cannot create a Shared Drive,
+and a service account cannot upload into a folder in a person's My Drive
+(`storageQuotaExceeded`), so the Drive plan had no folder that would work.
+The bucket already holds the product photos, the same service account
+reaches it with one more IAM role (Storage Object Admin), and the app lists
+the files under Console > Backups (Loadout 0.6.1), so nobody needs a Drive
+folder or a shared link to find last night's copy. Same 18 files, same 90
+days; a rerun overwrites that day's files. Old days are deleted with one
+batch request each, so a night that prunes still fits the free plan's 50
+subrequests. `DRIVE_FOLDER_ID` and `DRIVE_SCOPE` are gone and
+`STORAGE_BUCKET` replaces them; the export runs as soon as the service
+account secret is set. Still not deployed.
 
 ### 0.1.1 (2026-11-02)
 

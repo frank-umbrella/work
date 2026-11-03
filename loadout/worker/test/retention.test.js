@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { dayStamp, foldersToPrune, multipartBody, RETENTION_DAYS } from '../src/drive.js';
+import { dayStamp, foldersToPrune, RETENTION_DAYS } from '../src/storage.js';
 
 test('retention: folder name is the UTC date of the run', () => {
   assert.equal(dayStamp(new Date('2026-10-29T09:00:00Z')), '2026-10-29');
@@ -26,12 +26,4 @@ test('retention: the cutoff crosses a year boundary and a leap day correctly', (
   // 2028 is a leap year: 90 days before 2028-03-01 is 2027-12-02.
   const out = foldersToPrune([{ id: 'k', name: '2027-12-02' }, { id: 'p', name: '2027-12-01' }], now).map(f => f.id);
   assert.deepEqual(out, ['p']);
-});
-
-test('drive: multipart body carries the metadata, then the CSV', () => {
-  const body = multipartBody('xyz', { name: 'a.csv', parents: ['F'] }, 'id\r\n1\r\n');
-  assert.ok(body.startsWith('--xyz\r\nContent-Type: application/json'));
-  assert.ok(body.includes('{"name":"a.csv","parents":["F"]}'));
-  assert.ok(body.includes('Content-Type: text/csv; charset=UTF-8\r\n\r\nid\r\n1\r\n'));
-  assert.ok(body.endsWith('--xyz--'));
 });

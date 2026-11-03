@@ -827,7 +827,7 @@ Build T0 first. T1 and T2 are worker work and need the plan tier known.
 | 0.3.0 | Orders, lines, shipments, carrier detection, receive-by-shipment into bays with barcode counting, chips on ticket lines, low-stock reorder into draft POs, the Tracking dashboard, the Week view with ticket install dates and week arrows on Movements. |
 | 0.4.0 | Console: reports with CSV / XLSX export, People, Settings, About (data dictionary), Export everything (one CSV per collection, zipped); accounting role end to end. |
 | 0.5.0 | Offline (sw.js + persistent cache + sync pill), PWA manifest, photos on products. |
-| 0.6.0 | loadout-worker: T1 Zapier intake (if Premium) or T2 API intake and note push (if Unlimited and approved); nightly CSV export to the company Drive; carrier tracking poll if wanted. Settings shows the tier and last sync. |
+| 0.6.0 | loadout-worker: T1 Zapier intake (if Premium) or T2 API intake and note push (if Unlimited and approved); nightly CSV export to the project's Storage bucket, listed under Console > Backups (0.6.1); carrier tracking poll if wanted. Settings shows the tier and last sync. |
 
 Each version is a release: bump the version everywhere, README changelog entry
 with the why, small commits.
@@ -1211,10 +1211,14 @@ read. These are build requirements, checked before each release:
    constant in the code, so it cannot drift from the build.
 6. **Export everything** in the Console: one CSV per collection, zipped,
    opening in Excel with the headers from rule 2. Phase 0.4.0.
-7. Nightly export: loadout-worker writes the same CSVs to a company Google
-   Drive folder ("Loadout backups", dated subfolders, 90-day retention) through
-   a service account. Phase 0.6.0, with the worker. Until then, Export
-   everything by hand on Fridays is SOP-10's last step.
+7. Nightly export: loadout-worker writes the same CSVs through its service
+   account to the project's own Firebase Storage bucket, under
+   `loadout/backups/YYYY-MM-DD/` (one folder per night, 90-day retention),
+   and the Console's **Backups** tab lists them for admin and accounting to
+   download. Storage, not Google Drive, because the shop's Workspace cannot
+   create a Shared Drive and a service account cannot upload into a
+   person's My Drive. Worker 0.2.0 with app 0.6.1. Until the worker runs,
+   Export everything by hand on Fridays is SOP-10's last step.
 8. Reports read the live collections, never a hidden copy.
 9. One-for-one SQL mapping: every collection is a table, every field a
    column, every subcollection a table with a parent id. A move to Postgres

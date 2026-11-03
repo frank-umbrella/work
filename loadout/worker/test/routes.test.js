@@ -3,19 +3,30 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import worker from '../src/index.js';
 
-// Routing only: none of these paths reach Firestore or Drive, so no network.
+// Routing only: none of these paths reach Firestore or Storage, so no network.
 const fixture = readFileSync(new URL('./fixtures/zapier-proposal-accepted.json', import.meta.url), 'utf8');
-const base = { FIREBASE_PROJECT_ID: 'demo', DRIVE_FOLDER_ID: '' };
+const base = { FIREBASE_PROJECT_ID: 'demo', STORAGE_BUCKET: 'watchtower-6fbe1.firebasestorage.app' };
 const call = (env, path, init) => worker.fetch(new Request('https://loadout-worker.test' + path, init), env, {});
 
 test('routes: /health reports version and which intakes are configured', async () => {
   const r = await call(Object.assign({ ZAPIER_SHARED_SECRET: 's' }, base), '/health');
   assert.equal(r.status, 200);
   const j = await r.json();
-  assert.equal(j.version, '0.1.1');
+  assert.equal(j.version, '0.2.0');
   assert.deepEqual(j.intakes, { csv: true, zapier: false, portalApi: false });
   assert.equal(j.export.configured, false);
+  assert.equal(j.export.bucket, 'watchtower-6fbe1.firebasestorage.app');
   assert.equal(j.export.lastExportAt, null);
+});
+
+test('routes: the export counts as configured once the service account secret exists', async () => {
+  // A key that does not parse fails before any network call; /health still
+  // answers and says why it could not read the last export.
+  const r = await call(Object.assign({ FIREBASE_SERVICE_ACCOUNT: 'not json' }, base), '/health');
+  const j = await r.json();
+  assert.equal(j.export.configured, true);
+  assert.equal(j.export.bucket, 'watchtower-6fbe1.firebasestorage.app');
+  assert.ok(j.export.readError);
 });
 
 test('routes: /portal/webhook is a 501 stub with the right message', async () => {

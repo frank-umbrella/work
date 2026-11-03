@@ -3,18 +3,18 @@
 //   GET  /health            version, which intakes are configured, last export
 //   POST /zapier/proposal   T1: Portal proposal accepted, pushed by a Zap
 //   POST /portal/webhook    T2: Portal API webhook, a 501 stub (src/portal.js)
-//   cron 09:00 UTC          nightly CSV export to Google Drive
+//   cron 09:00 UTC          nightly CSV export to the project's Storage bucket
 //
 // All Firestore writes go through the FIREBASE_SERVICE_ACCOUNT service
 // account, which bypasses security rules (same as watchtower-worker).
 
-import { getAccessToken, getDoc, queryAll, queryEq, commitWrites, SCOPE_DATASTORE, SCOPE_DRIVE_FILE } from './firestore.js';
+import { getAccessToken, getDoc, queryAll, queryEq, commitWrites, SCOPE_DATASTORE, SCOPE_STORAGE_RW } from './firestore.js';
 import { buildTable, toCsv, splitLines, shipmentTables } from './csv.js';
-import { dayStamp, foldersToPrune, listChildren, createFolder, uploadCsv, trashFile, RETENTION_DAYS } from './drive.js';
+import { dayStamp, dayPrefix, objectName, foldersToPrune, listDays, uploadCsv, deleteDay, RETENTION_DAYS } from './storage.js';
 import { parseProposal, buildImport, matchProduct, secretsMatch, slug } from './zapier.js';
 import { portalConfigured, handlePortalWebhook } from './portal.js';
 
-const VERSION = '0.1.1';
+const VERSION = '0.2.0';
 
 // Root collections in the same order as the app's Console export
 // (index.html EXPORT_COLLS); ticket and order lines are added after, and a
@@ -34,13 +34,6 @@ const FILE_ORDER = [
 
 function json(body, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
-}
-
-function driveScope(env) {
-  // drive.file is the narrow default. If Drive answers 404 for the backup
-  // folder, the folder was not created by this service account and the
-  // owner can set DRIVE_SCOPE to https://www.googleapis.com/auth/drive.
-  return env.DRIVE_SCOPE || SCOPE_DRIVE_FILE;
 }
 
 export default {
@@ -88,7 +81,7 @@ async function handleHealth(env) {
       zapier: Boolean(env.ZAPIER_SHARED_SECRET && env.FIREBASE_SERVICE_ACCOUNT),
       portalApi: portalConfigured(env),
     },
-    export: { configured: Boolean(env.DRIVE_FOLDER_ID && env.FIREBASE_SERVICE_ACCOUNT), lastExportAt: null, lastExportFolder: null, lastExportError: null },
+    export: { configured: Boolean(env.FIREBASE_SERVICE_ACCOUNT), bucket: env.STORAGE_BUCKET || null, lastExportAt: null, lastExportFolder: null, lastExportError: null },
   };
   if (env.FIREBASE_SERVICE_ACCOUNT) {
     try {
@@ -188,10 +181,23 @@ async function loadContext(env, token, parsed) {
 // Nightly export (PLAN section 16 rule 7)
 // ---------------------------------------------------------------------
 
+// Subrequests on a normal night (the Workers free plan allows 50):
+//   1   service account token (Firestore and Storage scopes in one)
+//   15  Firestore reads: one per root collection plus the lines
+//       collection group, one page per 1,000 documents
+//   18  CSV uploads (a rerun on the same day overwrites the same names)
+//   1   list of the day folders under loadout/backups/
+//   2   per day past 90 days: list its files, one batch DELETE
+//       (normally one day a night once the bucket holds 91 days)
+//   1   status write to loadout_settings/worker
+// That is 36, or 38 with a day to prune. Movements past a few thousand
+// add a page each; at that size the umbrella account needs Workers Paid.
 async function runNightlyExport(env, now = new Date()) {
-  if (!env.DRIVE_FOLDER_ID) return { skipped: true, reason: 'DRIVE_FOLDER_ID is empty in wrangler.toml' };
-  const token = await getAccessToken(env, [SCOPE_DATASTORE, driveScope(env)]);
-  const folderName = dayStamp(now);
+  if (!env.FIREBASE_SERVICE_ACCOUNT) return { skipped: true, reason: 'FIREBASE_SERVICE_ACCOUNT is not set' };
+  if (!env.STORAGE_BUCKET) return { skipped: true, reason: 'STORAGE_BUCKET is empty in wrangler.toml' };
+  const bucket = env.STORAGE_BUCKET;
+  const token = await getAccessToken(env, [SCOPE_DATASTORE, SCOPE_STORAGE_RW]);
+  const day = dayStamp(now);
   try {
     const tables = {};
     for (const coll of ROOT_COLLS) {
@@ -201,29 +207,25 @@ async function runNightlyExport(env, now = new Date()) {
     }
     Object.assign(tables, splitLines(await queryAll(env, token, 'lines', { allDescendants: true })));
 
-    const dayFolders = await listChildren(token, env.DRIVE_FOLDER_ID, { foldersOnly: true });
-    const folder = dayFolders.find(f => f.name === folderName) || (await createFolder(token, folderName, env.DRIVE_FOLDER_ID));
-    const already = new Map((await listChildren(token, folder.id)).map(f => [f.name, f.id]));
-
     let rows = 0;
     for (const coll of FILE_ORDER) {
       const t = tables[coll] || { keys: ['id'], rows: [] };
-      const name = coll + '.csv';
-      await uploadCsv(token, folder.id, name, toCsv(t), already.get(name) || null);
+      await uploadCsv(token, bucket, objectName(day, coll + '.csv'), toCsv(t));
       rows += t.rows.length;
     }
 
-    const prune = foldersToPrune(dayFolders, now, RETENTION_DAYS);
-    for (const f of prune) await trashFile(token, f.id);
+    const prune = foldersToPrune((await listDays(token, bucket)).map(name => ({ name })), now, RETENTION_DAYS).map(f => f.name);
+    for (const d of prune) await deleteDay(token, bucket, d);
 
-    const result = { folder: folderName, folderId: folder.id, files: FILE_ORDER.length, rows, pruned: prune.map(f => f.name) };
+    const result = { folder: day, bucket, prefix: dayPrefix(day), files: FILE_ORDER.length, rows, pruned: prune };
     await commitWrites(env, token, [{ op: 'merge', path: 'loadout_settings/worker', data: {
-      lastExportAt: now, lastExportFolder: folderName, lastExportFolderId: folder.id, lastExportFiles: FILE_ORDER.length,
-      lastExportRows: rows, lastExportPruned: result.pruned, lastExportError: null, updatedAt: new Date(),
+      lastExportAt: now, lastExportFolder: day, lastExportBucket: bucket, lastExportPrefix: dayPrefix(day), lastExportFiles: FILE_ORDER.length,
+      lastExportRows: rows, lastExportPruned: prune, lastExportError: null, updatedAt: new Date(),
     } }]);
     return result;
   } catch (e) {
-    // Keep the failure visible on /health; the export itself stays failed.
+    // Keep the failure visible on /health and in Console > Backups; the
+    // export itself stays failed.
     try {
       await commitWrites(env, token, [{ op: 'merge', path: 'loadout_settings/worker', data: { lastExportError: String(e.message || e).slice(0, 500), lastExportErrorAt: now, updatedAt: new Date() } }]);
     } catch (inner) {

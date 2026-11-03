@@ -8,7 +8,8 @@ import { SignJWT, importPKCS8 } from 'jose';
 
 export const FIRESTORE_BASE = 'https://firestore.googleapis.com/v1';
 export const SCOPE_DATASTORE = 'https://www.googleapis.com/auth/datastore';
-export const SCOPE_DRIVE_FILE = 'https://www.googleapis.com/auth/drive.file';
+// 0.2.0: the nightly export writes to the project's Storage bucket.
+export const SCOPE_STORAGE_RW = 'https://www.googleapis.com/auth/devstorage.read_write';
 // Firestore commit allows 500 writes; 450 leaves headroom, same as the app.
 export const BATCH_SIZE = 450;
 // Rows per runQuery page. Bigger pages mean fewer subrequests, which matters
@@ -22,7 +23,7 @@ export const PAGE_SIZE = 1000;
 const tokenCache = new Map();
 
 // One token can carry several scopes; the nightly export asks for Firestore
-// and Drive together so it mints once.
+// and Storage together so it mints once.
 export async function getAccessToken(env, scopes) {
   const scope = (Array.isArray(scopes) ? scopes : [scopes]).join(' ');
   const hit = tokenCache.get(scope);
