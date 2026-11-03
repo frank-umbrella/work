@@ -4,9 +4,10 @@ rules_version = '2';
 // Cloud Storage security rules.
 //
 // Only Loadout (work/loadout) stores files in this project so far: one
-// photo per catalog product. A path no block matches is denied, so
-// nothing else in the bucket is reachable. A tool that adds files later
-// adds its own block beside this one.
+// photo per catalog product, and the nightly CSV backups loadout-worker
+// writes. A path no block matches is denied, so nothing else in the
+// bucket is reachable. A tool that adds files later adds its own block
+// beside this one.
 
 service firebase.storage {
   match /b/{bucket}/o {
@@ -28,6 +29,16 @@ service firebase.storage {
         && firestore.get(path).data.get('active', true) == true
         && firestore.get(path).data.get('role', 'tech') in ['admin', 'warehouse'];
     }
+    // Admin and accounting: the two roles that see the Console, where the
+    // Backups tab lists the nightly files. Reads the roster exactly as
+    // loadoutWriter() does.
+    function loadoutReader() {
+      let path = /databases/(default)/documents/loadout_users/$(request.auth.uid);
+      return loadoutSignedIn()
+        && firestore.exists(path)
+        && firestore.get(path).data.get('active', true) == true
+        && firestore.get(path).data.get('role', 'tech') in ['admin', 'accounting'];
+    }
     // Product photos: loadout/products/{productId}.{jpg|jpeg|png|webp}.
     // The app shrinks a photo to 1200 px and uploads JPEG; the rule holds
     // the line at 2 MB and the three image types whatever the client does.
@@ -38,6 +49,22 @@ service firebase.storage {
         && request.resource.size < 2 * 1024 * 1024
         && request.resource.contentType in ['image/jpeg', 'image/png', 'image/webp'];
       allow delete: if loadoutWriter();
+    }
+    // Nightly backups (loadout-worker 0.2.0): loadout/backups/YYYY-MM-DD/
+    // <collection>.csv. Every collection is in them, the roster and costs
+    // included, so only admin and accounting may read or list them. The
+    // worker writes and prunes through its service account, which skips
+    // these rules, so no one writes here from the app.
+    match /loadout/backups/{day}/{file} {
+      allow read: if loadoutReader();
+      allow write: if false;   // only the worker writes, through the service account
+    }
+    // Listing the days themselves (the Backups tab's first call) is a list
+    // one level up, which the match above does not cover: a list request
+    // on loadout/backups/ is checked against loadout/backups/{day}. Only
+    // list is allowed here; nothing is stored at that level.
+    match /loadout/backups/{day} {
+      allow list: if loadoutReader();
     }
   }
 }

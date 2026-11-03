@@ -8,7 +8,7 @@ pages, `noindex, nofollow`, and the shared Watchtower sign-in
 (`@umbrellaautomation.com` Google accounts only). The plan is `PLAN.md`; the
 chosen look is direction B, Ledger, in `design-preview.html`.
 
-Current version: **0.6.0**.
+Current version: **0.6.1**.
 
 ## Files
 
@@ -143,14 +143,20 @@ Current version: **0.6.0**.
   the data dictionary for every collection, rendered from `DATA_DICTIONARY`
   in the code, with the readability rules. **Export everything**: every
   collection as one workbook or as zipped CSVs, file names stamped with the
-  date and time. Accounting sees Reports, About, and Export with no edit
-  controls at all.
+  date and time. **Backups** (0.6.1): the nightly copies loadout-worker
+  writes to the project's Storage bucket, newest day first with a status
+  line from `loadout_settings/worker` (the last run's time in UTC, file and
+  row counts, or the last error); a day opens in place to its 18 CSVs with
+  their sizes and Download links. The first 30 days show, then Show older.
+  The list comes straight from Storage, so it needs a connection.
+  `#console/backups` opens it. Accounting sees Reports, About, Export, and
+  Backups with no edit controls at all.
 - **More**: movements log with filters, Previous / This / Next week buttons,
   and CSV, Clients and Jobs (add, edit,
   archive; a job can reserve a staging bay), label sheets (Avery 5160 or
   2 x 4), and for admins the inventory sheet importer. Admins and accounting
   get a row of Console links (Reports, People, Settings, Board, About, Export
-  everything); warehouse and techs keep About and Export everything as tabs
+  everything, Backups); warehouse and techs keep About and Export everything as tabs
   here. On the phone the tab bar is Tickets, Week, Scan, Stock, More, and
   Orders, Tracking, Units, and the Console sit at the top of More. More also
   carries the Add to home screen card until it is dismissed on that device.
@@ -193,7 +199,11 @@ view (`&role=accounting` is the read-only Console); `&costs=1` turns Show
 costs on so the reports show values; `&board=1` opens the wall board (`&mode=today`, `&mode=pinned`, or
 `&mode=all_open` overrides the saved board mode on that screen); `&empty=1`
 loads no tickets or orders, for the
-empty states and the board's idle screen; `&print=1` opens a label sheet
+empty states and the board's idle screen; (0.6.1) `&backups=error` shows the
+Backups tab after a failed night, `&backups=many` gives 45 days so Show older
+appears, and `&backups=empty`, `&backups=denied`, and `&backups=offline` show
+those states (the plain demo has three days, the oldest one stopped at 9
+files, and its Download links are dead `#` links marked Demo); `&print=1` opens a label sheet
 preview. The New ticket sheet has a Load sample button with a made-up Portal
 CSV in demo mode only. The fixture has four purchase orders (a draft with no
 vendor, a partial one with two shipments, one ordered with a late shipment,
@@ -309,7 +319,11 @@ sheet's count date and keep `importedAt`, `importTab`, `importRow`, and
 carries readable names next to its ids, so the
 database and the export read without the app. Each person's table layout is
 saved on their own `/users/{uid}` doc under `loadoutLayout`. Settings
-`general` gained `workWeek` in 0.4.0. Products gained `imageUrl` (the photo's
+`general` gained `workWeek` in 0.4.0. `loadout_settings/worker` is written by
+loadout-worker after each nightly backup (`lastExportAt`, `lastExportFolder`
+(the day), `lastExportBucket`, `lastExportPrefix`, `lastExportFiles`,
+`lastExportRows`, `lastExportPruned`, `lastExportError`,
+`lastExportErrorAt`); the Console's Backups tab reads it. Products gained `imageUrl` (the photo's
 download link), `imagePath` (`loadout/products/{id}.jpg` in Firebase Storage),
 and `imageAt` in 0.5.0. In 0.5.1 purchase orders gained `shipTo` ("office"
 or "client") and `shipToAddress`; order lines gained `unitCost`, fixed at
@@ -560,7 +574,7 @@ match /{coll}/{docId} {
 }
 ```
 
-### Storage rules (0.5.0)
+### Storage rules (0.5.0, backups 0.6.1)
 
 Product photos live in Firebase Storage in the same project, under
 `loadout/products/{productId}.jpg`. The rules are in `../watchtower/storage.rules`
@@ -580,6 +594,19 @@ Firestore; answer yes. Deploy from `work/watchtower` with:
 
 `firebase deploy --only storage --account frank@umbrellaautomation.com --project watchtower-6fbe1`
 
+0.6.1 adds the nightly backups, `loadout/backups/YYYY-MM-DD/<collection>.csv`,
+written by loadout-worker through its service account (which skips these
+rules). `loadoutReader()` lets admin and accounting read them, reading the
+roster exactly as `loadoutWriter()` does; nobody may write them from the app.
+A list of the day folders is a list request one level up, on
+`loadout/backups/`, which the per-file match does not cover, so a second
+match allows only `list` there for the same two roles. Checked in the local
+Storage and Firestore emulators: admin and accounting read, download, and
+list both levels; warehouse, tech, an account with no roster doc, a paused
+admin, an outside account, and a signed-out request get 403 on all of them;
+nobody can write or delete. Not deployed; until it is, the Backups tab shows
+its "Storage rules do not allow your role" message.
+
 ```
 rules_version = '2';
 
@@ -587,9 +614,10 @@ rules_version = '2';
 // Cloud Storage security rules.
 //
 // Only Loadout (work/loadout) stores files in this project so far: one
-// photo per catalog product. A path no block matches is denied, so
-// nothing else in the bucket is reachable. A tool that adds files later
-// adds its own block beside this one.
+// photo per catalog product, and the nightly CSV backups loadout-worker
+// writes. A path no block matches is denied, so nothing else in the
+// bucket is reachable. A tool that adds files later adds its own block
+// beside this one.
 
 service firebase.storage {
   match /b/{bucket}/o {
@@ -611,6 +639,16 @@ service firebase.storage {
         && firestore.get(path).data.get('active', true) == true
         && firestore.get(path).data.get('role', 'tech') in ['admin', 'warehouse'];
     }
+    // Admin and accounting: the two roles that see the Console, where the
+    // Backups tab lists the nightly files. Reads the roster exactly as
+    // loadoutWriter() does.
+    function loadoutReader() {
+      let path = /databases/(default)/documents/loadout_users/$(request.auth.uid);
+      return loadoutSignedIn()
+        && firestore.exists(path)
+        && firestore.get(path).data.get('active', true) == true
+        && firestore.get(path).data.get('role', 'tech') in ['admin', 'accounting'];
+    }
     // Product photos: loadout/products/{productId}.{jpg|jpeg|png|webp}.
     // The app shrinks a photo to 1200 px and uploads JPEG; the rule holds
     // the line at 2 MB and the three image types whatever the client does.
@@ -622,6 +660,22 @@ service firebase.storage {
         && request.resource.contentType in ['image/jpeg', 'image/png', 'image/webp'];
       allow delete: if loadoutWriter();
     }
+    // Nightly backups (loadout-worker 0.2.0): loadout/backups/YYYY-MM-DD/
+    // <collection>.csv. Every collection is in them, the roster and costs
+    // included, so only admin and accounting may read or list them. The
+    // worker writes and prunes through its service account, which skips
+    // these rules, so no one writes here from the app.
+    match /loadout/backups/{day}/{file} {
+      allow read: if loadoutReader();
+      allow write: if false;   // only the worker writes, through the service account
+    }
+    // Listing the days themselves (the Backups tab's first call) is a list
+    // one level up, which the match above does not cover: a list request
+    // on loadout/backups/ is checked against loadout/backups/{day}. Only
+    // list is allowed here; nothing is stored at that level.
+    match /loadout/backups/{day} {
+      allow list: if loadoutReader();
+    }
   }
 }
 ```
@@ -632,13 +686,38 @@ service firebase.storage {
 takes accepted Portal proposals from a Zap (PLAN section 6, T1) and writes the
 proposal, the pick ticket, and its lines with the same ids the CSV import uses,
 flagged `needsReview` until someone looks. Every night at 09:00 UTC it writes
-one CSV per collection to the "Loadout backups" Drive folder in a dated
-subfolder and prunes folders older than 90 days (PLAN section 16 rule 7). It
-writes through a service account, so the rules above do not change. The
+one CSV per collection to this project's Storage bucket under
+`loadout/backups/YYYY-MM-DD/` and deletes days older than 90 (PLAN section 16
+rule 7); the Console's Backups tab lists them for admin and accounting. It
+writes through a service account, so the Firestore rules do not change and
+the Storage rules only need to let the two roles read. The
 Portal API intake (T2) is a stub until D1 is answered. Secrets, owner setup,
 the Zap, and deploy steps are in `worker/README.md`.
 
 ## Changelog
+
+### 0.6.1 (2026-11-03)
+
+The nightly backup moves from Google Drive to the project's own Storage
+bucket, and the Console gets a Backups tab to find it. The shop's Google
+Workspace cannot make a Shared Drive, and a service account cannot upload
+into a folder in someone's My Drive, so the Drive plan had nowhere to put
+the files. The bucket that already holds product photos needs no new
+account or sharing, and admins are already signed in to the app.
+
+- **Console > Backups**, after Export everything, for admin and accounting:
+  when the last backup ran (in UTC, the worker's clock), how many files and
+  rows, or the error if the last night failed; then the days, newest first.
+  A day opens in place to its 18 CSVs, each with its size and a Download
+  link. The first 30 days show; Show older lists the rest. It needs a
+  connection, and says so offline. Accounting gets the same tab: it has
+  nothing to change.
+- Storage rules: admin and accounting may read and list the backups; nobody
+  writes them from the app (watchtower/storage.rules, copied above). Not
+  deployed; until then the tab says the rules do not allow reading.
+- loadout-worker 0.2.0 writes the files (worker/README.md). Still not
+  deployed.
+- No Firestore rule changes.
 
 ### 0.6.0 (2026-11-02)
 

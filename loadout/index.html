@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Loadout v0.6.0</title>
+<title>Loadout v0.6.1</title>
 <meta name="robots" content="noindex, nofollow">
-<meta name="loadout-version" content="0.6.0">
+<meta name="loadout-version" content="0.6.1">
 <meta name="description" content="Umbrella Automation shop inventory. Restricted to @umbrellaautomation.com accounts.">
 <meta name="theme-color" content="#1e6fd9">
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
@@ -777,6 +777,27 @@ body.preview #printSheet .picksheet{box-shadow:0 2px 10px rgba(0,0,0,.15)}
 .dict .pd{margin:0 0 6px}
 .dict .tbl td:first-child{font-family:var(--m-mono);font-size:12.5px;width:30%}
 .about p{max-width:78ch}
+/* ---------- Console > Backups (0.6.1) ----------
+   The status line, then the days; a day opens in place to its files.
+   The failed-run line uses the warn treatment of a late package card:
+   --m-warn-text on --m-dnrbg reads 5.51:1, the error text 14.82:1. */
+.bkstat{margin:0;font-size:14px;max-width:78ch}
+.bkstat.warn{border:1px solid var(--m-warn);border-radius:var(--m-radius);background:var(--m-dnrbg);box-shadow:inset 3px 0 0 var(--m-warn);padding:var(--s2) var(--s3);color:var(--m-warn-text);max-width:none}
+.bkstat.warn p{margin:0}
+.bkstat .bkerr{margin-top:6px;font:12.5px/1.4 var(--m-mono);color:var(--m-text);overflow-wrap:anywhere}
+.bksub{margin:6px 0 var(--s3)}
+.bkrule{font:12.5px/1.4 var(--m-mono);overflow-wrap:anywhere}
+.bkfiles{list-style:none;margin:0;padding:0;max-width:720px}
+.bkfiles li{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:var(--s1) var(--s2);align-items:center;padding:6px 0;border-bottom:1px dashed var(--m-line)}
+.bkfiles li:last-child{border-bottom:0}
+.bkfiles .bkn{overflow-wrap:anywhere;min-width:0}
+.bkfiles .bks{color:var(--m-muted);font-size:13px;white-space:nowrap}
+.bkfiles .btn .chip{padding:0 6px;font-size:11px}
+/* a phone puts the file name on its own line, size and Download under it, so names never break mid-word */
+@media (max-width:640px){
+  .bkfiles li{grid-template-columns:minmax(0,1fr) auto;gap:4px var(--s2)}
+  .bkfiles .bkn{grid-column:1/-1}
+}
 .setsect{margin-top:22px;padding-top:14px;border-top:1px solid var(--m-line)}
 .setsect>h3{margin:0 0 4px;font-size:16px}
 
@@ -982,7 +1003,7 @@ body.preview #printSheet .picksheet{box-shadow:0 2px 10px rgba(0,0,0,.15)}
   <header class="top">
     <div class="brand">
       <svg viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="20" width="48" height="34" rx="6" fill="none" stroke="currentColor" stroke-width="5"/><path d="M24 20v-6a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v6" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/><path d="M8 35h48" stroke="currentColor" stroke-width="4"/><rect x="27" y="31" width="10" height="8" rx="2" fill="currentColor"/></svg>
-      Loadout <span class="v" id="verBadge">v0.6.0</span>
+      Loadout <span class="v" id="verBadge">v0.6.1</span>
     </div>
     <nav class="nav" aria-label="Views">
       <!-- 0.6.0: the tab bar's five in the tab bar's order, then the rest -->
@@ -1016,7 +1037,7 @@ body.preview #printSheet .picksheet{box-shadow:0 2px 10px rgba(0,0,0,.15)}
   </main>
 
   <footer class="foot">
-    <span id="footVer">Loadout v0.6.0</span>
+    <span id="footVer">Loadout v0.6.1</span>
     <span id="footWho"></span>
     <span id="footRole"></span>
     <span id="footSync"></span>
@@ -1045,7 +1066,7 @@ body.preview #printSheet .picksheet{box-shadow:0 2px 10px rgba(0,0,0,.15)}
    and its Google sign-in, like Backup Audits and Sundial. Data lives
    in loadout_* collections; rules are in watchtower/firestore.rules.
    ============================================================== */
-const VERSION = "0.6.0";
+const VERSION = "0.6.1";
 const SDK = "https://www.gstatic.com/firebasejs/12.13.0/";
 const XLSX_URL = "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";
 /* @zxing/library is not on cdnjs, so the fallback decoder comes from jsDelivr,
@@ -1209,7 +1230,9 @@ const S = {
      rf the per-report view choices, rep what the reports last read */
   consoleTab: "reports", repTab: "stock", rr: null, rf: {}, rep: null, genDraft: null, portal: null,
   /* 0.5.2: loadout_settings/counters (the shared PO number) */
-  counters: null
+  counters: null,
+  /* 0.6.1: loadout_settings/worker, and the Backups tab's Storage listing */
+  worker: null, bk: null
 };
 const COLLS = ["products", "locations", "stock", "containers", "items", "users", "movements", "settings", "clients", "jobs", "proposals", "tickets", "orders", "shipments"];
 
@@ -1874,6 +1897,8 @@ function firestoreStore(user) {
         S.board = Object.assign({}, DEFAULT_BOARD, docs.find(d => d.id === "board") || {});
         S.importMap = docs.find(d => d.id === "importMap") || null;
         S.portal = docs.find(d => d.id === "portal") || null;
+        /* 0.6.1: loadout-worker's last nightly backup (Console > Backups) */
+        S.worker = docs.find(d => d.id === "worker") || null;
       });
       listen("movements", fs.query(fs.collection(db, "loadout_movements"), fs.orderBy("at", "desc"), fs.limit(500)), docs => { S.movements = docs.map(normMv); _lastMv = null; });
       listen("clients", fs.collection(db, "loadout_clients"), toMap("clients"));
@@ -3537,7 +3562,7 @@ function paintSync() {
   pill.title = DEMO && !S.demoSync ? "Demo mode: nothing reaches a server." : SYNC_TIP;
   $("#footSync").textContent = label;
 }
-window.addEventListener("online", () => { S.online = true; S.offNoted = false; paintSync(); if (DEMO) setLive(true); else if (BOARD) paintBoardLive(); });
+window.addEventListener("online", () => { S.online = true; S.offNoted = false; paintSync(); if (DEMO) setLive(true); else if (BOARD) paintBoardLive(); if (S.bk && S.bk.st === "offline") { S.bk = null; bkPaint(); } });
 window.addEventListener("offline", () => { S.online = false; paintSync(); setLive(false); });
 /* the board's "Not live since" strip: set when a listener fails, the
    tickets listener falls back to cache, or the browser goes offline */
@@ -5415,7 +5440,7 @@ function mvWeek(d) {
    redraws the table keeps it. Modals stay for the decisions.
    ============================================================== */
 const CHEV_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
-const xView = k => k === "i" ? "items" : "stock";
+const xView = k => k === "i" ? "items" : k === "b" ? "console" : "stock";
 const xDomId = id => "xp-" + String(id).replace(/[^A-Za-z0-9_-]/g, "_");
 function xIs(kind, id) { return !!S.x && S.x.kind === kind && S.x.id === id; }
 function xSet(kind, id) { S.x = { kind, id, draft: null, hist: null, showHist: false, err: "", openedAt: Date.now() }; }
@@ -6337,7 +6362,7 @@ function routeAlias(view, sub) {
   if (view !== "more") return [view, sub];
   if (isAdmin() && (sub === "settings" || sub === "board")) return ["console", "settings"];
   if (isAdmin() && sub === "people") return ["console", "people"];
-  if (canConsole() && (sub === "export" || sub === "about")) return ["console", sub];
+  if (canConsole() && (sub === "export" || sub === "about" || sub === "backups")) return ["console", sub];
   return [view, sub];
 }
 function consoleLinks() {
@@ -6346,7 +6371,8 @@ function consoleLinks() {
   return '<div class="clinks"><span class="h4">Console</span>' + b("reports", "Reports", "Stock value, spend, deliveries, units out, wire usage, movements, aging") +
     (isAdmin() ? b("people", "People", "Roles, newcomers, deactivate") + b("settings", "Settings", "Costs, QR threshold, carriers, labels, box lengths, vendors") +
       '<button type="button" class="btn sm" data-act="toBoard" title="The wall board settings, at the end of the Console Settings tab">Board</button>' : "") +
-    b("about", "About", "The data dictionary") + b("export", "Export everything", "Every collection as a workbook or zipped CSVs") + "</div>";
+    b("about", "About", "The data dictionary") + b("export", "Export everything", "Every collection as a workbook or zipped CSVs") +
+    b("backups", "Backups", "The nightly copies in Storage, to download by day") + "</div>";
 }
 let _moreBuilt = "";
 function renderMore(force) {
@@ -6689,6 +6715,142 @@ async function exportZip() {
 }
 
 /* ==============================================================
+   BACKUPS (0.6.1): the nightly copies loadout-worker writes to this
+   project's Storage bucket, loadout/backups/YYYY-MM-DD/<collection>.csv,
+   the same 18 files Export everything makes. The list comes straight
+   from Storage (listAll), so it needs a connection. Admin and accounting
+   see the tab, the same two roles the Storage rule loadoutReader() lets
+   read; nothing here writes. A day opens in place, one at a time, like a
+   Stock row (S.x kind "b").
+   ============================================================== */
+const BK_ROOT = "loadout/backups";
+const BK_PAGE = 30;
+const BK_FILES = EXPORT_COLLS.concat(EXPORT_EXTRA).map(c => c + ".csv");
+/* demo variants: ?demo=1&backups=error | many | empty | denied | offline */
+const BK_DEMO = DEMO ? QUERY.get("backups") || "" : "";
+function bkDayDate(day) { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(day || ""); return m ? new Date(+m[1], +m[2] - 1, +m[3]) : null; }
+/* the worker runs on UTC, so its times read in UTC: "Nov 2, 9:00 AM UTC" */
+function fmtUtc(v) {
+  const d = toDate(v); if (!d) return "";
+  let h = d.getUTCHours(); const ap = h >= 12 ? "PM" : "AM"; h = h % 12 || 12;
+  return MONTHS[d.getUTCMonth()] + " " + d.getUTCDate() + (d.getUTCFullYear() !== new Date().getUTCFullYear() ? ", " + d.getUTCFullYear() : "") + ", " + h + ":" + pad(d.getUTCMinutes()) + " " + ap + " UTC";
+}
+function fmtBytes(n) { n = num(n); return n < 1024 ? fmtN(n) + " B" : n < 1048576 ? (n / 1024).toFixed(1) + " KB" : (n / 1048576).toFixed(1) + " MB"; }
+const utcStamp = d => d.getUTCFullYear() + "-" + pad(d.getUTCMonth() + 1) + "-" + pad(d.getUTCDate());
+/* the latest 09:00 UTC run at or before now */
+function bkLastRun() { const n = new Date(), d = new Date(Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), n.getUTCDate(), 9)); if (d > n) d.setUTCDate(d.getUTCDate() - 1); return d; }
+function bkDemoDays() {
+  if (BK_DEMO === "empty") return [];
+  const last = bkLastRun(), skip = BK_DEMO === "error" ? 1 : 0;
+  return Array.from({ length: BK_DEMO === "many" ? 45 : 3 }, (_, i) => { const d = new Date(last); d.setUTCDate(d.getUTCDate() - i - skip); return utcStamp(d); });
+}
+function bkDemoWorker() {
+  if (BK_DEMO === "empty") return null;
+  const last = bkLastRun(), prev = new Date(last); prev.setUTCDate(prev.getUTCDate() - 1);
+  if (BK_DEMO === "error") return { lastExportAt: prev, lastExportFolder: utcStamp(prev), lastExportFiles: 18, lastExportRows: 1188, lastExportErrorAt: last,
+    lastExportError: "Storage POST https://storage.googleapis.com/upload/storage/v1/b/watchtower-6fbe1.firebasestorage.app/o failed: 403 loadout-worker@watchtower-6fbe1.iam.gserviceaccount.com does not have storage.objects.create access" };
+  return { lastExportAt: last, lastExportFolder: utcStamp(last), lastExportFiles: 18, lastExportRows: 1204, lastExportError: null };
+}
+/* invented sizes; the third day of the plain demo stopped partway (9 files) */
+const BK_DEMO_SIZE = [14200, 3100, 6400, 2200, 9800, 88000, 900, 1400, 700, 1500, 1200, 2600, 11800, 2400, 5200, 2100, 3300, 1900];
+function bkDemoFiles(day) {
+  const i = Math.max(0, S.bk.days.indexOf(day)), n = BK_DEMO !== "many" && i === 2 ? 9 : BK_FILES.length;
+  return BK_FILES.slice(0, n).map((name, k) => ({ name, size: Math.round(BK_DEMO_SIZE[k] * (1 - i * 0.004)), url: null }));
+}
+function bkPaint() { if (S.view === "console" && S.consoleTab === "backups") render(true); }
+function bkFail(o, e) {
+  console.warn("Backups:", e);
+  o.st = e && e.code === "storage/unauthorized" ? "denied" : !onlineNow() || BK_DEMO === "offline" ? "offline" : "error";
+  o.err = e && e.message ? String(e.message) : "";
+}
+const bkOnline = () => onlineNow() && BK_DEMO !== "offline";
+const bkWait = ms => new Promise(r => setTimeout(r, ms));
+/* the day list: one listAll on loadout/backups, whose prefixes are the days */
+function bkLoad() {
+  const prev = S.bk, b = S.bk = { st: "loading", days: [], files: new Map(), showAll: !!(prev && prev.showAll), err: "" };
+  if (!bkOnline()) { b.st = "offline"; return; }
+  (async () => {
+    try {
+      let names;
+      if (DEMO) { await bkWait(300); if (BK_DEMO === "denied") throw { code: "storage/unauthorized" }; names = bkDemoDays(); }
+      else { const { m, st } = await storageApi(); const res = await m.listAll(m.ref(st, BK_ROOT)); names = res.prefixes.map(p => p.name); }
+      b.days = names.filter(bkDayDate).sort().reverse();
+      b.st = b.days.length ? "ok" : "empty";
+    } catch (e) { bkFail(b, e); }
+    if (S.bk === b) bkPaint();
+  })();
+}
+/* one day's files: a listAll on the day, then size and link for each */
+function bkLoadDay(day) {
+  const b = S.bk, f = { st: "loading", list: [], err: "" };
+  b.files.set(day, f);
+  if (!bkOnline()) { f.st = "offline"; return; }
+  (async () => {
+    try {
+      if (DEMO) { await bkWait(200); f.list = bkDemoFiles(day); }
+      else {
+        const { m, st } = await storageApi(), res = await m.listAll(m.ref(st, BK_ROOT + "/" + day));
+        f.list = await Promise.all(res.items.map(async r => { const [md, url] = await Promise.all([m.getMetadata(r), m.getDownloadURL(r)]); return { name: r.name, size: md.size, url }; }));
+      }
+      const at = n => { const i = BK_FILES.indexOf(n); return i < 0 ? 1e6 : i; };
+      f.list.sort((x, y) => at(x.name) - at(y.name) || x.name.localeCompare(y.name));
+      f.st = "ok";
+    } catch (e) { bkFail(f, e); }
+    if (S.bk === b) bkPaint();
+  })();
+}
+function bkStatusHTML() {
+  const w = DEMO ? bkDemoWorker() : S.worker;
+  let h;
+  if (w && w.lastExportError) {
+    const when = fmtUtc(w.lastExportErrorAt);
+    h = '<div class="bkstat warn" role="status"><p><b>Last backup failed' + (when ? " " + esc(when) : "") + ".</b>" + (w.lastExportAt ? " The last good one is " + esc(fmtUtc(w.lastExportAt)) + "." : "") + "</p>" +
+      '<p class="bkerr">' + esc(w.lastExportError) + "</p></div>";
+  } else if (w && w.lastExportAt) h = '<p class="bkstat">Last backup ' + esc(fmtUtc(w.lastExportAt)) + ", " + fmtN(w.lastExportFiles || 0) + " files, " + fmtN(w.lastExportRows || 0) + " rows.</p>";
+  else h = '<p class="bkstat">No nightly backup yet. The worker writes the first one at 9:00 UTC once it is deployed.</p>';
+  return h + '<p class="hint bksub">Export everything makes the same files by hand, any time.</p>';
+}
+const BK_RULE = "loadoutReader() on loadout/backups in watchtower/storage.rules";
+function bkStateMsg(st, err, what) {
+  if (st === "offline") return '<div class="empty"><p>Backups need a connection.</p><p class="hint">' + what + " comes straight from Storage, so it loads again when you are back online.</p></div>";
+  if (st === "denied") return '<div class="errbox" role="alert"><p>Storage rules do not allow your role to read backups. Ask an admin to deploy the rules.</p><p class="bkrule">Rule: ' + esc(BK_RULE) + ".</p></div>";
+  return '<div class="errbox" role="alert"><p>Could not read ' + what.toLowerCase() + " from Storage." + (err ? " " + esc(err) : "") + '</p><button type="button" class="btn" data-act="bkRetry" title="Reads the list from Storage again">Retry</button></div>';
+}
+function bkPanel(day) {
+  let f = S.bk.files.get(day);
+  if (!f) { bkLoadDay(day); f = S.bk.files.get(day); }
+  let h;
+  if (f.st === "loading") h = '<p class="loadmsg">Reading the files of ' + esc(day) + "</p>";
+  else if (f.st !== "ok") h = bkStateMsg(f.st, f.err, "The file list");
+  else {
+    const total = f.list.reduce((a, x) => a + num(x.size), 0);
+    h = '<div class="xhead"><b class="mono">' + esc(BK_ROOT + "/" + day + "/") + '</b><span class="hint" style="margin:0">' + fmtN(f.list.length) + " files, " + esc(fmtBytes(total)) +
+      (f.list.length < BK_FILES.length ? ", fewer than the " + BK_FILES.length + " a full night writes" : "") + "</span></div>" +
+      (f.list.length ? '<ul class="bkfiles">' + f.list.map(x => "<li><span class=\"mono bkn\">" + esc(x.name) + '</span><span class="bks">' + esc(fmtBytes(x.size)) + "</span>" +
+        (DEMO ? '<a class="btn sm" href="#" data-act="bkDemo" title="Demo mode has no files behind its links" aria-label="Download ' + esc(x.name) + ', demo, no file">Download <span class="chip">Demo</span></a>'
+          : '<a class="btn sm" href="' + esc(x.url) + '" target="_blank" rel="noopener" title="Opens the file from Storage in a new tab; the browser saves it as a CSV that Excel reads" aria-label="Download ' + esc(x.name) + " from " + esc(fmtDate(bkDayDate(day))) + '">Download</a>') + "</li>").join("") + "</ul>"
+        : '<p class="hint">This day has no files.</p>');
+  }
+  return '<div class="xp' + xFresh() + '" id="' + xDomId(day) + '">' + h + "</div>";
+}
+function backupsHTML() {
+  const b = S.bk || { st: "loading", days: [] };
+  let h = bkStatusHTML();
+  if (b.st === "loading") return h + skelTable([{ label: "Day" }, { label: "Folder" }], "Reading the backup list from Storage");
+  if (b.st === "empty") return h + '<div class="empty"><p>No backups in Storage yet.</p></div>';
+  if (b.st !== "ok") return h + bkStateMsg(b.st, b.err, "The backup list");
+  const shown = b.showAll ? b.days : b.days.slice(0, BK_PAGE);
+  h += '<div class="tblwrap"><table class="tbl bktbl" aria-label="Nightly backups, newest first"><thead><tr><th class="plain">Day</th><th class="plain">Folder</th><th class="plain xc"><span class="sr">Files</span></th></tr></thead><tbody>' +
+    shown.map(day => {
+      const open = xIs("b", day), label = fmtDate(bkDayDate(day));
+      return '<tr class="xrow' + (open ? " xopen" : "") + '" data-xk="b" data-xid="' + esc(day) + '"><td data-l="Day" class="cv"><div class="tv"><b>' + esc(label) + '</b></div></td><td data-l="Folder" class="cv"><div class="tv mono">' + esc(day) + "</div></td>" +
+        '<td class="xc" data-l="">' + chevBtn("b", day, "the files of " + label) + "</td></tr>" + (open ? '<tr class="xpanel"><td colspan="3">' + bkPanel(day) + "</td></tr>" : "");
+    }).join("") + "</tbody></table></div>";
+  if (!b.showAll && b.days.length > BK_PAGE) h += '<div class="btnrow"><button type="button" class="btn" data-act="bkOlder" title="The list starts with the newest ' + BK_PAGE + ' days; the worker keeps 90">Show older (' + fmtN(b.days.length - BK_PAGE) + " more)</button></div>";
+  return h;
+}
+
+/* ==============================================================
    ABOUT: the data dictionary (PLAN 16 rule 5). PLAN section 3 is the
    source; this constant is what the build writes, so the About tab
    cannot drift from it. One entry per collection and subcollection,
@@ -6818,7 +6980,7 @@ function aboutHTML() {
 function consoleTabs() {
   const t = [["reports", "Reports"]];
   if (isAdmin()) t.push(["people", "People"], ["settings", "Settings"]);
-  t.push(["about", "About"], ["export", "Export everything"]);
+  t.push(["about", "About"], ["export", "Export everything"], ["backups", "Backups"]);
   return t;
 }
 let _conBuilt = "";
@@ -6834,8 +6996,10 @@ function renderConsole(force) {
   /* Settings keeps what is typed: it only redraws when asked to */
   if (!force && _conBuilt === "settings" && S.consoleTab === "settings") return;
   if (S.consoleTab === "settings" && _conBuilt !== "settings") { S.genDraft = null; S.boardDraft = null; }
+  /* 0.6.1: Backups reads Storage fresh each time the tab is opened */
+  if (S.consoleTab === "backups" && (_conBuilt !== "backups" || !S.bk)) bkLoad();
   _conBuilt = S.consoleTab;
-  let h = '<div class="mcard"><div class="thead"><h2 class="vt">Console</h2><span class="sp hint" style="margin:0">' + (isAdmin() ? "Reports, people, and settings" : "Read only: reports, the data dictionary, and exports") + "</span></div>" +
+  let h = '<div class="mcard"><div class="thead"><h2 class="vt">Console</h2><span class="sp hint" style="margin:0">' + (isAdmin() ? "Reports, people, and settings" : "Read only: reports, the data dictionary, exports, and backups") + "</span></div>" +
     '<div class="toolbar"><div class="seg" role="group" aria-label="Console">' +
     tabs.map(([k, l]) => '<button type="button" aria-pressed="' + (S.consoleTab === k) + '" class="' + (S.consoleTab === k ? "on" : "") + '" data-act="consoleTab" data-tab="' + k + '">' + l + "</button>").join("") + "</div></div>";
   if (S.consoleTab === "reports") h += reportsHTML();
@@ -6843,6 +7007,7 @@ function renderConsole(force) {
   else if (S.consoleTab === "settings") h += settingsHTML();
   else if (S.consoleTab === "about") h += aboutHTML();
   else if (S.consoleTab === "export") h += exportHTML();
+  else if (S.consoleTab === "backups") h += backupsHTML();
   el.innerHTML = h + "</div>";
   if (S.consoleTab === "settings") { wireGlow(el); wireMoney(el); bindSettings(el); }
 }
@@ -7649,6 +7814,10 @@ document.addEventListener("click", e => {
     case "userActive": openUserActive(S.users.get(id)); break;
     case "toBoard": closeAllModals(); go("console", "settings"); setTimeout(scrollToBoard, 80); break;
     case "exportZip": exportZip(); break;
+    /* 0.6.1: Console > Backups */
+    case "bkOlder": if (S.bk) { S.bk.showAll = true; render(true); } break;
+    case "bkRetry": S.bk = null; render(true); break;
+    case "bkDemo": e.preventDefault(); toast("Demo mode: no file behind this link"); break;
     /* 0.3.0: expand in place */
     case "xtoggle": xToggle(b.dataset.x, id); break;
     case "xsave": xSave(); break;

@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Loadout - Overview, Storyboard, SOP and Tech spec v0.6.1</title>
+<title>Loadout - Overview, Storyboard, SOP and Tech spec v0.6.2</title>
 <meta name="description" content="Storyboard and functional SOP for Loadout, the internal inventory, pick ticket, and order tracking tool, updated to match the built app. Draft for owner review.">
 <meta name="robots" content="noindex, nofollow">
-<meta name="version" content="0.6.1">
+<meta name="version" content="0.6.2">
 <script>
   // ?print=1 strips the chrome for a PDF. ?tab=overview|story|sop|tech picks the tab;
   // ?all=1 shows every tab at once (for a single PDF of the whole document).
@@ -417,7 +417,7 @@
     Loadout
   </h1>
   <p class="subtitle">How product moves through the shop, from approved proposal to installed, and what gets recorded at each step</p>
-  <p class="draft">Draft for review, 2026-11-02 (v0.6.1: words match the app's 0.5.2 vocabulary). Updated to match the built app, releases 0.1.0 to 0.5.2: every screen, button, and status word below is the one in the app today, and two panels are new (14, the Week view, and 15, Tracking). Earlier drafts: v0.5 named the tool Loadout, v0.4 added the Tech spec tab, v0.3 the Overview, v0.2 the wall board.</p>
+  <p class="draft">Draft for review, 2026-11-03 (v0.6.2: the nightly backup goes to the same Google project as the database and is listed under Console &gt; Backups, not Google Drive; v0.6.1: words match the app's 0.5.2 vocabulary). Updated to match the built app, releases 0.1.0 to 0.5.2: every screen, button, and status word below is the one in the app today, and two panels are new (14, the Week view, and 15, Tracking). Earlier drafts: v0.5 named the tool Loadout, v0.4 added the Tech spec tab, v0.3 the Overview, v0.2 the wall board.</p>
 
   <div class="tabs" role="tablist" aria-label="Sections of this document">
     <button type="button" role="tab" id="tabbtn-overview" aria-controls="tab-overview" aria-selected="true" data-tab="overview">Overview<span class="hint">the five-minute read</span></button>
@@ -532,7 +532,7 @@
     <li><b>0.5.0, 2026-10-29.</b> Works with no signal, installs on the phone's home screen, and product photos.</li>
     <li><b>0.5.1, 2026-11-02.</b> Tracking split into office and clients with status times, Mark delivered for drop-shipped boxes, costs fixed on the PO, and the Reviewed button for tickets made from Portal.</li>
     <li><b>0.5.2, 2026-11-02.</b> One set of words and pill colors for every state, in every view, the board, Week, Tracking, and the exports; one word per movement in the log; PO numbers from one shared counter; and a Short line can be ordered from its ticket.</li>
-    <li><b>The worker.</b> loadout-worker, for the Zapier import and the nightly backup to Google Drive, is built but not deployed yet.</li>
+    <li><b>The worker.</b> loadout-worker, for the Zapier import and the nightly backup, is built but not deployed yet. The backup goes to a folder in the same Google project the database lives in, listed inside Loadout under Console &gt; Backups.</li>
   </ul>
 
   <h3>What we need from you</h3>
@@ -546,7 +546,7 @@
       <li>Assigned inventory: whether there is a per-job list beside the Unassigned Inventory sheet, and whether it should come in as staged stock.</li>
       <li>What will drive the TV by the bays: a small PC, a streaming stick, or a laptop.</li>
       <li>Turn on Firebase Storage for the project and deploy the storage rules, so product photos can be saved.</li>
-      <li>A service account and a Shared Drive folder for the worker, so the nightly backup and the Zapier import can go live.</li>
+      <li>A service account for the worker with two roles, Cloud Datastore User and Storage Object Admin, so the nightly backup and the Zapier import can go live. No Drive folder is needed.</li>
     </ol>
   </div>
 
@@ -1329,7 +1329,7 @@ Staged 9/12 lines in Bay 2. Delivered 0/12. On order: Ubiquiti UDM-SE x1, PO
       <tr><td data-l="Piece">Photos</td><td data-l="What">Firebase Storage, in the same project. Each photo is shrunk to 1,200 px and saved as JPEG on the phone before upload.</td><td data-l="Why">A picture on a product record so a new tech can tell one grey box from another. Small files, pennies. Storage has to be turned on and its rules deployed before the first photo saves.</td></tr>
       <tr><td data-l="Piece">Exports</td><td data-l="What">CSV and Excel files built in the browser from any report, plus Export everything in the Console.</td><td data-l="Why">Accounting gets a spreadsheet, not a screen. Nothing to install.</td></tr>
       <tr><td data-l="Piece">Portal</td><td data-l="What">Its CSV export today. loadout-worker, a small Cloudflare Worker, receives accepted proposals from a Zap; the Portal API part waits on the plan.</td><td data-l="Why">Works on any Portal plan today; the automatic parts depend on the plan (Overview tab). The worker is built and not deployed.</td></tr>
-      <tr><td data-l="Piece">Backups</td><td data-l="What">The same worker writes one CSV per collection every night to a dated folder in a company Google Drive folder and keeps 90 days of them.</td><td data-l="Why">A copy of the whole database that opens in Excel, every day, outside the database. It goes live once the worker has its service account and Shared Drive.</td></tr>
+      <tr><td data-l="Piece">Backups</td><td data-l="What">The same worker writes one CSV per collection every night to a dated folder in the same Google project the database lives in, and keeps 90 days of them. They are listed inside Loadout under Console &gt; Backups, one row per day, with a Download link for each file.</td><td data-l="Why">A copy of the whole database that opens in Excel, every day, kept apart from the database itself. Only admin and accounting can open them. It goes live once the worker has its service account. The company's Google account cannot make a Shared Drive, so the backups do not go to Drive.</td></tr>
     </tbody>
   </table>
 
@@ -1384,7 +1384,7 @@ Staged 9/12 lines in Bay 2. Delivered 0/12. On order: Ubiquiti UDM-SE x1, PO
     <li>Photos follow the same roles: admin and warehouse add or remove them, everyone signed in can see them, and each file must be a small image.</li>
     <li>Everything is served over HTTPS. There is no analytics or tracking script on the page.</li>
     <li>The page carries a public Firebase key by design; it is locked to the company's site addresses so it works nowhere else.</li>
-    <li>Export everything is the backup today, and the nightly export to Google Drive takes over once the worker is deployed. Google keeps the database itself replicated.</li>
+    <li>Export everything is the backup today, and the nightly backup takes over once the worker is deployed: a folder in the same Google project the database lives in, listed inside Loadout under Console &gt; Backups. Only admin and accounting can open those files, and nobody can change them from the app. Google keeps the database itself replicated.</li>
   </ul>
 
   <h3>Costs</h3>
@@ -1400,7 +1400,7 @@ Staged 9/12 lines in Bay 2. Delivered 0/12. On order: Ubiquiti UDM-SE x1, PO
 </article>
 
 <footer class="pagefoot">
-  <p>Loadout storyboard v0.6.1, 2026-11-02. Matches the app at 0.5.2. Internal, Umbrella Automation.</p>
+  <p>Loadout storyboard v0.6.2, 2026-11-03. Matches the app at 0.5.2, with the 0.6.1 backups. Internal, Umbrella Automation.</p>
   <button type="button" class="btn-print" id="printTab">Print this tab as PDF</button>
   <button type="button" class="btn-print" id="printAll">Print everything as PDF</button>
 </footer>
