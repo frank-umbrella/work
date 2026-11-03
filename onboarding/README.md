@@ -84,6 +84,20 @@ signed-in account on the live Firebase project.
 
 ## Changelog
 
+### v0.8.1 - 2026-11-03
+
+The welcome email and the text around the app now read like a person wrote
+them. The email opens by saying what it contains, its headings say what is
+under them, and the closing line says who sent it and where a reply goes.
+Filled-in first-day or HR details no longer leave template markers in the
+welcome email. The invitation email for client managers drops the filler and
+keeps the link, who it is for, and what to do if it fails. Small labels across
+the app (sign-in, form sections, request details, the welcome email screen)
+were in spaced-out capitals; they now use normal sentence case and stand out
+by weight and color instead. Capitals stay where they help scanning: status
+tags and table column headings. Code comments were cut down to the few that
+explain something the code cannot say on its own.
+
 ### v0.8.0 - 2026-11-03
 
 The queue keeps growing, and scanning it means putting the right requests at

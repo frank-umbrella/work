@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Onboarding v0.8.0</title>
+<title>Onboarding v0.8.1</title>
 <meta name="description" content="Client onboarding system for Umbrella Automation managed service clients. Submit new hire, termination, and position change requests.">
 <meta name="robots" content="noindex">
-<meta name="app-version" content="0.8.0">
+<meta name="app-version" content="0.8.1">
 <meta name="theme-color" content="#1a56db">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="manifest.json">
@@ -58,7 +58,6 @@
     overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0;
   }
 
-  /* ============== top bar ============== */
   header.bar {
     background: var(--surface);
     border-bottom: 1px solid var(--line);
@@ -70,9 +69,7 @@
     display: flex; align-items: center; gap: 16px;
     position: relative;  /* anchor for centered client brand */
   }
-  /* Client logo + name, absolutely centered in the topbar. Manager view
-     only; admin sees a neutral topbar. If the client has no logo set we
-     still show the name as a small label so context isn't lost. */
+  /* Manager view only; the name stands in when there is no logo so the client context is never lost. */
   .brand-client {
     position: absolute; left: 50%; top: 50%;
     transform: translate(-50%, -50%);
@@ -81,9 +78,7 @@
     max-width: 40%;
   }
   .brand-client img {
-    /* Constrained by topbar interior height, aspect ratio preserved
-       via object-fit. No frame chrome (border / bg / radius) so the
-       client's own logo design can speak for itself. */
+    /* No border, background or radius: the client's logo shows as designed. */
     height: 36px; width: auto; max-width: 240px;
     object-fit: contain;
     display: block;
@@ -92,8 +87,7 @@
     font-size: 14px; font-weight: 600; color: var(--ink);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  /* Hide the text name when the logo is shown; the name is a fallback only.
-     We toggle .has-logo on the wrapper from JS. */
+  /* JS sets .has-logo only after the image loads. */
   .brand-client.has-logo .name { display: none; }
   .brand-client[hidden] { display: none; }
   .brand {
@@ -103,11 +97,6 @@
   .brand img { width: 22px; height: 22px; }
   .brand .meta { font-size: 11px; color: var(--ink-faint); font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; }
   .brand h1 { font-size: 16px; margin: 0; line-height: 1.1; }
-  /* Tabs as underline-style indicators rather than pill buttons. The
-     active tab's accent bottom-border overlaps the topbar's own
-     bottom border (via margin-bottom: -1px) so it visually "notches
-     into" the page below. Both tabs read as tabs of equal stature,
-     with the current page clearly indicated. */
   nav.tabs { display: flex; gap: 4px; margin-left: 12px; align-self: stretch; }
   nav.tabs button {
     background: transparent;
@@ -148,10 +137,9 @@
   .userbar .who .n { color: var(--ink); font-weight: 600; font-size: 13px; }
   .userbar .who .e { color: var(--ink); font-weight: 600; font-size: 13px; }
   .userbar .who .n + .e { color: var(--ink-soft); font-weight: 400; font-size: 12px; }
-  .userbar .who .r { color: var(--ink-faint); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .userbar .who .r { color: var(--ink-faint); font-size: 11.5px; font-weight: 500; }
   .userbar .who .n[hidden] { display: none; }
 
-  /* ============== buttons ============== */
   .btn {
     background: var(--surface);
     border: 1px solid var(--line-strong);
@@ -178,7 +166,6 @@
   .btn-link:hover { text-decoration: underline; }
   .btn-sm { font-size: 12px; padding: 5px 9px; }
 
-  /* ============== demo / preview banner ============== */
   #demoBanner {
     background: #fef3c7; border-bottom: 2px solid #f59e0b;
     color: #78350f; padding: 8px 14px; font-size: 13px;
@@ -194,7 +181,6 @@
   /* --banner-h is measured in JS because the banner wraps to two or more lines on phones. */
   body.demo-mode header.bar { top: calc(env(safe-area-inset-top, 0px) + var(--banner-h, 36px)); }
 
-  /* ============== initial auth-state loader ============== */
   .auth-loader {
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     gap: 14px; padding: 80px 20px; color: var(--ink-soft);
@@ -208,7 +194,6 @@
   }
   @keyframes authSpin { to { transform: rotate(360deg); } }
 
-  /* ============== sign-in / invite landing ============== */
   .auth-wrap {
     max-width: 440px; margin: 60px auto;
     background: var(--surface);
@@ -222,9 +207,9 @@
   }
   .auth-wrap p.lead { color: var(--ink-soft); margin: 0 0 24px; font-size: 14px; }
   .auth-wrap .field { margin-bottom: 14px; }
-  .auth-wrap label {
-    display: block; font-size: 12px; font-weight: 600; color: var(--ink-soft);
-    margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.05em;
+  .auth-wrap .field label {
+    display: block; font-size: 13px; font-weight: 600; color: var(--ink-soft);
+    margin-bottom: 4px;
   }
   .auth-wrap input {
     width: 100%; padding: 9px 11px; border: 1px solid var(--line-strong);
@@ -246,8 +231,7 @@
   }
   .auth-divider {
     display: flex; align-items: center; gap: 10px;
-    margin: 24px 0; color: var(--ink-faint); font-size: 12px;
-    text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600;
+    margin: 24px 0; color: var(--ink-faint); font-size: 12px; font-weight: 500;
   }
   .auth-divider::before, .auth-divider::after {
     content: ""; flex: 1; height: 1px; background: var(--line);
@@ -256,8 +240,7 @@
     display: flex; flex-direction: column; gap: 2px; margin-bottom: 12px;
   }
   .auth-role-head strong {
-    font-size: 13px; font-weight: 700;
-    text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink);
+    font-size: 14px; font-weight: 700; color: var(--ink);
   }
   .auth-role-head span {
     font-size: 13px; color: var(--ink-soft);
@@ -287,7 +270,6 @@
   }
   .auth-tabs button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 
-  /* ============== app shell ============== */
   main {
     max-width: 1200px; margin: 0 auto; padding: 24px 20px 60px;
   }
@@ -314,7 +296,6 @@
     color: var(--ink-faint); font-size: 13.5px;
   }
 
-  /* ============== form layout ============== */
   .form-grid {
     display: grid; grid-template-columns: 1fr 1fr; gap: 16px 18px;
   }
@@ -364,15 +345,14 @@
   }
 
   .name-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .name-row .sub-label { font-size: 11px; color: var(--ink-faint); margin-top: 3px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .name-row .sub-label { font-size: 11.5px; font-weight: 500; color: var(--ink-faint); margin-top: 3px; }
 
   .other-input { margin-top: 6px; display: none; }
   .other-input.shown { display: block; }
 
   .form-section {
     margin-top: 28px; margin-bottom: 14px;
-    font-size: 13px; font-weight: 700; color: var(--ink);
-    text-transform: uppercase; letter-spacing: 0.07em;
+    font-size: 14px; font-weight: 700; color: var(--ink);
     padding-bottom: 6px; border-bottom: 1px solid var(--line);
   }
   .form-section:first-child { margin-top: 0; }
@@ -389,7 +369,6 @@
   }
   .form-actions .spacer { flex: 1; }
 
-  /* ============== submission table ============== */
   table.tbl {
     width: 100%; border-collapse: collapse; font-size: 13.5px;
   }
@@ -426,7 +405,6 @@
   /* Sort bar stands in for the column headers, which are hidden in card mode. */
   .sort-bar { display: none; }
 
-  /* ============== columns popover ============== */
   .col-menu { position: relative; flex-shrink: 0; }
   .col-pop {
     position: absolute; top: calc(100% + 6px); right: 0; z-index: 40;
@@ -437,8 +415,7 @@
   .col-pop[hidden] { display: none; }
   .col-pop fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
   .col-pop legend {
-    padding: 0; margin-bottom: 6px; font-size: 11px; font-weight: 700; color: var(--ink-soft);
-    text-transform: uppercase; letter-spacing: 0.05em;
+    padding: 0; margin-bottom: 6px; font-size: 12px; font-weight: 600; color: var(--ink-soft);
   }
   .col-opt {
     display: flex; align-items: center; gap: 8px; min-height: 32px;
@@ -465,7 +442,6 @@
   .pill.kind-positionchange { background: #bae6fd; color: #075985; }
   .pill.kind-other      { background: var(--line); color: var(--ink-soft); }
 
-  /* ============== filter bar ============== */
   .filter-bar {
     display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
     padding: 12px 18px; background: var(--surface-2);
@@ -479,7 +455,6 @@
   .filter-bar select { flex: 0 1 auto; min-width: 0; }
   .filter-bar .count { margin-left: auto; color: var(--ink-faint); font-size: 12.5px; }
 
-  /* ============== modal ============== */
   .modal-bg {
     position: fixed; inset: 0; background: rgba(20, 25, 40, 0.45);
     z-index: 100; display: flex; align-items: flex-start; justify-content: center;
@@ -511,7 +486,7 @@
   }
   .modal-foot .spacer { flex: 1; }
 
-  /* ============== submission detail ============== */
+  /* Submission detail */
   .sub-meta {
     display: grid; grid-template-columns: max-content minmax(0, 1fr);
     gap: 8px 16px; font-size: 13.5px;
@@ -525,8 +500,7 @@
   }
   .answer { margin-bottom: 12px; }
   .answer .ans-label {
-    font-size: 12px; font-weight: 600; color: var(--ink-soft);
-    text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 2px;
+    font-size: 12px; font-weight: 600; color: var(--ink-soft); margin-bottom: 2px;
   }
   .answer .ans-val {
     font-size: 14px; color: var(--ink); white-space: pre-wrap; word-break: break-word;
@@ -557,7 +531,6 @@
   }
   .event-form .actions { margin-top: 8px; display: flex; gap: 8px; align-items: center; }
 
-  /* ============== schema editor ============== */
   .json-editor {
     width: 100%; min-height: 380px;
     font-family: var(--mono); font-size: 12.5px; line-height: 1.5;
@@ -571,16 +544,14 @@
   .json-status.ok { color: var(--ok); }
   .json-status.err { color: var(--danger); }
 
-  /* ============== invite link display ============== */
   .invite-link-box {
     margin-top: 12px; padding: 12px;
     background: var(--info-soft); border: 1px solid #bae6fd;
     border-radius: 8px;
   }
   .invite-link-box label {
-    display: block; font-size: 11px; font-weight: 700;
-    color: #075985; text-transform: uppercase; letter-spacing: 0.05em;
-    margin-bottom: 4px;
+    display: block; font-size: 12px; font-weight: 700;
+    color: #075985; margin-bottom: 4px;
   }
   .invite-link-box input {
     width: 100%; padding: 7px 9px; font-family: var(--mono); font-size: 12.5px;
@@ -599,10 +570,7 @@
     flex-shrink: 0; white-space: nowrap;
   }
 
-  /* ============== toast ============== */
-  /* Top-anchored and z-index above any modal so error messages aren't
-     hidden behind an open dialog (e.g. a submit from inside a modal
-     fails, and the toast must still be visible). */
+  /* Above every modal so an error raised inside a dialog stays visible. */
   .toast {
     position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
     background: var(--ink); color: #fff; padding: 10px 16px;
@@ -612,15 +580,14 @@
   .toast.err { background: var(--danger); }
   .toast[hidden] { display: none; }
 
-  /* ============== completion / welcome modal ============== */
+  /* Completion and welcome email modal */
   .comp-section {
     margin-top: 18px; padding-top: 14px;
     border-top: 1px solid var(--line);
   }
   .comp-section:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
   .comp-section h4 {
-    margin: 0 0 12px; font-size: 12px; font-weight: 700;
-    text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-soft);
+    margin: 0 0 12px; font-size: 13px; font-weight: 700; color: var(--ink);
   }
   .comp-grid {
     display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 14px;
@@ -648,15 +615,13 @@
     padding: 12px 14px; margin-top: 18px;
   }
   .comp-recipients h4 {
-    margin: 0 0 8px; font-size: 12px; font-weight: 700;
-    text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-soft);
+    margin: 0 0 8px; font-size: 13px; font-weight: 700; color: var(--ink);
   }
   .comp-recipients ul { margin: 0; padding-left: 18px; font-size: 13px; }
   .comp-recipients .badge {
-    display: inline-block; font-size: 10.5px; font-weight: 600;
+    display: inline-block; font-size: 11px; font-weight: 600;
     padding: 1px 6px; border-radius: 4px; margin-left: 6px;
     background: var(--accent-soft); color: var(--accent-ink);
-    text-transform: uppercase; letter-spacing: 0.04em;
   }
 
   .comp-preview {
@@ -668,8 +633,7 @@
     padding: 10px 14px; border-bottom: 1px solid var(--line);
   }
   .comp-preview-head h4 {
-    margin: 0; font-size: 12px; font-weight: 700;
-    text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-soft);
+    margin: 0; font-size: 13px; font-weight: 700; color: var(--ink);
   }
   .comp-preview-tabs { display: flex; gap: 4px; }
   .comp-preview-tabs button {
@@ -692,7 +656,6 @@
   }
   .comp-preview-body textarea:focus-visible { outline-offset: -2px; }
 
-  /* ============== client cards ============== */
   .client-list { display: grid; gap: 10px; }
   .client-row {
     display: flex; align-items: center; gap: 14px;
@@ -703,7 +666,6 @@
   .client-row .domain { color: var(--ink-faint); font-size: 12.5px; }
   .client-row .actions { margin-left: auto; display: flex; gap: 6px; }
 
-  /* ============== forms list ============== */
   .form-list { display: grid; gap: 8px; }
   .form-row {
     display: flex; align-items: center; gap: 12px;
@@ -714,14 +676,12 @@
   .form-row .meta { color: var(--ink-faint); font-size: 12.5px; }
   .form-row .actions { margin-left: auto; display: flex; gap: 6px; }
 
-  /* ============== footer ============== */
   footer.foot {
     max-width: 1200px; margin: 0 auto; padding: 0 20px 24px;
     color: var(--ink-faint); font-size: 12px;
   }
   footer.foot a { color: var(--ink-faint); }
 
-  /* ============== narrow layouts ============== */
   @media (max-width: 760px) {
     header.bar { padding: 8px 16px 0; }
     /* Grid, not flex-wrap: brand and userbar share row one and both shrink, instead of the userbar dropping to its own row. */
@@ -785,8 +745,7 @@
       padding: 12px 12px 0;
     }
     .sort-bar label {
-      font-size: 12px; font-weight: 600; color: var(--ink-soft);
-      text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap;
+      font-size: 12px; font-weight: 600; color: var(--ink-soft); white-space: nowrap;
     }
     .sort-bar select {
       flex: 1 1 auto; min-width: 0; min-height: 44px;
@@ -828,17 +787,12 @@
 </head>
 <body>
 
-<!-- ================= demo / preview banner =================
-     MUST come before the topbar in DOM. Both elements are
-     position: sticky. When stacked, the first sticky element in
-     source order wins the top slot and the second sticks below it,
-     offset by the measured banner height (--banner-h, set in JS). -->
+<!-- Must stay before the top bar: both are sticky, and the bar sits below this banner by --banner-h. -->
 <div id="demoBanner" hidden>
   <span><strong>Demo mode.</strong> Sample data only. Nothing you do here is saved.</span>
   <a href="https://www.umbrellaautomation.com/" target="_blank" rel="noopener">Visit umbrellaautomation.com</a>
 </div>
 
-<!-- ================= top bar ================= -->
 <header class="bar" id="topbar" hidden>
   <div class="wrap">
     <a class="brand" href="./">
@@ -871,21 +825,16 @@
   </div>
 </header>
 
-<!-- ================= initial auth-state loader =================
-     Shown while Firebase reads the persisted auth token. Without this,
-     refreshing the page flashes the sign-in screen for ~300ms before
-     the onAuthStateChanged callback fires and reveals the app. -->
+<!-- Covers the wait while Firebase restores the session, so a refresh does not flash the sign-in screen. -->
 <div id="authLoader" class="auth-loader" role="status">
   <div class="spinner"></div>
   <p>Checking sign-in…</p>
 </div>
 
-<!-- ================= sign-in / invite landing ================= -->
 <section id="auth" class="auth-wrap" hidden>
   <h2 id="authTitle">Sign in</h2>
   <p class="lead" id="authLead">Choose the option that matches your account.</p>
 
-  <!-- MSP team: Google sign-in -->
   <div id="mspSignInBlock">
     <div class="auth-role-head">
       <strong>Umbrella Automation team</strong>
@@ -905,7 +854,6 @@
 
   <div class="auth-divider"><span>or</span></div>
 
-  <!-- Client manager: email + password -->
   <div id="mgrSignInBlock">
     <div class="auth-role-head">
       <strong>Client Manager</strong>
@@ -962,10 +910,9 @@
   </form>
 </section>
 
-<!-- ================= app shell ================= -->
 <main id="app" hidden>
 
-  <!-- ===== Manager: New Request ===== -->
+  <!-- Manager: New Request -->
   <section id="tabNewRequest" class="tab-panel">
     <div class="panel">
       <div class="panel-head">
@@ -982,7 +929,7 @@
     </div>
   </section>
 
-  <!-- ===== Manager: My Requests ===== -->
+  <!-- Manager: My Requests -->
   <section id="tabMyRequests" class="tab-panel" hidden>
     <div class="panel">
       <div class="panel-head">
@@ -1012,7 +959,7 @@
     </div>
   </section>
 
-  <!-- ===== MSP Admin: Queue ===== -->
+  <!-- MSP Admin: Queue -->
   <section id="tabQueue" class="tab-panel" hidden>
     <div class="panel">
       <div class="panel-head">
@@ -1048,7 +995,7 @@
     </div>
   </section>
 
-  <!-- ===== MSP Admin: Clients ===== -->
+  <!-- MSP Admin: Clients -->
   <section id="tabClients" class="tab-panel" hidden>
     <div class="panel">
       <div class="panel-head">
@@ -1062,7 +1009,7 @@
     </div>
   </section>
 
-  <!-- ===== MSP Admin: Invitations ===== -->
+  <!-- MSP Admin: Invitations -->
   <section id="tabInvitations" class="tab-panel" hidden>
     <div class="panel">
       <div class="panel-head">
@@ -1076,7 +1023,7 @@
     </div>
   </section>
 
-  <!-- ===== MSP Admin: MSP Team ===== -->
+  <!-- MSP Admin: MSP Team -->
   <section id="tabAdmins" class="tab-panel" hidden>
     <div class="panel">
       <div class="panel-head">
@@ -1089,7 +1036,6 @@
       </div>
     </div>
 
-    <!-- Sales demo URLs, for sharing with prospects -->
     <div class="panel" style="margin-top:18px;">
       <div class="panel-head">
         <h2>Sales demos</h2>
@@ -1098,7 +1044,7 @@
       <div class="panel-body" style="display:flex;flex-direction:column;gap:14px;">
         <div>
           <div style="font-size:13px;font-weight:600;margin-bottom:4px;">Client Manager view</div>
-          <div style="font-size:12px;color:var(--ink-soft);margin-bottom:6px;">"You're Sarah Johnson at Lakeside MedSpa." Shows New Request + My Requests with a few in-flight items.</div>
+          <div style="font-size:12px;color:var(--ink-soft);margin-bottom:6px;">Opens as Sarah Johnson, a client manager at Lakeside MedSpa. Shows New Request and My Requests with a few requests in flight.</div>
           <div style="display:flex;gap:6px;">
             <input id="demoMgrUrl" type="text" readonly style="flex:1;font-size:12px;padding:6px 8px;font-family:ui-monospace,Menlo,Consolas,monospace;">
             <button class="btn btn-sm" id="demoMgrCopy" type="button">Copy</button>
@@ -1107,7 +1053,7 @@
         </div>
         <div>
           <div style="font-size:13px;font-weight:600;margin-bottom:4px;">MSP Admin view</div>
-          <div style="font-size:12px;color:var(--ink-soft);margin-bottom:6px;">"You're an Umbrella admin." Cross-client queue, including the full welcome email flow.</div>
+          <div style="font-size:12px;color:var(--ink-soft);margin-bottom:6px;">Opens as an Umbrella admin. Shows the queue across all clients, including the full welcome email flow.</div>
           <div style="display:flex;gap:6px;">
             <input id="demoAdmUrl" type="text" readonly style="flex:1;font-size:12px;padding:6px 8px;font-family:ui-monospace,Menlo,Consolas,monospace;">
             <button class="btn btn-sm" id="demoAdmCopy" type="button">Copy</button>
@@ -1124,7 +1070,7 @@
 
 </main>
 
-<!-- ================= submission detail modal ================= -->
+<!-- Submission detail modal -->
 <div class="modal-bg" id="subModal" hidden>
   <div class="modal wide">
     <div class="modal-head">
@@ -1141,7 +1087,6 @@
   </div>
 </div>
 
-<!-- ================= completion / welcome-email modal ================= -->
 <div class="modal-bg" id="completionModal" hidden>
   <div class="modal wide">
     <div class="modal-head">
@@ -1151,7 +1096,7 @@
     <div class="modal-body" id="completionBody"></div>
     <div class="modal-foot">
       <span style="font-size:12px;color:var(--ink-faint);margin-right:auto;" id="completionHint">
-        Fields auto-fill from the original request. Edit anything, then Send.
+        Fields are pre-filled from the request. Check them, then send.
       </span>
       <button class="btn" type="button" data-close-modal>Cancel</button>
       <button class="btn btn-primary" type="button" id="completionSendBtn">Send welcome email</button>
@@ -1159,8 +1104,6 @@
   </div>
 </div>
 
-<!-- ================= client editor modal ================= -->
-<!-- ================= per-client welcome-template editor ================= -->
 <div class="modal-bg" id="templateModal" hidden>
   <div class="modal wide">
     <div class="modal-head">
@@ -1252,7 +1195,6 @@
   </div>
 </div>
 
-<!-- ================= invite creator modal ================= -->
 <div class="modal-bg" id="inviteModal" hidden>
   <div class="modal">
     <div class="modal-head">
@@ -1289,7 +1231,7 @@
         </div>
 
         <div style="margin-top:14px;">
-          <label style="display:block;font-size:11px;font-weight:700;color:#075985;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;">Pre-drafted email subject</label>
+          <label style="display:block;font-size:12px;font-weight:700;color:#075985;margin-bottom:4px;">Pre-drafted email subject</label>
           <div class="copy-row">
             <input id="invEmailSubject" type="text" readonly>
             <button class="btn btn-sm" id="invCopySubjectBtn" type="button">Copy</button>
@@ -1297,7 +1239,7 @@
         </div>
 
         <div style="margin-top:10px;">
-          <label style="display:block;font-size:11px;font-weight:700;color:#075985;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:4px;">Pre-drafted email body</label>
+          <label style="display:block;font-size:12px;font-weight:700;color:#075985;margin-bottom:4px;">Pre-drafted email body</label>
           <textarea id="invEmailBody" readonly rows="11" style="width:100%;padding:8px 10px;font-family:var(--sans);font-size:13px;border:1px solid #bae6fd;border-radius:6px;background:#fff;resize:vertical;line-height:1.5;"></textarea>
           <button class="btn btn-sm" id="invCopyBodyBtn" type="button" style="margin-top:6px;">Copy email body</button>
         </div>
@@ -1315,7 +1257,6 @@
   </div>
 </div>
 
-<!-- ================= form schema editor modal ================= -->
 <div class="modal-bg" id="schemaModal" hidden>
   <div class="modal wide">
     <div class="modal-head">
@@ -1352,7 +1293,7 @@
             title="A note for admins on what this form is for. Client managers do not see it.">
         </div>
       </div>
-      <label for="seJSON" style="font-size:12px;font-weight:600;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.05em;"
+      <label for="seJSON" style="font-size:12px;font-weight:600;color:var(--ink-soft);"
         title="Object with a pages array; each page has a fields array">Schema (JSON)</label>
       <textarea class="json-editor" id="seJSON" spellcheck="false"></textarea>
       <div class="json-status" id="seJSONStatus"></div>
@@ -1375,7 +1316,6 @@
   </div>
 </div>
 
-<!-- ================= add admin modal ================= -->
 <div class="modal-bg" id="addAdminModal" hidden>
   <div class="modal">
     <div class="modal-head">
@@ -1410,11 +1350,10 @@
   </div>
 </div>
 
-<!-- ================= toast ================= -->
 <div class="toast" id="toast" hidden></div>
 
 <footer class="foot" id="appFooter" hidden>
-  <p><a href="../">&larr; Work hub</a> &middot; Onboarding v0.8.0</p>
+  <p><a href="../">&larr; Work hub</a> &middot; Onboarding v0.8.1</p>
 </footer>
 
 <script type="module">
@@ -1443,9 +1382,6 @@ import {
   uploadBytes, getDownloadURL, deleteObject
 } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-storage.js";
 
-// ------------------------------------------------------------------
-// Firebase config: onboarding-a563d project (ua-onboarding web app).
-// ------------------------------------------------------------------
 const firebaseConfig = {
   apiKey: "AIzaSyA-0BJUKW6tv-VhvttNqW2DtXERSIF_ScI",
   authDomain: "onboarding-a563d.firebaseapp.com",
@@ -1455,18 +1391,11 @@ const firebaseConfig = {
   appId: "1:330286523878:web:27c4e2ffca3496ebc32227"
 };
 
-const APP_VERSION = "0.8.0";
+const APP_VERSION = "0.8.1";
 const STATUSES = ["Submitted", "In Progress", "Completed", "Cancelled"];
 const MSP_DOMAIN = "umbrellaautomation.com"; // Google sign-in restricted to this domain
 
-// ----------------------------------------------------------------------
-// Demo / preview mode: sandboxed, hidden behind unguessable nonces in
-// the URL. Detected BEFORE Firebase auth init so signed-in users
-// visiting a preview URL still see the demo (sign-out happens
-// transparently). Both nonces are hard-coded. They're not secrets, just
-// hard to guess. Admin "Sales Demos" panel surfaces them with copy
-// buttons so the user can grab the share URL on demand.
-// ----------------------------------------------------------------------
+// The demo nonces are not secrets, only hard to guess; admins copy them from the Sales demos panel.
 const DEMO_NONCES = {
   manager: "mgr-7Q9k2-jem",
   admin:   "adm-8R3n4-msp"
@@ -1485,10 +1414,7 @@ function demoBlock(actionLabel = "change") {
   return true;
 }
 
-// ---- demo fixtures ---------------------------------------------------
-// Hand-built mock data sets. Keep tight (~3 clients, ~10 submissions)
-// so a prospect can scan the queue at a glance and click into details
-// without infinite scrolling.
+// Keep the fixtures small enough that a prospect takes in the whole queue at a glance.
 const _demoTs = (offsetDays) => {
   const d = new Date(Date.now() - offsetDays * 86400000);
   return { toDate: () => d, toMillis: () => d.getTime() };
@@ -1518,8 +1444,7 @@ const DEMO_FIXTURES = {
     ]
   },
   invitations: [],
-  // Mix of statuses + types + clients so the queue shows variety.
-  // For manager demo we filter to just the demo manager's submissions.
+  // The manager demo lists only rows whose submittedByUid is "demo-mgr-uid".
   submissions: [
     { id: "sub1", clientId: "lakeside-medspa-demo", clientName: "Lakeside MedSpa",
       formId: "newhire", formTitle: "New Hire", formKind: "newhire",
@@ -1552,7 +1477,6 @@ const DEMO_FIXTURES = {
       submittedByUid: "demo-mgr-uid", submittedByEmail: "sarah.johnson@lakeside.example.com",
       submittedByName: "Sarah Johnson",
       values: { firstName: "Ravi", lastName: "Kumar", title: "Front Desk", preferredEmail: "ravi.kumar@lakeside.example.com" }},
-    // Admin-only: cross-client variety
     { id: "sub5", clientId: "harbor-point-demo", clientName: "Harbor Point Senior Living",
       formId: "newhire", formTitle: "New Hire", formKind: "newhire",
       summary: "New Hire: Jamie Brooks",
@@ -1596,7 +1520,6 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);
 
-// ============== state ==============
 const state = {
   user: null,            // Firebase User
   role: null,            // 'manager' | 'admin' | null
@@ -1616,7 +1539,6 @@ const state = {
   editingForm: null      // { clientId, formId|null, schema, formMeta }
 };
 
-// ============== helpers ==============
 const $ = sel => document.querySelector(sel);
 const $$ = sel => Array.from(document.querySelectorAll(sel));
 
@@ -1635,11 +1557,7 @@ function escapeHTML(s) {
     .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 
-// MSP admins see raw err.message / err.code (helps them debug missing
-// indexes, rule rejections, etc). Managers, and anyone whose role hasn't
-// resolved yet (e.g. on the invitation page), get a generic message.
-// Firestore deeplinks like "create_composite=..." are noise to them.
-// Always console.error the original before calling this.
+// Only admins see the raw error; log the original with console.error before calling this.
 function friendlyErr(err, contextLabel) {
   if (state.role === "admin") {
     return contextLabel + ": " + (err?.message || err?.code || String(err));
@@ -1647,10 +1565,7 @@ function friendlyErr(err, contextLabel) {
   return contextLabel + " right now. Please try again. If this keeps happening, contact your MSP.";
 }
 function friendlyErrHTML(err, contextLabel) {
-  // Special-case: missing Firestore composite index. The error message
-  // includes a clickable "create index" link to the Firebase console;
-  // surface it for admins so they can auto-provision in one click.
-  // Managers can't fix this themselves so we keep their message generic.
+  // A missing-index error carries a console link that creates the index; only admins can use it.
   const isIndexErr = err?.code === "failed-precondition"
     && /index/i.test(err?.message || "");
   if (isIndexErr) {
@@ -1701,17 +1616,11 @@ function pillKind(k) {
   return `<span class="pill kind-${lc}">${escapeHTML(formKindLabel(k))}</span>`;
 }
 
-// Spiceworks Cloud ticket deep-link. URL pattern per the MSP's account.
-// If Spiceworks changes their routing (or the pattern below turns out
-// to be off), this is the single place to fix it.
+// The Spiceworks ticket URL pattern is unverified; this is the one place to fix it.
 const SPICEWORKS_TICKET_URL = (n) =>
   "https://on.spiceworks.com/tickets/open/ticket_number=" + encodeURIComponent(n);
 
-// Renders the related-ticket value for the submission detail modal.
-// MSP admins get a clickable Spiceworks link (they have Spiceworks
-// accounts); managers see plain text because the link would just bounce
-// off the Spiceworks login for them. Only digits-ish values get linked;
-// anything else (e.g. "emailed John about this") stays text.
+// Managers have no Spiceworks login, so only admins get a link, and only for ticket-number values.
 function relatedTicketHTML(ticket) {
   const t = String(ticket).trim();
   const looksLikeNumber = /^#?\d{1,10}$/.test(t.replace(/^(HD|hd|SW|sw)[-\s]?/, ""));
@@ -1747,7 +1656,6 @@ function inviteUrl(token) {
   return u.toString();
 }
 
-// ============== tables: sort, columns, saved layout ==============
 // Layout is per browser in localStorage; demo mode uses it too because nothing reaches Firestore.
 const subjectOf = s => s.summary || s.formTitle || "Request";
 const clientNameOf = id => state.clients.find(c => c.id === id)?.name || id;
@@ -2008,7 +1916,6 @@ document.addEventListener("click", e => {
   closeColumns(focusLost);
 });
 
-// ============== auth UI ==============
 $$("#authTabs button").forEach(b => {
   b.addEventListener("click", () => {
     const mode = b.dataset.mode;
@@ -2094,7 +2001,6 @@ $("#googleSignInBtn").addEventListener("click", async () => {
       errEl.textContent = `Google sign-in is only for @${MSP_DOMAIN} accounts. You used ${email}. Client Managers should use the email/password form below.`;
       errEl.hidden = false;
     }
-    // Otherwise the onAuthStateChanged listener takes over and looks up the role.
   } catch (e) {
     if (e.code === "auth/popup-closed-by-user" || e.code === "auth/cancelled-popup-request") return;
     errEl.textContent = "Google sign-in failed: " + (e.message || e.code || e);
@@ -2106,7 +2012,6 @@ $("#googleSignInBtn").addEventListener("click", async () => {
 
 $("#signOutBtn").addEventListener("click", () => signOut(auth));
 
-// ============== invite redemption flow ==============
 async function handleInviteIfPresent() {
   const params = new URLSearchParams(location.search);
   const token = params.get("invite");
@@ -2123,7 +2028,6 @@ async function handleInviteIfPresent() {
       showInviteError("This invitation has already been redeemed. If that wasn't you, contact your MSP.");
       return true;
     }
-    // Show invite landing form.
     $("#authTabs").hidden = true;
     $("#signinForm").hidden = true;
     $("#inviteForm").hidden = false;
@@ -2131,7 +2035,6 @@ async function handleInviteIfPresent() {
     $("#authLead").textContent = "You've been invited to the Umbrella Automation onboarding system. Confirm your details and set a password to continue.";
     $("#ivName").value = (inv.firstName || "") + " " + (inv.lastName || "");
     $("#ivEmail").value = inv.email || "";
-    // Look up client display name.
     let clientName = inv.clientId;
     try {
       const cs = await getDoc(doc(db, "clients", inv.clientId));
@@ -2167,16 +2070,12 @@ $("#inviteBtn").addEventListener("click", async () => {
   if (pw !== pw2) { errEl.textContent = "Passwords don't match."; errEl.hidden = false; return; }
   $("#inviteBtn").disabled = true;
   try {
-    // 1. Create the auth user.
     const cred = await createUserWithEmailAndPassword(auth, inv.email, pw);
     const uid = cred.user.uid;
     try {
       await updateProfile(cred.user, { displayName: (inv.firstName || "") + " " + (inv.lastName || "") });
     } catch {}
-    // 2. Write the manager doc + mark invitation consumed in a batch.
-    // The invitationToken field is required by Firestore rules. It
-    // proves this manager was created via a valid invite and not
-    // forged by an arbitrary signed-up user.
+    // Rules require invitationToken: it proves the manager doc came from a real invite.
     const batch = writeBatch(db);
     batch.set(doc(db, "managers", uid), {
       email: inv.email,
@@ -2193,9 +2092,8 @@ $("#inviteBtn").addEventListener("click", async () => {
       consumedByUid: uid
     });
     await batch.commit();
-    // Strip ?invite= from URL so a refresh lands cleanly.
+    // A refresh that still carries ?invite= would show the already-redeemed error.
     history.replaceState(null, "", location.pathname);
-    // Auth state listener will pick it up from here.
   } catch (e) {
     errEl.textContent = friendlyAuthError(e);
     errEl.hidden = false;
@@ -2203,11 +2101,6 @@ $("#inviteBtn").addEventListener("click", async () => {
   }
 });
 
-// ============== demo-mode entry point ==============
-// If the URL carries a recognized preview nonce, short-circuit Firebase
-// auth and run the app on in-memory mock fixtures. Sign out the real
-// user transparently if they happen to be signed in (they'll see the
-// demo; can return to the real app by removing the URL param).
 if (DEMO_VARIANT) {
   setupDemoMode(DEMO_VARIANT);
 }
@@ -2215,11 +2108,9 @@ if (DEMO_VARIANT) {
 function setupDemoMode(variant) {
   state.isDemo = true;
   state.demoVariant = variant;
-  // Best-effort: sign out any real user so listeners don't double-fire.
-  // We also never wait on this; the demo runs immediately.
+  // Sign out a real session so its listeners stay quiet; not awaited so the demo starts at once.
   try { signOut(auth).catch(() => {}); } catch {}
 
-  // Inject mock auth state.
   state.user = {
     uid: variant === "admin" ? "demo-admin-uid" : "demo-mgr-uid",
     email: variant === "admin" ? "demo.admin@umbrellaautomation.com" : "sarah.johnson@lakeside.example.com",
@@ -2238,7 +2129,6 @@ function setupDemoMode(variant) {
     state.adminDoc = { email: state.user.email, name: "Demo Admin" };
   }
 
-  // Hide the loader, show the demo banner, enter the app.
   $("#authLoader").hidden = true;
   document.body.classList.add("demo-mode");
   $("#demoBanner").hidden = false;
@@ -2254,18 +2144,13 @@ function trackBannerHeight() {
   window.addEventListener("resize", set);
 }
 
-// ============== auth state listener ==============
 onAuthStateChanged(auth, async user => {
-  // Skip entirely in demo mode. We don't want a stale Firebase auth
-  // state to flip the demo back to a real session.
+  // A late auth callback must not turn a demo back into a real session.
   if (isDemoMode()) { $("#authLoader").hidden = true; return; }
 
-  // First callback after page load is the resolved auth state, so it's
-  // safe to hide the loader. (No-op on subsequent callbacks since `hidden`
-  // is idempotent.)
+  // The first callback carries the restored session, so the loader can hide here.
   $("#authLoader").hidden = true;
 
-  // Tear down any live listeners from a previous session.
   Object.values(state.unsub).forEach(u => { if (typeof u === "function") u(); });
   state.unsub = { submissions: null, forms: null, clients: null, invitations: null, admins: null, openSub: null, openEvents: null };
   state.user = user || null;
@@ -2283,7 +2168,6 @@ onAuthStateChanged(auth, async user => {
     $("#topbar").hidden = true;
     $("#app").hidden = true;
     $("#appFooter").hidden = true;
-    // Show invite form if URL has ?invite=, otherwise sign-in.
     const handled = await handleInviteIfPresent();
     if (!handled) {
       $("#mspSignInBlock").hidden = false;
@@ -2296,25 +2180,18 @@ onAuthStateChanged(auth, async user => {
     return;
   }
 
-  // Decide role: admin first, then manager.
   try {
     const adminSnap = await getDoc(doc(db, "msp_admins", user.uid));
     if (adminSnap.exists()) {
       state.role = "admin";
       state.adminDoc = adminSnap.data();
-      // Back-fill name / photoURL from the Google profile if missing,
-      // plus refresh lastLogin. Bootstrap admins (added by hand in the
-      // Firebase console) typically only have email; this populates the
-      // rest the first time they sign in. Also covers admins added via
-      // the "Add admin" modal where the inviter didn't type a name.
+      // Admins added by hand or without a name have only an email; fill the rest from Google.
       const patch = { lastLogin: serverTimestamp() };
       if (!state.adminDoc.name && user.displayName) patch.name = user.displayName;
       if (!state.adminDoc.photoURL && user.photoURL) patch.photoURL = user.photoURL;
       if (!state.adminDoc.email && user.email) patch.email = user.email;
       try {
         await updateDoc(doc(db, "msp_admins", user.uid), patch);
-        // Reflect the patched fields locally so the topbar shows the new name
-        // immediately without a re-fetch.
         state.adminDoc = { ...state.adminDoc, ...patch };
       } catch (e) { console.warn("admin profile back-fill failed", e); }
     } else {
@@ -2322,9 +2199,7 @@ onAuthStateChanged(auth, async user => {
       if (mgrSnap.exists()) {
         state.role = "manager";
         state.managerDoc = mgrSnap.data();
-        // Update lastLogin.
         try { await updateDoc(doc(db, "managers", user.uid), { lastLogin: serverTimestamp() }); } catch {}
-        // Load client doc for branding.
         try {
           const cs = await getDoc(doc(db, "clients", state.managerDoc.clientId));
           if (cs.exists()) state.client = { id: cs.id, ...cs.data() };
@@ -2337,7 +2212,6 @@ onAuthStateChanged(auth, async user => {
   }
 
   if (!state.role) {
-    // Signed in but no manager or admin record.
     const isUmbrella = (user.email || "").toLowerCase().endsWith("@" + MSP_DOMAIN);
     const myUid = user.uid;
     const myEmail = user.email;
@@ -2345,7 +2219,6 @@ onAuthStateChanged(auth, async user => {
     $("#auth").hidden = false;
     $("#authTitle").textContent = "No access yet";
     if (isUmbrella) {
-      // First-time MSP admin bootstrap: tell them the UID to use in console.
       $("#authLead").innerHTML = `Your Google account signed in successfully but isn't on the MSP admin roster yet.<br><br>` +
         `<strong>To bootstrap the first admin:</strong> in the Firebase Console, go to <em>Firestore Database</em> &rarr; <em>Start collection</em> &rarr; collection ID <code>msp_admins</code> &rarr; document ID <code>${escapeHTML(myUid)}</code> &rarr; add a string field <code>email</code> = <code>${escapeHTML(myEmail)}</code>. Then sign in again.<br><br>` +
         `<strong>For additional admins:</strong> ask an existing admin to add you from the MSP Team tab. They will need your UID: <code>${escapeHTML(myUid)}</code>`;
@@ -2362,7 +2235,6 @@ onAuthStateChanged(auth, async user => {
   enterApp();
 });
 
-// ============== enter app ==============
 function enterApp() {
   $("#auth").hidden = true;
   $("#topbar").hidden = false;
@@ -2371,9 +2243,6 @@ function enterApp() {
 
   $("#ubEmail").textContent = state.user.email;
   $("#ubRole").textContent = state.role === "admin" ? "MSP Admin" : "Client Manager";
-  // Display name comes from the admin/manager doc first (back-filled from
-  // Google profile on first sign-in for admins; set during invite redemption
-  // for managers); fall back to the live Firebase user.displayName.
   const displayName = (state.role === "admin"
       ? (state.adminDoc?.name)
       : ((state.managerDoc?.firstName || "") + " " + (state.managerDoc?.lastName || "")).trim()
@@ -2390,10 +2259,6 @@ function enterApp() {
     $("#brandMeta").textContent = state.client ? state.client.name : "Onboarding";
     $("#newReqClientName").textContent = state.client ? "for " + state.client.name : "";
 
-    // Center-of-topbar client logo (manager view only). When logoURL
-    // is set we show the logo and hide the text name (logo speaks for
-    // itself). If there's no logoURL, OR the image fails to load, we
-    // fall back to the text name so the client context is never lost.
     if (state.client) {
       const cb = $("#brandClient");
       const logo = $("#brandClientLogo");
@@ -2401,7 +2266,6 @@ function enterApp() {
       nameEl.textContent = state.client.name || state.client.id;
       if (state.client.logoURL) {
         logo.onerror = () => {
-          // Image broke: drop to name-only fallback.
           logo.style.display = "none";
           cb.classList.remove("has-logo");
         };
@@ -2420,20 +2284,16 @@ function enterApp() {
       $("#brandClient").classList.remove("has-logo");
     }
 
-    // Manager tabs only.
     $$("nav.tabs button").forEach(b => {
       const t = b.dataset.tab;
       b.hidden = !(t === "newrequest" || t === "myrequests");
     });
-    // Land on My Requests so managers see in-flight work first; clicking
-    // the brand link returns here too. Roadmap: once there's real usage,
-    // consider showing New Request when there's nothing in flight.
+    // Managers land on My Requests so work already in flight comes first.
     activateTab("myrequests");
 
     subscribeFormsForClient(state.managerDoc.clientId);
     subscribeMySubmissions();
   } else {
-    // Admin.
     $("#brandTitle").textContent = "Onboarding · Admin";
     $("#brandMeta").textContent = "Umbrella Automation";
     $("#newReqClientName").textContent = "";
@@ -2452,7 +2312,6 @@ function enterApp() {
   }
 }
 
-// ============== tab nav ==============
 $$("nav.tabs button").forEach(b => {
   b.addEventListener("click", () => activateTab(b.dataset.tab));
 });
@@ -2468,7 +2327,6 @@ function activateTab(name) {
   $("#tabAdmins").hidden = name !== "admins";
 }
 
-// ============== modal helpers ==============
 // Open order, newest last: Escape closes the newest one and z-index follows it.
 const modalStack = [];
 const modalOpeners = new Map();
@@ -2513,11 +2371,7 @@ function restoreFocus(el) {
 $$("[data-close-modal]").forEach(el => {
   el.addEventListener("click", () => closeModal(el.closest(".modal-bg")));
 });
-// Click-outside-to-close: opt-in only. Modals that hold significant
-// user input (completion form, schema editor, new client, etc.) should
-// NOT close on a stray backdrop click. That's a footgun (lose all
-// captured data on a misclick). Add data-allow-bg-close to a modal-bg
-// to enable the legacy behavior.
+// Backdrop clicks close only modals marked data-allow-bg-close; a misclick must not lose form input.
 $$(".modal-bg").forEach(bg => {
   bg.addEventListener("click", e => {
     if (e.target === bg && bg.dataset.allowBgClose !== undefined) closeModal(bg);
@@ -2569,7 +2423,6 @@ function bindNeedsChoice(root) {
   });
 }
 
-// ============== forms: subscribe (manager) ==============
 function subscribeFormsForClient(clientId) {
   if (isDemoMode()) {
     state.forms = (DEMO_FIXTURES.forms[clientId] || []).slice();
@@ -2615,12 +2468,7 @@ $("#formPicker").addEventListener("change", e => {
 function loadCurrentForm() {
   const f = state.forms.find(x => x.id === state.currentFormId);
   if (!f) { $("#dynForm").innerHTML = ""; return; }
-  // Defensive auto-unwrap: if the admin pasted the FULL seed JSON
-  // (including _about / formMeta / schema keys) into the schema editor
-  // instead of just the inner schema contents, f.schema will be the
-  // wrapper object and the real schema lives one level deeper. Detect
-  // and unwrap so the form renders correctly without forcing the admin
-  // to re-upload.
+  // An admin may paste a whole seed file into the schema editor; its real schema sits one level down.
   let schema = f.schema || { pages: [{ fields: [] }] };
   if (schema && !schema.pages && !schema.fields && schema.schema
       && (schema.schema.pages || schema.schema.fields)) {
@@ -2629,9 +2477,6 @@ function loadCurrentForm() {
   state.currentFormSchema = schema;
   renderDynamicForm(state.currentFormSchema);
 
-  // Warn if the form has no fields after unwrap. That usually means the
-  // pasted JSON was malformed (or empty). Friendlier than a silently
-  // blank form.
   const pages = Array.isArray(schema.pages) ? schema.pages : [{ fields: schema.fields || [] }];
   const totalFields = pages.reduce((n, p) => n + (Array.isArray(p.fields) ? p.fields.length : 0), 0);
   if (totalFields === 0) {
@@ -2649,7 +2494,6 @@ function loadCurrentForm() {
   }
 }
 
-// ============== dynamic form renderer ==============
 function renderDynamicForm(schema) {
   const root = $("#dynForm");
   root.innerHTML = "";
@@ -2680,11 +2524,7 @@ function renderDynamicForm(schema) {
     root.appendChild(grid);
   });
 
-  // Built-in optional ticket reference, present on EVERY request type
-  // independent of the per-client form schema (so admins don't have to
-  // add it to each client's form JSON). Free text for now; when the
-  // Umbrella Help Desk system goes live (shares this Firebase project)
-  // this can graduate to a real ticket lookup.
+  // Built in, not part of any client schema, so every request type has the ticket field.
   const ticketWrap = document.createElement("div");
   ticketWrap.className = "field";
   ticketWrap.style.marginTop = "18px";
@@ -2697,7 +2537,6 @@ function renderDynamicForm(schema) {
   `;
   root.appendChild(ticketWrap);
 
-  // Action row.
   const actions = document.createElement("div");
   actions.className = "form-actions";
   actions.innerHTML = `
@@ -2713,7 +2552,6 @@ function renderDynamicForm(schema) {
   });
   $("#dfSubmit").addEventListener("click", submitDynamicForm);
 
-  // Run conditional visibility once.
   applyConditionalVisibility();
   bindNeedsChoice(root);
 }
@@ -2800,7 +2638,7 @@ function renderField(field) {
           }
         });
       });
-      // Also handle non-other selection clearing the "shown" class for radios.
+      // Radios fire change only on the one now checked, so the others must hide the Other input.
       if (field.type === "radio") {
         wrap.querySelectorAll('input[type=radio]').forEach(el => {
           el.addEventListener("change", () => {
@@ -2852,12 +2690,8 @@ function renderField(field) {
     return wrap;
   }
 
-  // Default: text-style input.
   const typeAttr = ["email", "tel", "date", "number", "password"].includes(field.type) ? field.type : "text";
-  // For date inputs, pin min/max to a sensible 4-digit-year range so
-  // browsers (notably Chrome) can't accept 5+ digit years like 20242
-  // when a user fat-fingers the keyboard. Schemas can still override
-  // with field.min / field.max.
+  // Without min and max, Chrome accepts five-digit years; a schema's own min/max still wins.
   const isDate = typeAttr === "date";
   const minAttr = field.min ? ` min="${escapeHTML(field.min)}"` : (isDate ? ` min="1900-01-01"` : "");
   const maxAttr = field.max ? ` max="${escapeHTML(field.max)}"` : (isDate ? ` max="2099-12-31"` : "");
@@ -3019,7 +2853,6 @@ async function submitDynamicForm() {
       collection(db, "clients", state.managerDoc.clientId, "submissions"),
       payload
     );
-    // Add a "submitted" event.
     await addDoc(
       collection(db, "clients", state.managerDoc.clientId, "submissions", ref.id, "events"),
       {
@@ -3043,7 +2876,6 @@ async function submitDynamicForm() {
 }
 
 function buildSummary(formMeta, values) {
-  // Try to find an obvious "subject": a name field, or first/last fields.
   let subject = "";
   if (values.name && values.name.full) subject = values.name.full;
   else if (values.firstName || values.lastName)
@@ -3051,11 +2883,7 @@ function buildSummary(formMeta, values) {
   else if (values.employee && typeof values.employee === "string") subject = values.employee;
   else if (values.employeeName) subject = values.employeeName;
 
-  // Prefer the user's actual employeeStatus answer ("New Hire" or
-  // "Rehire") over the form's umbrella kind label ("New Hire / Rehire"),
-  // so a submission shows as the specific kind in the queue and detail.
-  // Falls back to the form kind label for forms that don't ask the
-  // status question.
+  // Label with the answered status (New Hire or Rehire), not the combined form kind.
   const status = (values.employeeStatus || "").toString().trim();
   const kindLabel = status || formKindLabel(formMeta?.kind);
 
@@ -3063,7 +2891,6 @@ function buildSummary(formMeta, values) {
   return kindLabel + ": (unspecified)";
 }
 
-// ============== submissions: manager view ==============
 function subscribeMySubmissions() {
   if (isDemoMode()) {
     state.submissions = DEMO_FIXTURES.submissions
@@ -3072,6 +2899,7 @@ function subscribeMySubmissions() {
     renderMySubmissions();
     return;
   }
+  // Rules reject this listener without the submittedByUid filter: managers read only their own requests.
   const q = query(
     collection(db, "clients", state.managerDoc.clientId, "submissions"),
     where("submittedByUid", "==", state.user.uid),
@@ -3104,7 +2932,7 @@ function renderMySubmissions() {
     return;
   }
   if (list.length === 0) {
-    $("#myReqTableWrap").innerHTML = `<div class="empty">No requests match your filters.</div>`;
+    $("#myReqTableWrap").innerHTML = `<div class="empty">Nothing matches these filters. Clear a filter or change the search.</div>`;
     return;
   }
   setTableHTML($("#myReqTableWrap"), tableHTML("myRequests", list, {
@@ -3124,7 +2952,6 @@ $("#myReqStatusFilter").addEventListener("change", e => {
   renderMySubmissions();
 });
 
-// ============== submissions: admin queue (cross-client) ==============
 function subscribeAllSubmissions() {
   if (isDemoMode()) {
     state.submissions = DEMO_FIXTURES.submissions
@@ -3133,12 +2960,8 @@ function subscribeAllSubmissions() {
     renderQueue();
     return;
   }
-  // No orderBy: Firestore requires a COLLECTION_GROUP-scoped field
-  // override on `submittedAt` to sort across all `submissions`
-  // subcollections, and adding more orderBy/where combinations would
-  // each need their own override. Sort client-side instead: volumes
-  // are low (one row per submission across all clients) and filtering
-  // is already client-side, so this keeps things simple.
+  // Collection-group reads need the {anyPath=**}/submissions rule in firestore.rules.
+  // No orderBy: it would need a COLLECTION_GROUP index override, so rows are sorted here.
   const q = query(collectionGroup(db, "submissions"));
   state.unsub.submissions = onSnapshot(q, snap => {
     state.submissions = snap.docs.map(d => ({ id: d.id, _ref: d.ref, ...d.data() }));
@@ -3170,7 +2993,6 @@ function renderQueue() {
   });
   $("#queueCount").textContent = `${list.length} of ${state.submissions.length}`;
 
-  // Refresh client + type filters from observed data.
   const clients = [...new Set(state.submissions.map(s => s.clientId))].filter(Boolean).sort();
   const cFilter = $("#queueClientFilter");
   const cur = cFilter.value;
@@ -3186,11 +3008,11 @@ function renderQueue() {
   tFilter.value = curT;
 
   if (state.submissions.length === 0) {
-    $("#queueTableWrap").innerHTML = `<div class="empty">No submissions yet across any client.</div>`;
+    $("#queueTableWrap").innerHTML = `<div class="empty">No requests yet. New requests from client managers show up here as soon as they are submitted.</div>`;
     return;
   }
   if (list.length === 0) {
-    $("#queueTableWrap").innerHTML = `<div class="empty">No submissions match your filters.</div>`;
+    $("#queueTableWrap").innerHTML = `<div class="empty">Nothing matches these filters. Clear a filter or change the search.</div>`;
     return;
   }
   setTableHTML($("#queueTableWrap"), tableHTML("queue", list, {
@@ -3219,7 +3041,6 @@ function renderQueue() {
   });
 });
 
-// ============== submission detail modal ==============
 async function openSubmission(submissionId, clientId) {
   if (state.unsub.openSub) state.unsub.openSub();
   if (state.unsub.openEvents) state.unsub.openEvents();
@@ -3229,7 +3050,7 @@ async function openSubmission(submissionId, clientId) {
 
   if (isDemoMode()) {
     const s = DEMO_FIXTURES.submissions.find(x => x.id === submissionId);
-    if (!s) { $("#subModalBody").innerHTML = `<div class="empty">Not found.</div>`; return; }
+    if (!s) { $("#subModalBody").innerHTML = `<div class="empty">This request is not part of the demo data.</div>`; return; }
     state.openSubmission = { ...s, clientId };
     state.openEvents = [
       { id: "ev1", type: "submitted", message: "Request submitted.",
@@ -3269,7 +3090,6 @@ function renderSubmissionDetail() {
   if (!s) return;
   $("#subModalTitle").textContent = s.summary || s.formTitle || "Request";
 
-  // Build the answers display from values + the form schema (if available).
   const formMeta = state.forms.find(f => f.id === s.formId);
   const schema = formMeta?.schema || s.schemaSnapshot || null;
   let answersHTML = "";
@@ -3284,7 +3104,6 @@ function renderSubmissionDetail() {
       });
     });
   } else {
-    // No schema available: dump raw values.
     Object.entries(s.values || {}).forEach(([k, v]) => {
       answersHTML += `<div class="answer">
         <div class="ans-label">${escapeHTML(k)}</div>
@@ -3293,10 +3112,6 @@ function renderSubmissionDetail() {
     });
   }
 
-  // Status controls (admin only). For new-hire/rehire submissions we
-  // also surface the "Complete and send welcome email" button when status isn't
-  // already Completed; that's the path that captures the deliverables
-  // and emails the new employee + manager(s).
   let statusCtrl = "";
   if (state.role === "admin") {
     const isNewHireKind = COMPLETION_KIND_PREFIXES.some(p => (s.formKind || "").startsWith(p));
@@ -3313,7 +3128,7 @@ function renderSubmissionDetail() {
     statusCtrl = `
       ${completedSummary}
       <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap;">
-        <span style="font-size:12px;font-weight:600;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.05em;">Status</span>
+        <span style="font-size:12px;font-weight:600;color:var(--ink-soft);">Status</span>
         <select id="subStatusSel" title="Status is visible to the client manager on their next visit; no email is sent on status changes">
           ${STATUSES.map(st => `<option ${st === s.status ? "selected" : ""}>${escapeHTML(st)}</option>`).join("")}
         </select>
@@ -3324,10 +3139,7 @@ function renderSubmissionDetail() {
   } else if (state.role === "manager"
              && s.submittedByUid === state.user.uid
              && s.status === "Submitted") {
-    // Manager looking at their own still-Submitted request. The actual
-    // "Cancel this request" button lives in the modal foot (see
-    // subFootCancelBtn) so it's beside Close where destructive actions
-    // belong, not floating in the body. We toggle its visibility below.
+    // Cancel lives in the modal foot beside Close (subFootCancelBtn), not in the body.
     statusCtrl = "";
   } else if (state.role === "manager" && s.status === "Cancelled") {
     statusCtrl = `
@@ -3337,7 +3149,6 @@ function renderSubmissionDetail() {
     `;
   }
 
-  // Events log + add event form.
   const events = state.openEvents || [];
   const eventsHTML = events.length
     ? events.map(ev => `
@@ -3363,11 +3174,11 @@ function renderSubmissionDetail() {
     </dl>
     ${statusCtrl}
     <div class="answers">
-      <h3 style="font-size:13px;text-transform:uppercase;letter-spacing:0.07em;color:var(--ink-soft);margin:0 0 12px;">Answers</h3>
+      <h3 style="font-size:15px;font-weight:700;color:var(--ink);margin:0 0 12px;">Answers</h3>
       ${answersHTML || `<div class="empty">No answers recorded.</div>`}
     </div>
     <div class="events">
-      <h3 style="font-size:13px;text-transform:uppercase;letter-spacing:0.07em;color:var(--ink-soft);margin:0 0 4px;">Activity</h3>
+      <h3 style="font-size:15px;font-weight:700;color:var(--ink);margin:0 0 4px;">Activity</h3>
       ${eventsHTML}
       <div class="event-form">
         <textarea id="evMsg" placeholder="Add a comment…"></textarea>
@@ -3385,9 +3196,7 @@ function renderSubmissionDetail() {
     if (compBtn) compBtn.addEventListener("click", openCompletion);
   }
 
-  // Toggle the modal-foot Cancel button. Manager only, on their own
-  // still-Submitted request. Re-bind the handler each render since
-  // state.openSubmission may have changed since last open.
+  // Re-bind on every render: the open submission may have changed since the last one.
   const footCancelBtn = $("#subFootCancelBtn");
   const showFootCancel = state.role === "manager"
     && s.submittedByUid === state.user.uid
@@ -3533,36 +3342,15 @@ async function sendEvent() {
   }
 }
 
-// ============== completion / welcome-email flow ==============
-//
-// When MSP finishes a New Hire / Rehire submission, "Complete and send
-// welcome email" opens a modal that captures the deliverables (work email,
-// temp password, account links, first-day logistics, etc.) and emails
-// the new hire + their direct manager + the client manager who
-// originally submitted (deduped). On Send the app:
-//   1. Writes one doc to /mail/{autoId} per recipient bundle (the
-//      Firebase "Trigger Email from Firestore" extension picks it up).
-//   2. Saves the captured fields onto the submission as `completion`.
-//   3. Flips status to "Completed" and adds a timeline event.
-//
-// Per-client templates live at /clients/{clientId}/completionTemplates/
-// {kind}; the DEFAULT_COMPLETION_TEMPLATE below is used as a fallback
-// for clients that haven't customized yet.
-
 const COMPLETION_KIND_PREFIXES = ["newhire-rehire", "newhire", "rehire"];
 
-// TEMP: until umbrellaautomation.com DNS is verified in Resend, use
-// Resend's pre-verified sandbox domain `resend.dev` so welcome emails
-// can actually deliver. Limitation while using onboarding@resend.dev:
-// Resend will only deliver to the email address registered on your
-// Resend account (their abuse guard). Once umbrellaautomation.com is
-// verified, swap fromEmail back to welcome@umbrellaautomation.com.
+// Resend sandbox sender: it delivers only to the Resend account owner until umbrellaautomation.com is verified.
+// Once the domain is verified, set fromEmail back to welcome@umbrellaautomation.com.
 const DEFAULT_COMPLETION_TEMPLATE = {
   fromEmail: "onboarding@resend.dev",
   fromName: "Umbrella Automation (test)",
   subjectTemplate: "Welcome to {{clientName}}, {{firstName}}!",
   fields: [
-    // ----- Identity & record -----
     { id: "fullName",         label: "Full legal name",        type: "text",     section: "Identity & record", required: true, full: true },
     { id: "preferredName",    label: "Preferred name",         type: "text",     section: "Identity & record" },
     { id: "employeeId",       label: "Employee ID",            type: "text",     section: "Identity & record" },
@@ -3576,7 +3364,6 @@ const DEFAULT_COMPLETION_TEMPLATE = {
     { id: "managerName",      label: "Direct manager name",    type: "text",     section: "Identity & record" },
     { id: "managerEmail",     label: "Direct manager email",   type: "email",    section: "Identity & record", required: true },
 
-    // ----- Accounts to deliver -----
     { id: "workEmail",        label: "Work email",             type: "email",    section: "Accounts to deliver", required: true },
     { id: "tempPassword",     label: "Temporary password",     type: "text",     section: "Accounts to deliver",
       help: "Will be marked must-change-on-first-login in the email body." },
@@ -3584,7 +3371,6 @@ const DEFAULT_COMPLETION_TEMPLATE = {
     { id: "commsInvite",      label: "Slack / Teams invite",   type: "url",      section: "Accounts to deliver" },
     { id: "hrisUrl",          label: "HRIS / Payroll login",   type: "url",      section: "Accounts to deliver" },
 
-    // ----- First-day logistics -----
     { id: "firstDayLocation", label: "Where to report",        type: "textarea", section: "First-day logistics", full: true,
       placeholder: "Address, suite, parking notes" },
     { id: "firstDayTime",     label: "When (date + time)",     type: "text",     section: "First-day logistics" },
@@ -3593,21 +3379,18 @@ const DEFAULT_COMPLETION_TEMPLATE = {
       placeholder: "I-9 ID(s), voided check for direct deposit, etc." },
     { id: "dressCode",        label: "Dress code",             type: "text",     section: "First-day logistics" },
 
-    // ----- Help contacts -----
     { id: "hrName",           label: "HR contact name",        type: "text",     section: "Help contacts" },
     { id: "hrEmail",          label: "HR contact email",       type: "email",    section: "Help contacts" },
     { id: "hrPhone",          label: "HR contact phone",       type: "text",     section: "Help contacts" },
     { id: "itHelpdesk",       label: "IT helpdesk",            type: "text",     section: "Help contacts", full: true,
       placeholder: "Email, ticket portal URL, or phone" }
   ],
-  // The body template is rendered with the captured field values via
-  // simple {{placeholder}} substitution. Keep it inline-styled because
-  // many email clients strip <style> blocks.
+  // Inline styles only: many email clients strip <style> blocks.
   bodyTemplate: `<div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#1a1f2b;line-height:1.55;font-size:14px;max-width:600px;">
   <p>Hi {{firstName}},</p>
-  <p>Welcome to <strong>{{clientName}}</strong>! We're excited to have you on board. Below is everything you need to get set up before your first day.</p>
+  <p>Welcome to <strong>{{clientName}}</strong>. This email has your account details and the first-day information you need before you start.</p>
 
-  <h3 style="font-size:13px;text-transform:uppercase;letter-spacing:0.05em;color:#64748b;margin:24px 0 8px;border-bottom:1px solid #e2e8f0;padding-bottom:6px;">Your record</h3>
+  <h3 style="font-size:14px;font-weight:700;color:#1a1f2b;margin:24px 0 8px;border-bottom:1px solid #e2e8f0;padding-bottom:6px;">Your details</h3>
   <table style="border-collapse:collapse;font-size:13.5px;">
     <tr><td style="padding:3px 12px 3px 0;color:#64748b;">Name</td><td>{{fullName}}{{#preferredName}} (preferred: {{preferredName}}){{/preferredName}}</td></tr>
     {{#employeeId}}<tr><td style="padding:3px 12px 3px 0;color:#64748b;">Employee ID</td><td>{{employeeId}}</td></tr>{{/employeeId}}
@@ -3619,16 +3402,16 @@ const DEFAULT_COMPLETION_TEMPLATE = {
     {{#managerName}}<tr><td style="padding:3px 12px 3px 0;color:#64748b;">Direct manager</td><td>{{managerName}} &lt;{{managerEmail}}&gt;</td></tr>{{/managerName}}
   </table>
 
-  <h3 style="font-size:13px;text-transform:uppercase;letter-spacing:0.05em;color:#64748b;margin:24px 0 8px;border-bottom:1px solid #e2e8f0;padding-bottom:6px;">Your accounts</h3>
+  <h3 style="font-size:14px;font-weight:700;color:#1a1f2b;margin:24px 0 8px;border-bottom:1px solid #e2e8f0;padding-bottom:6px;">Your accounts</h3>
   <table style="border-collapse:collapse;font-size:13.5px;">
     {{#workEmail}}<tr><td style="padding:3px 12px 3px 0;color:#64748b;">Work email</td><td><a href="mailto:{{workEmail}}">{{workEmail}}</a></td></tr>{{/workEmail}}
-    {{#tempPassword}}<tr><td style="padding:3px 12px 3px 0;color:#64748b;">Temporary password</td><td><code style="background:#f1f5f9;padding:2px 6px;border-radius:4px;">{{tempPassword}}</code> &nbsp;<em style="color:#64748b;font-size:12px;">(you'll be asked to change this on first sign-in)</em></td></tr>{{/tempPassword}}
+    {{#tempPassword}}<tr><td style="padding:3px 12px 3px 0;color:#64748b;">Temporary password</td><td><code style="background:#f1f5f9;padding:2px 6px;border-radius:4px;">{{tempPassword}}</code> &nbsp;<em style="color:#64748b;font-size:12px;">(you will be asked to change it the first time you sign in)</em></td></tr>{{/tempPassword}}
     {{#ssoUrl}}<tr><td style="padding:3px 12px 3px 0;color:#64748b;">SSO portal</td><td><a href="{{ssoUrl}}">{{ssoUrl}}</a></td></tr>{{/ssoUrl}}
     {{#commsInvite}}<tr><td style="padding:3px 12px 3px 0;color:#64748b;">Slack / Teams</td><td><a href="{{commsInvite}}">Accept invite</a></td></tr>{{/commsInvite}}
     {{#hrisUrl}}<tr><td style="padding:3px 12px 3px 0;color:#64748b;">HRIS / Payroll</td><td><a href="{{hrisUrl}}">{{hrisUrl}}</a></td></tr>{{/hrisUrl}}
   </table>
 
-  {{#firstDayLocation}}<h3 style="font-size:13px;text-transform:uppercase;letter-spacing:0.05em;color:#64748b;margin:24px 0 8px;border-bottom:1px solid #e2e8f0;padding-bottom:6px;">Your first day</h3>
+  {{#firstDayLocation}}<h3 style="font-size:14px;font-weight:700;color:#1a1f2b;margin:24px 0 8px;border-bottom:1px solid #e2e8f0;padding-bottom:6px;">Your first day</h3>
   <table style="border-collapse:collapse;font-size:13.5px;">
     <tr><td style="padding:3px 12px 3px 0;color:#64748b;vertical-align:top;">Where</td><td>{{firstDayLocation}}</td></tr>
     {{#firstDayTime}}<tr><td style="padding:3px 12px 3px 0;color:#64748b;">When</td><td>{{firstDayTime}}</td></tr>{{/firstDayTime}}
@@ -3637,23 +3420,20 @@ const DEFAULT_COMPLETION_TEMPLATE = {
     {{#dressCode}}<tr><td style="padding:3px 12px 3px 0;color:#64748b;">Dress code</td><td>{{dressCode}}</td></tr>{{/dressCode}}
   </table>{{/firstDayLocation}}
 
-  {{#hrEmail}}<h3 style="font-size:13px;text-transform:uppercase;letter-spacing:0.05em;color:#64748b;margin:24px 0 8px;border-bottom:1px solid #e2e8f0;padding-bottom:6px;">Need help?</h3>
+  {{#hrEmail}}<h3 style="font-size:14px;font-weight:700;color:#1a1f2b;margin:24px 0 8px;border-bottom:1px solid #e2e8f0;padding-bottom:6px;">Who to contact</h3>
   <table style="border-collapse:collapse;font-size:13.5px;">
     {{#hrName}}<tr><td style="padding:3px 12px 3px 0;color:#64748b;">HR ({{hrName}})</td><td><a href="mailto:{{hrEmail}}">{{hrEmail}}</a>{{#hrPhone}} &nbsp;{{hrPhone}}{{/hrPhone}}</td></tr>{{/hrName}}
     {{#itHelpdesk}}<tr><td style="padding:3px 12px 3px 0;color:#64748b;">IT helpdesk</td><td>{{itHelpdesk}}</td></tr>{{/itHelpdesk}}
   </table>{{/hrEmail}}
 
-  <p style="margin-top:24px;color:#64748b;font-size:12.5px;">Sent on behalf of {{clientName}} by Umbrella Automation. Reply to this email if anything looks off. Your client manager and IT will see it.</p>
+  <p style="margin-top:24px;color:#64748b;font-size:12.5px;">Umbrella Automation sent this on behalf of {{clientName}}. If anything here is wrong, reply to this email and your client manager will see it.</p>
 </div>`
 };
 
-// Cached templates per (clientId|kind) so we don't re-fetch.
 const completionTemplateCache = new Map();
 
 async function getCompletionTemplate(clientId, kind) {
-  // Demo mode: skip Firestore and use the JS default template.
   if (isDemoMode()) return DEFAULT_COMPLETION_TEMPLATE;
-  // Normalize kind: newhire-rehire, newhire, rehire all map to the same template.
   const key = `${clientId}|${kind}`;
   if (completionTemplateCache.has(key)) return completionTemplateCache.get(key);
   let tpl = null;
@@ -3666,10 +3446,7 @@ async function getCompletionTemplate(clientId, kind) {
   return tpl;
 }
 
-// Map field IDs from the original submission to the completion form's
-// field IDs so we can pre-fill. Keys = completion field id, values =
-// list of submission field ids to look at (in order). First non-empty
-// wins. Adjust here if a client renames their form fields.
+// Completion field id to request field ids, first non-empty wins; update when a client renames a form field.
 const COMPLETION_PREFILL_MAP = {
   fullName:       (v) => [v.fullName, [v.firstName, v.lastName].filter(Boolean).join(" ")].find(Boolean) || "",
   preferredName:  ["preferredName"],
@@ -3698,17 +3475,17 @@ function prefillFromSubmission(template, submissionValues) {
   return out;
 }
 
-// Mustache-lite: supports {{var}} and {{#var}}block{{/var}} sections.
-// A section renders its block iff `var` is truthy (string non-empty,
-// number !== 0, etc.). No nested sections, no inverted sections; just
-// what we need for the email template.
+// Supports {{var}} and {{#var}}...{{/var}} (kept when var is truthy); nested sections render by repeated passes.
 function renderTemplate(tpl, values) {
   let out = String(tpl);
-  // Sections first (so they can reference vars inside).
-  out = out.replace(/\{\{#(\w+)\}\}([\s\S]*?)\{\{\/\1\}\}/g, (_, key, block) => {
-    return values[key] ? block : "";
-  });
-  // Vars.
+  // Sections must resolve before vars so an empty section drops the placeholders inside it.
+  for (let pass = 0; pass < 10; pass++) {
+    const next = out.replace(/\{\{#(\w+)\}\}([\s\S]*?)\{\{\/\1\}\}/g, (_, key, block) => {
+      return values[key] ? block : "";
+    });
+    if (next === out) break;
+    out = next;
+  }
   out = out.replace(/\{\{(\w+)\}\}/g, (_, key) => {
     const v = values[key];
     return v == null ? "" : String(v);
@@ -3717,7 +3494,6 @@ function renderTemplate(tpl, values) {
 }
 
 function deriveCompletionRecipients(values, submission, originalAlternateEmail) {
-  // Combine, lowercase, dedupe, drop blanks.
   const candidates = [
     values.workEmail,
     originalAlternateEmail,
@@ -3742,7 +3518,6 @@ async function openCompletion() {
   const s = state.openSubmission;
   if (!s) return;
   if (state.role !== "admin") return;
-  // Only enabled for new-hire / rehire kinds.
   const kind = s.formKind || "";
   if (!COMPLETION_KIND_PREFIXES.some(p => kind.startsWith(p))) {
     toast("Completion email is only set up for New Hire / Rehire requests right now.", true);
@@ -3766,16 +3541,10 @@ async function openCompletion() {
   renderCompletionModal();
 }
 
-// One-shot layout build. The form-field markup is rendered ONCE and
-// then never touched again, so typing in a field can't make the input
-// element get destroyed-and-recreated mid-keystroke (which was the
-// "loses focus after one letter" bug). Recipients box + preview pane
-// have their own containers and re-render in place via the lighter
-// updateCompletionPreview() below.
+// Fields render once and are never rebuilt: re-rendering them on input lost focus after one keystroke.
 function renderCompletionModal() {
   const { template, values } = _compState;
 
-  // Group fields by section, preserving order.
   const sections = [];
   const sectionMap = new Map();
   for (const f of template.fields) {
@@ -3828,7 +3597,7 @@ function renderCompletionModal() {
 
     <div class="comp-preview">
       <div class="comp-preview-head">
-        <h4>Email subject: <span id="compSubject" style="color:var(--ink);font-weight:500;text-transform:none;letter-spacing:0;"></span></h4>
+        <h4>Email subject: <span id="compSubject" style="color:var(--ink);font-weight:500;"></span></h4>
         <div class="comp-preview-tabs">
           <button type="button" data-comp-tab="preview">Preview</button>
           <button type="button" data-comp-tab="edit">Edit HTML</button>
@@ -3838,8 +3607,6 @@ function renderCompletionModal() {
     </div>
   `;
 
-  // Field input handlers update only the recipients + preview. They never
-  // touch the form fields themselves, so focus stays put.
   $$("#completionBody [data-field]").forEach(el => {
     const update = () => {
       _compState.values[el.dataset.field] = el.value;
@@ -3850,7 +3617,6 @@ function renderCompletionModal() {
   });
   bindNeedsChoice($("#completionBody"));
 
-  // Tab switch handlers (Preview ↔ Edit HTML).
   $$("#completionBody [data-comp-tab]").forEach(b => {
     b.addEventListener("click", () => {
       _compState.currentTab = b.dataset.compTab;
@@ -3861,23 +3627,13 @@ function renderCompletionModal() {
   updateCompletionPreview({ rebuildPreviewPane: true });
 }
 
-// Updates the recipients box, subject line, tab-active state, and
-// (optionally) the preview pane. Skips rebuilding the preview pane
-// during normal field input so the user's hand-edits in the Edit HTML
-// textarea aren't blown away on every keystroke in another field.
+// The preview pane rebuilds only on first render or tab switch, so typing elsewhere keeps Edit HTML changes.
 function updateCompletionPreview({ rebuildPreviewPane = false } = {}) {
   const { template, values, submission, alternateEmail } = _compState;
   const clientName = submission.clientName || submission.clientId;
   const firstName = values.fullName ? values.fullName.split(/\s+/)[0] : "";
   const tplVars = { ...values, clientName, firstName };
 
-  // ----- Recipients -----
-  // Auto-derived from the captured fields + original submission, deduped.
-  // Each recipient is a checkbox so the admin can opt-out before sending
-  // (e.g. Resend sandbox blocks anything other than the account-owner
-  // address; admin may also just not want a particular party copied).
-  // _compState.uncheckedRecipients is a Set of addresses the admin has
-  // explicitly unchecked; everything else is checked by default.
   const recipients = deriveCompletionRecipients(values, submission, alternateEmail);
   if (!_compState.uncheckedRecipients) _compState.uncheckedRecipients = new Set();
   const recEl = $("#compRecipients");
@@ -3907,13 +3663,12 @@ function updateCompletionPreview({ rebuildPreviewPane = false } = {}) {
         <ul style="padding-left:0;">${rows}</ul>
         <p style="margin:8px 0 0;font-size:11.5px;color:var(--ink-faint);">Uncheck any address you don't want to email. In Resend sandbox mode you can only send to your Resend account address, so uncheck anything else.</p>
       `;
-      // Wire checkbox handlers to toggle the uncheckedRecipients set.
       $$("#compRecipients [data-recipient]").forEach(cb => {
         cb.addEventListener("change", () => {
           const addr = cb.dataset.recipient;
           if (cb.checked) _compState.uncheckedRecipients.delete(addr);
           else _compState.uncheckedRecipients.add(addr);
-          // Update the count in the header without rebuilding the list.
+          // Update only the count: rebuilding the list would take focus off the checkbox.
           const checkedNow = recipients.filter(a => !_compState.uncheckedRecipients.has(a)).length;
           const h4 = recEl.querySelector("h4");
           if (h4) h4.textContent = `Recipients (${checkedNow} of ${recipients.length} will receive)`;
@@ -3922,21 +3677,14 @@ function updateCompletionPreview({ rebuildPreviewPane = false } = {}) {
     }
   }
 
-  // ----- Subject -----
   const subject = renderTemplate(template.subjectTemplate, tplVars);
   const subjEl = $("#compSubject");
   if (subjEl) subjEl.textContent = subject;
 
-  // ----- Tab buttons active state -----
   $$("#completionBody [data-comp-tab]").forEach(b => {
     b.classList.toggle("active", b.dataset.compTab === _compState.currentTab);
   });
 
-  // ----- Preview pane -----
-  // Only rebuild on initial render or tab switch, NOT on every field
-  // keystroke. While in the Preview tab we still refresh the iframe's
-  // srcdoc on every change so the live preview tracks edits. In Edit
-  // HTML mode the textarea stays intact so the user can keep typing.
   const previewBody = $("#compPreviewBody");
   if (!previewBody) return;
 
@@ -3954,7 +3702,6 @@ function updateCompletionPreview({ rebuildPreviewPane = false } = {}) {
         _compState.editedBody = ta.value;
       });
     }
-    // If not rebuilding, leave the textarea alone (user is typing in it).
   } else {
     if (rebuildPreviewPane) {
       previewBody.innerHTML = `<iframe id="compPreviewFrame" sandbox="allow-same-origin"></iframe>`;
@@ -3970,7 +3717,6 @@ async function sendCompletion() {
   const { template, values, submission, alternateEmail } = _compState;
   const clientName = submission.clientName || submission.clientId;
 
-  // Validate required fields.
   const missing = template.fields
     .filter(f => f.required && !(values[f.id] || "").trim())
     .map(f => f.label);
@@ -3979,8 +3725,6 @@ async function sendCompletion() {
     return;
   }
 
-  // Honor any recipients the admin unchecked in the modal. Only the
-  // checked ones actually receive the email.
   const allRecipients = deriveCompletionRecipients(values, submission, alternateEmail);
   const skipped = _compState.uncheckedRecipients || new Set();
   const recipients = allRecipients.filter(a => !skipped.has(a));
@@ -4008,9 +3752,7 @@ async function sendCompletion() {
           firstName: values.fullName ? values.fullName.split(/\s+/)[0] : ""
         });
 
-    // 1) Enqueue the email. The Trigger Email extension picks this up
-    //    and sends it; until the extension is installed, the doc just
-    //    sits here and we have an audit trail of intent.
+    // The Trigger Email extension sends each /mail doc; without the extension the doc stays as a record.
     const mailRef = await addDoc(collection(db, "mail"), {
       to: recipients,
       from: `${template.fromName} <${template.fromEmail}>`,
@@ -4031,7 +3773,6 @@ async function sendCompletion() {
       }
     });
 
-    // 2) Stamp the submission with completion data + flip status.
     await updateDoc(doc(db, "clients", submission.clientId, "submissions", submission.id), {
       status: "Completed",
       completion: values,
@@ -4043,7 +3784,6 @@ async function sendCompletion() {
       lastActivityAt: serverTimestamp()
     });
 
-    // 3) Timeline event.
     await addDoc(
       collection(db, "clients", submission.clientId, "submissions", submission.id, "events"),
       {
@@ -4073,19 +3813,12 @@ async function sendCompletion() {
 
 $("#completionSendBtn").addEventListener("click", sendCompletion);
 
-// ============== per-client welcome-template editor ==============
-// Lives at /clients/{clientId}/completionTemplates/newhire-rehire.
-// Currently scoped to the newhire-rehire kind only. Add more kinds by
-// extending this UI to a kind picker. Pre-fills from the existing
-// per-client doc if one exists, otherwise from DEFAULT_COMPLETION_TEMPLATE
-// so the admin can edit-from-baseline rather than type from scratch.
 async function openTemplateEditor(clientId) {
   state._editingTemplate = { clientId, kind: "newhire-rehire", existed: false };
   const c = state.clients.find(x => x.id === clientId);
   $("#templateModalTitle").textContent =
     `Welcome email template for ${c?.name || clientId}`;
 
-  // Try to load the per-client doc; fall back to DEFAULT.
   let tpl = null;
   if (!isDemoMode()) {
     try {
@@ -4164,7 +3897,6 @@ $("#teResetBtn").addEventListener("click", async () => {
   }
 });
 
-// ============== clients: subscribe (admin) ==============
 function subscribeClients() {
   if (isDemoMode()) {
     state.clients = DEMO_FIXTURES.clients.slice();
@@ -4249,7 +3981,6 @@ function openClientModal(clientId) {
   openModal("clientModal");
 }
 
-// Live-preview when a new file is picked, plus mark for upload on save.
 $("#cmLogoFile").addEventListener("change", e => {
   const f = e.target.files && e.target.files[0];
   if (!f) return;
@@ -4302,8 +4033,7 @@ $("#cmSaveBtn").addEventListener("click", async () => {
       await updateDoc(doc(db, "clients", state.editingClient), { name, domain });
     }
 
-    // Logo handling runs after the client doc exists so the storage
-    // path uses the final id. Upload OR remove, never both.
+    // Runs after the client doc exists so the storage path uses the final id.
     const targetId = isNew ? id : state.editingClient;
     if (state._cmLogoPendingFile) {
       const f = state._cmLogoPendingFile;
@@ -4356,12 +4086,8 @@ $("#cmDeleteBtn").addEventListener("click", async () => {
   }
 });
 
-// ============== forms management (admin) ==============
 async function openFormsForClient(clientId) {
   const c = state.clients.find(x => x.id === clientId);
-  // We render the list inline in a modal-ish detail. For v0.1.0 we use
-  // a simple prompt: list the existing forms, let admin pick one to edit
-  // or create a new one.
   if (isDemoMode()) {
     showFormsListModal(clientId, c, (DEMO_FIXTURES.forms[clientId] || []).slice());
     return;
@@ -4374,16 +4100,13 @@ async function openFormsForClient(clientId) {
     toast("Could not load forms: " + (e.message || e.code), true);
     return;
   }
-  // Reuse the schema modal but with a list at the top to switch.
   showFormsListModal(clientId, c, forms);
 }
 
 function showFormsListModal(clientId, client, forms) {
   openModal("schemaModal");
   $("#schemaModalTitle").textContent = `Forms for ${client?.name || clientId}`;
-  // Show a list above the editor; "new form" button.
   const body = $("#schemaModal .modal-body");
-  // Insert a forms list at the top.
   let listEl = body.querySelector(".forms-list-inline");
   if (!listEl) {
     listEl = document.createElement("div");
@@ -4411,7 +4134,6 @@ function showFormsListModal(clientId, client, forms) {
       `).join("") : `<div class="empty">No forms yet for this client.</div>`}
     </div>
   `;
-  // Hide the editor part initially.
   toggleFormEditor(false);
 
   $("#editTemplateBtn").onclick = () => openTemplateEditor(clientId);
@@ -4451,7 +4173,6 @@ function showFormsListModal(clientId, client, forms) {
 
 function toggleFormEditor(show) {
   const fields = ["seFormId", "seFormKind", "seFormTitle", "seFormDesc", "seJSON"];
-  // Hide/show by toggling display on the parent containers in the modal.
   const body = $("#schemaModal .modal-body");
   body.querySelectorAll(":scope > .form-grid, :scope > label, :scope > .json-editor, :scope > .json-status, :scope > details").forEach(el => {
     el.style.display = show ? "" : "none";
@@ -4459,7 +4180,6 @@ function toggleFormEditor(show) {
   $("#schemaModal .modal-foot").style.display = show ? "" : "none";
 }
 
-// JSON validate on every input.
 $("#seJSON").addEventListener("input", () => {
   const status = $("#seJSONStatus");
   try {
@@ -4474,7 +4194,6 @@ $("#seJSON").addEventListener("input", () => {
   }
 });
 
-// Starter-template buttons.
 $$("#schemaModal [data-tpl]").forEach(b => {
   b.addEventListener("click", () => {
     const tpl = b.dataset.tpl;
@@ -4566,7 +4285,6 @@ $("#seDeleteBtn").addEventListener("click", async () => {
   }
 });
 
-// ============== invitations (admin) ==============
 function subscribeInvitations() {
   if (isDemoMode()) {
     state.invitations = DEMO_FIXTURES.invitations.slice();
@@ -4671,25 +4389,19 @@ $("#invCreateBtn").addEventListener("click", async () => {
     $("#invResultClient").textContent = clientName;
     $("#invResultEmail").textContent = email;
 
-    // Pre-draft the email so the MSP admin can paste-and-send.
-    const subject = `Your setup link for the Umbrella Automation onboarding system`;
+    const subject = `Your Umbrella Automation Onboarding account: setup link`;
     const body =
 `Hi ${first},
 
-You've been invited to use the Umbrella Automation client onboarding system on behalf of ${clientName}. This is where you'll submit requests for new hires, terminations, and other employee changes for your team.
+We've invited you to the Umbrella Automation onboarding system for ${clientName}. You'll use it to send us requests for new hires, terminations, and other employee changes on your team.
 
-To get started:
-
-1. Click the link below to create your account
-2. Set a password (8+ characters)
-3. You'll land on a page where you can submit your first request
-
-Setup link (single-use):
+Setup link (single use):
 ${url}
 
-If you have any questions, just reply to this email and we'll help you out.
+Open the link, confirm your details and set a password of at least 8 characters. You'll then land on the page where you submit requests.
 
-Thanks,
+If you have questions or the link doesn't work, reply to this email.
+
 Umbrella Automation`;
 
     $("#invEmailSubject").value = subject;
@@ -4703,7 +4415,6 @@ Umbrella Automation`;
   }
 });
 
-// Copy buttons in the invitation result box.
 function copyFieldValue(inputEl, label) {
   inputEl.select();
   navigator.clipboard.writeText(inputEl.value).then(() => toast(label + " copied."));
@@ -4713,10 +4424,8 @@ $("#demoMgrCopy")?.addEventListener("click", () => copyFieldValue($("#demoMgrUrl
 $("#demoAdmCopy")?.addEventListener("click", () => copyFieldValue($("#demoAdmUrl"), "Admin demo URL"));
 $("#invCopySubjectBtn")?.addEventListener("click", () => copyFieldValue($("#invEmailSubject"), "Subject"));
 $("#invCopyBodyBtn")?.addEventListener("click", () => copyFieldValue($("#invEmailBody"), "Email body"));
-// Also let clicking the link field itself copy, as a shortcut.
 $("#invResultLink")?.addEventListener("click", () => copyFieldValue($("#invResultLink"), "Link"));
 
-// ============== admins (admin only) ==============
 function subscribeAdmins() {
   if (isDemoMode()) {
     state.admins = DEMO_FIXTURES.admins.map(a => ({ uid: a.id, ...a }));
@@ -4732,7 +4441,7 @@ function subscribeAdmins() {
 }
 
 function renderAdmins() {
-  // Populate Sales Demos URLs (idempotent: same value every render).
+  // The Sales demos panel sits on this tab, so its fixed URLs are filled in here.
   const mgrUrl = demoUrl("manager");
   const admUrl = demoUrl("admin");
   $("#demoMgrUrl").value = mgrUrl;
@@ -4793,7 +4502,6 @@ $("#aaSaveBtn").addEventListener("click", async () => {
   }
 });
 
-// ============== starter form templates ==============
 const STARTER_TEMPLATES = {
   "newhire-rehire": (domain) => ({
     pages: [
