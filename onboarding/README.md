@@ -84,6 +84,23 @@ signed-in account on the live Firebase project.
 
 ## Changelog
 
+### v0.8.0 - 2026-11-03
+
+The queue keeps growing, and scanning it means putting the right requests at
+the top and dropping the columns you never read. Click any column heading in
+My Requests, Queue, Invitations or MSP Team to sort by it; click again to
+reverse, and a third time to go back to the usual order. My Requests and Queue
+also get a Columns button for hiding columns you don't need, with Reset layout
+to undo it all. On a phone, where the headings are hidden, a Sort by menu sits
+above the cards. Your sort and columns are remembered in this browser, so the
+table looks the same next time you open it. Smaller fixes: the Forms button and
+welcome template editor now work in the admin demo and every remaining write
+in the demo is stubbed (including Remove admin and Delete invitation), the
+invite form makes you pick a client instead of quietly picking the first, the
+top bar no longer wraps on tablet widths (the client name moves into the small
+subtitle there), the sign-in card keeps a margin on phones, and Tab stays
+inside an open dialog.
+
 ### v0.7.0 - 2026-11-03
 
 An accessibility and phone pass. Everything now works from the keyboard:

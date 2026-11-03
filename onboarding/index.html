@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Onboarding v0.7.0</title>
+<title>Onboarding v0.8.0</title>
 <meta name="description" content="Client onboarding system for Umbrella Automation managed service clients. Submit new hire, termination, and position change requests.">
 <meta name="robots" content="noindex">
-<meta name="app-version" content="0.7.0">
+<meta name="app-version" content="0.8.0">
 <meta name="theme-color" content="#1a56db">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="manifest.json">
@@ -412,7 +412,43 @@
   table.tbl .nowrap { white-space: nowrap; width: 1%; }
   table.tbl .wrap-any { overflow-wrap: anywhere; }
   table.tbl .col-flex { min-width: 6em; }
+  table.tbl .mono-cell { font-family: var(--mono); font-size: 12px; }
   @media (max-width: 1024px) { table.tbl th, table.tbl td { padding: 10px 8px; } }
+  table.tbl th .th-sort {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: transparent; border: 0; padding: 2px 0; margin: 0;
+    font: inherit; color: inherit; text-transform: inherit; letter-spacing: inherit;
+    text-align: left; cursor: pointer;
+  }
+  table.tbl th .th-sort:hover { color: var(--accent); }
+  table.tbl th[aria-sort="ascending"], table.tbl th[aria-sort="descending"] { color: var(--accent-ink); }
+  .th-mark { font-size: 9px; line-height: 1; }
+  /* Sort bar stands in for the column headers, which are hidden in card mode. */
+  .sort-bar { display: none; }
+
+  /* ============== columns popover ============== */
+  .col-menu { position: relative; flex-shrink: 0; }
+  .col-pop {
+    position: absolute; top: calc(100% + 6px); right: 0; z-index: 40;
+    width: max-content; min-width: 200px; max-width: min(280px, calc(100vw - 32px));
+    background: var(--surface); border: 1px solid var(--line-strong);
+    border-radius: 8px; box-shadow: var(--shadow-lift); padding: 10px 12px 12px;
+  }
+  .col-pop[hidden] { display: none; }
+  .col-pop fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+  .col-pop legend {
+    padding: 0; margin-bottom: 6px; font-size: 11px; font-weight: 700; color: var(--ink-soft);
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .col-opt {
+    display: flex; align-items: center; gap: 8px; min-height: 32px;
+    font-size: 13.5px; color: var(--ink); cursor: pointer;
+  }
+  .col-opt input { margin: 0; flex-shrink: 0; cursor: pointer; }
+  .col-opt.is-fixed { cursor: default; }
+  .col-opt.is-fixed input { cursor: default; }
+  .col-hint { color: var(--ink-faint); font-size: 12px; }
+  .col-pop .col-reset { margin-top: 8px; width: 100%; }
 
   .pill {
     display: inline-block; padding: 2px 8px;
@@ -742,11 +778,45 @@
       margin-top: 4px; padding-top: 8px; border-top: 1px solid var(--line);
     }
     table.tbl td.right::before { display: none; }
+    /* The clipped header must not hold focusable controls; the sort bar replaces them. */
+    table.tbl thead .th-sort { visibility: hidden; }
+    .sort-bar {
+      display: flex; align-items: center; gap: 10px;
+      padding: 12px 12px 0;
+    }
+    .sort-bar label {
+      font-size: 12px; font-weight: 600; color: var(--ink-soft);
+      text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap;
+    }
+    .sort-bar select {
+      flex: 1 1 auto; min-width: 0; min-height: 44px;
+      padding: 6px 10px; border: 1px solid var(--line-strong);
+      border-radius: 7px; background: var(--surface); font-size: 14px;
+    }
+  }
+
+  /* Between the phone grid and full desktop the one-row topbar wraps unless it tightens. */
+  @media (min-width: 761px) and (max-width: 960px) {
+    /* The centered client label collides with the tabs here, so the subtitle carries the client name instead. */
+    .brand-client { display: none; }
+    .brand .meta { font-size: 10px; white-space: nowrap; max-width: 160px; overflow: hidden; text-overflow: ellipsis; }
+    .brand h1 { font-size: 15px; white-space: nowrap; }
+    .brand, nav.tabs { flex-shrink: 0; }
+    nav.tabs button { padding: 0 8px; white-space: nowrap; }
+    .userbar .who .r { display: none; }
+    .userbar .btn { white-space: nowrap; flex-shrink: 0; }
+    /* The admin email is the only thing long enough to push the row past 768px, so it truncates. */
+    .userbar, .userbar .who { min-width: 0; }
+    .userbar .who .n, .userbar .who .e { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  }
+
+  @media (max-width: 479px) {
+    .auth-wrap { margin: 40px 16px; max-width: none; }
   }
 
   @media (max-width: 640px), (pointer: coarse) {
     .btn, .btn-sm, .btn-link, nav.tabs button, .auth-tabs button,
-    .comp-preview-tabs button, .modal-head .close { min-height: 44px; }
+    .comp-preview-tabs button, .modal-head .close, table.tbl th .th-sort, .col-opt { min-height: 44px; }
     a.btn { display: inline-flex; align-items: center; justify-content: center; }
     .modal-head .close { min-width: 44px; }
     .radio-group, .checkbox-group { gap: 6px; }
@@ -918,6 +988,12 @@
       <div class="panel-head">
         <h2>My requests</h2>
         <span class="sub" id="myReqCount"></span>
+        <div class="col-menu">
+          <button class="btn btn-sm" type="button" id="myReqColsBtn" data-cols-for="myRequests"
+            aria-expanded="false" aria-controls="myReqColsPop"
+            title="Choose which columns this table shows; your choice is remembered in this browser">Columns</button>
+          <div class="col-pop" id="myReqColsPop" role="dialog" aria-label="Columns for My requests" hidden></div>
+        </div>
       </div>
       <div class="filter-bar">
         <input id="myReqSearch" type="search" placeholder="Search by name, type, or notes&hellip;"
@@ -942,6 +1018,12 @@
       <div class="panel-head">
         <h2>Submission queue</h2>
         <span class="sub" id="queueCount"></span>
+        <div class="col-menu">
+          <button class="btn btn-sm" type="button" id="queueColsBtn" data-cols-for="queue"
+            aria-expanded="false" aria-controls="queueColsPop"
+            title="Choose which columns this table shows; your choice is remembered in this browser">Columns</button>
+          <div class="col-pop" id="queueColsPop" role="dialog" aria-label="Columns for the submission queue" hidden></div>
+        </div>
       </div>
       <div class="filter-bar">
         <input id="queueSearch" type="search" placeholder="Search across all clients&hellip;"
@@ -1332,7 +1414,7 @@
 <div class="toast" id="toast" hidden></div>
 
 <footer class="foot" id="appFooter" hidden>
-  <p><a href="../">&larr; Work hub</a> &middot; Onboarding v0.7.0</p>
+  <p><a href="../">&larr; Work hub</a> &middot; Onboarding v0.8.0</p>
 </footer>
 
 <script type="module">
@@ -1373,7 +1455,7 @@ const firebaseConfig = {
   appId: "1:330286523878:web:27c4e2ffca3496ebc32227"
 };
 
-const APP_VERSION = "0.7.0";
+const APP_VERSION = "0.8.0";
 const STATUSES = ["Submitted", "In Progress", "Completed", "Cancelled"];
 const MSP_DOMAIN = "umbrellaautomation.com"; // Google sign-in restricted to this domain
 
@@ -1665,6 +1747,267 @@ function inviteUrl(token) {
   return u.toString();
 }
 
+// ============== tables: sort, columns, saved layout ==============
+// Layout is per browser in localStorage; demo mode uses it too because nothing reaches Firestore.
+const subjectOf = s => s.summary || s.formTitle || "Request";
+const clientNameOf = id => state.clients.find(c => c.id === id)?.name || id;
+const TABLE_DEFS = {
+  myRequests: {
+    store: "onb.table.myRequests.v1", manageColumns: true,
+    defaultSort: [{ key: "submitted", dir: "desc" }],
+    render: () => renderMySubmissions(),
+    cols: [
+      { key: "type", label: "Type", th: "nowrap", td: "nowrap", kind: "str", val: s => formKindLabel(s.formKind), cell: s => pillKind(s.formKind) },
+      { key: "subject", label: "Subject", th: "col-flex", td: "col-flex", kind: "str", always: true, val: subjectOf, cell: s => escapeHTML(subjectOf(s)) },
+      { key: "status", label: "Status", th: "nowrap", td: "nowrap", kind: "status", val: s => s.status, cell: s => pillStatus(s.status) },
+      { key: "submitted", label: "Submitted", th: "nowrap", td: "nowrap", kind: "date", val: s => s.submittedAt, cell: s => escapeHTML(fmtDate(s.submittedAt)) },
+      { key: "activity", label: "Last activity", th: "nowrap", td: "muted nowrap", kind: "date", val: s => s.lastActivityAt || s.submittedAt, cell: s => escapeHTML(fmtRelative(s.lastActivityAt || s.submittedAt)) }
+    ]
+  },
+  queue: {
+    store: "onb.table.queue.v1", manageColumns: true,
+    defaultSort: [{ key: "submitted", dir: "desc" }],
+    render: () => renderQueue(),
+    cols: [
+      { key: "client", label: "Client", kind: "str", val: s => s.clientName || s.clientId, cell: s => escapeHTML(s.clientName || s.clientId) },
+      { key: "type", label: "Type", th: "nowrap", td: "nowrap", kind: "str", val: s => formKindLabel(s.formKind), cell: s => pillKind(s.formKind) },
+      { key: "subject", label: "Subject", th: "col-flex", td: "col-flex", kind: "str", always: true, val: subjectOf, cell: s => escapeHTML(subjectOf(s)) },
+      { key: "by", label: "Submitted by", td: "muted wrap-any", kind: "str", val: s => s.submittedByEmail, cell: s => escapeHTML(s.submittedByEmail || "") },
+      { key: "status", label: "Status", th: "nowrap", td: "nowrap", kind: "status", val: s => s.status, cell: s => pillStatus(s.status) },
+      { key: "submitted", label: "Submitted", th: "nowrap", td: "nowrap", kind: "date", val: s => s.submittedAt, cell: s => escapeHTML(fmtDate(s.submittedAt)) }
+    ]
+  },
+  invitations: {
+    store: "onb.table.invitations.v1",
+    defaultSort: [{ key: "created", dir: "desc" }],
+    render: () => renderInvitations(),
+    cols: [
+      { key: "name", label: "Name", kind: "str", val: inv => ((inv.firstName || "") + " " + (inv.lastName || "")).trim(), cell: inv => escapeHTML((inv.firstName || "") + " " + (inv.lastName || "")) },
+      { key: "email", label: "Email", td: "wrap-any", kind: "str", val: inv => inv.email, cell: inv => escapeHTML(inv.email || "") },
+      { key: "client", label: "Client", kind: "str", val: inv => clientNameOf(inv.clientId), cell: inv => escapeHTML(clientNameOf(inv.clientId)) },
+      { key: "status", label: "Status", th: "nowrap", td: "nowrap", kind: "rank", val: inv => inv.consumed ? 1 : 0,
+        rankLabels: ["Pending", "Redeemed"],
+        cell: inv => inv.consumed ? `<span class="pill st-Completed">Redeemed</span>` : `<span class="pill st-Submitted">Pending</span>` },
+      { key: "created", label: "Created", th: "nowrap", td: "nowrap", kind: "date", val: inv => inv.createdAt, cell: inv => escapeHTML(fmtDate(inv.createdAt)) }
+    ]
+  },
+  admins: {
+    store: "onb.table.admins.v1",
+    defaultSort: [{ key: "name", dir: "asc" }, { key: "email", dir: "asc" }],
+    render: () => renderAdmins(),
+    cols: [
+      { key: "name", label: "Name", kind: "str", val: a => a.name, cell: a => escapeHTML(a.name || "-") },
+      { key: "email", label: "Email", td: "wrap-any", kind: "str", val: a => a.email, cell: a => escapeHTML(a.email || "") },
+      { key: "uid", label: "UID", td: "muted wrap-any mono-cell", kind: "str", val: a => a.uid, cell: a => escapeHTML(a.uid) }
+    ]
+  }
+};
+const tableLayouts = {};
+
+function readTableLayout(id) {
+  const def = TABLE_DEFS[id];
+  const layout = { sort: null, hidden: [] };
+  try {
+    const saved = JSON.parse(localStorage.getItem(def.store) || "null");
+    if (!saved || typeof saved !== "object") return layout;
+    if (def.manageColumns && Array.isArray(saved.hidden)) {
+      layout.hidden = saved.hidden.filter(k => def.cols.some(c => c.key === k && !c.always));
+    }
+    const s = saved.sort;
+    if (s && def.cols.some(c => c.key === s.key) && !layout.hidden.includes(s.key) && (s.dir === "asc" || s.dir === "desc")) {
+      layout.sort = { key: s.key, dir: s.dir };
+    }
+  } catch {}
+  return layout;
+}
+function tableLayout(id) {
+  if (!tableLayouts[id]) tableLayouts[id] = readTableLayout(id);
+  return tableLayouts[id];
+}
+function saveTableLayout(id) {
+  try { localStorage.setItem(TABLE_DEFS[id].store, JSON.stringify(tableLayout(id))); } catch {}
+}
+
+function sortValue(col, row) {
+  const v = col.val(row);
+  if (col.kind === "date") return v && typeof v.toMillis === "function" ? v.toMillis() : null;
+  if (col.kind === "status") { const i = STATUSES.indexOf(v); return i === -1 ? null : i; }
+  if (col.kind === "rank") return typeof v === "number" ? v : null;
+  const s = v == null ? "" : String(v).trim();
+  return s === "" ? null : s;
+}
+// Missing values sort last in both directions.
+function compareCol(col, dir) {
+  const sign = dir === "desc" ? -1 : 1;
+  return (a, b) => {
+    const va = sortValue(col, a), vb = sortValue(col, b);
+    if (va === null || vb === null) return va === vb ? 0 : (va === null ? 1 : -1);
+    const r = typeof va === "string"
+      ? va.localeCompare(vb, undefined, { sensitivity: "base", numeric: true })
+      : va - vb;
+    return sign * r;
+  };
+}
+function sortTableRows(id, list) {
+  const def = TABLE_DEFS[id];
+  const { sort } = tableLayout(id);
+  const order = (sort ? [sort] : []).concat(def.defaultSort);
+  const cmps = order.map(o => compareCol(def.cols.find(c => c.key === o.key), o.dir));
+  return list.slice().sort((a, b) => {
+    for (const cmp of cmps) { const r = cmp(a, b); if (r) return r; }
+    return 0;
+  });
+}
+function visibleCols(id) {
+  const { hidden } = tableLayout(id);
+  return TABLE_DEFS[id].cols.filter(c => c.always || !hidden.includes(c.key));
+}
+
+function sortWords(col) {
+  if (col.kind === "date") return ["oldest first", "newest first"];
+  if (col.kind === "status") return [STATUSES[0] + " first", STATUSES[STATUSES.length - 1] + " first"];
+  if (col.kind === "rank") return [col.rankLabels[0] + " first", col.rankLabels[col.rankLabels.length - 1] + " first"];
+  return ["A to Z", "Z to A"];
+}
+function sortHeadHTML(col, sort) {
+  const dir = sort && sort.key === col.key ? sort.dir : null;
+  const aria = dir === "asc" ? "ascending" : dir === "desc" ? "descending" : "none";
+  const mark = dir ? `<span class="th-mark" aria-hidden="true">${dir === "asc" ? "▲" : "▼"}</span>` : "";
+  return `<th class="${col.th || ""}" aria-sort="${aria}"><button type="button" class="th-sort" data-sort-key="${col.key}" data-focus-key="th-${col.key}"
+    title="${escapeHTML("Sort by " + col.label + ". Each click cycles: ascending, descending, default order.")}">${escapeHTML(col.label)}${mark}</button></th>`;
+}
+function sortBarHTML(id, cols, sort) {
+  const cur = sort ? sort.key + ":" + sort.dir : "";
+  const opts = [`<option value="">Default order</option>`].concat(cols.flatMap(c => {
+    const [up, down] = sortWords(c);
+    return [["asc", up], ["desc", down]].map(([dir, words]) => {
+      const v = c.key + ":" + dir;
+      return `<option value="${v}"${v === cur ? " selected" : ""}>${escapeHTML(c.label + ", " + words)}</option>`;
+    });
+  }));
+  return `<div class="sort-bar"><label for="${id}SortBy">Sort by</label><select id="${id}SortBy" class="sort-select" data-focus-key="sort-by">${opts.join("")}</select></div>`;
+}
+
+function tableHTML(id, list, { rowAttrs, actions }) {
+  const cols = visibleCols(id);
+  const { sort } = tableLayout(id);
+  const rows = sortTableRows(id, list);
+  return sortBarHTML(id, cols, sort) + `
+    <table class="tbl" data-table="${id}">
+      <thead><tr>${cols.map(c => sortHeadHTML(c, sort)).join("")}${actions ? `<th><span class="sr-only">Actions</span></th>` : ""}</tr></thead>
+      <tbody>
+        ${rows.map(r => `
+          <tr ${rowAttrs(r)}>
+            ${cols.map(c => `<td class="${c.td || ""}" data-label="${escapeHTML(c.label)}">${c.cell(r)}</td>`).join("")}
+            ${actions ? `<td class="right nowrap" data-label="Actions">${actions(r)}</td>` : ""}
+          </tr>`).join("")}
+      </tbody>
+    </table>
+  `;
+}
+// Re-rendering replaces the sort controls, so focus follows them by data-focus-key.
+function setTableHTML(wrap, html) {
+  const active = document.activeElement;
+  const key = active && wrap.contains(active) ? active.dataset.focusKey : null;
+  wrap.innerHTML = html;
+  if (key) wrap.querySelector(`[data-focus-key="${CSS.escape(key)}"]`)?.focus();
+}
+
+function setTableSort(id, sort) {
+  tableLayout(id).sort = sort;
+  saveTableLayout(id);
+  TABLE_DEFS[id].render();
+}
+function cycleTableSort(id, key) {
+  const cur = tableLayout(id).sort;
+  let next = { key, dir: "asc" };
+  if (cur && cur.key === key) next = cur.dir === "asc" ? { key, dir: "desc" } : null;
+  setTableSort(id, next);
+}
+[["myReqTableWrap", "myRequests"], ["queueTableWrap", "queue"], ["inviteListWrap", "invitations"], ["adminListWrap", "admins"]].forEach(([wrapId, id]) => {
+  const wrap = document.getElementById(wrapId);
+  wrap.addEventListener("click", e => {
+    const b = e.target.closest(".th-sort");
+    if (b) cycleTableSort(id, b.dataset.sortKey);
+  });
+  wrap.addEventListener("change", e => {
+    if (!e.target.matches(".sort-select")) return;
+    const [key, dir] = e.target.value.split(":");
+    setTableSort(id, key ? { key, dir } : null);
+  });
+});
+
+let colsPop = null;
+function renderColumnsPop(id, pop) {
+  const def = TABLE_DEFS[id];
+  const { hidden } = tableLayout(id);
+  pop.innerHTML = `
+    <fieldset>
+      <legend>Show columns</legend>
+      ${def.cols.map(c => c.always
+        ? `<label class="col-opt is-fixed"><input type="checkbox" checked disabled> <span>${escapeHTML(c.label)}</span> <span class="col-hint">always shown</span></label>`
+        : `<label class="col-opt"><input type="checkbox" data-col="${c.key}"${hidden.includes(c.key) ? "" : " checked"}> <span>${escapeHTML(c.label)}</span></label>`
+      ).join("")}
+    </fieldset>
+    <button type="button" class="btn btn-sm col-reset">Reset layout</button>
+  `;
+}
+function openColumns(btn) {
+  if (colsPop) closeColumns(false);
+  const id = btn.dataset.colsFor;
+  const pop = document.getElementById(btn.getAttribute("aria-controls"));
+  renderColumnsPop(id, pop);
+  pop.hidden = false;
+  btn.setAttribute("aria-expanded", "true");
+  colsPop = { id, btn, pop };
+  pop.querySelector("input:not([disabled]), button")?.focus();
+}
+function closeColumns(returnFocus) {
+  if (!colsPop) return;
+  const { btn, pop } = colsPop;
+  colsPop = null;
+  pop.hidden = true;
+  btn.setAttribute("aria-expanded", "false");
+  if (returnFocus) btn.focus();
+}
+$$("[data-cols-for]").forEach(btn => {
+  btn.addEventListener("click", () => {
+    if (colsPop && colsPop.btn === btn) closeColumns(true);
+    else openColumns(btn);
+  });
+  const pop = document.getElementById(btn.getAttribute("aria-controls"));
+  const id = btn.dataset.colsFor;
+  pop.addEventListener("change", e => {
+    const key = e.target.dataset.col;
+    if (!key) return;
+    const layout = tableLayout(id);
+    layout.hidden = layout.hidden.filter(k => k !== key);
+    if (!e.target.checked) {
+      layout.hidden.push(key);
+      if (layout.sort && layout.sort.key === key) layout.sort = null;
+    }
+    saveTableLayout(id);
+    TABLE_DEFS[id].render();
+  });
+  // A null relatedTarget is a click on plain popover text, which must not close it.
+  pop.addEventListener("focusout", e => {
+    const to = e.relatedTarget;
+    if (colsPop && colsPop.pop === pop && to && !pop.contains(to) && to !== btn) closeColumns(false);
+  });
+  pop.addEventListener("click", e => {
+    if (!e.target.closest(".col-reset")) return;
+    tableLayouts[id] = { sort: null, hidden: [] };
+    saveTableLayout(id);
+    pop.querySelectorAll("input[data-col]").forEach(cb => { cb.checked = true; });
+    TABLE_DEFS[id].render();
+  });
+});
+document.addEventListener("click", e => {
+  if (!colsPop || colsPop.pop.contains(e.target) || colsPop.btn.contains(e.target)) return;
+  const focusLost = document.activeElement === document.body || colsPop.pop.contains(document.activeElement);
+  closeColumns(focusLost);
+});
+
 // ============== auth UI ==============
 $$("#authTabs button").forEach(b => {
   b.addEventListener("click", () => {
@@ -1813,6 +2156,7 @@ function showInviteError(msg) {
 }
 
 $("#inviteBtn").addEventListener("click", async () => {
+  if (demoBlock("account setup")) return;
   const errEl = $("#inviteErr");
   errEl.hidden = true;
   const inv = state._pendingInvite;
@@ -2114,6 +2458,7 @@ $$("nav.tabs button").forEach(b => {
 });
 
 function activateTab(name) {
+  closeColumns(false);
   $$("nav.tabs button").forEach(b => b.classList.toggle("active", b.dataset.tab === name));
   $("#tabNewRequest").hidden = name !== "newrequest";
   $("#tabMyRequests").hidden = name !== "myrequests";
@@ -2178,11 +2523,29 @@ $$(".modal-bg").forEach(bg => {
     if (e.target === bg && bg.dataset.allowBgClose !== undefined) closeModal(bg);
   });
 });
-document.addEventListener("keydown", e => {
-  if (e.key !== "Escape") return;
+function topModal() {
   const open = modalStack.filter(bg => !bg.hidden);
-  const top = open[open.length - 1] || $$(".modal-bg:not([hidden])").pop();
-  if (!top) return;
+  return open[open.length - 1] || $$(".modal-bg:not([hidden])").pop();
+}
+const FOCUSABLE = "a[href], button:not([disabled]), input:not([disabled]):not([type=hidden]), select:not([disabled]), textarea:not([disabled]), iframe, summary, [tabindex]:not([tabindex='-1'])";
+document.addEventListener("keydown", e => {
+  if (e.key === "Tab") {
+    const top = topModal();
+    if (!top) return;
+    const items = Array.from(top.querySelectorAll(FOCUSABLE)).filter(el => el.getClientRects().length > 0);
+    if (!items.length) return;
+    const first = items[0], last = items[items.length - 1];
+    const inside = top.contains(document.activeElement);
+    if (e.shiftKey && (!inside || document.activeElement === first)) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && (!inside || document.activeElement === last)) { e.preventDefault(); first.focus(); }
+    return;
+  }
+  if (e.key !== "Escape") return;
+  const top = topModal();
+  if (!top) {
+    if (colsPop) { e.preventDefault(); closeColumns(true); }
+    return;
+  }
   e.preventDefault();
   closeModal(top);
 });
@@ -2744,29 +3107,9 @@ function renderMySubmissions() {
     $("#myReqTableWrap").innerHTML = `<div class="empty">No requests match your filters.</div>`;
     return;
   }
-  $("#myReqTableWrap").innerHTML = `
-    <table class="tbl">
-      <thead>
-        <tr>
-          <th class="nowrap">Type</th><th class="col-flex">Subject</th><th class="nowrap">Status</th><th class="nowrap">Submitted</th><th class="nowrap">Last activity</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${list.map(s => {
-          const subject = s.summary || s.formTitle || "Request";
-          return `
-          <tr data-id="${escapeHTML(s.id)}" tabindex="0" role="button" aria-label="${escapeHTML("Open request: " + subject)}">
-            <td class="nowrap" data-label="Type">${pillKind(s.formKind)}</td>
-            <td class="col-flex" data-label="Subject">${escapeHTML(subject)}</td>
-            <td class="nowrap" data-label="Status">${pillStatus(s.status)}</td>
-            <td class="nowrap" data-label="Submitted">${escapeHTML(fmtDate(s.submittedAt))}</td>
-            <td class="muted nowrap" data-label="Last activity">${escapeHTML(fmtRelative(s.lastActivityAt || s.submittedAt))}</td>
-          </tr>
-        `;
-        }).join("")}
-      </tbody>
-    </table>
-  `;
+  setTableHTML($("#myReqTableWrap"), tableHTML("myRequests", list, {
+    rowAttrs: s => `data-id="${escapeHTML(s.id)}" tabindex="0" role="button" aria-label="${escapeHTML("Open request: " + subjectOf(s))}"`
+  }));
   $("#myReqTableWrap").querySelectorAll("tbody tr").forEach(tr => {
     bindRowOpen(tr, () => openSubmission(tr.dataset.id, state.managerDoc.clientId));
   });
@@ -2850,30 +3193,9 @@ function renderQueue() {
     $("#queueTableWrap").innerHTML = `<div class="empty">No submissions match your filters.</div>`;
     return;
   }
-  $("#queueTableWrap").innerHTML = `
-    <table class="tbl">
-      <thead>
-        <tr>
-          <th>Client</th><th class="nowrap">Type</th><th class="col-flex">Subject</th><th>Submitted by</th><th class="nowrap">Status</th><th class="nowrap">Submitted</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${list.map(s => {
-          const subject = s.summary || s.formTitle || "Request";
-          return `
-          <tr data-cid="${escapeHTML(s.clientId)}" data-id="${escapeHTML(s.id)}" tabindex="0" role="button" aria-label="${escapeHTML("Open request: " + subject)}">
-            <td data-label="Client">${escapeHTML(s.clientName || s.clientId)}</td>
-            <td class="nowrap" data-label="Type">${pillKind(s.formKind)}</td>
-            <td class="col-flex" data-label="Subject">${escapeHTML(subject)}</td>
-            <td class="muted wrap-any" data-label="Submitted by">${escapeHTML(s.submittedByEmail || "")}</td>
-            <td class="nowrap" data-label="Status">${pillStatus(s.status)}</td>
-            <td class="nowrap" data-label="Submitted">${escapeHTML(fmtDate(s.submittedAt))}</td>
-          </tr>
-        `;
-        }).join("")}
-      </tbody>
-    </table>
-  `;
+  setTableHTML($("#queueTableWrap"), tableHTML("queue", list, {
+    rowAttrs: s => `data-cid="${escapeHTML(s.clientId)}" data-id="${escapeHTML(s.id)}" tabindex="0" role="button" aria-label="${escapeHTML("Open request: " + subjectOf(s))}"`
+  }));
   $("#queueTableWrap").querySelectorAll("tbody tr").forEach(tr => {
     bindRowOpen(tr, () => openSubmission(tr.dataset.id, tr.dataset.cid));
   });
@@ -3765,13 +4087,15 @@ async function openTemplateEditor(clientId) {
 
   // Try to load the per-client doc; fall back to DEFAULT.
   let tpl = null;
-  try {
-    const snap = await getDoc(doc(db, "clients", clientId, "completionTemplates", "newhire-rehire"));
-    if (snap.exists()) {
-      tpl = snap.data();
-      state._editingTemplate.existed = true;
-    }
-  } catch (e) { console.warn("template load failed", e); }
+  if (!isDemoMode()) {
+    try {
+      const snap = await getDoc(doc(db, "clients", clientId, "completionTemplates", "newhire-rehire"));
+      if (snap.exists()) {
+        tpl = snap.data();
+        state._editingTemplate.existed = true;
+      }
+    } catch (e) { console.warn("template load failed", e); }
+  }
   // Bust the in-memory cache so the next openCompletion picks up changes.
   completionTemplateCache.delete(`${clientId}|newhire-rehire`);
 
@@ -4038,6 +4362,10 @@ async function openFormsForClient(clientId) {
   // We render the list inline in a modal-ish detail. For v0.1.0 we use
   // a simple prompt: list the existing forms, let admin pick one to edit
   // or create a new one.
+  if (isDemoMode()) {
+    showFormsListModal(clientId, c, (DEMO_FIXTURES.forms[clientId] || []).slice());
+    return;
+  }
   let forms = [];
   try {
     const snap = await getDocs(query(collection(db, "clients", clientId, "forms")));
@@ -4265,32 +4593,12 @@ function renderInvitations() {
     $("#inviteListWrap").innerHTML = `<div class="empty">No invitations yet. Click <strong>+ Invite a Client Manager</strong> to create one.</div>`;
     return;
   }
-  $("#inviteListWrap").innerHTML = `
-    <table class="tbl">
-      <thead>
-        <tr>
-          <th>Name</th><th>Email</th><th>Client</th><th class="nowrap">Status</th><th class="nowrap">Created</th><th><span class="sr-only">Actions</span></th>
-        </tr>
-      </thead>
-      <tbody>
-        ${state.invitations.map(inv => `
-          <tr data-token="${escapeHTML(inv.id)}">
-            <td data-label="Name">${escapeHTML((inv.firstName || "") + " " + (inv.lastName || ""))}</td>
-            <td class="wrap-any" data-label="Email">${escapeHTML(inv.email || "")}</td>
-            <td data-label="Client">${escapeHTML(state.clients.find(c => c.id === inv.clientId)?.name || inv.clientId)}</td>
-            <td class="nowrap" data-label="Status">${inv.consumed
-              ? `<span class="pill st-Completed">Redeemed</span>`
-              : `<span class="pill st-Submitted">Pending</span>`}</td>
-            <td class="nowrap" data-label="Created">${escapeHTML(fmtDate(inv.createdAt))}</td>
-            <td class="right nowrap" data-label="Actions">
-              ${!inv.consumed ? `<button class="btn-link" data-copy="${escapeHTML(inv.id)}">Copy link</button>` : ""}
-              <button class="btn-link" style="color:var(--danger);" data-del="${escapeHTML(inv.id)}">Delete</button>
-            </td>
-          </tr>
-        `).join("")}
-      </tbody>
-    </table>
-  `;
+  setTableHTML($("#inviteListWrap"), tableHTML("invitations", state.invitations, {
+    rowAttrs: inv => `data-token="${escapeHTML(inv.id)}"`,
+    actions: inv => `
+      ${!inv.consumed ? `<button class="btn-link" data-copy="${escapeHTML(inv.id)}">Copy link</button>` : ""}
+      <button class="btn-link" style="color:var(--danger);" data-del="${escapeHTML(inv.id)}">Delete</button>`
+  }));
   $("#inviteListWrap").querySelectorAll("[data-copy]").forEach(b => {
     b.addEventListener("click", e => {
       e.stopPropagation();
@@ -4301,6 +4609,7 @@ function renderInvitations() {
   $("#inviteListWrap").querySelectorAll("[data-del]").forEach(b => {
     b.addEventListener("click", async e => {
       e.stopPropagation();
+      if (demoBlock("invitation delete")) return;
       if (!confirm("Delete this invitation?")) return;
       try {
         await deleteDoc(doc(db, "invitations", b.dataset.del));
@@ -4326,9 +4635,12 @@ $("#newInviteBtn").addEventListener("click", () => {
 function refreshInviteClientPicker() {
   const sel = $("#invClientId");
   if (!sel) return;
-  sel.innerHTML = state.clients.map(c =>
+  // A live clients update must not wipe a choice already made in the open modal.
+  const keep = !$("#inviteModal").hidden ? sel.value : "";
+  sel.innerHTML = `<option value="" disabled selected>Select a client</option>` + state.clients.map(c =>
     `<option value="${escapeHTML(c.id)}">${escapeHTML(c.name || c.id)}</option>`
   ).join("");
+  if (keep && state.clients.some(c => c.id === keep)) sel.value = keep;
   sel.classList.toggle("needs-choice", sel.value === "");
 }
 bindNeedsChoice($("#inviteModal"));
@@ -4433,27 +4745,15 @@ function renderAdmins() {
     $("#adminListWrap").innerHTML = `<div class="empty">No admins. Click <strong>+ Add admin</strong> to add one.</div>`;
     return;
   }
-  $("#adminListWrap").innerHTML = `
-    <table class="tbl">
-      <thead>
-        <tr><th>Name</th><th>Email</th><th>UID</th><th><span class="sr-only">Actions</span></th></tr>
-      </thead>
-      <tbody>
-        ${state.admins.map(a => `
-          <tr>
-            <td data-label="Name">${escapeHTML(a.name || "-")}</td>
-            <td class="wrap-any" data-label="Email">${escapeHTML(a.email || "")}</td>
-            <td class="muted wrap-any" data-label="UID" style="font-family:var(--mono);font-size:12px;">${escapeHTML(a.uid)}</td>
-            <td class="right nowrap" data-label="Actions">
-              ${a.uid !== state.user.uid ? `<button class="btn-link" style="color:var(--danger);" data-rm="${escapeHTML(a.uid)}">Remove</button>` : `<span class="muted">(you)</span>`}
-            </td>
-          </tr>
-        `).join("")}
-      </tbody>
-    </table>
-  `;
+  setTableHTML($("#adminListWrap"), tableHTML("admins", state.admins, {
+    rowAttrs: () => "",
+    actions: a => a.uid !== state.user.uid
+      ? `<button class="btn-link" style="color:var(--danger);" data-rm="${escapeHTML(a.uid)}">Remove</button>`
+      : `<span class="muted">(you)</span>`
+  }));
   $("#adminListWrap").querySelectorAll("[data-rm]").forEach(b => {
     b.addEventListener("click", async () => {
+      if (demoBlock("admin remove")) return;
       if (!confirm("Remove this admin? They lose all access immediately.")) return;
       try {
         await deleteDoc(doc(db, "msp_admins", b.dataset.rm));
