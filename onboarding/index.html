@@ -3,11 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Onboarding &middot; Umbrella Automation</title>
+<title>Onboarding v0.7.0</title>
 <meta name="description" content="Client onboarding system for Umbrella Automation managed service clients. Submit new hire, termination, and position change requests.">
 <meta name="robots" content="noindex">
-<meta name="app-version" content="0.6.0">
+<meta name="app-version" content="0.7.0">
+<meta name="theme-color" content="#1a56db">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <style>
   :root {
     --bg: #f6f7f9;
@@ -15,17 +18,17 @@
     --surface-2: #fafbfc;
     --ink: #1a1f2b;
     --ink-soft: #475063;
-    --ink-faint: #8892a4;
+    --ink-faint: #5f6b7d;
     --line: #e3e6ec;
-    --line-strong: #c9cfdb;
+    --line-strong: #7f8898;
     --accent: #1a56db;
     --accent-soft: #eaf0fc;
     --accent-ink: #0d3a9a;
     --danger: #dc2626;
     --danger-soft: #fee2e2;
-    --warn: #ca8a04;
+    --warn: #92400e;
     --warn-soft: #fef3c7;
-    --ok: #16a34a;
+    --ok: #15803d;
     --ok-soft: #dcfce7;
     --info: #0ea5e9;
     --info-soft: #e0f2fe;
@@ -49,13 +52,18 @@
   a:hover { text-decoration: underline; }
   button { font: inherit; }
   input, select, textarea { font: inherit; color: inherit; }
+  :is(a, button, input, select, textarea, summary, [tabindex]):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0;
+  }
 
   /* ============== top bar ============== */
   header.bar {
     background: var(--surface);
     border-bottom: 1px solid var(--line);
     padding: 10px 20px;
-    position: sticky; top: 0; z-index: 50;
+    position: sticky; top: env(safe-area-inset-top, 0px); z-index: 50;
   }
   header.bar .wrap {
     max-width: 1200px; margin: 0 auto;
@@ -63,9 +71,8 @@
     position: relative;  /* anchor for centered client brand */
   }
   /* Client logo + name, absolutely centered in the topbar. Manager view
-     only — admin sees neutral topbar. Hidden if the client has no
-     logo set (then we still show the name as a small label so context
-     isn't lost). */
+     only; admin sees a neutral topbar. If the client has no logo set we
+     still show the name as a small label so context isn't lost. */
   .brand-client {
     position: absolute; left: 50%; top: 50%;
     transform: translate(-50%, -50%);
@@ -74,7 +81,7 @@
     max-width: 40%;
   }
   .brand-client img {
-    /* Constrained by topbar interior height — aspect ratio preserved
+    /* Constrained by topbar interior height, aspect ratio preserved
        via object-fit. No frame chrome (border / bg / radius) so the
        client's own logo design can speak for itself. */
     height: 36px; width: auto; max-width: 240px;
@@ -85,7 +92,7 @@
     font-size: 14px; font-weight: 600; color: var(--ink);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-  /* Hide the text name when the logo is shown — name is fallback only.
+  /* Hide the text name when the logo is shown; the name is a fallback only.
      We toggle .has-logo on the wrapper from JS. */
   .brand-client.has-logo .name { display: none; }
   .brand-client[hidden] { display: none; }
@@ -99,7 +106,7 @@
   /* Tabs as underline-style indicators rather than pill buttons. The
      active tab's accent bottom-border overlaps the topbar's own
      bottom border (via margin-bottom: -1px) so it visually "notches
-     into" the page below — both tabs read as tabs of equal stature,
+     into" the page below. Both tabs read as tabs of equal stature,
      with the current page clearly indicated. */
   nav.tabs { display: flex; gap: 4px; margin-left: 12px; align-self: stretch; }
   nav.tabs button {
@@ -117,7 +124,7 @@
   }
   nav.tabs button:hover {
     color: var(--accent);
-    border-bottom-color: var(--accent-soft);
+    border-bottom-color: var(--line-strong);
   }
   nav.tabs button.active {
     color: var(--accent);
@@ -134,7 +141,7 @@
     text-decoration: none; line-height: 1;
   }
   nav.tabs a.tab-link:hover {
-    color: var(--accent); border-bottom-color: var(--accent-soft);
+    color: var(--accent); border-bottom-color: var(--line-strong);
   }
   .userbar { margin-left: auto; display: flex; align-items: center; gap: 10px; font-size: 13px; }
   .userbar .who { display: flex; flex-direction: column; line-height: 1.2; align-items: flex-end; }
@@ -175,8 +182,8 @@
   #demoBanner {
     background: #fef3c7; border-bottom: 2px solid #f59e0b;
     color: #78350f; padding: 8px 14px; font-size: 13px;
-    display: flex; align-items: center; gap: 12px;
-    position: sticky; top: 0; z-index: 60;
+    display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px;
+    position: sticky; top: env(safe-area-inset-top, 0px); z-index: 60;
   }
   #demoBanner strong { font-weight: 700; }
   #demoBanner a {
@@ -184,7 +191,8 @@
     margin-left: auto;
   }
   #demoBanner[hidden] { display: none; }
-  body.demo-mode header.bar { top: 36px; }  /* push topbar below banner */
+  /* --banner-h is measured in JS because the banner wraps to two or more lines on phones. */
+  body.demo-mode header.bar { top: calc(env(safe-area-inset-top, 0px) + var(--banner-h, 36px)); }
 
   /* ============== initial auth-state loader ============== */
   .auth-loader {
@@ -222,13 +230,13 @@
     width: 100%; padding: 9px 11px; border: 1px solid var(--line-strong);
     border-radius: 8px; background: var(--surface); font-size: 14px;
   }
-  .auth-wrap input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .auth-wrap input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
   .auth-wrap input[readonly] { background: var(--surface-2); color: var(--ink-soft); }
   .auth-wrap .actions { margin-top: 18px; display: flex; gap: 8px; align-items: center; }
   .auth-wrap .actions .btn-primary { flex: 1; padding: 10px 14px; }
   .auth-err {
     margin-top: 12px; padding: 9px 11px; border-radius: 8px;
-    background: var(--danger-soft); color: var(--danger);
+    background: var(--danger-soft); color: #991b1b;
     font-size: 13px; line-height: 1.4;
   }
   .auth-info {
@@ -327,9 +335,13 @@
     color: var(--ink); transition: border-color .12s ease, box-shadow .12s ease;
   }
   .field input:focus, .field select:focus, .field textarea:focus {
-    outline: none; border-color: var(--accent);
+    border-color: var(--accent);
     box-shadow: 0 0 0 3px var(--accent-soft);
   }
+  .field select.needs-choice:not(:focus), .comp-field select.needs-choice:not(:focus) {
+    box-shadow: 0 0 0 3px var(--warn-soft); border-color: #a16207;
+  }
+  .form-grid input[type=date] { min-width: 11em; }
   .field textarea { min-height: 90px; resize: vertical; font-family: inherit; }
   .field .help {
     font-size: 12px; color: var(--ink-faint); margin-top: 4px; line-height: 1.45;
@@ -391,10 +403,16 @@
     font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em;
     border-bottom: 1px solid var(--line-strong);
   }
-  table.tbl tbody tr { cursor: pointer; transition: background .1s ease; }
-  table.tbl tbody tr:hover { background: var(--accent-soft); }
+  table.tbl tbody tr[role=button] { cursor: pointer; transition: background .1s ease; }
+  table.tbl tbody tr[role=button]:hover { background: var(--accent-soft); }
+  table.tbl tbody tr[role=button]:focus-visible { outline-offset: -2px; background: var(--accent-soft); }
   table.tbl .right { text-align: right; }
   table.tbl .muted { color: var(--ink-faint); }
+  /* width: 1% shrinks nowrap columns to their content so the leftover width goes to Subject. */
+  table.tbl .nowrap { white-space: nowrap; width: 1%; }
+  table.tbl .wrap-any { overflow-wrap: anywhere; }
+  table.tbl .col-flex { min-width: 6em; }
+  @media (max-width: 1024px) { table.tbl th, table.tbl td { padding: 10px 8px; } }
 
   .pill {
     display: inline-block; padding: 2px 8px;
@@ -421,7 +439,8 @@
     padding: 6px 10px; border: 1px solid var(--line-strong);
     border-radius: 7px; background: var(--surface); font-size: 13px;
   }
-  .filter-bar input { min-width: 220px; }
+  .filter-bar input { flex: 1 1 220px; min-width: 0; }
+  .filter-bar select { flex: 0 1 auto; min-width: 0; }
   .filter-bar .count { margin-left: auto; color: var(--ink-faint); font-size: 12.5px; }
 
   /* ============== modal ============== */
@@ -458,12 +477,12 @@
 
   /* ============== submission detail ============== */
   .sub-meta {
-    display: grid; grid-template-columns: max-content 1fr;
+    display: grid; grid-template-columns: max-content minmax(0, 1fr);
     gap: 8px 16px; font-size: 13.5px;
     margin-bottom: 18px;
   }
   .sub-meta dt { color: var(--ink-faint); font-weight: 500; }
-  .sub-meta dd { margin: 0; color: var(--ink); }
+  .sub-meta dd { margin: 0; color: var(--ink); overflow-wrap: anywhere; }
 
   .answers {
     border-top: 1px solid var(--line); padding-top: 14px;
@@ -489,8 +508,8 @@
   }
   .event:last-child { border-bottom: 0; }
   .event .ehead {
-    display: flex; gap: 10px; align-items: baseline;
-    font-size: 12.5px; color: var(--ink-soft);
+    display: flex; flex-wrap: wrap; gap: 2px 10px; align-items: baseline;
+    font-size: 12.5px; color: var(--ink-soft); overflow-wrap: anywhere;
   }
   .event .ehead strong { color: var(--ink); font-size: 13.5px; }
   .event .ebody { margin-top: 4px; white-space: pre-wrap; }
@@ -546,8 +565,8 @@
 
   /* ============== toast ============== */
   /* Top-anchored and z-index above any modal so error messages aren't
-     hidden behind an open dialog (e.g. submitting from a modal that
-     fails — the toast must still be visible). */
+     hidden behind an open dialog (e.g. a submit from inside a modal
+     fails, and the toast must still be visible). */
   .toast {
     position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
     background: var(--ink); color: #fff; padding: 10px 16px;
@@ -568,7 +587,7 @@
     text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-soft);
   }
   .comp-grid {
-    display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px;
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 14px;
   }
   .comp-grid .full { grid-column: 1 / -1; }
   .comp-field { display: flex; flex-direction: column; gap: 4px; }
@@ -576,12 +595,12 @@
   .comp-field label .req { color: var(--danger); }
   .comp-field input, .comp-field select, .comp-field textarea {
     padding: 7px 9px; font-size: 13px; border-radius: 6px;
-    border: 1px solid var(--line); background: var(--surface);
+    border: 1px solid var(--line-strong); background: var(--surface);
     color: var(--ink); font-family: inherit;
   }
   .comp-field textarea { min-height: 60px; resize: vertical; }
   .comp-field input:focus, .comp-field select:focus, .comp-field textarea:focus {
-    outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft);
+    border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft);
   }
   .comp-field .help { font-size: 11.5px; color: var(--ink-faint); }
   .comp-field input[data-prefilled="true"] { background: var(--accent-soft); }
@@ -635,7 +654,7 @@
     font-size: 12px; line-height: 1.55; color: var(--ink);
     background: var(--surface); border-radius: 0 0 8px 8px;
   }
-  .comp-preview-body textarea:focus { outline: none; }
+  .comp-preview-body textarea:focus-visible { outline-offset: -2px; }
 
   /* ============== client cards ============== */
   .client-list { display: grid; gap: 10px; }
@@ -665,20 +684,88 @@
     color: var(--ink-faint); font-size: 12px;
   }
   footer.foot a { color: var(--ink-faint); }
+
+  /* ============== narrow layouts ============== */
+  @media (max-width: 760px) {
+    header.bar { padding: 8px 16px 0; }
+    /* Grid, not flex-wrap: brand and userbar share row one and both shrink, instead of the userbar dropping to its own row. */
+    header.bar .wrap {
+      display: grid; grid-template-columns: minmax(0, max-content) minmax(0, max-content);
+      justify-content: space-between; align-items: center; gap: 6px 12px;
+    }
+    .brand { min-width: 0; }
+    .brand > div { min-width: 0; }
+    .brand h1, .brand .meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .brand-client { display: none; }
+    .userbar { min-width: 0; margin-left: 0; justify-content: flex-end; }
+    .userbar .btn { white-space: nowrap; }
+    .userbar .who { min-width: 0; }
+    .userbar .who .e, .userbar .who .n {
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: min(40vw, 100%);
+    }
+    nav.tabs { order: 3; grid-column: 1 / -1; margin-left: 0; gap: 0; }
+    nav.tabs button { flex: 1; min-height: 44px; padding: 0 4px; text-align: center; }
+  }
+
+  @media (max-width: 640px) {
+    #demoBanner a { margin-left: 0; }
+    .filter-bar { flex-direction: column; align-items: stretch; padding: 12px; }
+    .filter-bar input, .filter-bar select { flex: 0 0 auto; width: 100%; }
+    .comp-grid { grid-template-columns: minmax(0, 1fr); }
+  }
+
+  /* Cards start at 760px, not 640px: the six-column queue needs about 630px of unbreakable dates and pills. */
+  @media (max-width: 760px) {
+    table.tbl, table.tbl tbody, table.tbl tr, table.tbl td { display: block; }
+    table.tbl thead {
+      position: absolute; width: 1px; height: 1px; overflow: hidden;
+      clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
+    }
+    table.tbl tbody { display: grid; gap: 10px; padding: 12px; }
+    table.tbl tbody tr {
+      border: 1px solid var(--line); border-radius: 8px;
+      padding: 6px 12px; background: var(--surface);
+    }
+    table.tbl td {
+      display: grid; grid-template-columns: 7.5em minmax(0, 1fr); gap: 10px;
+      align-items: baseline; padding: 5px 0; border-bottom: 0; overflow-wrap: anywhere;
+    }
+    table.tbl td::before {
+      content: attr(data-label); font-size: 11px; font-weight: 600; color: var(--ink-soft);
+      text-transform: uppercase; letter-spacing: 0.04em;
+    }
+    table.tbl td > .pill { justify-self: start; }
+    table.tbl td.nowrap { white-space: normal; width: auto; }
+    table.tbl .col-flex { min-width: 0; }
+    table.tbl td.right {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 8px; text-align: left;
+      margin-top: 4px; padding-top: 8px; border-top: 1px solid var(--line);
+    }
+    table.tbl td.right::before { display: none; }
+  }
+
+  @media (max-width: 640px), (pointer: coarse) {
+    .btn, .btn-sm, .btn-link, nav.tabs button, .auth-tabs button,
+    .comp-preview-tabs button, .modal-head .close { min-height: 44px; }
+    a.btn { display: inline-flex; align-items: center; justify-content: center; }
+    .modal-head .close { min-width: 44px; }
+    .radio-group, .checkbox-group { gap: 6px; }
+    .radio-group.cols-2, .checkbox-group.cols-2 { gap: 6px 14px; }
+    .radio-group label, .checkbox-group label { min-height: 44px; align-items: center; padding: 0; }
+    .radio-group input, .checkbox-group input { margin-top: 0; }
+  }
 </style>
 </head>
 <body>
 
 <!-- ================= demo / preview banner =================
-     MUST come before the topbar in DOM. Both elements use
-     position: sticky; top: 0 — when stacked, the first sticky
-     element in source order wins the top slot and the second
-     sticks below it (with the appropriate top offset set in CSS
-     via body.demo-mode header.bar { top: 36px }). -->
+     MUST come before the topbar in DOM. Both elements are
+     position: sticky. When stacked, the first sticky element in
+     source order wins the top slot and the second sticks below it,
+     offset by the measured banner height (--banner-h, set in JS). -->
 <div id="demoBanner" hidden>
-  <strong>Demo mode</strong>
-  <span>— sandboxed, fake data. Changes are not saved.</span>
-  <a href="https://umbrellaautomation.com/contact" target="_blank" rel="noopener">Get the real thing →</a>
+  <span><strong>Demo mode.</strong> Sample data only. Nothing you do here is saved.</span>
+  <a href="https://www.umbrellaautomation.com/" target="_blank" rel="noopener">Visit umbrellaautomation.com</a>
 </div>
 
 <!-- ================= top bar ================= -->
@@ -718,7 +805,7 @@
      Shown while Firebase reads the persisted auth token. Without this,
      refreshing the page flashes the sign-in screen for ~300ms before
      the onAuthStateChanged callback fires and reveals the app. -->
-<div id="authLoader" class="auth-loader">
+<div id="authLoader" class="auth-loader" role="status">
   <div class="spinner"></div>
   <p>Checking sign-in…</p>
 </div>
@@ -792,7 +879,7 @@
     <div class="field">
       <label for="ivPassword">Set a password</label>
       <input id="ivPassword" type="password" autocomplete="new-password" minlength="8" required>
-      <div class="help">At least 8 characters. Use a unique password &mdash; do not reuse one from another account.</div>
+      <div class="help">At least 8 characters. Use a unique password, not one from another account.</div>
     </div>
     <div class="field">
       <label for="ivPassword2">Confirm password</label>
@@ -833,7 +920,8 @@
         <span class="sub" id="myReqCount"></span>
       </div>
       <div class="filter-bar">
-        <input id="myReqSearch" type="search" placeholder="Search by name, type, or notes&hellip;">
+        <input id="myReqSearch" type="search" placeholder="Search by name, type, or notes&hellip;"
+          title="Matches subject, type, ticket number and anything you typed into the form">
         <select id="myReqStatusFilter">
           <option value="">All statuses</option>
           <option>Submitted</option>
@@ -856,18 +944,19 @@
         <span class="sub" id="queueCount"></span>
       </div>
       <div class="filter-bar">
-        <input id="queueSearch" type="search" placeholder="Search across all clients&hellip;">
-        <select id="queueClientFilter">
+        <input id="queueSearch" type="search" placeholder="Search across all clients&hellip;"
+          title="Matches request subject, client, submitter email and related ticket number">
+        <select id="queueClientFilter" title="Narrow the queue; filters combine">
           <option value="">All clients</option>
         </select>
-        <select id="queueStatusFilter">
+        <select id="queueStatusFilter" title="Narrow the queue; filters combine">
           <option value="">All statuses</option>
           <option>Submitted</option>
           <option>In Progress</option>
           <option>Completed</option>
           <option>Cancelled</option>
         </select>
-        <select id="queueTypeFilter">
+        <select id="queueTypeFilter" title="Narrow the queue; filters combine">
           <option value="">All types</option>
         </select>
       </div>
@@ -918,7 +1007,7 @@
       </div>
     </div>
 
-    <!-- Sales demo URLs — for sharing with prospects -->
+    <!-- Sales demo URLs, for sharing with prospects -->
     <div class="panel" style="margin-top:18px;">
       <div class="panel-head">
         <h2>Sales demos</h2>
@@ -927,7 +1016,7 @@
       <div class="panel-body" style="display:flex;flex-direction:column;gap:14px;">
         <div>
           <div style="font-size:13px;font-weight:600;margin-bottom:4px;">Client Manager view</div>
-          <div style="font-size:12px;color:var(--ink-soft);margin-bottom:6px;">"You're Sarah Johnson at JEM MedSpa." Shows New Request + My Requests with a few in-flight items.</div>
+          <div style="font-size:12px;color:var(--ink-soft);margin-bottom:6px;">"You're Sarah Johnson at Lakeside MedSpa." Shows New Request + My Requests with a few in-flight items.</div>
           <div style="display:flex;gap:6px;">
             <input id="demoMgrUrl" type="text" readonly style="flex:1;font-size:12px;padding:6px 8px;font-family:ui-monospace,Menlo,Consolas,monospace;">
             <button class="btn btn-sm" id="demoMgrCopy" type="button">Copy</button>
@@ -936,7 +1025,7 @@
         </div>
         <div>
           <div style="font-size:13px;font-weight:600;margin-bottom:4px;">MSP Admin view</div>
-          <div style="font-size:12px;color:var(--ink-soft);margin-bottom:6px;">"You're an Umbrella admin." Cross-client queue, full Complete &amp; Send Welcome flow available.</div>
+          <div style="font-size:12px;color:var(--ink-soft);margin-bottom:6px;">"You're an Umbrella admin." Cross-client queue, including the full welcome email flow.</div>
           <div style="display:flex;gap:6px;">
             <input id="demoAdmUrl" type="text" readonly style="flex:1;font-size:12px;padding:6px 8px;font-family:ui-monospace,Menlo,Consolas,monospace;">
             <button class="btn btn-sm" id="demoAdmCopy" type="button">Copy</button>
@@ -944,8 +1033,8 @@
           </div>
         </div>
         <div style="font-size:11.5px;color:var(--ink-faint);">
-          Both demos run on in-memory mock data with all writes stubbed — nothing the prospect does
-          touches your real Firestore. They can leave the demo by removing the URL parameter.
+          Both demos run on in-memory sample data with every write stubbed out, so nothing a prospect
+          does touches your real Firestore. They can leave the demo by removing the URL parameter.
         </div>
       </div>
     </div>
@@ -958,7 +1047,7 @@
   <div class="modal wide">
     <div class="modal-head">
       <h3 id="subModalTitle">Request</h3>
-      <button class="close" type="button" data-close-modal>&times;</button>
+      <button class="close" type="button" data-close-modal aria-label="Close">&times;</button>
     </div>
     <div class="modal-body" id="subModalBody"></div>
     <div class="modal-foot">
@@ -974,8 +1063,8 @@
 <div class="modal-bg" id="completionModal" hidden>
   <div class="modal wide">
     <div class="modal-head">
-      <h3 id="completionTitle">Complete &amp; Send Welcome</h3>
-      <button class="close" type="button" data-close-modal>&times;</button>
+      <h3 id="completionTitle">Complete and send welcome email</h3>
+      <button class="close" type="button" data-close-modal aria-label="Close">&times;</button>
     </div>
     <div class="modal-body" id="completionBody"></div>
     <div class="modal-foot">
@@ -994,23 +1083,25 @@
   <div class="modal wide">
     <div class="modal-head">
       <h3 id="templateModalTitle">Welcome email template</h3>
-      <button class="close" type="button" data-close-modal>&times;</button>
+      <button class="close" type="button" data-close-modal aria-label="Close">&times;</button>
     </div>
     <div class="modal-body">
       <p style="font-size:13px;color:var(--ink-soft);margin:0 0 14px;">
         Per-client overrides for this client's <strong>New Hire / Rehire</strong> welcome email.
         If you leave this blank (or click <em>Reset to default</em>), the system-default template is used.
         Use <code>{{firstName}}</code>, <code>{{clientName}}</code>, <code>{{fullName}}</code>, <code>{{startDate}}</code>, etc.
-        — see <code>DEFAULT_COMPLETION_TEMPLATE</code> in <code>index.html</code> for the full placeholder list.
+        The full placeholder list is in <code>DEFAULT_COMPLETION_TEMPLATE</code> in <code>index.html</code>.
       </p>
       <div class="form-grid">
         <div class="field">
           <label for="teFromName">FROM name</label>
-          <input id="teFromName" type="text" placeholder="Umbrella Automation">
+          <input id="teFromName" type="text" placeholder="Umbrella Automation"
+            title="Shown as the sender in the new hire's inbox, so use a name they will recognize">
         </div>
         <div class="field">
           <label for="teFromEmail">FROM email</label>
-          <input id="teFromEmail" type="email" placeholder="welcome@umbrellaautomation.com">
+          <input id="teFromEmail" type="email" placeholder="welcome@umbrellaautomation.com"
+            title="Must be on a domain verified in Resend or delivery fails">
         </div>
       </div>
       <div class="field" style="margin-top:10px;">
@@ -1020,7 +1111,7 @@
       <div class="field" style="margin-top:10px;">
         <label for="teBody">Body HTML template</label>
         <textarea id="teBody" spellcheck="false" style="min-height:280px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;"></textarea>
-        <div class="help">Inline-style your CSS — most email clients strip &lt;style&gt; tags. <code>{{#field}}…{{/field}}</code> blocks render only when the field has a value.</div>
+        <div class="help">Inline-style your CSS, because most email clients strip &lt;style&gt; tags. <code>{{#field}}…{{/field}}</code> blocks render only when the field has a value.</div>
       </div>
       <div class="field" style="margin-top:10px;">
         <label for="teFields">Fields JSON (controls the completion form's inputs)</label>
@@ -1041,17 +1132,17 @@
   <div class="modal">
     <div class="modal-head">
       <h3 id="clientModalTitle">New client</h3>
-      <button class="close" type="button" data-close-modal>&times;</button>
+      <button class="close" type="button" data-close-modal aria-label="Close">&times;</button>
     </div>
     <div class="modal-body">
       <div class="field" style="margin-bottom:12px;">
-        <label for="cmId">Client ID <span class="req">*</span></label>
-        <input id="cmId" type="text" placeholder="e.g. acme-corp">
+        <label for="cmId">Client ID <span class="req" aria-hidden="true">*</span></label>
+        <input id="cmId" type="text" placeholder="e.g. acme-corp" required>
         <div class="help">Lowercase, no spaces. Used in URLs and Firestore. Cannot be changed after creation.</div>
       </div>
       <div class="field" style="margin-bottom:12px;">
-        <label for="cmName">Display name <span class="req">*</span></label>
-        <input id="cmName" type="text" placeholder="e.g. Acme Corporation">
+        <label for="cmName">Display name <span class="req" aria-hidden="true">*</span></label>
+        <input id="cmName" type="text" placeholder="e.g. Acme Corporation" required>
       </div>
       <div class="field" style="margin-bottom:12px;">
         <label for="cmDomain">Email domain</label>
@@ -1059,7 +1150,7 @@
         <div class="help">The client's primary email domain. Used in form templates.</div>
       </div>
       <div class="field" style="margin-bottom:12px;">
-        <label>Logo (small)</label>
+        <label for="cmLogoFile">Logo (small)</label>
         <div style="display:flex;align-items:center;gap:12px;">
           <img id="cmLogoPreview" alt="" style="width:48px;height:48px;object-fit:contain;background:var(--surface-2);border:1px solid var(--line);border-radius:6px;display:none;">
           <div style="flex:1;display:flex;flex-direction:column;gap:6px;">
@@ -1084,25 +1175,25 @@
   <div class="modal">
     <div class="modal-head">
       <h3>Invite a Client Manager</h3>
-      <button class="close" type="button" data-close-modal>&times;</button>
+      <button class="close" type="button" data-close-modal aria-label="Close">&times;</button>
     </div>
     <div class="modal-body">
       <div class="form-grid">
         <div class="field">
-          <label for="invFirst">First name <span class="req">*</span></label>
-          <input id="invFirst" type="text">
+          <label for="invFirst">First name <span class="req" aria-hidden="true">*</span></label>
+          <input id="invFirst" type="text" required>
         </div>
         <div class="field">
-          <label for="invLast">Last name <span class="req">*</span></label>
-          <input id="invLast" type="text">
+          <label for="invLast">Last name <span class="req" aria-hidden="true">*</span></label>
+          <input id="invLast" type="text" required>
         </div>
         <div class="field full">
-          <label for="invEmail">Email <span class="req">*</span></label>
-          <input id="invEmail" type="email" placeholder="manager@client.com">
+          <label for="invEmail">Email <span class="req" aria-hidden="true">*</span></label>
+          <input id="invEmail" type="email" placeholder="manager@client.com" required>
         </div>
         <div class="field full">
-          <label for="invClientId">Client <span class="req">*</span></label>
-          <select id="invClientId"></select>
+          <label for="invClientId">Client <span class="req" aria-hidden="true">*</span></label>
+          <select id="invClientId" required title="The manager can only see and submit for this client"></select>
         </div>
       </div>
       <div class="invite-link-box" id="invResultBox" hidden>
@@ -1147,18 +1238,18 @@
   <div class="modal wide">
     <div class="modal-head">
       <h3 id="schemaModalTitle">Edit form schema</h3>
-      <button class="close" type="button" data-close-modal>&times;</button>
+      <button class="close" type="button" data-close-modal aria-label="Close">&times;</button>
     </div>
     <div class="modal-body">
       <div class="form-grid" style="margin-bottom:14px;">
         <div class="field">
-          <label for="seFormId">Form ID <span class="req">*</span></label>
-          <input id="seFormId" type="text" placeholder="newhire-rehire">
+          <label for="seFormId">Form ID <span class="req" aria-hidden="true">*</span></label>
+          <input id="seFormId" type="text" placeholder="newhire-rehire" required>
           <div class="help">Lowercase. Identifies this form (e.g., <code>newhire-rehire</code>, <code>termination</code>).</div>
         </div>
         <div class="field">
-          <label for="seFormKind">Kind <span class="req">*</span></label>
-          <select id="seFormKind">
+          <label for="seFormKind">Kind <span class="req" aria-hidden="true">*</span></label>
+          <select id="seFormKind" required>
             <option value="newhire">New Hire</option>
             <option value="rehire">Rehire</option>
             <option value="newhire-rehire">New Hire / Rehire</option>
@@ -1169,15 +1260,18 @@
           <div class="help">Used for grouping and pill colors.</div>
         </div>
         <div class="field full">
-          <label for="seFormTitle">Title <span class="req">*</span></label>
-          <input id="seFormTitle" type="text" placeholder="New Hire / Rehire">
+          <label for="seFormTitle">Title <span class="req" aria-hidden="true">*</span></label>
+          <input id="seFormTitle" type="text" placeholder="New Hire / Rehire" required
+            title="Shown to client managers in the request type dropdown">
         </div>
         <div class="field full">
           <label for="seFormDesc">Description</label>
-          <input id="seFormDesc" type="text" placeholder="Submit a request to onboard a new or returning employee.">
+          <input id="seFormDesc" type="text" placeholder="Submit a request to onboard a new or returning employee."
+            title="A note for admins on what this form is for. Client managers do not see it.">
         </div>
       </div>
-      <label style="font-size:12px;font-weight:600;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.05em;">Schema (JSON)</label>
+      <label for="seJSON" style="font-size:12px;font-weight:600;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.05em;"
+        title="Object with a pages array; each page has a fields array">Schema (JSON)</label>
       <textarea class="json-editor" id="seJSON" spellcheck="false"></textarea>
       <div class="json-status" id="seJSONStatus"></div>
       <details style="margin-top:14px;">
@@ -1204,7 +1298,7 @@
   <div class="modal">
     <div class="modal-head">
       <h3>Add MSP admin</h3>
-      <button class="close" type="button" data-close-modal>&times;</button>
+      <button class="close" type="button" data-close-modal aria-label="Close">&times;</button>
     </div>
     <div class="modal-body">
       <p style="margin: 0 0 14px; color: var(--ink-soft); font-size:13.5px;">
@@ -1213,17 +1307,17 @@
         creates the user record on first sign-in attempt).
       </p>
       <div class="field" style="margin-bottom:12px;">
-        <label for="aaUid">User UID <span class="req">*</span></label>
-        <input id="aaUid" type="text" placeholder="abc123XYZ...">
+        <label for="aaUid">User UID <span class="req" aria-hidden="true">*</span></label>
+        <input id="aaUid" type="text" placeholder="abc123XYZ..." required>
         <div class="help">Find this in Firebase Console &rarr; Authentication &rarr; Users.</div>
       </div>
       <div class="field" style="margin-bottom:12px;">
-        <label for="aaEmail">Email <span class="req">*</span></label>
-        <input id="aaEmail" type="email" placeholder="someone@umbrellaautomation.com">
+        <label for="aaEmail">Email <span class="req" aria-hidden="true">*</span></label>
+        <input id="aaEmail" type="email" placeholder="someone@umbrellaautomation.com" required>
       </div>
       <div class="field" style="margin-bottom:12px;">
         <label for="aaName">Display name</label>
-        <input id="aaName" type="text" placeholder="Frank">
+        <input id="aaName" type="text" placeholder="First and last name">
       </div>
     </div>
     <div class="modal-foot">
@@ -1238,7 +1332,7 @@
 <div class="toast" id="toast" hidden></div>
 
 <footer class="foot" id="appFooter" hidden>
-  <p><a href="../">&larr; Work hub</a> &middot; Onboarding v0.6.0</p>
+  <p><a href="../">&larr; Work hub</a> &middot; Onboarding v0.7.0</p>
 </footer>
 
 <script type="module">
@@ -1268,7 +1362,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-storage.js";
 
 // ------------------------------------------------------------------
-// Firebase config — onboarding-a563d project (ua-onboarding web app).
+// Firebase config: onboarding-a563d project (ua-onboarding web app).
 // ------------------------------------------------------------------
 const firebaseConfig = {
   apiKey: "AIzaSyA-0BJUKW6tv-VhvttNqW2DtXERSIF_ScI",
@@ -1279,15 +1373,15 @@ const firebaseConfig = {
   appId: "1:330286523878:web:27c4e2ffca3496ebc32227"
 };
 
-const APP_VERSION = "0.6.0";
+const APP_VERSION = "0.7.0";
 const STATUSES = ["Submitted", "In Progress", "Completed", "Cancelled"];
 const MSP_DOMAIN = "umbrellaautomation.com"; // Google sign-in restricted to this domain
 
 // ----------------------------------------------------------------------
-// Demo / preview mode — sandboxed, hidden behind unguessable nonces in
+// Demo / preview mode: sandboxed, hidden behind unguessable nonces in
 // the URL. Detected BEFORE Firebase auth init so signed-in users
 // visiting a preview URL still see the demo (sign-out happens
-// transparently). Both nonces hard-coded — they're not secrets, just
+// transparently). Both nonces are hard-coded. They're not secrets, just
 // hard to guess. Admin "Sales Demos" panel surfaces them with copy
 // buttons so the user can grab the share URL on demand.
 // ----------------------------------------------------------------------
@@ -1305,7 +1399,7 @@ const DEMO_VARIANT = detectDemoVariant();
 const isDemoMode = () => state.isDemo === true;
 function demoBlock(actionLabel = "change") {
   if (!isDemoMode()) return false;
-  toast(`Demo mode — ${actionLabel} not saved.`, false);
+  toast(`Demo mode: ${actionLabel} not saved.`, false);
   return true;
 }
 
@@ -1319,9 +1413,9 @@ const _demoTs = (offsetDays) => {
 };
 const DEMO_FIXTURES = {
   clients: [
-    { id: "jem-medspa-demo", name: "JEM MedSpa", domain: "jemmedspa.com" },
-    { id: "peace-village-demo", name: "Peace Village Senior Living", domain: "peacevillage.com" },
-    { id: "acme-corp-demo", name: "Acme Corporation", domain: "acme.com" }
+    { id: "lakeside-medspa-demo", name: "Lakeside MedSpa", domain: "lakeside.example.com" },
+    { id: "harbor-point-demo", name: "Harbor Point Senior Living", domain: "harborpoint.example.com" },
+    { id: "acme-corp-demo", name: "Acme Corporation", domain: "acme.example.com" }
   ],
   admins: [
     { id: "demo-admin-uid", email: "demo.admin@umbrellaautomation.com", name: "Demo Admin", lastLogin: _demoTs(0) },
@@ -1329,7 +1423,7 @@ const DEMO_FIXTURES = {
     { id: "demo-admin-3",   email: "jordan.kim@umbrellaautomation.com", name: "Jordan Kim", lastLogin: _demoTs(3) }
   ],
   forms: {
-    "jem-medspa-demo": [
+    "lakeside-medspa-demo": [
       { id: "newhire", title: "New Hire", kind: "newhire",
         schema: { pages: [{ fields: [
           { id: "hireDate", type: "date", label: "Hire Date", required: true },
@@ -1345,64 +1439,64 @@ const DEMO_FIXTURES = {
   // Mix of statuses + types + clients so the queue shows variety.
   // For manager demo we filter to just the demo manager's submissions.
   submissions: [
-    { id: "sub1", clientId: "jem-medspa-demo", clientName: "JEM MedSpa",
+    { id: "sub1", clientId: "lakeside-medspa-demo", clientName: "Lakeside MedSpa",
       formId: "newhire", formTitle: "New Hire", formKind: "newhire",
       summary: "New Hire: Carter Reyes",
       status: "Submitted", submittedAt: _demoTs(0), lastActivityAt: _demoTs(0),
-      submittedByUid: "demo-mgr-uid", submittedByEmail: "sarah.johnson@jemmedspa.com",
+      submittedByUid: "demo-mgr-uid", submittedByEmail: "sarah.johnson@lakeside.example.com",
       submittedByName: "Sarah Johnson",
-      values: { firstName: "Carter", lastName: "Reyes", title: "Front Desk Associate", preferredEmail: "carter.reyes@jemmedspa.com", hireDate: "2026-05-15", managerEmail: "ops@jemmedspa.com", employeeStatus: "New Hire" }},
-    { id: "sub2", clientId: "jem-medspa-demo", clientName: "JEM MedSpa",
+      values: { firstName: "Carter", lastName: "Reyes", title: "Front Desk Associate", preferredEmail: "carter.reyes@lakeside.example.com", hireDate: "2026-05-15", managerEmail: "ops@lakeside.example.com", employeeStatus: "New Hire" }},
+    { id: "sub2", clientId: "lakeside-medspa-demo", clientName: "Lakeside MedSpa",
       formId: "newhire", formTitle: "New Hire", formKind: "newhire",
       summary: "New Hire: Maya Patel",
       status: "In Progress", submittedAt: _demoTs(2), lastActivityAt: _demoTs(1),
-      submittedByUid: "demo-mgr-uid", submittedByEmail: "sarah.johnson@jemmedspa.com",
+      submittedByUid: "demo-mgr-uid", submittedByEmail: "sarah.johnson@lakeside.example.com",
       submittedByName: "Sarah Johnson", relatedTicket: "4821",
-      values: { firstName: "Maya", lastName: "Patel", title: "Esthetician", preferredEmail: "maya.patel@jemmedspa.com", hireDate: "2026-05-20", managerEmail: "ops@jemmedspa.com", employeeStatus: "New Hire" }},
-    { id: "sub3", clientId: "jem-medspa-demo", clientName: "JEM MedSpa",
+      values: { firstName: "Maya", lastName: "Patel", title: "Esthetician", preferredEmail: "maya.patel@lakeside.example.com", hireDate: "2026-05-20", managerEmail: "ops@lakeside.example.com", employeeStatus: "New Hire" }},
+    { id: "sub3", clientId: "lakeside-medspa-demo", clientName: "Lakeside MedSpa",
       formId: "rehire", formTitle: "Rehire", formKind: "rehire",
       summary: "Rehire: Liam Chen",
       status: "Completed", submittedAt: _demoTs(8), lastActivityAt: _demoTs(2),
-      submittedByUid: "demo-mgr-uid", submittedByEmail: "sarah.johnson@jemmedspa.com",
+      submittedByUid: "demo-mgr-uid", submittedByEmail: "sarah.johnson@lakeside.example.com",
       submittedByName: "Sarah Johnson",
-      values: { firstName: "Liam", lastName: "Chen", title: "Senior Tech", preferredEmail: "liam.chen@jemmedspa.com", hireDate: "2026-04-15", managerEmail: "ops@jemmedspa.com", employeeStatus: "Rehire" },
-      completion: { fullName: "Liam Chen", workEmail: "liam.chen@jemmedspa.com" },
-      completionRecipients: ["liam.chen@jemmedspa.com", "ops@jemmedspa.com"],
+      values: { firstName: "Liam", lastName: "Chen", title: "Senior Tech", preferredEmail: "liam.chen@lakeside.example.com", hireDate: "2026-04-15", managerEmail: "ops@lakeside.example.com", employeeStatus: "Rehire" },
+      completion: { fullName: "Liam Chen", workEmail: "liam.chen@lakeside.example.com" },
+      completionRecipients: ["liam.chen@lakeside.example.com", "ops@lakeside.example.com"],
       completedAt: _demoTs(2), completedByEmail: "demo.admin@umbrellaautomation.com" },
-    { id: "sub4", clientId: "jem-medspa-demo", clientName: "JEM MedSpa",
+    { id: "sub4", clientId: "lakeside-medspa-demo", clientName: "Lakeside MedSpa",
       formId: "newhire", formTitle: "New Hire", formKind: "newhire",
       summary: "New Hire: Ravi Kumar",
       status: "Cancelled", submittedAt: _demoTs(12), lastActivityAt: _demoTs(11),
-      submittedByUid: "demo-mgr-uid", submittedByEmail: "sarah.johnson@jemmedspa.com",
+      submittedByUid: "demo-mgr-uid", submittedByEmail: "sarah.johnson@lakeside.example.com",
       submittedByName: "Sarah Johnson",
-      values: { firstName: "Ravi", lastName: "Kumar", title: "Front Desk", preferredEmail: "ravi.kumar@jemmedspa.com" }},
+      values: { firstName: "Ravi", lastName: "Kumar", title: "Front Desk", preferredEmail: "ravi.kumar@lakeside.example.com" }},
     // Admin-only: cross-client variety
-    { id: "sub5", clientId: "peace-village-demo", clientName: "Peace Village Senior Living",
+    { id: "sub5", clientId: "harbor-point-demo", clientName: "Harbor Point Senior Living",
       formId: "newhire", formTitle: "New Hire", formKind: "newhire",
       summary: "New Hire: Jamie Brooks",
       status: "Submitted", submittedAt: _demoTs(1), lastActivityAt: _demoTs(1),
-      submittedByUid: "demo-mgr-pv", submittedByEmail: "ops@peacevillage.com",
-      submittedByName: "Ops PV",
+      submittedByUid: "demo-mgr-hp", submittedByEmail: "ops@harborpoint.example.com",
+      submittedByName: "Ops HP",
       values: { firstName: "Jamie", lastName: "Brooks", title: "Caregiver", employeeStatus: "New Hire" }},
-    { id: "sub6", clientId: "peace-village-demo", clientName: "Peace Village Senior Living",
+    { id: "sub6", clientId: "harbor-point-demo", clientName: "Harbor Point Senior Living",
       formId: "termination", formTitle: "Termination", formKind: "termination",
       summary: "Termination: Reese Park",
       status: "In Progress", submittedAt: _demoTs(4), lastActivityAt: _demoTs(2),
-      submittedByUid: "demo-mgr-pv", submittedByEmail: "ops@peacevillage.com",
-      submittedByName: "Ops PV",
+      submittedByUid: "demo-mgr-hp", submittedByEmail: "ops@harborpoint.example.com",
+      submittedByName: "Ops HP",
       values: { firstName: "Reese", lastName: "Park" }},
     { id: "sub7", clientId: "acme-corp-demo", clientName: "Acme Corporation",
       formId: "newhire", formTitle: "New Hire", formKind: "newhire",
       summary: "New Hire: Casey Morgan",
       status: "Completed", submittedAt: _demoTs(20), lastActivityAt: _demoTs(15),
-      submittedByUid: "demo-mgr-acme", submittedByEmail: "hr@acme.com",
+      submittedByUid: "demo-mgr-acme", submittedByEmail: "hr@acme.example.com",
       submittedByName: "HR Acme",
       values: { firstName: "Casey", lastName: "Morgan", title: "Engineer", employeeStatus: "New Hire" }},
     { id: "sub8", clientId: "acme-corp-demo", clientName: "Acme Corporation",
       formId: "newhire", formTitle: "New Hire", formKind: "newhire",
       summary: "New Hire: Alex Singh",
       status: "Submitted", submittedAt: _demoTs(0), lastActivityAt: _demoTs(0),
-      submittedByUid: "demo-mgr-acme", submittedByEmail: "hr@acme.com",
+      submittedByUid: "demo-mgr-acme", submittedByEmail: "hr@acme.example.com",
       submittedByName: "HR Acme",
       values: { firstName: "Alex", lastName: "Singh", title: "Designer", employeeStatus: "New Hire" }}
   ]
@@ -1460,8 +1554,8 @@ function escapeHTML(s) {
 }
 
 // MSP admins see raw err.message / err.code (helps them debug missing
-// indexes, rule rejections, etc). Managers — and anyone whose role hasn't
-// resolved yet, e.g. on the invitation page — get a generic message.
+// indexes, rule rejections, etc). Managers, and anyone whose role hasn't
+// resolved yet (e.g. on the invitation page), get a generic message.
 // Firestore deeplinks like "create_composite=..." are noise to them.
 // Always console.error the original before calling this.
 function friendlyErr(err, contextLabel) {
@@ -1485,15 +1579,15 @@ function friendlyErrHTML(err, contextLabel) {
         : " Check the browser console for the create-index link.";
       return `${escapeHTML(contextLabel)}: a Firestore composite index is needed for this query.${linkHTML}`;
     }
-    return escapeHTML(contextLabel + " right now (your MSP is finishing setup — try again in a minute).");
+    return escapeHTML(contextLabel + " right now. Your MSP is still finishing setup, so try again in a minute.");
   }
   return escapeHTML(friendlyErr(err, contextLabel));
 }
 
 function fmtDate(d) {
-  if (!d) return "—";
+  if (!d) return "-";
   const date = d.toDate ? d.toDate() : (d instanceof Date ? d : new Date(d));
-  if (isNaN(date)) return "—";
+  if (isNaN(date)) return "-";
   return date.toLocaleString(undefined, {
     year: "numeric", month: "short", day: "numeric",
     hour: "numeric", minute: "2-digit"
@@ -1525,16 +1619,16 @@ function pillKind(k) {
   return `<span class="pill kind-${lc}">${escapeHTML(formKindLabel(k))}</span>`;
 }
 
-// Spiceworks Cloud ticket deep-link. URL pattern per the MSP's account
-// — if Spiceworks changes their routing (or the pattern below turns out
+// Spiceworks Cloud ticket deep-link. URL pattern per the MSP's account.
+// If Spiceworks changes their routing (or the pattern below turns out
 // to be off), this is the single place to fix it.
 const SPICEWORKS_TICKET_URL = (n) =>
   "https://on.spiceworks.com/tickets/open/ticket_number=" + encodeURIComponent(n);
 
 // Renders the related-ticket value for the submission detail modal.
 // MSP admins get a clickable Spiceworks link (they have Spiceworks
-// accounts); managers see plain text — the link would just bounce off
-// the Spiceworks login for them. Only digits-ish values get linked;
+// accounts); managers see plain text because the link would just bounce
+// off the Spiceworks login for them. Only digits-ish values get linked;
 // anything else (e.g. "emailed John about this") stays text.
 function relatedTicketHTML(ticket) {
   const t = String(ticket).trim();
@@ -1542,7 +1636,7 @@ function relatedTicketHTML(ticket) {
   const bare = t.replace(/^#/, "").replace(/^(HD|hd|SW|sw)[-\s]?/, "");
   if (state.role === "admin" && looksLikeNumber) {
     return `<a href="${escapeHTML(SPICEWORKS_TICKET_URL(bare))}" target="_blank" rel="noopener"
-      title="Open ticket ${escapeHTML(bare)} in Spiceworks">${escapeHTML(t)} ↗</a>`;
+      title="Open ticket ${escapeHTML(bare)} in Spiceworks">${escapeHTML(t)} <span aria-hidden="true">↗</span><span class="sr-only"> (opens Spiceworks in a new tab)</span></a>`;
   }
   return escapeHTML(t);
 }
@@ -1690,8 +1784,7 @@ async function handleInviteIfPresent() {
     $("#authTabs").hidden = true;
     $("#signinForm").hidden = true;
     $("#inviteForm").hidden = false;
-    $("#authTitle").textContent = "Welcome &mdash; set your password";
-    $("#authTitle").innerHTML = "Welcome &mdash; set your password";
+    $("#authTitle").textContent = "Welcome. Set your password";
     $("#authLead").textContent = "You've been invited to the Umbrella Automation onboarding system. Confirm your details and set a password to continue.";
     $("#ivName").value = (inv.firstName || "") + " " + (inv.lastName || "");
     $("#ivEmail").value = inv.email || "";
@@ -1737,7 +1830,7 @@ $("#inviteBtn").addEventListener("click", async () => {
       await updateProfile(cred.user, { displayName: (inv.firstName || "") + " " + (inv.lastName || "") });
     } catch {}
     // 2. Write the manager doc + mark invitation consumed in a batch.
-    // The invitationToken field is required by Firestore rules — it
+    // The invitationToken field is required by Firestore rules. It
     // proves this manager was created via a valid invite and not
     // forged by an arbitrary signed-up user.
     const batch = writeBatch(db);
@@ -1779,13 +1872,13 @@ function setupDemoMode(variant) {
   state.isDemo = true;
   state.demoVariant = variant;
   // Best-effort: sign out any real user so listeners don't double-fire.
-  // We also never wait on this — demo runs immediately.
+  // We also never wait on this; the demo runs immediately.
   try { signOut(auth).catch(() => {}); } catch {}
 
   // Inject mock auth state.
   state.user = {
     uid: variant === "admin" ? "demo-admin-uid" : "demo-mgr-uid",
-    email: variant === "admin" ? "demo.admin@umbrellaautomation.com" : "sarah.johnson@jemmedspa.com",
+    email: variant === "admin" ? "demo.admin@umbrellaautomation.com" : "sarah.johnson@lakeside.example.com",
     displayName: variant === "admin" ? "Demo Admin" : "Sarah Johnson",
     photoURL: null
   };
@@ -1793,10 +1886,10 @@ function setupDemoMode(variant) {
 
   if (variant === "manager") {
     state.managerDoc = {
-      email: state.user.email, clientId: "jem-medspa-demo",
+      email: state.user.email, clientId: "lakeside-medspa-demo",
       firstName: "Sarah", lastName: "Johnson"
     };
-    state.client = DEMO_FIXTURES.clients.find(c => c.id === "jem-medspa-demo");
+    state.client = DEMO_FIXTURES.clients.find(c => c.id === "lakeside-medspa-demo");
   } else {
     state.adminDoc = { email: state.user.email, name: "Demo Admin" };
   }
@@ -1805,17 +1898,26 @@ function setupDemoMode(variant) {
   $("#authLoader").hidden = true;
   document.body.classList.add("demo-mode");
   $("#demoBanner").hidden = false;
+  trackBannerHeight();
   enterApp();
+}
+
+function trackBannerHeight() {
+  const banner = $("#demoBanner");
+  const set = () => document.documentElement.style.setProperty("--banner-h", banner.getBoundingClientRect().height + "px");
+  set();
+  if ("ResizeObserver" in window) new ResizeObserver(set).observe(banner);
+  window.addEventListener("resize", set);
 }
 
 // ============== auth state listener ==============
 onAuthStateChanged(auth, async user => {
-  // Skip entirely in demo mode — we don't want a stale Firebase auth
+  // Skip entirely in demo mode. We don't want a stale Firebase auth
   // state to flip the demo back to a real session.
   if (isDemoMode()) { $("#authLoader").hidden = true; return; }
 
-  // First callback after page load is the resolved auth state — safe
-  // to hide the loader. (No-op on subsequent callbacks since `hidden`
+  // First callback after page load is the resolved auth state, so it's
+  // safe to hide the loader. (No-op on subsequent callbacks since `hidden`
   // is idempotent.)
   $("#authLoader").hidden = true;
 
@@ -1858,7 +1960,7 @@ onAuthStateChanged(auth, async user => {
       state.adminDoc = adminSnap.data();
       // Back-fill name / photoURL from the Google profile if missing,
       // plus refresh lastLogin. Bootstrap admins (added by hand in the
-      // Firebase console) typically only have email — this populates the
+      // Firebase console) typically only have email; this populates the
       // rest the first time they sign in. Also covers admins added via
       // the "Add admin" modal where the inviter didn't type a name.
       const patch = { lastLogin: serverTimestamp() };
@@ -1902,7 +2004,7 @@ onAuthStateChanged(auth, async user => {
       // First-time MSP admin bootstrap: tell them the UID to use in console.
       $("#authLead").innerHTML = `Your Google account signed in successfully but isn't on the MSP admin roster yet.<br><br>` +
         `<strong>To bootstrap the first admin:</strong> in the Firebase Console, go to <em>Firestore Database</em> &rarr; <em>Start collection</em> &rarr; collection ID <code>msp_admins</code> &rarr; document ID <code>${escapeHTML(myUid)}</code> &rarr; add a string field <code>email</code> = <code>${escapeHTML(myEmail)}</code>. Then sign in again.<br><br>` +
-        `<strong>For additional admins:</strong> ask an existing admin to add you via the MSP Team tab — they'll need your UID: <code>${escapeHTML(myUid)}</code>`;
+        `<strong>For additional admins:</strong> ask an existing admin to add you from the MSP Team tab. They will need your UID: <code>${escapeHTML(myUid)}</code>`;
     } else {
       $("#authLead").textContent = "Your account is signed in but isn't linked to any organization. If you were just invited, the invitation may not have completed properly. Contact your MSP.";
     }
@@ -1955,7 +2057,7 @@ function enterApp() {
       nameEl.textContent = state.client.name || state.client.id;
       if (state.client.logoURL) {
         logo.onerror = () => {
-          // Image broke — drop to name-only fallback.
+          // Image broke: drop to name-only fallback.
           logo.style.display = "none";
           cb.classList.remove("has-logo");
         };
@@ -2022,21 +2124,87 @@ function activateTab(name) {
 }
 
 // ============== modal helpers ==============
+// Open order, newest last: Escape closes the newest one and z-index follows it.
+const modalStack = [];
+const modalOpeners = new Map();
+
+function openModal(bg) {
+  if (typeof bg === "string") bg = document.getElementById(bg);
+  const i = modalStack.indexOf(bg);
+  if (i !== -1) modalStack.splice(i, 1);
+  else modalOpeners.set(bg, document.activeElement);
+  modalStack.push(bg);
+  bg.style.zIndex = String(100 + modalStack.length);
+  bg.hidden = false;
+  bg.querySelector(".modal-head .close")?.focus();
+}
+
+function closeModal(bg) {
+  if (typeof bg === "string") bg = document.getElementById(bg);
+  bg.hidden = true;
+  bg.style.zIndex = "";
+  const i = modalStack.indexOf(bg);
+  if (i !== -1) modalStack.splice(i, 1);
+  const opener = modalOpeners.get(bg);
+  modalOpeners.delete(bg);
+  restoreFocus(opener);
+}
+
+function restoreFocus(el) {
+  let target = el;
+  // Live snapshots re-render table rows, so the original row node may be gone.
+  if (target && !target.isConnected && target.dataset?.id) {
+    target = document.querySelector(`tbody tr[data-id="${CSS.escape(target.dataset.id)}"]`);
+  }
+  if (target && target.isConnected && target !== document.body && typeof target.focus === "function") {
+    target.focus();
+    return;
+  }
+  const top = modalStack[modalStack.length - 1];
+  if (top) { top.querySelector(".modal-head .close")?.focus(); return; }
+  if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
+}
+
 $$("[data-close-modal]").forEach(el => {
-  el.addEventListener("click", () => {
-    el.closest(".modal-bg").hidden = true;
-  });
+  el.addEventListener("click", () => closeModal(el.closest(".modal-bg")));
 });
 // Click-outside-to-close: opt-in only. Modals that hold significant
 // user input (completion form, schema editor, new client, etc.) should
-// NOT close on a stray backdrop click — that's a footgun (lose all
+// NOT close on a stray backdrop click. That's a footgun (lose all
 // captured data on a misclick). Add data-allow-bg-close to a modal-bg
 // to enable the legacy behavior.
 $$(".modal-bg").forEach(bg => {
   bg.addEventListener("click", e => {
-    if (e.target === bg && bg.dataset.allowBgClose !== undefined) bg.hidden = true;
+    if (e.target === bg && bg.dataset.allowBgClose !== undefined) closeModal(bg);
   });
 });
+document.addEventListener("keydown", e => {
+  if (e.key !== "Escape") return;
+  const open = modalStack.filter(bg => !bg.hidden);
+  const top = open[open.length - 1] || $$(".modal-bg:not([hidden])").pop();
+  if (!top) return;
+  e.preventDefault();
+  closeModal(top);
+});
+
+// Request rows are role=button, so Enter and Space must open them like a click.
+function bindRowOpen(tr, open) {
+  tr.addEventListener("click", open);
+  tr.addEventListener("keydown", e => {
+    if (e.target !== tr || (e.key !== "Enter" && e.key !== " ")) return;
+    e.preventDefault();
+    open();
+  });
+}
+
+// Amber ring marks a required select still sitting on its empty placeholder.
+function bindNeedsChoice(root) {
+  root.querySelectorAll("select[required]").forEach(sel => {
+    const sync = () => sel.classList.toggle("needs-choice", sel.value === "");
+    sync();
+    sel.addEventListener("change", sync);
+  });
+}
 
 // ============== forms: subscribe (manager) ==============
 function subscribeFormsForClient(clientId) {
@@ -2098,7 +2266,7 @@ function loadCurrentForm() {
   state.currentFormSchema = schema;
   renderDynamicForm(state.currentFormSchema);
 
-  // Warn if the form has no fields after unwrap — usually means the
+  // Warn if the form has no fields after unwrap. That usually means the
   // pasted JSON was malformed (or empty). Friendlier than a silently
   // blank form.
   const pages = Array.isArray(schema.pages) ? schema.pages : [{ fields: schema.fields || [] }];
@@ -2149,7 +2317,7 @@ function renderDynamicForm(schema) {
     root.appendChild(grid);
   });
 
-  // Built-in optional ticket reference — present on EVERY request type,
+  // Built-in optional ticket reference, present on EVERY request type
   // independent of the per-client form schema (so admins don't have to
   // add it to each client's form JSON). Free text for now; when the
   // Umbrella Help Desk system goes live (shares this Firebase project)
@@ -2184,6 +2352,7 @@ function renderDynamicForm(schema) {
 
   // Run conditional visibility once.
   applyConditionalVisibility();
+  bindNeedsChoice(root);
 }
 
 function renderField(field) {
@@ -2202,18 +2371,19 @@ function renderField(field) {
 
   const id = "df_" + field.id;
   const labelText = field.label || field.id;
-  const req = field.required ? '<span class="req">*</span>' : '';
+  const req = field.required ? '<span class="req" aria-hidden="true">*</span>' : '';
+  const reqAttr = field.required ? " required" : "";
 
   if (field.type === "name") {
     wrap.innerHTML = `
       <label>${escapeHTML(labelText)} ${req}</label>
       <div class="name-row">
         <div>
-          <input id="${id}_first" type="text" placeholder="First" data-name-part="first">
+          <input id="${id}_first" type="text" placeholder="First" data-name-part="first"${reqAttr}>
           <div class="sub-label">First</div>
         </div>
         <div>
-          <input id="${id}_last" type="text" placeholder="Last" data-name-part="last">
+          <input id="${id}_last" type="text" placeholder="Last" data-name-part="last"${reqAttr}>
           <div class="sub-label">Last</div>
         </div>
       </div>
@@ -2229,12 +2399,15 @@ function renderField(field) {
     const colsClass = opts.length > 4 ? " cols-2" : "";
     const inputType = field.type === "radio" ? "radio" : "checkbox";
     const inputName = field.type === "radio" ? `name="${id}"` : "";
+    // A required checkbox group means "pick at least one", which the native attribute cannot express.
+    const optReq = field.type === "radio" ? reqAttr : "";
+    const groupName = labelText + (field.required && field.type !== "radio" ? " (required)" : "");
     let optsHTML = opts.map((o, i) => {
       const val = typeof o === "string" ? o : (o.value || o.label);
       const lbl = typeof o === "string" ? o : (o.label || o.value);
       return `
         <label>
-          <input type="${inputType}" ${inputName} value="${escapeHTML(val)}" data-opt-idx="${i}">
+          <input type="${inputType}" ${inputName} value="${escapeHTML(val)}" data-opt-idx="${i}"${optReq}>
           <span>${escapeHTML(lbl)}</span>
         </label>
       `;
@@ -2242,14 +2415,14 @@ function renderField(field) {
     if (field.allowOther) {
       optsHTML += `
         <label>
-          <input type="${inputType}" ${inputName} value="__other__" data-opt-other="1">
+          <input type="${inputType}" ${inputName} value="__other__" data-opt-other="1"${optReq}>
           <span>Other</span>
         </label>
       `;
     }
     wrap.innerHTML = `
       <label>${escapeHTML(labelText)} ${req}</label>
-      <div class="${groupClass}${colsClass}">${optsHTML}</div>
+      <div class="${groupClass}${colsClass}" role="group" aria-label="${escapeHTML(groupName)}">${optsHTML}</div>
       ${field.allowOther ? `<input class="other-input" type="text" id="${id}_other" placeholder="Specify…">` : ""}
       ${field.help ? `<div class="help">${escapeHTML(field.help)}</div>` : ""}
     `;
@@ -2290,7 +2463,7 @@ function renderField(field) {
     }
     wrap.innerHTML = `
       <label for="${id}">${escapeHTML(labelText)} ${req}</label>
-      <select id="${id}">${optsHTML}</select>
+      <select id="${id}"${reqAttr}>${optsHTML}</select>
       ${field.allowOther ? `<input class="other-input" type="text" id="${id}_other" placeholder="${escapeHTML(field.otherPlaceholder || "Specify…")}">` : ""}
       ${field.help ? `<div class="help">${escapeHTML(field.help)}</div>` : ""}
     `;
@@ -2309,7 +2482,7 @@ function renderField(field) {
     wrap.innerHTML = `
       <label for="${id}">${escapeHTML(labelText)} ${req}</label>
       <textarea id="${id}" ${field.maxlength ? `maxlength="${+field.maxlength}"` : ""}
-        ${field.placeholder ? `placeholder="${escapeHTML(field.placeholder)}"` : ""}></textarea>
+        ${field.placeholder ? `placeholder="${escapeHTML(field.placeholder)}"` : ""}${reqAttr}></textarea>
       ${field.help ? `<div class="help">${escapeHTML(field.help)}</div>` : ""}
     `;
     bindFieldChange(wrap);
@@ -2330,7 +2503,7 @@ function renderField(field) {
     <input id="${id}" type="${typeAttr}"
       ${field.maxlength ? `maxlength="${+field.maxlength}"` : ""}
       ${field.placeholder ? `placeholder="${escapeHTML(field.placeholder)}"` : ""}
-      ${field.pattern ? `pattern="${escapeHTML(field.pattern)}"` : ""}${minAttr}${maxAttr}>
+      ${field.pattern ? `pattern="${escapeHTML(field.pattern)}"` : ""}${minAttr}${maxAttr}${reqAttr}>
     ${field.help ? `<div class="help">${escapeHTML(field.help)}</div>` : ""}
   `;
   bindFieldChange(wrap);
@@ -2507,7 +2680,7 @@ async function submitDynamicForm() {
 }
 
 function buildSummary(formMeta, values) {
-  // Try to find an obvious "subject" — a name field, or first/last fields.
+  // Try to find an obvious "subject": a name field, or first/last fields.
   let subject = "";
   if (values.name && values.name.full) subject = values.name.full;
   else if (values.firstName || values.lastName)
@@ -2575,24 +2748,27 @@ function renderMySubmissions() {
     <table class="tbl">
       <thead>
         <tr>
-          <th>Type</th><th>Subject</th><th>Status</th><th>Submitted</th><th>Last activity</th>
+          <th class="nowrap">Type</th><th class="col-flex">Subject</th><th class="nowrap">Status</th><th class="nowrap">Submitted</th><th class="nowrap">Last activity</th>
         </tr>
       </thead>
       <tbody>
-        ${list.map(s => `
-          <tr data-id="${escapeHTML(s.id)}">
-            <td>${pillKind(s.formKind)}</td>
-            <td>${escapeHTML(s.summary || s.formTitle || "Request")}</td>
-            <td>${pillStatus(s.status)}</td>
-            <td>${escapeHTML(fmtDate(s.submittedAt))}</td>
-            <td class="muted">${escapeHTML(fmtRelative(s.lastActivityAt || s.submittedAt))}</td>
+        ${list.map(s => {
+          const subject = s.summary || s.formTitle || "Request";
+          return `
+          <tr data-id="${escapeHTML(s.id)}" tabindex="0" role="button" aria-label="${escapeHTML("Open request: " + subject)}">
+            <td class="nowrap" data-label="Type">${pillKind(s.formKind)}</td>
+            <td class="col-flex" data-label="Subject">${escapeHTML(subject)}</td>
+            <td class="nowrap" data-label="Status">${pillStatus(s.status)}</td>
+            <td class="nowrap" data-label="Submitted">${escapeHTML(fmtDate(s.submittedAt))}</td>
+            <td class="muted nowrap" data-label="Last activity">${escapeHTML(fmtRelative(s.lastActivityAt || s.submittedAt))}</td>
           </tr>
-        `).join("")}
+        `;
+        }).join("")}
       </tbody>
     </table>
   `;
   $("#myReqTableWrap").querySelectorAll("tbody tr").forEach(tr => {
-    tr.addEventListener("click", () => openSubmission(tr.dataset.id, state.managerDoc.clientId));
+    bindRowOpen(tr, () => openSubmission(tr.dataset.id, state.managerDoc.clientId));
   });
 }
 
@@ -2617,7 +2793,7 @@ function subscribeAllSubmissions() {
   // No orderBy: Firestore requires a COLLECTION_GROUP-scoped field
   // override on `submittedAt` to sort across all `submissions`
   // subcollections, and adding more orderBy/where combinations would
-  // each need their own override. Sort client-side instead — volumes
+  // each need their own override. Sort client-side instead: volumes
   // are low (one row per submission across all clients) and filtering
   // is already client-side, so this keeps things simple.
   const q = query(collectionGroup(db, "submissions"));
@@ -2678,25 +2854,28 @@ function renderQueue() {
     <table class="tbl">
       <thead>
         <tr>
-          <th>Client</th><th>Type</th><th>Subject</th><th>Submitted by</th><th>Status</th><th>Submitted</th>
+          <th>Client</th><th class="nowrap">Type</th><th class="col-flex">Subject</th><th>Submitted by</th><th class="nowrap">Status</th><th class="nowrap">Submitted</th>
         </tr>
       </thead>
       <tbody>
-        ${list.map(s => `
-          <tr data-cid="${escapeHTML(s.clientId)}" data-id="${escapeHTML(s.id)}">
-            <td>${escapeHTML(s.clientName || s.clientId)}</td>
-            <td>${pillKind(s.formKind)}</td>
-            <td>${escapeHTML(s.summary || s.formTitle || "Request")}</td>
-            <td class="muted">${escapeHTML(s.submittedByEmail || "")}</td>
-            <td>${pillStatus(s.status)}</td>
-            <td>${escapeHTML(fmtDate(s.submittedAt))}</td>
+        ${list.map(s => {
+          const subject = s.summary || s.formTitle || "Request";
+          return `
+          <tr data-cid="${escapeHTML(s.clientId)}" data-id="${escapeHTML(s.id)}" tabindex="0" role="button" aria-label="${escapeHTML("Open request: " + subject)}">
+            <td data-label="Client">${escapeHTML(s.clientName || s.clientId)}</td>
+            <td class="nowrap" data-label="Type">${pillKind(s.formKind)}</td>
+            <td class="col-flex" data-label="Subject">${escapeHTML(subject)}</td>
+            <td class="muted wrap-any" data-label="Submitted by">${escapeHTML(s.submittedByEmail || "")}</td>
+            <td class="nowrap" data-label="Status">${pillStatus(s.status)}</td>
+            <td class="nowrap" data-label="Submitted">${escapeHTML(fmtDate(s.submittedAt))}</td>
           </tr>
-        `).join("")}
+        `;
+        }).join("")}
       </tbody>
     </table>
   `;
   $("#queueTableWrap").querySelectorAll("tbody tr").forEach(tr => {
-    tr.addEventListener("click", () => openSubmission(tr.dataset.id, tr.dataset.cid));
+    bindRowOpen(tr, () => openSubmission(tr.dataset.id, tr.dataset.cid));
   });
 }
 
@@ -2723,7 +2902,7 @@ async function openSubmission(submissionId, clientId) {
   if (state.unsub.openSub) state.unsub.openSub();
   if (state.unsub.openEvents) state.unsub.openEvents();
 
-  $("#subModal").hidden = false;
+  openModal("subModal");
   $("#subModalBody").innerHTML = `<div class="empty">Loading…</div>`;
 
   if (isDemoMode()) {
@@ -2783,17 +2962,17 @@ function renderSubmissionDetail() {
       });
     });
   } else {
-    // No schema available — dump raw values.
+    // No schema available: dump raw values.
     Object.entries(s.values || {}).forEach(([k, v]) => {
       answersHTML += `<div class="answer">
         <div class="ans-label">${escapeHTML(k)}</div>
-        <div class="ans-val">${formatAnswerValue(v)}</div>
+        <div class="ans-val${isEmptyValue(v) ? " empty" : ""}">${formatAnswerValue(v)}</div>
       </div>`;
     });
   }
 
   // Status controls (admin only). For new-hire/rehire submissions we
-  // also surface the "Complete & Send Welcome" button when status isn't
+  // also surface the "Complete and send welcome email" button when status isn't
   // already Completed; that's the path that captures the deliverables
   // and emails the new employee + manager(s).
   let statusCtrl = "";
@@ -2801,11 +2980,11 @@ function renderSubmissionDetail() {
     const isNewHireKind = COMPLETION_KIND_PREFIXES.some(p => (s.formKind || "").startsWith(p));
     const showComplete = isNewHireKind && s.status !== "Completed";
     const completeBtn = showComplete
-      ? `<button class="btn btn-primary btn-sm" id="subCompleteBtn" type="button">Complete &amp; Send Welcome →</button>`
+      ? `<button class="btn btn-primary btn-sm" id="subCompleteBtn" type="button">Complete and send welcome email</button>`
       : "";
     const completedSummary = (s.status === "Completed" && s.completion)
       ? `<div style="margin:0 0 14px;padding:10px 12px;background:var(--ok-soft);border:1px solid #86efac;border-radius:7px;font-size:12.5px;color:#166534;">
-           ✓ Completed by ${escapeHTML(s.completedByEmail || "?")} on ${escapeHTML(fmtDate(s.completedAt))}.
+           <span aria-hidden="true">✓</span> Completed by ${escapeHTML(s.completedByEmail || "?")} on ${escapeHTML(fmtDate(s.completedAt))}.
            Welcome email sent to ${(s.completionRecipients || []).length} recipient${(s.completionRecipients || []).length === 1 ? "" : "s"}.
          </div>`
       : "";
@@ -2813,7 +2992,7 @@ function renderSubmissionDetail() {
       ${completedSummary}
       <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap;">
         <span style="font-size:12px;font-weight:600;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.05em;">Status</span>
-        <select id="subStatusSel">
+        <select id="subStatusSel" title="Status is visible to the client manager on their next visit; no email is sent on status changes">
           ${STATUSES.map(st => `<option ${st === s.status ? "selected" : ""}>${escapeHTML(st)}</option>`).join("")}
         </select>
         <button class="btn btn-sm" id="subStatusSave" type="button">Update status</button>
@@ -2926,7 +3105,7 @@ async function cancelMySubmission() {
       }
     );
     toast("Request cancelled.");
-    $("#subModal").hidden = true;
+    closeModal("subModal");
   } catch (e) {
     console.error("cancel failed", e);
     toast(friendlyErr(e, "Could not cancel the request"), true);
@@ -2938,7 +3117,7 @@ function renderAnswerRow(field, v) {
   const lbl = field.label || field.id;
   return `<div class="answer">
     <div class="ans-label">${escapeHTML(lbl)}</div>
-    <div class="ans-val${isEmptyValue(v) ? " empty" : ""}">${isEmptyValue(v) ? "—" : formatAnswerValue(v)}</div>
+    <div class="ans-val${isEmptyValue(v) ? " empty" : ""}">${isEmptyValue(v) ? "Not provided" : formatAnswerValue(v)}</div>
   </div>`;
 }
 
@@ -2950,13 +3129,13 @@ function isEmptyValue(v) {
 }
 
 function formatAnswerValue(v) {
-  if (v == null || v === "") return "—";
+  if (v == null || v === "") return "Not provided";
   if (Array.isArray(v)) {
-    if (v.length === 0) return "—";
+    if (v.length === 0) return "Not provided";
     return `<ul>${v.map(x => `<li>${escapeHTML(x)}</li>`).join("")}</ul>`;
   }
   if (typeof v === "object") {
-    if (v.full !== undefined) return escapeHTML(v.full || "—");
+    if (v.full !== undefined) return escapeHTML(v.full || "Not provided");
     return escapeHTML(JSON.stringify(v));
   }
   return escapeHTML(String(v));
@@ -3034,8 +3213,8 @@ async function sendEvent() {
 
 // ============== completion / welcome-email flow ==============
 //
-// When MSP finishes a New Hire / Rehire submission, "Complete & Send
-// Welcome" opens a modal that captures the deliverables (work email,
+// When MSP finishes a New Hire / Rehire submission, "Complete and send
+// welcome email" opens a modal that captures the deliverables (work email,
 // temp password, account links, first-day logistics, etc.) and emails
 // the new hire + their direct manager + the client manager who
 // originally submitted (deduped). On Send the app:
@@ -3138,11 +3317,11 @@ const DEFAULT_COMPLETION_TEMPLATE = {
 
   {{#hrEmail}}<h3 style="font-size:13px;text-transform:uppercase;letter-spacing:0.05em;color:#64748b;margin:24px 0 8px;border-bottom:1px solid #e2e8f0;padding-bottom:6px;">Need help?</h3>
   <table style="border-collapse:collapse;font-size:13.5px;">
-    {{#hrName}}<tr><td style="padding:3px 12px 3px 0;color:#64748b;">HR — {{hrName}}</td><td><a href="mailto:{{hrEmail}}">{{hrEmail}}</a>{{#hrPhone}} &nbsp;{{hrPhone}}{{/hrPhone}}</td></tr>{{/hrName}}
+    {{#hrName}}<tr><td style="padding:3px 12px 3px 0;color:#64748b;">HR ({{hrName}})</td><td><a href="mailto:{{hrEmail}}">{{hrEmail}}</a>{{#hrPhone}} &nbsp;{{hrPhone}}{{/hrPhone}}</td></tr>{{/hrName}}
     {{#itHelpdesk}}<tr><td style="padding:3px 12px 3px 0;color:#64748b;">IT helpdesk</td><td>{{itHelpdesk}}</td></tr>{{/itHelpdesk}}
   </table>{{/hrEmail}}
 
-  <p style="margin-top:24px;color:#64748b;font-size:12.5px;">Sent on behalf of {{clientName}} by Umbrella Automation. Reply to this email if anything looks off — your client manager and IT will see it.</p>
+  <p style="margin-top:24px;color:#64748b;font-size:12.5px;">Sent on behalf of {{clientName}} by Umbrella Automation. Reply to this email if anything looks off. Your client manager and IT will see it.</p>
 </div>`
 };
 
@@ -3150,16 +3329,16 @@ const DEFAULT_COMPLETION_TEMPLATE = {
 const completionTemplateCache = new Map();
 
 async function getCompletionTemplate(clientId, kind) {
-  // Demo mode: skip Firestore — use the JS default template.
+  // Demo mode: skip Firestore and use the JS default template.
   if (isDemoMode()) return DEFAULT_COMPLETION_TEMPLATE;
-  // Normalize kind — newhire-rehire, newhire, rehire all map to the same template.
+  // Normalize kind: newhire-rehire, newhire, rehire all map to the same template.
   const key = `${clientId}|${kind}`;
   if (completionTemplateCache.has(key)) return completionTemplateCache.get(key);
   let tpl = null;
   try {
     const snap = await getDoc(doc(db, "clients", clientId, "completionTemplates", kind));
     if (snap.exists()) tpl = { ...DEFAULT_COMPLETION_TEMPLATE, ...snap.data() };
-  } catch (e) { /* fall through to default — read may be denied for some kinds */ }
+  } catch (e) { /* fall through to default; read may be denied for some kinds */ }
   if (!tpl) tpl = DEFAULT_COMPLETION_TEMPLATE;
   completionTemplateCache.set(key, tpl);
   return tpl;
@@ -3199,7 +3378,7 @@ function prefillFromSubmission(template, submissionValues) {
 
 // Mustache-lite: supports {{var}} and {{#var}}block{{/var}} sections.
 // A section renders its block iff `var` is truthy (string non-empty,
-// number !== 0, etc.). No nested sections, no inverted sections — just
+// number !== 0, etc.). No nested sections, no inverted sections; just
 // what we need for the email template.
 function renderTemplate(tpl, values) {
   let out = String(tpl);
@@ -3260,8 +3439,8 @@ async function openCompletion() {
     currentTab: "preview"
   };
 
-  $("#completionTitle").textContent = `Complete & Send Welcome — ${prefill.fullName || "new hire"}`;
-  $("#completionModal").hidden = false;
+  $("#completionTitle").textContent = `Complete and send welcome email (${prefill.fullName || "new hire"})`;
+  openModal("completionModal");
   renderCompletionModal();
 }
 
@@ -3289,23 +3468,25 @@ function renderCompletionModal() {
   const fieldHTML = (f) => {
     const v = values[f.id] != null ? values[f.id] : "";
     const cls = v !== "" ? ` data-prefilled="true"` : "";
-    const req = f.required ? `<span class="req"> *</span>` : "";
+    const req = f.required ? `<span class="req" aria-hidden="true"> *</span>` : "";
+    const reqAttr = f.required ? " required" : "";
+    const fid = escapeHTML("comp_" + f.id);
     const help = f.help ? `<div class="help">${escapeHTML(f.help)}</div>` : "";
     const placeholder = f.placeholder ? ` placeholder="${escapeHTML(f.placeholder)}"` : "";
     let input = "";
     if (f.type === "textarea") {
-      input = `<textarea data-field="${escapeHTML(f.id)}"${placeholder}>${escapeHTML(v)}</textarea>`;
+      input = `<textarea id="${fid}" data-field="${escapeHTML(f.id)}"${placeholder}${reqAttr}>${escapeHTML(v)}</textarea>`;
     } else if (f.type === "select") {
-      input = `<select data-field="${escapeHTML(f.id)}">
-        <option value="">—</option>
+      input = `<select id="${fid}" data-field="${escapeHTML(f.id)}"${reqAttr}>
+        <option value="">Select</option>
         ${(f.options || []).map(o => `<option ${o === v ? "selected" : ""}>${escapeHTML(o)}</option>`).join("")}
       </select>`;
     } else {
       const t = (f.type === "email" || f.type === "url" || f.type === "date") ? f.type : "text";
-      input = `<input type="${t}" data-field="${escapeHTML(f.id)}" value="${escapeHTML(v)}"${placeholder}${cls}>`;
+      input = `<input id="${fid}" type="${t}" data-field="${escapeHTML(f.id)}" value="${escapeHTML(v)}"${placeholder}${cls}${reqAttr}>`;
     }
     return `<div class="comp-field${f.full ? " full" : ""}">
-      <label>${escapeHTML(f.label)}${req}</label>
+      <label for="${fid}">${escapeHTML(f.label)}${req}</label>
       ${input}
       ${help}
     </div>`;
@@ -3325,7 +3506,7 @@ function renderCompletionModal() {
 
     <div class="comp-preview">
       <div class="comp-preview-head">
-        <h4>Email — Subject: <span id="compSubject" style="color:var(--ink);font-weight:500;text-transform:none;letter-spacing:0;"></span></h4>
+        <h4>Email subject: <span id="compSubject" style="color:var(--ink);font-weight:500;text-transform:none;letter-spacing:0;"></span></h4>
         <div class="comp-preview-tabs">
           <button type="button" data-comp-tab="preview">Preview</button>
           <button type="button" data-comp-tab="edit">Edit HTML</button>
@@ -3335,8 +3516,8 @@ function renderCompletionModal() {
     </div>
   `;
 
-  // Field input handlers — update only the recipients + preview, never
-  // touch the form fields themselves so focus stays put.
+  // Field input handlers update only the recipients + preview. They never
+  // touch the form fields themselves, so focus stays put.
   $$("#completionBody [data-field]").forEach(el => {
     const update = () => {
       _compState.values[el.dataset.field] = el.value;
@@ -3345,6 +3526,7 @@ function renderCompletionModal() {
     el.addEventListener("input", update);
     el.addEventListener("change", update);
   });
+  bindNeedsChoice($("#completionBody"));
 
   // Tab switch handlers (Preview ↔ Edit HTML).
   $$("#completionBody [data-comp-tab]").forEach(b => {
@@ -3381,7 +3563,7 @@ function updateCompletionPreview({ rebuildPreviewPane = false } = {}) {
     if (recipients.length === 0) {
       recEl.innerHTML = `
         <h4>Recipients (auto-derived, deduped)</h4>
-        <p style="margin:0;font-size:13px;color:var(--danger);">No valid email addresses yet — fill in Work email and Direct manager email above.</p>
+        <p style="margin:0;font-size:13px;color:var(--danger);">No valid email addresses yet. Fill in Work email and Direct manager email above.</p>
       `;
     } else {
       const rows = recipients.map(addr => {
@@ -3391,9 +3573,9 @@ function updateCompletionPreview({ rebuildPreviewPane = false } = {}) {
         if (addr === (values.managerEmail || "").toLowerCase()) tags.push(`<span class="badge">direct manager</span>`);
         if (addr === (submission.submittedByEmail || "").toLowerCase()) tags.push(`<span class="badge">client manager</span>`);
         const checked = _compState.uncheckedRecipients.has(addr) ? "" : "checked";
-        return `<li style="list-style:none;display:flex;align-items:center;gap:8px;padding:3px 0;">
+        return `<li style="list-style:none;display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;padding:3px 0;">
           <input type="checkbox" data-recipient="${escapeHTML(addr)}" ${checked} style="margin:0;">
-          <span>${escapeHTML(addr)}</span>
+          <span style="min-width:0;overflow-wrap:anywhere;">${escapeHTML(addr)}</span>
           ${tags.join(" ")}
         </li>`;
       }).join("");
@@ -3401,9 +3583,9 @@ function updateCompletionPreview({ rebuildPreviewPane = false } = {}) {
       recEl.innerHTML = `
         <h4>Recipients (${checkedCount} of ${recipients.length} will receive)</h4>
         <ul style="padding-left:0;">${rows}</ul>
-        <p style="margin:8px 0 0;font-size:11.5px;color:var(--ink-faint);">Uncheck any address you don't want to email. In Resend sandbox mode you can only send to your Resend account address — uncheck anything else.</p>
+        <p style="margin:8px 0 0;font-size:11.5px;color:var(--ink-faint);">Uncheck any address you don't want to email. In Resend sandbox mode you can only send to your Resend account address, so uncheck anything else.</p>
       `;
-      // Wire checkbox handlers — toggle uncheckedRecipients set.
+      // Wire checkbox handlers to toggle the uncheckedRecipients set.
       $$("#compRecipients [data-recipient]").forEach(cb => {
         cb.addEventListener("change", () => {
           const addr = cb.dataset.recipient;
@@ -3429,7 +3611,7 @@ function updateCompletionPreview({ rebuildPreviewPane = false } = {}) {
   });
 
   // ----- Preview pane -----
-  // Only rebuild on initial render or tab switch — NOT on every field
+  // Only rebuild on initial render or tab switch, NOT on every field
   // keystroke. While in the Preview tab we still refresh the iframe's
   // srcdoc on every change so the live preview tracks edits. In Edit
   // HTML mode the textarea stays intact so the user can keep typing.
@@ -3462,7 +3644,7 @@ function updateCompletionPreview({ rebuildPreviewPane = false } = {}) {
 
 async function sendCompletion() {
   if (!_compState) return;
-  if (demoBlock("welcome email send")) { $("#completionModal").hidden = true; return; }
+  if (demoBlock("welcome email send")) { closeModal("completionModal"); return; }
   const { template, values, submission, alternateEmail } = _compState;
   const clientName = submission.clientName || submission.clientId;
 
@@ -3475,15 +3657,15 @@ async function sendCompletion() {
     return;
   }
 
-  // Honor any recipients the admin unchecked in the modal — only the
+  // Honor any recipients the admin unchecked in the modal. Only the
   // checked ones actually receive the email.
   const allRecipients = deriveCompletionRecipients(values, submission, alternateEmail);
   const skipped = _compState.uncheckedRecipients || new Set();
   const recipients = allRecipients.filter(a => !skipped.has(a));
   if (recipients.length === 0) {
     toast(allRecipients.length === 0
-      ? "No valid recipients — fill in Work email and Direct manager email at minimum."
-      : "All recipients are unchecked — check at least one before sending.",
+      ? "No valid recipients. Fill in Work email and Direct manager email at minimum."
+      : "All recipients are unchecked. Check at least one before sending.",
       true);
     return;
   }
@@ -3557,7 +3739,7 @@ async function sendCompletion() {
     );
 
     toast("Welcome email queued. Status set to Completed.");
-    $("#completionModal").hidden = true;
+    closeModal("completionModal");
     _compState = null;
   } catch (e) {
     console.error("completion send failed", e);
@@ -3571,7 +3753,7 @@ $("#completionSendBtn").addEventListener("click", sendCompletion);
 
 // ============== per-client welcome-template editor ==============
 // Lives at /clients/{clientId}/completionTemplates/newhire-rehire.
-// Currently scoped to the newhire-rehire kind only — add more kinds by
+// Currently scoped to the newhire-rehire kind only. Add more kinds by
 // extending this UI to a kind picker. Pre-fills from the existing
 // per-client doc if one exists, otherwise from DEFAULT_COMPLETION_TEMPLATE
 // so the admin can edit-from-baseline rather than type from scratch.
@@ -3579,7 +3761,7 @@ async function openTemplateEditor(clientId) {
   state._editingTemplate = { clientId, kind: "newhire-rehire", existed: false };
   const c = state.clients.find(x => x.id === clientId);
   $("#templateModalTitle").textContent =
-    `Welcome email template — ${c?.name || clientId}`;
+    `Welcome email template for ${c?.name || clientId}`;
 
   // Try to load the per-client doc; fall back to DEFAULT.
   let tpl = null;
@@ -3600,7 +3782,7 @@ async function openTemplateEditor(clientId) {
   $("#teBody").value       = merged.bodyTemplate || "";
   $("#teFields").value     = JSON.stringify(merged.fields || [], null, 2);
   $("#teResetBtn").hidden  = !state._editingTemplate.existed;
-  $("#templateModal").hidden = false;
+  openModal("templateModal");
 }
 
 $("#teSaveBtn").addEventListener("click", async () => {
@@ -3628,7 +3810,7 @@ $("#teSaveBtn").addEventListener("click", async () => {
         updatedAt: serverTimestamp(), updatedByUid: state.user.uid }
     );
     completionTemplateCache.delete(`${ed.clientId}|${ed.kind}`);
-    $("#templateModal").hidden = true;
+    closeModal("templateModal");
     toast("Template saved.");
   } catch (e) {
     console.error("template save failed", e);
@@ -3648,7 +3830,7 @@ $("#teResetBtn").addEventListener("click", async () => {
   try {
     await deleteDoc(doc(db, "clients", ed.clientId, "completionTemplates", ed.kind));
     completionTemplateCache.delete(`${ed.clientId}|${ed.kind}`);
-    $("#templateModal").hidden = true;
+    closeModal("templateModal");
     toast("Reset to default.");
   } catch (e) {
     console.error("template reset failed", e);
@@ -3740,7 +3922,7 @@ function openClientModal(clientId) {
     $("#cmLogoPreview").style.display = "none";
     $("#cmLogoRemoveBtn").style.display = "none";
   }
-  $("#clientModal").hidden = false;
+  openModal("clientModal");
 }
 
 // Live-preview when a new file is picked, plus mark for upload on save.
@@ -3748,7 +3930,7 @@ $("#cmLogoFile").addEventListener("change", e => {
   const f = e.target.files && e.target.files[0];
   if (!f) return;
   if (f.size > 1024 * 1024) {
-    toast("Logo too large — max 1 MB.", true);
+    toast("Logo too large. The limit is 1 MB.", true);
     e.target.value = "";
     return;
   }
@@ -3796,7 +3978,7 @@ $("#cmSaveBtn").addEventListener("click", async () => {
       await updateDoc(doc(db, "clients", state.editingClient), { name, domain });
     }
 
-    // Logo handling — runs after the client doc exists so the storage
+    // Logo handling runs after the client doc exists so the storage
     // path uses the final id. Upload OR remove, never both.
     const targetId = isNew ? id : state.editingClient;
     if (state._cmLogoPendingFile) {
@@ -3823,7 +4005,7 @@ $("#cmSaveBtn").addEventListener("click", async () => {
       } catch (e) { console.warn("logo metadata clear failed", e); }
     }
 
-    $("#clientModal").hidden = true;
+    closeModal("clientModal");
     toast("Client saved.");
   } catch (e) {
     console.error(e);
@@ -3841,7 +4023,7 @@ $("#cmDeleteBtn").addEventListener("click", async () => {
   btn.disabled = true;
   try {
     await deleteDoc(doc(db, "clients", state.editingClient));
-    $("#clientModal").hidden = true;
+    closeModal("clientModal");
     toast("Client deleted.");
   } catch (e) {
     toast("Delete failed: " + (e.message || e.code), true);
@@ -3869,7 +4051,7 @@ async function openFormsForClient(clientId) {
 }
 
 function showFormsListModal(clientId, client, forms) {
-  $("#schemaModal").hidden = false;
+  openModal("schemaModal");
   $("#schemaModalTitle").textContent = `Forms for ${client?.name || clientId}`;
   // Show a list above the editor; "new form" button.
   const body = $("#schemaModal .modal-body");
@@ -3956,10 +4138,10 @@ $("#seJSON").addEventListener("input", () => {
     const parsed = JSON.parse($("#seJSON").value);
     if (!parsed || typeof parsed !== "object") throw new Error("Schema must be an object.");
     if (!Array.isArray(parsed.pages) && !Array.isArray(parsed.fields)) throw new Error("Schema needs pages[] or fields[].");
-    status.textContent = "✓ Valid JSON";
+    status.innerHTML = `<span aria-hidden="true">✓</span> Valid JSON`;
     status.className = "json-status ok";
   } catch (e) {
-    status.textContent = "✗ " + e.message;
+    status.innerHTML = `<span aria-hidden="true">✗</span> ${escapeHTML(e.message)}`;
     status.className = "json-status err";
   }
 });
@@ -4028,7 +4210,7 @@ $("#seSaveBtn").addEventListener("click", async () => {
         updatedByUid: state.user.uid
       });
     }
-    $("#schemaModal").hidden = true;
+    closeModal("schemaModal");
     toast("Form saved.");
   } catch (e) {
     console.error(e);
@@ -4047,7 +4229,7 @@ $("#seDeleteBtn").addEventListener("click", async () => {
   btn.disabled = true;
   try {
     await deleteDoc(doc(db, "clients", ef.clientId, "forms", ef.formId));
-    $("#schemaModal").hidden = true;
+    closeModal("schemaModal");
     toast("Form deleted.");
   } catch (e) {
     toast("Delete failed: " + (e.message || e.code), true);
@@ -4087,20 +4269,20 @@ function renderInvitations() {
     <table class="tbl">
       <thead>
         <tr>
-          <th>Name</th><th>Email</th><th>Client</th><th>Status</th><th>Created</th><th></th>
+          <th>Name</th><th>Email</th><th>Client</th><th class="nowrap">Status</th><th class="nowrap">Created</th><th><span class="sr-only">Actions</span></th>
         </tr>
       </thead>
       <tbody>
         ${state.invitations.map(inv => `
           <tr data-token="${escapeHTML(inv.id)}">
-            <td>${escapeHTML((inv.firstName || "") + " " + (inv.lastName || ""))}</td>
-            <td>${escapeHTML(inv.email || "")}</td>
-            <td>${escapeHTML(state.clients.find(c => c.id === inv.clientId)?.name || inv.clientId)}</td>
-            <td>${inv.consumed
+            <td data-label="Name">${escapeHTML((inv.firstName || "") + " " + (inv.lastName || ""))}</td>
+            <td class="wrap-any" data-label="Email">${escapeHTML(inv.email || "")}</td>
+            <td data-label="Client">${escapeHTML(state.clients.find(c => c.id === inv.clientId)?.name || inv.clientId)}</td>
+            <td class="nowrap" data-label="Status">${inv.consumed
               ? `<span class="pill st-Completed">Redeemed</span>`
               : `<span class="pill st-Submitted">Pending</span>`}</td>
-            <td>${escapeHTML(fmtDate(inv.createdAt))}</td>
-            <td class="right">
+            <td class="nowrap" data-label="Created">${escapeHTML(fmtDate(inv.createdAt))}</td>
+            <td class="right nowrap" data-label="Actions">
               ${!inv.consumed ? `<button class="btn-link" data-copy="${escapeHTML(inv.id)}">Copy link</button>` : ""}
               <button class="btn-link" style="color:var(--danger);" data-del="${escapeHTML(inv.id)}">Delete</button>
             </td>
@@ -4138,7 +4320,7 @@ $("#newInviteBtn").addEventListener("click", () => {
   $("#invResultBox").hidden = true;
   $("#invCreateBtn").disabled = false;
   $("#invCreateBtn").textContent = "Create invitation";
-  $("#inviteModal").hidden = false;
+  openModal("inviteModal");
 });
 
 function refreshInviteClientPicker() {
@@ -4147,7 +4329,9 @@ function refreshInviteClientPicker() {
   sel.innerHTML = state.clients.map(c =>
     `<option value="${escapeHTML(c.id)}">${escapeHTML(c.name || c.id)}</option>`
   ).join("");
+  sel.classList.toggle("needs-choice", sel.value === "");
 }
+bindNeedsChoice($("#inviteModal"));
 
 $("#invCreateBtn").addEventListener("click", async () => {
   if (demoBlock("invitation create")) return;
@@ -4176,7 +4360,7 @@ $("#invCreateBtn").addEventListener("click", async () => {
     $("#invResultEmail").textContent = email;
 
     // Pre-draft the email so the MSP admin can paste-and-send.
-    const subject = `Welcome to the Umbrella Automation Onboarding System — Setup Link`;
+    const subject = `Your setup link for the Umbrella Automation onboarding system`;
     const body =
 `Hi ${first},
 
@@ -4199,7 +4383,7 @@ Umbrella Automation`;
     $("#invEmailSubject").value = subject;
     $("#invEmailBody").value = body;
     $("#invResultBox").hidden = false;
-    btn.textContent = "Created — copy the link or email below";
+    btn.textContent = "Created. Copy the link or email below";
   } catch (e) {
     console.error(e);
     toast("Could not create invitation: " + (e.message || e.code), true);
@@ -4236,7 +4420,7 @@ function subscribeAdmins() {
 }
 
 function renderAdmins() {
-  // Populate Sales Demos URLs (idempotent — same value every render).
+  // Populate Sales Demos URLs (idempotent: same value every render).
   const mgrUrl = demoUrl("manager");
   const admUrl = demoUrl("admin");
   $("#demoMgrUrl").value = mgrUrl;
@@ -4252,15 +4436,15 @@ function renderAdmins() {
   $("#adminListWrap").innerHTML = `
     <table class="tbl">
       <thead>
-        <tr><th>Name</th><th>Email</th><th>UID</th><th></th></tr>
+        <tr><th>Name</th><th>Email</th><th>UID</th><th><span class="sr-only">Actions</span></th></tr>
       </thead>
       <tbody>
         ${state.admins.map(a => `
           <tr>
-            <td>${escapeHTML(a.name || "—")}</td>
-            <td>${escapeHTML(a.email || "")}</td>
-            <td class="muted" style="font-family:var(--mono);font-size:12px;">${escapeHTML(a.uid)}</td>
-            <td class="right">
+            <td data-label="Name">${escapeHTML(a.name || "-")}</td>
+            <td class="wrap-any" data-label="Email">${escapeHTML(a.email || "")}</td>
+            <td class="muted wrap-any" data-label="UID" style="font-family:var(--mono);font-size:12px;">${escapeHTML(a.uid)}</td>
+            <td class="right nowrap" data-label="Actions">
               ${a.uid !== state.user.uid ? `<button class="btn-link" style="color:var(--danger);" data-rm="${escapeHTML(a.uid)}">Remove</button>` : `<span class="muted">(you)</span>`}
             </td>
           </tr>
@@ -4285,7 +4469,7 @@ $("#newAdminBtn").addEventListener("click", () => {
   $("#aaUid").value = "";
   $("#aaEmail").value = "";
   $("#aaName").value = "";
-  $("#addAdminModal").hidden = false;
+  openModal("addAdminModal");
 });
 
 $("#aaSaveBtn").addEventListener("click", async () => {
@@ -4300,7 +4484,7 @@ $("#aaSaveBtn").addEventListener("click", async () => {
     await setDoc(doc(db, "msp_admins", uid), {
       email, name, addedAt: serverTimestamp(), addedByUid: state.user.uid
     });
-    $("#addAdminModal").hidden = true;
+    closeModal("addAdminModal");
     toast("Admin added.");
   } catch (e) {
     toast("Add failed: " + (e.message || e.code), true);
@@ -4355,7 +4539,7 @@ const STARTER_TEMPLATES = {
             help: "Used for sending emails to multiple users at once." },
           { id: "sharedMailboxes", type: "checkboxes", label: "Shared / Delegate Mailboxes",
             options: [`customerservice@${domain}`, `billing@${domain}`],
-            help: "Mailboxes with shared access — users can be added as delegates to view or send from these inboxes." }
+            help: "Mailboxes with shared access. Users can be added as delegates to view or send from these inboxes." }
         ]
       },
       {
