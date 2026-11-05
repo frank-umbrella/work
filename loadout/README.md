@@ -8,7 +8,7 @@ pages, `noindex, nofollow`, and the shared Watchtower sign-in
 (`@umbrellaautomation.com` Google accounts only). The plan is `PLAN.md`; the
 chosen look is direction B, Ledger, in `design-preview.html`.
 
-Current version: **0.6.1**.
+Current version: **0.7.0**.
 
 ## Files
 
@@ -120,9 +120,12 @@ Current version: **0.6.1**.
   the ticket staged there. On a phone or tablet, a label that explains itself
   has a ? beside it that opens the explanation (a mouse shows it on hover).
 - **Units** (called Items before 0.6.0): every serialized unit, with Out as
-  the Friday list. A unit opens in place the same way (`#items/i/<id>`), with
-  its label, serial, condition, Check out, Check in, Move, Retire, and Show
-  history.
+  the Friday list, and a search that finds a unit by serial, MAC address
+  (typed with colons, dashes, or none), product, or who has it. Serial and
+  MAC address are columns, on by default and sortable. A unit opens in place
+  the same way (`#items/i/<id>`), with its label, serial, MAC address,
+  condition, Check out, Check in, Move, Retire, and Show history. A serial or
+  MAC typed on Scan opens its unit.
 - **Console** (admin and accounting; also linked from More): **Reports**,
   each with a From and To date (this month by default, with This month and
   Last month buttons), a sortable table with the Columns manager, a one-line
@@ -372,6 +375,27 @@ gained `reviewedAt`, `reviewedBy`, and `reviewedByName` beside the worker's
   carries `updatedAt`; at sign-in the newer of the device's copy and the
   account's wins.
 
+0.7.0 (the inventory sheet's pull tracking and serials):
+
+- Units carry `mac` beside `serial`: `serial` as typed, for warranty claims
+  and returns; `mac` stored as `AA:BB:CC:DD:EE:FF` so a networked device can
+  be found on the client's network. Receive and Serialize ask for both, one
+  per line, neither required; a unit's panel edits both.
+- A unit pulled on the sheet is checked out to a name with no account:
+  `holderName` as typed in Pulled For and no `holderUid`. It carries
+  `holderNote` (the sheet's Note) and `clientId` with `clientName` (Client
+  Pulled For); the next check-out or check-in clears them.
+- Imported unit ids: `imp-{productId}-m-{12 hex}` for a row with a MAC,
+  `imp-{productId}-s-{serial slug}` for a row with a serial, and
+  `imp-{productId}-{n}` for the rest (unchanged). The sheet's Serial/MAC cell
+  is kept as typed in `importNote` when it was read as a MAC.
+- Products take `upc` from the sheet's UPC column; an empty cell never clears
+  one. Clients named in Client Pulled For are created with the usual slug id.
+- Locations gain the kind `vehicle` (a sheet Area ending in Car, Van, or
+  Truck). It reads like `other`.
+- Pulled units get one `checkout` movement by Import, dated from Pull Date
+  (else the count date), with an `importKey` ending in `:checkout`.
+
 The Console's About tab lists every field of every collection.
 
 ## Rules
@@ -389,6 +413,11 @@ and write nothing. 0.5.1 changed no rules either: the new fields on purchase
 orders, order lines, and shipments fall under the wildcard (warehouse and
 admin write, techs do not), and clearing a ticket's `needsReview` is a ticket
 update a tech's carve-out (`status`, `summary`, `updatedAt`) does not allow.
+0.7.0 adds `clientId` and `holderNote` to a tech's unit update: a check-out
+or check-in clears them on a unit that came in pulled on the inventory sheet,
+and only writes them when the unit has them. Not checked in the emulator yet
+and **not deployed**; until it is, a tech checking in a pulled unit is
+refused, and an admin or warehouse account can do it.
 0.5.2 changes three things, checked in the local Firestore emulator on a
 scratch port (34 of 34 checks passing): `loadout_settings/counters` (the PO
 number) may be created and bumped by warehouse and admin, holding only `po`
@@ -434,11 +463,13 @@ function loadoutOnly(keys) {
 // 0.5.2: a unit also carries ticketNumber and clientName beside its
 // ticket and job ids (PLAN 16 rule 3), so a tech's Deliver to site and
 // check-in may write those two as well.
+// 0.7.0: also clientId and holderNote, which a check-out or check-in clears
+// on a unit that came in pulled on the inventory sheet.
 function loadoutItemUpdate() {
   let r = loadoutRole();
   return r in ['admin', 'warehouse']
     || (r == 'tech' && loadoutOnly(['status', 'holderUid', 'holderName', 'jobId', 'jobName',
-         'clientName', 'ticketId', 'ticketNumber', 'ticketLineId', 'locationId', 'locationName',
+         'clientName', 'clientId', 'holderNote', 'ticketId', 'ticketNumber', 'ticketLineId', 'locationId', 'locationName',
          'checkedOutAt', 'checkedInAt', 'condition', 'updatedAt']));
 }
 // 0.5.2: a box write never replaces another box. A new box is written
@@ -695,6 +726,35 @@ Portal API intake (T2) is a stub until D1 is answered. Secrets, owner setup,
 the Zap, and deploy steps are in `worker/README.md`.
 
 ## Changelog
+
+### 0.7.0 (2026-11-05)
+
+The shop's inventory sheet grew pull tracking and serials on the Devices tab:
+a UPC, a serial or MAC, who a unit was pulled for and for which client, the
+pull date, and a note. The import had to keep up so the test drive runs on
+the real data, and the shop asked for the MAC on its own field, because for
+anything on the network the MAC is how you find the device later, whether or
+not the serial is known.
+
+- **Import**: the Devices tab reads six new columns. UPCs land on products.
+  A row with a serial or MAC becomes its own unit, with an id that a
+  re-import finds again. A row with Pull Date or Pulled For comes in checked
+  out to that name (no Loadout account needed), for the client named, with a
+  Check out by Import; new clients are created. An Area ending in Car, Van,
+  or Truck becomes a vehicle location. A row noted DNI/Does Not Exist keeps
+  its product and counts nothing. The dry run shows units with serials and
+  with MACs, pulled units (as counts of people and clients, no names),
+  clients to create, products gaining a UPC, and vehicles.
+- **Import twice, write nothing**: a record the database already holds is
+  left out of the plan, so the same file a second time plans 0 writes.
+- **Units**: serial and MAC address on every unit, as table columns, in the
+  unit panel, on Receive and Serialize, in the Units out report, and in
+  Export everything. A search box on Units finds a unit by either, and
+  typing one on Scan opens it.
+- **Storyboard 0.7.0**: a Test drive tab, 14 steps for one morning in the
+  shop, with a printable "What felt off" table.
+- Firestore rules: a tech's unit update may write `clientId` and
+  `holderNote` (watchtower/firestore.rules, copied above). Not deployed.
 
 ### 0.6.1 (2026-11-03)
 

@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Loadout v0.6.1</title>
+<title>Loadout v0.7.0</title>
 <meta name="robots" content="noindex, nofollow">
-<meta name="loadout-version" content="0.6.1">
+<meta name="loadout-version" content="0.7.0">
 <meta name="description" content="Umbrella Automation shop inventory. Restricted to @umbrellaautomation.com accounts.">
 <meta name="theme-color" content="#1e6fd9">
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
@@ -1003,7 +1003,7 @@ body.preview #printSheet .picksheet{box-shadow:0 2px 10px rgba(0,0,0,.15)}
   <header class="top">
     <div class="brand">
       <svg viewBox="0 0 64 64" aria-hidden="true"><rect x="8" y="20" width="48" height="34" rx="6" fill="none" stroke="currentColor" stroke-width="5"/><path d="M24 20v-6a4 4 0 0 1 4-4h8a4 4 0 0 1 4 4v6" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/><path d="M8 35h48" stroke="currentColor" stroke-width="4"/><rect x="27" y="31" width="10" height="8" rx="2" fill="currentColor"/></svg>
-      Loadout <span class="v" id="verBadge">v0.6.1</span>
+      Loadout <span class="v" id="verBadge">v0.7.0</span>
     </div>
     <nav class="nav" aria-label="Views">
       <!-- 0.6.0: the tab bar's five in the tab bar's order, then the rest -->
@@ -1037,7 +1037,7 @@ body.preview #printSheet .picksheet{box-shadow:0 2px 10px rgba(0,0,0,.15)}
   </main>
 
   <footer class="foot">
-    <span id="footVer">Loadout v0.6.1</span>
+    <span id="footVer">Loadout v0.7.0</span>
     <span id="footWho"></span>
     <span id="footRole"></span>
     <span id="footSync"></span>
@@ -1066,7 +1066,7 @@ body.preview #printSheet .picksheet{box-shadow:0 2px 10px rgba(0,0,0,.15)}
    and its Google sign-in, like Backup Audits and Sundial. Data lives
    in loadout_* collections; rules are in watchtower/firestore.rules.
    ============================================================== */
-const VERSION = "0.6.1";
+const VERSION = "0.7.0";
 const SDK = "https://www.gstatic.com/firebasejs/12.13.0/";
 const XLSX_URL = "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";
 /* @zxing/library is not on cdnjs, so the fallback decoder comes from jsDelivr,
@@ -1098,7 +1098,8 @@ const ROLES = ["admin", "warehouse", "tech", "accounting", "board"];
 const ROLE_LABEL = { admin: "Admin", warehouse: "Warehouse", tech: "Tech", accounting: "Accounting", board: "Board", none: "Deactivated" };
 const KINDS = ["device", "patch-cable", "splitter", "connector", "wire", "other"];
 const KIND_LABEL = { device: "Device", "patch-cable": "Patch cable", splitter: "Splitter", connector: "Connector", wire: "Wire", other: "Other" };
-const LOC_KINDS = ["shelf", "bay", "van", "other"];
+/* 0.7.0: vehicle is a person's car or truck that carries stock (the sheet's "<name> Car" area); it reads like other */
+const LOC_KINDS = ["shelf", "bay", "van", "vehicle", "other"];
 const ITEM_STATUS = { in_stock: "In stock", staged: "Staged", checked_out: "Checked out", installed: "Installed", returned: "Returned", retired: "Retired" };
 /* 0.5.2 (audit-002 finding 13): one word per movement. pull = shelf to a bay
    for a ticket; move = shelf to shelf, no ticket; return = a unit back from a
@@ -1290,6 +1291,31 @@ function composeLocName(area, shelf) { return shelf ? area + ", " + shelf : area
 function locIdFor(area, shelf) { return shelf ? slug(area) + "--" + slug(shelf) : slug(area); }
 /* serial when typed, else the unit's label ("Sonos Amp #2", PLAN 12b item 2), else the short id */
 function itemLabel(it) { return it.serial ? it.serial : it.label ? it.label : shortId(it.id); }
+/* 0.7.0: a MAC address is stored as AA:BB:CC:DD:EE:FF. macOf returns that
+   form, or "" when the text is not 12 hex digits. A leading tag in
+   parentheses ("(AV) ...") and colons, dashes, dots, or spaces are ignored
+   for the test only. */
+function macOf(s) {
+  const h = String(s == null ? "" : s).replace(/^\s*\([^)]*\)\s*/, "").trim().replace(/[:.\-\s]/g, "");
+  return /^[0-9a-f]{12}$/i.test(h) ? h.toUpperCase().match(/../g).join(":") : "";
+}
+/* search text for a MAC typed with colons, dashes, or no separators */
+const hexOnly = s => String(s || "").replace(/[^0-9a-f]/gi, "").toLowerCase();
+/* the MAC box on Receive and Serialize: one per line, blank lines allowed;
+   .bad is the first line number that is not a MAC */
+function macLines(text) {
+  const out = String(text || "").split(/\r?\n/).map(x => x.trim());
+  out.forEach((x, k) => { if (x && !macOf(x) && !out.bad) out.bad = k + 1; });
+  return out;
+}
+function unitMatches(i, q) {
+  if (!q) return true;
+  const t = q.trim().toLowerCase(); if (!t) return true;
+  const hay = [i.productName, i.label, i.serial, i.mac, i.holderName, i.clientName, i.jobName, i.locationId ? locName(i.locationId) : ""].filter(Boolean).join(" ").toLowerCase();
+  if (hay.includes(t)) return true;
+  const h = hexOnly(t);
+  return h.length >= 4 && /^[0-9a-f:.\-\s]+$/i.test(t) && !!i.mac && hexOnly(i.mac).includes(h);
+}
 
 /* ---------------- on-hand ---------------- */
 /* On hand = counted stock rows + open boxes' feet left + serialized units in
@@ -2058,9 +2084,9 @@ function stockQty(p, locId) { const r = S.stock.get(p.id + "__" + locId); return
    (PLAN 16 rule 3). p is the product, or {id, name} from the importer. */
 function itemDoc(p, f) {
   const d = Object.assign({
-    productId: p.id, productName: productName(p), label: null, serial: null, cost: null, qr: PAYLOAD.item(f.id),
-    status: "in_stock", locationId: null, holderUid: null, holderName: null,
-    jobId: null, jobName: null, clientName: null, ticketId: null, ticketNumber: null, ticketLineId: null,
+    productId: p.id, productName: productName(p), label: null, serial: null, mac: null, cost: null, qr: PAYLOAD.item(f.id),
+    status: "in_stock", locationId: null, holderUid: null, holderName: null, holderNote: null,
+    jobId: null, jobName: null, clientId: null, clientName: null, ticketId: null, ticketNumber: null, ticketLineId: null,
     checkedOutAt: null, checkedInAt: null, condition: "good", orderId: null, orderNumber: null, shipmentId: null,
     createdAt: NOW, updatedAt: NOW
   }, f);
@@ -2072,14 +2098,14 @@ function itemDoc(p, f) {
 function unitLabels(p, n, extra) { const base = itemsFor(p.id).length + (extra || 0); return Array.from({ length: n }, (_, i) => productName(p) + " #" + (base + i + 1)); }
 
 /* ---------------- domain writes ---------------- */
-async function doReceiveUnits(p, locId, qty, cost, serialize, serials, note) {
+async function doReceiveUnits(p, locId, qty, cost, serialize, serials, note, macs) {
   const ops = [];
   if (serialize) {
     const labels = unitLabels(p, qty);
     for (let i = 0; i < qty; i++) {
       const id = rid() + i;
-      const serial = (serials[i] || "").trim() || null;
-      ops.push(itemDoc(p, { id, label: labels[i], serial, cost: cost == null ? null : cost, locationId: locId }));
+      const serial = (serials[i] || "").trim() || null, mac = macOf((macs || [])[i]) || null;
+      ops.push(itemDoc(p, { id, label: labels[i], serial, mac, cost: cost == null ? null : cost, locationId: locId }));
       ops.push(mv("receive", { productId: p.id, itemId: id, itemLabel: serial || labels[i], qty: 1, toLocationId: locId, note }));
     }
   } else {
@@ -2117,19 +2143,23 @@ async function doAdjust(p, locId, delta, note) {
   return DB.commit([stockInc(p, locId, delta), productInc(p.id, delta),
     mv("adjust", { productId: p.id, qty: delta, toLocationId: locId, note })], "Adjust on " + productName(p));
 }
-async function doSerialize(p, locId, n, serials) {
+async function doSerialize(p, locId, n, serials, macs) {
   const ops = [stockInc(p, locId, -n)], labels = unitLabels(p, n);
   for (let i = 0; i < n; i++) {
-    const id = rid() + i, serial = (serials[i] || "").trim() || null;
-    ops.push(itemDoc(p, { id, label: labels[i], serial, cost: p.lastCost == null ? null : p.lastCost, locationId: locId }));
+    const id = rid() + i, serial = (serials[i] || "").trim() || null, mac = macOf((macs || [])[i]) || null;
+    ops.push(itemDoc(p, { id, label: labels[i], serial, mac, cost: p.lastCost == null ? null : p.lastCost, locationId: locId }));
     ops.push(mv("adjust", { productId: p.id, itemId: id, itemLabel: serial || labels[i], qty: 0, toLocationId: locId, note: "Serialized: this unit now has its own QR" }));
   }
   return DB.commit(ops, "Serialize on " + productName(p));
 }
+/* 0.7.0: a unit pulled on the inventory sheet carries the sheet's note and
+   client id; the next check-out or check-in clears them. Only units that have
+   them write them, so a tech's update stays inside the fields the rules allow. */
+function sheetPullClear(it) { const o = {}; if (it.holderNote != null) o.holderNote = null; if (it.clientId != null) o.clientId = null; return o; }
 async function doCheckout(it, holder, jobName, note) {
-  const ops = [{ op: "update", coll: "loadout_items", id: it.id, data: {
+  const ops = [{ op: "update", coll: "loadout_items", id: it.id, data: Object.assign({
       status: "checked_out", holderUid: holder.uid, holderName: holder.name, jobId: null, jobName: jobName || null, clientName: null,
-      locationId: null, locationName: null, checkedOutAt: NOW, updatedAt: NOW } },
+      locationId: null, locationName: null, checkedOutAt: NOW, updatedAt: NOW }, sheetPullClear(it)) },
     mv("checkout", { productId: it.productId, itemId: it.id, itemLabel: itemLabel(it), qty: 1, fromLocationId: it.locationId, holderUid: holder.uid, holderName: holder.name, jobName, note })];
   if (inStockItem(it)) ops.push(productInc(it.productId, -1));
   return DB.commit(ops, "Check out of " + it.productName);
@@ -2138,9 +2168,9 @@ async function doCheckout(it, holder, jobName, note) {
    movement and goes to Returned; everything else is a check-in (finding 13) */
 async function doCheckin(it, locId, condition, returned, note) {
   const status = returned ? "returned" : "in_stock";
-  const ops = [{ op: "update", coll: "loadout_items", id: it.id, data: {
+  const ops = [{ op: "update", coll: "loadout_items", id: it.id, data: Object.assign({
       status, holderUid: null, holderName: null, jobId: null, jobName: null, clientName: null, locationId: locId, locationName: locName(locId),
-      checkedInAt: NOW, condition, updatedAt: NOW } },
+      checkedInAt: NOW, condition, updatedAt: NOW }, sheetPullClear(it)) },
     mv(returned ? "return" : "checkin", { productId: it.productId, itemId: it.id, itemLabel: itemLabel(it), qty: 1, toLocationId: locId, condition, holderName: it.holderName, jobName: it.jobName, note: (returned ? "Back from a client's site, needs a look. " : "") + (note || "") })];
   if (!inStockItem(it) && status === "in_stock") ops.push(productInc(it.productId, 1));
   return DB.commit(ops, "Check in of " + it.productName);
@@ -2911,7 +2941,8 @@ function loadDemo() {
     ["bay-1", "Bay 1", "", "bay"],
     ["bay-2", "Bay 2", "", "bay"],
     ["bay-3", "Bay 3", "", "bay"],
-    ["van-1", "Van 1", "", "van"]
+    ["van-1", "Van 1", "", "van"],
+    ["shop-truck", "Shop truck", "", "vehicle"]
   ];
   locs.forEach(([id, area, shelf, kind]) => S.locations.set(id, { id, area, shelf, kind, name: composeLocName(area, shelf), qr: PAYLOAD.loc(id), jobId: null }));
   const P = (id, o) => S.products.set(id, Object.assign({ id, kind: "device", unit: "each", consumable: false, parLevel: null, upc: null, brand: "", model: "", type: "", category: "", description: "", defaultLocationId: null, lastCountAt: t(20), createdAt: t(30) }, o));
@@ -2960,6 +2991,13 @@ function loadDemo() {
   I("imp-sonos-port-1", "sonos-port", null, "in_stock", "warehouse", null, null, null);
   I("imp-sonos-port-2", "sonos-port", null, "in_stock", "warehouse", null, null, null);
   ["imp-sonos-port-1", "imp-sonos-port-2"].forEach((id, k) => Object.assign(S.items.get(id), { label: "Sonos Port #" + (k + 1), importNote: "Condition on the sheet: new in box" }));
+  /* 0.7.0: a unit pulled on the inventory sheet: checked out to a name with no
+     account (no holderUid), for a client, with the sheet's MAC; check it in to
+     see a name-only holder come back */
+  I("imp-axis-m3065-v-m-accc8e12ab34", "axis-m3065-v", null, "checked_out", null, "Install crew", null, 3);
+  Object.assign(S.items.get("imp-axis-m3065-v-m-accc8e12ab34"), { holderUid: null, mac: "AC:CC:8E:12:AB:34", label: "Axis M3065-V, MAC 12AB34", holderNote: "For the lobby cameras", clientId: "lakeview-dental", clientName: "Lakeview Dental",
+    importNote: "Condition on the sheet: New In Box. Serial/MAC on the sheet: (AV) ACCC8E12AB34" });
+  Object.assign(S.items.get("k3m9q2x7a1"), { mac: "E0:63:DA:00:A1:B2" });
   const mvs = [
     ["receive", 30, "Warehouse", { productId: "leviton-61110-be6", qty: 100, toLocationId: "warehouse" }],
     ["pick", 29, "Warehouse", { productId: "leviton-61110-be6", qty: 24, fromLocationId: "warehouse", toLocationId: "van-1", note: "Moved between locations" }],
@@ -2976,6 +3014,7 @@ function loadDemo() {
     ["cut", 7, "Tech", { productId: "wire-cat5e-riser-244-gray", containerId: "c926", containerLabel: "C926", qty: -180, cut: { fromMark: 590, toMark: 410, length: 180 }, jobName: "Lakeview office refresh" }],
     ["receive", 6, "Warehouse", { productId: "axis-m3065-v", qty: 3, toLocationId: "warehouse" }],
     ["edit", 5, "Warehouse", { productId: "wire-cat6-riser-234-blue", note: "Edited: parLevel" }],
+    ["checkout", 3, "Import", { productId: "axis-m3065-v", itemId: "imp-axis-m3065-v-m-accc8e12ab34", itemLabel: "Axis M3065-V, MAC 12AB34", qty: 1, holderName: "Install crew", note: "Unassigned Inventory.xlsx, tab Devices row 12, pulled for Install crew. For the lobby cameras", importTab: "Devices", importRow: 12, importKey: "Devices|12|imp-axis-m3065-v-m-accc8e12ab34:checkout|1" }],
     ["checkout", 4, "Tech", { productId: "ubiquiti-u6-pro", itemId: "k3m9q2x7a2", itemLabel: "Q2X7A2", qty: 1, fromLocationId: "warehouse", holderName: "Tech", jobName: "Lakeview office refresh" }],
     ["checkin", 3, "Tech", { productId: "sonos-amp", itemId: "h4n6v8b2c3", itemLabel: "V8B2C3", qty: 1, toLocationId: "warehouse", condition: "damaged", note: "Back from a client's home, needs a look." }],
     ["pick", 2, "Warehouse", { productId: "patch-cable-cat6-utp-patch-cable-rj45m-rj45m-blue-3ft", qty: 6, fromLocationId: "storage-room--patch-cables", toLocationId: "bay-1", note: "Moved between locations" }],
@@ -5591,15 +5630,19 @@ function itemPanel(it) {
   const W = isWriter(), T = isTech(), id = esc(it.id), t = it.ticketId ? S.tickets.get(it.ticketId) : null;
   let h = '<div class="xhead"><b>' + esc(itemLabel(it)) + "</b>" + statusPill(it.status) + '<span class="hint" style="margin:0">' + esc(it.productName || "") + "</span></div>";
   if (W) {
-    const d = xDraft(it, ["serial", "label", "condition"]);
+    const d = xDraft(it, ["serial", "mac", "label", "condition"]);
     h += '<div class="xgrid"><div><label class="lab" for="xf_label" title="The name on its QR sticker, for example Sonos Amp #2. Change it if the unit is better known another way.">' + '<abbr>Label</abbr></label><input class="fld" id="xf_label" data-xf="label" value="' + esc(d.label) + '" placeholder="' + esc((it.productName || "Unit") + " #1") + '"></div>' +
-      '<div><label class="lab" for="xf_serial" title="The maker\'s serial number. It shows on the label and finds the unit when typed on Scan.">' + '<abbr>Serial</abbr></label><input class="fld mono" id="xf_serial" data-xf="serial" value="' + esc(d.serial) + '"></div>' +
+      '<div><label class="lab" for="xf_serial" title="The maker\'s serial number, for warranty claims and returns. It shows on the label and finds the unit when typed on Scan or in the Units search.">' + '<abbr>Serial</abbr></label><input class="fld mono" id="xf_serial" data-xf="serial" value="' + esc(d.serial) + '"></div>' +
+      '<div><label class="lab" for="xf_mac" title="For anything that joins the network: the MAC lets you find this device on the client\'s network. Type it with colons, dashes, or none; it is saved as AA:BB:CC:DD:EE:FF.">' + '<abbr>MAC address</abbr></label><input class="fld mono" id="xf_mac" data-xf="mac" value="' + esc(d.mac) + '" placeholder="AA:BB:CC:DD:EE:FF" autocapitalize="characters" spellcheck="false"></div>' +
       '<div><label class="lab" for="xf_condition">Condition</label><select class="fld" id="xf_condition" data-xf="condition"><option value="">Not recorded</option>' + Object.entries(CONDITIONS).map(([k, l]) => '<option value="' + k + '"' + (d.condition === k ? " selected" : "") + ">" + l + "</option>").join("") + "</select></div></div>";
   }
-  h += '<dl class="meta"><div><dt>' + (it.status === "checked_out" ? "Held by" : "Where") + "</dt><dd>" + esc(whereItem(it)) + "</dd></div>" +
+  h += '<dl class="meta"><div><dt>' + (it.status === "checked_out" ? "Held by" : "Where") + "</dt><dd>" + esc(whereItem(it)) + (it.status === "checked_out" && !it.holderUid && it.holderName ? "<small>Name from the inventory sheet, no Loadout account</small>" : "") + "</dd></div>" +
     (it.jobName ? "<div><dt>Job</dt><dd>" + esc(it.jobName) + "</dd></div>" : "") +
+    (it.clientName ? "<div><dt>Client</dt><dd>" + esc(it.clientName) + "</dd></div>" : "") +
+    (it.holderNote ? "<div><dt>Note</dt><dd>" + esc(it.holderNote) + "</dd></div>" : "") +
     (it.status === "checked_out" && it.checkedOutAt ? "<div><dt>Out since</dt><dd>" + esc(fmtDate(it.checkedOutAt)) + "<small>" + (daysSince(it.checkedOutAt) || 0) + " days</small></dd></div>" : "") +
     (!W && it.serial ? '<div><dt>Serial</dt><dd class="mono">' + esc(it.serial) + "</dd></div>" : "") +
+    (!W && it.mac ? '<div><dt>MAC address</dt><dd class="mono">' + esc(it.mac) + "</dd></div>" : "") +
     (!W && it.condition ? "<div><dt>Condition</dt><dd>" + esc(CONDITIONS[it.condition] || it.condition) + "</dd></div>" : "") +
     (t ? '<div><dt>Ticket</dt><dd><button type="button" class="textbtn" data-act="ticket" data-id="' + esc(t.id) + '">#' + esc(t.number) + "</button></dd></div>" : "") +
     (it.orderId ? '<div><dt>From PO</dt><dd><button type="button" class="textbtn" data-act="order" data-id="' + esc(it.orderId) + '">' + esc(it.orderNumber || it.orderId) + "</button></dd></div>" : "") +
@@ -5620,7 +5663,7 @@ function locPanel(l) {
   if (W) {
     const d = xDraft(l, ["kind"]);
     h += '<div class="xgrid"><div><label class="lab" for="xf_area">Area</label><input class="fld" id="xf_area" value="' + esc(l.area || "") + '" disabled></div><div><label class="lab" for="xf_shelf">Shelf</label><input class="fld" id="xf_shelf" value="' + esc(l.shelf || "") + '" disabled></div>' +
-      '<div><label class="lab" for="xf_kind" title="Bays hold product staged for a job; vans are stock that travels. Neither is pulled from for a ticket.">' + '<abbr>Kind</abbr></label><select class="fld" id="xf_kind" data-xf="kind">' + LOC_KINDS.map(k => '<option value="' + k + '"' + (d.kind === k ? " selected" : "") + ">" + k[0].toUpperCase() + k.slice(1) + "</option>").join("") + "</select></div></div>" +
+      '<div><label class="lab" for="xf_kind" title="Bays hold product staged for a job; vans are stock that travels. Neither is pulled from for a ticket. A vehicle is a car or truck that carries a few units for one person; tickets can pull from it.">' + '<abbr>Kind</abbr></label><select class="fld" id="xf_kind" data-xf="kind">' + LOC_KINDS.map(k => '<option value="' + k + '"' + (d.kind === k ? " selected" : "") + ">" + k[0].toUpperCase() + k.slice(1) + "</option>").join("") + "</select></div></div>" +
       '<p class="hint">Area and shelf make the label code, so they stay as they are. Add a new location if the shelf moved.</p>';
   }
   h += '<dl class="meta"><div><dt>Label code</dt><dd class="mono">' + esc(PAYLOAD.loc(id)) + "</dd></div>" + (l.jobName ? "<div><dt>Reserved for</dt><dd>" + esc(l.jobName) + "</dd></div>" : "") +
@@ -5655,7 +5698,9 @@ async function xSave() {
     if (await doSaveProduct(p.id, o, false, changed)) toast("Saved");
   } else if (x.kind === "i") {
     const it = S.items.get(x.id); if (!it) return;
-    const o = { serial: String(d.serial || "").trim() || null, label: String(d.label || "").trim() || null, condition: d.condition || null };
+    const macRaw = String(d.mac == null ? "" : d.mac).trim(), mac = macOf(macRaw);
+    if (macRaw && !mac) { S.x.err = "A MAC address is 12 characters, 0 to 9 and A to F, like AA:BB:CC:DD:EE:FF. Fix it or clear the box."; render(true); return; }
+    const o = { serial: String(d.serial || "").trim() || null, mac: mac || null, label: String(d.label || "").trim() || null, condition: d.condition || null };
     const changed = Object.keys(o).filter(k => String(o[k] == null ? "" : o[k]) !== String(it[k] == null ? "" : it[k]));
     if (!changed.length) { toast("Nothing changed"); return; }
     const data = {}; changed.forEach(k => data[k] = o[k]); data.updatedAt = NOW;
@@ -5763,7 +5808,8 @@ function openReceive(p, presetLoc) {
     '<div><label class="lab" for="rcQty">Quantity <span class="req">required</span></label><input class="fld n" id="rcQty" type="number" min="1" step="1" value="1" inputmode="numeric"></div></div>' +
     (S.general.showCosts ? '<div><label class="lab" for="rcCost" title="Units at or above the QR threshold in Settings get their own QR so they can be followed.">' + "<abbr>Unit cost</abbr></label><div class=\"money\"><input class=\"fld\" id=\"rcCost\" data-money inputmode=\"decimal\" value=\"" + (p.lastCost != null ? num(p.lastCost).toFixed(2) : "") + '"></div></div>' : "") +
     '<label class="chk" title="Each unit gets its own record and QR sticker, so it can be checked out and followed. Automatic at or above the QR threshold (' + money(thr) + ')."><input type="checkbox" id="rcSer"' + (auto ? " checked" : "") + "> Serialize these units (one QR each)</label>" +
-    '<div id="rcSerBox"' + (auto ? "" : " hidden") + '><label class="lab" for="rcSerials" title="Optional. One per line, in the order the stickers will go on.">' + "<abbr>Serial numbers</abbr></label><textarea class=\"fld mono\" id=\"rcSerials\" placeholder=\"One per line, optional\"></textarea></div>" +
+    '<div id="rcSerBox"' + (auto ? "" : " hidden") + '><label class="lab" for="rcSerials" title="Optional. One per line, in the order the stickers will go on.">' + "<abbr>Serial numbers</abbr></label><textarea class=\"fld mono\" id=\"rcSerials\" placeholder=\"One per line, optional\"></textarea>" +
+      '<label class="lab" for="rcMacs" title="Optional, for anything that joins the network: the MAC finds the device on the client\'s network. One per line, in the same order as the serials.">' + "<abbr>MAC addresses</abbr></label><textarea class=\"fld mono\" id=\"rcMacs\" placeholder=\"One per line, optional\" spellcheck=\"false\"></textarea></div>" +
     '<label class="lab" for="rcNote">Note</label><input class="fld" id="rcNote" placeholder="Vendor, PO, or anything worth keeping">' +
     '<p class="err" id="rcErr" hidden></p>';
   const w = openModal("Receive", body, '<button type="button" class="btn" data-close>Cancel</button><button type="button" class="btn acc" data-ok>Receive</button>');
@@ -5776,9 +5822,11 @@ function openReceive(p, presetLoc) {
     if (!loc) { err.textContent = "Pick where the units go."; err.hidden = false; return; }
     if (qty < 1) { err.textContent = "Quantity must be at least 1."; err.hidden = false; return; }
     if (ser.checked && qty > 200) { err.textContent = "Serialize at most 200 units at a time."; err.hidden = false; return; }
+    const macs = ser.checked ? macLines($("#rcMacs", w).value) : [];
+    if (macs.bad) { err.textContent = "Line " + macs.bad + " of the MAC addresses is not 12 characters 0 to 9 and A to F. Fix it or leave it blank."; err.hidden = false; return; }
     const c = cost && cost.value.trim() !== "" ? num(cost.value.replace(/[$,]/g, "")) : null;
     closeModal(w);
-    const ok = await doReceiveUnits(p, loc, qty, c, ser.checked, $("#rcSerials", w).value.split(/\r?\n/), $("#rcNote", w).value.trim() || null);
+    const ok = await doReceiveUnits(p, loc, qty, c, ser.checked, $("#rcSerials", w).value.split(/\r?\n/), $("#rcNote", w).value.trim() || null, macs);
     if (ok) { toast("Received " + qty + " into " + locName(loc) + (ser.checked ? ". Print their labels from More, Labels." : "")); refreshScan(); }
   });
 }
@@ -5905,15 +5953,18 @@ function openSerialize(p) {
   const body = '<p class="hint" style="margin-top:0">' + esc(productName(p)) + ". Each unit gets its own record and QR, so it can be checked out and followed. On hand does not change.</p>" +
     '<div class="grid2"><div><label class="lab" for="szLoc">From</label><select class="fld" id="szLoc" data-decide><option value="">Choose a location</option>' + from.map(e => '<option value="' + esc(e.locationId) + '"' + (from.length === 1 ? " selected" : "") + ">" + esc(locName(e.locationId)) + " (" + fmtN(stockQty(p, e.locationId)) + ")</option>").join("") + "</select></div>" +
     '<div><label class="lab" for="szQty">How many <span class="req">required</span></label><input class="fld n" id="szQty" type="number" min="1" step="1" value="1"></div></div>' +
-    '<label class="lab" for="szSer" title="Optional. One per line.">' + '<abbr>Serial numbers</abbr></label><textarea class="fld mono" id="szSer" placeholder="One per line, optional"></textarea><p class="err" id="szErr" hidden></p>';
+    '<label class="lab" for="szSer" title="Optional. The maker\'s serial numbers, for warranty claims and returns. One per line.">' + '<abbr>Serial numbers</abbr></label><textarea class="fld mono" id="szSer" placeholder="One per line, optional"></textarea>' +
+    '<label class="lab" for="szMac" title="Optional, for anything that joins the network: the MAC finds the device on the client\'s network. One per line, in the same order as the serials.">' + '<abbr>MAC addresses</abbr></label><textarea class="fld mono" id="szMac" placeholder="One per line, optional" spellcheck="false"></textarea><p class="err" id="szErr" hidden></p>';
   const w = openModal("Serialize", body, '<button type="button" class="btn" data-close>Cancel</button><button type="button" class="btn acc" data-ok>Serialize</button>');
   wireGlow(w);
   w.querySelector("[data-ok]").addEventListener("click", async () => {
     const l = $("#szLoc", w).value, n = Math.floor(num($("#szQty", w).value)), err = $("#szErr", w);
     if (!l) { err.textContent = "Pick where the units are."; err.hidden = false; return; }
     if (n < 1 || n > stockQty(p, l)) { err.textContent = "How many must be between 1 and " + fmtN(stockQty(p, l)) + "."; err.hidden = false; return; }
+    const macs = macLines($("#szMac", w).value);
+    if (macs.bad) { err.textContent = "Line " + macs.bad + " of the MAC addresses is not 12 characters 0 to 9 and A to F. Fix it or leave it blank."; err.hidden = false; return; }
     closeModal(w);
-    if (await doSerialize(p, l, n, $("#szSer", w).value.split(/\r?\n/))) toast(n + " unit" + (n > 1 ? "s" : "") + " serialized. Print the labels from More, Labels.");
+    if (await doSerialize(p, l, n, $("#szSer", w).value.split(/\r?\n/), macs)) toast(n + " unit" + (n > 1 ? "s" : "") + " serialized. Print the labels from More, Labels.");
   });
 }
 
@@ -5922,7 +5973,7 @@ function openLocationForm(l) {
   const isNew = !l; const d = l || { kind: "" };
   const body = '<div class="grid2"><div><label class="lab" for="lfArea" title="The room or zone, for example Storage room or Warehouse">' + '<abbr>Area</abbr> <span class="req">required</span></label><input class="fld" id="lfArea" value="' + esc(d.area || "") + '"' + (isNew ? "" : " disabled") + "></div>" +
     '<div><label class="lab" for="lfShelf" title="Blank for a bare area, a bay, or a van">' + '<abbr>Shelf</abbr></label><input class="fld" id="lfShelf" value="' + esc(d.shelf || "") + '"' + (isNew ? "" : " disabled") + "></div></div>" +
-    '<label class="lab" for="lfKind" title="Bays hold product staged for a job; vans are stock that travels.">' + '<abbr>Kind</abbr></label><select class="fld" id="lfKind" data-decide><option value="">Choose a kind</option>' + LOC_KINDS.map(k => '<option value="' + k + '"' + (d.kind === k ? " selected" : "") + ">" + k[0].toUpperCase() + k.slice(1) + "</option>").join("") + "</select>" +
+    '<label class="lab" for="lfKind" title="Bays hold product staged for a job; vans are stock that travels. A vehicle is a car or truck that carries a few units for one person.">' + '<abbr>Kind</abbr></label><select class="fld" id="lfKind" data-decide><option value="">Choose a kind</option>' + LOC_KINDS.map(k => '<option value="' + k + '"' + (d.kind === k ? " selected" : "") + ">" + k[0].toUpperCase() + k.slice(1) + "</option>").join("") + "</select>" +
     (isNew ? "" : '<p class="hint">Area and shelf make the label code, so they stay as they are. Add a new location if the shelf moved.</p>') + '<p class="err" id="lfErr" hidden></p>';
   const w = openModal(isNew ? "New location" : "Edit " + l.name, body, '<button type="button" class="btn" data-close>Cancel</button><button type="button" class="btn acc" data-ok>' + (isNew ? "Add location" : "Save") + "</button>");
   wireGlow(w);
@@ -6082,7 +6133,11 @@ function route(code) {
     if (!p) p = prods.find(x => x.model && x.model.toLowerCase() === q);
     const c = !p && Array.from(S.containers.values()).find(x => String(x.label).toLowerCase() === q || x.id === slug(code));
     const box = !p && !c && Array.from(S.containers.values()).find(x => x.upc && x.upc === code);
-    if (p) S.scan = { kind: "prod", id: p.id };
+    /* 0.7.0: a typed serial or MAC finds its unit */
+    const mc = macOf(code);
+    const unit = !p && !c && !box && Array.from(S.items.values()).find(x => (x.serial && String(x.serial).toLowerCase() === q) || (mc && x.mac === mc));
+    if (unit) S.scan = { kind: "item", id: unit.id };
+    else if (p) S.scan = { kind: "prod", id: p.id };
     else if (c) S.scan = { kind: "ctr", id: c.id };
     else if (box) S.scan = { kind: "prod", id: box.productId };
     else {
@@ -6240,7 +6295,7 @@ function itemCard(it) {
   const W = isWriter(), T = isTech();
   const recent = S.movements.filter(m => m.itemId === it.id).slice(0, 5);
   let h = '<div class="rk"><span>Serialized unit</span>' + statusPill(it.status) + '</div><div class="rt">' + esc(it.productName || "") + '</div><div class="rm">' +
-    (it.serial ? "Serial <b class=\"mono\">" + esc(it.serial) + "</b>, " : "") + "ID <span class=\"mono\">" + esc(shortId(it.id)) + "</span></div>" +
+    (it.serial ? "Serial <b class=\"mono\">" + esc(it.serial) + "</b>, " : "") + (it.mac ? "MAC <b class=\"mono\">" + esc(it.mac) + "</b>, " : "") + "ID <span class=\"mono\">" + esc(shortId(it.id)) + "</span></div>" +
     '<dl class="meta"><div><dt>' + (it.status === "checked_out" ? "Held by" : "Where") + "</dt><dd>" + esc(whereItem(it)) + "</dd></div>" +
     (it.status === "checked_out" ? "<div><dt>Out since</dt><dd>" + esc(fmtDate(it.checkedOutAt)) + "<small>" + (daysSince(it.checkedOutAt) || 0) + " days</small></dd></div>" : "") +
     (it.condition ? "<div><dt>Condition</dt><dd>" + esc(CONDITIONS[it.condition] || it.condition) + "</dd></div>" : "") + "</dl>" +
@@ -6313,10 +6368,13 @@ function renderItems() {
   const cur = tabs.find(t => t[0] === S.itemsTab) || tabs[0];
   let html = '<div class="mcard"><div class="thead"><h2 class="vt">Units</h2><span class="sp"><button type="button" class="btn sm" data-act="columns" data-tbl="items">Edit columns</button></span></div>' +
     '<p class="hint" style="margin:0 0 10px">Serialized units, each with its own QR. Out is the Friday list: who has what, since when, for which job.</p>' +
-    '<div class="toolbar"><div class="seg" role="group" aria-label="Unit lists">' + tabs.map(([k, l, f]) => '<button type="button" aria-pressed="' + (cur[0] === k) + '" class="' + (cur[0] === k ? "on" : "") + '" data-act="itemsTab" data-tab="' + k + '">' + l + "<b>" + all.filter(f).length + "</b></button>").join("") + "</div></div>";
+    '<div class="toolbar"><div class="seg" role="group" aria-label="Unit lists">' + tabs.map(([k, l, f]) => '<button type="button" aria-pressed="' + (cur[0] === k) + '" class="' + (cur[0] === k ? "on" : "") + '" data-act="itemsTab" data-tab="' + k + '">' + l + "<b>" + all.filter(f).filter(i => unitMatches(i, S.unitQ)).length + "</b></button>").join("") + "</div>" +
+    /* 0.7.0: find a unit by serial, MAC (with or without separators), product, or who has it */
+    '<label class="sr" for="unitSearch">Search units</label><span class="srch"><input class="fld search" id="unitSearch" type="search" value="' + esc(S.unitQ) + '" placeholder="Serial, MAC, product, or holder" title="A MAC matches typed with colons, dashes, or none, and from any four characters of it." autocapitalize="off" spellcheck="false"><button type="button" class="clr" data-act="clearSearch" data-for="unitSearch" aria-label="Clear the search">&times;</button></span></div>';
   const cols = [
     { k: "product", label: "Product", sort: i => (i.productName || "").toLowerCase(), html: i => '<button type="button" class="linkbtn" data-act="xtoggle" data-x="i" data-id="' + esc(i.id) + '"><div class="pn">' + esc(i.productName || "") + '</div></button><div class="pd' + (i.serial || !i.label ? " mono" : "") + '">' + esc(itemLabel(i)) + "</div>" },
-    { k: "serial", label: "Serial", def: false, html: i => i.serial ? '<span class="mono">' + esc(i.serial) + "</span>" : '<span class="z">None</span>' },
+    { k: "serial", label: "Serial", sort: i => i.serial ? String(i.serial).toLowerCase() : null, text: i => i.serial || "", html: i => i.serial ? '<span class="mono">' + esc(i.serial) + "</span>" : '<span class="z">None</span>' },
+    { k: "mac", label: "MAC address", sort: i => i.mac || null, text: i => i.mac || "", html: i => i.mac ? '<span class="mono">' + esc(i.mac) + "</span>" : '<span class="z">None</span>' },
     { k: "status", label: "Status", sort: i => ITEM_STATUS[i.status] || i.status, html: i => statusPill(i.status) },
     { k: "where", label: "Where or who", sort: i => whereItem(i), text: i => i.status === "checked_out" ? (i.holderName || "") : (i.locationId ? locName(i.locationId) : (i.status === "installed" ? "At the client" : "")) },
     { k: "job", label: "Job", text: i => i.jobName || "" },
@@ -6328,9 +6386,10 @@ function renderItems() {
   else if (!S.loaded.items) html += skelTable(cols.filter(c => c.def !== false), "Loading units");
   else if (!all.length) html += '<div class="empty"><p>No serialized units yet. Receive something at or above the QR threshold (Settings), or open a product and choose Serialize.</p></div>';
   else {
-    const list = all.filter(cur[2]);
+    const list = all.filter(cur[2]).filter(i => unitMatches(i, S.unitQ));
     html += tableHTML("items", cols, list, {
-      empty: "<p>Nothing in " + esc(cur[1]) + ' right now.</p><button type="button" class="btn" data-act="itemsTab" data-tab="all">Show all units</button>',
+      empty: S.unitQ.trim() ? "<p>No unit in " + esc(cur[1]) + " matches '" + esc(S.unitQ.trim()) + "'.</p>" + '<button type="button" class="btn" data-act="clearSearch" data-for="unitSearch">Clear the search</button>' + (cur[0] !== "all" ? '<button type="button" class="btn" data-act="itemsTab" data-tab="all">Search all units</button>' : "")
+        : "<p>Nothing in " + esc(cur[1]) + ' right now.</p><button type="button" class="btn" data-act="itemsTab" data-tab="all">Show all units</button>',
       defaultSort: (a, b) => (daysSince(b.checkedOutAt) || 0) - (daysSince(a.checkedOutAt) || 0) || String(a.productName).localeCompare(String(b.productName)),
       rowClass: i => i.status === "checked_out" && daysSince(i.checkedOutAt) > 14 ? "need" : "",
       actions: list.some(i => i.status === "checked_out") ? i => i.status === "checked_out" ? (isTech() ? '<button type="button" class="btn sm acc" data-act="checkin" data-id="' + esc(i.id) + '">Check in</button>' : "") + '<button type="button" class="btn sm" data-act="nudge" data-id="' + esc(i.id) + '" title="Copies a one-line reminder to the clipboard to paste into a chat or text">Nudge</button>' : "" : null,
@@ -6454,12 +6513,12 @@ function exportMvCsv() {
 }
 
 /* ---------------- labels ---------------- */
-S.labelSel = new Set(); S.labelQ = ""; S.labelEmpty = false; S.labelSize = null;
+S.labelSel = new Set(); S.labelQ = ""; S.labelEmpty = false; S.labelSize = null; S.unitQ = "";
 function labelGroups() {
   const q = S.labelQ.trim().toLowerCase(), m = s => !q || String(s).toLowerCase().includes(q);
   const locs = Array.from(S.locations.values()).filter(l => m(l.name)).sort((a, b) => a.name.localeCompare(b.name)).map(l => ({ key: "loc:" + l.id, text: l.name, sub: l.kind }));
   const ctrs = Array.from(S.containers.values()).filter(c => (S.labelEmpty || c.status !== "empty") && m(c.label + " " + c.productName)).sort((a, b) => String(a.label).localeCompare(String(b.label))).map(c => ({ key: "ctr:" + c.id, text: c.label, sub: c.productName, mono: true }));
-  const items = Array.from(S.items.values()).filter(i => i.status !== "retired" && i.status !== "installed" && m(i.productName + " " + itemLabel(i))).sort((a, b) => String(a.productName).localeCompare(String(b.productName))).map(i => ({ key: "item:" + i.id, text: i.productName, sub: itemLabel(i) }));
+  const items = Array.from(S.items.values()).filter(i => i.status !== "retired" && i.status !== "installed" && m(i.productName + " " + itemLabel(i) + " " + (i.mac || ""))).sort((a, b) => String(a.productName).localeCompare(String(b.productName))).map(i => ({ key: "item:" + i.id, text: i.productName, sub: itemLabel(i) }));
   return [["Locations", locs], ["Boxes", ctrs], ["Serialized units", items]];
 }
 function labelsHTML() {
@@ -6480,9 +6539,9 @@ function printLabels(list, size) {
   size = size || S.labelSize || S.general.labelSize || "5160";
   const per = size === "5163" ? 10 : 30;
   const labels = list.map(({ kind, id }) => {
-    if (kind === "loc") { const l = S.locations.get(id); return l && { pay: PAYLOAD.loc(id), b: l.name, s: l.kind === "bay" ? "Staging bay" : l.kind === "van" ? "Van" : "" }; }
+    if (kind === "loc") { const l = S.locations.get(id); return l && { pay: PAYLOAD.loc(id), b: l.name, s: l.kind === "bay" ? "Staging bay" : l.kind === "van" ? "Van" : l.kind === "vehicle" ? "Vehicle" : "" }; }
     if (kind === "ctr") { const c = S.containers.get(id); return c && { pay: PAYLOAD.ctr(id), b: c.label, s: (c.productName || "") + ", " + fmtN(c.startLength) + " ft box", mono: true }; }
-    if (kind === "item") { const i = S.items.get(id); return i && { pay: PAYLOAD.item(id), b: i.label || i.productName, s: i.serial ? "S/N " + i.serial : "ID " + shortId(i.id) }; }
+    if (kind === "item") { const i = S.items.get(id); return i && { pay: PAYLOAD.item(id), b: i.label || i.productName, s: i.serial ? "S/N " + i.serial : i.mac ? "MAC " + i.mac : "ID " + shortId(i.id) }; }
     if (kind === "prod") { const p = S.products.get(id); return p && { pay: PAYLOAD.prod(id), b: productName(p), s: p.upc ? "UPC " + p.upc : "" }; }
   }).filter(Boolean);
   if (!labels.length) { toast("Nothing to print.", true); return; }
@@ -6889,7 +6948,7 @@ const DATA_DICTIONARY = [
     ["onHand", "Total on hand, recomputed with each movement"], ["lastCost", "Last unit cost; values in reports use it"], ["portalItemId", "Portal item id when imported"],
     ["lastCountAt", "Count date from the inventory sheet"]].concat(DD_WHO) },
   { coll: "loadout_locations", id: "area--shelf slug, as storage-room--rca-av-video", about: "Shelves, bays, vans, and bare areas.", fields: [
-    ["area", "Room or zone"], ["shelf", "Shelf within it, blank for a bare area"], ["name", "Area and shelf, as printed on the label"], ["kind", "shelf, bay, van, or other"],
+    ["area", "Room or zone"], ["shelf", "Shelf within it, blank for a bare area"], ["name", "Area and shelf, as printed on the label"], ["kind", "shelf, bay, van, vehicle (a person's car or truck that carries stock, 0.7.0), or other"],
     ["jobId", "Job the bay is reserved for"], ["jobName", "Its name"], ["qr", "Label payload, loadout:loc:{id}"]].concat(DD_WHO) },
   { coll: "loadout_stock", id: "{productId}__{locationId}", about: "Counted quantity of one product on one shelf.", fields: [
     ["productId", "Product"], ["productName", "Its name when written"], ["locationId", "Location"], ["locationName", "Its name when written"], ["qty", "Count in the product's unit"], ["updatedAt", "When it last changed"]] },
@@ -6898,14 +6957,16 @@ const DATA_DICTIONARY = [
     ["label", "The shop's box code, printed on the QR sticker"], ["startLength", "Feet when new"], ["ftLeft", "Feet left"], ["lastMark", "Footage mark the box is stopped at"],
     ["purchasedAt", "When bought"], ["status", "open or empty"], ["pickTicketId", "Ticket the box travels with"], ["pickTicketNumber", "Its number"], ["confirmLocation", "true when the box has no confirmed shelf yet"],
     ["orderId, orderNumber, shipmentId", "The PO and shipment it came on"], ["qr", "Label payload, loadout:ctr:{id}"], ["lastReadingAt", "Last mark entered"], ["lastReadingBy", "Who entered it"]].concat(DD_WHO) },
-  { coll: "loadout_items", id: "random", about: "Serialized units, one physical unit per document.", fields: [
-    ["productId", "Product"], ["productName", "Its name"], ["label", "Product name #n"], ["serial", "Serial number when typed or scanned"], ["cost", "Unit cost: the PO line's unit cost when it came on a PO (0.5.2), else the product's last cost"],
+  { coll: "loadout_items", id: "random; an imported unit is imp-{productId}-{n}, imp-{productId}-s-{serial slug}, or imp-{productId}-m-{12 hex MAC}", about: "Serialized units, one physical unit per document.", fields: [
+    ["productId", "Product"], ["productName", "Its name"], ["label", "Product name #n, or Product name, SN or MAC and the last 6 characters for an imported unit with one"], ["serial", "Serial number as typed or scanned, for warranty claims and returns"],
+    ["mac", "MAC address, stored as AA:BB:CC:DD:EE:FF, so a networked device can be found on the client's network (0.7.0)"], ["cost", "Unit cost: the PO line's unit cost when it came on a PO (0.5.2), else the product's last cost"],
     ["qr", "Label payload, loadout:item:{id}"], ["status", "in_stock, staged, checked_out, installed, returned (back from a site, needs a look), or retired"],
-    ["locationId", "Where it sits when in stock or staged"], ["locationName", "Its name"], ["holderUid", "Who has it while checked out"], ["holderName", "Their name"],
-    ["jobId", "Job it is out for or installed at"], ["jobName", "Its name"], ["clientName", "The client of that job, when it serves a ticket (0.5.2)"],
+    ["locationId", "Where it sits when in stock or staged"], ["locationName", "Its name"], ["holderUid", "Who has it while checked out; empty when the holder is a name only"], ["holderName", "Their name, or the name as typed when there is no account (a unit pulled on the inventory sheet)"],
+    ["holderNote", "The sheet's Note for a pulled unit; cleared at check-in (0.7.0)"],
+    ["jobId", "Job it is out for or installed at"], ["jobName", "Its name"], ["clientId", "Client it was pulled for on the inventory sheet (0.7.0)"], ["clientName", "The client of that job, when it serves a ticket (0.5.2), or the sheet's Client Pulled For"],
     ["ticketId", "Ticket it is out for"], ["ticketNumber", "Its number (0.5.2)"], ["ticketLineId", "The line on that ticket"],
     ["checkedOutAt", "When it went out"], ["checkedInAt", "When it came back"], ["condition", "good, damaged, or missing"], ["retiredReason", "Why it was retired"],
-    ["importNote", "Condition text from the inventory sheet"], ["orderId, orderNumber, shipmentId", "The PO and shipment it came on"]].concat(DD_WHO) },
+    ["importNote", "Condition text from the inventory sheet, and the Serial/MAC cell as typed when it was read as a MAC"], ["orderId, orderNumber, shipmentId", "The PO and shipment it came on"]].concat(DD_WHO) },
   { coll: "loadout_movements", id: "random", about: "The audit trail. Append-only: nothing here is ever edited or deleted.", fields: [
     ["type", "receive, pull (shelf to a bay for a ticket), move (shelf to shelf, no ticket), stage, deliver, cut, reading, adjust, checkout, checkin, return (a unit back from a site), writeoff, or edit. Rows from before 0.5.2 may say pick, transfer, or return for leftovers; the app reads those as pull, move, and move"],
     ["productId", "Product"], ["productName", "Its name when written"], ["containerId", "Box"], ["containerLabel", "Its label"], ["itemId", "Unit"], ["itemLabel", "Its label or serial"],
@@ -7182,11 +7243,11 @@ const REPORTS = [
         else if (it && it.status === "checked_out" && latestOut.get(m.itemId) === m) status = "Still out";
         else if (it && it.status === "installed") status = "Installed";
         else status = "Back after the range";
-        return { holder: m.holderName || "", product: m.productName || (it ? it.productName : ""), unit: m.itemLabel || (it ? itemLabel(it) : ""), job: jobOfMv(m), out, backAt, status,
+        return { holder: m.holderName || "", product: m.productName || (it ? it.productName : ""), unit: m.itemLabel || (it ? itemLabel(it) : ""), serial: it ? it.serial || "" : "", mac: it ? it.mac || "" : "", job: jobOfMv(m), out, backAt, status,
           days: backAt || status === "Still out" ? Math.max(0, Math.floor(((backAt || now) - out) / 86400000)) : null, cost: it && it.cost != null ? num(it.cost) : unitCost(m.productId) };
       });
-      S.items.forEach(it => { if (it.status === "checked_out" && toDate(it.checkedOutAt) && toDate(it.checkedOutAt) < d.from) rows.push({ holder: it.holderName || "", product: it.productName || "", unit: itemLabel(it), job: it.jobName || "", out: toDate(it.checkedOutAt), backAt: null, status: "Still out", days: daysSince(it.checkedOutAt), cost: it.cost != null ? num(it.cost) : unitCost(it.productId) }); });
-      const cols = [txtCol("holder", "Holder", r => r.holder), txtCol("product", "Product", r => r.product), txtCol("unit", "Unit", r => r.unit, { cls: "mono" }), txtCol("job", "Job", r => r.job),
+      S.items.forEach(it => { if (it.status === "checked_out" && toDate(it.checkedOutAt) && toDate(it.checkedOutAt) < d.from) rows.push({ holder: it.holderName || "", product: it.productName || "", unit: itemLabel(it), serial: it.serial || "", mac: it.mac || "", job: it.jobName || it.clientName || "", out: toDate(it.checkedOutAt), backAt: null, status: "Still out", days: daysSince(it.checkedOutAt), cost: it.cost != null ? num(it.cost) : unitCost(it.productId) }); });
+      const cols = [txtCol("holder", "Holder", r => r.holder), txtCol("product", "Product", r => r.product), txtCol("unit", "Unit", r => r.unit, { cls: "mono" }), txtCol("serial", "Serial", r => r.serial, { cls: "mono" }), txtCol("mac", "MAC address", r => r.mac, { cls: "mono" }), txtCol("job", "Job", r => r.job),
         dayCol("out", "Out", r => r.out), txtCol("back", "Back", r => r.backAt ? fmtDate(r.backAt) : "", { sort: r => r.backAt, x: r => r.backAt ? isoDay(r.backAt) : "" }), numCol("days", "Days out", r => r.days),
         txtCol("status", "Status", r => r.status, { html: r => '<span class="st' + (r.status === "Still out" ? (r.days > 14 ? " warn" : " info") : r.status === "Back" ? " ok" : "") + '">' + esc(r.status) + "</span>" })];
       if (C) cols.push(moneyCol("cost", "Cost", r => r.cost));
@@ -7333,7 +7394,11 @@ const TAB_DEFAULTS = { "patch cables": "patch-cable", "splitters": "splitter", "
 const HDR = { type: ["type"], make: ["make", "brand", "manufacturer"], part: ["part number", "part #", "part no", "model"], c1: ["connector 1"], c2: ["connector 2"], color: ["color", "colour"],
   diameter: ["diameter", "gauge"], diamUnit: ["unit of measure"], amps: ["amps"], length: ["length"], lenUnit: ["unit of measure 2"], qty: ["qty", "quantity"], area: ["area"], shelf: ["shelf"],
   date: ["last date", "count date", "as of date", "date"], description: ["description"], condition: ["condition"], inputs: ["number of inputs", "inputs"], outputs: ["number of outputs", "outputs"],
-  sex: ["sex"], band: ["band"], pins: ["pin", "pins"], box: ["box"], wireType: ["wire type"], purchase: ["purchase date"], location: ["location"], grade: ["grade"] };
+  sex: ["sex"], band: ["band"], pins: ["pin", "pins"], box: ["box"], wireType: ["wire type"], purchase: ["purchase date"], location: ["location"], grade: ["grade"],
+  /* 0.7.0: the Devices tab's pull tracking and serials (PLAN 17, lessons 8 to 11). A header cell
+     with a line break ("Serial/MAC" over "Device Only") reads as one line: clean() folds it to a space. */
+  upc: ["upc", "barcode"], serial: ["serial/mac device only", "serial/mac", "serial", "serial number", "mac"], pullDate: ["pull date"],
+  pullClient: ["client pulled for"], pullFor: ["pulled for"], note: ["note", "notes"] };
 const MAKE_ALIASES = { "ubiquity": "Ubiquiti", "unifi": "Ubiquiti", "ubiquiti": "Ubiquiti" };
 S.imp = null;
 const hnorm = s => clean(s).toLowerCase();
@@ -7439,7 +7504,8 @@ function buildImportPlan(imp) {
     const area = areaV.pick(clean(areaRaw), { titleCaps: true }), shelf = shelfV.pick(clean(shelfRaw), { titleCaps: true });
     if (!area) return null;
     const id = locIdFor(area, shelf);
-    if (!locations.has(id)) locations.set(id, { id, area, shelf, kind: shelf ? "shelf" : "other", name: composeLocName(area, shelf), isNew: !S.locations.has(id) });
+    /* lesson 11: an area whose last word is Car, Van, or Truck is a vehicle */
+    if (!locations.has(id)) locations.set(id, { id, area, shelf, kind: /\b(car|van|truck)$/i.test(area) ? "vehicle" : shelf ? "shelf" : "other", name: composeLocName(area, shelf), isNew: !S.locations.has(id) });
     return id;
   }
   function putProduct(id, d, rec, date) {
@@ -7454,6 +7520,18 @@ function buildImportPlan(imp) {
     return e;
   }
   const itemCounter = new Map();
+  /* 0.7.0: pulled rows (lesson 10). itemsPull are units already in Loadout that the sheet now
+     shows as pulled; importedOut are units an earlier import already checked out, read from
+     the keys of its checkout movements, so a unit is never checked out twice by Import. */
+  const itemsPull = [], clientsNew = new Map(), seenUnits = new Map(), importedOut = new Set();
+  (imp.doneKeys || new Set()).forEach(k => { const t = String(k).split("|").slice(-2, -1)[0] || ""; if (t.endsWith(":checkout")) importedOut.add(t.slice(0, -9)); });
+  function clientFor(name) {
+    const id = slug(name); if (!id) return null;
+    const ex = S.clients.get(id) || Array.from(S.clients.values()).find(c => String(c.name || "").toLowerCase() === name.toLowerCase());
+    if (ex) return { id: ex.id, name: ex.name || name };
+    if (!clientsNew.has(id)) clientsNew.set(id, { id, name });
+    return { id, name: clientsNew.get(id).name };
+  }
   raw.forEach(rec => {
     const kind = rec.kind, skip = why => rec.rep.skipped.push({ row: rec.row, why });
     const date = asDate(rec.date);
@@ -7501,19 +7579,55 @@ function buildImportPlan(imp) {
     if (!locId) { locId = "unassigned"; if (!locations.has("unassigned")) locations.set("unassigned", { id: "unassigned", area: "Unassigned", shelf: "", kind: "other", name: "Unassigned", isNew: !S.locations.has("unassigned") }); warnings.push("Tab " + rec.tab + " row " + rec.row + " has no area; it goes to Unassigned."); }
     if (!date) { if (rec.date != null && clean(rec.date)) unknownDates++; }
     const pe = putProduct(pid, d, rec, date);
-    const cond = clean(rec.condition);
-    if (kind === "device" && cond) {
-      const c = "good";
-      const have = Array.from(S.items.values()).filter(i => i.productId === pid && String(i.id).startsWith("imp-")).length;
+    /* lesson 8: the UPC arrives as a number; it lands as text without the .0, and an empty cell never clears one */
+    const upc = clean(rec.upc).replace(/\.0+$/, "");
+    if (upc) pe.upc = upc;
+    const cond = clean(rec.condition), sheetNote = clean(rec.note), pullFor = clean(rec.pullFor), pullDate = asDate(rec.pullDate), pullClient = clean(rec.pullClient);
+    const serRaw = clean(rec.serial) ? String(rec.serial).trim() : "";
+    const where = "Tab " + rec.tab + " row " + rec.row;
+    if (kind === "device" && /\bDNI\b|does not exist/i.test(sheetNote)) { warnings.push(where + " is marked does-not-exist; nothing counted."); rec.rep.used++; return; }
+    const pulled = kind === "device" && !!(pullDate || pullFor);
+    /* lessons 9 and 10: Condition, a serial or MAC, or a pull makes serialized units */
+    if (kind === "device" && (cond || serRaw || pulled)) {
+      if (S.stock.has(pid + "__" + locId) && num(S.stock.get(pid + "__" + locId).qty) > 0) warnings.push(where + " now makes serialized units, and the same product already has a shelf count there from an earlier import. Check it on Stock so it is not counted twice.");
+      /* a MAC is 12 hex characters once a leading "(AV)" style tag and separators are set aside; anything else is a serial, kept as typed */
+      const mac = serRaw ? macOf(serRaw) : "", serial = serRaw && !mac ? serRaw : "";
+      const tail = mac ? hexOnly(mac).toUpperCase().slice(-6) : serial.replace(/[^0-9a-z]/gi, "").toUpperCase().slice(-6);
+      const identId = mac ? "imp-" + pid + "-m-" + hexOnly(mac) : serial && slug(serial) ? "imp-" + pid + "-s-" + slug(serial) : "";
+      const client = pulled && pullClient ? clientFor(pullClient) : null;
+      const pull = pulled ? { holderName: pullFor || null, holderNote: sheetNote || null, clientId: client ? client.id : null, clientName: client ? client.name : null, at: pullDate || date } : null;
+      const notes = [cond ? "Condition on the sheet: " + cond : "", mac ? "Serial/MAC on the sheet: " + serRaw : ""].filter(Boolean).join(". ");
+      const unit = (id, label, idf) => {
+        if (seenUnits.has(id)) { warnings.push(where + " repeats a serial or MAC from row " + seenUnits.get(id) + "; the first row wins."); return; }
+        seenUnits.set(id, rec.row);
+        const ex = S.items.get(id);
+        if (ex) {
+          /* PLAN 12b item 2: units already imported are renamed in place */
+          if (ex.label !== label || ex.productName !== d.name) itemsRename.push({ id, label, productName: d.name, was: ex.label || shortId(id) });
+          /* a unit an earlier import holds as checked out, or checked out once by Import, is left alone */
+          if (pull && ex.status !== "checked_out" && (inStockItem(ex) || ex.status === "returned") && !importedOut.has(id))
+            itemsPull.push({ id, productId: pid, productName: d.name, itemLabel: itemLabel(ex), fromLocationId: ex.locationId || locId, wasOnHand: inStockItem(ex), pull, tab: rec.tab, row: rec.row, date });
+          return;
+        }
+        itemsNew.push(Object.assign({ id, label, productId: pid, productName: d.name, locationId: locId, condition: "good", note: notes, serial: null, mac: null, pull, tab: rec.tab, row: rec.row, date }, idf));
+      };
+      let rest = qv;
+      if (identId && qv >= 1) {
+        unit(identId, d.name + (mac ? ", MAC " : ", SN ") + tail, mac ? { mac } : { serial });
+        rest = qv - 1;
+        if (qv > 1) warnings.push(where + " has a serial or MAC and a quantity of " + fmtN(qv) + "; one unit carries it and the rest are numbered.");
+      } else if (serRaw && !identId) warnings.push(where + " has a serial with no letters or numbers; its units are numbered.");
+      /* a row without a serial or MAC keeps the "Product name #n" counter, so units imported before 0.7.0 keep their ids */
+      const pre = "imp-" + pid + "-";
+      const have = Array.from(S.items.values()).filter(i => i.productId === pid && String(i.id).startsWith(pre) && /^\d+$/.test(String(i.id).slice(pre.length))).length;
       const base = itemCounter.get(pid) || 0;
-      for (let n = 0; n < qv; n++) {
-        const k = base + n + 1, id = "imp-" + pid + "-" + k, label = d.name + " #" + k;
-        /* PLAN 12b item 2: a unit reads "Product name #n"; units already imported are renamed in place */
-        if (k <= have) { const ex = S.items.get(id); if (ex && (ex.label !== label || ex.productName !== d.name)) itemsRename.push({ id, label, productName: d.name, was: ex.label || shortId(id) }); continue; }
-        itemsNew.push({ id, label, productId: pid, productName: d.name, locationId: locId, condition: c, note: "Condition on the sheet: " + cond, tab: rec.tab, row: rec.row, date });
+      for (let n = 0; n < rest; n++) {
+        const k = base + n + 1, id = pre + k;
+        if (k <= have && !S.items.get(id)) continue;
+        unit(id, d.name + " #" + k, {});
       }
-      itemCounter.set(pid, base + qv);
-      if (base + qv < have) warnings.push(d.name + ": the sheet shows fewer units than were imported before. Nothing was retired; check them on the Units view.");
+      itemCounter.set(pid, base + rest);
+      if (base + rest < have) warnings.push(d.name + ": the sheet shows fewer units than were imported before. Nothing was retired; check them on the Units view.");
       rec.rep.used++;
       return;
     }
@@ -7547,7 +7661,12 @@ function buildImportPlan(imp) {
     const delta = c.ftLeft - (c.prevFt || 0);
     if (c.isNew || delta !== 0) push({ productId: c.productId, containerId: c.id, containerLabel: c.label, qty: c.isNew ? c.ftLeft : delta, toLocationId: c.locationId, note: note(c.tab, c.row) + (c.isNew ? "" : ", feet left changed") }, c.tab, c.row, c.id, c.ftLeft, c.asOf);
   });
-  itemsNew.forEach(i => push({ productId: i.productId, itemId: i.id, itemLabel: i.label, qty: 1, toLocationId: i.locationId, note: note(i.tab, i.row) + ". " + i.note }, i.tab, i.row, i.id, 1, i.date));
+  itemsNew.forEach(i => push({ productId: i.productId, itemId: i.id, itemLabel: i.serial || i.label, qty: 1, toLocationId: i.locationId, note: note(i.tab, i.row) + (i.note ? ". " + i.note : "") }, i.tab, i.row, i.id, 1, i.date));
+  /* lesson 10: one checkout per pulled unit, by Import, dated from Pull Date (else the count date) */
+  const pullMv = (i, from, label) => push({ type: "checkout", productId: i.productId, itemId: i.id, itemLabel: label, qty: 1, fromLocationId: from, holderName: i.pull.holderName,
+    note: note(i.tab, i.row) + ", pulled for " + (i.pull.holderName || "no name on the sheet") + (i.pull.holderNote ? ". " + i.pull.holderNote : "") }, i.tab, i.row, i.id + ":checkout", 1, i.pull.at);
+  itemsNew.forEach(i => { if (i.pull) pullMv(i, i.locationId, i.serial || i.label); });
+  itemsPull.forEach(i => pullMv(i, i.fromLocationId, i.itemLabel));
   if (dupes) warnings.push(dupes + " movements were written by an earlier import of these rows, so they are not written again.");
   if (tabDated) warnings.push(tabDated + " rows have no count date; their movements are dated from the latest count date on the same tab.");
   const renamed = Array.from(products.values()).filter(p => !p.isNew && S.products.get(p.id) && S.products.get(p.id).name !== p.data.name);
@@ -7565,7 +7684,16 @@ function buildImportPlan(imp) {
     boxesNew: boxes.filter(b => b.isNew).length, stockRows: stock.size, items: itemsNew.length, movements: movements.length, vendors: vendors.length,
     renamed: renamed.length + itemsRename.length, productsRenamed: renamed.length, unitsRenamed: itemsRename.length, movementsSkipped: dupes, tabDated
   };
-  return { tabs, products, locations, stock, containers, itemsNew, itemsRename, movements, vendors: Array.from(new Set(vendors)), grades, aliasRows, warnings, counts, fileName };
+  /* 0.7.0 dry-run lines: serials and MACs, pulled units (counts only), clients, UPCs, vehicles */
+  const pulledAll = itemsNew.filter(i => i.pull).concat(itemsPull);
+  Object.assign(counts, {
+    unitsSerial: itemsNew.filter(i => i.serial).length, unitsMac: itemsNew.filter(i => i.mac).length, unitsPulled: pulledAll.length,
+    pullPeople: new Set(pulledAll.map(i => String(i.pull.holderName || "").toLowerCase()).filter(Boolean)).size,
+    pullClients: new Set(pulledAll.map(i => i.pull.clientId).filter(Boolean)).size, clientsNew: clientsNew.size,
+    upcs: Array.from(products.values()).filter(p => p.upc && (p.isNew || String((S.products.get(p.id) || {}).upc || "") !== p.upc)).length,
+    vehiclesNew: Array.from(locations.values()).filter(l => l.isNew && l.kind === "vehicle").length
+  });
+  return { tabs, products, locations, stock, containers, itemsNew, itemsRename, itemsPull, clientsNew, movements, vendors: Array.from(new Set(vendors)), grades, aliasRows, warnings, counts, fileName };
 }
 
 const importKeyOf = (tab, row, target, value) => [tab, row, target, fmtN(value)].join("|");
@@ -7584,8 +7712,25 @@ async function importDoneKeys() {
   } catch (e) { console.warn("Could not read earlier import movements; a re-import may repeat some.", e); }
   return keys;
 }
+/* 0.7.0: a write the database already holds is left out, so a second run on the same
+   file plans no writes at all. Timestamps compare by time; server-time fields do not count. */
+function sameDoc(ex, data) {
+  if (!ex) return false;
+  return Object.keys(data).every(k => {
+    if (k === "updatedAt" || k === "createdAt") return true;
+    const a = data[k], b = ex[k];
+    if (a && typeof a === "object" && (a.__now || a.__inc)) return true;
+    const da = a instanceof Date ? a : null, db = b && (b instanceof Date || typeof b.toDate === "function") ? toDate(b) : null;
+    if (da || db) return !!(da && db) && da.getTime() === db.getTime();
+    if (a == null || a === "") return b == null || b === "";
+    if (typeof a === "object") return true;
+    return String(a) === String(b);
+  });
+}
 function importOps(plan) {
   const ops = [];
+  (plan.clientsNew || new Map()).forEach(c => ops.push({ op: "set", coll: "loadout_clients", id: c.id, data: { name: c.name, notes: "", archived: false, portalContactId: null, createdAt: NOW, updatedAt: NOW } }));
+  const pullIds = new Set((plan.itemsPull || []).map(i => i.id));
   plan.locations.forEach(l => { if (l.isNew) ops.push({ op: "set", coll: "loadout_locations", id: l.id, merge: true, data: { area: l.area, shelf: l.shelf, kind: l.kind, name: l.name, qr: PAYLOAD.loc(l.id), jobId: null, createdAt: NOW, updatedAt: NOW } }); });
   /* on-hand recomputed from scratch for every product the sheet touches */
   const onHand = new Map();
@@ -7595,29 +7740,34 @@ function importOps(plan) {
     plan.stock.forEach(r => { if (r.productId === p.id) n += r.qty; });
     S.containers.forEach(c => { if (c.productId === p.id && !plan.containers.has(c.id) && c.status !== "empty") n += num(c.ftLeft); });
     plan.containers.forEach(c => { if (c.productId === p.id && c.status !== "empty") n += c.ftLeft; });
-    S.items.forEach(i => { if (i.productId === p.id && inStockItem(i)) n += 1; });
-    plan.itemsNew.forEach(i => { if (i.productId === p.id) n += 1; });
+    S.items.forEach(i => { if (i.productId === p.id && inStockItem(i) && !pullIds.has(i.id)) n += 1; });
+    plan.itemsNew.forEach(i => { if (i.productId === p.id && !i.pull) n += 1; });
     onHand.set(p.id, n);
   });
   plan.products.forEach(p => {
     const d = Object.assign({}, p.data);
     if (!p.isNew) { delete d.consumable; }
     Object.keys(d).forEach(k => { if (d[k] === undefined) d[k] = null; });
-    ops.push({ op: "set", coll: "loadout_products", id: p.id, merge: true, data: Object.assign(d, { onHand: onHand.get(p.id) || 0, lastCountAt: p.lastCountAt || null, updatedAt: NOW },
-      p.isNew ? { upc: null, parLevel: null, defaultLocationId: null, portalItemId: null, imageUrl: null, createdAt: NOW } : {}) });
+    const data = Object.assign(d, { onHand: onHand.get(p.id) || 0, lastCountAt: p.lastCountAt || null, updatedAt: NOW },
+      p.isNew ? { upc: p.upc || null, parLevel: null, defaultLocationId: null, portalItemId: null, imageUrl: null, createdAt: NOW } : p.upc ? { upc: p.upc } : {});
+    if (!p.isNew && sameDoc(S.products.get(p.id), data)) return;
+    ops.push({ op: "set", coll: "loadout_products", id: p.id, merge: true, data });
   });
   const pname = id => (plan.products.get(id) || {}).data ? plan.products.get(id).data.name : productName(S.products.get(id));
   const lname = id => id ? (plan.locations.get(id) ? plan.locations.get(id).name : locName(id)) : null;
-  plan.stock.forEach(s => ops.push({ op: "set", coll: "loadout_stock", id: s.id, merge: true, data: { productId: s.productId, productName: pname(s.productId), locationId: s.locationId, locationName: lname(s.locationId), qty: s.qty, updatedAt: NOW } }));
-  plan.containers.forEach(c => ops.push({ op: "set", coll: "loadout_containers", id: c.id, merge: true, data: Object.assign({
+  plan.stock.forEach(s => { const data = { productId: s.productId, productName: pname(s.productId), locationId: s.locationId, locationName: lname(s.locationId), qty: s.qty, updatedAt: NOW }; if (!sameDoc(S.stock.get(s.id), data)) ops.push({ op: "set", coll: "loadout_stock", id: s.id, merge: true, data }); });
+  plan.containers.forEach(c => { const op = { op: "set", coll: "loadout_containers", id: c.id, merge: true, data: Object.assign({
     productId: c.productId, productName: c.productName, locationId: c.locationId, locationName: lname(c.locationId), label: c.label, startLength: c.startLength,
     ftLeft: c.ftLeft, lastMark: c.ftLeft, status: c.status, confirmLocation: c.confirmLocation, purchasedAt: c.purchasedAt || null, qr: PAYLOAD.ctr(c.id),
-    lastReadingAt: c.asOf || NOW, lastReadingBy: "Import", pickTicketId: null, updatedAt: NOW }, c.isNew ? { createdAt: NOW, upc: null } : {}) }));
-  plan.itemsNew.forEach(i => ops.push(itemDoc({ id: i.productId, name: i.productName }, { id: i.id, label: i.label, locationId: i.locationId, locationName: lname(i.locationId), condition: i.condition, importNote: i.note })));
+    lastReadingAt: c.asOf || NOW, lastReadingBy: "Import", pickTicketId: null, updatedAt: NOW }, c.isNew ? { createdAt: NOW, upc: null } : {}) }; if (c.isNew || !sameDoc(S.containers.get(c.id), op.data)) ops.push(op); });
+  /* a pulled unit is written checked out to the name on the sheet: no account, so no holderUid */
+  const pullFields = (pl, at) => ({ status: "checked_out", holderUid: null, holderName: pl.holderName, holderNote: pl.holderNote, clientId: pl.clientId, clientName: pl.clientName, jobId: null, jobName: null, locationId: null, locationName: null, checkedOutAt: pl.at || at || NOW });
+  plan.itemsNew.forEach(i => ops.push(itemDoc({ id: i.productId, name: i.productName }, Object.assign({ id: i.id, label: i.label, serial: i.serial || null, mac: i.mac || null, locationId: i.locationId, locationName: lname(i.locationId), condition: i.condition, importNote: i.note || null }, i.pull ? pullFields(i.pull, i.date) : {}))));
+  (plan.itemsPull || []).forEach(i => ops.push({ op: "update", coll: "loadout_items", id: i.id, data: Object.assign(pullFields(i.pull, i.date), { updatedAt: NOW }) }));
   (plan.itemsRename || []).forEach(i => ops.push({ op: "update", coll: "loadout_items", id: i.id, data: { label: i.label, productName: i.productName, updatedAt: NOW } }));
-  plan.movements.forEach(m => ops.push(mv("adjust", Object.assign({}, m, { productName: pname(m.productId), toLocationName: lname(m.toLocationId), byName: "Import", at: m.at || NOW }))));
-  if (plan.vendors.length) {
-    const merged = Array.from(new Set((S.general.vendors || []).concat(plan.vendors)));
+  plan.movements.forEach(m => ops.push(mv(m.type || "adjust", Object.assign({}, m, { productName: pname(m.productId), toLocationName: lname(m.toLocationId), fromLocationName: lname(m.fromLocationId), byName: "Import", at: m.at || NOW }))));
+  const merged = Array.from(new Set((S.general.vendors || []).concat(plan.vendors)));
+  if (merged.length > (S.general.vendors || []).length) {
     ops.push({ op: "set", coll: "loadout_settings", id: "general", merge: true, data: { vendors: merged, updatedBy: S.user.email, updatedByName: S.user.name, updatedAt: NOW } });
   }
   return ops;
@@ -7645,14 +7795,16 @@ function importHTML() {
       IMPORT_KINDS.map(([k, l]) => '<option value="' + k + '"' + (t.kind === k ? " selected" : "") + ">" + l + "</option>").join("") + '</select></td><td data-l="Rows" class="r n">' + fmtN(t.rows) + '</td><td data-l="Used" class="r n">' + fmtN(t.used) + '</td><td data-l="Skipped" class="r n">' + fmtN(t.skipped.length) + "</td></tr>").join("") + "</tbody></table></div>" +
     (c.blank ? '<p class="hint">' + fmtN(c.blank) + " blank rows were ignored.</p>" : "") + "</div>";
   h += '<div class="sect"><h4 class="h4">Dry run</h4><div class="strip">' +
-    sv("Rows used", c.rowsUsed, "of " + fmtN(c.rowsRead)) + sv("New products", c.productsNew, c.productsUpd ? fmtN(c.productsUpd) + " updated" : "") + sv("New shelves", c.locationsNew, fmtN(c.locations) + " in the sheet") +
+    sv("Rows used", c.rowsUsed, "of " + fmtN(c.rowsRead)) + sv("New products", c.productsNew, c.productsUpd ? fmtN(c.productsUpd) + " updated" : "") + sv("New locations", c.locationsNew, fmtN(c.locations) + " in the sheet") +
     sv("Boxes", c.boxes, c.boxesOpen + " open, " + c.boxesEmpty + " empty") + svw("Boxes to place", c.boxesNoLoc, "feet left, no location") + sv("Serialized units", c.items, "new") +
+    sv("Units with serials", c.unitsSerial, fmtN(c.unitsMac) + " with MAC addresses") + sv("Pulled units", c.unitsPulled, c.unitsPulled ? "checked out to " + plural(c.pullPeople, "person", "people") + " for " + plural(c.pullClients, "client") : "none on the sheet") +
+    sv("Clients to create", c.clientsNew, "from Client Pulled For") + sv("Products gaining a UPC", c.upcs, "from the UPC column") + sv("Vehicles", c.vehiclesNew, "new locations, from Area") +
     sv("Renamed", c.renamed, fmtN(c.productsRenamed) + " products, " + fmtN(c.unitsRenamed) + " units") + sv("Movements", c.movements, "dated from the sheet" + (c.movementsSkipped ? ", " + fmtN(c.movementsSkipped) + " already written" : "")) + sv("Skipped rows", c.skipped, "see below") + "</div></div>";
   h += '<div class="sect"><h4 class="h4" title="Makes spelled more than one way become one. Change the right-hand box to merge or rename; unknown makes pass through as typed.">Make aliases</h4><div class="tblwrap"><table class="tbl"><thead><tr><th class="plain">As typed</th><th class="plain r">Rows</th><th class="plain">Becomes</th></tr></thead><tbody>' +
     pl.aliasRows.map((a, i) => '<tr' + (a.variants.length > 1 || a.to !== a.variants[0] ? ' class="need"' : "") + '><td data-l="As typed">' + a.variants.map(esc).join(" / ") + '</td><td data-l="Rows" class="r n">' + a.count + '</td><td data-l="Becomes"><label class="sr" for="impA' + i + '">' + esc(a.variants[0]) + ' becomes</label><input class="fld" id="impA' + i + '" data-alias="' + esc(a.fold) + '" value="' + esc(a.to) + '"></td></tr>').join("") +
     '</tbody></table></div><div class="btnrow"><button type="button" class="btn" data-act="impRefresh">Update preview</button></div></div>';
   const newLocs = Array.from(pl.locations.values()).filter(l => l.isNew);
-  h += '<div class="sect"><h4 class="h4">Shelves to create</h4>' + (newLocs.length ? '<div class="chips">' + newLocs.map(l => '<span class="chip"><i></i>' + esc(l.name) + "</span>").join("") + "</div>" : '<p class="hint">None; every shelf already exists.</p>') + "</div>";
+  h += '<div class="sect"><h4 class="h4">Locations to create</h4>' + (newLocs.length ? '<div class="chips">' + newLocs.map(l => '<span class="chip"><i></i>' + esc(l.name) + (l.kind === "vehicle" ? " (vehicle)" : "") + "</span>").join("") + "</div>" : '<p class="hint">None; every location already exists.</p>') + "</div>";
   h += '<details class="more"' + (pl.warnings.length ? " open" : "") + "><summary>Warnings (" + pl.warnings.length + ')</summary><ul class="hint">' + pl.warnings.map(w => "<li>" + esc(w) + "</li>").join("") + "</ul></details>";
   const sk = []; pl.tabs.forEach(t => t.skipped.forEach(s => sk.push(t.name + " row " + s.row + ": " + s.why)));
   h += '<details class="more"><summary>Skipped rows (' + sk.length + ')</summary><ul class="hint">' + (sk.length ? sk.map(s => "<li>" + esc(s) + "</li>").join("") : "<li>None</li>") + "</ul></details>";
@@ -7707,6 +7859,9 @@ if (DEMO) window.Loadout = { importBuffer: (buf, name) => importLoad(buf, name |
   /* 0.5.2: the export tables without downloading, for checking the CSV split by script */
   exportTables,
   offlineNote,
+  /* 0.7.0: the writes a plan would make, and a fresh plan after a scripted apply (the idempotency check) */
+  importOps,
+  replan: async () => { if (!S.imp) return null; S.imp.doneKeys = await importDoneKeys(); S.imp.plan = buildImportPlan(S.imp); render(true); return S.imp.plan; },
   /* 0.6.0: boardRotate(6) sets the rotation for checking the scroll and the 2px shift by eye */
   boardRotate: sec => { S.board.rotateSec = Math.max(5, num(sec)); BD.flipAt = 0; renderBoard(); return { rotateSec: S.board.rotateSec, shift: BD.shift }; } };
 
@@ -7864,13 +8019,14 @@ document.addEventListener("click", e => {
     case "wkLine": S.focusLine = { id: b.dataset.line, done: false }; go("ticket", id); break;
     case "mvWeek": mvWeek(+b.dataset.d); render(true); break;
     case "impGo": collectAliases($("#v-more")); S.imp.plan = buildImportPlan(S.imp);
-      confirmModal("Import " + S.imp.fileName, "<p>Write " + fmtN(importOps(S.imp.plan).length) + " records: " + fmtN(S.imp.plan.counts.productsNew) + " new products, " + fmtN(S.imp.plan.counts.boxes) + " boxes, " + fmtN(S.imp.plan.counts.items) + " serialized units, and " + fmtN(S.imp.plan.counts.movements) + " movements by Import. Safe to run again later.</p>", "Import", runImport);
+      confirmModal("Import " + S.imp.fileName, "<p>Write " + fmtN(importOps(S.imp.plan).length) + " records: " + fmtN(S.imp.plan.counts.productsNew) + " new products, " + fmtN(S.imp.plan.counts.boxes) + " boxes, " + fmtN(S.imp.plan.counts.items) + " serialized units (" + fmtN(S.imp.plan.counts.unitsPulled) + " checked out as pulled), " + fmtN(S.imp.plan.counts.clientsNew) + " new clients, and " + fmtN(S.imp.plan.counts.movements) + " movements by Import. Safe to run again later.</p>", "Import", runImport);
       break;
   }
 });
 document.addEventListener("input", e => {
   const t = e.target;
   if (t.id === "stockSearch") { S.search = t.value; scheduleRender(); }
+  else if (t.id === "unitSearch") { S.unitQ = t.value; scheduleRender(); }
   else if (t.id === "tfQ") { S.tkFilter.q = t.value; scheduleRender(); }
   else if (t.dataset && t.dataset.mf) { S.mvFilter[t.dataset.mf] = t.value; scheduleRender(); }
   else if (t.id === "lblQ") { S.labelQ = t.value; scheduleRender(); }

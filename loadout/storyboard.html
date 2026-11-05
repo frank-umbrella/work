@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Loadout - Overview, Storyboard, SOP and Tech spec v0.6.2</title>
+<title>Loadout - Overview, Test drive, Storyboard, SOP and Tech spec v0.7.0</title>
 <meta name="description" content="Storyboard and functional SOP for Loadout, the internal inventory, pick ticket, and order tracking tool, updated to match the built app. Draft for owner review.">
 <meta name="robots" content="noindex, nofollow">
-<meta name="version" content="0.6.2">
+<meta name="version" content="0.7.0">
 <script>
   // ?print=1 strips the chrome for a PDF. ?tab=overview|story|sop|tech picks the tab;
   // ?all=1 shows every tab at once (for a single PDF of the whole document).
@@ -314,6 +314,31 @@
     .ov table.cmp td:first-child::before { display: none; }
   }
 
+  /* ============ Test drive tab ============ */
+  .td ol.drive { counter-reset: step; list-style: none; margin: 0 0 8px; padding: 0; max-width: 84ch; }
+  .td ol.drive li { counter-increment: step; position: relative; padding: 10px 0 10px 46px; border-bottom: 1px solid var(--line); min-width: 0; }
+  .td ol.drive li:last-child { border-bottom: 0; }
+  .td ol.drive li::before {
+    content: counter(step); position: absolute; left: 0; top: 10px;
+    width: 32px; height: 32px; border-radius: 50%; background: var(--ink); color: #fff;
+    font-weight: 700; font-size: 15px; display: flex; align-items: center; justify-content: center;
+  }
+  .td ol.drive b { display: block; font-size: 16px; }
+  .td ol.drive span { display: block; margin-top: 3px; overflow-wrap: break-word; }
+  .td ol.drive i { font-style: normal; font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-right: 8px; }
+  .td ol.drive .ref { font-size: 14px; }
+  .td ol.drive .ref a { display: inline-flex; align-items: center; min-height: 32px; }
+  .td h3 { font-size: 17px; margin: 28px 0 4px; }
+  .td table.offtbl { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 14px; margin: 8px 0 12px; }
+  .td table.offtbl th, .td table.offtbl td { border: 1px solid var(--line-strong); text-align: left; vertical-align: top; padding: 6px 8px; }
+  .td table.offtbl th { font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); background: var(--bg); }
+  .td table.offtbl th:first-child { width: 14%; }
+  .td table.offtbl th:nth-child(2), .td table.offtbl th:nth-child(3) { width: 43%; }
+  .td table.offtbl td { height: 44px; }
+  @media (max-width: 640px) {
+    .td ol.drive .ref a { min-height: 44px; }
+  }
+
   /* ============ Phone widths ============ */
   @media (max-width: 640px) {
     .wrap { padding: 0 16px; }
@@ -364,6 +389,11 @@
     .ov ol.flow li::before { background: #000; color: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .ov .ask { background: #f3f3f3; border-color: #333; }
     .ov ol.flow li, .ov table.cmp tr { break-inside: avoid; page-break-inside: avoid; }
+    .td ol.drive li, .td table.offtbl tr { break-inside: avoid; page-break-inside: avoid; }
+    .td ol.drive li::before { background: #000; color: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .td ol.drive .ref a { min-height: 0; }
+    .td table.offtbl td { height: 0.5in; }
+    .td table.offtbl th, .td table.offtbl td { border-color: #555; }
     .ov table.cmp.spec tbody tr:nth-child(even) td { background: #f3f3f3; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   }
 </style>
@@ -408,7 +438,7 @@
     </svg>
     <div class="doc-kind">
       <div class="kind">Overview, storyboard, functional SOP, and tech spec</div>
-      <div class="num">Draft v0.6</div>
+      <div class="num">Draft v0.7</div>
     </div>
   </div>
 
@@ -417,10 +447,11 @@
     Loadout
   </h1>
   <p class="subtitle">How product moves through the shop, from approved proposal to installed, and what gets recorded at each step</p>
-  <p class="draft">Draft for review, 2026-11-03 (v0.6.2: the nightly backup goes to the same Google project as the database and is listed under Console &gt; Backups, not Google Drive; v0.6.1: words match the app's 0.5.2 vocabulary). Updated to match the built app, releases 0.1.0 to 0.5.2: every screen, button, and status word below is the one in the app today, and two panels are new (14, the Week view, and 15, Tracking). Earlier drafts: v0.5 named the tool Loadout, v0.4 added the Tech spec tab, v0.3 the Overview, v0.2 the wall board.</p>
+  <p class="draft">Draft for review, 2026-11-05 (v0.7.0: a Test drive tab to walk the app on real data, and SOP-12 covers serials, MAC addresses, and pulled units on the Devices tab; v0.6.2: the nightly backup goes to the same Google project as the database and is listed under Console &gt; Backups, not Google Drive; v0.6.1: words match the app's 0.5.2 vocabulary). Updated to match the built app, releases 0.1.0 to 0.5.2: every screen, button, and status word below is the one in the app today, and two panels are new (14, the Week view, and 15, Tracking). Earlier drafts: v0.5 named the tool Loadout, v0.4 added the Tech spec tab, v0.3 the Overview, v0.2 the wall board.</p>
 
   <div class="tabs" role="tablist" aria-label="Sections of this document">
     <button type="button" role="tab" id="tabbtn-overview" aria-controls="tab-overview" aria-selected="true" data-tab="overview">Overview<span class="hint">the five-minute read</span></button>
+    <button type="button" role="tab" id="tabbtn-drive" aria-controls="tab-drive" aria-selected="false" data-tab="drive">Test drive<span class="hint">one morning, real data, 14 steps</span></button>
     <button type="button" role="tab" id="tabbtn-story" aria-controls="tab-story" aria-selected="false" data-tab="story">Storyboard<span class="hint">a day in the warehouse, 15 screens</span></button>
     <button type="button" role="tab" id="tabbtn-sop" aria-controls="tab-sop" aria-selected="false" data-tab="sop">SOP<span class="hint">step by step, and what it is not</span></button>
     <button type="button" role="tab" id="tabbtn-tech" aria-controls="tab-tech" aria-selected="false" data-tab="tech">Tech spec<span class="hint">what it runs on, and will the data stay readable</span></button>
@@ -437,6 +468,7 @@
     <div class="cols">
       <ul>
         <li><a href="#read">Read this first</a></li>
+        <li><a href="#drive">Test drive</a></li>
         <li><a href="#part1">Part 1. A day in the warehouse</a></li>
         <li><a href="#part3">Part 3. What Loadout is not</a></li>
       </ul>
@@ -552,6 +584,43 @@
 
   <h3>What it is not</h3>
   <p>Not a replacement for Portal or for QuickBooks, no automatic carrier tracking yet, and no unit-by-unit tracking of cheap stock unless you ask for it. The full list is at the end of the <a href="#part3">SOP tab</a>.</p>
+  </div>
+
+  <!-- ================= TEST DRIVE TAB ================= -->
+  <div class="tab td" id="tab-drive" role="tabpanel" aria-labelledby="tabbtn-drive">
+  <h2 id="drive">Test drive</h2>
+  <p class="lede">One morning in the shop, with the real data in Loadout: 14 steps, in the order the day runs. Each step says what to do, what you should see, and which panel or SOP it walks through. If something does not match, write it in the table at the bottom. Print this tab with the button at the bottom and carry it.</p>
+  <ol class="drive">
+      <li><b>Sign in on your phone.</b><span class="do"><i>Do</i>Open Loadout on the phone and sign in with your work Google account.</span><span class="see"><i>You should see</i>Scan opens, and the pill in the top bar says Synced.</span><span class="ref"><a href="#sop-10">SOP-10</a></span></li>
+      <li><b>Find a product on Stock.</b><span class="do"><i>Do</i>Open Stock and type a model number you know is on a shelf, such as a camera or an access point.</span><span class="see"><i>You should see</i>One row, with the count and the shelf it sits on. Open it to see On hand by location.</span><span class="ref"><a href="#sop-9">SOP-9</a></span></li>
+      <li><b>Scan a box sticker and take a reading.</b><span class="do"><i>Do</i>On Scan, point the camera at a wire box's QR sticker. Read the footage mark printed on the cable and type it in.</span><span class="see"><i>You should see</i>The box sheet with its label, product, and feet left. After Save cut, feet left drops by what you took.</span><span class="ref"><a href="#panel-7">Panel 7, SOP-6</a></span></li>
+      <li><b>Find a unit by serial or MAC.</b><span class="do"><i>Do</i>Open More, Units, All. Type the last four or more characters of a serial or MAC from a box on the shelf. A MAC works with colons, dashes, or none.</span><span class="see"><i>You should see</i>Only that unit is left in the list, with its Serial and MAC address columns filled.</span><span class="ref"><a href="#sop-7">SOP-7</a></span></li>
+      <li><b>Check a unit out.</b><span class="do"><i>Do</i>Open the unit, press Check out, type a job name in For (or Use van stock), and confirm.</span><span class="see"><i>You should see</i>Status Checked out, Held by you, Out since today. It shows on the Out tab.</span><span class="ref"><a href="#panel-8">Panel 8, SOP-7</a></span></li>
+      <li><b>Check the same unit back in.</b><span class="do"><i>Do</i>Press Check in, pick the shelf and the condition, and confirm.</span><span class="see"><i>You should see</i>Status In stock, on the shelf you picked. Show history lists the check-out and the check-in.</span><span class="ref"><a href="#panel-10">Panel 10, SOP-7</a></span></li>
+      <li><b>Open a pulled unit and see who has it.</b><span class="do"><i>Do</i>On Units, Out, open a unit the sheet marks as pulled.</span><span class="see"><i>You should see</i>Held by shows the name from the sheet, with the note that there is no Loadout account, and the client and the sheet's note beside it.</span><span class="ref"><a href="#sop-12">SOP-12</a></span></li>
+      <li><b>Import the sheet again.</b><span class="do"><i>Do</i>Open More, Import inventory sheet, and choose the same workbook that was imported last.</span><span class="see"><i>You should see</i>The dry run shows 0 writes: no new products, units, clients, or movements. Do not press Import.</span><span class="ref"><a href="#sop-12">SOP-12</a></span></li>
+      <li><b>Make a ticket from a Portal CSV.</b><span class="do"><i>Do</i>Open Tickets, press New ticket, keep Import a Portal CSV, and choose an accepted proposal's CSV. Pick the client and job, then Create ticket.</span><span class="see"><i>You should see</i>A new ticket with its lines grouped by area, and the skipped rows listed before you create it.</span><span class="ref"><a href="#panel-1">Panel 1, SOP-3</a></span></li>
+      <li><b>Pull a line.</b><span class="do"><i>Do</i>On that ticket, press Pull from stock on a line that has stock, pick the shelf, and press Pull.</span><span class="see"><i>You should see</i>The line shows the quantity from stock and the staging bay. The shelf count goes down by the same number.</span><span class="ref"><a href="#panel-2">Panel 2, SOP-4</a></span></li>
+      <li><b>Put the board on the TV.</b><span class="do"><i>Do</i>On the TV's browser, open Loadout with ?board=1 and sign in as the board account.</span><span class="see"><i>You should see</i>The ticket you pulled from rotates on the screen, with what is staged and what is still to pull.</span><span class="ref"><a href="#panel-13">Panel 13</a></span></li>
+      <li><b>Look at Week.</b><span class="do"><i>Do</i>Open Week on the phone or the desktop.</span><span class="see"><i>You should see</i>This week's installs by day, with each ticket's open lines. Your new ticket shows on its install day if you set one.</span><span class="ref"><a href="#panel-14">Panel 14</a></span></li>
+      <li><b>Open Console, Backups.</b><span class="do"><i>Do</i>On the desktop, open Console, then Backups.</span><span class="see"><i>You should see</i>Last backup at the top with its time, file count, and row count, and a list of the earlier days below it.</span><span class="ref"><a href="#sop-10">SOP-10</a></span></li>
+      <li><b>Export everything.</b><span class="do"><i>Do</i>In Console, open Export everything and press Download workbook (.xlsx).</span><span class="see"><i>You should see</i>One file named loadout-export- and the date, with a tab per collection. The items tab has serial and mac columns.</span><span class="ref"><a href="#sop-10">SOP-10</a></span></li>
+  </ol>
+  <h3 id="drive-notes">What felt off</h3>
+  <p class="lede">One row per surprise. Step is the number above.</p>
+  <table class="offtbl">
+    <thead><tr><th scope="col">Step</th><th scope="col">What happened</th><th scope="col">What I expected</th></tr></thead>
+    <tbody>
+        <tr><td></td><td></td><td></td></tr>
+        <tr><td></td><td></td><td></td></tr>
+        <tr><td></td><td></td><td></td></tr>
+        <tr><td></td><td></td><td></td></tr>
+        <tr><td></td><td></td><td></td></tr>
+        <tr><td></td><td></td><td></td></tr>
+        <tr><td></td><td></td><td></td></tr>
+        <tr><td></td><td></td><td></td></tr>
+    </tbody>
+  </table>
   </div>
 
   <!-- ================= STORYBOARD TAB ================= -->
@@ -1280,15 +1349,16 @@ Staged 9/12 lines in Bay 2. Delivered 0/12. On order: Ubiquiti UDM-SE x1, PO
       <li>Open More, Import inventory sheet. Only admins see it.</li>
       <li>Press Choose a file and pick the workbook (or a CSV with the same columns). It is read in this browser; nothing is written until you press Import.</li>
       <li>In Tabs, check each tab's Read as. Pick what any blank tab is, or leave it out.</li>
-      <li>Read the Dry run: rows used, new products, new shelves, boxes (open and empty), Boxes to place (feet left but no shelf, in amber), serialized units, renamed names, movements dated from the sheet, and skipped rows.</li>
+      <li>Read the Dry run: rows used, new products, new locations, boxes (open and empty), Boxes to place (feet left but no shelf, in amber), serialized units, units with serials and with MAC addresses, pulled units (checked out to how many people for how many clients), clients to create, products gaining a UPC, vehicles, renamed names, movements dated from the sheet, and skipped rows.</li>
       <li>Check Make aliases. Makes spelled more than one way become one; change the right-hand box to merge or rename, then press Update preview.</li>
-      <li>Open Shelves to create, Warnings, Skipped rows, and Products and read them through.</li>
+      <li>Open Locations to create, Warnings, Skipped rows, and Products and read them through. A Devices row marked DNI/Does Not Exist in Note keeps its product in the catalog and counts nothing.</li>
       <li>Press Import (it names the count, for example Import 214 products and 38 boxes). It writes in batches; Start over clears the preview instead.</li>
       <li>Afterwards, open Stock, Consumables, give each box without a shelf its Location on the box sheet, and print labels for the new shelves and boxes (SOP-2).</li>
-      <li>To bring in a newer count later, run the same steps on the new copy. Counts update, names are corrected in place, and movements already written are skipped.</li>
+      <li>To bring in a newer count later, run the same steps on the new copy. Counts update, names are corrected in place, and movements already written are skipped. Running the same copy twice plans 0 writes.</li>
+      <li>On the Devices tab, a row with Pull Date or Pulled For comes in checked out: held by the name on the sheet (no account needed), for the client in Client Pulled For, with the sheet's Note on the unit. Check it in as usual when it comes back (SOP-7).</li>
     </ol>
     <p class="open"><b>Still open (D16, D17):</b> box start lengths (SOP-6), and whether a per-job assigned list exists beside the Unassigned Inventory sheet and should come in as staged stock. For now only unassigned stock is imported.</p>
-    <p class="recorded"><b>Recorded:</b> the products, shelves, boxes with their existing codes, and units, plus one movement per row dated from the sheet's count date, with the import time, tab, and row kept beside it so a re-import knows what it already wrote.</p>
+    <p class="recorded"><b>Recorded:</b> the products (with the sheet's UPC), shelves and vehicles, boxes with their existing codes, units with their serial or MAC, and new clients, plus one movement per row dated from the sheet's count date and one Check out by Import per pulled unit dated from Pull Date, with the import time, tab, and row kept beside each so a re-import knows what it already wrote.</p>
   </section>
 
   <!-- ================= PART 3 ================= -->
@@ -1400,7 +1470,7 @@ Staged 9/12 lines in Bay 2. Delivered 0/12. On order: Ubiquiti UDM-SE x1, PO
 </article>
 
 <footer class="pagefoot">
-  <p>Loadout storyboard v0.6.2, 2026-11-03. Matches the app at 0.5.2, with the 0.6.1 backups. Internal, Umbrella Automation.</p>
+  <p>Loadout storyboard v0.7.0, 2026-11-05. Matches the app at 0.5.2, with the 0.6.1 backups and the 0.7.0 import and Test drive. Internal, Umbrella Automation.</p>
   <button type="button" class="btn-print" id="printTab">Print this tab as PDF</button>
   <button type="button" class="btn-print" id="printAll">Print everything as PDF</button>
 </footer>
@@ -1409,7 +1479,7 @@ Staged 9/12 lines in Bay 2. Delivered 0/12. On order: Ubiquiti UDM-SE x1, PO
 
 <script>
 (function () {
-  var names = ['overview', 'story', 'sop', 'tech'];
+  var names = ['overview', 'drive', 'story', 'sop', 'tech'];
   var tabs = document.querySelectorAll('.tabs button[data-tab]');
   var panels = {};
   names.forEach(function (n) { panels[n] = document.getElementById('tab-' + n); });

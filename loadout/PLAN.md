@@ -146,7 +146,8 @@ the database reads without the app (section 16).
                                               flat optional attributes;
                                               only the ones the kind uses
   unit            "each" | "ft"
-  upc             string|null          learned on first scan
+  upc             string|null          learned on first scan, or from the
+                                       sheet's UPC column (0.7.0)
   category        string               "Wire", "Network", "Camera", "Mount"...
   consumable      bool                 shows in the Consumables view, has a par level
   parLevel        number|null          reorder point in the product's unit
@@ -174,22 +175,46 @@ the database reads without the app (section 16).
   role "tech" and is listed for an admin to confirm.
 
 /loadout_items/{itemId}                  one physical unit, serialized
-  productId, serial (string|null), cost (number|null)
+  productId, cost (number|null)
+  serial          string|null          as typed or scanned, for warranty
+                                       claims and returns
+  mac             string|null          stored AA:BB:CC:DD:EE:FF, so a
+                                       networked device can be found on the
+                                       client's network (0.7.0); typed with
+                                       colons, dashes, dots, or none
   qr              "loadout:item:{itemId}"
   status          "on_order" | "in_stock" | "staged" | "checked_out" |
                   "installed" | "returned" | "retired"
   locationId      where it sits when in stock or staged
-  holderUid, holderName                who has it while checked out
+  holderUid, holderName                who has it while checked out.
+                  holderUid is empty when the holder is a name only: a unit
+                  pulled on the inventory sheet is held by the name as typed
+                  in Pulled For, with no account (0.7.0). Check-in works the
+                  same either way.
+  holderNote      string|null          the sheet's Note on a pulled unit;
+                                       cleared at the next check-out or
+                                       check-in (0.7.0)
+  clientId, clientName                 the client a sheet row was pulled for
+                                       (Client Pulled For), or the ticket's
+                                       client (0.7.0)
   jobId, ticketId, ticketLineId        what it is out for
   checkedOutAt, checkedInAt, condition ("good"|"damaged"|"missing")
   orderId, shipmentId                  where it came from
   createdAt, updatedAt
 
+  Document id: random for units made in the app. An imported unit's id is
+  deterministic so a re-import finds it: imp-{productId}-m-{12 hex} for a
+  row with a MAC, imp-{productId}-s-{serial slug} for a row with a serial,
+  and imp-{productId}-{n} for the rest (the 0.1.0 scheme, unchanged).
+
 /loadout_locations/{locationId}
   area ("Storage room", "Computer Room Shelving Rack", "Warehouse")
   shelf ("RCA A/V Video", "Power cables", "C", "")   blank for a bare area
   name            "Storage room, RCA A/V Video"   composed; what labels print
-  kind ("shelf"|"bay"|"van"|"other")
+  kind ("shelf"|"bay"|"van"|"vehicle"|"other")
+                  vehicle (0.7.0): a person's car or truck that carries
+                  stock, from a sheet Area ending in Car, Van, or Truck. It
+                  reads like other: a ticket can pull from it.
   jobId (string|null)                  set while a bay is reserved for a job
   qr              string               payload printed on the label
   Document id: area-shelf slug ("storage-room--rca-av-video").
@@ -1239,13 +1264,15 @@ Settled 2026-10-29 (D15): Firestore with rules 1-9.
 
 The shop already keeps inventory in a workbook, `Unassigned Inventory.xlsx`
 (in `samples/`, never committed). It is the day-one seed and the first real
-test of the import mapping. Read on 2026-10-29; what it holds:
+test of the import mapping. Read on 2026-10-29, and again on 2026-11-05 when
+the Devices tab grew pull tracking and serials (the 10-29 copy is kept
+beside it under a dated name); what it holds:
 
 | Tab | Rows | What it is | Columns |
 |---|---|---|---|
 | Patch Cables | 171 | Made-up cables by type and attributes; 31 types (power, stereo audio, Cat6 patch, HDMI, fiber, USB, A/V...) | Type, Make, Part Number, Connector 1, Connector 2, Color, Diameter + Unit of Measure (gauge), Amps, Length + Unit of Measure 2, QTY, Area, Shelf, Last Date |
 | Splitters | 15 | Coax, RCA, and 3.5 mm splitters | Type, Make, Part Number, Connector 1, Number of Inputs, Connector 2, Number of outputs, QTY, Area, Shelf, Last Date |
-| Devices | 47 | Network, surveillance, speakers, control, racks | Type, Make, Part Number, Description, Color, Condition, QTY, Area, Shelf, Count Date |
+| Devices | 54 (47 on 10-29) | Network, surveillance, speakers, control, racks | 16 columns: Type, Make, Part Number, Description, Color, Condition, QTY, Area, Shelf, Count Date, and from 11-05 Pull Date, UPC, Serial/MAC Device Only, Client Pulled For, Pulled For, Note (two headers hold a line break; the importer reads it as a space) |
 | Connectors | 9 | XLR and banana | Type, Make, Part Number, Sex, Band, Pin, QTY, Area, Shelf, Last Date |
 | Boxed Cable | 53 | Wire boxes by box code | Box, Type, Wire Type, Color, Purchase Date, QTY (feet left), As of Date, Location |
 | Carrier OnhandPricing | 33 | Cable type x color grid with three vendor price columns, almost empty | Type, Grade, Color, Length, and one column per vendor |
@@ -1282,6 +1309,45 @@ What the sheet taught the plan (changes already made above):
 7. **Zero-quantity rows stay** as products with on-hand 0, so the catalog
    remembers what the shop stocks.
 
+The 2026-11-05 copy (0.7.0) added six Devices columns, and four more lessons:
+
+8. **UPCs arrive on the sheet.** The UPC column is stored as a number
+   (810084690598.0); it lands on `product.upc` as text without the ".0",
+   the same fix as part numbers. The sheet's value wins when present; an
+   empty cell never clears a UPC learned on Scan.
+9. **Serials make units.** A Devices row becomes serialized units when any
+   of Condition, Serial/MAC, Pull Date, or Pulled For is filled (before
+   0.7.0, only Condition). The Serial/MAC cell is read by shape: set aside a
+   leading tag in parentheses ("(AV) ") and any colons, dashes, or dots, and
+   if 12 hex characters remain it is a MAC, stored normalized in `mac` with
+   the cell as typed kept in `importNote`; anything else is a serial, kept
+   exactly as typed in `serial`. The unit id comes from the MAC or the
+   serial (section 3), so a re-import finds it. Its label is "Product name,
+   MAC" or ", SN" and the last 6 characters. A row with a serial or MAC
+   and QTY above 1 gives the identifier to one unit and numbers the rest,
+   with a warning. A row without one keeps the "Product name #n" counter,
+   so units imported on 10-29 keep their ids and labels.
+10. **Pull columns are check-outs.** A row with Pull Date or Pulled For
+    comes in checked out: `holderName` is Pulled For as typed (no account,
+    so no `holderUid`), `holderNote` is the sheet's Note, the client from
+    Client Pulled For is found by name or slug or created, and
+    `checkedOutAt` is Pull Date, else the row's count date. Each pulled
+    unit gets one `checkout` movement by Import with the same date, keyed
+    like every import movement, so a re-import never writes it twice; a
+    unit Import has checked out once is never checked out by Import again,
+    even if the row moves. Note "DNI/Does Not Exist" means the row counts
+    nothing: the product stays in the catalog (lesson 7), with no unit,
+    stock, or movement, and a warning names the tab and row. On the
+    11-05 copy that row reads QTY 1, not 0; the note wins.
+11. **A vehicle is a location.** An Area whose last word is Car, Van, or
+    Truck ("<name> Car") imports as a location of kind `vehicle`.
+
+The dry run adds: units with serials and with MAC addresses, pulled units
+("checked out to N people for N clients", no names), clients to create,
+products gaining a UPC, and vehicles. Warnings name the tab and row, never
+the value. A write the database already holds is left out of the plan, so
+running the same file twice plans 0 writes the second time.
+
 Normalization the importer applies, shown in the preview before anything is
 written:
 
@@ -1302,7 +1368,7 @@ written:
 The importer lives at More > Import inventory sheet (admin only), built in
 0.1.0: drop the .xlsx (SheetJS reads it in the browser), pick the tab-to-kind
 mapping (prefilled for these seven tabs), review a dry-run report (products
-to create, shelves to create, boxes, items, rows skipped and why, the alias
+to create, locations to create, boxes, items, rows skipped and why, the alias
 table), then Import. Re-running it on a newer copy of the sheet updates
 counts and adds new rows; it never duplicates, because the ids are
 deterministic (section 3). The same screen takes a plain CSV with the same

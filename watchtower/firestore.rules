@@ -296,11 +296,13 @@ service cloud.firestore {
     // 0.5.2: a unit also carries ticketNumber and clientName beside its
     // ticket and job ids (PLAN 16 rule 3), so a tech's Deliver to site and
     // check-in may write those two as well.
+    // 0.7.0: also clientId and holderNote, which a check-out or check-in clears
+    // on a unit that came in pulled on the inventory sheet.
     function loadoutItemUpdate() {
       let r = loadoutRole();
       return r in ['admin', 'warehouse']
         || (r == 'tech' && loadoutOnly(['status', 'holderUid', 'holderName', 'jobId', 'jobName',
-             'clientName', 'ticketId', 'ticketNumber', 'ticketLineId', 'locationId', 'locationName',
+             'clientName', 'clientId', 'holderNote', 'ticketId', 'ticketNumber', 'ticketLineId', 'locationId', 'locationName',
              'checkedOutAt', 'checkedInAt', 'condition', 'updatedAt']));
     }
     // 0.5.2: a box write never replaces another box. A new box is written
