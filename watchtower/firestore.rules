@@ -364,21 +364,27 @@ service cloud.firestore {
       allow create, delete: if loadoutWriter();
       allow update: if isMSPAdmin() && loadoutProductUpdate();
     }
-    // Pick tickets (0.2.0). Tickets, their lines, clients, jobs, and
-    // proposals fall under the wildcard below (warehouse and admin write).
-    // These add only what a tech's Stage, Deliver to site, and box cut for
-    // a ticket need. The board role is in no list, so it still only reads.
+    // Pick tickets (0.2.0; the screens say Job since 0.8.0, the collection
+    // keeps its name). Tickets, their lines, clients, jobs, and proposals
+    // fall under the wildcard below (warehouse and admin write). These add
+    // only what a tech's Stage, Pick up, Confirm a delivery, and box cut
+    // for a ticket need. The board role is in no list, so it still only reads.
     function loadoutTechOnly(keys) {
       return isMSPAdmin() && loadoutRole() == 'tech' && loadoutOnly(keys);
     }
     match /loadout_tickets/{tid} {
-      // status and line counts are rewritten with every line change
-      allow update: if loadoutTechOnly(['status', 'summary', 'updatedAt']);
+      // status and line counts are rewritten with every line change.
+      // 0.8.0 (PLAN 18.7): a pick-up and a confirmed delivery also stamp
+      // who and when on the ticket, and on the line how much is in the van
+      // and why a line was left undelivered.
+      allow update: if loadoutTechOnly(['status', 'summary', 'updatedAt',
+        'pickedUpAt', 'pickedUpBy', 'pickedUpByName', 'deliveredAt', 'deliveredBy', 'deliveredByName']);
       match /lines/{lineId} {
-        allow update: if loadoutTechOnly(['qtyStaged', 'qtyDelivered', 'updatedAt']);
+        allow update: if loadoutTechOnly(['qtyStaged', 'qtyDelivered', 'updatedAt',
+          'qtyPickedUp', 'pickedUpAt', 'pickedUpBy', 'pickedUpByName', 'deliveryNote']);
       }
     }
-    // Deliver to site takes counted units out of the bay: a tech may only
+    // Pick up (0.8.0) and Deliver to site take counted units out of the bay: a tech may only
     // lower a stock count, never raise it or change anything else.
     match /loadout_stock/{id} {
       allow update: if loadoutTechOnly(['qty', 'updatedAt'])
