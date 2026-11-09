@@ -36,10 +36,11 @@ SPA on Firebase, deployed to `https://frank-umbrella.github.io/work/tickets/`.
 | M0 | Scaffold, standards, staff auth, empty board | 0.1.0 |
 | M1 | Ticket core: sequential IDs, create/edit/close, orgs + contacts, auto history | 0.2.0 |
 | M2 | Comment thread (public/private), attachments, CC, mute | 0.3.0 |
-| **M3** | Board power: sort, columns manager, filters, saved views, search, bulk update | **0.4.0** ← current |
-| M4 | Labor/time tracking + CSV export, tasks, devices | 0.5.0 |
-| M5 | Admin-configurable custom attributes | 0.6.0 |
-| M6 | Outbound email (Resend) | 0.7.0 |
+| M3 | Board power: sort, columns manager, filters, saved views, search, bulk update | 0.4.0 |
+| n/a | Install on your phone (home-screen app) + accessibility pass (not a milestone) | **0.5.0** ← current |
+| M4 | Labor/time tracking + CSV export, tasks, devices | 0.6.0 |
+| M5 | Admin-configurable custom attributes | 0.7.0 |
+| M6 | Outbound email (Resend) | 0.8.0 |
 | M7 | Spiceworks CSV import (tickets + labor) + real migration | 1.0.0 (parity) |
 | M8 | Client portal | 1.1.0 |
 | M9 | Inbound email-to-ticket (Cloudflare Email Routing → tickets-worker) | 1.2.0 |
@@ -47,6 +48,48 @@ SPA on Firebase, deployed to `https://frank-umbrella.github.io/work/tickets/`.
 See [PLAN.md](PLAN.md) for the full design.
 
 ## Changelog
+
+### 0.5.0 (2026-11-06)
+Install on your phone, plus an accessibility pass. Not a milestone; M4 and
+later each move up one minor version.
+
+**Why install:** techs spend most of the day on their phones between desks.
+Digging a browser tab out every time a client calls is slow. Added to the home
+screen, Help Desk opens full-screen like an app with one tap.
+
+- **Settings, "Install on your phone".** On Android (and Chrome or Edge on a
+  computer) there's an "Install Help Desk" button. If Chrome hasn't offered
+  install yet, the card shows the menu steps instead. On iPhone and iPad it
+  shows the three Safari steps (Share, then Add to Home Screen). The other
+  platform's steps sit in a fold below. When you're already in the installed
+  app, the card just says so.
+- **A small install tip on the sign-in screen**, phones only. It hides once
+  you tap the ×, and it never shows inside the installed app.
+- **App icons and a web manifest**, so the home-screen icon is the blue ticket
+  mark and not a screenshot. The header, toasts, dialogs and sign-in screen
+  now pad themselves clear of the iPhone status bar and home indicator.
+- **No service worker, on purpose.** Help Desk is useless offline (every
+  screen is live Firestore data), and a service worker would complicate
+  testing for no gain. Chrome now installs from the manifest alone.
+
+**Why the accessibility pass:** some small grey and amber text was too faint
+to read reliably in bright light, and parts of the board couldn't be used
+without a mouse.
+
+- **Slightly darker greys and ambers.** Timestamps, counts, column headers,
+  the footer, the Waiting pill and Private tags now meet the WCAG AA contrast
+  minimum (4.5:1). Input borders are a little darker so fields are easier to
+  spot. Nothing else about the look changed.
+- **Keyboard use.** Every button, tab, header and field shows a blue focus
+  ring. Column headers sort with Enter or Space, a focused ticket row opens
+  with Enter, and Tab stays inside an open dialog, then returns to where you
+  were when it closes.
+- **Bigger tap targets on phones.** Small buttons (Edit, Pin, the dialog ×,
+  chip removers, filters) are at least 44px tall on narrow screens.
+- **Screen-reader labels** on the filters, search, row checkboxes, thread tabs
+  and the detail panel's fields.
+- **Copy.** Long dashes are gone from labels and tooltips, and empty values
+  read "None" instead of a dash.
 
 ### 0.4.0 — 2026-07-28
 M3 — board power. **Why:** once real ticket volume lands (especially after the

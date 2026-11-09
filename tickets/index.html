@@ -2,12 +2,28 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Help Desk &middot; Umbrella Automation</title>
 <meta name="description" content="Internal IT help-desk and ticket system for Umbrella Automation managed-service clients.">
 <meta name="robots" content="noindex">
-<meta name="app-version" content="0.4.0">
+<meta name="app-version" content="0.5.0">
+<meta name="theme-color" content="#ffffff">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Help Desk">
+<script>
+  // Chrome can fire beforeinstallprompt before the module script (which waits
+  // on the Firebase CDN imports) has run. Catch it here so the install button
+  // still works; the module script picks it up from window.__tixInstallEvt.
+  window.addEventListener("beforeinstallprompt", function (e) {
+    e.preventDefault();
+    window.__tixInstallEvt = e;
+  });
+</script>
 <style>
   :root {
     --bg: #f6f7f9;
@@ -15,15 +31,25 @@
     --surface-2: #fafbfc;
     --ink: #1a1f2b;
     --ink-soft: #475063;
-    --ink-faint: #8892a4;
+    /* 0.5.0: darkened from #8892a4 (2.93:1 on --bg) so small muted text
+       clears WCAG AA: 5.31:1 on --bg, 5.70:1 on white. */
+    --ink-faint: #5e6778;
     --line: #e3e6ec;
     --line-strong: #c9cfdb;
+    /* Form-control edges need 3:1 against the page to be findable;
+       --line-strong is 1.56:1, this is 3.11:1 on --bg, 3.34:1 on white. */
+    --line-control: #858d9d;
     --accent: #1a56db;
     --accent-soft: #eaf0fc;
     --accent-ink: #0d3a9a;
     --danger: #dc2626;
     --danger-soft: #fee2e2;
-    --warn: #ca8a04;
+    /* text-safe red for red-on-soft-red (5.30:1); --danger stays for fills */
+    --danger-ink: #b91c1c;
+    /* --warn draws amber borders and glows (3.6:1 on white); amber TEXT uses
+       --warn-ink, which reads 4.96:1 on --warn-soft and 5.42:1 on #fffdf5. */
+    --warn: #b27a03;
+    --warn-ink: #8a6116;
     --warn-soft: #fef3c7;
     --ok: #16a34a;
     --ok-soft: #dcfce7;
@@ -48,6 +74,10 @@
   a:hover { text-decoration: underline; }
   button { font: inherit; }
   input, select, textarea { font: inherit; color: inherit; }
+  /* One focus treatment for every control: a 2px accent ring
+     (6.18:1 on white, 5.77:1 on --bg), keyboard focus only for buttons. */
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  input:focus-visible, select:focus-visible, textarea:focus-visible { outline-offset: 1px; }
 
   /* ============== buttons ============== */
   .btn {
@@ -64,14 +94,18 @@
   .btn.primary:hover { background: var(--accent-ink); border-color: var(--accent-ink); }
   .btn.ghost { border-color: transparent; background: transparent; }
   .btn.ghost:hover { background: var(--accent-soft); }
-  .btn.danger { color: var(--danger); border-color: var(--danger-soft); }
+  .btn.danger { color: var(--danger-ink); border-color: var(--danger-soft); }
   .btn.danger:hover { background: var(--danger-soft); }
   .btn.sm { padding: 5px 10px; font-size: 12.5px; }
 
   /* ============== top bar ============== */
   header.bar {
     background: var(--surface); border-bottom: 1px solid var(--line);
-    padding: 10px 20px; position: sticky; top: 0; z-index: 50;
+    /* safe-area insets: an installed iPhone app draws under the status bar
+       (viewport-fit=cover), so the bar pads itself clear of it and the notch */
+    padding: calc(10px + env(safe-area-inset-top)) calc(20px + env(safe-area-inset-right))
+             10px calc(20px + env(safe-area-inset-left));
+    position: sticky; top: 0; z-index: 50;
   }
   header.bar .wrap {
     max-width: 1240px; margin: 0 auto;
@@ -91,6 +125,7 @@
   }
   nav.tabs button:hover { color: var(--accent); border-bottom-color: var(--accent-soft); }
   nav.tabs button.active { color: var(--accent-ink); border-bottom-color: var(--accent); font-weight: 600; }
+  nav.tabs button:focus-visible, .thread-tabs button:focus-visible { outline-offset: -2px; }
   .spacer { flex: 1 1 auto; }
   .userchip {
     display: flex; align-items: center; gap: 8px;
@@ -104,7 +139,10 @@
   .userchip .email { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   /* ============== layout ============== */
-  main { max-width: 1240px; margin: 0 auto; padding: 22px 20px 60px; }
+  main {
+    max-width: 1240px; margin: 0 auto;
+    padding: 22px calc(20px + env(safe-area-inset-right)) 60px calc(20px + env(safe-area-inset-left));
+  }
   .panel { display: none; }
   .panel.active { display: block; }
   .panel-head {
@@ -126,7 +164,29 @@
   .empty p { margin: 0 auto; max-width: 420px; font-size: 13.5px; }
   .soon {
     display: inline-block; margin-top: 4px; padding: 3px 9px; border-radius: 999px;
-    background: var(--warn-soft); color: var(--warn); font-size: 11.5px; font-weight: 600; letter-spacing: .02em;
+    background: var(--warn-soft); color: var(--warn-ink); font-size: 11.5px; font-weight: 600; letter-spacing: .02em;
+  }
+
+  /* ============== settings: install card ============== */
+  .install-card { padding: 20px 22px; margin-bottom: 16px; }
+  .install-card h3 { margin: 0 0 4px; font-size: 16px; }
+  .install-card .lede { margin: 0 0 16px; color: var(--ink-soft); font-size: 13.5px; max-width: 62ch; }
+  .install-card .row-inline { flex-wrap: wrap; }
+  .install-card .note { margin: 10px 0 0; color: var(--ink-faint); font-size: 12.5px; max-width: 62ch; }
+  .install-done { margin: 0; font-size: 13.5px; font-weight: 600; color: var(--ink); }
+  .steps { margin: 0; padding-left: 22px; font-size: 13.5px; max-width: 62ch; }
+  .steps li { margin: 6px 0; }
+  .share-glyph { vertical-align: -3px; color: var(--accent); }
+  .install-card details { margin-top: 18px; padding-top: 12px; border-top: 1px solid var(--line); }
+  .install-card summary {
+    cursor: pointer; font-size: 13.5px; font-weight: 600; color: var(--accent-ink);
+    display: inline-flex; align-items: center; min-height: 32px;
+  }
+  .install-card details[open] summary { margin-bottom: 8px; }
+  .info {
+    display: inline-grid; place-items: center; width: 15px; height: 15px; border-radius: 50%;
+    background: var(--line); color: var(--ink-soft); font-size: 10px; font-weight: 700; cursor: help;
+    font-style: normal; vertical-align: 1px;
   }
 
   /* ============== filter chips + toolbar ============== */
@@ -139,18 +199,21 @@
   .chips button.active { background: var(--accent-soft); color: var(--accent-ink); font-weight: 600; }
   .search { position: relative; flex: 1 1 200px; max-width: 320px; }
   .search input {
-    width: 100%; min-width: 0; padding: 8px 12px; border: 1px solid var(--line-strong);
+    width: 100%; min-width: 0; padding: 8px 12px; border: 1px solid var(--line-control);
     border-radius: 8px; background: var(--surface);
   }
-  .search input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .search input:focus { border-color: var(--accent); }
   .ctl {
-    padding: 7px 10px; border: 1px solid var(--line-strong); border-radius: 8px;
+    padding: 7px 10px; border: 1px solid var(--line-control); border-radius: 8px;
     background: var(--surface); font-size: 13px; max-width: 190px; min-width: 0;
   }
-  .ctl:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .ctl:focus { border-color: var(--accent); }
 
   /* sortable headers + selection */
   table.board th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+  /* .table-wrap clips overflow, so rings on headers and rows sit inside */
+  table.board th:focus-visible, table.board tbody tr:focus-visible { outline-offset: -2px; }
+  table.board tbody tr:focus-visible > td { background: var(--accent-soft); }
   table.board th.sortable:hover { color: var(--accent-ink); }
   table.board th.sorted { color: var(--accent-ink); }
   table.board .col-check { width: 34px; }
@@ -173,9 +236,9 @@
     font-size: 11.5px; font-weight: 600; letter-spacing: .01em; white-space: nowrap;
   }
   .st-Open { background: var(--info-soft, #e0f2fe); color: #0369a1; }
-  .st-Waiting { background: var(--warn-soft); color: var(--warn); }
+  .st-Waiting { background: var(--warn-soft); color: var(--warn-ink); }
   .st-Closed { background: var(--surface-2); color: var(--ink-faint); border: 1px solid var(--line); }
-  .pri-high { background: var(--danger-soft); color: var(--danger); }
+  .pri-high { background: var(--danger-soft); color: var(--danger-ink); }
   .pri-med { background: #fff7ed; color: #c2410c; }
   .pri-low { background: var(--surface-2); color: var(--ink-soft); border: 1px solid var(--line); }
 
@@ -200,18 +263,12 @@
   .field { display: flex; flex-direction: column; gap: 5px; }
   .field.full { grid-column: 1 / -1; }
   .field label { font-size: 12.5px; font-weight: 600; color: var(--ink-soft); display: inline-flex; align-items: center; gap: 5px; }
-  .field .info {
-    display: inline-grid; place-items: center; width: 15px; height: 15px; border-radius: 50%;
-    background: var(--line); color: var(--ink-soft); font-size: 10px; font-weight: 700; cursor: help;
-  }
   .field input, .field select, .field textarea {
-    width: 100%; min-width: 0; padding: 8px 11px; border: 1px solid var(--line-strong);
+    width: 100%; min-width: 0; padding: 8px 11px; border: 1px solid var(--line-control);
     border-radius: 8px; background: var(--surface); color: var(--ink);
   }
   .field textarea { resize: vertical; min-height: 84px; }
-  .field input:focus, .field select:focus, .field textarea:focus {
-    outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft);
-  }
+  .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); }
   .needs-pick { border-color: var(--warn) !important; box-shadow: 0 0 0 3px var(--warn-soft); }
   .row-inline { display: inline-flex; gap: 8px; align-items: center; }
 
@@ -225,7 +282,7 @@
   .rail .attr:last-child { border-bottom: 0; }
   .rail .attr .k { font-size: 12px; color: var(--ink-faint); font-weight: 600; }
   .rail .attr .v { font-size: 13.5px; overflow-wrap: anywhere; }
-  .rail .attr select, .rail .attr input { width: 100%; min-width: 0; padding: 5px 8px; border: 1px solid var(--line-strong); border-radius: 7px; background: var(--surface); font-size: 13px; }
+  .rail .attr select, .rail .attr input { width: 100%; min-width: 0; padding: 5px 8px; border: 1px solid var(--line-control); border-radius: 7px; background: var(--surface); font-size: 13px; }
   .desc-block { background: var(--surface-2); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin-bottom: 20px; white-space: pre-wrap; overflow-wrap: anywhere; }
   .thread-h { font-size: 13px; font-weight: 700; color: var(--ink-soft); text-transform: uppercase; letter-spacing: .04em; margin: 0 0 10px; }
   .event { display: flex; gap: 10px; padding: 9px 0; border-bottom: 1px dashed var(--line); font-size: 13.5px; }
@@ -252,7 +309,7 @@
     background: var(--accent-soft); color: var(--accent-ink);
     display: grid; place-items: center; font-weight: 700; font-size: 12px;
   }
-  .cmt.private .av { background: var(--warn-soft); color: var(--warn); }
+  .cmt.private .av { background: var(--warn-soft); color: var(--warn-ink); }
   .cmt .main { flex: 1 1 auto; min-width: 0; }
   .cmt .head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-bottom: 3px; }
   .cmt .head .who { font-weight: 600; font-size: 13.5px; }
@@ -265,7 +322,7 @@
   .cmt .head .acts button:hover { background: var(--surface-2); color: var(--ink); }
   .cmt .text { font-size: 13.5px; white-space: pre-wrap; overflow-wrap: anywhere; }
   .cmt.private { background: #fffdf5; border-radius: 8px; padding: 12px 12px; border: 1px solid var(--warn-soft); margin: 6px 0; }
-  .tag-private { background: var(--warn-soft); color: var(--warn); }
+  .tag-private { background: var(--warn-soft); color: var(--warn-ink); }
   .tag-pinned { background: var(--accent-soft); color: var(--accent-ink); }
   .cmt .files { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
   .cmt .files a {
@@ -275,16 +332,19 @@
   }
   .cmt .files a:hover { border-color: var(--accent); color: var(--accent-ink); text-decoration: none; }
 
-  .composer { border: 1px solid var(--line-strong); border-radius: 10px; background: var(--surface); margin-top: 16px; overflow: hidden; }
+  .composer { border: 1px solid var(--line-control); border-radius: 10px; background: var(--surface); margin-top: 16px; overflow: hidden; }
   .composer.private-mode { border-color: var(--warn); background: #fffdf5; }
   .composer textarea { width: 100%; min-width: 0; border: 0; padding: 12px 14px; resize: vertical; min-height: 76px; background: transparent; }
+  /* the textarea is borderless inside the composer box (overflow:hidden would
+     clip its own ring), so the box carries the focus ring instead */
   .composer textarea:focus { outline: none; }
+  .composer:has(textarea:focus-visible) { outline: 2px solid var(--accent); outline-offset: 1px; }
   .composer .bar { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-top: 1px solid var(--line); flex-wrap: wrap; }
   .composer .bar .spacer { flex: 1 1 auto; }
   .vis-toggle { display: inline-flex; background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 2px; }
   .vis-toggle button { border: 0; background: transparent; border-radius: 6px; padding: 5px 11px; font-size: 12.5px; font-weight: 500; cursor: pointer; color: var(--ink-soft); }
   .vis-toggle button.active { background: var(--surface); color: var(--ink); font-weight: 600; box-shadow: var(--shadow); }
-  .vis-toggle button.active[data-vis="private"] { background: var(--warn-soft); color: var(--warn); }
+  .vis-toggle button.active[data-vis="private"] { background: var(--warn-soft); color: var(--warn-ink); }
   .attach-list { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 10px 8px; }
   .attach-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; background: var(--surface-2); border: 1px solid var(--line); border-radius: 999px; padding: 3px 5px 3px 10px; overflow-wrap: anywhere; }
   .attach-chip button { border: 0; background: transparent; cursor: pointer; color: var(--ink-faint); font-size: 14px; line-height: 1; padding: 0 4px; }
@@ -304,7 +364,7 @@
 
   /* ============== toast ============== */
   #toast {
-    position: fixed; top: 18px; left: 50%; transform: translateX(-50%);
+    position: fixed; top: calc(18px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%);
     background: var(--ink); color: #fff; padding: 11px 18px; border-radius: 10px;
     font-size: 13.5px; font-weight: 500; box-shadow: var(--shadow-lift);
     z-index: 200; max-width: min(90vw, 460px); text-align: center;
@@ -316,7 +376,9 @@
   #modal {
     position: fixed; inset: 0; background: rgba(18,22,34,.44);
     display: none; align-items: flex-start; justify-content: center;
-    padding: 40px 16px; z-index: 150; overflow-y: auto;
+    padding: calc(40px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right))
+             calc(40px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left));
+    z-index: 150; overflow-y: auto;
   }
   #modal.show { display: flex; }
   .modal-card { background: var(--surface); border-radius: 14px; box-shadow: var(--shadow-lift); width: 100%; max-width: 560px; overflow: hidden; }
@@ -329,7 +391,26 @@
   .modal-foot { padding: 16px 22px 20px; display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; }
 
   /* ============== auth screens ============== */
-  .center-screen { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
+  .center-screen {
+    min-height: 100vh; min-height: 100dvh; display: grid; place-items: center;
+    padding: calc(24px + env(safe-area-inset-top)) calc(24px + env(safe-area-inset-right))
+             calc(24px + env(safe-area-inset-bottom)) calc(24px + env(safe-area-inset-left));
+  }
+  /* card + install hint stack as one centered column (two grid children
+     would otherwise split the screen height between them) */
+  .auth-stack { width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 12px; }
+  .install-hint {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+    padding: 6px 6px 6px 14px; font-size: 13px; color: var(--ink-soft);
+  }
+  .install-hint p { margin: 0; flex: 1 1 auto; min-width: 0; }
+  .install-hint .btn { min-height: 44px; }
+  .hint-x {
+    flex: 0 0 auto; width: 44px; height: 44px; border: 0; border-radius: 8px;
+    background: transparent; color: var(--ink-faint); font-size: 20px; line-height: 1; cursor: pointer;
+  }
+  .hint-x:hover { background: var(--surface-2); color: var(--ink); }
   .auth-card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow-lift); padding: 34px 30px; max-width: 400px; width: 100%; text-align: center; }
   .auth-card .logo { width: 54px; height: 54px; margin: 0 auto 16px; }
   .auth-card h1 { font-size: 20px; margin: 0 0 4px; letter-spacing: -.01em; }
@@ -340,7 +421,11 @@
   .auth-note { margin-top: 18px; font-size: 12px; color: var(--ink-faint); }
 
   /* ============== footer ============== */
-  footer.foot { max-width: 1240px; margin: 0 auto; padding: 24px 20px 34px; color: var(--ink-faint); font-size: 12.5px; }
+  footer.foot {
+    max-width: 1240px; margin: 0 auto; color: var(--ink-faint); font-size: 12.5px;
+    padding: 24px calc(20px + env(safe-area-inset-right))
+             calc(34px + env(safe-area-inset-bottom)) calc(20px + env(safe-area-inset-left));
+  }
   footer.foot a { color: var(--ink-soft); }
 
   /* ============== responsive ============== */
@@ -351,9 +436,24 @@
   @media (max-width: 640px) {
     header.bar .wrap { flex-wrap: wrap; gap: 10px; }
     nav.tabs { margin-left: 0; order: 3; width: 100%; margin-bottom: -10px; }
-    nav.tabs button { margin-bottom: 0; padding: 6px 10px; }
+    nav.tabs button { margin-bottom: 0; padding: 6px 10px; min-height: 44px; }
     .userchip .email { max-width: 120px; }
-    main { padding: 16px 14px 48px; }
+    main { padding: 16px calc(14px + env(safe-area-inset-right)) 48px calc(14px + env(safe-area-inset-left)); }
+    footer.foot { padding-left: calc(14px + env(safe-area-inset-left)); padding-right: calc(14px + env(safe-area-inset-right)); }
+    /* 44px touch targets on phones; desktop keeps the compact sizes */
+    .btn, .btn.sm, .ctl, .search input, .vis-toggle button, .thread-tabs button,
+    .rail .attr select, .rail .attr input:not([type="checkbox"]),
+    .field input:not([type="checkbox"]), .field select { min-height: 44px; }
+    .cmt .head .acts button, .col-ord button { min-height: 44px; min-width: 44px; }
+    .modal-close-x { width: 44px; height: 44px; top: 8px; right: 8px; }
+    .install-card summary { min-height: 44px; }
+    /* chip remove buttons stay small visually; a centered ::after gives
+       them a 44px hit area */
+    .cc-chip button, .attach-chip button { position: relative; }
+    .cc-chip button::after, .attach-chip button::after {
+      content: ""; position: absolute; left: 50%; top: 50%;
+      width: 44px; height: 44px; transform: translate(-50%, -50%);
+    }
     .form-grid { grid-template-columns: minmax(0,1fr); }
     /* board restacks into labeled cards */
     table.board thead { display: none; }
@@ -373,6 +473,7 @@
 
 <!-- ============== sign-in ============== -->
 <section id="screenSignin" class="center-screen" hidden>
+  <div class="auth-stack">
   <div class="auth-card">
     <img class="logo" src="favicon.svg" alt="">
     <h1>Umbrella Help Desk</h1>
@@ -383,6 +484,13 @@
       Sign in with Google
     </button>
     <div class="auth-note">Restricted to <strong>umbrellaautomation.com</strong> accounts.</div>
+  </div>
+  <!-- passive install tip: phones only, not when already installed, dismissible -->
+  <div class="install-hint" id="installHint" hidden>
+    <p id="installHintText"></p>
+    <button type="button" class="btn sm primary" id="installHintBtn" hidden>Install</button>
+    <button type="button" class="hint-x" id="installHintX" aria-label="Dismiss install tip" title="Hide this tip. It won't come back on this device.">&times;</button>
+  </div>
   </div>
 </section>
 
@@ -413,8 +521,8 @@
           <span class="meta">Umbrella Automation</span>
         </div>
       </div>
-      <nav class="tabs" id="tabs">
-        <button data-tab="tickets" class="active">Tickets</button>
+      <nav class="tabs" id="tabs" aria-label="Sections">
+        <button data-tab="tickets" class="active" aria-current="page">Tickets</button>
         <button data-tab="orgs">Organizations</button>
         <button data-tab="devices">Devices</button>
         <button data-tab="import">Import</button>
@@ -441,17 +549,17 @@
           <button class="btn primary" id="newTicketBtn">+ New ticket</button>
         </div>
         <div class="toolbar">
-          <select id="viewSelect" class="ctl" title="Views — saved filter combinations. Pick one, or set filters and save your own."></select>
-          <select id="fStatus" class="ctl" title="Filter by status">
+          <select id="viewSelect" class="ctl" aria-label="View" title="Views are saved filter combinations. Pick one, or set filters and save your own."></select>
+          <select id="fStatus" class="ctl" aria-label="Status filter" title="Filter by status">
             <option value="Open">Open</option>
             <option value="Waiting">Waiting</option>
             <option value="Closed">Closed</option>
             <option value="notclosed">Not closed</option>
             <option value="all">All statuses</option>
           </select>
-          <select id="fOrg" class="ctl" title="Filter by organization"></select>
-          <select id="fAssignee" class="ctl" title="Filter by assignee"></select>
-          <div class="search"><input id="ticketSearch" type="search" placeholder="Search tickets…" autocomplete="off"></div>
+          <select id="fOrg" class="ctl" aria-label="Organization filter" title="Filter by organization"></select>
+          <select id="fAssignee" class="ctl" aria-label="Assignee filter" title="Filter by assignee"></select>
+          <div class="search"><input id="ticketSearch" type="search" placeholder="Search tickets…" aria-label="Search tickets" autocomplete="off"></div>
           <button class="btn sm" id="saveViewBtn" hidden title="Save the current filter combination as a reusable view">Save view…</button>
           <button class="btn sm danger" id="deleteViewBtn" hidden title="Delete this saved view">Delete view</button>
           <div class="spacer"></div>
@@ -485,23 +593,61 @@
       <div class="card"><div class="empty"><h3>Coming in M7</h3><p>Upload a Spiceworks Tickets/Labor CSV, map the columns, dry-run, then commit.</p><div class="soon">Milestone 7</div></div></div>
     </section>
     <section class="panel" id="panel-settings" data-panel="settings">
-      <div class="panel-head"><h2>Settings</h2><span class="sub">Statuses, categories, custom attributes.</span></div>
+      <div class="panel-head"><h2>Settings</h2><span class="sub">Phone install, plus statuses, categories, and custom attributes.</span></div>
+      <div class="card install-card" id="installCard">
+        <h3>Install on your phone</h3>
+        <p class="lede">Put the Help Desk on your phone's home screen. It opens full-screen like an app, so checking a ticket between desks is one tap instead of a browser hunt.</p>
+
+        <!-- (a) already running as the installed app -->
+        <p class="install-done" id="installDone" hidden>You're using the installed Help Desk on this device. Nothing to do here.</p>
+
+        <!-- (b) Android / desktop Chrome -->
+        <div id="installAndroid" hidden>
+          <div class="row-inline" id="installPromptRow" hidden>
+            <button type="button" class="btn primary" id="installBtn">Install Help Desk</button>
+            <span class="info" title="Chrome adds Help Desk to your home screen or app list. It opens in its own window without browser tabs, and you can remove it like any app.">i</span>
+          </div>
+          <div id="installAndroidSteps">
+            <ol class="steps">
+              <li>Open this page in Chrome on your phone.</li>
+              <li>Tap the menu (the three dots, top right).</li>
+              <li>Tap <strong>Add to Home screen</strong> (some versions say <strong>Install app</strong>), then confirm.</li>
+            </ol>
+            <p class="note">On a computer, Chrome and Edge show an install icon at the right end of the address bar.</p>
+          </div>
+        </div>
+
+        <!-- (c) iPhone / iPad -->
+        <div id="installIos" hidden>
+          <ol class="steps">
+            <li>Open this page in Safari. <span class="info" title="Safari is the browser iOS trusts to add web apps to the home screen. Other iPhone browsers may not offer the option.">i</span></li>
+            <li>Tap <strong>Share</strong> <svg class="share-glyph" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 9.5H7a2 2 0 0 0-2 2V19a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7.5a2 2 0 0 0-2-2h-1.5"/><path d="M12 3v11"/><path d="M8.5 6.5 12 3l3.5 3.5"/></svg> (bottom bar on iPhone, top bar on iPad).</li>
+            <li>Scroll down, tap <strong>Add to Home Screen</strong>, then tap <strong>Add</strong>.</li>
+          </ol>
+        </div>
+
+        <!-- the other platform's steps, for techs reading on the wrong device -->
+        <details id="installOther" hidden>
+          <summary id="installOtherLabel"></summary>
+          <div id="installOtherBody"></div>
+        </details>
+      </div>
       <div class="card"><div class="empty"><h3>Coming in M5</h3><p>Admin-configurable statuses, categories, and custom attributes. For now these are fixed defaults.</p><div class="soon">Milestone 5</div></div></div>
     </section>
   </main>
 
   <footer class="foot">
-    <a href="../">&larr; Work hub</a> &middot; Help Desk <span id="footVersion">v0.4.0</span>
+    <a href="../">&larr; Work hub</a> &middot; Help Desk <span id="footVersion">v0.5.0</span>
   </footer>
 </div>
 
 <div id="toast" hidden></div>
 
-<div id="modal" role="dialog" aria-modal="true">
+<div id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
   <div class="modal-card">
     <div class="modal-head">
       <button type="button" class="modal-close-x" id="modalCloseX" aria-label="Close" title="Close">&times;</button>
-      <h3 id="modalTitle">—</h3>
+      <h3 id="modalTitle"></h3>
       <div class="sub" id="modalSub"></div>
     </div>
     <div class="modal-body" id="modalBody"></div>
@@ -536,7 +682,7 @@ const firebaseConfig = {
   appId: "1:330286523878:web:27c4e2ffca3496ebc32227"
 };
 
-const APP_VERSION = "0.4.0";
+const APP_VERSION = "0.5.0";
 const MSP_DOMAIN = "umbrellaautomation.com";
 
 // Fixed vocabularies for M1 (admin-configurable in M5).
@@ -603,9 +749,9 @@ function friendlyErr(err, ctx) {
   return ctx + " right now. Please try again.";
 }
 function fmtDate(d) {
-  if (!d) return "—";
+  if (!d) return "";
   const date = d.toDate ? d.toDate() : (d instanceof Date ? d : new Date(d));
-  if (isNaN(date)) return "—";
+  if (isNaN(date)) return "";
   return date.toLocaleString(undefined, { year: "numeric", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 }
 function fmtRel(d) {
@@ -619,10 +765,10 @@ function fmtRel(d) {
   if (diff < 86400 * 7) return Math.floor(diff / 86400) + "d ago";
   return date.toLocaleDateString();
 }
-function priLabel(v) { return (PRIORITIES.find(p => p.v === v) || {}).label || v || "—"; }
+function priLabel(v) { return (PRIORITIES.find(p => p.v === v) || {}).label || v || "None"; }
 function statusPill(s) { return `<span class="pill st-${esc(s)}">${esc(s)}</span>`; }
 function priPill(v) { return `<span class="pill pri-${esc(v || "med")}">${esc(priLabel(v))}</span>`; }
-function orgName(id) { const o = state.orgs.find(o => o.id === id); return o ? o.name : "—"; }
+function orgName(id) { const o = state.orgs.find(o => o.id === id); return o ? o.name : "None"; }
 function adminName(a) { return a?.name || (a?.email ? a.email.split("@")[0] : ""); }
 function assigneeLabel(t) { return t.assigneeUid ? (t.assigneeName || t.assigneeEmail || "Assigned") : "Unassigned"; }
 function randToken(n = 8) {
@@ -643,7 +789,11 @@ function selectNode(id, opts, { glow, placeholder } = {}) {
 }
 
 // ============== modal ==============
+// Focus moves into the dialog on open and back to whatever opened it on
+// close, so keyboard users never get stranded behind the backdrop.
+let _modalReturn = null;
 function openModal({ title, sub, body, foot, persistent }) {
+  if (!$("#modal").classList.contains("show")) _modalReturn = document.activeElement;
   $("#modalTitle").textContent = title || "";
   $("#modalSub").textContent = sub || "";
   $("#modalBody").innerHTML = body || "";
@@ -656,8 +806,19 @@ function openModal({ title, sub, body, foot, persistent }) {
     const sync = () => sel.classList.toggle("needs-pick", sel.value === "");
     sync(); sel.addEventListener("change", sync);
   });
+  const first = $("#modalBody").querySelector('input:not([type="checkbox"]):not([type="hidden"]), select, textarea')
+    || $("#modalFoot").querySelector("button");
+  first?.focus();
 }
-function closeModal() { $("#modal").classList.remove("show"); $("#modal").dataset.persistent = ""; }
+function closeModal() {
+  $("#modal").classList.remove("show"); $("#modal").dataset.persistent = "";
+  const back = _modalReturn; _modalReturn = null;
+  if (back && document.contains(back)) back.focus();
+}
+function modalFocusables() {
+  return $$("#modal button, #modal input, #modal select, #modal textarea, #modal a[href]")
+    .filter(el => !el.disabled && el.offsetParent !== null);
+}
 $("#modal").addEventListener("click", e => {
   if (e.target.id !== "modal") return;
   if ($("#modal").dataset.persistent === "1") return;   // data-entry modals ignore backdrop
@@ -665,7 +826,15 @@ $("#modal").addEventListener("click", e => {
 });
 $("#modalCloseX").addEventListener("click", closeModal);
 document.addEventListener("keydown", e => {
-  if (e.key === "Escape" && $("#modal").classList.contains("show")) closeModal();
+  if (!$("#modal").classList.contains("show")) return;
+  if (e.key === "Escape") { closeModal(); return; }
+  if (e.key !== "Tab") return;
+  // keep Tab inside the open dialog
+  const f = modalFocusables(); if (!f.length) return;
+  const first = f[0], last = f[f.length - 1], cur = document.activeElement;
+  if (!$("#modal").contains(cur)) { e.preventDefault(); first.focus(); }
+  else if (e.shiftKey && cur === first) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && cur === last) { e.preventDefault(); first.focus(); }
 });
 
 // ============== screen routing ==============
@@ -674,6 +843,7 @@ function show(screen) {
   $("#screenSignin").hidden  = screen !== "signin";
   $("#screenDenied").hidden  = screen !== "denied";
   $("#app").hidden           = screen !== "app";
+  if (screen === "signin") syncInstallUI();
 }
 
 // ============== tabs ==============
@@ -681,10 +851,104 @@ $("#tabs").addEventListener("click", e => {
   const btn = e.target.closest("button[data-tab]");
   if (!btn) return;
   const tab = btn.dataset.tab;
-  $$("#tabs button").forEach(b => b.classList.toggle("active", b === btn));
+  $$("#tabs button").forEach(b => {
+    b.classList.toggle("active", b === btn);
+    if (b === btn) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
+  });
   $$(".panel").forEach(p => p.classList.toggle("active", p.dataset.panel === tab));
   if (tab === "tickets") backToList();
+  if (tab === "settings") syncInstallUI();
 });
+
+// ============== install (Add to Home Screen) ==============
+// Deliberately no service worker: the app is useless offline (everything is
+// live Firestore), and Chrome now offers install from the manifest alone.
+// The <head> catches an early beforeinstallprompt into window.__tixInstallEvt.
+let _installEvt = window.__tixInstallEvt || null;
+let _installedHere = false;        // appinstalled fired in this tab
+let _hintDismissedSession = false; // fallback when localStorage is blocked
+const HINT_KEY = "tixInstallHintDismissed";
+const SHARE_GLYPH = `<svg class="share-glyph" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 9.5H7a2 2 0 0 0-2 2V19a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7.5a2 2 0 0 0-2-2h-1.5"/><path d="M12 3v11"/><path d="M8.5 6.5 12 3l3.5 3.5"/></svg>`;
+
+function isStandalone() {
+  return matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+}
+// iPadOS Safari reports a Mac user agent; a Mac with touch points is an iPad.
+function platform() {
+  const ua = navigator.userAgent || "";
+  if (/iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)) return "ios";
+  if (/Android/.test(ua)) return "android";
+  return "desktop";
+}
+function hintDismissed() {
+  if (_hintDismissedSession) return true;
+  try { return localStorage.getItem(HINT_KEY) === "1"; } catch { return false; }
+}
+
+window.addEventListener("beforeinstallprompt", e => {
+  e.preventDefault(); _installEvt = e; syncInstallUI();
+});
+window.addEventListener("appinstalled", () => {
+  _installEvt = null; _installedHere = true;
+  toast("Installed. Find Help Desk on your home screen.");
+  syncInstallUI();
+});
+async function promptInstall() {
+  const evt = _installEvt; if (!evt) return;
+  _installEvt = null;           // a prompt event can only be used once
+  try { evt.prompt(); await evt.userChoice; } catch (err) { console.warn("install prompt", err); }
+  syncInstallUI();
+}
+$("#installBtn").addEventListener("click", promptInstall);
+$("#installHintBtn").addEventListener("click", promptInstall);
+$("#installHintX").addEventListener("click", () => {
+  _hintDismissedSession = true;
+  try { localStorage.setItem(HINT_KEY, "1"); } catch { /* private mode: session-only */ }
+  $("#installHint").hidden = true;
+});
+
+function syncInstallUI() {
+  const plat = platform();
+  const standalone = isStandalone();
+
+  // ---- Settings card ----
+  const ios = $("#installIos"), android = $("#installAndroid");
+  const mainPanel = plat === "ios" ? ios : android;
+  const otherPanel = plat === "ios" ? android : ios;
+  const card = $("#installCard");
+  // primary panel sits in the card; the other platform's lives in <details>
+  if (mainPanel.parentElement !== card) card.insertBefore(mainPanel, $("#installOther"));
+  if (otherPanel.parentElement !== $("#installOtherBody")) $("#installOtherBody").appendChild(otherPanel);
+  $("#installOtherLabel").textContent = plat === "ios" ? "On Android instead?" : "On iPhone or iPad instead?";
+
+  const done = standalone || _installedHere;
+  $("#installDone").textContent = standalone
+    ? "You're using the installed Help Desk on this device. Nothing to do here."
+    : "Installed. Open Help Desk from your home screen or app list.";
+  $("#installDone").hidden = !done;
+  mainPanel.hidden = done;
+  otherPanel.hidden = false;
+  $("#installOther").hidden = done;
+  $("#installPromptRow").hidden = !_installEvt;
+  $("#installAndroidSteps").hidden = !!_installEvt && plat !== "ios";
+
+  // ---- sign-in hint (phones only, not installed, not dismissed) ----
+  const hint = $("#installHint");
+  const showHint = (plat === "ios" || plat === "android") && !standalone && !_installedHere && !hintDismissed();
+  hint.hidden = !showHint;
+  if (!showHint) return;
+  if (plat === "ios") {
+    $("#installHintText").innerHTML = `Tap Share ${SHARE_GLYPH}, then 'Add to Home Screen' to keep Help Desk on your phone.`;
+    $("#installHintBtn").hidden = true;
+  } else if (_installEvt) {
+    $("#installHintText").textContent = "Keep Help Desk on your home screen.";
+    $("#installHintBtn").hidden = false;
+  } else {
+    $("#installHintText").textContent = "Open Chrome's menu (three dots), then tap 'Add to Home screen' to keep Help Desk on your phone.";
+    $("#installHintBtn").hidden = true;
+  }
+}
+syncInstallUI();
 
 // ============== data subscriptions ==============
 function startData() {
@@ -763,13 +1027,13 @@ function cellHTML(t, key) {
     case "num": return `<td class="tnum" data-label="#">${esc(t.num)}</td>`;
     case "summary": return `<td class="tsummary-cell"><div class="tsummary">${esc(t.summary)}</div></td>`;
     case "org": return `<td data-label="Org">${esc(orgName(t.orgId))}</td>`;
-    case "contact": return `<td data-label="Contact"><span class="muted">${esc(t.contactEmail || "—")}</span></td>`;
+    case "contact": return `<td data-label="Contact"><span class="muted">${esc(t.contactEmail || "None")}</span></td>`;
     case "assignee": return `<td data-label="Assignee">${esc(assigneeLabel(t))}</td>`;
     case "priority": return `<td data-label="Priority">${priPill(t.priority)}</td>`;
     case "status": return `<td data-label="Status">${statusPill(t.status || "Open")}</td>`;
-    case "category": return `<td data-label="Category">${esc(t.category || "—")}</td>`;
-    case "computer": return `<td data-label="Computer"><span class="muted">${esc(t.customAttrs?.computerName || "—")}</span></td>`;
-    case "due": return `<td data-label="Due">${esc(t.dueDate || "—")}</td>`;
+    case "category": return `<td data-label="Category">${esc(t.category || "None")}</td>`;
+    case "computer": return `<td data-label="Computer"><span class="muted">${esc(t.customAttrs?.computerName || "None")}</span></td>`;
+    case "due": return `<td data-label="Due">${esc(t.dueDate || "None")}</td>`;
     case "created": return `<td data-label="Created"><span class="muted" title="${esc(fmtDate(t.createdAt))}">${esc(fmtRel(t.createdAt))}</span></td>`;
     case "updated": return `<td data-label="Updated"><span class="muted" title="${esc(fmtDate(t.updatedAt))}">${esc(fmtRel(t.updatedAt))}</span></td>`;
     default: return `<td data-label=""></td>`;
@@ -867,7 +1131,7 @@ $("#saveViewBtn").addEventListener("click", () => {
     title: "Save view", persistent: true,
     sub: "Saves the current filters and sort as a reusable view.",
     body: `<div class="form-grid">
-      ${field({ id: "sv-name", label: "Name", full: true, hint: "Shown in the view picker.", node: `<input id="sv-name" type="text" maxlength="60" placeholder="e.g. Acme — open">` })}
+      ${field({ id: "sv-name", label: "Name", full: true, hint: "Shown in the view picker.", node: `<input id="sv-name" type="text" maxlength="60" placeholder="e.g. Acme open tickets">` })}
       ${sharedRow}
     </div>`,
     foot: `<button class="btn" data-modal-close>Cancel</button><button class="btn primary" id="sv-save">Save view</button>`
@@ -1016,21 +1280,30 @@ function renderBoard() {
   const cols = state.visibleCols.map(k => COLUMNS.find(c => c.key === k)).filter(Boolean);
   const allSel = list.every(t => state.selected.has(t.id));
   const head =
-    `<th class="col-check"><input type="checkbox" id="selAll" ${allSel ? "checked" : ""} title="Select all shown"></th>` +
+    `<th class="col-check"><input type="checkbox" id="selAll" ${allSel ? "checked" : ""} title="Select all shown" aria-label="Select all shown tickets"></th>` +
     cols.map(c => {
       const active = state.sort.key === c.key;
       const ind = active ? (state.sort.dir === "asc" ? " ▲" : " ▼") : "";
-      return `<th class="sortable${active ? " sorted" : ""}" data-sort="${c.key}" title="Sort by ${esc(c.label)} — click cycles ascending / descending / default">${esc(c.label)}${ind}</th>`;
+      const aria = active ? (state.sort.dir === "asc" ? "ascending" : "descending") : "none";
+      return `<th class="sortable${active ? " sorted" : ""}" data-sort="${c.key}" tabindex="0" aria-sort="${aria}" title="Sort by ${esc(c.label)}. Each click cycles ascending, descending, then back to the default.">${esc(c.label)}${ind}</th>`;
     }).join("");
   const rows = list.map(t => `
-    <tr data-id="${esc(t.id)}" class="${state.selected.has(t.id) ? "sel" : ""}">
-      <td class="col-check"><input type="checkbox" data-check="${esc(t.id)}" ${state.selected.has(t.id) ? "checked" : ""}></td>
+    <tr data-id="${esc(t.id)}" class="${state.selected.has(t.id) ? "sel" : ""}" tabindex="0">
+      <td class="col-check"><input type="checkbox" data-check="${esc(t.id)}" aria-label="Select ticket #${esc(t.num)}" ${state.selected.has(t.id) ? "checked" : ""}></td>
       ${cols.map(c => cellHTML(t, c.key)).join("")}
     </tr>`).join("");
   card.innerHTML = `<table class="board"><thead><tr>${head}</tr></thead><tbody>${rows}</tbody></table>`;
 
-  card.querySelectorAll("th[data-sort]").forEach(th =>
-    th.addEventListener("click", () => cycleSort(th.dataset.sort)));
+  card.querySelectorAll("th[data-sort]").forEach(th => {
+    th.addEventListener("click", () => cycleSort(th.dataset.sort));
+    th.addEventListener("keydown", e => {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      e.preventDefault();
+      const key = th.dataset.sort;
+      cycleSort(key);
+      card.querySelector(`th[data-sort="${key}"]`)?.focus();   // re-render replaced the node
+    });
+  });
   card.querySelector("#selAll")?.addEventListener("change", e => {
     list.forEach(t => e.target.checked ? state.selected.add(t.id) : state.selected.delete(t.id));
     renderBoard();
@@ -1046,6 +1319,12 @@ function renderBoard() {
     tr.addEventListener("click", e => {
       if (e.target.closest(".col-check")) return;  // checkbox clicks never open
       openTicket(tr.dataset.id);
+    }));
+  // keyboard: Enter on a focused row opens it, same as a click
+  card.querySelectorAll("tbody tr").forEach(tr =>
+    tr.addEventListener("keydown", e => {
+      if (e.key !== "Enter" || e.target !== tr) return;
+      e.preventDefault(); openTicket(tr.dataset.id);
     }));
   syncBulkBtn();
 }
@@ -1113,7 +1392,7 @@ async function applyBulk() {
       ops += 1 + events.length; changed++;
       if (ops > 450) { commits.push(batch.commit()); batch = writeBatch(db); ops = 0; }
     }
-    if (!changed) { closeModal(); return toast("Nothing to change — the selected tickets already match."); }
+    if (!changed) { closeModal(); return toast("Nothing to change. The selected tickets already match."); }
     commits.push(batch.commit());
     await Promise.all(commits);
     state.selected.clear();
@@ -1139,13 +1418,13 @@ $("#newTicketBtn").addEventListener("click", () => {
   openModal({
     title: "New ticket", persistent: true,
     body: `<div class="form-grid">
-      ${field({ id: "nt-summary", label: "Summary", hint: "A one-line description of the issue — shows on the board.", full: true, node: `<input id="nt-summary" type="text" maxlength="140" placeholder="e.g. Printer offline in reception">` })}
+      ${field({ id: "nt-summary", label: "Summary", hint: "A one-line description of the issue. It's what techs scan on the board.", full: true, node: `<input id="nt-summary" type="text" maxlength="140" placeholder="e.g. Printer offline in reception">` })}
       ${field({ id: "nt-desc", label: "Description", hint: "The full details of the request as reported.", full: true, node: `<textarea id="nt-desc" placeholder="What's happening, and any steps already tried…"></textarea>` })}
       ${field({ id: "nt-org", label: "Organization", hint: "Which client this ticket is for.", node: selectNode("nt-org", orgOpts, { glow: true, placeholder: "Select…" }) })}
-      ${field({ id: "nt-cat", label: "Category", hint: "The kind of issue — used for reporting later.", node: selectNode("nt-cat", catOpts, { glow: true, placeholder: "Select…" }) })}
+      ${field({ id: "nt-cat", label: "Category", hint: "The kind of issue, used for reporting later.", node: selectNode("nt-cat", catOpts, { glow: true, placeholder: "Select…" }) })}
       ${field({ id: "nt-contact-email", label: "Contact email", hint: "Who reported it. Reused as the client contact for this org.", node: `<input id="nt-contact-email" type="email" placeholder="person@client.com">` })}
-      ${field({ id: "nt-contact-name", label: "Contact name", hint: "Optional — the requester's name.", node: `<input id="nt-contact-name" type="text" placeholder="Optional">` })}
-      ${field({ id: "nt-computer", label: "Computer / PC name", hint: "Which machine this is about — e.g. FRONTDESK-PC. Helps the tech find the device fast; leave blank if not machine-related.", node: `<input id="nt-computer" type="text" maxlength="80" placeholder="Optional — e.g. FRONTDESK-PC">` })}
+      ${field({ id: "nt-contact-name", label: "Contact name", hint: "Optional. The requester's name, so replies can greet them.", node: `<input id="nt-contact-name" type="text" placeholder="Optional">` })}
+      ${field({ id: "nt-computer", label: "Computer / PC name", hint: "Which machine this is about, e.g. FRONTDESK-PC. Helps the tech find the device fast; leave blank if not machine-related.", node: `<input id="nt-computer" type="text" maxlength="80" placeholder="Optional, e.g. FRONTDESK-PC">` })}
       ${field({ id: "nt-assignee", label: "Assignee", hint: "The tech responsible. Leave unassigned to triage later.", node: selectNode("nt-assignee", admOpts, { placeholder: "Unassigned" }) })}
       ${field({ id: "nt-pri", label: "Priority", hint: "Defaults to Medium.", node: selectNode("nt-pri", PRIORITIES, {}) })}
     </div>`,
@@ -1312,7 +1591,7 @@ function renderDetail() {
     `<p class="muted">${tab === "comments" ? "No comments yet." : tab === "history" ? "No history yet." : "Nothing here yet."}</p>`;
 
   const ccHTML = (t.ccEmails || []).length
-    ? (t.ccEmails || []).map(e => `<span class="cc-chip">${esc(e)}<button data-cc-remove="${esc(e)}" title="Remove">&times;</button></span>`).join("")
+    ? (t.ccEmails || []).map(e => `<span class="cc-chip">${esc(e)}<button data-cc-remove="${esc(e)}" title="Remove" aria-label="Remove ${esc(e)} from CC">&times;</button></span>`).join("")
     : `<span class="muted" style="font-size:12.5px">None</span>`;
   const muted = (t.mutedBy || []).includes(state.user.uid);
 
@@ -1331,19 +1610,19 @@ function renderDetail() {
       <div>
         <div class="thread-h">Description</div>
         <div class="desc-block">${t.description ? esc(t.description) : '<span class="muted">No description.</span>'}</div>
-        <div class="thread-tabs" id="d-threadTabs">
-          <button data-tt="all" class="${tab === "all" ? "active" : ""}">All</button>
-          <button data-tt="comments" class="${tab === "comments" ? "active" : ""}">Comments</button>
-          <button data-tt="history" class="${tab === "history" ? "active" : ""}">History</button>
+        <div class="thread-tabs" id="d-threadTabs" role="group" aria-label="Show in thread">
+          <button data-tt="all" class="${tab === "all" ? "active" : ""}" aria-pressed="${tab === "all"}">All</button>
+          <button data-tt="comments" class="${tab === "comments" ? "active" : ""}" aria-pressed="${tab === "comments"}">Comments</button>
+          <button data-tt="history" class="${tab === "history" ? "active" : ""}" aria-pressed="${tab === "history"}">History</button>
         </div>
         <div class="thread">${threadHTML}</div>
         <div class="composer${state.draftVisibility === "private" ? " private-mode" : ""}" id="d-composer">
-          <textarea id="d-cmt" placeholder="${state.draftVisibility === "private" ? "Internal note — the client never sees this…" : "Reply to the client…"}"></textarea>
+          <textarea id="d-cmt" aria-label="${state.draftVisibility === "private" ? "Private note" : "Public reply"}" placeholder="${state.draftVisibility === "private" ? "Internal note. The client never sees this…" : "Reply to the client…"}"></textarea>
           <div class="attach-list" id="d-attachList"></div>
           <div class="bar">
-            <div class="vis-toggle" id="d-vis">
-              <button data-vis="public" class="${state.draftVisibility === "public" ? "active" : ""}" title="Visible to the client. Emailed to the contact in M6.">Public reply</button>
-              <button data-vis="private" class="${state.draftVisibility === "private" ? "active" : ""}" title="Internal only — never shown to the client or emailed.">Private note</button>
+            <div class="vis-toggle" id="d-vis" role="group" aria-label="Who sees this comment">
+              <button data-vis="public" class="${state.draftVisibility === "public" ? "active" : ""}" aria-pressed="${state.draftVisibility === "public"}" title="Visible to the client. Emailed to the contact in M6.">Public reply</button>
+              <button data-vis="private" class="${state.draftVisibility === "private" ? "active" : ""}" aria-pressed="${state.draftVisibility === "private"}" title="Internal only. Never shown to the client or emailed.">Private note</button>
             </div>
             <button class="btn sm" id="d-attachBtn" title="Attach a file (max 25 MB each)">Attach</button>
             <input type="file" id="d-file" multiple hidden>
@@ -1354,13 +1633,13 @@ function renderDetail() {
       </div>
       <div class="card" style="padding:12px 14px">
         <div class="rail">
-          <div class="attr"><span class="k">Status</span><span class="v">${selectNode("d-status", STATUSES.map(s => ({ v: s, label: s })))}</span></div>
-          <div class="attr"><span class="k">Priority</span><span class="v">${selectNode("d-pri", PRIORITIES)}</span></div>
-          <div class="attr"><span class="k">Assignee</span><span class="v">${selectNode("d-assignee", admOpts)}</span></div>
-          <div class="attr"><span class="k">Category</span><span class="v">${selectNode("d-cat", CATEGORIES.map(c => ({ v: c, label: c })))}</span></div>
-          <div class="attr"><span class="k">Due</span><span class="v"><input id="d-due" type="date"></span></div>
-          <div class="attr"><span class="k" title="Which machine this ticket is about.">Computer</span><span class="v"><input id="d-computer" type="text" maxlength="80" placeholder="—"></span></div>
-          <div class="attr"><span class="k">Contact</span><span class="v">${esc(t.contactEmail || "—")}</span></div>
+          <div class="attr"><label class="k" for="d-status">Status</label><span class="v">${selectNode("d-status", STATUSES.map(s => ({ v: s, label: s })))}</span></div>
+          <div class="attr"><label class="k" for="d-pri">Priority</label><span class="v">${selectNode("d-pri", PRIORITIES)}</span></div>
+          <div class="attr"><label class="k" for="d-assignee">Assignee</label><span class="v">${selectNode("d-assignee", admOpts)}</span></div>
+          <div class="attr"><label class="k" for="d-cat">Category</label><span class="v">${selectNode("d-cat", CATEGORIES.map(c => ({ v: c, label: c })))}</span></div>
+          <div class="attr"><label class="k" for="d-due">Due</label><span class="v"><input id="d-due" type="date"></span></div>
+          <div class="attr"><label class="k" for="d-computer" title="Which machine this ticket is about.">Computer</label><span class="v"><input id="d-computer" type="text" maxlength="80" placeholder="Not set"></span></div>
+          <div class="attr"><span class="k">Contact</span><span class="v">${esc(t.contactEmail || "None")}</span></div>
           <div class="attr"><span class="k" title="Extra people copied on public replies (M6 emails).">CC'd</span><span class="v"><div class="cc-list">${ccHTML}</div><button class="btn sm" id="d-ccAdd" style="margin-top:6px">+ Add CC</button></span></div>
           <div class="attr"><span class="k" title="Stop notifying you about this ticket. Others still get notified.">Mute</span><span class="v"><label class="switch"><input type="checkbox" id="d-mute" ${muted ? "checked" : ""}> <span class="muted" style="font-size:12.5px">${muted ? "Muted for me" : "Notify me"}</span></label></span></div>
           <div class="attr"><span class="k">Updated</span><span class="v muted">${esc(fmtRel(t.updatedAt))}</span></div>
@@ -1388,6 +1667,7 @@ function renderDetail() {
   $("#d-threadTabs").addEventListener("click", e => {
     const b = e.target.closest("button[data-tt]"); if (!b) return;
     state.threadTab = b.dataset.tt; renderDetail();
+    $(`#d-threadTabs [data-tt="${b.dataset.tt}"]`)?.focus();   // re-render replaced the button
   });
   // ---- composer ----
   const ta = $("#d-cmt");
@@ -1396,6 +1676,7 @@ function renderDetail() {
   $("#d-vis").addEventListener("click", e => {
     const b = e.target.closest("button[data-vis]"); if (!b) return;
     state.draftVisibility = b.dataset.vis; _draftText = ta.value; renderDetail();
+    $(`#d-vis [data-vis="${b.dataset.vis}"]`)?.focus();
   });
   $("#d-attachBtn").addEventListener("click", () => $("#d-file").click());
   $("#d-file").addEventListener("change", e => {
@@ -1431,7 +1712,7 @@ let _draftText = "";
 function renderAttachList() {
   const box = $("#d-attachList"); if (!box) return;
   box.innerHTML = state.pendingFiles.map((f, i) =>
-    `<span class="attach-chip">${esc(f.name)} <button data-rm="${i}" title="Remove">&times;</button></span>`).join("");
+    `<span class="attach-chip">${esc(f.name)} <button data-rm="${i}" title="Remove" aria-label="Remove attachment ${esc(f.name)}">&times;</button></span>`).join("");
   box.querySelectorAll("[data-rm]").forEach(b =>
     b.addEventListener("click", () => { state.pendingFiles.splice(Number(b.dataset.rm), 1); renderAttachList(); }));
 }
@@ -1512,7 +1793,7 @@ function editComment(t, eventId) {
   const ev = _activity.find(x => x.id === eventId); if (!ev) return;
   openModal({
     title: "Edit comment", persistent: true,
-    sub: ev.visibility === "private" ? "Private note — internal only." : "Public reply — the client can see this.",
+    sub: ev.visibility === "private" ? "Private note, internal only." : "Public reply. The client can see this.",
     body: `<div class="form-grid">${field({ id: "ec-body", label: "Comment", full: true, hint: "The original posting time and author stay unchanged; the comment is marked edited.", node: `<textarea id="ec-body">${esc(ev.body)}</textarea>` })}</div>`,
     foot: `<button class="btn" data-modal-close>Cancel</button><button class="btn primary" id="ec-save">Save</button>`
   });
@@ -1564,7 +1845,7 @@ async function toggleMute(t, on) {
     await updateDoc(doc(db, "tix_tickets", t.id), {
       mutedBy: on ? arrayUnion(state.user.uid) : arrayRemove(state.user.uid)
     });
-    toast(on ? "Muted — you won't be notified about this ticket." : "Notifications back on.");
+    toast(on ? "Muted. You won't be notified about this ticket." : "Notifications back on.");
   } catch (err) { toast(friendlyErr(err, "Couldn't change mute"), true); }
 }
 
@@ -1623,7 +1904,7 @@ function renderOrgs() {
     <tr data-id="${esc(o.id)}">
       <td class="tsummary-cell"><div class="tsummary">${esc(o.name)}</div></td>
       <td data-label="Open tickets">${openCount(o.id)}</td>
-      <td data-label="Notes"><span class="muted">${esc(o.notes || "—")}</span></td>
+      <td data-label="Notes"><span class="muted">${esc(o.notes || "None")}</span></td>
       <td data-label=""><button class="btn sm" data-edit="${esc(o.id)}">Edit</button></td>
     </tr>`).join("");
   card.innerHTML = `<table class="board"><thead><tr><th>Organization</th><th>Open tickets</th><th>Notes</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
@@ -1636,7 +1917,7 @@ function orgModal(existing) {
     title: existing ? "Edit organization" : "New organization", persistent: true,
     body: `<div class="form-grid">
       ${field({ id: "org-name", label: "Name", hint: "The client company name shown on tickets.", full: true, node: `<input id="org-name" type="text" maxlength="120" value="${esc(existing?.name || "")}">` })}
-      ${field({ id: "org-sw", label: "Spiceworks name", hint: "The organization label used in Spiceworks — helps match rows at import time.", node: `<input id="org-sw" type="text" value="${esc(existing?.spiceworksName || "")}" placeholder="Optional">` })}
+      ${field({ id: "org-sw", label: "Spiceworks name", hint: "The organization label used in Spiceworks. It lets the M7 import match rows to this client.", node: `<input id="org-sw" type="text" value="${esc(existing?.spiceworksName || "")}" placeholder="Optional">` })}
       ${field({ id: "org-notes", label: "Notes", hint: "Internal notes about this client.", full: true, node: `<textarea id="org-notes" placeholder="Optional">${esc(existing?.notes || "")}</textarea>` })}
     </div>`,
     foot: `${existing ? "" : ""}<button class="btn" data-modal-close>Cancel</button><button class="btn primary" id="org-save">${existing ? "Save" : "Create"}</button>`
