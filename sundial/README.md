@@ -53,6 +53,53 @@ Sign-in itself needs the network once. Firebase Auth keeps the session, so a
 device that has signed in before opens straight to the Clock with no signal; a
 device that never has needs one online sign-in. The sign-in wall says so.
 
+## Add to home screen
+
+Installed, Sundial opens full screen with no address bar, one tap from the
+home screen or the dock. On an iPhone it matters more: Safari only lets a page
+send a system notification once it has been added to the home screen, so the
+time-limit warnings in Settings can only reach an iPhone that way.
+
+**Where it lives.** Settings has an **Add to home screen** card, after the You
+card. What it shows depends on the device:
+
+- Already running from the home screen: one line saying so, nothing else.
+- Chrome or Edge on Android, Windows or macOS, when the browser has decided
+  the page is installable: an **Install Sundial** button that opens the
+  browser's own install window, and a toast saying whether you installed it or
+  dismissed it.
+- Everywhere else: written steps for the device it detected, with the other
+  two folded under **Other devices** in case the guess is wrong.
+
+**The steps, per device.**
+
+- **iPhone or iPad:** open Sundial in Safari (only Safari can do this on iOS,
+  not Chrome), tap Share, scroll to **Add to Home Screen**, tap **Add**. The
+  home-screen app keeps its own sign-in, separate from Safari, so it asks you
+  to sign in once; that first time the Google window may open in Safari.
+  Finish there and go back to the icon.
+- **Android:** in Chrome, the three-dot menu, then **Add to Home screen** or
+  **Install app**, then confirm.
+- **Computer:** in Chrome or Edge, the install icon at the right end of the
+  address bar, or the three-dot menu and **Install Sundial**. Safari on a Mac
+  has File, Add to Dock.
+
+**The sign-in nudge.** On a phone, the sign-in screen shows one line under the
+button: "Using a phone? Add Sundial to your home screen for a full-screen app
+and one-tap starts." **How** opens the same steps in a window (it closes with
+the X, Close or Escape, never by tapping outside it). **Not now** hides it.
+It appears at most once per device: showing it is recorded in
+`localStorage` (`sundial-a2hs-nudge`), and Not now records `dismissed`. It
+never shows on a computer with a mouse, never inside the installed app, and
+never to a device that already has a session, because it only appears once
+Firebase has said nobody is signed in.
+
+**iPhone status bar.** The page uses `viewport-fit=cover`, so an installed
+app draws under the status bar. The header, the main column, the footer, the
+tab bar, the toasts, the modals and the sign-in screen all pad
+`env(safe-area-inset-*)`, so nothing sits under the clock, the notch or the
+home indicator. In a browser tab every inset is zero and nothing moves.
+
 ## The Clock
 
 The Now card is the home screen. With nothing running it shows a **Not
@@ -723,6 +770,32 @@ real Google layer is chosen everywhere else, because the same hostname check
 that gates mock mode gates it.
 
 ## Changelog
+
+### v0.10.0 - 2026-11-06
+
+**Add to home screen.** Sundial could always be installed, but nothing in it
+said how, and on an iPhone there is no install button at all: the only route
+is Safari's Share menu, which most people never open. Settings now has an
+**Add to home screen** card. Where the browser offers an install, it is one
+button; on an iPhone, Android or a computer it is the written steps for that
+device, with the others folded underneath. On a phone, the sign-in screen
+also shows a single line about it, once, with a **How** link and a **Not
+now**. On an iPhone this is also the only way the time-limit notifications
+can arrive at all.
+
+**The header clears the iPhone status bar.** Opened from the home screen,
+the header used to sit under the clock and the battery, because the page
+draws edge to edge and nothing padded the top. The header, the page edges,
+the toasts, the modals and the sign-in screen now leave room for the status
+bar, the notch and the home indicator.
+
+**Accessibility pass.** The amber warning text (OT, Paused, the limit lines)
+was 2.2:1 on white and is now 5.8:1; red text, the dark-mode Stop button, the
+blue links on grey and the calendar block labels on light client colours all
+reach 4.5:1. On a phone every button, link and switch now has a 44px tap
+area, empty tables say "Loading" while entries arrive and say what failed if
+they cannot, and the blinking dots stop for anyone who has asked their device
+for less motion. The audit and the follow-up are in `anti-slop/`.
 
 ### v0.9.6 - 2026-10-05
 

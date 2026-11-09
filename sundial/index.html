@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Sundial v0.9.6</title>
-<meta name="version" content="0.9.6" />
+<title>Sundial v0.10.0</title>
+<meta name="version" content="0.10.0" />
 <meta name="robots" content="noindex, nofollow" />
 <meta name="description" content="Internal hours tracker for Umbrella Automation. Restricted to @umbrellaautomation.com accounts." />
 <meta name="theme-color" content="#1e6fd9" />
@@ -33,11 +33,18 @@
    --------------------------------------------------------------- */
 :root{
   --bg:#f4f6f9; --bg2:#e9edf3; --card:#ffffff; --card2:#f1f4f8;
-  --text:#1a2233; --muted:#5b6675; --accent:#1e6fd9; --accent2:#155cb8;
-  --go:#1e6fd9; --stop:#d3403a; --ok:#1c9d63; --line:rgba(26,34,51,.12);
+  --text:#1a2233; --muted:#5b6675; --accent:#1b67cc; --accent2:#155cb8;
+  --go:#1b67cc; --stop:#d3403a; --ok:#1c9d63; --line:rgba(26,34,51,.12);
   --line2:rgba(26,34,51,.22);
   --chip:#e3ecfa; --chiptext:#1b4f9c; --onaccent:#ffffff;
   --topbar:#ffffff; --toptext:#1a2233; --topmuted:#5b6675; --glow:#e0a300;
+  /* Text-only partners for the two signal colours (audit-001 findings 1, 3,
+     4, 5). --glow and --stop stay as fills and borders; anything that is
+     read as words uses the ink, which clears 4.5:1 on every surface it sits
+     on. --onstop is the Stop button's label, --onsignal the glyph on a
+     filled amber or green hover. Accent went #1e6fd9 -> #1b67cc for the same
+     reason: 4.48 on the page background was a tenth short. */
+  --warnink:#8a5d00; --stopink:#b8322d; --onstop:#ffffff; --onsignal:#1a2233;
   --shadow:0 6px 22px rgba(40,55,75,.14);
   --radius:8px;
   --mono:Consolas,ui-monospace,SFMono-Regular,Menlo,"Courier New",monospace;
@@ -51,6 +58,7 @@
     --line2:rgba(255,255,255,.2);
     --chip:#1b3a5c; --chiptext:#bcd8ff; --onaccent:#0b1420;
     --topbar:#141a23; --toptext:#e6ebf2; --topmuted:#94a1b2; --glow:#e6b13a;
+    --warnink:#e6b13a; --stopink:#f08a84; --onstop:#0b1420; --onsignal:#0b1420;
     --shadow:0 6px 24px rgba(0,0,0,.5);
   }
 }
@@ -61,6 +69,7 @@
   --line2:rgba(255,255,255,.2);
   --chip:#1b3a5c; --chiptext:#bcd8ff; --onaccent:#0b1420;
   --topbar:#141a23; --toptext:#e6ebf2; --topmuted:#94a1b2; --glow:#e6b13a;
+  --warnink:#e6b13a; --stopink:#f08a84; --onstop:#0b1420; --onsignal:#0b1420;
   --shadow:0 6px 24px rgba(0,0,0,.5);
 }
 
@@ -73,7 +82,11 @@ a{color:var(--accent)}
 [hidden]{display:none !important}
 
 /* ---------- sign-in wall ---------- */
-#signin{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;padding:24px;background:var(--bg);z-index:60;overflow-y:auto}
+/* every edge padded by its safe-area inset, so on an iPhone home-screen app
+   the card never sits under the status bar or the home indicator */
+#signin{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+  padding:calc(24px + env(safe-area-inset-top, 0px)) calc(24px + env(safe-area-inset-right, 0px)) calc(24px + env(safe-area-inset-bottom, 0px)) calc(24px + env(safe-area-inset-left, 0px));
+  background:var(--bg);z-index:60;overflow-y:auto}
 .signin-card{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:30px 26px;width:min(100%,420px);text-align:center;margin:auto}
 .signin-card .mark{width:54px;height:54px;margin-bottom:10px;color:var(--accent)}
 .signin-card h1{font-size:23px;letter-spacing:.01em}
@@ -83,7 +96,7 @@ a{color:var(--accent)}
 .signin-card .domain{margin-top:16px;font-size:13px;color:var(--muted)}
 .signin-card .domain code{background:var(--card2);border:1px solid var(--line);border-radius:4px;padding:1px 5px;font-family:var(--mono);font-size:12px}
 .signin-card .offline-note{margin-top:14px;font-size:12.5px;color:var(--muted);border-top:1px solid var(--line);padding-top:12px;text-align:left}
-.err{margin-top:12px;color:var(--stop);font-size:13px}
+.err{margin-top:12px;color:var(--stopink);font-size:13px}
 
 /* ---------- demo banner ----------
    Amber across the top with its text colour pinned, so it reads the same in
@@ -97,7 +110,14 @@ a{color:var(--accent)}
 .demobar a{color:#1a2233;text-decoration:underline;text-underline-offset:3px;white-space:nowrap}
 
 /* ---------- app chrome ---------- */
-.top{display:flex;align-items:center;gap:12px;padding:10px 16px;background:var(--topbar);color:var(--toptext);border-bottom:1px solid var(--line);flex-wrap:wrap;position:sticky;top:0;z-index:20}
+/* Safe area: viewport-fit=cover lets the page run under the iPhone status
+   bar when it is opened from the home screen, so the header pads the top
+   inset (and the side insets, for the notch in landscape). In a browser tab
+   every inset is 0 and this is the old 10px 16px. Lights v0.11.1 is the
+   reference. */
+.top{display:flex;align-items:center;gap:12px;
+  padding:calc(10px + env(safe-area-inset-top, 0px)) calc(16px + env(safe-area-inset-right, 0px)) 10px calc(16px + env(safe-area-inset-left, 0px));
+  background:var(--topbar);color:var(--toptext);border-bottom:1px solid var(--line);flex-wrap:wrap;position:sticky;top:0;z-index:20}
 .brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:19px;letter-spacing:.02em;min-width:0;cursor:pointer;background:none;border:0;padding:0;color:inherit;font-family:inherit}
 .brand:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:6px}
 .brand svg{width:26px;height:26px;flex:none;color:var(--accent)}
@@ -126,11 +146,14 @@ html:not([data-eff="dark"]) .themebtn .sun{display:none}
   .nav button{padding:6px 8px}
   .sync{padding:3px 7px;gap:0}
   .sync #syncText{display:none}
+  /* v0.10.0 is two characters wider than v0.9.6, which was enough to push
+     Sign out onto a second line at 800px; the footer still shows the version */
+  .brand .v{display:none}
 }
-main{padding:16px;display:grid;gap:16px;max-width:1180px;margin:0 auto;width:100%;min-width:0}
+main{padding:16px calc(16px + env(safe-area-inset-right, 0px)) 16px calc(16px + env(safe-area-inset-left, 0px));display:grid;gap:16px;max-width:1180px;margin:0 auto;width:100%;min-width:0}
 .view{display:none;gap:16px;min-width:0}
 .view.on{display:grid}
-.foot{padding:14px 18px 22px;font-size:12px;color:var(--muted);display:flex;gap:14px;flex-wrap:wrap;justify-content:center;text-align:center;max-width:1180px;margin:0 auto;width:100%}
+.foot{padding:14px calc(18px + env(safe-area-inset-right, 0px)) 22px calc(18px + env(safe-area-inset-left, 0px));font-size:12px;color:var(--muted);display:flex;gap:14px;flex-wrap:wrap;justify-content:center;text-align:center;max-width:1180px;margin:0 auto;width:100%}
 
 /* ---------- cards ---------- */
 .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;min-width:0}
@@ -203,17 +226,17 @@ textarea.fld.grow{overflow-y:hidden}
 .btn[disabled]{opacity:.5;cursor:not-allowed}
 .btn.big{font-size:17px;padding:15px 26px;flex:1 1 auto;text-align:center}
 .btn.go{background:var(--go);border-color:var(--go);color:var(--onaccent)}
-.btn.stop{background:var(--stop);border-color:var(--stop);color:#fff}
+.btn.stop{background:var(--stop);border-color:var(--stop);color:var(--onstop)}
 .btn.acc{background:var(--accent);border-color:var(--accent);color:var(--onaccent)}
 .btn.sm{padding:5px 10px;font-size:12px;font-weight:600}
 .minibtn{margin-left:6px;width:22px;height:22px;padding:0;display:inline-grid;place-items:center;font:inherit;border-radius:50%;border:1px solid var(--line2);background:var(--card2);color:var(--text);cursor:pointer;vertical-align:middle}
 .minibtn.stop{border-color:var(--stop);color:var(--stop)}
-.minibtn.stop:hover{background:var(--stop);color:#fff}
+.minibtn.stop:hover{background:var(--stop);color:var(--onstop)}
 .minibtn.play{border-color:var(--ok);color:var(--ok)}
-.minibtn.play:hover{background:var(--ok);color:#fff}
+.minibtn.play:hover{background:var(--ok);color:var(--onsignal)}
 .minibtn.play svg{margin-left:1px}
 .minibtn.pausebtn{border-color:var(--glow);color:var(--glow)}
-.minibtn.pausebtn:hover{background:var(--glow);color:#fff}
+.minibtn.pausebtn:hover{background:var(--glow);color:var(--onsignal)}
 /* Notes: two lines with an ellipsis, click to expand. The wrapper exists so
    that in the stacked layout (where the cell is a flex row) the clamped box
    is not itself a flex item, which would blockify it and defeat the clamp. */
@@ -257,14 +280,14 @@ textarea.fld.grow{overflow-y:hidden}
 .chip .mk,.hint .mk{font-style:normal;font-size:10.5px;letter-spacing:.02em;padding:0 6px;border-radius:999px;border:1px dashed var(--line2);color:var(--muted);cursor:pointer;line-height:1.5}
 .hint .mk{cursor:default}
 .chip .mk.on{border-style:solid;border-color:var(--accent);color:var(--accent);font-weight:700}
-.chip .mk.off{border-style:solid;border-color:var(--stop);color:var(--stop);text-decoration:line-through}
+.chip .mk.off{border-style:solid;border-color:var(--stop);color:var(--stopink);text-decoration:line-through}
 .pill{display:inline-flex;align-items:center;gap:7px;padding:4px 11px;border-radius:999px;background:var(--chip);color:var(--chiptext);font-size:13px;font-weight:600;max-width:100%;flex-wrap:wrap}
 .pill .dot{width:8px;height:8px;border-radius:50%;background:var(--go);flex:none;animation:blink 1.6s infinite}
 /* Paused: the same pill in amber with the dot held still, because a blinking
    dot on something that is not counting is a lie told once a second. */
-.pill.paused{background:rgba(224,163,0,.14);color:var(--glow)}
+.pill.paused{background:rgba(224,163,0,.14);color:var(--warnink)}
 .pill.paused .dot{background:var(--glow);animation:none}
-.tagpaused{display:inline-block;font-size:11px;padding:1px 7px;border-radius:999px;background:rgba(224,163,0,.14);border:1px solid var(--glow);color:var(--glow);white-space:nowrap}
+.tagpaused{display:inline-block;font-size:11px;padding:1px 7px;border-radius:999px;background:rgba(224,163,0,.14);border:1px solid var(--glow);color:var(--warnink);white-space:nowrap}
 .tagnb{display:inline-block;font-size:11px;padding:1px 7px;border-radius:999px;background:var(--card2);border:1px solid var(--line);color:var(--muted);margin-left:6px;white-space:nowrap}
 /* the optional Billable column: a plain word, the No in the muted color so
    the exceptions still stand out at a glance */
@@ -274,12 +297,12 @@ textarea.fld.grow{overflow-y:hidden}
    for miles is obvious before it is stopped, not after. */
 /* An entry that was carried past its hard limit keeps an amber flag, so a
    week later the reason is one hover away instead of lost. */
-.tagover{display:inline-block;font-size:11px;padding:1px 7px;border-radius:999px;background:rgba(224,163,0,.14);border:1px solid var(--glow);color:var(--glow);margin-left:6px;white-space:nowrap;cursor:help}
+.tagover{display:inline-block;font-size:11px;padding:1px 7px;border-radius:999px;background:rgba(224,163,0,.14);border:1px solid var(--glow);color:var(--warnink);margin-left:6px;white-space:nowrap;cursor:help}
 /* Overtime: an amber note beside a total that has gone past a threshold. It
    has to sit in a seven-column week grid cell without widening it, so inside
    the grid it drops onto its own line under the number and is allowed to
    wrap; everywhere else it reads inline. */
-.otflag{display:inline-block;margin-left:6px;font-size:11px;font-weight:600;color:var(--glow);cursor:help;overflow-wrap:anywhere}
+.otflag{display:inline-block;margin-left:6px;font-size:11px;font-weight:600;color:var(--warnink);cursor:help;overflow-wrap:anywhere}
 .wg .otflag,.sky .otflag{display:block;margin-left:0;font-size:10px;line-height:1.25;white-space:normal}
 .sky .otflag{margin-top:2px}
 .wgdh .otflag{display:inline-block;margin-left:6px;font-size:11px}
@@ -291,11 +314,11 @@ textarea.fld.grow{overflow-y:hidden}
    is telling you something: a timer running outside the window, or on a day
    that is switched off. */
 .availline{overflow-wrap:anywhere;cursor:help}
-.availline.avwarn{color:var(--glow);font-weight:600}
+.availline.avwarn{color:var(--warnink);font-weight:600}
 .limline{overflow-wrap:anywhere}
 .limline .lchip{display:inline-block;padding:3px 10px;border-radius:999px;border:1px solid var(--line2);background:var(--card2);font-weight:600}
-.limline.lwarn .lchip{border-color:var(--glow);color:var(--glow);background:rgba(224,163,0,.12)}
-.limline.lhard .lchip{border-color:var(--stop);color:var(--stop);background:rgba(211,64,58,.12);font-weight:700}
+.limline.lwarn .lchip{border-color:var(--glow);color:var(--warnink);background:rgba(224,163,0,.12)}
+.limline.lhard .lchip{border-color:var(--stop);color:var(--stopink);background:rgba(211,64,58,.12);font-weight:700}
 :root[data-theme="dark"] .limline.lhard .lchip{background:rgba(224,101,94,.16)}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .limline.lhard .lchip{background:rgba(224,101,94,.16)}}
 .carico{display:inline-flex;align-items:center;vertical-align:-2px;margin-left:5px;color:var(--muted)}
@@ -346,7 +369,7 @@ textarea.fld.grow{overflow-y:hidden}
    so it can say where you are in the day without crowding the buttons.
    The paused line sits above it, in amber, for the same reason: it belongs
    under the timer, not wedged between the timer and the buttons. */
-.nowhead .pausedline{order:5;flex-basis:100%;margin:0;color:var(--glow);font-weight:600}
+.nowhead .pausedline{order:5;flex-basis:100%;margin:0;color:var(--warnink);font-weight:600}
 .nowhead .budline{order:6;flex-basis:100%;margin:0}
 .nowhead .availline{order:7;flex-basis:100%;margin:0}
 .nowhead .since.meta{order:8;flex-basis:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -408,7 +431,7 @@ textarea.fld.grow{overflow-y:hidden}
 .sky .col{min-width:0}
 .sky .k{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);overflow-wrap:anywhere}
 .sky .k .mono{font-family:var(--mono);text-transform:none;letter-spacing:0}
-.sky .k .over{color:var(--glow);font-weight:600;text-transform:none;letter-spacing:0}
+.sky .k .over{color:var(--warnink);font-weight:600;text-transform:none;letter-spacing:0}
 .sky .q{display:inline-block;width:14px;height:14px;border-radius:50%;border:1px solid var(--muted);font-size:10px;line-height:12px;text-align:center;margin-left:5px;opacity:.75;cursor:help;letter-spacing:0;text-transform:none}
 .sky .n{font:600 26px/1.2 var(--mono);overflow-wrap:anywhere}
 .sky .today .n{font-size:34px}
@@ -444,7 +467,7 @@ textarea.fld.grow{overflow-y:hidden}
 .util{display:grid;gap:6px;min-width:0}
 .util .ut{font-size:14px;overflow-wrap:anywhere}
 .util .ut b{margin-right:6px}
-.util .ut .over{color:var(--glow);font-weight:600}
+.util .ut .over{color:var(--warnink);font-weight:600}
 .ubar{display:flex;height:14px;border-radius:999px;background:var(--card2);border:1px solid var(--line);overflow:hidden;min-width:0}
 .ubar i{display:block;height:100%;min-width:0}
 .ubar .b,.ukey .b{background:var(--accent)}
@@ -712,7 +735,7 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
 .gcalwrap.on .st i{background:var(--ok)}
 
 /* ---------- modals ---------- */
-.modal{position:fixed;inset:0;background:rgba(10,15,25,.5);display:flex;align-items:flex-start;justify-content:center;padding:20px;z-index:70;overflow-y:auto}
+.modal{position:fixed;inset:0;background:rgba(10,15,25,.5);display:flex;align-items:flex-start;justify-content:center;padding:calc(20px + env(safe-area-inset-top, 0px)) 20px calc(20px + env(safe-area-inset-bottom, 0px));z-index:70;overflow-y:auto}
 .mbox{background:var(--card);color:var(--text);border:1px solid var(--line);border-radius:var(--radius);width:min(100%,560px);padding:18px 20px;box-shadow:var(--shadow);margin:auto;min-width:0}
 .mbox.wide{width:min(100%,760px)}
 .mbox .mh{display:flex;align-items:center;gap:10px;margin-bottom:6px}
@@ -724,11 +747,11 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
 .draftline{display:flex;align-items:center;gap:8px 10px;flex-wrap:wrap;margin:0 0 12px;padding:9px 12px;
   border:1px solid var(--line2);border-radius:calc(var(--radius) - 2px);background:var(--card2);font-size:13px;min-width:0}
 .draftline .dt{flex:1 1 200px;min-width:0;overflow-wrap:anywhere}
-.prob{color:var(--stop)}
+.prob{color:var(--stopink)}
 .scrolly{max-height:38vh;overflow-y:auto;border:1px solid var(--line);border-radius:calc(var(--radius) - 2px);padding:8px 10px;margin-top:8px;font-size:13px}
 
 /* ---------- toast (top-center) ---------- */
-.toast{position:fixed;top:14px;left:50%;transform:translateX(-50%) translateY(-8px);z-index:90;background:var(--card);border:1px solid var(--line2);color:var(--text);padding:11px 18px;border-radius:999px;box-shadow:var(--shadow);font-size:13.5px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;max-width:calc(100% - 28px);text-align:center}
+.toast{position:fixed;top:calc(14px + env(safe-area-inset-top, 0px));left:50%;transform:translateX(-50%) translateY(-8px);z-index:90;background:var(--card);border:1px solid var(--line2);color:var(--text);padding:11px 18px;border-radius:999px;box-shadow:var(--shadow);font-size:13.5px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;max-width:calc(100% - 28px);text-align:center}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto}
 .toast.bad{border-color:var(--stop)}
 .toast.tap{cursor:pointer}
@@ -746,7 +769,7 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
 .toast.sticky .tacts .btn{flex:1 1 auto;min-width:0}
 
 /* ---------- phone ---------- */
-.tabbar{display:none;position:sticky;bottom:0;background:var(--card);border-top:1px solid var(--line);padding:6px 4px calc(6px + env(safe-area-inset-bottom));z-index:20}
+.tabbar{display:none;position:sticky;bottom:0;background:var(--card);border-top:1px solid var(--line);padding:6px calc(4px + env(safe-area-inset-right, 0px)) calc(6px + env(safe-area-inset-bottom, 0px)) calc(4px + env(safe-area-inset-left, 0px));z-index:20}
 .tabbar button{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;color:var(--muted);background:none;border:0;padding:5px 0;cursor:pointer;min-width:0}
 .tabbar button b{font-size:17px;font-weight:400;line-height:1}
 .tabbar button.on{color:var(--accent)}
@@ -779,19 +802,80 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
 @media (max-width:640px){
   .who .em{display:none}
   .brand .v{display:none}   /* the magnifier took the version chip's room on a phone */
-  main{padding:12px}
+  main{padding:12px calc(12px + env(safe-area-inset-right, 0px)) 12px calc(12px + env(safe-area-inset-left, 0px))}
   .timer{font-size:46px}
   .fld{font-size:16px}
-  .top{padding:9px 12px}
+  .top{padding:calc(9px + env(safe-area-inset-top, 0px)) calc(12px + env(safe-area-inset-right, 0px)) 9px calc(12px + env(safe-area-inset-left, 0px))}
   .daystrip{gap:3px}
   .daystrip button{padding:6px 1px}
   .btnrow .btn{flex:1 1 auto}
-  .modal{padding:10px}
+  .modal{padding:calc(10px + env(safe-area-inset-top, 0px)) 10px calc(10px + env(safe-area-inset-bottom, 0px))}
   .mbox{padding:14px}
 }
 @media (max-width:380px){
   .daystrip .dw{font-size:9px}
   .daystrip .dt{font-size:12px}
+}
+
+/* ---------- add to home screen ----------
+   The sign-in nudge is one quiet line under the button, in the same shape as
+   the draft offer: an offer, not a warning, so no amber. The Settings card
+   and the How modal share one block of written steps. */
+.a2nudge{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;margin-top:12px;padding:9px 12px;
+  border:1px solid var(--line2);border-radius:calc(var(--radius) - 2px);background:var(--card2);
+  font-size:13px;text-align:left;min-width:0}
+.a2nudge .a2ntext{flex:1 1 220px;min-width:0;overflow-wrap:anywhere}
+.a2nudge .a2nacts{display:inline-flex;gap:16px;margin-left:auto}
+.a2nudge .morebtn{margin-top:0;font-size:13px}
+.a2hs .q,.a2steps .q{display:inline-block;width:14px;height:14px;border-radius:50%;border:1px solid var(--muted);font-size:10px;line-height:12px;text-align:center;margin-left:5px;opacity:.75;cursor:help;font-weight:400;color:var(--muted)}
+.a2steps{font-size:14px;min-width:0;overflow-wrap:anywhere}
+.a2steps h5{font-size:14px;margin:12px 0 2px}
+.a2steps h5:first-child{margin-top:4px}
+.a2steps ol{margin:4px 0 0;padding-left:22px}
+.a2steps li{margin:4px 0}
+.a2steps p{margin:8px 0 0;color:var(--muted);font-size:13px}
+.a2steps details{margin-top:12px;border-top:1px solid var(--line);padding-top:8px}
+.a2steps summary{cursor:pointer;font-weight:600;color:var(--accent);padding:4px 0}
+.a2steps summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+.a2done{font-size:14px;margin:6px 0 0}
+#a2hsBody .btnrow{margin-top:10px}
+@media (pointer: coarse){
+  .a2steps summary{padding:12px 0}
+  .a2nudge .morebtn{min-width:44px}
+}
+
+/* ---------- touch: 44px targets (audit-001 finding 7) ----------
+   Only on a coarse pointer, so a mouse keeps the compact ledger. The round
+   icon buttons in the tables grow to 36px and carry a transparent ring that
+   makes the hit area 44px, with 8px between them so two rings never touch.
+   Text links keep their look and get the height from padding that a matching
+   negative margin cancels, so the line they sit on does not move. */
+@media (pointer: coarse){
+  .btn.sm{min-height:44px}
+  .seg button{min-height:44px}
+  .seg.ampm button{min-width:44px}
+  .chip{min-height:44px}
+  .ck{min-height:44px}
+  .morebtn{padding:13px 8px;margin:-13px -8px;min-width:44px;text-align:center}
+  .mt td .note + .morebtn{margin-top:-11px}
+  .idletimes .tlinks .morebtn,.rlinks .morebtn,.a2nudge .morebtn{margin-top:-13px}
+  .idletimes .tlinks,.rlinks{gap:18px}
+  .minibtn,.mt td.act .ibtn,.wg td.actc .ibtn,.rtog,.themebtn,.toast.sticky .tx{position:relative;width:36px;height:36px}
+  .minibtn:after,.mt td.act .ibtn:after,.wg td.actc .ibtn:after,.rtog:after,.themebtn:after,.toast.sticky .tx:after{content:"";position:absolute;inset:-4px;border-radius:50%}
+  .endb{gap:8px}
+  .endb .minibtn{flex:0 0 36px}
+  .mt td.act .ibtn{margin-left:8px}
+  .rtogsp{width:36px}
+  .mbox .mh .x{width:44px;height:44px}
+  .swatch{width:44px;height:44px}
+}
+
+/* ---------- reduced motion (audit-001 finding 10) ----------
+   The running and syncing dots stop blinking and Edit details opens without
+   the slide for anyone who has asked their device for less motion. */
+@media (prefers-reduced-motion: reduce){
+  .pill .dot,.sync[data-s="syncing"] i{animation:none}
+  #runCol,.toast,.rtog svg{transition:none}
 }
 </style>
 </head>
@@ -812,6 +896,12 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
       <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.7-6.7C35.6 2.7 30.2 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.8 6.1C12.3 13.2 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.5 3-2.2 5.5-4.7 7.2l7.3 5.7c4.3-4 6.7-9.9 6.7-17.4z"/><path fill="#FBBC05" d="M10.4 28.3c-.5-1.5-.8-3.1-.8-4.8s.3-3.3.8-4.8l-7.8-6.1C1 16 0 19.9 0 24s1 8 2.6 11.4l7.8-6.1z"/><path fill="#34A853" d="M24 48c6.2 0 11.5-2 15.3-5.5l-7.3-5.7c-2 1.4-4.7 2.3-8 2.3-6.3 0-11.7-3.7-13.6-9.8l-7.8 6.1C6.5 42.6 14.6 48 24 48z"/></svg>
       Sign in with Google
     </button>
+    <!-- Shown once per device on a phone, only when the wall is really up
+         (no session), never in the home-screen app. See maybeShowA2hsNudge(). -->
+    <div class="a2nudge" id="a2hsNudge" hidden>
+      <span class="a2ntext">Using a phone? Add Sundial to your home screen for a full-screen app and one-tap starts.</span>
+      <span class="a2nacts"><button type="button" class="morebtn" id="a2hsHow" title="Shows the steps for this phone. Nothing is installed until you do it yourself from the browser's own menu.">How</button><button type="button" class="morebtn" id="a2hsNot" title="Hides this line on this device for good. The same steps are in Settings, under Add to home screen.">Not now</button></span>
+    </div>
     <div class="domain">Restricted to <code>@umbrellaautomation.com</code> accounts.</div>
     <div class="offline-note">Works offline once you have signed in on this device: the app opens straight to the Clock and entries are stored locally until the connection is back. A device that has never signed in needs one online sign-in first.</div>
     <div id="signinErr" class="err" hidden></div>
@@ -1207,6 +1297,12 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
       </div>
     </div>
 
+    <div class="card a2hs" id="a2hsCard">
+      <h4>Add to home screen</h4>
+      <div class="hint" style="font-size:13.5px">Installed, Sundial opens full screen with no address bar, one tap from your home screen or dock. On an iPhone it is also the only way a system notification can reach you: Safari only lets a page notify once it has been added to the home screen.</div>
+      <div id="a2hsBody"></div>
+    </div>
+
     <div class="card">
       <h4>Tracking</h4>
       <div class="g2">
@@ -1359,12 +1455,12 @@ pre.prev{margin:0;background:var(--card2);border:1px solid var(--line);border-ra
 
 <script type="module">
 /* ==============================================================
-   Sundial v0.9.6 - hours tracker
+   Sundial v0.10.0 - hours tracker
    Single file on purpose: no build step, same as Backup Audits.
    Firestore rules for /sundial_users live in ../watchtower/firestore.rules.
    ============================================================== */
 
-const APP_VERSION    = "0.9.6";
+const APP_VERSION    = "0.10.0";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const OWNER_EMAIL    = "frank@umbrellaautomation.com";
 const SDK            = "https://www.gstatic.com/firebasejs/12.13.0/";
@@ -1547,6 +1643,11 @@ const state = {
   clients: [],
   clientsLoaded: false,
   entries: [],
+  /* false until the first entries snapshot lands, and the message of the
+     first store error, so an empty table can say "loading" or "could not
+     load" instead of "nothing logged" (audit-001 finding 8) */
+  entriesLoaded: false,
+  loadError: "",
   view: "clock",
   tsDay: dayKey(new Date()),
   tsClient: "",
@@ -1660,6 +1761,124 @@ function closeModal(wrap) {
   if (wrap._onClose) { const f = wrap._onClose; wrap._onClose = null; f(); }
 }
 document.addEventListener("keydown", e => { if (e.key === "Escape" && modalStack.length) closeModal(); });
+
+/* ---------------- add to home screen ----------------
+   Chrome, Edge and Android Chrome fire beforeinstallprompt when the page is
+   installable; the event is kept here from the moment the module loads, so
+   the Settings button can call it later. iPhone and iPad have no install API
+   at all, so there the only honest thing is the written Safari steps, never a
+   button that could not work. */
+let a2hsPrompt = null;
+const A2HS_KEY = "sundial-a2hs-nudge";
+function a2hsStandalone() {
+  try { if (window.matchMedia("(display-mode: standalone)").matches) return true; } catch (e) {}
+  return window.navigator.standalone === true;
+}
+function a2hsPlatform() {
+  const ua = navigator.userAgent || "";
+  if (/iPhone|iPad|iPod/i.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)) return "ios";
+  if (/Android/i.test(ua)) return "android";
+  return "desktop";
+}
+function a2hsTouchDevice() {
+  let coarse = false;
+  try { coarse = window.matchMedia("(pointer: coarse)").matches; } catch (e) {}
+  return coarse || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || "");
+}
+const A2HS_STEPS = {
+  ios: { title: "iPhone or iPad",
+    html: "<ol>" +
+      "<li>Open Sundial in <b>Safari</b>. On an iPhone or iPad only Safari can add a page to the home screen; Chrome and the other browsers there cannot.</li>" +
+      "<li>Tap the <b>Share</b> button, the square with an arrow pointing up: at the bottom of the screen on an iPhone, at the top on an iPad.</li>" +
+      "<li>Scroll down the list and tap <b>Add to Home Screen</b>.</li>" +
+      "<li>Tap <b>Add</b>. The Sundial icon lands on your home screen.</li></ol>" +
+      "<p>The home-screen app keeps its own sign-in, separate from Safari, so it asks you to sign in once. That first time the Google sign-in window may open in Safari; finish signing in there, then go back to the Sundial icon.</p>" },
+  android: { title: "Android phone or tablet",
+    html: "<ol>" +
+      "<li>Open Sundial in <b>Chrome</b>.</li>" +
+      "<li>Tap the three-dot menu at the top right.</li>" +
+      "<li>Tap <b>Add to Home screen</b> or <b>Install app</b>, whichever your Chrome shows.</li>" +
+      "<li>Tap <b>Install</b> or <b>Add</b> to confirm. Sundial appears on the home screen and in the app drawer.</li></ol>" },
+  desktop: { title: "Computer",
+    html: "<ol>" +
+      "<li>Open Sundial in <b>Chrome</b> or <b>Edge</b>.</li>" +
+      "<li>Click the install icon at the right end of the address bar, a small screen with a down arrow.</li>" +
+      "<li>No icon? Open the three-dot menu and choose <b>Install Sundial</b>. Newer Chrome keeps it under Cast, save and share; Edge keeps it under Apps.</li>" +
+      "<li>Click <b>Install</b>. Sundial opens in its own window and gets its own Start menu or Dock entry.</li></ol>" +
+      "<p>Safari on a Mac: File, then Add to Dock.</p>" }
+};
+/* The detected platform's steps first, the other two folded underneath, so a
+   wrong guess costs one tap rather than a dead end. */
+function a2hsStepsHTML() {
+  const mine = a2hsPlatform();
+  const others = ["ios", "android", "desktop"].filter(k => k !== mine);
+  const why = "Worked out from what this browser says it is. If that guess is wrong, the steps for the other devices are folded under Other devices.";
+  return '<div class="a2steps">' +
+    "<h5>" + esc(A2HS_STEPS[mine].title) + ' <span class="q" title="' + esc(why) + '">?</span></h5>' + A2HS_STEPS[mine].html +
+    "<details><summary>Other devices</summary>" +
+      others.map(k => "<h5>" + esc(A2HS_STEPS[k].title) + "</h5>" + A2HS_STEPS[k].html).join("") +
+    "</details></div>";
+}
+function paintA2hs() {
+  const box = $("#a2hsBody");
+  if (!box) return;
+  if (a2hsStandalone()) {
+    box.innerHTML = '<p class="a2done">Already installed: you are running Sundial from the home screen.</p>';
+    return;
+  }
+  box.innerHTML = (a2hsPrompt
+    ? '<div class="btnrow"><button type="button" class="btn acc" id="a2hsInstall" title="Opens the browser&#39;s own install window. You confirm it there, and Sundial gets its own icon and window. Nothing changes in your account.">Install Sundial</button></div>'
+    : "") + a2hsStepsHTML();
+  const b = $("#a2hsInstall");
+  if (b) b.addEventListener("click", async () => {
+    const ev = a2hsPrompt;
+    if (!ev) { toast("The browser has withdrawn its install offer. Reload the page and try again.", true); paintA2hs(); return; }
+    a2hsPrompt = null;
+    b.disabled = true;
+    try {
+      await ev.prompt();
+      const res = await ev.userChoice;
+      toast(res && res.outcome === "accepted" ? "Sundial installed." : "Install dismissed. The steps below still work.");
+    } catch (e) {
+      toast("The install window could not open: " + (e.message || e), true);
+    }
+    paintA2hs();
+  });
+}
+function hideA2hsNudge() { const n = $("#a2hsNudge"); if (n) n.hidden = true; }
+/* Called from stopApp(), which is the moment the wall is really up: a device
+   with a session never sees it, even during the second the SDK takes to
+   load. At most once per device: showing it records "shown", Not now
+   records "dismissed", and either one keeps it away from then on. */
+function maybeShowA2hsNudge() {
+  const n = $("#a2hsNudge");
+  if (!n || a2hsStandalone() || !a2hsTouchDevice()) return;
+  let seen = null;
+  try { seen = localStorage.getItem(A2HS_KEY); } catch (e) {}
+  if (seen) return;
+  n.hidden = false;
+  try { localStorage.setItem(A2HS_KEY, "shown"); } catch (e) {}
+}
+window.addEventListener("beforeinstallprompt", ev => {
+  ev.preventDefault();
+  a2hsPrompt = ev;
+  paintA2hs();
+});
+window.addEventListener("appinstalled", () => {
+  a2hsPrompt = null;
+  hideA2hsNudge();
+  try { localStorage.setItem(A2HS_KEY, "dismissed"); } catch (e) {}
+  toast("Sundial installed.");
+  paintA2hs();
+});
+$("#a2hsHow").addEventListener("click", () => {
+  openModal("Add Sundial to your home screen", a2hsStepsHTML(), '<button class="btn" data-close>Close</button>', { noFocus: true });
+});
+$("#a2hsNot").addEventListener("click", () => {
+  hideA2hsNudge();
+  try { localStorage.setItem(A2HS_KEY, "dismissed"); } catch (e) {}
+});
+paintA2hs();
 
 function confirmModal(title, bodyHTML, confirmLabel, onConfirm, danger) {
   const w = openModal(title, bodyHTML,
@@ -3099,7 +3318,17 @@ function attachResizeHandles(tableEl, cols, cw) {
   });
 }
 function paintTodayTable() {
-  renderEntryTable($("#todayTable"), entriesForDay(dayKey(new Date())), { empty: "Nothing logged today yet." });
+  renderEntryTable($("#todayTable"), entriesForDay(dayKey(new Date())), { empty: dataEmpty("Nothing logged today yet.") });
+}
+/* What an empty data view says. "Nothing logged" is only true once the
+   entries have arrived; before that it is a load, and after a store error it
+   is a failure that a reload may fix. */
+function dataEmpty(msg, what) {
+  const loaded = what === "clients" ? state.clientsLoaded : state.entriesLoaded;
+  if (loaded) return msg;
+  if (state.loadError) return "Your " + (what || "entries") + " could not load: " + state.loadError +
+    ". Reload the page to try again. Anything saved on this device is kept and goes up once the connection works.";
+  return "Loading your " + (what || "entries") + "...";
 }
 
 /* ==============================================================
@@ -4339,8 +4568,8 @@ function paintWeekGrid(ws) {
   $("#tsWeekTitle").textContent = "Week of " + weekLabel(ws);
 
   if (!rows.length) {
-    box.innerHTML = '<div class="emptyrow">Nothing logged this week' + (state.tsClient ? " for this client" : "") +
-      '. Use + Add row to put a client and job type in, then type the hours into the day columns.</div>';
+    box.innerHTML = '<div class="emptyrow">' + esc(dataEmpty("Nothing logged this week" + (state.tsClient ? " for this client" : "") +
+      ". Use + Add row to put a client and job type in, then type the hours into the day columns.")) + "</div>";
     return;
   }
 
@@ -4557,11 +4786,24 @@ function calBlockHTML(it, h0, now) {
   const tiny = mins < 15;
   return '<div class="calblk' + (e.end ? "" : " run") + (tiny ? " tiny" : "") + '" data-calblk="' + e.id + '"' +
     (e.end ? "" : ' data-calrun="' + e.id + '"') +
-    ' style="top:' + top.toFixed(1) + "px;height:" + h.toFixed(1) + "px;left:" + left.toFixed(3) + "%;width:" + (w - 1).toFixed(3) + "%;background:" + esc(clientColor(c)) + '"' +
+    ' style="top:' + top.toFixed(1) + "px;height:" + h.toFixed(1) + "px;left:" + left.toFixed(3) + "%;width:" + (w - 1).toFixed(3) + "%;background:" + esc(clientColor(c)) +
+      (inkOn(clientColor(c)) === "dark" ? ";color:#000;text-shadow:none" : "") + '"' +
     ' title="' + esc(title) + '" role="button" tabindex="0" aria-label="' + esc(title.replace(/\n/g, ". ")) + '">' +
     gaps +
     (tiny ? "" : "<b>" + esc(c ? c.name : "Unknown client") + '</b><span class="jt">' + esc((jobTypeName(c, e.jobTypeId) || "Job") + tickets) + "</span>") +
     (e.end ? '<div class="blkrz" title="Drag to change the end time. Snaps to five minutes."></div>' : "") + "</div>";
+}
+/* White or black text on a client colour, whichever reads better.
+   White on the green, amber, teal and rose swatches was 2.9 to 4.3:1 at
+   11px (audit-001 finding 6), and an imported client can be any colour, so
+   it is worked out from the colour rather than listed. */
+function inkOn(hex) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || "").trim());
+  if (!m) return "light";
+  const ch = i => { const c = parseInt(m[1].slice(i, i + 2), 16) / 255; return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+  const L = 0.2126 * ch(0) + 0.7152 * ch(2) + 0.0722 * ch(4);
+  const onWhite = 1.05 / (L + 0.05), onDark = (L + 0.05) / 0.05;
+  return onDark > onWhite ? "dark" : "light";
 }
 /* The shaded parts of one day column: the whole column on a day off, and the
    two ends of the axis outside the working window on a day that is on. */
@@ -4759,7 +5001,7 @@ function paintTimesheet() {
                    : '<button class="btn sm" data-pause="' + e.id + '" title="Pause this timer. The gap is recorded on the entry and comes out of its duration everywhere.">Pause</button>') +
                  '<button class="btn sm stop" data-out="' + e.id + '">Stop</button>') +
         '<button class="btn sm" data-edit="' + e.id + '">Edit</button></div></div>';
-  }).join("") : '<div class="emptyrow">Nothing logged on this day.</div>';
+  }).join("") : '<div class="emptyrow">' + esc(dataEmpty("Nothing logged on this day.")) + "</div>";
 
   const total = rows.reduce((s, e) => s + entrySeconds(e), 0);
   const bill  = rows.filter(e => e.billable !== false).reduce((s, e) => s + entrySeconds(e), 0);
@@ -4798,7 +5040,7 @@ function paintClients() {
         '<button class="btn sm" data-cedit="' + c.id + '">Edit</button>' +
         '<button class="btn sm" data-carch="' + c.id + '" title="Keeps every entry and export intact, and takes the client out of the start lists.">Archive</button></div>' +
       "</div>";
-  }).join("") : '<div class="card"><div class="emptyrow">No clients yet. Add one, or import a list.</div></div>';
+  }).join("") : '<div class="card"><div class="emptyrow">' + esc(dataEmpty("No clients yet. Add one, or import a list.", "clients")) + "</div></div>";
 
   const arch = state.clients.filter(c => c.archived).sort((a, b) => a.name.localeCompare(b.name));
   $("#archivedCard").hidden = !arch.length;
@@ -6549,8 +6791,8 @@ function paintReportBreakdown(rows, t) {
   const labelOf = x => (x.dot ? '<span class="cdot" style="background:' + esc(x.dot) + '"></span>' : "") + "<span>" + esc(x.label) + "</span>";
   let body = "";
   if (!model.length) {
-    body = '<tr><td colspan="' + cols.length + '" class="emptyrow">Nothing matches these filters.' +
-      (!o.running && state.entries.some(e => !e.end) ? " A running timer only counts with Include running entries on." : "") + "</td></tr>";
+    body = '<tr><td colspan="' + cols.length + '" class="emptyrow">' + esc(dataEmpty("Nothing matches these filters." +
+      (!o.running && state.entries.some(e => !e.end) ? " A running timer only counts with Include running entries on." : ""))) + "</td></tr>";
   } else {
     model.forEach(p => {
       const open = !!(g2 && o.open[p.key]);
@@ -6596,7 +6838,7 @@ function paintReportEntries(rows) {
       cols.map(c => '<td class="' + (c.k === "date" || c.k === "time" || c.k === "dur" ? "t" : "") + '" data-l="' + esc(c.label) + '">' + cell(e, c.k) + "</td>").join("") +
       '<td class="act" data-l="Actions"><button class="ibtn" data-edit="' + e.id + '" title="Edit this entry." aria-label="Edit">' + ICONS.edit + "</button></td></tr>" +
       (hasNote ? '<tr class="noterow' + (e.end ? "" : " running") + '"><td colspan="' + (cols.length + 1) + '" data-l="Notes">' + entryCellHTML(e, "notes") + "</td></tr>" : "");
-  }).join("") : '<tr><td colspan="' + (cols.length + 1) + '" class="emptyrow">No entries match these filters.</td></tr>') + "</tbody>";
+  }).join("") : '<tr><td colspan="' + (cols.length + 1) + '" class="emptyrow">' + esc(dataEmpty("No entries match these filters.")) + "</td></tr>") + "</tbody>";
   const tbl = $("#rEntries");
   tbl.innerHTML = head + body;
   clampNotes(tbl);
@@ -9114,11 +9356,17 @@ function handlers() {
     clients(list) { state.clients = list; state.clientsLoaded = true; paintAll(); reconcileDefaultJobTypes(); maybeRestoreStartDraft(); },
     entries(list, meta) {
       state.entries = list;
+      state.entriesLoaded = true;
       if (searchState.loading && !(meta && meta.fromCache)) { searchState.loading = false; clearTimeout(searchState.loadTimer); }
       paintAll();
     },
     sync(s) { state.sync.pending = s.pending || 0; state.sync.online = navigator.onLine; paintSync(); },
-    error(err) { console.error(err); toast("Sync problem: " + (err.message || err), true); }
+    error(err) {
+      console.error(err);
+      if (!state.loadError) state.loadError = String(err && err.message || err);
+      toast("Sync problem: " + (err.message || err), true);
+      paintAll();
+    }
   };
 }
 function startApp(user) {
@@ -9142,13 +9390,14 @@ function startApp(user) {
 function stopApp() {
   if (store) { store.stop(); store = null; }
   state.user = null; state.clients = []; state.entries = []; state.settingsLoaded = false;
-  state.clientsLoaded = false;
+  state.clientsLoaded = false; state.entriesLoaded = false; state.loadError = "";
   reconcileDefaultJobTypes._done = false;
   maybeRestoreStartDraft._done = false;
   searchState.extended = false; searchState.loading = false;
   state.settings = Object.assign({}, DEFAULT_SETTINGS);
   $("#app").hidden = true;
   $("#signin").style.display = "flex";
+  maybeShowA2hsNudge();
 }
 
 if (FAKE) {
