@@ -379,16 +379,29 @@ service cloud.firestore {
       // and why a line was left undelivered.
       allow update: if loadoutTechOnly(['status', 'summary', 'updatedAt',
         'pickedUpAt', 'pickedUpBy', 'pickedUpByName', 'deliveredAt', 'deliveredBy', 'deliveredByName']);
+      // 0.9.0 (PLAN 20.2): Bring back lowers qtyPickedUp and stamps who and when.
       match /lines/{lineId} {
         allow update: if loadoutTechOnly(['qtyStaged', 'qtyDelivered', 'updatedAt',
-          'qtyPickedUp', 'pickedUpAt', 'pickedUpBy', 'pickedUpByName', 'deliveryNote']);
+          'qtyPickedUp', 'pickedUpAt', 'pickedUpBy', 'pickedUpByName', 'deliveryNote',
+          'broughtBackAt', 'broughtBackBy', 'broughtBackByName']);
       }
     }
-    // Pick up (0.8.0) and Deliver to site take counted units out of the bay: a tech may only
-    // lower a stock count, never raise it or change anything else.
+    // Pick up (0.8.0) and Deliver to site take counted units out of the bay: a tech may
+    // lower a stock count and change nothing else. 0.9.0 (PLAN 20.2): Bring back puts
+    // counted units from a van back into the job's bay, so a tech may also raise a count
+    // (or start one) in a location of kind bay, and nowhere else. Shelves stay with
+    // warehouse and admin through the wildcard below.
+    function loadoutIsBay(locId) {
+      return get(/databases/$(database)/documents/loadout_locations/$(locId)).data.get('kind', '') == 'bay';
+    }
     match /loadout_stock/{id} {
       allow update: if loadoutTechOnly(['qty', 'updatedAt'])
-        && request.resource.data.qty < resource.data.qty;
+        && (request.resource.data.qty < resource.data.qty || loadoutIsBay(resource.data.locationId));
+      allow create: if isMSPAdmin() && loadoutRole() == 'tech'
+        && request.resource.data.keys().hasOnly(['productId', 'productName', 'locationId', 'locationName', 'qty', 'updatedAt'])
+        && id == request.resource.data.productId + '__' + request.resource.data.locationId
+        && request.resource.data.qty > 0
+        && loadoutIsBay(request.resource.data.locationId);
     }
     // Warehouse may pin tickets to the wall board (Show on board) and save
     // the CSV column mapping; the rest of settings stays admin-only above.
