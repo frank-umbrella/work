@@ -435,24 +435,78 @@ service cloud.firestore {
       allow update: if loadoutWriter()
         && loadoutOnly(['vendors', 'updatedAt', 'updatedBy', 'updatedByName']);
     }
+    // 0.13.0 (PLAN 32.3): a draft PO is an order request. An admin approves
+    // it (approvedAt, approvedBy, approvedByName) or sends it back with a
+    // note (sentBackAt, sentBackBy, sentBackByName, sentBackNote). Warehouse
+    // and admin still raise and edit requests; only an admin sets or changes
+    // those seven fields, and anyone else may only clear them (null), which
+    // is what Ask again and an edit of an approved request write. A request
+    // leaves draft for ordered, partial, or received only when the result
+    // carries an approval. Orders already past draft are not checked here,
+    // so POs ordered before 0.13.0 keep their shipments, receiving, notes,
+    // backorders, and cancel. Techs and accounting write no orders.
+    function loadoutSameOrNull(k) {
+      return request.resource.data.get(k, null) == null
+        || request.resource.data.get(k, null) == resource.data.get(k, null);
+    }
+    function loadoutApprovalKept() {
+      return loadoutSameOrNull('approvedAt') && loadoutSameOrNull('approvedBy')
+        && loadoutSameOrNull('approvedByName') && loadoutSameOrNull('sentBackAt')
+        && loadoutSameOrNull('sentBackBy') && loadoutSameOrNull('sentBackByName')
+        && loadoutSameOrNull('sentBackNote');
+    }
+    function loadoutNoApproval() {
+      let d = request.resource.data;
+      return d.get('approvedAt', null) == null && d.get('approvedBy', null) == null
+        && d.get('approvedByName', null) == null && d.get('sentBackAt', null) == null
+        && d.get('sentBackBy', null) == null && d.get('sentBackByName', null) == null
+        && d.get('sentBackNote', null) == null;
+    }
+    function loadoutLeavesDraftApproved() {
+      return resource.data.get('status', '') != 'draft'
+        || request.resource.data.get('status', '') in ['draft', 'cancelled']
+        || request.resource.data.get('approvedAt', null) != null;
+    }
+    match /loadout_orders/{oid} {
+      allow read: if isMSPAdmin();
+      allow create: if loadoutWriter()
+        && request.resource.data.get('status', '') == 'draft'
+        && (loadoutRole() == 'admin' || loadoutNoApproval());
+      allow update: if loadoutWriter()
+        && (loadoutRole() == 'admin' || loadoutApprovalKept())
+        && loadoutLeavesDraftApproved();
+      allow delete: if loadoutWriter();
+      // order lines: a non-admin's write may not leave an approved request
+      // behind, so changing a request's lines takes its approval off in the
+      // same batch.
+      match /lines/{lid} {
+        allow read: if isMSPAdmin();
+        allow write: if loadoutWriter()
+          && (loadoutRole() == 'admin'
+              || getAfter(/databases/$(database)/documents/loadout_orders/$(oid)).data.get('status', '') != 'draft'
+              || getAfter(/databases/$(database)/documents/loadout_orders/$(oid)).data.get('approvedAt', null) == null);
+      }
+    }
     // Everything else under loadout_* (stock, locations, clients, jobs,
-    // proposals, tickets, orders with their lines, and shipments): everyone
-    // on the domain reads, warehouse and admin write. Techs write none of
-    // the order collections; receiving is warehouse and admin. The prefix
-    // check keeps this from touching any other
+    // proposals, tickets, and shipments): everyone on the domain reads,
+    // warehouse and admin write. Orders have their own rules above (0.13.0).
+    // Techs write none of the order collections; receiving is warehouse and
+    // admin. The prefix check keeps this from touching any other
     // tool's collections.
     match /{coll}/{docId} {
       allow read: if isMSPAdmin() && coll.matches('loadout_.*');
       allow write: if coll.matches('loadout_.*')
         && !(coll in ['loadout_users', 'loadout_settings', 'loadout_movements',
-                      'loadout_items', 'loadout_containers', 'loadout_products'])
+                      'loadout_items', 'loadout_containers', 'loadout_products',
+                      'loadout_orders'])
         && loadoutWriter();
-      // subcollections (ticket lines, order lines). {rest=**} sits under a
-      // named segment because a bare {sub=**} also matches zero segments,
-      // which would re-match the parent documents and undo the exclusion above.
+      // subcollections (ticket lines; order lines have their own rule
+      // above). {rest=**} sits under a named segment because a bare
+      // {sub=**} also matches zero segments, which would re-match the
+      // parent documents and undo the exclusion above.
       match /{subcoll}/{rest=**} {
         allow read: if isMSPAdmin() && coll.matches('loadout_.*');
-        allow write: if coll.matches('loadout_.*') && loadoutWriter();
+        allow write: if coll.matches('loadout_.*') && coll != 'loadout_orders' && loadoutWriter();
       }
     }
   }
