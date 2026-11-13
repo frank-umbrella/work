@@ -56,6 +56,12 @@ label.
 | `RecentFileActivity.ps1` | Newest modified/accessed files under a folder tree + C:\ log | Rec.  |
 | Veeam backup info | Per-job Cloud Connect IDs (tenant/subtenant/backup GUIDs) from agent logs | Rec. |
 
+### Security policy (copy-paste, no script file)
+
+| Section           | Does                                                                             | Admin? |
+| ----------------- | -------------------------------------------------------------------------------- | ------ |
+| Smart App Control | Check the Windows 11 policy state and build, turn it off when it blocks tools (Win 11 22H2+; recent builds can re-enable it, older ones need a Windows reset) | Yes |
+
 ### Deployment (on-page command generators, no script file)
 
 | Section              | Does                                                              | Admin? |
@@ -757,6 +763,69 @@ idle mid-scan; that's normal.
 
 ---
 
+# 15a. Smart App Control (check state, turn it off)
+
+Copy-paste commands, no script file - **admin needed** (the elevated LogMeIn
+admin prompt is ideal), **Windows 11 22H2 and later only**. Smart App Control is
+a Windows 11 security layer that blocks any app it doesn't judge "verified and
+reputable," so on a locked-down or freshly imaged machine it can quietly block
+MSP tools, your own scripts, and older installers. These commands read its
+current state and, when it's the thing in your way, turn it off.
+
+> **Turning it off used to be a one-way door, but recent Windows 11 updates let
+> you turn Smart App Control back on from Windows Security without reinstalling.**
+> Whether a machine can re-enable it depends on how current its build is (check
+> the build below). On older builds, off is permanent until a Windows reset. Run
+> the turn-off command only when it is actually blocking a tool you need.
+
+Check the current state (prints one number):
+
+```powershell
+powershell.exe -NoProfile -Command "Get-ItemPropertyValue -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\CI\Policy' -Name VerifiedAndReputablePolicyState"
+```
+
+`0` = Off; `1` = On, actively enforcing (blocking apps); `2` = Evaluation
+(watching quietly, not blocking yet). An error saying the property does not
+exist means this machine has no Smart App Control (Windows 10, or a Windows 11
+build before 22H2) - expected, not a failure.
+
+Check the Windows build (read-only, no admin needed) to see whether this machine
+is current enough to re-enable Smart App Control later:
+
+```powershell
+powershell.exe -NoProfile -Command "Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion' | Select-Object DisplayVersion,CurrentBuild,UBR"
+```
+
+`DisplayVersion` is the feature-update label (for example 23H2, 24H2),
+`CurrentBuild` the OS build number (for example 22631, 26100), and `UBR` the
+patch level after the build. The more current the build and patch level, the
+more likely the feature can be switched back on without a reset. Microsoft
+caveat: if optional diagnostic data was turned off, re-enabling can still need a
+Windows reset.
+
+Turn it off (sets the policy to Off, reloads it, reads it back):
+
+```powershell
+powershell.exe -NoProfile -Command "Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\CI\Policy' -Name 'VerifiedAndReputablePolicyState' -Value 0 -ErrorAction Stop; CiTool.exe -r; Get-ItemPropertyValue -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\CI\Policy' -Name 'VerifiedAndReputablePolicyState'"
+```
+
+`-ErrorAction Stop` fails loudly if the key can't be written; `CiTool.exe -r`
+refreshes the Code Integrity policies so the change takes effect without a
+reboot; a `0` printed at the end confirms Smart App Control is now off.
+
+### Manual steps (Windows Security)
+
+Win+R -> `windowsdefender:` (or open Windows Security from the Start menu) ->
+**App & browser control** -> **Smart App Control** -> **Smart App Control
+settings**. The selected option (On / Evaluation / Off) is the current state; to
+turn it off, pick **Off** and confirm. On older Windows 11 builds, turning it Off
+greyed out the On and Evaluation choices for good and only a Windows reset brought
+the feature back; recent updates let you switch it back on here instead.
+Smart App Control is Windows 11 22H2 and later only, so on Windows 10 and older
+builds this page in Windows Security won't appear.
+
+---
+
 # 16. Deploy SentinelOne agent (silent install)
 
 No script file - the page has a command generator: paste your **site token**
@@ -839,3 +908,18 @@ Official vendor direct downloads, also surfaced on the landing page
 
 Both links point straight at the vendors' own download servers (verified live).
 Run on-demand scanners with administrator rights.
+
+---
+
+## Changelog
+
+### v0.24.0
+
+Added a Smart App Control panel (check the Windows 11 policy state and build, and
+turn it off when it is blocking admin tools). On locked-down or freshly imaged
+Windows 11 machines, Smart App Control silently blocks MSP tools, scripts, and
+older installers, and the library had no quick way to see or clear it. The panel
+reads the current state, reports the Windows build (which decides whether the
+feature can be re-enabled later), and turns it off. Off used to be permanent, but
+recent Windows 11 updates let you turn it back on from Windows Security without
+reinstalling; older builds still need a reset.

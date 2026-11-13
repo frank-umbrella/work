@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PC Scripts v0.23.0</title>
+<title>PC Scripts v0.24.0</title>
 <meta name="description" content="Windows 10/11 script library: copy-paste PowerShell for startup fixes, Windows Update, disk checks and repair, hardware diagnostics, software removal, and silent deployment, plus manual steps for each.">
 <meta name="robots" content="noindex">
-<meta name="version" content="0.23.0">
+<meta name="version" content="0.24.0">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -336,6 +336,12 @@
         <li><a href="#hp-wolf">HP Wolf Security</a></li>
         <li><a href="#eset-cleanup">ESET leftovers</a></li>
         <li><a href="#screenconnect">ScreenConnect</a></li>
+      </ul>
+    </div>
+    <div class="toc-group">
+      <h3>Security policy</h3>
+      <ul>
+        <li><a href="#smart-app-control">Smart App Control</a></li>
       </ul>
     </div>
     <div class="toc-group">
@@ -1259,6 +1265,79 @@ net start spooler</pre>
     </div>
   </section>
 
+  <!-- ===================== Smart App Control ===================== -->
+  <section class="panel" id="smart-app-control">
+    <div class="panel-head">
+      <div>
+        <span class="tag">Security policy</span>
+        <h2>Smart App Control: check state, turn off</h2>
+        <code class="file">copy-paste commands (no script file)</code>
+      </div>
+      <div class="panel-side">
+        <span class="badge badge-warn">Admin needed</span>
+      </div>
+    </div>
+    <p class="purpose">Smart App Control is a Windows 11 security layer that blocks any app it doesn&rsquo;t judge &ldquo;verified and reputable.&rdquo; On a locked-down or freshly imaged machine it can quietly block MSP tools, your own scripts, and older installers. These commands read its current state and, when it&rsquo;s the thing in your way, turn it off. Both commands need the elevated admin shell (the LogMeIn admin Command Prompt is ideal).</p>
+    <p class="danger">Turning Smart App Control off used to be a one-way door, but recent Windows 11 updates let you turn it back on from Windows Security without reinstalling. Whether a machine can re-enable it depends on how current its build is, so check the build first (below). Turn it off only when Smart App Control is actually blocking a tool you need.</p>
+
+    <div class="opt">
+      <h3>Check the current state</h3>
+      <p>Prints one number for how Smart App Control is set right now.</p>
+      <pre>powershell.exe -NoProfile -Command "Get-ItemPropertyValue -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\CI\Policy' -Name VerifiedAndReputablePolicyState"</pre>
+      <div class="explain">
+        <div class="explain-title">What the number means</div>
+        <ul>
+          <li><code>0</code>: Off.</li>
+          <li><code>1</code>: On, actively enforcing (blocking apps).</li>
+          <li><code>2</code>: Evaluation (watching quietly, not blocking yet).</li>
+          <li>An error saying the property doesn&rsquo;t exist: this machine has no Smart App Control (Windows 10, or a Windows 11 build before 22H2). That&rsquo;s expected, not a failure.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="opt">
+      <h3>Check the Windows build (can this machine re-enable it?)</h3>
+      <p>Read-only, no admin needed. Shows exactly which Windows 11 this machine is on, which decides whether the turn-it-back-on path is available.</p>
+      <pre>powershell.exe -NoProfile -Command "Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion' | Select-Object DisplayVersion,CurrentBuild,UBR"</pre>
+      <div class="explain">
+        <div class="explain-title">What it reports</div>
+        <ul>
+          <li><code>DisplayVersion</code>: the feature-update label (for example <code>23H2</code>, <code>24H2</code>).</li>
+          <li><code>CurrentBuild</code>: the OS build number (for example <code>22631</code>, <code>26100</code>).</li>
+          <li><code>UBR</code>: the patch level, the number after the build.</li>
+          <li>The more current the build and patch level, the more likely Smart App Control can be switched back on without a reset. One Microsoft caveat: if optional diagnostic data was turned off, re-enabling can still need a Windows reset.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="opt">
+      <h3>Turn it off</h3>
+      <p>Sets the policy to Off, reloads it, and reads it back so you can see it took.</p>
+      <pre>powershell.exe -NoProfile -Command "Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\CI\Policy' -Name 'VerifiedAndReputablePolicyState' -Value 0 -ErrorAction Stop; CiTool.exe -r; Get-ItemPropertyValue -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\CI\Policy' -Name 'VerifiedAndReputablePolicyState'"</pre>
+      <div class="explain">
+        <div class="explain-title">What this command does</div>
+        <ul>
+          <li>Sets <code>VerifiedAndReputablePolicyState</code> to <code>0</code> (Off). <code>-ErrorAction Stop</code> makes it fail loudly if the key can&rsquo;t be written.</li>
+          <li><code>CiTool.exe -r</code> refreshes the Code Integrity policies so the change takes effect without a reboot.</li>
+          <li>Reads the value back: a <code>0</code> printed at the end confirms Smart App Control is now off.</li>
+        </ul>
+      </div>
+      <details class="manual">
+        <summary>The manual way (Windows Security)</summary>
+        <div class="manual-body">
+          <ol>
+            <li>Open Windows Security: press <kbd>Win</kbd>+<kbd>R</kbd>, type <code>windowsdefender:</code> and press <kbd>Enter</kbd> (or open it from the Start menu).</li>
+            <li>Go to <strong>App &amp; browser control</strong>.</li>
+            <li>Under <strong>Smart App Control</strong>, click <strong>Smart App Control settings</strong>.</li>
+            <li>To check: the selected option (On / Evaluation / Off) is the current state.</li>
+            <li>To turn off: select <strong>Off</strong> and confirm.</li>
+          </ol>
+          <p class="note">On older Windows 11 builds, turning it Off greyed out the On and Evaluation choices for good and only a Windows reset brought the feature back; recent updates let you switch it back on here instead. Smart App Control is Windows 11 22H2 and later only, so on Windows 10 and older builds this page in Windows Security won&rsquo;t appear.</p>
+        </div>
+      </details>
+    </div>
+  </section>
+
   <!-- ===================== Deploy SentinelOne ===================== -->
   <section class="panel" id="sentinelone">
     <div class="panel-head">
@@ -1424,7 +1503,7 @@ sc.exe query MBAMService</pre>
 </main>
 
 <footer class="page">
-  <p>PC Scripts <span class="version">v0.23.0</span> &middot; Windows 10 &amp; 11.</p>
+  <p>PC Scripts <span class="version">v0.24.0</span> &middot; Windows 10 &amp; 11.</p>
 </footer>
 
 <script>
