@@ -383,7 +383,9 @@ service cloud.firestore {
       match /lines/{lineId} {
         allow update: if loadoutTechOnly(['qtyStaged', 'qtyDelivered', 'updatedAt',
           'qtyPickedUp', 'pickedUpAt', 'pickedUpBy', 'pickedUpByName', 'deliveryNote',
-          'broughtBackAt', 'broughtBackBy', 'broughtBackByName']);
+          'broughtBackAt', 'broughtBackBy', 'broughtBackByName',
+          // 0.15.0 (PLAN 33.1 item 1): Return from a client raises qtyReturned and stamps who and when.
+          'qtyReturned', 'returnedAt', 'returnedBy', 'returnedByName']);
       }
     }
     // Pick up (0.8.0) and Deliver to site take counted units out of the bay: a tech may
@@ -394,14 +396,34 @@ service cloud.firestore {
     function loadoutIsBay(locId) {
       return get(/databases/$(database)/documents/loadout_locations/$(locId)).data.get('kind', '') == 'bay';
     }
+    // 0.15.0 (PLAN 33.1 item 1): Return from a client puts delivered product back on a
+    // shelf. A tech may raise a count on a location that is not a staging area or a van,
+    // only by as much as the same batch raises qtyReturned on the job line the write
+    // names (returnTicketId, returnLineId), and only for that line's product.
+    function loadoutIsShelf(locId) {
+      return !(get(/databases/$(database)/documents/loadout_locations/$(locId)).data.get('kind', '') in ['bay', 'van', 'vehicle']);
+    }
+    function loadoutReturnCovers(before) {
+      let d = request.resource.data;
+      let line = /databases/$(database)/documents/loadout_tickets/$(d.returnTicketId)/lines/$(d.returnLineId);
+      return getAfter(line).data.get('productId', '') == d.productId
+        && getAfter(line).data.get('qtyReturned', 0) - get(line).data.get('qtyReturned', 0) >= d.qty - before;
+    }
     match /loadout_stock/{id} {
-      allow update: if loadoutTechOnly(['qty', 'updatedAt'])
-        && (request.resource.data.qty < resource.data.qty || loadoutIsBay(resource.data.locationId));
+      allow update: if (loadoutTechOnly(['qty', 'updatedAt'])
+          && (request.resource.data.qty < resource.data.qty || loadoutIsBay(resource.data.locationId)))
+        || (loadoutTechOnly(['qty', 'updatedAt', 'returnTicketId', 'returnLineId'])
+          && request.resource.data.qty > resource.data.qty
+          && loadoutIsShelf(resource.data.locationId)
+          && loadoutReturnCovers(resource.data.qty));
       allow create: if isMSPAdmin() && loadoutRole() == 'tech'
-        && request.resource.data.keys().hasOnly(['productId', 'productName', 'locationId', 'locationName', 'qty', 'updatedAt'])
         && id == request.resource.data.productId + '__' + request.resource.data.locationId
         && request.resource.data.qty > 0
-        && loadoutIsBay(request.resource.data.locationId);
+        && ((request.resource.data.keys().hasOnly(['productId', 'productName', 'locationId', 'locationName', 'qty', 'updatedAt'])
+            && loadoutIsBay(request.resource.data.locationId))
+          || (request.resource.data.keys().hasOnly(['productId', 'productName', 'locationId', 'locationName', 'qty', 'updatedAt', 'returnTicketId', 'returnLineId'])
+            && loadoutIsShelf(request.resource.data.locationId)
+            && loadoutReturnCovers(0)));
     }
     // Warehouse may pin tickets to the wall board (Show on board) and save
     // the CSV column mapping; the rest of settings stays admin-only above.
