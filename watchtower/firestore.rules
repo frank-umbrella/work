@@ -316,7 +316,9 @@ service cloud.firestore {
       let r = loadoutRole();
       return (r in ['admin', 'warehouse'] && loadoutKeepsCreated())
         || (r == 'tech' && loadoutOnly(['ftLeft', 'lastMark', 'status', 'pickTicketId', 'pickTicketNumber',
-             'lastReadingAt', 'lastReadingBy', 'locationId', 'locationName', 'confirmLocation']));
+             'lastReadingAt', 'lastReadingBy', 'locationId', 'locationName', 'confirmLocation',
+             // 0.16.0 (PLAN 33.1 item 3): a cut stamps the box with the job it was for
+             'lastCutTicketId', 'lastCutJob']));
     }
     // a tech's cut or check-out moves the product's denormalized on-hand total
     function loadoutProductUpdate() {
@@ -385,7 +387,10 @@ service cloud.firestore {
           'qtyPickedUp', 'pickedUpAt', 'pickedUpBy', 'pickedUpByName', 'deliveryNote',
           'broughtBackAt', 'broughtBackBy', 'broughtBackByName',
           // 0.15.0 (PLAN 33.1 item 1): Return from a client raises qtyReturned and stamps who and when.
-          'qtyReturned', 'returnedAt', 'returnedBy', 'returnedByName']);
+          'qtyReturned', 'returnedAt', 'returnedBy', 'returnedByName'])
+          // 0.16.0: a tech may not raise qtyReturned above what was delivered on the line.
+          && (request.resource.data.get('qtyReturned', 0) <= resource.data.get('qtyReturned', 0)
+            || request.resource.data.get('qtyReturned', 0) <= request.resource.data.get('qtyDelivered', 0));
       }
     }
     // Pick up (0.8.0) and Deliver to site take counted units out of the bay: a tech may
