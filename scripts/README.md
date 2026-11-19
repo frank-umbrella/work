@@ -915,6 +915,7 @@ Official vendor direct downloads, also surfaced on the landing page
 | Malwarebytes for Windows (Free/Personal) | `https://downloads.malwarebytes.com/file/mb-windows` (-> MBSetup.exe)         |
 | ESET Online Scanner                   | `https://download.eset.com/com/eset/tools/online_scanner/latest/esetonlinescanner.exe` |
 | Malwarebytes AdwCleaner (portable, no install) | `https://downloads.malwarebytes.com/file/adwcleaner` (logs/quarantine in `C:\AdwCleaner` - delete when done) |
+| Microsoft Safety Scanner (portable, on-demand) | `https://go.microsoft.com/fwlink/?LinkId=212732` (MSERT.exe, 64-bit; 32-bit `?LinkId=212733`); expires 10 days after download, re-download for current defs; log at `%SYSTEMROOT%\debug\msert.log` |
 | BGInfo (Sysinternals, portable) | `https://download.sysinternals.com/files/BGInfo.zip` or direct exe `https://live.sysinternals.com/Bginfo64.exe`; apply silently: `Bginfo64.exe umbrella.bgi /timer:0 /silent /nolicprompt`; default Umbrella `.bgi` to be hosted here |
 
 Both links point straight at the vendors' own download servers (verified live).
@@ -923,6 +924,13 @@ Run on-demand scanners with administrator rights.
 ---
 
 ## Changelog
+
+### v0.26.0
+
+Added Microsoft Safety Scanner (MSERT) to the tools section. It is Microsoft's
+own free, portable, on-demand malware scanner, a useful vendor-neutral second
+opinion alongside Malwarebytes and ESET. Note it expires 10 days after download,
+so it is always a fresh grab, and it is not a replacement for real-time AV.
 
 ### v0.25.0
 

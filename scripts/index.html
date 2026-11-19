@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PC Scripts v0.25.0</title>
+<title>PC Scripts v0.26.0</title>
 <meta name="description" content="Windows 10/11 script library: copy-paste PowerShell for startup fixes, Windows Update, disk checks and repair, hardware diagnostics, software removal, and silent deployment, plus manual steps for each.">
 <meta name="robots" content="noindex">
-<meta name="version" content="0.25.0">
+<meta name="version" content="0.26.0">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -1499,6 +1499,14 @@ sc.exe query MBAMService</pre>
 
     <div class="tool">
       <div class="info">
+        <h3>Microsoft Safety Scanner</h3>
+        <p>Microsoft&rsquo;s own free, on-demand malware scanner (<code>msert.exe</code>). Portable, no install; it scans only when you run it and expires 10 days after download, so grab a fresh copy each time for current definitions. Not a replacement for antivirus. The scan log lands at <code>%SYSTEMROOT%\debug\msert.log</code>. <a href="https://learn.microsoft.com/en-us/defender-endpoint/safety-scanner-download" target="_blank" rel="noopener noreferrer">Microsoft docs</a> &middot; <a href="https://go.microsoft.com/fwlink/?LinkId=212733" target="_blank" rel="noopener noreferrer">32-bit</a> &middot; <span class="host">go.microsoft.com</span></p>
+      </div>
+      <a class="dl-ext" href="https://go.microsoft.com/fwlink/?LinkId=212732" target="_blank" rel="noopener noreferrer">Download MSERT.exe (64-bit)</a>
+    </div>
+
+    <div class="tool">
+      <div class="info">
         <h3>BGInfo (Sysinternals)</h3>
         <p>Stamps machine info (hostname, IP, OS, uptime, logged-on user) onto the desktop wallpaper so a tech can read a machine&rsquo;s identity at a glance (servers and client PCs alike). Portable, no install. <a href="https://learn.microsoft.com/en-us/sysinternals/downloads/bginfo" target="_blank" rel="noopener noreferrer">Microsoft docs</a> &middot; direct 64-bit exe: <a href="https://live.sysinternals.com/Bginfo64.exe" target="_blank" rel="noopener noreferrer">live.sysinternals.com/Bginfo64.exe</a> &middot; <span class="host">download.sysinternals.com</span></p>
       </div>
@@ -1517,7 +1525,7 @@ sc.exe query MBAMService</pre>
 </main>
 
 <footer class="page">
-  <p>PC Scripts <span class="version">v0.25.0</span> &middot; Windows 10 &amp; 11.</p>
+  <p>PC Scripts <span class="version">v0.26.0</span> &middot; Windows 10 &amp; 11.</p>
 </footer>
 
 <script>
