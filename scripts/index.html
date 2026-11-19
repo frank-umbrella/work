@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PC Scripts v0.24.0</title>
+<title>PC Scripts v0.25.0</title>
 <meta name="description" content="Windows 10/11 script library: copy-paste PowerShell for startup fixes, Windows Update, disk checks and repair, hardware diagnostics, software removal, and silent deployment, plus manual steps for each.">
 <meta name="robots" content="noindex">
-<meta name="version" content="0.24.0">
+<meta name="version" content="0.25.0">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml">
 <style>
   :root {
@@ -984,6 +984,20 @@
         </div>
       </details>
     </div>
+
+    <div class="opt">
+      <h3>Quick one-liner (health at a glance)</h3>
+      <p>The short version you can type from memory. Same type and health read as the table above, plus OperationalStatus.</p>
+      <pre>Get-PhysicalDisk | Format-Table FriendlyName,MediaType,HealthStatus,OperationalStatus,Size -AutoSize</pre>
+      <div class="explain">
+        <div class="explain-title">What the two status columns mean</div>
+        <ul>
+          <li><code>HealthStatus</code>: <strong>Healthy</strong> is good. <em>Warning</em> or <em>Unhealthy</em> means the drive is reporting trouble (reallocated sectors, failing SMART), so back it up and plan a replacement.</li>
+          <li><code>OperationalStatus</code>: <strong>OK</strong> is normal. <em>Degraded</em>, <em>Error</em>, or <em>Lost Communication</em> point at a failing or dropping drive, often a loose cable or a dying disk.</li>
+          <li><code>Size</code> here is raw bytes (the curated table above shows it in GB).</li>
+        </ul>
+      </div>
+    </div>
   </section>
 
   <!-- ===================== Recent file activity ===================== -->
@@ -1503,7 +1517,7 @@ sc.exe query MBAMService</pre>
 </main>
 
 <footer class="page">
-  <p>PC Scripts <span class="version">v0.24.0</span> &middot; Windows 10 &amp; 11.</p>
+  <p>PC Scripts <span class="version">v0.25.0</span> &middot; Windows 10 &amp; 11.</p>
 </footer>
 
 <script>

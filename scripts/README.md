@@ -52,7 +52,7 @@ label.
 | Section          | Does                                                          | Admin? |
 | ---------------- | ------------------------------------------------------------- | ------ |
 | Check RAM type   | Per-stick DDR3/4/5, size, speed, part number, DIMM/SO-DIMM    | No     |
-| Check drive type | Per-disk SSD/HDD, bus, size, health + which disk Windows is on | No    |
+| Check drive type | Per-disk SSD/HDD, bus, size, health, OperationalStatus + which disk Windows is on | No    |
 | `RecentFileActivity.ps1` | Newest modified/accessed files under a folder tree + C:\ log | Rec.  |
 | Veeam backup info | Per-job Cloud Connect IDs (tenant/subtenant/backup GUIDs) from agent logs | Rec. |
 
@@ -741,6 +741,17 @@ Type = SSD/HDD; *Unspecified* is usually a USB enclosure hiding the type
 (Bus = NVMe means SSD regardless; otherwise Google the model name). Health
 anything but *Healthy* deserves a look.
 
+Quick one-liner you can type from memory (same read, plus OperationalStatus):
+
+```powershell
+Get-PhysicalDisk | Format-Table FriendlyName,MediaType,HealthStatus,OperationalStatus,Size -AutoSize
+```
+
+`HealthStatus` Healthy is good; Warning/Unhealthy means the drive is reporting
+trouble, back it up and plan a replacement. `OperationalStatus` OK is normal;
+Degraded/Error/Lost Communication point at a failing or dropping drive (often a
+loose cable or a dying disk). Size here is raw bytes.
+
 ---
 
 # 16c. Recent file activity scanner
@@ -912,6 +923,15 @@ Run on-demand scanners with administrator rights.
 ---
 
 ## Changelog
+
+### v0.25.0
+
+Added a quick one-liner to the drive-check panel:
+`Get-PhysicalDisk | Format-Table FriendlyName,MediaType,HealthStatus,OperationalStatus,Size`.
+The curated table already showed type, bus, size, and HealthStatus; this short,
+type-from-memory form also surfaces OperationalStatus (Degraded / Error / Lost
+Communication), which catches a drive that is dropping or on a loose cable, not
+just one failing its own SMART health.
 
 ### v0.24.0
 
