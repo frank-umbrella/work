@@ -298,9 +298,18 @@ service cloud.firestore {
     // check-in may write those two as well.
     // 0.7.0: also clientId and holderNote, which a check-out or check-in clears
     // on a unit that came in pulled on the inventory sheet.
+    // 0.18.0 (PLAN 34.1): printing a label stamps who printed it and when on
+    // the record. Techs print labels (Office, Labels), so a tech may write these
+    // three keys on their own, in their own name, and nothing about labelGen or
+    // a retired label. Admin and warehouse already write any field.
+    function loadoutPrintStamp() {
+      return loadoutOnly(['labelPrintedAt', 'labelPrintedBy', 'labelPrintedByName'])
+        && request.resource.data.get('labelPrintedBy', '') == request.auth.uid;
+    }
     function loadoutItemUpdate() {
       let r = loadoutRole();
       return r in ['admin', 'warehouse']
+        || (r == 'tech' && loadoutPrintStamp())
         || (r == 'tech' && loadoutOnly(['status', 'holderUid', 'holderName', 'jobId', 'jobName',
              'clientName', 'clientId', 'holderNote', 'ticketId', 'ticketNumber', 'ticketLineId', 'locationId', 'locationName',
              'checkedOutAt', 'checkedInAt', 'condition', 'updatedAt']));
@@ -315,6 +324,7 @@ service cloud.firestore {
     function loadoutContainerUpdate() {
       let r = loadoutRole();
       return (r in ['admin', 'warehouse'] && loadoutKeepsCreated())
+        || (r == 'tech' && loadoutPrintStamp())
         || (r == 'tech' && loadoutOnly(['ftLeft', 'lastMark', 'status', 'pickTicketId', 'pickTicketNumber',
              'lastReadingAt', 'lastReadingBy', 'locationId', 'locationName', 'confirmLocation',
              // 0.16.0 (PLAN 33.1 item 3): a cut stamps the box with the job it was for
@@ -323,7 +333,8 @@ service cloud.firestore {
     // a tech's cut or check-out moves the product's denormalized on-hand total
     function loadoutProductUpdate() {
       let r = loadoutRole();
-      return r in ['admin', 'warehouse'] || (r == 'tech' && loadoutOnly(['onHand', 'updatedAt']));
+      return r in ['admin', 'warehouse'] || (r == 'tech' && loadoutPrintStamp())
+        || (r == 'tech' && loadoutOnly(['onHand', 'updatedAt']));
     }
 
     // Roster. A person's first sign-in writes their own doc as tech; the
@@ -365,6 +376,11 @@ service cloud.firestore {
       allow read: if isMSPAdmin();
       allow create, delete: if loadoutWriter();
       allow update: if isMSPAdmin() && loadoutProductUpdate();
+    }
+    // 0.18.0 (PLAN 34.1): locations are written by warehouse and admin through
+    // the wildcard below; this adds only a tech's label-printed stamp.
+    match /loadout_locations/{id} {
+      allow update: if isMSPAdmin() && loadoutRole() == 'tech' && loadoutPrintStamp();
     }
     // Pick tickets (0.2.0; the screens say Job since 0.8.0, the collection
     // keeps its name). Tickets, their lines, clients, jobs, and proposals
