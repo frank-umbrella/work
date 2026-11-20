@@ -268,7 +268,10 @@ service cloud.firestore {
     // Shop inventory. Shares THIS project's login like Backup Audits and
     // Sundial. Data lives in loadout_* collections shared by everyone on
     // the domain; what differs per person is the role on
-    // /loadout_users/{uid}: admin, warehouse, tech, accounting, board.
+    // /loadout_users/{uid}: admin, manager, warehouse, tech, accounting,
+    // board. 0.19.0 (PLAN 34.2): manager writes wherever warehouse does and
+    // also approves order requests and saves settings; only an admin changes
+    // roles and the access map (Who sees what) in settings/general.
     // Accounting and board appear in no writer list, so they only read.
     // A signed-in account with no roster doc counts as tech; a paused one
     // (active == false) counts as 'none' and only reads.
@@ -287,8 +290,10 @@ service cloud.firestore {
         : (get(path).data.get('active', true) == true ? get(path).data.get('role', 'tech') : 'none');
     }
     function loadoutAdmin()  { return isMSPAdmin() && loadoutRole() == 'admin'; }
-    function loadoutWriter() { return isMSPAdmin() && loadoutRole() in ['admin', 'warehouse']; }
-    function loadoutTech()   { return isMSPAdmin() && loadoutRole() in ['admin', 'warehouse', 'tech']; }
+    // 0.19.0: admin or manager, for order approval and settings
+    function loadoutBoss()   { return isMSPAdmin() && loadoutRole() in ['admin', 'manager']; }
+    function loadoutWriter() { return isMSPAdmin() && loadoutRole() in ['admin', 'manager', 'warehouse']; }
+    function loadoutTech()   { return isMSPAdmin() && loadoutRole() in ['admin', 'manager', 'warehouse', 'tech']; }
     function loadoutOnly(keys) {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
     }
@@ -308,7 +313,7 @@ service cloud.firestore {
     }
     function loadoutItemUpdate() {
       let r = loadoutRole();
-      return r in ['admin', 'warehouse']
+      return r in ['admin', 'manager', 'warehouse']
         || (r == 'tech' && loadoutPrintStamp())
         || (r == 'tech' && loadoutOnly(['status', 'holderUid', 'holderName', 'jobId', 'jobName',
              'clientName', 'clientId', 'holderNote', 'ticketId', 'ticketNumber', 'ticketLineId', 'locationId', 'locationName',
@@ -323,7 +328,7 @@ service cloud.firestore {
     }
     function loadoutContainerUpdate() {
       let r = loadoutRole();
-      return (r in ['admin', 'warehouse'] && loadoutKeepsCreated())
+      return (r in ['admin', 'manager', 'warehouse'] && loadoutKeepsCreated())
         || (r == 'tech' && loadoutPrintStamp())
         || (r == 'tech' && loadoutOnly(['ftLeft', 'lastMark', 'status', 'pickTicketId', 'pickTicketNumber',
              'lastReadingAt', 'lastReadingBy', 'locationId', 'locationName', 'confirmLocation',
@@ -333,7 +338,7 @@ service cloud.firestore {
     // a tech's cut or check-out moves the product's denormalized on-hand total
     function loadoutProductUpdate() {
       let r = loadoutRole();
-      return r in ['admin', 'warehouse'] || (r == 'tech' && loadoutPrintStamp())
+      return r in ['admin', 'manager', 'warehouse'] || (r == 'tech' && loadoutPrintStamp())
         || (r == 'tech' && loadoutOnly(['onHand', 'updatedAt']));
     }
 
@@ -352,9 +357,11 @@ service cloud.firestore {
         && ((request.auth.uid == uid && loadoutOnly(['lastSeen', 'name'])) || loadoutAdmin());
       allow delete: if loadoutAdmin();
     }
+    // 0.19.0: a manager writes every settings doc but general, which has
+    // its own rule below (everything there except the access map).
     match /loadout_settings/{key} {
       allow read: if isMSPAdmin();
-      allow write: if loadoutAdmin();
+      allow write: if loadoutAdmin() || (key != 'general' && loadoutBoss());
     }
     // Audit trail: append-only, and each entry names its own author.
     match /loadout_movements/{id} {
@@ -477,6 +484,11 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['vendors', 'updatedAt', 'updatedBy', 'updatedByName']);
       allow update: if loadoutWriter()
         && loadoutOnly(['vendors', 'updatedAt', 'updatedBy', 'updatedByName']);
+      // 0.19.0 (PLAN 34.2): a manager saves Settings like an admin, but the
+      // access map (Who sees what) stays admin-only.
+      allow create: if loadoutBoss() && !request.resource.data.keys().hasAny(['access']);
+      allow update: if loadoutBoss()
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['access']);
     }
     // 0.13.0 (PLAN 32.3): a draft PO is an order request. An admin approves
     // it (approvedAt, approvedBy, approvedByName) or sends it back with a
@@ -488,6 +500,8 @@ service cloud.firestore {
     // carries an approval. Orders already past draft are not checked here,
     // so POs ordered before 0.13.0 keep their shipments, receiving, notes,
     // backorders, and cancel. Techs and accounting write no orders.
+    // 0.19.0 (PLAN 34.2): a manager approves and sends back like an admin
+    // (loadoutBoss).
     function loadoutSameOrNull(k) {
       return request.resource.data.get(k, null) == null
         || request.resource.data.get(k, null) == resource.data.get(k, null);
@@ -514,9 +528,9 @@ service cloud.firestore {
       allow read: if isMSPAdmin();
       allow create: if loadoutWriter()
         && request.resource.data.get('status', '') == 'draft'
-        && (loadoutRole() == 'admin' || loadoutNoApproval());
+        && (loadoutBoss() || loadoutNoApproval());
       allow update: if loadoutWriter()
-        && (loadoutRole() == 'admin' || loadoutApprovalKept())
+        && (loadoutBoss() || loadoutApprovalKept())
         && loadoutLeavesDraftApproved();
       allow delete: if loadoutWriter();
       // order lines: a non-admin's write may not leave an approved request
@@ -525,7 +539,7 @@ service cloud.firestore {
       match /lines/{lid} {
         allow read: if isMSPAdmin();
         allow write: if loadoutWriter()
-          && (loadoutRole() == 'admin'
+          && (loadoutBoss()
               || getAfter(/databases/$(database)/documents/loadout_orders/$(oid)).data.get('status', '') != 'draft'
               || getAfter(/databases/$(database)/documents/loadout_orders/$(oid)).data.get('approvedAt', null) == null);
       }
