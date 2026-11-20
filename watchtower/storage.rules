@@ -19,25 +19,28 @@ service firebase.storage {
         && request.auth.token.email_verified == true
         && request.auth.token.email.matches('.*@umbrellaautomation[.]com');
     }
-    // Admin and warehouse, read from the Loadout roster in Firestore. A
-    // missing roster doc counts as tech and a paused one (active == false)
-    // as nobody, exactly as loadoutRole() does in firestore.rules.
+    // Admin, manager, and warehouse, read from the Loadout roster in
+    // Firestore (manager uploads product photos like warehouse since Loadout
+    // 0.19.0, PLAN 34.2). A missing roster doc counts as tech and a paused
+    // one (active == false) as nobody, exactly as loadoutRole() does in
+    // firestore.rules.
     function loadoutWriter() {
       let path = /databases/(default)/documents/loadout_users/$(request.auth.uid);
       return loadoutSignedIn()
         && firestore.exists(path)
         && firestore.get(path).data.get('active', true) == true
-        && firestore.get(path).data.get('role', 'tech') in ['admin', 'warehouse'];
+        && firestore.get(path).data.get('role', 'tech') in ['admin', 'manager', 'warehouse'];
     }
-    // Admin and accounting: the two roles that see the Console, where the
-    // Backups tab lists the nightly files. Reads the roster exactly as
-    // loadoutWriter() does.
+    // Admin, manager, and accounting: the roles that see the Console, where
+    // the Backups tab lists the nightly files (manager reads backups like
+    // accounting since Loadout 0.19.0, PLAN 34.2). Reads the roster exactly
+    // as loadoutWriter() does.
     function loadoutReader() {
       let path = /databases/(default)/documents/loadout_users/$(request.auth.uid);
       return loadoutSignedIn()
         && firestore.exists(path)
         && firestore.get(path).data.get('active', true) == true
-        && firestore.get(path).data.get('role', 'tech') in ['admin', 'accounting'];
+        && firestore.get(path).data.get('role', 'tech') in ['admin', 'manager', 'accounting'];
     }
     // Product photos: loadout/products/{productId}.{jpg|jpeg|png|webp}.
     // The app shrinks a photo to 1200 px and uploads JPEG; the rule holds
@@ -52,7 +55,7 @@ service firebase.storage {
     }
     // Nightly backups (loadout-worker 0.2.0): loadout/backups/YYYY-MM-DD/
     // <collection>.csv. Every collection is in them, the roster and costs
-    // included, so only admin and accounting may read or list them. The
+    // included, so only admin, manager, and accounting may read or list them. The
     // worker writes and prunes through its service account, which skips
     // these rules, so no one writes here from the app.
     match /loadout/backups/{day}/{file} {
