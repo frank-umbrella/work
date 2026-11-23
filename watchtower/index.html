@@ -1721,6 +1721,10 @@
   .pill-ibackup    { background: #e0f2fe; border-color: #7dd3fc; color: #075985; }
   .pill-lmi        { background: #fae8ff; border-color: #d8b4fe; color: #581c87; }
   .pill-idrac      { background: #e0e7ff; border-color: #a5b4fc; color: #312e81; }
+  /* SentinelOne -- rose/pink echoes the vendor's own brand color
+     (purple-magenta) while staying visually distinct from LMI purple
+     and iDRAC indigo so the two columns don't blur together. */
+  .pill-s1         { background: #fdf2f8; border-color: #f9a8d4; color: #831843; }
 
   /* Dark mode product-pill overrides. The light variants have very
      light backgrounds (#ecfdf5, #eff6ff, etc.) which look like white
@@ -1734,6 +1738,7 @@
   html[data-theme="dark"] .pill-ibackup   { background: #08263a; border-color: #0369a1; color: #7dd3fc; }
   html[data-theme="dark"] .pill-lmi       { background: #2a1a3a; border-color: #7c3aed; color: #d8b4fe; }
   html[data-theme="dark"] .pill-idrac     { background: #1a2240; border-color: #4338ca; color: #a5b4fc; }
+  html[data-theme="dark"] .pill-s1        { background: #3b0724; border-color: #be185d; color: #fecdd3; }
 
   @media (max-width: 760px) {
     table.endpoints .col-client, table.endpoints .col-os, table.endpoints .col-intip, table.endpoints .col-products { display: none; }
@@ -2130,6 +2135,7 @@
             <option value="cFree">C: drive headroom</option>
             <option value="logmein">LogMeIn</option>
             <option value="idrac">Dell iDRAC iSM</option>
+            <option value="sentinelone">SentinelOne (EDR)</option>
             <option value="omsaState">OMSA state</option>
             <option value="agentVersion">Agent version</option>
           </select>
@@ -2553,7 +2559,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.164";
+const APP_VERSION = "0.14.165";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -2584,6 +2590,9 @@ if (_versionChip) {
 // fixes). Patch-level no-op bumps don't need entries -- only stuff a
 // human reader would want to know about.
 const CHANGELOG = [
+  { version: "0.14.165", date: "2026-11-23", changes: [
+    "Endpoints table: new 'Security' column shows a rose 'S1' pill on every host where SentinelOne is installed. Tooltip carries the version + service state so the operator can see at a glance when SentinelOne is installed but its service is STOPPED (which from an EDR-coverage standpoint is identical to not-installed -- a silent gap that was previously only visible by opening the drawer). The SentinelOne detection probe has shipped for a while; this is the pill + filter wiring that makes it actionable from the overview. Defender deliberately does NOT get a pill here -- it's baseline on every modern Windows install, so a pill-per-row would just be noise; its own ON/OFF filter already handles that cut. Also adds a 'SentinelOne (EDR)' option to the Filter by dropdown with four buckets: Installed (running), Installed (service stopped), Installed (service state unknown), Not installed -- lets you spin up a rollout-worklist for 'everyone still on Defender only' in two clicks.",
+  ]},
   { version: "0.14.164", date: "2026-10-01", changes: [
     "Agent v0.14.55: storage probe now captures drive firmware revision, manufacturer, vendor ID and product ID for every physical disk. Vendor/product IDs are parsed from the Windows PNP device path (SCSI/IDE 'VEN_'/'PROD_' strings, or USB enclosure VID_/PID_ fallbacks). Surfaces as a new 'Physical drives' sub-list in the drawer Storage section, below the volumes. Lets you spot counterfeit / relabelled drives (Model says Samsung, vendor says something else) and cross-reference against known-vulnerable firmware builds -- the Samsung 870 EVO 'SVT02B6Q' firmware-death bug is now a trivial dashboard filter instead of a per-host regedit expedition.",
     "Agent v0.14.55: Veeam probe now scrapes job identifiers from C:\\ProgramData\\Veeam\\{Endpoint,Backup}\\<folder>\\*.log. For each configured job we now capture JobId, Folder, ClientId, SubclientId and BackupId -- the UUIDs the B&R server-side console uses to identify a job. Collapsed under a 'Server identifiers' expander on each job row in the drawer Veeam section. Paste the ID into the B&R console search to jump straight to the right job, much faster than hunting by friendly name when the same job name repeats across hosts. Scanner is read-only (open-and-read first 500 KB of the most recent log per folder), bounded to 10 folders, and silently skips folders that don't match the known patterns. Local-disk-only jobs will only have a JobId (no Clients/Subclients path exists for them -- that's expected, not a bug).",
@@ -3745,6 +3754,12 @@ const FLEET_COLUMNS = [
     render: (a, ctx) => ctx.backupCell },
   { key: "remote",     label: "Remote",       default: true,  sortKey: null,            thClass: "col-products", tdClass: "col-products",
     render: (a, ctx) => ctx.remoteCell },
+  // Security: SentinelOne pill today. Separate from Defender (which has
+  // its own ON/OFF filter above) because Defender is universal baseline
+  // coverage -- a pill-per-row for it would just be noise -- while S1
+  // is the signal we actually want to scan down the column for.
+  { key: "security",   label: "Security",     default: true,  sortKey: null,            thClass: "col-products", tdClass: "col-products",
+    render: (a, ctx) => ctx.securityCell },
   // ---- hardware columns (default on; suppressed for VMs where irrelevant) ----
   { key: "diskFree",   label: "C: free",      default: true,  sortKey: "cDriveFreePct", thClass: "",             tdClass: "meta",
     render: (a) => {
@@ -4416,6 +4431,30 @@ function renderEndpoints() {
     if (r.logmein && r.logmein.installed) remotePills.push(`<span class="pill pill-lmi" title="LogMeIn">LMI</span>`);
     if (r.idrac && r.idrac.installed) remotePills.push(`<span class="pill pill-idrac" title="Dell iDRAC iSM">iDRAC</span>`);
     const remoteCell = remotePills.length ? remotePills.join(" ") : `<span class="meta">—</span>`;
+    // Security pills -- SentinelOne surfaces here so the Endpoints
+    // table shows at-a-glance which hosts are covered by our EDR vs.
+    // the ones still coasting on Defender alone. The S1 probe records
+    // version + service state, which we fold into the tooltip. We
+    // deliberately do NOT paint a Defender pill here: Defender is on
+    // by default on every modern Windows install, so a pill would just
+    // repeat on every row and dilute the Security column's signal.
+    // The Defender ON/OFF filter and the drawer Defender section are
+    // still where that detail lives.
+    const securityPills = [];
+    if (r.sentinelone && r.sentinelone.installed) {
+      const svc = r.sentinelone.serviceState;
+      // Service-state tooltip: tells the operator whether the agent is
+      // "installed AND actively running" vs. "installed but service
+      // stopped" at a glance from the row. A stopped service means the
+      // host is in Defender-only coverage despite having S1 deployed.
+      const svcLabel = svc === "running" ? "service running"
+                     : svc === "stopped" ? "service STOPPED (no EDR coverage!)"
+                     : svc ? `service ${svc}`
+                     : "service state unknown";
+      const title = `SentinelOne v${r.sentinelone.version || "?"} &middot; ${svcLabel}`;
+      securityPills.push(`<span class="pill pill-s1" title="${title}">S1</span>`);
+    }
+    const securityCell = securityPills.length ? securityPills.join(" ") : `<span class="meta">—</span>`;
     const sysRow = r.system || {};
     // Host tag -- one slot per row, fixed width, painted in front of the
     // hostname. VM (purple) wins over HYP (teal) because a host CAN be
@@ -4458,7 +4497,7 @@ function renderEndpoints() {
       const tip = "Physical bare-metal host (not a VM, not a hypervisor parent)";
       hostTag = `<span class="host-tag phy-chip" title="${tip}">PHY</span>`;
     }
-    const ctx = { st, bh, oh, os, osCellHtml, isDecom, stBadge, bhBadge, ohBadge, wuBadge, diskBadge, staleBadge, snoozeBadge, offBadge, backupCell, remoteCell, hostTag, healthPill, rollup, retiredChip };
+    const ctx = { st, bh, oh, os, osCellHtml, isDecom, stBadge, bhBadge, ohBadge, wuBadge, diskBadge, staleBadge, snoozeBadge, offBadge, backupCell, remoteCell, securityCell, hostTag, healthPill, rollup, retiredChip };
 
     const isRetired = a.lifecycle === 'retired';
     const rowClasses = [
@@ -4647,6 +4686,28 @@ const FLEET_PROP_FILTERS = {
     label: "LogMeIn",
     value: (a) => (a.report && a.report.logmein && a.report.logmein.installed) ? "Installed" : "Not installed",
     options: ["Installed", "Not installed"],
+  },
+  sentinelone: {
+    label: "SentinelOne",
+    // Four buckets: Installed + running = the healthy state; Installed +
+    // stopped = installed but service isn't actively protecting (looks
+    // identical to not-installed from an EDR coverage standpoint, worth
+    // flagging separately so the operator can restart the service);
+    // Installed (state unknown) = agent couldn't query the service;
+    // Not installed = the "needs a rollout" bucket.
+    value: (a) => {
+      const s = a.report && a.report.sentinelone;
+      if (!s || !s.installed) return "Not installed";
+      if (s.serviceState === "running") return "Installed (running)";
+      if (s.serviceState === "stopped") return "Installed (service stopped)";
+      return "Installed (service state unknown)";
+    },
+    options: [
+      "Installed (running)",
+      "Installed (service stopped)",
+      "Installed (service state unknown)",
+      "Not installed",
+    ],
   },
   idrac: {
     label: "iDRAC",
