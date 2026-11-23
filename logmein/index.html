@@ -18,7 +18,7 @@
 <meta name="twitter:title" content="Umbrella LogMeIn Installer">
 <meta name="twitter:description" content="Install the Umbrella support helper in three short steps.">
 <meta name="twitter:image" content="og-image.png">
-<meta name="version" content="1.2.0">
+<meta name="version" content="1.3.0">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Saira:wght@900&display=swap" rel="stylesheet">
@@ -297,6 +297,55 @@
   section.step p { margin: 0 0 12px; }
   section.step p:last-child { margin-bottom: 0; }
 
+  /* Alternative / backup download — subordinate to the main 3-step flow */
+  section.step.alt {
+    background: #fafbfd;
+    border-style: dashed;
+    box-shadow: none;
+  }
+  .num-alt {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--surface);
+    border: 1.5px solid var(--line-strong);
+    color: var(--ink-soft);
+    font-size: 16px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  section.step.alt .actions {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin-top: 6px;
+  }
+  .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--surface);
+    color: var(--accent);
+    font: inherit;
+    font-size: 15px;
+    font-weight: 600;
+    padding: 11px 19px;
+    border: 1.5px solid var(--accent);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background .12s ease, color .12s ease;
+  }
+  .btn-secondary:hover {
+    background: var(--accent);
+    color: #fff;
+    text-decoration: none;
+  }
+  .btn-secondary svg { flex-shrink: 0; }
+
   /* Browser tabs for "where's my download?" */
   .tabs {
     display: flex;
@@ -447,7 +496,14 @@
     header.page .actions,
     .mobile-notice,
     .hero .actions,
-    .alt-find { display: none !important; }
+    .alt-find,
+    section.step.alt .btn-secondary { display: none !important; }
+
+    /* Alt section on paper: show the URL as text instead of the button */
+    section.step.alt { background: none; border-style: dashed; }
+    section.step.alt .actions { margin-top: 0; }
+    section.step.alt .file-meta::before { content: "Download at: "; font-weight: 600; color: #000; }
+    section.step.alt .file-meta { font-family: inherit; font-size: 13px; color: #000; }
 
     /* Keep the header logo at the top of page 1 */
     header.page { border: 0; padding: 0 0 8px; }
@@ -915,10 +971,26 @@
     </div>
   </section>
 
+  <section class="step alt" aria-labelledby="alt-title">
+    <h2 id="alt-title"><span class="num-alt" aria-hidden="true">?</span>Can&rsquo;t install Umbrella&#8209;Slim?</h2>
+    <p>If the main download is blocked or the installer won&rsquo;t run, use the plain LogMeIn installer as a backup. Download it, run it, and support can join your session directly &mdash; no account setup or info file needed.</p>
+    <div class="actions">
+      <a class="btn-secondary" href="https://files.umbrellabs.com/lmi" download>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        Download plain LogMeIn
+      </a>
+      <span class="file-meta">files.umbrellabs.com/lmi</span>
+    </div>
+  </section>
+
 </main>
 
 <footer class="page">
-  <p>v1.2.0</p>
+  <p>v1.3.0</p>
 </footer>
 
 <script>
