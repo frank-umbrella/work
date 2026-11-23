@@ -611,7 +611,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION    = "0.8.0";
+const APP_VERSION    = "0.8.1";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const OWNER_EMAIL    = "frank@umbrellaautomation.com";
 
@@ -669,6 +669,8 @@ const FIELDS = [
   { k: "agentCreated",   g: "advanced", t: "status", label: "Veeam agent created" },
   { k: "agentInstalled", g: "advanced", t: "status", label: "Veeam agent installed" },
   { k: "veeamLocalUsbJob", g: "advanced", t: "status", label: "Veeam local USB backup job" },
+  { k: "veeamClientId",  g: "advanced", t: "text",   label: "Veeam ClientId", veeam: true },
+  { k: "veeamJobId",     g: "advanced", t: "text",   label: "Veeam JobId", veeam: true },
   { k: "veeamUsername",  g: "advanced", t: "text",   label: "Veeam username" },
 
   // ---- advanced: system / remote ----
@@ -1722,7 +1724,7 @@ function normForDiff(v) {
 // ---------------------------------------------------------------
 const DETAIL_GROUPS = [
   ["Summary", ["clientId", "client", "server", "priority", "auditor", "auditDate", "backupSolutions", "lastBackup", "daysSinceLocal", "driveState", "recoveryMediaCreated", "recoveryMediaTested", "errors", "notes"]],
-  ["Veeam", ["agentCreated", "agentInstalled", "veeamLocalUsbJob", "veeamUsername"]],
+  ["Veeam", ["agentCreated", "agentInstalled", "veeamLocalUsbJob", "veeamClientId", "veeamJobId", "veeamUsername"]],
   ["System / remote", ["updatesPending", "lmiLock", "logmeinName", "vmGen"]],
   ["Dell / hardware", ["openManage", "dateChecked", "idracIp", "idracLogin", "serialNumber", "driveStateOme", "systemState", "lastWindowsUpdate"]],
   ["Credentials", ["username", "password", "localDomain"]],

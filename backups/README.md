@@ -67,6 +67,12 @@ Pages. Two server-side pieces are deployed separately:
 
 ## Changelog
 
+### v0.8.1 — 2026-11-23
+Added **Veeam ClientId** and **Veeam JobId** fields (new columns in the audit
+sheet). They're available in the column chooser and the detail drawer, marked
+with the Veeam icon; not shown by default so the dashboard stays clean. Also
+re-synced the live data from the updated Google Sheet (46 servers, 23 clients).
+
 ### v0.8.0 — 2026-06-15
 - **Per-server audit history.** Each audit is its own dated record and is never
   overwritten. The detail drawer shows a **History** list of every past audit
