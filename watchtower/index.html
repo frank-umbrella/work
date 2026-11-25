@@ -2559,7 +2559,7 @@ const firebaseConfig = {
   appId:             "1:637038228926:web:e8a793889c70162f0935ef"
 };
 
-const APP_VERSION = "0.14.165";
+const APP_VERSION = "0.14.166";
 const ALLOWED_DOMAIN = "umbrellaautomation.com";
 const WORKER_URL = "https://watchtower-worker.umbrelladev.workers.dev";
 
@@ -2590,6 +2590,10 @@ if (_versionChip) {
 // fixes). Patch-level no-op bumps don't need entries -- only stuff a
 // human reader would want to know about.
 const CHANGELOG = [
+  { version: "0.14.166", date: "2026-11-25", changes: [
+    "Per-client SentinelOne install token. New field on the client doc stores the Pax8 -> SentinelOne site token entered by an admin from the Clients tab (same editor row style as the help desk URL, with Reveal / Save / Clear buttons and a type=password input by default so a glance at a screen-share doesn't leak it). The token is stored dashboard-side only -- it is NEVER included in the agent check-in payload, never sent to the worker, never reaches the host. Activity log records who set / cleared it but never the token value itself, matching the discipline we already use for install tokens.",
+    "Device drawer SentinelOne section now surfaces the install token for the device's client with Copy, Reveal and 'Edit in Clients tab' buttons. One-click copy drops the token straight on the operator's clipboard so they can paste it into the SentinelOne MSI during a rollout. Mask the value by default and offer a Reveal toggle for the shoulder-surfing case. The section ALSO renders for hosts where SentinelOne is not installed yet (when the token is set) -- the whole point is to make the install path one click away, which previously meant bouncing to the Clients tab.",
+  ]},
   { version: "0.14.165", date: "2026-11-23", changes: [
     "Endpoints table: new 'Security' column shows a rose 'S1' pill on every host where SentinelOne is installed. Tooltip carries the version + service state so the operator can see at a glance when SentinelOne is installed but its service is STOPPED (which from an EDR-coverage standpoint is identical to not-installed -- a silent gap that was previously only visible by opening the drawer). The SentinelOne detection probe has shipped for a while; this is the pill + filter wiring that makes it actionable from the overview. Defender deliberately does NOT get a pill here -- it's baseline on every modern Windows install, so a pill-per-row would just be noise; its own ON/OFF filter already handles that cut. Also adds a 'SentinelOne (EDR)' option to the Filter by dropdown with four buckets: Installed (running), Installed (service stopped), Installed (service state unknown), Not installed -- lets you spin up a rollout-worklist for 'everyone still on Defender only' in two clicks.",
   ]},
@@ -7333,10 +7337,35 @@ function renderClients() {
         </div>
       `;
 
+      // SentinelOne install token editor. Per-site token from Pax8 ->
+      // SentinelOne (Edit site -> Add-ons). Stored on the client doc
+      // so every endpoint drawer under this client can surface a
+      // Copy-token action when the operator needs to install S1. The
+      // token stays dashboard-side -- it is NEVER included in the
+      // agent's check-in payload, only read by humans in the drawer.
+      // Token values are long (often 200+ chars) base64-ish strings;
+      // we render the input as type=password by default so a casual
+      // glance at the screen during a screen-share doesn't leak it.
+      const s1TokenHtml = `
+        <div class="client-section-label">SentinelOne install token</div>
+        <div style="padding:6px 12px 14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <input type="password" data-s1-token-input="${esc(c.id)}"
+                 value="${esc(c.sentinelOneToken || '')}"
+                 placeholder="Paste the site token from Pax8 -> SentinelOne"
+                 autocomplete="off" spellcheck="false"
+                 style="flex:1;min-width:240px;padding:6px 9px;border:1px solid var(--line-strong);border-radius:6px;font-size:13px;background:var(--surface);font-family:var(--mono);">
+          <button class="btn btn-sm" data-act="togs1token" data-id="${esc(c.id)}" title="Show / hide the token value">Reveal</button>
+          <button class="btn btn-sm btn-primary" data-act="saves1token" data-id="${esc(c.id)}">Save</button>
+          ${c.sentinelOneToken ? `<button class="btn btn-sm" data-act="clears1token" data-id="${esc(c.id)}">Clear</button>` : ''}
+          <span class="meta" style="font-size:11.5px;flex-basis:100%;">When set, every endpoint drawer for a host under this client shows a one-click Copy button for the install token -- useful when an operator needs to run the SentinelOne MSI on a machine still on Defender only. The token is stored on this client doc only (never sent to the agent, never bundled into check-ins).</span>
+        </div>
+      `;
+
       rows.push(`
         <tr class="tokens-row"><td colspan="5">
           ${hostsHtml}
           ${helpDeskHtml}
+          ${s1TokenHtml}
           ${tokensHtml}
         </td></tr>
       `);
@@ -7360,7 +7389,7 @@ function renderClients() {
       renderClients();
     });
   });
-  $$("#clientsBody [data-act='gen'], #clientsBody [data-act='del'], #clientsBody [data-act='revoke'], #clientsBody [data-act='rename'], #clientsBody [data-act='savehelpdesk'], #clientsBody [data-act='clearhelpdesk']").forEach(btn => {
+  $$("#clientsBody [data-act='gen'], #clientsBody [data-act='del'], #clientsBody [data-act='revoke'], #clientsBody [data-act='rename'], #clientsBody [data-act='savehelpdesk'], #clientsBody [data-act='clearhelpdesk'], #clientsBody [data-act='saves1token'], #clientsBody [data-act='clears1token'], #clientsBody [data-act='togs1token']").forEach(btn => {
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
       const act = btn.dataset.act;
@@ -7371,18 +7400,31 @@ function renderClients() {
       else if (act === "revoke") revokeToken(btn.dataset.hash);
       else if (act === "savehelpdesk") saveHelpDeskUrl(id);
       else if (act === "clearhelpdesk") saveHelpDeskUrl(id, "");
+      else if (act === "saves1token") saveSentinelOneToken(id);
+      else if (act === "clears1token") saveSentinelOneToken(id, "");
+      else if (act === "togs1token") {
+        // Flip the paired input between password + text. Also swap
+        // the button label so the operator knows which state they're in.
+        const input = document.querySelector(`input[data-s1-token-input="${CSS.escape(id)}"]`);
+        if (input) {
+          input.type = (input.type === "password") ? "text" : "password";
+          btn.textContent = (input.type === "password") ? "Reveal" : "Hide";
+        }
+      }
     });
   });
   // Stop propagation on the URL input so clicking/typing inside doesn't
-  // collapse the client row.
-  $$("#clientsBody input[data-help-desk-input]").forEach(input => {
+  // collapse the client row. Same for the SentinelOne token input.
+  $$("#clientsBody input[data-help-desk-input], #clientsBody input[data-s1-token-input]").forEach(input => {
     input.addEventListener("click", e => e.stopPropagation());
-    // Enter = save
+    // Enter = save -- route to the right save function based on which
+    // dataset key the input carries (one selector, two input kinds).
     input.addEventListener("keydown", e => {
       if (e.key === "Enter") {
         e.preventDefault();
         e.stopPropagation();
-        saveHelpDeskUrl(input.dataset.helpDeskInput);
+        if (input.dataset.helpDeskInput) saveHelpDeskUrl(input.dataset.helpDeskInput);
+        else if (input.dataset.s1TokenInput) saveSentinelOneToken(input.dataset.s1TokenInput);
       }
     });
   });
@@ -7706,6 +7748,61 @@ async function saveHelpDeskUrl(clientId, override) {
       details: { url: value || null },
     });
     toast(value ? `Help desk URL saved for ${client.name}.` : `Help desk URL cleared for ${client.name}.`);
+  } catch (e) {
+    toast("Save failed: " + (e.message || e), true);
+  }
+}
+
+// Save the per-client SentinelOne install token. Same storage pattern
+// as saveHelpDeskUrl: merge onto the /clients/{id} doc with an updater
+// trail and activity-log entry so changes are traceable.
+//
+// The token is dashboard-side only -- it never reaches the agent and
+// never enters the check-in payload. Its sole consumer is the device
+// drawer's SentinelOne section, where an admin can Copy it to the
+// clipboard when running the MSI on a host still on Defender only.
+//
+// Activity log deliberately records the ACTION (set / cleared) but not
+// the token value. Same discipline we already use for install tokens
+// in generateToken() -- audit who did what, don't duplicate the secret
+// into the audit trail.
+async function saveSentinelOneToken(clientId, override) {
+  const client = state.clients.find(c => c.id === clientId);
+  if (!client) return;
+  let value;
+  if (typeof override === "string") {
+    value = override;
+  } else {
+    const input = document.querySelector(`input[data-s1-token-input="${CSS.escape(clientId)}"]`);
+    if (!input) return;
+    value = input.value.trim();
+  }
+  // SentinelOne site tokens are long base64-ish strings; refuse pastes
+  // that are clearly out of range. Upper bound is generous -- real
+  // tokens observed around 250-300 chars, we allow 4 KB to leave room
+  // for future token formats without breaking legitimate saves.
+  if (value && value.length > 4096) {
+    toast("Token too long (max 4096 chars).", true);
+    return;
+  }
+  try {
+    await setDoc(doc(db, "clients", clientId), {
+      sentinelOneToken: value || null,
+      sentinelOneTokenUpdatedAt: new Date().toISOString(),
+      sentinelOneTokenUpdatedBy: state.user.email,
+    }, { merge: true });
+    const idx = state.clients.findIndex(c => c.id === clientId);
+    if (idx >= 0) state.clients[idx].sentinelOneToken = value || null;
+    renderClients();
+    logActivity({
+      type: value ? "client_sentinelone_token_set" : "client_sentinelone_token_cleared",
+      target: { type: "client", id: clientId, label: client.name },
+      // Deliberately omit the token value from the activity trail;
+      // length-only fingerprint is enough to tell apart "cleared" from
+      // "replaced with a new token."
+      details: { tokenLength: value ? value.length : 0 },
+    });
+    toast(value ? `SentinelOne token saved for ${client.name}.` : `SentinelOne token cleared for ${client.name}.`);
   } catch (e) {
     toast("Save failed: " + (e.message || e), true);
   }
@@ -10644,11 +10741,47 @@ function renderDrawer(pcId) {
       ])}</div>`;
     })() : ""}
 
-    ${s1 ? `<div class="section"><h3>SentinelOne</h3>${kv([
-      ["Installed", "yes"],
-      ["Version", esc(s1.version)],
-      ["Agent service", esc(s1.serviceState)],
-    ])}</div>` : ""}
+    ${(() => {
+      // SentinelOne section. We render it whenever S1 is installed,
+      // AND whenever the client has an install token set -- so a
+      // Defender-only host whose client has had the token entered
+      // gets a Copy button right in the drawer. Operators told us
+      // this is the place they're looking at when they're about to
+      // run the MSI on a host; make the token one click away rather
+      // than making them bounce to the Clients tab.
+      const clientDoc = a.clientId ? state.clients.find(c => c.id === a.clientId) : null;
+      const token = clientDoc && clientDoc.sentinelOneToken ? clientDoc.sentinelOneToken : null;
+      if (!s1 && !token) return "";
+      // Pre-build the install-token row. We mask the value by default
+      // (shoulder-surfing + screen-share hygiene), then provide
+      // Reveal + Copy + 'Edit in Clients tab' buttons. Reveal flips
+      // a data-s1-drawer-token element between masked and real; Copy
+      // reads the real value straight off the data attribute (stored
+      // JSON-escaped once so later DOM edits don't drift). The token
+      // is read-only here -- entry stays in the Clients tab so there
+      // is one source of truth per client, not one per device.
+      const tokenRow = token ? `
+        <div style="margin-top:10px;padding:10px 12px;background:var(--surface-2);border:1px dashed var(--line);border-radius:8px;">
+          <div class="meta" style="font-size:11.5px;margin-bottom:6px;">SentinelOne install token for <b>${esc(clientDoc.name || "this client")}</b></div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <code id="s1DrawerTokenDisplay" data-s1-drawer-token-value="${esc(token)}" data-s1-revealed="0" style="flex:1;min-width:200px;padding:6px 9px;background:var(--surface);border:1px solid var(--line);border-radius:6px;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${"•".repeat(Math.min(32, token.length))}</code>
+            <button class="btn btn-sm" id="s1DrawerTokenReveal" title="Toggle masked / revealed">Reveal</button>
+            <button class="btn btn-sm btn-primary" id="s1DrawerTokenCopy" title="Copy the full token to the clipboard">Copy</button>
+            <button class="btn btn-sm" id="s1DrawerTokenEdit" title="Jump to the Clients tab and expand this client so you can edit the token">Edit</button>
+          </div>
+          ${!s1 ? `<div class="meta" style="font-size:11px;margin-top:6px;color:var(--ink-faint);">SentinelOne is not installed on this host yet. Copy the token and run the Pax8 SentinelOne installer.</div>` : ""}
+        </div>
+      ` : "";
+      // Status rows -- same three fields as before when S1 is installed.
+      const statusRows = s1
+        ? kv([
+            ["Installed", "yes"],
+            ["Version", esc(s1.version)],
+            ["Agent service", esc(s1.serviceState)],
+          ])
+        : `<div class="meta">SentinelOne is not installed on this host. Defender is the only EDR coverage.</div>`;
+      return `<div class="section"><h3>SentinelOne</h3>${statusRows}${tokenRow}</div>`;
+    })()}
 
     ${def ? `<div class="section"><h3>Defender</h3>${kv([
       ["Enabled", def.enabled ? "yes" : "no"],
@@ -11030,6 +11163,73 @@ function renderDrawer(pcId) {
       if (targetId) openDrawer(targetId);
     });
   });
+
+  // SentinelOne install-token row (drawer): Reveal / Copy / Edit.
+  // Guarded with `?.` because the row only renders when the client
+  // has a token set -- most hosts won't have any of these elements.
+  const s1TokDisp   = document.getElementById("s1DrawerTokenDisplay");
+  const s1TokReveal = document.getElementById("s1DrawerTokenReveal");
+  const s1TokCopy   = document.getElementById("s1DrawerTokenCopy");
+  const s1TokEdit   = document.getElementById("s1DrawerTokenEdit");
+  if (s1TokDisp && s1TokReveal) {
+    s1TokReveal.addEventListener("click", () => {
+      const raw = s1TokDisp.dataset.s1DrawerTokenValue || "";
+      const revealed = s1TokDisp.dataset.s1Revealed === "1";
+      if (revealed) {
+        s1TokDisp.textContent = "•".repeat(Math.min(32, raw.length));
+        s1TokDisp.dataset.s1Revealed = "0";
+        s1TokReveal.textContent = "Reveal";
+      } else {
+        s1TokDisp.textContent = raw;
+        s1TokDisp.dataset.s1Revealed = "1";
+        s1TokReveal.textContent = "Hide";
+      }
+    });
+  }
+  if (s1TokDisp && s1TokCopy) {
+    s1TokCopy.addEventListener("click", async () => {
+      const raw = s1TokDisp.dataset.s1DrawerTokenValue || "";
+      if (!raw) { toast("No token to copy.", true); return; }
+      try {
+        await navigator.clipboard.writeText(raw);
+        toast("SentinelOne install token copied to clipboard.");
+      } catch (err) {
+        // Older browsers / missing clipboard permission: fall back to
+        // selection-based copy by briefly revealing the value in a
+        // textarea. Not pretty but always works.
+        const ta = document.createElement("textarea");
+        ta.value = raw;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand("copy"); toast("Token copied (fallback path)."); }
+        catch { toast("Copy failed: " + (err.message || err), true); }
+        document.body.removeChild(ta);
+      }
+    });
+  }
+  if (s1TokEdit) {
+    s1TokEdit.addEventListener("click", () => {
+      // Close drawer, switch to Clients tab, expand this client row so
+      // the operator lands on the edit control instead of the roster view.
+      const a = state.agents.find(ag => ag.id === state.openPcId);
+      const clientId = a && a.clientId;
+      state.openPcId = null;
+      $("#drawer").classList.remove("open");
+      $("#scrim").classList.remove("show");
+      const nav = document.querySelector('[data-tab="clients"]');
+      if (nav) nav.click();
+      if (clientId) {
+        state.expandedClientId = clientId;
+        renderClients();
+        // Scroll the client row into view; querySelector handles the
+        // delay-after-render case since renderClients is synchronous.
+        const row = document.querySelector(`#clientsBody tr.client-row[data-id="${CSS.escape(clientId)}"]`);
+        if (row) row.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    });
+  }
 
   // Async warranty fetch for Dell hosts.
   if (isDellHost(sys.manufacturer) && sys.serviceTag) {
